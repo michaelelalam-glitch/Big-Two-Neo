@@ -6,11 +6,13 @@ import { useAuth } from '../contexts/AuthContext';
 import HomeScreen from '../screens/HomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import GameLobbyScreen from '../screens/GameLobbyScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   SignIn: undefined;
   Profile: undefined;
+  GameLobby: { roomCode?: string }; // Optional: undefined = create new room, provided = join existing
   // Add more screens here as we build them
 };
 
@@ -46,6 +48,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
           </>
         )}
       </Stack.Navigator>

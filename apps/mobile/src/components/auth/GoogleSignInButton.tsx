@@ -8,8 +8,22 @@ WebBrowser.maybeCompleteAuthSession();
 const GoogleSignInButton = () => {
   const extractParamsFromUrl = (url: string) => {
     const parsedUrl = new URL(url);
-    const hash = parsedUrl.hash.substring(1); // Remove the leading '#'
-    const params = new URLSearchParams(hash);
+    
+    // Try to get params from hash first (OAuth 2.0 implicit flow)
+    let params = new URLSearchParams(parsedUrl.hash.substring(1));
+    
+    // If no hash params, try query parameters (PKCE flow)
+    if (!params.has('access_token') && !params.has('code')) {
+      params = new URLSearchParams(parsedUrl.search.substring(1));
+    }
+
+    console.log('Extracted URL params:', {
+      hash: parsedUrl.hash,
+      search: parsedUrl.search,
+      access_token: params.get('access_token') ? 'present' : 'missing',
+      refresh_token: params.get('refresh_token') ? 'present' : 'missing',
+      code: params.get('code') ? 'present' : 'missing',
+    });
 
     return {
       access_token: params.get('access_token'),
@@ -28,7 +42,7 @@ const GoogleSignInButton = () => {
       const res = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'big2mobile://google-auth',
+          redirectTo: 'big2mobile://',
           queryParams: { prompt: 'consent' },
           skipBrowserRedirect: true,
         },
@@ -43,7 +57,7 @@ const GoogleSignInButton = () => {
 
       const result = await WebBrowser.openAuthSessionAsync(
         googleOAuthUrl,
-        'big2mobile://google-auth',
+        'big2mobile://',
         { showInRecents: true }
       ).catch((err) => {
         console.error('openAuthSessionAsync - error', { err });
@@ -54,6 +68,21 @@ const GoogleSignInButton = () => {
 
       if (result && result.type === 'success') {
         console.log('openAuthSessionAsync - success');
+        console.log('Redirect URL received:', result.url);
+        
+        // Check for error in the callback URL
+        const parsedUrl = new URL(result.url);
+        const errorParam = parsedUrl.searchParams.get('error') || 
+                          new URLSearchParams(parsedUrl.hash.substring(1)).get('error');
+        const errorDescription = parsedUrl.searchParams.get('error_description') ||
+                                new URLSearchParams(parsedUrl.hash.substring(1)).get('error_description');
+        
+        if (errorParam) {
+          const decodedError = decodeURIComponent(errorDescription || errorParam);
+          console.error('OAuth error:', errorParam, decodedError);
+          throw new Error(`Authentication failed: ${decodedError}`);
+        }
+        
         const params = extractParamsFromUrl(result.url);
         console.log('openAuthSessionAsync - success params', { params });
 
@@ -70,10 +99,15 @@ const GoogleSignInButton = () => {
             throw error;
           }
         } else {
-          console.error('Missing tokens in OAuth callback');
+          console.error('Missing tokens in OAuth callback', {
+            hasAccessToken: !!params.access_token,
+            hasRefreshToken: !!params.refresh_token,
+            hasCode: !!params.code,
+            url: result.url,
+          });
         }
       } else {
-        console.log('OAuth flow cancelled or failed');
+        console.log('OAuth flow cancelled or failed', { result });
       }
     } catch (error) {
       console.error('Error during Google sign in:', error);

@@ -7,7 +7,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import AppleSignInButton from '../components/auth/AppleSignInButton';
+// import AppleSignInButton from '../components/auth/AppleSignInButton'; // Temporarily disabled for Expo Go
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 
 const SignInScreen = () => {
@@ -23,11 +23,12 @@ const SignInScreen = () => {
         </View>
 
         <View style={styles.buttonsContainer}>
-          {Platform.OS === 'ios' && (
+          {/* Platform.OS === 'ios' && (
             <View style={styles.buttonWrapper}>
               <AppleSignInButton />
             </View>
-          )}
+          ) */}
+          {/* Apple Sign In temporarily disabled - Expo Go doesn't support native modules */}
 
           <View style={styles.buttonWrapper}>
             <GoogleSignInButton />

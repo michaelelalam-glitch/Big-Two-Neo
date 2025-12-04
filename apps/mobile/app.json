@@ -16,14 +16,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.big2mobile.app",
+      "buildNumber": "1.0.0",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera for video chat during games",
-        "NSMicrophoneUsageDescription": "This app uses the microphone for voice chat during games"
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice chat during games",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.big2mobile.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#25292e"
@@ -58,8 +61,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "big2-mobile-app"
+        "projectId": "e9655e19-679f-4683-924a-581c54736a73"
       }
-    }
+    },
+    "owner": "big2admin"
   }
 }

@@ -12,6 +12,20 @@ export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useAuth();
 
+  const handleCreateRoom = () => {
+    if (!user) {
+      // Redirect to sign-in if not authenticated
+      navigation.navigate('SignIn');
+      return;
+    }
+    // Navigate to GameLobby without roomCode - let it create a new room
+    navigation.navigate('GameLobby', {});
+  };
+
+  const handleSignIn = () => {
+    navigation.navigate('SignIn');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -27,6 +41,16 @@ export default function HomeScreen() {
         <Text style={styles.title}>Big2 Mobile</Text>
         <Text style={styles.subtitle}>Welcome, {user?.email || 'Player'}!</Text>
         <Text style={styles.description}>Ready to play Big2?</Text>
+        
+        {user ? (
+          <TouchableOpacity style={styles.playButton} onPress={handleCreateRoom}>
+            <Text style={styles.playButtonText}>🎮 Create Room</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+            <Text style={styles.signInButtonText}>🔐 Sign In to Play</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -73,6 +97,35 @@ const styles = StyleSheet.create({
   description: {
     fontSize: FONT_SIZES.md,
     color: COLORS.gray.light,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  playButton: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: SPACING.lg,
+    minWidth: 200,
+  },
+  playButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  signInButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: SPACING.lg,
+    minWidth: 200,
+  },
+  signInButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
 });

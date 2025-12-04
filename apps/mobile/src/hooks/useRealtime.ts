@@ -195,11 +195,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    * Create a new game room
    */
   const createRoom = useCallback(async (): Promise<Room> => {
+    console.log('[useRealtime] createRoom started for user:', userId);
     setLoading(true);
     setError(null);
     
     try {
       const code = generateRoomCode();
+      console.log('[useRealtime] Generated room code:', code);
       
       // Create room in database
       const { data: newRoom, error: roomError } = await supabase
@@ -213,9 +215,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .select()
         .single();
       
-      if (roomError) throw roomError;
+      if (roomError) {
+        console.error('[useRealtime] Room creation error:', roomError);
+        throw roomError;
+      }
+      console.log('[useRealtime] Room created:', newRoom);
       
-      // Create player record
+      // Create player record (with both mobile and web app columns for compatibility)
       const { error: playerError } = await supabase
         .from('players')
         .insert({
@@ -226,25 +232,36 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           is_host: true,
           is_ready: false,
           connected: true,
+          // Legacy columns for web app compatibility
+          player_name: username,
+          player_index: 0,
         });
       
-      if (playerError) throw playerError;
+      if (playerError) {
+        console.error('[useRealtime] Player creation error:', playerError);
+        throw playerError;
+      }
+      console.log('[useRealtime] Player created for room:', newRoom.id);
       
       setRoom(newRoom);
       
       // Join the realtime channel
+      console.log('[useRealtime] Joining channel for room:', newRoom.id);
       await joinChannel(newRoom.id);
+      console.log('[useRealtime] Channel joined successfully');
       
       return newRoom;
     } catch (err) {
       const error = err as Error;
+      console.error('[useRealtime] createRoom failed:', error);
       setError(error);
       onError?.(error);
       throw error;
     } finally {
+      console.log('[useRealtime] createRoom finished, setting loading=false');
       setLoading(false);
     }
-  }, [userId, username, onError]);
+  }, [userId, username, onError, joinChannel]);
   
   /**
    * Join an existing room by code
@@ -285,7 +302,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       let position = 0;
       while (takenPositions.has(position) && position < 4) position++;
       
-      // Create player record
+      // Create player record (with both mobile and web app columns for compatibility)
       const { error: playerError } = await supabase
         .from('players')
         .insert({
@@ -296,6 +313,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           is_host: false,
           is_ready: false,
           connected: true,
+          // Legacy columns for web app compatibility
+          player_name: username,
+          player_index: position,
         });
       
       if (playerError) throw playerError;
@@ -550,13 +570,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    * Join a realtime channel for the room
    */
   const joinChannel = useCallback(async (roomId: string): Promise<void> => {
+    console.log('[useRealtime] joinChannel called for room:', roomId);
     // Remove existing channel
     if (channelRef.current) {
+      console.log('[useRealtime] Removing existing channel');
       await channelRef.current.unsubscribe();
       await supabase.removeChannel(channelRef.current);
     }
     
     // Create new channel with presence
+    console.log('[useRealtime] Creating new channel for room:', roomId);
     const channel = supabase.channel(`room:${roomId}`, {
       config: {
         presence: {
@@ -569,13 +592,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     channel
       .on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState<PlayerPresence>();
-        console.log('Presence sync:', presenceState);
+        console.log('[useRealtime] Presence sync:', presenceState);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('Player joined presence:', key, newPresences);
+        console.log('[useRealtime] Player joined presence:', key, newPresences);
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('Player left presence:', key, leftPresences);
+        console.log('[useRealtime] Player left presence:', key, leftPresences);
       });
     
     // Subscribe to broadcast events
@@ -624,29 +647,45 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
     
     // Subscribe and track presence
+    console.log('[useRealtime] Subscribing to channel...');
     channel.subscribe(async (status) => {
+      console.log('[useRealtime] Channel status:', status);
       if (status === 'SUBSCRIBED') {
+        console.log('[useRealtime] Channel SUBSCRIBED successfully');
         setIsConnected(true);
         
-        // Track presence
-        await channel.track({
-          user_id: userId,
-          username,
-          online_at: new Date().toISOString(),
-        });
-        
-        // Load initial data
-        await fetchPlayers(roomId);
-        await fetchGameState(roomId);
+        try {
+          // Track presence
+          console.log('[useRealtime] Tracking presence for user:', userId);
+          await channel.track({
+            user_id: userId,
+            username,
+            online_at: new Date().toISOString(),
+          });
+          
+          // Load initial data
+          console.log('[useRealtime] Fetching players for room:', roomId);
+          await fetchPlayers(roomId);
+          console.log('[useRealtime] Fetching game state for room:', roomId);
+          await fetchGameState(roomId);
+          console.log('[useRealtime] Initial data loaded successfully');
+        } catch (err) {
+          console.error('[useRealtime] Error during channel setup:', err);
+          setError(err as Error);
+        }
       } else if (status === 'CLOSED') {
+        console.log('[useRealtime] Channel CLOSED');
         setIsConnected(false);
         onDisconnect?.();
         reconnect();
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[useRealtime] Channel ERROR');
+        setError(new Error('Failed to connect to realtime channel'));
       }
     });
     
     channelRef.current = channel;
-  }, [userId, username, onDisconnect, reconnect]);
+  }, [userId, username, onDisconnect, reconnect, fetchPlayers, fetchGameState]);
   
   /**
    * Fetch all players in the room
@@ -696,6 +735,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     isConnected,
     isHost,
     currentPlayer,
+    channel: channelRef.current,
     createRoom,
     joinRoom,
     leaveRoom,

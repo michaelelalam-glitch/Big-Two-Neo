@@ -2,6 +2,8 @@
  * Type definitions for multiplayer game state and real-time synchronization
  */
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
 export interface Room {
   id: string;
   code: string;
@@ -129,6 +131,7 @@ export interface UseRealtimeReturn {
   isConnected: boolean;
   isHost: boolean;
   currentPlayer: Player | null;
+  channel: RealtimeChannel | null;
   
   // Room management
   createRoom: () => Promise<Room>;
