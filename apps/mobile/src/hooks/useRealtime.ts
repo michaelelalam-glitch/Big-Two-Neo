@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { RealtimeChannel, RealtimePresenceState } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import {
   Room,
@@ -326,8 +326,26 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
-      // TODO: Validate cards and combo type using game logic
-      const comboType = 'single'; // Placeholder
+      // Determine combo type based on card count
+      let comboType: string;
+      switch (cards.length) {
+        case 1:
+          comboType = 'single';
+          break;
+        case 2:
+          comboType = 'pair';
+          break;
+        case 3:
+          comboType = 'triple';
+          break;
+        case 5:
+          // Could be straight, flush, full_house, four_of_a_kind, or straight_flush
+          // For now, we'll classify as 'straight' and refine in future iterations
+          comboType = 'straight';
+          break;
+        default:
+          throw new Error('Invalid card combination');
+      }
       
       // Update game state
       const { error: updateError } = await supabase

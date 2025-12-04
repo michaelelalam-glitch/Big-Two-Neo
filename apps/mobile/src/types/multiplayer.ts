@@ -46,7 +46,7 @@ export interface LastPlay {
 
 export interface Card {
   suit: 'clubs' | 'diamonds' | 'hearts' | 'spades';
-  rank: string;
+  rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
 }
 
 export type ComboType = 
@@ -66,12 +66,20 @@ export interface PlayerHand {
   card_count: number;
 }
 
+export type GameActionPayload =
+  | { action: 'join'; username: string; position: number }
+  | { action: 'leave' }
+  | { action: 'ready'; is_ready: boolean }
+  | { action: 'play'; cards: Card[]; combo_type: ComboType }
+  | { action: 'pass' }
+  | { action: 'start_game' };
+
 export interface GameAction {
   id: string;
   room_id: string;
   player_id: string;
   action_type: 'join' | 'leave' | 'ready' | 'play' | 'pass' | 'start_game';
-  payload: any;
+  payload: GameActionPayload;
   timestamp: string;
 }
 
@@ -95,9 +103,20 @@ export type BroadcastEvent =
   | 'game_ended'
   | 'reconnected';
 
+export type BroadcastData =
+  | { event: 'player_joined'; user_id: string; username: string; position: number }
+  | { event: 'player_left'; user_id: string; position: number }
+  | { event: 'player_ready'; user_id: string; ready: boolean }
+  | { event: 'game_started'; game_state: GameState }
+  | { event: 'turn_changed'; position: number; timer: number }
+  | { event: 'cards_played'; position: number; cards: Card[]; combo_type: ComboType }
+  | { event: 'player_passed'; position: number }
+  | { event: 'game_ended'; winner_position: number }
+  | { event: 'reconnected'; user_id: string };
+
 export interface BroadcastPayload {
   event: BroadcastEvent;
-  data: any;
+  data: BroadcastData;
   timestamp: string;
 }
 

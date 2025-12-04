@@ -3,7 +3,6 @@
  */
 
 import {
-  sortHand,
   classifyCards,
   canBeatPlay,
   findRecommendedPlay,
