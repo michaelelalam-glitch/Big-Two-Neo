@@ -383,9 +383,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           comboType = 'single';
           break;
         case 2:
+          // Validate that both cards have the same rank
+          if (cards[0].rank !== cards[1].rank) {
+            throw new Error('Invalid pair: cards must have matching ranks');
+          }
           comboType = 'pair';
           break;
         case 3:
+          // Validate that all three cards have the same rank
+          if (cards[0].rank !== cards[1].rank || cards[0].rank !== cards[2].rank) {
+            throw new Error('Invalid triple: all cards must have matching ranks');
+          }
           comboType = 'triple';
           break;
         case 5:

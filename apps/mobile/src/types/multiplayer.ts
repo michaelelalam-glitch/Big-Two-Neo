@@ -104,15 +104,15 @@ export type BroadcastEvent =
   | 'reconnected';
 
 export type BroadcastData =
-  | { event: 'player_joined'; user_id: string; username: string; position: number }
-  | { event: 'player_left'; user_id: string; position: number }
-  | { event: 'player_ready'; user_id: string; ready: boolean }
-  | { event: 'game_started'; game_state: GameState }
-  | { event: 'turn_changed'; position: number; timer: number }
-  | { event: 'cards_played'; position: number; cards: Card[]; combo_type: ComboType }
-  | { event: 'player_passed'; position: number }
-  | { event: 'game_ended'; winner_position: number }
-  | { event: 'reconnected'; user_id: string };
+  | { user_id: string; username: string; position: number }  // player_joined
+  | { user_id: string; position: number }  // player_left
+  | { user_id: string; ready: boolean }  // player_ready
+  | { game_state: GameState }  // game_started
+  | { position: number; timer: number }  // turn_changed
+  | { position: number; cards: Card[]; combo_type: ComboType }  // cards_played
+  | { position: number }  // player_passed
+  | { winner_position: number }  // game_ended
+  | { user_id: string };  // reconnected
 
 export interface BroadcastPayload {
   event: BroadcastEvent;
