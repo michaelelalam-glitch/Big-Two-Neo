@@ -258,7 +258,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       console.log('[useRealtime] createRoom finished, setting loading=false');
       setLoading(false);
     }
-  }, [userId, username, onError, joinChannel]);
+  }, [userId, username, onError]);
   
   /**
    * Join an existing room by code
@@ -329,7 +329,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } finally {
       setLoading(false);
     }
-  }, [userId, username, onError, broadcastMessage]);
+  }, [userId, username, onError]);
   
   /**
    * Leave the current room
@@ -682,7 +682,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-  }, [userId, username, onDisconnect, reconnect, fetchPlayers, fetchGameState]);
+  }, [userId, username, onDisconnect, reconnect]);
   
   /**
    * Fetch all players in the room

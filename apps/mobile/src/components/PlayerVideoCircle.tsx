@@ -16,6 +16,25 @@ import { RTCView } from 'react-native-webrtc';
 import { MediaStream } from 'react-native-webrtc';
 import { PeerConnection } from '../types/webrtc';
 
+/**
+ * Helper function to get player initials from username
+ * Moved outside component to avoid recreation on every render
+ */
+function getInitials(username: string): string {
+  const trimmed = username.trim();
+  if (!trimmed) {
+    return '?';
+  }
+  const names = trimmed.split(' ').filter(Boolean);
+  if (names.length >= 2) {
+    const firstInitial = names[0][0] || '';
+    const lastInitial = names[names.length - 1][0] || '';
+    return (firstInitial + lastInitial) || '?';
+  }
+  // Single word: take up to first two characters, or '?' if empty
+  return trimmed.slice(0, 2) || '?';
+}
+
 export interface PlayerVideoCircleProps {
   // Player info
   userId: string;
@@ -57,22 +76,6 @@ export function PlayerVideoCircle({
   const shouldShowVideo = stream && (isCurrentUser ? isCameraEnabled : peerConnection?.isVideoEnabled);
   const connectionState = peerConnection?.state;
 
-  // Get player initials for fallback
-  const getInitials = () => {
-    const trimmed = username.trim();
-    if (!trimmed) {
-      return '?';
-    }
-    const names = trimmed.split(' ').filter(Boolean);
-    if (names.length >= 2) {
-      const firstInitial = names[0][0] || '';
-      const lastInitial = names[names.length - 1][0] || '';
-      return (firstInitial + lastInitial) || '?';
-    }
-    // Single word: take up to first two characters, or '?' if empty
-    return trimmed.slice(0, 2) || '?';
-  };
-
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
       {/* Video or placeholder */}
@@ -88,7 +91,7 @@ export function PlayerVideoCircle({
         ) : (
           <View style={[styles.placeholder, { borderRadius: size / 2 }]}>
             <Text style={[styles.initials, { fontSize: size * 0.3 }]}>
-              {getInitials().toUpperCase()}
+              {getInitials(username).toUpperCase()}
             </Text>
           </View>
         )}

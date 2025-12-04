@@ -103,6 +103,7 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to access camera/microphone';
       console.error('[WebRTC] Media initialization failed:', errorMessage);
       setError(errorMessage);
+    } finally {
       isInitializingRef.current = false;
     }
   }, [isInitialized, enabled]);
