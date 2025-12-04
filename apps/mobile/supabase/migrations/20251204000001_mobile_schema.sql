@@ -59,9 +59,16 @@ CREATE TABLE IF NOT EXISTS rooms (
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 
 -- Policies for rooms
-CREATE POLICY "Rooms are viewable by everyone"
+CREATE POLICY "Rooms are viewable by host and participants"
   ON rooms FOR SELECT
-  USING (true);
+  USING (
+    EXISTS (
+      SELECT 1 FROM players
+      WHERE players.room_id = rooms.id
+        AND players.user_id = auth.uid()
+    )
+    OR rooms.host_id = auth.uid()
+  );
 
 CREATE POLICY "Authenticated users can create rooms"
   ON rooms FOR INSERT
@@ -170,15 +177,14 @@ CREATE POLICY "Host can create game state"
     )
   );
 
-CREATE POLICY "Players in room can update game state"
+-- Direct updates are restricted to prevent tampering
+-- Game state mutations should be performed via SECURITY DEFINER functions
+-- that enforce game rules and validate transitions
+CREATE POLICY "Restrict direct game state updates"
   ON game_state FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM players 
-      WHERE players.room_id = game_state.room_id 
-      AND players.user_id = auth.uid()
-    )
-  );
+  TO authenticated
+  USING (false)
+  WITH CHECK (false);
 
 -- Indexes for game_state
 CREATE INDEX IF NOT EXISTS idx_game_state_room ON game_state(room_id);

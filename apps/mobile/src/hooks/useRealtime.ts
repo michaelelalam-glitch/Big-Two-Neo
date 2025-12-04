@@ -232,9 +232,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           is_host: true,
           is_ready: false,
           connected: true,
-          // Legacy columns for web app compatibility
-          player_name: username,
-          player_index: 0,
         });
       
       if (playerError) {
@@ -261,7 +258,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       console.log('[useRealtime] createRoom finished, setting loading=false');
       setLoading(false);
     }
-  }, [userId, username, onError, joinChannel]);
+  }, [userId, username, onError]);
   
   /**
    * Join an existing room by code
@@ -313,9 +310,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           is_host: false,
           is_ready: false,
           connected: true,
-          // Legacy columns for web app compatibility
-          player_name: username,
-          player_index: position,
         });
       
       if (playerError) throw playerError;
@@ -685,7 +679,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-  }, [userId, username, onDisconnect, reconnect, fetchPlayers, fetchGameState]);
+  }, [userId, username, onDisconnect, reconnect]);
   
   /**
    * Fetch all players in the room

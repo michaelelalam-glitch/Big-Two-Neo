@@ -20,11 +20,8 @@ import {
   Text,
   Dimensions,
 } from 'react-native';
-import { RTCView } from 'react-native-webrtc';
+import { RTCView, MediaStream } from 'react-native-webrtc';
 import { PeerConnection } from '../types/webrtc';
-import { MediaStream } from 'react-native-webrtc';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface VideoChatProps {
   localStream: MediaStream | null;

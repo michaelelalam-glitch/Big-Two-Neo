@@ -14,7 +14,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RTCPeerConnection,
   RTCIceCandidate,
-  RTCSessionDescription,
   mediaDevices,
   MediaStream,
 } from 'react-native-webrtc';
@@ -37,7 +36,7 @@ interface UseWebRTCOptions {
 }
 
 export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
-  const { userId, roomId, channel, players, enabled = false } = options;
+  const { userId, channel, players, enabled = false } = options;
 
   // State
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -161,6 +160,9 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
         };
 
         // Store peer connection
+        // TODO: Implement signaling mechanism to broadcast camera/mic state changes
+        // so peers can update their local representation of remote peer states.
+        // Currently, remote peers are always shown as unmuted with video enabled.
         const peerConnection: PeerConnection = {
           userId: targetUserId,
           username,

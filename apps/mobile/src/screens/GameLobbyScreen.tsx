@@ -55,7 +55,6 @@ export default function GameLobbyScreen() {
     room,
     players,
     isHost,
-    currentPlayer,
     channel,
     createRoom,
     joinRoom,
@@ -102,7 +101,7 @@ export default function GameLobbyScreen() {
     if (user?.id && !hasInitializedRef.current) {
       initializeRoom();
     }
-  }, [user?.id, roomCode]);
+  }, [user?.id, roomCode, createRoom, joinRoom]);
 
   // WebRTC video chat - only enable when room is ready
   const webrtc = useWebRTC({
@@ -203,7 +202,7 @@ export default function GameLobbyScreen() {
                     position={player.position}
                     isCurrentUser={player.user_id === user?.id}
                     localStream={webrtc.localStream}
-                    peerConnection={webrtc.peerConnections.get(player.user_id)}
+                    peerConnection={player.user_id === user?.id ? undefined : webrtc.peerConnections.get(player.user_id)}
                     isCameraEnabled={webrtc.isCameraEnabled}
                     isMicEnabled={webrtc.isMicEnabled}
                     size={100}
