@@ -37,7 +37,24 @@ interface UseRealtimeOptions {
 export type { UseRealtimeOptions };
 
 /**
- * Helper function to determine 5-card combo type
+ * Determines the type of 5-card combination in Big Two (e.g., straight, flush, full house, four of a kind, straight flush).
+ *
+ * @param {Card[]} cards - An array of exactly 5 Card objects. Each card should have a `rank` and `suit` property.
+ * @returns {ComboType} The type of 5-card combo: 'straight', 'flush', 'full_house', 'four_of_a_kind', or 'straight_flush'.
+ * @throws {Error} If the input array does not contain exactly 5 cards, or if the cards do not form a valid 5-card combination.
+ *
+ * Logic:
+ * - Sorts cards by rank value.
+ * - Checks for flush (all cards of the same suit).
+ * - Checks for straight (consecutive ranks following Big Two rules).
+ * - Counts rank frequencies to identify four of a kind and full house.
+ * - Returns the appropriate ComboType based on Big Two rules:
+ *   - 'straight_flush': both straight and flush.
+ *   - 'four_of_a_kind': four cards of the same rank.
+ *   - 'full_house': three cards of one rank and two of another.
+ *   - 'flush': all cards of the same suit.
+ *   - 'straight': five consecutive ranks.
+ *   - Throws error if none of the above.
  */
 function determine5CardCombo(cards: Card[]): ComboType {
   if (cards.length !== 5) {
@@ -55,11 +72,28 @@ function determine5CardCombo(cards: Card[]): ComboType {
   // Check for flush (all same suit)
   const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
   
-  // Check for straight (consecutive ranks)
-  const isStraight = sortedCards.every((card, idx) => {
-    if (idx === 0) return true;
-    return rankValues[card.rank] === rankValues[sortedCards[idx - 1].rank] + 1;
-  });
+  // All valid Big Two straight sequences (sorted by rank value)
+  const VALID_STRAIGHT_SEQUENCES: string[][] = [
+    ['3', '4', '5', '6', '7'],
+    ['4', '5', '6', '7', '8'],
+    ['5', '6', '7', '8', '9'],
+    ['6', '7', '8', '9', '10'],
+    ['7', '8', '9', '10', 'J'],
+    ['8', '9', '10', 'J', 'Q'],
+    ['9', '10', 'J', 'Q', 'K'],
+    ['10', 'J', 'Q', 'K', 'A'],
+    ['J', 'Q', 'K', 'A', '2'],
+    ['Q', 'K', 'A', '2', '3'],
+    ['K', 'A', '2', '3', '4'],
+    ['A', '2', '3', '4', '5'],
+    ['2', '3', '4', '5', '6'],
+  ];
+  
+  // Check for straight (Big Two rules)
+  const handRanks = sortedCards.map(card => card.rank);
+  const isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
+    seq.every((rank, idx) => rank === handRanks[idx])
+  );
   
   // Count rank frequencies
   const rankCounts = sortedCards.reduce((acc, card) => {
@@ -376,6 +410,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
+      // Validate cards array is not empty
+      if (cards.length === 0) {
+        throw new Error('Cannot play an empty hand');
+      }
+      
       // Determine combo type based on card count
       let comboType: ComboType;
       switch (cards.length) {
