@@ -177,7 +177,6 @@ describe('Game State Manager - Play Cards', () => {
     const currentPlayer = state.players[state.currentPlayerIndex];
 
     // Artificially reduce hand to 1 card for testing
-    const allCardIds = currentPlayer.hand.map(c => c.id);
     currentPlayer.hand = [currentPlayer.hand.find(c => c.id === '3D')!];
 
     const result = await manager.playCards(['3D']);

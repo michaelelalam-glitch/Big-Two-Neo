@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { RealtimeChannel, RealtimePresenceState } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import {
   Room,
@@ -19,6 +19,7 @@ import {
   GameState,
   PlayerHand,
   Card,
+  ComboType,
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
@@ -34,6 +35,109 @@ interface UseRealtimeOptions {
 }
 
 export type { UseRealtimeOptions };
+
+/**
+ * Determines the type of 5-card combination in Big Two (e.g., straight, flush, full house, four of a kind, straight flush).
+ *
+ * @param {Card[]} cards - An array of exactly 5 Card objects. Each card should have a `rank` and `suit` property.
+ * @returns {ComboType} The type of 5-card combo: 'straight', 'flush', 'full_house', 'four_of_a_kind', or 'straight_flush'.
+ * @throws {Error} If the input array does not contain exactly 5 cards, or if the cards do not form a valid 5-card combination.
+ *
+ * Logic:
+ * - Sorts cards by rank value.
+ * - Checks for flush (all cards of the same suit).
+ * - Checks for straight (consecutive ranks following Big Two rules).
+ * - Counts rank frequencies to identify four of a kind and full house.
+ * - Returns the appropriate ComboType based on Big Two rules:
+ *   - 'straight_flush': both straight and flush.
+ *   - 'four_of_a_kind': four cards of the same rank.
+ *   - 'full_house': three cards of one rank and two of another.
+ *   - 'flush': all cards of the same suit.
+ *   - 'straight': five consecutive ranks.
+ *   - Throws error if none of the above.
+ */
+function determine5CardCombo(cards: Card[]): ComboType {
+  if (cards.length !== 5) {
+    throw new Error('determine5CardCombo expects exactly 5 cards');
+  }
+
+  // Sort cards by rank value for easier analysis
+  const rankValues: Record<string, number> = {
+    '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+    'J': 11, 'Q': 12, 'K': 13, 'A': 14, '2': 15
+  };
+  
+  const sortedCards = [...cards].sort((a, b) => rankValues[a.rank] - rankValues[b.rank]);
+  
+  // Check for flush (all same suit)
+  const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
+  
+  // All valid Big Two straight sequences
+  // Note: A-2-3-4-5 and 2-3-4-5-6 are valid wraparounds (A or 2 acting as low card)
+  // But sequences like J-Q-K-A-2, Q-K-A-2-3, K-A-2-3-4 are INVALID (2 cannot be high in a straight)
+  const VALID_STRAIGHT_SEQUENCES: string[][] = [
+    ['3', '4', '5', '6', '7'],
+    ['4', '5', '6', '7', '8'],
+    ['5', '6', '7', '8', '9'],
+    ['6', '7', '8', '9', '10'],
+    ['7', '8', '9', '10', 'J'],
+    ['8', '9', '10', 'J', 'Q'],
+    ['9', '10', 'J', 'Q', 'K'],
+    ['10', 'J', 'Q', 'K', 'A'],
+    ['A', '2', '3', '4', '5'],  // Wraparound: Ace acts as low
+    ['2', '3', '4', '5', '6'],  // Wraparound: 2 acts as low
+  ];
+  
+  // Check for straight (Big Two rules)
+  // For wraparound sequences (A-2-3-4-5 and 2-3-4-5-6), sorting breaks the pattern
+  // So we need to check against both sorted and original rank orders
+  const handRanks = sortedCards.map(card => card.rank);
+  const originalHandRanks = cards.map(card => card.rank);
+  
+  let isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
+    seq.every((rank, idx) => rank === handRanks[idx])
+  );
+  
+  // Explicitly check for wraparound straights in original order
+  // These patterns won't match after sorting due to high rank values of A and 2
+  if (!isStraight) {
+    // Check A-2-3-4-5 pattern
+    const a2345Pattern: string[] = ['A', '2', '3', '4', '5'];
+    // Check 2-3-4-5-6 pattern  
+    const t23456Pattern: string[] = ['2', '3', '4', '5', '6'];
+    
+    // Create a set of original ranks for order-independent matching
+    const rankSet = new Set<string>(originalHandRanks);
+    
+    if (a2345Pattern.every(rank => rankSet.has(rank)) ||
+        t23456Pattern.every(rank => rankSet.has(rank))) {
+      isStraight = true;
+    }
+  }
+  
+  // Count rank frequencies
+  const rankCounts = sortedCards.reduce((acc, card) => {
+    acc[card.rank] = (acc[card.rank] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const counts = Object.values(rankCounts).sort((a, b) => b - a);
+  
+  // Determine combo type
+  if (isFlush && isStraight) {
+    return 'straight_flush';
+  } else if (counts[0] === 4) {
+    return 'four_of_a_kind';
+  } else if (counts[0] === 3 && counts[1] === 2) {
+    return 'full_house';
+  } else if (isFlush) {
+    return 'flush';
+  } else if (isStraight) {
+    return 'straight';
+  } else {
+    throw new Error('Invalid 5-card combination');
+  }
+}
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const { userId, username, onError, onDisconnect, onReconnect } = options;
@@ -326,8 +430,38 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
-      // TODO: Validate cards and combo type using game logic
-      const comboType = 'single'; // Placeholder
+      // Validate cards array is not empty
+      if (cards.length === 0) {
+        throw new Error('Cannot play an empty hand');
+      }
+      
+      // Determine combo type based on card count
+      let comboType: ComboType;
+      switch (cards.length) {
+        case 1:
+          comboType = 'single';
+          break;
+        case 2:
+          // Validate that both cards have the same rank
+          if (cards[0].rank !== cards[1].rank) {
+            throw new Error('Invalid pair: cards must have matching ranks');
+          }
+          comboType = 'pair';
+          break;
+        case 3:
+          // Validate that all three cards have the same rank
+          if (cards[0].rank !== cards[1].rank || cards[0].rank !== cards[2].rank) {
+            throw new Error('Invalid triple: all cards must have matching ranks');
+          }
+          comboType = 'triple';
+          break;
+        case 5:
+          // Determine 5-card combo type by checking card properties
+          comboType = determine5CardCombo(cards);
+          break;
+        default:
+          throw new Error('Invalid card combination');
+      }
       
       // Update game state
       const { error: updateError } = await supabase
