@@ -370,7 +370,11 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
     try {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
-        // @ts-ignore - _switchCamera exists but not in types
+        // @ts-ignore
+        // The _switchCamera() method is not part of the official TypeScript definitions for MediaStreamTrack,
+        // but is provided by react-native-webrtc on mobile platforms to switch between front and back cameras.
+        // We use @ts-ignore here because there is no type information, but this is the recommended way to switch cameras.
+        // Expected behavior: toggles the active camera (front <-> back) on supported devices.
         await videoTrack._switchCamera();
         setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
         console.log('[WebRTC] Camera switched');

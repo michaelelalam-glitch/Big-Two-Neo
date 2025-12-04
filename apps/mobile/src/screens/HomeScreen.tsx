@@ -19,7 +19,7 @@ export default function HomeScreen() {
       return;
     }
     // Navigate to GameLobby without roomCode - let it create a new room
-    navigation.navigate('GameLobby', {});
+    navigation.navigate('GameLobby', { roomCode: undefined });
   };
 
   const handleSignIn = () => {

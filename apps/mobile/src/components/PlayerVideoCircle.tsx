@@ -23,16 +23,17 @@ import { PeerConnection } from '../types/webrtc';
 function getInitials(username: string): string {
   const trimmed = username.trim();
   if (!trimmed) {
-    return '?';
+    return '??';
   }
   const names = trimmed.split(' ').filter(Boolean);
+  let initials = '';
   if (names.length >= 2) {
-    const firstInitial = names[0][0] || '';
-    const lastInitial = names[names.length - 1][0] || '';
-    return (firstInitial + lastInitial) || '?';
+    initials = (names[0][0] || '') + (names[names.length - 1][0] || '');
+  } else {
+    initials = trimmed.slice(0, 2);
   }
-  // Single word: take up to first two characters, or '?' if empty
-  return trimmed.slice(0, 2) || '?';
+  // Pad with '?' if less than 2 characters and ensure uppercase
+  return initials.padEnd(2, '?').toUpperCase();
 }
 
 export interface PlayerVideoCircleProps {

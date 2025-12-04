@@ -171,11 +171,6 @@ export default function GameLobbyScreen() {
     );
   }
 
-  // Guard: room must exist beyond this point
-  if (!room) {
-    return null;
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>

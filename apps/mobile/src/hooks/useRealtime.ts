@@ -272,11 +272,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const { data: existingRoom, error: roomError } = await supabase
         .rpc('lookup_room_by_code', { room_code: code.toUpperCase() });
       
-      if (roomError || !existingRoom || existingRoom.length === 0) {
-        throw new Error('Room not found or already started');
+      // Robustly handle possible formats of existingRoom
+      if (roomError || existingRoom == null) {
+        throw new Error('Room not found, already in progress, or finished');
       }
       
-      const room = Array.isArray(existingRoom) ? existingRoom[0] : existingRoom;
+      // Extract room from response (handle both array and object formats)
+      const room: Room = Array.isArray(existingRoom)
+        ? (existingRoom.length > 0 ? existingRoom[0] as Room : (() => { throw new Error('Room not found, already in progress, or finished'); })())
+        : (existingRoom && typeof existingRoom === 'object' && existingRoom.id ? existingRoom as Room : (() => { throw new Error('Room not found, already in progress, or finished'); })());
       
       // Check player count
       const { count } = await supabase
@@ -667,14 +671,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           console.error('[useRealtime] Error during channel setup:', err);
           setError(err as Error);
         }
-      } else if (status === 'CLOSED') {
-        console.log('[useRealtime] Channel CLOSED');
-        setIsConnected(false);
-        onDisconnect?.();
-        reconnect();
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('[useRealtime] Channel ERROR');
-        setError(new Error('Failed to connect to realtime channel'));
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[useRealtime] Channel ERROR');
+          setError(new Error('Failed to connect to realtime channel'));
+        } else {
+          console.log('[useRealtime] Channel CLOSED');
+        }
         setIsConnected(false);
         onDisconnect?.();
         reconnect();

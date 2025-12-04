@@ -72,10 +72,14 @@ const GoogleSignInButton = () => {
         
         // Check for error in the callback URL
         const parsedUrl = new URL(result.url);
-        const errorParam = parsedUrl.searchParams.get('error') || 
-                          new URLSearchParams(parsedUrl.hash.substring(1)).get('error');
-        const errorDescription = parsedUrl.searchParams.get('error_description') ||
-                                new URLSearchParams(parsedUrl.hash.substring(1)).get('error_description');
+        const searchParams = parsedUrl.searchParams;
+        const hashParams = new URLSearchParams(parsedUrl.hash.substring(1));
+        const errorParam = searchParams.has('error')
+          ? searchParams.get('error')
+          : (hashParams.has('error') ? hashParams.get('error') : null);
+        const errorDescription = searchParams.has('error_description')
+          ? searchParams.get('error_description')
+          : (hashParams.has('error_description') ? hashParams.get('error_description') : null);
         
         if (errorParam) {
           const decodedError = decodeURIComponent(errorDescription || errorParam);
