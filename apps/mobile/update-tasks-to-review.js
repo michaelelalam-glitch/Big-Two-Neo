@@ -46,7 +46,7 @@ async function main() {
   try {
     // Update Task #258: Design Figma UI/UX mockups for mobile
     console.log('Updating Task #258: Design Figma UI/UX mockups for mobile');
-    const task258 = await updateTask(258, {
+    await updateTask(258, {
       status: 'in_review',
       updated_at: new Date().toISOString()
     });
@@ -54,7 +54,7 @@ async function main() {
 
     // Update Task #259: Set up mobile project with Expo/React Native
     console.log('Updating Task #259: Set up mobile project with Expo/React Native');
-    const task259 = await updateTask(259, {
+    await updateTask(259, {
       status: 'in_review',
       success_rate: 1.0,  // 100% - all tests passed
       updated_at: new Date().toISOString()
