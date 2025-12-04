@@ -73,8 +73,8 @@ function determine5CardCombo(cards: Card[]): ComboType {
   const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
   
   // All valid Big Two straight sequences
-  // Note: Only A-2-3-4-5 is valid as a wraparound (Ace low). 
-  // 2 is the highest card and cannot wrap around to form J-Q-K-A-2 or similar.
+  // Note: A-2-3-4-5 and 2-3-4-5-6 are valid wraparounds (A or 2 acting as low card)
+  // But sequences like J-Q-K-A-2, Q-K-A-2-3, K-A-2-3-4 are INVALID (2 cannot be high in a straight)
   const VALID_STRAIGHT_SEQUENCES: string[][] = [
     ['3', '4', '5', '6', '7'],
     ['4', '5', '6', '7', '8'],
@@ -84,7 +84,8 @@ function determine5CardCombo(cards: Card[]): ComboType {
     ['8', '9', '10', 'J', 'Q'],
     ['9', '10', 'J', 'Q', 'K'],
     ['10', 'J', 'Q', 'K', 'A'],
-    ['A', '2', '3', '4', '5'],  // Only valid wraparound: Ace can be low
+    ['A', '2', '3', '4', '5'],  // Wraparound: Ace acts as low
+    ['2', '3', '4', '5', '6'],  // Wraparound: 2 acts as low
   ];
   
   // Check for straight (Big Two rules)
