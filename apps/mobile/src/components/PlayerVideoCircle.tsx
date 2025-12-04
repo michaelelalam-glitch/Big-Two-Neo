@@ -59,11 +59,18 @@ export function PlayerVideoCircle({
 
   // Get player initials for fallback
   const getInitials = () => {
-    const names = username.split(' ');
-    if (names.length >= 2) {
-      return names[0][0] + names[names.length - 1][0];
+    const trimmed = username.trim();
+    if (!trimmed) {
+      return '?';
     }
-    return username.slice(0, 2);
+    const names = trimmed.split(' ').filter(Boolean);
+    if (names.length >= 2) {
+      const firstInitial = names[0][0] || '';
+      const lastInitial = names[names.length - 1][0] || '';
+      return (firstInitial + lastInitial) || '?';
+    }
+    // Single word: take up to first two characters, or '?' if empty
+    return trimmed.slice(0, 2) || '?';
   };
 
   return (

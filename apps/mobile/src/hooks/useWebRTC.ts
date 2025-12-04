@@ -51,6 +51,7 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
   const signalingServiceRef = useRef<WebRTCSignalingService | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map());
+  const isInitializingRef = useRef(false);
 
   /**
    * Initialize signaling service
@@ -72,8 +73,9 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
    * Initialize local media stream
    */
   const initializeMedia = useCallback(async (): Promise<void> => {
-    if (isInitialized || !enabled) return;
+    if (isInitialized || !enabled || isInitializingRef.current) return;
 
+    isInitializingRef.current = true;
     try {
       console.log('[WebRTC] Requesting camera and microphone access...');
 
@@ -101,6 +103,7 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to access camera/microphone';
       console.error('[WebRTC] Media initialization failed:', errorMessage);
       setError(errorMessage);
+      isInitializingRef.current = false;
     }
   }, [isInitialized, enabled]);
 

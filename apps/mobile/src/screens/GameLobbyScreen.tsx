@@ -152,7 +152,7 @@ export default function GameLobbyScreen() {
     );
   }
 
-  if (error || (!room && !isInitializing)) {
+  if (error || !room) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>

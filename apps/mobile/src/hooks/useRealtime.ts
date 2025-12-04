@@ -221,7 +221,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       console.log('[useRealtime] Room created:', newRoom);
       
-      // Create player record (with both mobile and web app columns for compatibility)
+      // Create player record
       const { error: playerError } = await supabase
         .from('players')
         .insert({
@@ -299,7 +299,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       let position = 0;
       while (takenPositions.has(position) && position < 4) position++;
       
-      // Create player record (with both mobile and web app columns for compatibility)
+      // Create player record
       const { error: playerError } = await supabase
         .from('players')
         .insert({
@@ -675,6 +675,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       } else if (status === 'CHANNEL_ERROR') {
         console.error('[useRealtime] Channel ERROR');
         setError(new Error('Failed to connect to realtime channel'));
+        setIsConnected(false);
+        onDisconnect?.();
+        reconnect();
       }
     });
     
