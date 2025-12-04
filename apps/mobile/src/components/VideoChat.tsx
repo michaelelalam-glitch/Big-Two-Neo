@@ -18,7 +18,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Text,
-  Dimensions,
 } from 'react-native';
 import { RTCView, MediaStream } from 'react-native-webrtc';
 import { PeerConnection } from '../types/webrtc';
@@ -31,7 +30,6 @@ interface VideoChatProps {
   onToggleCamera: () => void;
   onToggleMicrophone: () => void;
   onSwitchCamera: () => void;
-  currentUserId: string;
 }
 
 export function VideoChat({
@@ -42,7 +40,6 @@ export function VideoChat({
   onToggleCamera,
   onToggleMicrophone,
   onSwitchCamera,
-  currentUserId,
 }: VideoChatProps) {
   // Convert peer connections to array and sort by position
   const peers = Array.from(peerConnections.values()).sort(

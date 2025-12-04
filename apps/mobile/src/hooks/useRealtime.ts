@@ -268,23 +268,23 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     setError(null);
     
     try {
-      // Find room by code
+      // Find room by code using secure function
       const { data: existingRoom, error: roomError } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('status', 'waiting')
-        .single();
+        .rpc('lookup_room_by_code', { room_code: code.toUpperCase() });
       
-      if (roomError) throw new Error('Room not found or already started');
+      if (roomError || !existingRoom || existingRoom.length === 0) {
+        throw new Error('Room not found or already started');
+      }
+      
+      const room = Array.isArray(existingRoom) ? existingRoom[0] : existingRoom;
       
       // Check player count
       const { count } = await supabase
         .from('players')
         .select('*', { count: 'exact', head: true })
-        .eq('room_id', existingRoom.id);
+        .eq('room_id', room.id);
       
-      if (count && count >= existingRoom.max_players) {
+      if (count && count >= room.max_players) {
         throw new Error('Room is full');
       }
       
@@ -292,7 +292,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const { data: existingPlayers } = await supabase
         .from('players')
         .select('position')
-        .eq('room_id', existingRoom.id)
+        .eq('room_id', room.id)
         .order('position');
       
       const takenPositions = new Set(existingPlayers?.map(p => p.position) || []);
@@ -303,7 +303,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const { error: playerError } = await supabase
         .from('players')
         .insert({
-          room_id: existingRoom.id,
+          room_id: room.id,
           user_id: userId,
           username,
           position,
@@ -314,10 +314,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       if (playerError) throw playerError;
       
-      setRoom(existingRoom);
+      setRoom(room);
       
       // Join the realtime channel
-      await joinChannel(existingRoom.id);
+      await joinChannel(room.id);
       
       // Broadcast join event
       await broadcastMessage('player_joined', { user_id: userId, username, position });

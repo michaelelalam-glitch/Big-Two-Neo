@@ -68,7 +68,7 @@ const GoogleSignInButton = () => {
 
       if (result && result.type === 'success') {
         console.log('openAuthSessionAsync - success');
-        console.log('Redirect URL received:', result.url);
+        // Redirect URL contains sensitive OAuth tokens - not logging
         
         // Check for error in the callback URL
         const parsedUrl = new URL(result.url);
@@ -103,7 +103,6 @@ const GoogleSignInButton = () => {
             hasAccessToken: !!params.access_token,
             hasRefreshToken: !!params.refresh_token,
             hasCode: !!params.code,
-            url: result.url,
           });
         }
       } else {
