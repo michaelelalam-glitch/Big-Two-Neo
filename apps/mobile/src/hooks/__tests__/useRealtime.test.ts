@@ -544,6 +544,112 @@ describe('useRealtime', () => {
       );
     });
 
+    it('should determine combo type for A-2-3-4-5 wraparound straight', async () => {
+      const mockCards = [
+        { suit: 'spades' as const, rank: 'A' as const },
+        { suit: 'hearts' as const, rank: '2' as const },
+        { suit: 'clubs' as const, rank: '3' as const },
+        { suit: 'diamonds' as const, rank: '4' as const },
+        { suit: 'spades' as const, rank: '5' as const },
+      ];
+
+      const mockGameState = {
+        id: 'game-123',
+        room_id: 'room-123',
+        current_turn: 0,
+        game_phase: 'playing',
+      };
+
+      const mockPlayer = {
+        id: 'player-1',
+        user_id: mockUserId,
+        position: 0,
+        is_host: true,
+      };
+
+      const updateMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
+
+      const { result } = renderHook(() => useRealtime(mockOptions));
+
+      act(() => {
+        // @ts-ignore
+        result.current.gameState = mockGameState;
+        // @ts-ignore
+        result.current.currentPlayer = mockPlayer;
+        // @ts-ignore
+        result.current.players = [mockPlayer];
+      });
+
+      await act(async () => {
+        await result.current.playCards(mockCards);
+      });
+
+      expect(updateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          last_play: expect.objectContaining({
+            combo_type: 'straight',
+          }),
+        })
+      );
+    });
+
+    it('should determine combo type for 2-3-4-5-6 wraparound straight', async () => {
+      const mockCards = [
+        { suit: 'spades' as const, rank: '2' as const },
+        { suit: 'hearts' as const, rank: '3' as const },
+        { suit: 'clubs' as const, rank: '4' as const },
+        { suit: 'diamonds' as const, rank: '5' as const },
+        { suit: 'spades' as const, rank: '6' as const },
+      ];
+
+      const mockGameState = {
+        id: 'game-123',
+        room_id: 'room-123',
+        current_turn: 0,
+        game_phase: 'playing',
+      };
+
+      const mockPlayer = {
+        id: 'player-1',
+        user_id: mockUserId,
+        position: 0,
+        is_host: true,
+      };
+
+      const updateMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
+
+      const { result } = renderHook(() => useRealtime(mockOptions));
+
+      act(() => {
+        // @ts-ignore
+        result.current.gameState = mockGameState;
+        // @ts-ignore
+        result.current.currentPlayer = mockPlayer;
+        // @ts-ignore
+        result.current.players = [mockPlayer];
+      });
+
+      await act(async () => {
+        await result.current.playCards(mockCards);
+      });
+
+      expect(updateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          last_play: expect.objectContaining({
+            combo_type: 'straight',
+          }),
+        })
+      );
+    });
+
     it('should determine combo type for flush', async () => {
       const mockCards = [
         { suit: 'spades' as const, rank: '3' as const },
