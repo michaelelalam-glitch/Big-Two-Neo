@@ -295,8 +295,8 @@ describe('useRealtime', () => {
 
     it('should play cards on player turn', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' },
-        { suit: 'hearts' as const, rank: '3' },
+        { suit: 'spades' as const, rank: '3' as const },
+        { suit: 'hearts' as const, rank: '3' as const },
       ];
 
       const mockGameState = {
@@ -410,7 +410,7 @@ describe('useRealtime', () => {
 
       await expect(async () => {
         await act(async () => {
-          await result.current.playCards([{ suit: 'spades' as const, rank: '3' }]);
+          await result.current.playCards([{ suit: 'spades' as const, rank: '3' as const }]);
         });
       }).rejects.toThrow('Not your turn');
     });

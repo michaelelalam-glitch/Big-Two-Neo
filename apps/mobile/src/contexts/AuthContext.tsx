@@ -2,10 +2,18 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 
+export interface Profile {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  updated_at?: string;
+}
+
 export type AuthContextData = {
   session: Session | null | undefined;
   user: User | null | undefined;
-  profile: any | null;
+  profile: Profile | null;
   isLoading: boolean;
   isLoggedIn: boolean;
   signOut: () => Promise<void>;
@@ -15,7 +23,7 @@ export type AuthContextData = {
 const AuthContext = createContext<AuthContextData>({
   session: undefined,
   user: undefined,
-  profile: undefined,
+  profile: null,
   isLoading: true,
   isLoggedIn: false,
   signOut: async () => {},
@@ -37,7 +45,7 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [user, setUser] = useState<User | null | undefined>(undefined);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Fetch user profile from database
