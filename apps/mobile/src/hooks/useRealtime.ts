@@ -89,10 +89,31 @@ function determine5CardCombo(cards: Card[]): ComboType {
   ];
   
   // Check for straight (Big Two rules)
+  // For wraparound sequences (A-2-3-4-5 and 2-3-4-5-6), sorting breaks the pattern
+  // So we need to check against both sorted and original rank orders
   const handRanks = sortedCards.map(card => card.rank);
-  const isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
+  const originalHandRanks = cards.map(card => card.rank);
+  
+  let isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
     seq.every((rank, idx) => rank === handRanks[idx])
   );
+  
+  // Explicitly check for wraparound straights in original order
+  // These patterns won't match after sorting due to high rank values of A and 2
+  if (!isStraight) {
+    // Check A-2-3-4-5 pattern
+    const a2345Pattern: string[] = ['A', '2', '3', '4', '5'];
+    // Check 2-3-4-5-6 pattern  
+    const t23456Pattern: string[] = ['2', '3', '4', '5', '6'];
+    
+    // Create a set of original ranks for order-independent matching
+    const rankSet = new Set<string>(originalHandRanks);
+    
+    if (a2345Pattern.every(rank => rankSet.has(rank)) ||
+        t23456Pattern.every(rank => rankSet.has(rank))) {
+      isStraight = true;
+    }
+  }
   
   // Count rank frequencies
   const rankCounts = sortedCards.reduce((acc, card) => {
