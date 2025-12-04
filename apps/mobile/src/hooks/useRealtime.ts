@@ -19,6 +19,7 @@ import {
   GameState,
   PlayerHand,
   Card,
+  ComboType,
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
@@ -34,6 +35,55 @@ interface UseRealtimeOptions {
 }
 
 export type { UseRealtimeOptions };
+
+/**
+ * Helper function to determine 5-card combo type
+ */
+function determine5CardCombo(cards: Card[]): ComboType {
+  if (cards.length !== 5) {
+    throw new Error('determine5CardCombo expects exactly 5 cards');
+  }
+
+  // Sort cards by rank value for easier analysis
+  const rankValues: Record<string, number> = {
+    '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+    'J': 11, 'Q': 12, 'K': 13, 'A': 14, '2': 15
+  };
+  
+  const sortedCards = [...cards].sort((a, b) => rankValues[a.rank] - rankValues[b.rank]);
+  
+  // Check for flush (all same suit)
+  const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
+  
+  // Check for straight (consecutive ranks)
+  const isStraight = sortedCards.every((card, idx) => {
+    if (idx === 0) return true;
+    return rankValues[card.rank] === rankValues[sortedCards[idx - 1].rank] + 1;
+  });
+  
+  // Count rank frequencies
+  const rankCounts = sortedCards.reduce((acc, card) => {
+    acc[card.rank] = (acc[card.rank] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const counts = Object.values(rankCounts).sort((a, b) => b - a);
+  
+  // Determine combo type
+  if (isFlush && isStraight) {
+    return 'straight_flush';
+  } else if (counts[0] === 4) {
+    return 'four_of_a_kind';
+  } else if (counts[0] === 3 && counts[1] === 2) {
+    return 'full_house';
+  } else if (isFlush) {
+    return 'flush';
+  } else if (isStraight) {
+    return 'straight';
+  } else {
+    throw new Error('Invalid 5-card combination');
+  }
+}
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const { userId, username, onError, onDisconnect, onReconnect } = options;
@@ -327,7 +377,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     
     try {
       // Determine combo type based on card count
-      let comboType: string;
+      let comboType: ComboType;
       switch (cards.length) {
         case 1:
           comboType = 'single';
@@ -339,9 +389,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           comboType = 'triple';
           break;
         case 5:
-          // Could be straight, flush, full_house, four_of_a_kind, or straight_flush
-          // For now, we'll classify as 'straight' and refine in future iterations
-          comboType = 'straight';
+          // Determine 5-card combo type by checking card properties
+          comboType = determine5CardCombo(cards);
           break;
         default:
           throw new Error('Invalid card combination');

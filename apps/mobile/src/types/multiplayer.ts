@@ -67,12 +67,12 @@ export interface PlayerHand {
 }
 
 export type GameActionPayload =
-  | { action: 'join'; username: string; position: number }
-  | { action: 'leave' }
-  | { action: 'ready'; is_ready: boolean }
-  | { action: 'play'; cards: Card[]; combo_type: ComboType }
-  | { action: 'pass' }
-  | { action: 'start_game' };
+  | { action_type: 'join'; username: string; position: number }
+  | { action_type: 'leave' }
+  | { action_type: 'ready'; is_ready: boolean }
+  | { action_type: 'play'; cards: Card[]; combo_type: ComboType }
+  | { action_type: 'pass' }
+  | { action_type: 'start_game' };
 
 export interface GameAction {
   id: string;
