@@ -50,7 +50,7 @@ export default function GameScreen() {
     // Deal 13 cards to player (standard Big2 hand size)
     const hand = shuffled.slice(0, 13);
     setPlayerHand(hand);
-  }, []);
+  }, [roomCode]);
 
   const handlePlayCards = (cards: Card[]) => {
     console.log('Playing cards:', cards);
