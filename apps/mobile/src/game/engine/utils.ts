@@ -34,6 +34,9 @@ export function findStraightSequenceIndex(ranks: string[]): number {
   // Create a set for order-independent matching
   const rankSet = new Set(ranks);
   
+  // Ensure all ranks are unique (no duplicates)
+  if (rankSet.size !== 5) return -1;
+  
   // Check each valid sequence
   return VALID_STRAIGHT_SEQUENCES.findIndex(seq => {
     // All ranks in the sequence must be present in the input
