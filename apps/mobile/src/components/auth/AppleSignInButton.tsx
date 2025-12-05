@@ -25,6 +25,7 @@ const AppleSignInButton = () => {
         style={[styles.customButton, styles.disabledButton]} 
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
+        disabled={true}
       >
         <View style={styles.buttonContent}>
           <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
@@ -40,6 +41,7 @@ const AppleSignInButton = () => {
         style={[styles.customButton, styles.disabledButton]} 
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
+        disabled={true}
       >
         <View style={styles.buttonContent}>
           <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
