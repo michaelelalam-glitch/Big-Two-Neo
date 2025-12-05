@@ -160,10 +160,30 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Enable realtime for mobile tables
-ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE room_players;
-ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+-- Enable realtime for mobile tables (if not already enabled)
+DO $$ 
+BEGIN
+  -- Add rooms table to realtime (if not already added)
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL; -- Table already in publication, skip
+  END;
+  
+  -- Add room_players table to realtime (if not already added)
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE room_players;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL; -- Table already in publication, skip
+  END;
+  
+  -- Add profiles table to realtime (if not already added)
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL; -- Table already in publication, skip
+  END;
+END $$;
 
 
 -- MIGRATION 2: Add Username to room_players
