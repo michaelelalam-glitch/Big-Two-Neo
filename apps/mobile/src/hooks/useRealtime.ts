@@ -268,7 +268,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     setError(null);
     
     try {
-      // Find room by code using secure function
+      // First, lookup room by code to get room details
       const { data: existingRoom, error: roomError } = await supabase
         .rpc('lookup_room_by_code', { room_code: code.toUpperCase() });
       
@@ -291,41 +291,38 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error('Room not found, already in progress, or finished');
       }
       
-      // Check player count
-      const { count } = await supabase
-        .from('players')
-        .select('*', { count: 'exact', head: true })
-        .eq('room_id', room.id);
-      
-      if (count && count >= room.max_players) {
-        throw new Error('Room is full');
-      }
-      
-      // Determine next available position
-      const { data: existingPlayers } = await supabase
+      // Determine next available position by checking existing players
+      const { data: existingPlayers, error: playersError } = await supabase
         .from('players')
         .select('position')
         .eq('room_id', room.id)
         .order('position');
       
+      if (playersError) {
+        throw new Error('Failed to fetch existing players');
+      }
+      
       const takenPositions = new Set(existingPlayers?.map(p => p.position) || []);
       let position = 0;
       while (takenPositions.has(position) && position < 4) position++;
       
-      // Create player record
-      const { error: playerError } = await supabase
-        .from('players')
-        .insert({
-          room_id: room.id,
-          user_id: userId,
-          username,
-          position,
-          is_host: false,
-          is_ready: false,
-          connected: true,
+      // Use SECURITY DEFINER function to securely join the room
+      // This enforces all validation: capacity, status, position availability
+      const { data: playerId, error: joinError } = await supabase
+        .rpc('join_room_by_code', {
+          in_room_code: code.toUpperCase(),
+          in_username: username,
+          in_position: position
         });
       
-      if (playerError) throw playerError;
+      if (joinError) {
+        // Enhanced error messages from the SECURITY DEFINER function
+        throw new Error(joinError.message || 'Failed to join room');
+      }
+
+      if (!playerId) {
+        throw new Error('Failed to create player record');
+      }
       
       setRoom(room);
       
