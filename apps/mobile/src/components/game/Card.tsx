@@ -72,7 +72,7 @@ export default function Card({
       // Only allow upward dragging
       translateY.value = Math.min(0, event.translationY);
     })
-    .onEnd((event) => {
+    .onEnd(() => {
       // Snap to play zone if dragged far enough
       if (translateY.value < -80) {
         // Play card action (to be implemented)

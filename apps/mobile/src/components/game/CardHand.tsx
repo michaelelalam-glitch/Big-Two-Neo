@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -24,8 +24,8 @@ export default function CardHand({
 }: CardHandProps) {
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
-  // Sort cards (sortHand takes only cards array)
-  const sortedCards = sortHand(cards);
+  // Sort cards (memoized to avoid re-sorting on every render)
+  const sortedCards = useMemo(() => sortHand(cards), [cards]);
 
   // Toggle card selection
   const handleToggleSelect = (cardId: string) => {
