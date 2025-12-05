@@ -179,11 +179,11 @@ describe('useRealtime', () => {
         await result.current.setReady(true);
       });
 
-      // Verify update was called
-      expect(supabase.from).toHaveBeenCalledWith('players');
+      // Verify update was called with room_players table
+      expect(supabase.from).toHaveBeenCalledWith('room_players');
     });
 
-    it('should track multiple players', async () => {
+    it('should track multiple room players', async () => {
       const mockPlayers = [
         {
           id: 'player-1',
@@ -216,7 +216,7 @@ describe('useRealtime', () => {
 
       const { result } = renderHook(() => useRealtime(mockOptions));
 
-      // Trigger fetch players
+      // Trigger fetch room players
       await act(async () => {
         // Internal method call simulation
       });
