@@ -91,7 +91,7 @@ export default function GameScreen() {
         cards={playerHand}
         onPlayCards={handlePlayCards}
         onPass={handlePass}
-        canPlay={true} {/* Hardcoded for demo */}
+        canPlay={true} // Hardcoded for demo
       />
     </View>
   );
