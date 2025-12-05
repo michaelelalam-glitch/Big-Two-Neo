@@ -12,8 +12,8 @@ type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 // Demo utilities for creating test hand
 // TODO: Replace with actual game state from GameStateManager in Task #266
 function createDemoDeck(): Card[] {
-  const suits = ['H', 'D', 'C', 'S'] as const;
-  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'] as const;
+  const suits = ['H', 'D', 'C', 'S'];
+  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   const deck: Card[] = [];
   
   for (const suit of suits) {
@@ -25,9 +25,10 @@ function createDemoDeck(): Card[] {
   return deck;
 }
 
-// Fisher-Yates shuffle for demo purposes
-// TODO (Task #266): Replace with GameStateManager's secure shuffling in production
-// Note: This is acceptable for UI demo; production will use proper game logic
+// ⚠️ WARNING: Not cryptographically secure - uses Math.random()
+// Fisher-Yates shuffle for DEMO purposes only
+// TODO (Task #266): MUST replace with GameStateManager's secure shuffling in production
+// This is acceptable ONLY for UI demo; production requires proper game logic
 function shuffleDemoDeck(cards: Card[]): Card[] {
   const shuffled = [...cards];
   for (let i = shuffled.length - 1; i > 0; i--) {

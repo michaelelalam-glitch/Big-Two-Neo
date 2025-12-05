@@ -52,11 +52,11 @@ export default function Card({
   const scale = useSharedValue(1);
 
   // Tap gesture for selection
+  // Note: Haptic feedback handled by CardHand to avoid duplicate feedback
   const tapGesture = Gesture.Tap()
     .enabled(!disabled)
     .onStart(() => {
       scale.value = withSpring(0.95, { damping: 10 });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     })
     .onEnd(() => {
       scale.value = withSpring(1, { damping: 10 });
@@ -119,10 +119,10 @@ export default function Card({
 
           {/* Bottom-right corner (rotated) */}
           <View style={[styles.corner, styles.cornerBottom]}>
-            <Text style={[styles.rank, styles.textRotated, { color: suitColor }]}>
+            <Text style={[styles.rank, { color: suitColor }]}>
               {card.rank}
             </Text>
-            <Text style={[styles.suit, styles.textRotated, { color: suitColor }]}>
+            <Text style={[styles.suit, { color: suitColor }]}>
               {suitSymbol}
             </Text>
           </View>
@@ -183,8 +183,5 @@ const styles = StyleSheet.create({
     fontSize: 32,
     textAlign: 'center',
     marginTop: 20,
-  },
-  textRotated: {
-    transform: [{ rotate: '180deg' }],
   },
 });

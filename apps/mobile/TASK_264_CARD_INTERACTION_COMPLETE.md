@@ -108,8 +108,8 @@ apps/mobile/
 │   │   ├── CardHand.tsx (NEW)
 │   │   ├── index.ts (NEW)
 │   │   └── __tests__/
-│   │       ├── Card.test.ts (NEW)
-│   │       └── CardHand.test.ts (NEW)
+│   │       ├── Card.test.tsx (NEW)
+│   │       └── CardHand.test.tsx (NEW)
 │   ├── screens/
 │   │   └── GameScreen.tsx (UPDATED)
 │   └── constants/
