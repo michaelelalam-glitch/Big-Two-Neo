@@ -149,18 +149,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
     gap: SPACING.sm,
   },
-  sortButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.secondary,
-    borderRadius: 8,
-  },
-  sortButtonText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-  },
+  // TODO: sortButton and sortButtonText reserved for future sort options feature
   clearButton: {
     alignSelf: 'flex-start',
     paddingVertical: SPACING.xs,

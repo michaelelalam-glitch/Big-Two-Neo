@@ -4,11 +4,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand } from '../components/game';
-import { createDeck, shuffleDeck } from '../game/engine/game-logic';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
+
+// Demo utilities for creating test hand
+// TODO: Replace with actual game state from GameStateManager in Task #266
+function createDemoDeck(): Card[] {
+  const suits = ['H', 'D', 'C', 'S'] as const;
+  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'] as const;
+  const deck: Card[] = [];
+  
+  for (const suit of suits) {
+    for (const rank of ranks) {
+      deck.push({ id: `${rank}${suit}`, rank, suit });
+    }
+  }
+  
+  return deck;
+}
+
+function shuffleDemoDeck(cards: Card[]): Card[] {
+  const shuffled = [...cards];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function GameScreen() {
   const route = useRoute<GameScreenRouteProp>();
@@ -17,8 +41,8 @@ export default function GameScreen() {
 
   // Initialize demo hand
   useEffect(() => {
-    const deck = createDeck();
-    const shuffled = shuffleDeck(deck);
+    const deck = createDemoDeck();
+    const shuffled = shuffleDemoDeck(deck);
     // Deal 13 cards to player (standard Big2 hand size)
     const hand = shuffled.slice(0, 13);
     setPlayerHand(hand);
