@@ -278,9 +278,18 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       
       // Extract room from response (handle both array and object formats)
-      const room: Room = Array.isArray(existingRoom)
-        ? (existingRoom.length > 0 ? existingRoom[0] as Room : (() => { throw new Error('Room not found, already in progress, or finished'); })())
-        : (existingRoom && typeof existingRoom === 'object' && existingRoom.id ? existingRoom as Room : (() => { throw new Error('Room not found, already in progress, or finished'); })());
+      let room: Room;
+      if (Array.isArray(existingRoom)) {
+        if (existingRoom.length > 0) {
+          room = existingRoom[0] as Room;
+        } else {
+          throw new Error('Room not found, already in progress, or finished');
+        }
+      } else if (existingRoom && typeof existingRoom === 'object' && existingRoom.id) {
+        room = existingRoom as Room;
+      } else {
+        throw new Error('Room not found, already in progress, or finished');
+      }
       
       // Check player count
       const { count } = await supabase

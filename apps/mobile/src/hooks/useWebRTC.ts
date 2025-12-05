@@ -56,12 +56,21 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
   /**
    * Initialize signaling service
    */
+  // Ref to store the latest signal handler (avoids stale closure issues)
+  const handleIncomingSignalRef = useRef<((signal: WebRTCSignal) => Promise<void>) | null>(null);
+
   useEffect(() => {
     if (!channel || !userId) return;
 
     signalingServiceRef.current = new WebRTCSignalingService(userId);
     signalingServiceRef.current.setChannel(channel);
-    signalingServiceRef.current.onSignal(handleIncomingSignal);
+    // Use wrapper to always call the latest handler from ref
+    signalingServiceRef.current.onSignal((signal) => {
+      if (handleIncomingSignalRef.current) {
+        return handleIncomingSignalRef.current(signal);
+      }
+      return Promise.resolve();
+    });
 
     return () => {
       signalingServiceRef.current?.cleanup();
@@ -293,6 +302,11 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
     },
     [players]
   );
+
+  // Update ref whenever handleIncomingSignal changes to avoid stale closures
+  useEffect(() => {
+    handleIncomingSignalRef.current = handleIncomingSignal;
+  }, [handleIncomingSignal]);
 
   /**
    * Update peer connection state

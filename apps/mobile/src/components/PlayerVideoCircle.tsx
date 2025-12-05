@@ -92,7 +92,7 @@ export function PlayerVideoCircle({
         ) : (
           <View style={[styles.placeholder, { borderRadius: size / 2 }]}>
             <Text style={[styles.initials, { fontSize: size * 0.3 }]}>
-              {getInitials(username).toUpperCase()}
+              {getInitials(username)}
             </Text>
           </View>
         )}
