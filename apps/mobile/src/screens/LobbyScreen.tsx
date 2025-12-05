@@ -31,16 +31,21 @@ export default function LobbyScreen() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPlayers();
-    subscribeToPlayers();
+    return subscribeToPlayers();
   }, [roomCode]);
 
   const loadPlayers = async () => {
     try {
-      const roomId = await getRoomId();
-      if (!roomId) return; // Room not found, getRoomId handles navigation
+      // Get and cache roomId if not already set
+      if (!roomId) {
+        const id = await getRoomId();
+        if (!id) return; // Room not found, getRoomId handles navigation
+        setRoomId(id);
+      }
       
       // Use the username column to avoid N+1 query problem
       const { data, error } = await supabase
@@ -111,7 +116,7 @@ export default function LobbyScreen() {
 
   const handleToggleReady = async () => {
     try {
-      const roomId = await getRoomId();
+      if (!roomId) return; // Use cached roomId
       const { error } = await supabase
         .from('room_players')
         .update({ is_ready: !isReady })
@@ -128,7 +133,7 @@ export default function LobbyScreen() {
 
   const handleLeaveRoom = async () => {
     try {
-      const roomId = await getRoomId();
+      if (!roomId) return; // Use cached roomId
       
       if (isHost) {
         // Delete the room if host leaves

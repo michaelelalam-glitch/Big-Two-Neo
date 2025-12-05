@@ -63,12 +63,16 @@ CREATE POLICY "Players can view room_players in their room" ON room_players
   );
 
 CREATE POLICY "Authenticated users can join rooms" ON room_players
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK (auth.uid() = user_id AND is_host = FALSE);
 
--- Note: Users cannot change is_host status via UPDATE; host status is managed by application logic
+-- Note: Users cannot change is_host status via UPDATE. Only is_ready can be changed.
+-- Host status is immutable and determined by rooms.host_id
 CREATE POLICY "Players can update their own status" ON room_players
   FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (
+    auth.uid() = user_id AND 
+    is_host = (SELECT is_host FROM room_players WHERE id = room_players.id)
+  );
 
 CREATE POLICY "Players can leave rooms" ON room_players
   FOR DELETE USING (auth.uid() = user_id);
@@ -83,16 +87,9 @@ CREATE POLICY "Anyone can view rooms" ON rooms
 CREATE POLICY "Authenticated users can create rooms" ON rooms
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+-- SECURITY: Only the room's host_id can update room settings, not based on room_players.is_host
 CREATE POLICY "Host can update room" ON rooms
-  FOR UPDATE USING (
-    host_player_id = auth.uid() OR
-    EXISTS (
-      SELECT 1 FROM room_players
-      WHERE room_players.room_id = rooms.id
-      AND room_players.user_id = auth.uid()
-      AND room_players.is_host = TRUE
-    )
-  );
+  FOR UPDATE USING (host_id = auth.uid());
 
 -- Add indexes
 CREATE INDEX IF NOT EXISTS idx_room_players_room_id ON room_players(room_id);

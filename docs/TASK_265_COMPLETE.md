@@ -6,7 +6,7 @@
 
 Successfully implemented a complete game lobby and matchmaking system for the Big2 Mobile App with:
 - ✅ Home screen with 3 navigation options (Quick Play, Create Room, Join Room)
-- ✅ Room creation flow with 4-digit codes
+- ✅ Room creation flow with 6-digit codes
 - ✅ Room joining flow with code validation
 - ✅ Lobby/Waiting room with real-time player presence
 - ✅ Host controls (bot filling, start game)
