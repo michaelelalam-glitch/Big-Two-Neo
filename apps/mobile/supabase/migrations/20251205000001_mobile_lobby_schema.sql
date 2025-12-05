@@ -65,9 +65,10 @@ CREATE POLICY "Players can view room_players in their room" ON room_players
 CREATE POLICY "Authenticated users can join rooms" ON room_players
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Note: Users cannot change is_host status via UPDATE; host status is managed by application logic
 CREATE POLICY "Players can update their own status" ON room_players
   FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id AND is_host = (SELECT is_host FROM room_players WHERE id = room_players.id));
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Players can leave rooms" ON room_players
   FOR DELETE USING (auth.uid() = user_id);

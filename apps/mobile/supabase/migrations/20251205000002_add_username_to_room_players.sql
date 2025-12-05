@@ -1,5 +1,7 @@
 -- Add username column to room_players for display purposes
 -- This allows us to show player names without additional joins to profiles table
+-- Note: username is nullable to support bot players (bots have is_bot=true and no user_id)
+-- Non-bot players should always provide username on insert (enforced by application logic)
 
 ALTER TABLE room_players 
 ADD COLUMN IF NOT EXISTS username VARCHAR(50);

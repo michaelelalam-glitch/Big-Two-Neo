@@ -3,14 +3,15 @@
  * 
  * Features:
  * - Room creation and joining with unique codes
- * - Real-time player presence tracking via room_players table
+ * - Real-time player presence tracking via Supabase Presence (ephemeral online/offline status)
  * - Game state synchronization across all clients
  * - Turn-based logic with optimistic updates
  * - Automatic reconnection handling
  * - 4-player multiplayer support
  * 
- * NOTE: This hook uses the `room_players` table for lobby management.
- * The `players` table is used only by Edge Functions for game logic.
+ * NOTE: This hook uses the `room_players` table for lobby management (persistent player data).
+ *       Real-time online/offline status is tracked using Supabase Presence features.
+ *       The `players` table is used only by Edge Functions for game logic.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -345,7 +346,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       // Clear state
       setRoom(null);
-      setPlayers([]);
+      setRoomPlayers([]);
       setGameState(null);
       setPlayerHands(new Map());
       setIsConnected(false);
