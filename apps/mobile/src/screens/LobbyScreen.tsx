@@ -40,7 +40,9 @@ export default function LobbyScreen() {
   const loadPlayers = async () => {
     try {
       const roomId = await getRoomId();
+      if (!roomId) return; // Room not found, getRoomId handles navigation
       
+      // Use the username column to avoid N+1 query problem
       const { data, error } = await supabase
         .from('room_players')
         .select(`
@@ -48,34 +50,21 @@ export default function LobbyScreen() {
           user_id,
           player_index,
           is_ready,
-          is_bot
+          is_bot,
+          username
         `)
         .eq('room_id', roomId)
         .order('player_index');
 
       if (error) throw error;
       
-      // Fetch usernames separately for non-bot players
-      const playersWithProfiles = await Promise.all(
-        (data || []).map(async (player) => {
-          if (player.is_bot || !player.user_id) {
-            return { ...player, profiles: undefined };
-          }
-          
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', player.user_id)
-            .single();
-          
-          return {
-            ...player,
-            profiles: profileData ? { username: profileData.username } : undefined,
-          };
-        })
-      );
+      // Transform data to match Player interface (with profiles object for backward compatibility)
+      const players = (data || []).map(player => ({
+        ...player,
+        profiles: player.username ? { username: player.username } : undefined,
+      }));
       
-      setPlayers(playersWithProfiles);
+      setPlayers(players);
     } catch (error: any) {
       console.error('Error loading players:', error);
       Alert.alert('Error', 'Failed to load players');
@@ -85,12 +74,18 @@ export default function LobbyScreen() {
   };
 
   const getRoomId = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('rooms')
       .select('id')
       .eq('code', roomCode)
       .single();
-    return data?.id;
+    
+    if (error || !data) {
+      Alert.alert('Error', 'Room not found');
+      navigation.replace('Home');
+      return null;
+    }
+    return data.id;
   };
 
   const subscribeToPlayers = () => {
