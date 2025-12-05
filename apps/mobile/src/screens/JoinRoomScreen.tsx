@@ -22,8 +22,8 @@ export default function JoinRoomScreen() {
       return;
     }
 
-    if (roomCode.length !== 4) {
-      Alert.alert('Invalid Code', 'Room code must be 4 characters');
+    if (roomCode.length !== 6) {
+      Alert.alert('Invalid Code', 'Room code must be 6 characters');
       return;
     }
 
@@ -60,12 +60,13 @@ export default function JoinRoomScreen() {
         return;
       }
 
-      // Add player to room
+      // Add player to room_players table
       const { error: joinError } = await supabase
         .from('room_players')
         .insert({
           room_id: roomData.id,
           user_id: user.id,
+          username: user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`,
           player_index: players.length,
           is_host: false,
           is_ready: false,

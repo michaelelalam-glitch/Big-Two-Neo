@@ -30,7 +30,7 @@ RootStackParamList = {
 ### 2. **Screens Created**
 - ✅ **HomeScreen.tsx** - Updated with 3 main navigation buttons
 - ✅ **CreateRoomScreen.tsx** - Room creation with Supabase integration
-- ✅ **JoinRoomScreen.tsx** - Join by 4-character room code
+- ✅ **JoinRoomScreen.tsx** - Join by 6-character room code
 - ✅ **LobbyScreen.tsx** - Full waiting room with real-time updates
 - ✅ **GameScreen.tsx** - Placeholder for game interface
 
@@ -43,14 +43,14 @@ RootStackParamList = {
 - Colorful, accessible UI with emoji icons
 
 #### CreateRoom Screen
-- Generates random 4-character room codes (A-Z, 0-9)
+- Generates random 6-character room codes (A-Z, 2-9, excluding O, I, 0, 1)
 - Creates room in Supabase `rooms` table
 - Adds creator as host in `room_players` table
 - Navigates to Lobby with `isHost: true`
 - Error handling with user-friendly alerts
 
 #### JoinRoom Screen
-- Text input for 4-character code (auto-uppercase)
+- Text input for 6-character code (auto-uppercase)
 - Validates room exists and isn't full (4/4 players)
 - Handles rejoining if already in room
 - Adds player to `room_players` table
