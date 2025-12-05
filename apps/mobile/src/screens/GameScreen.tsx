@@ -25,6 +25,9 @@ function createDemoDeck(): Card[] {
   return deck;
 }
 
+// Fisher-Yates shuffle for demo purposes
+// TODO (Task #266): Replace with GameStateManager's secure shuffling in production
+// Note: This is acceptable for UI demo; production will use proper game logic
 function shuffleDemoDeck(cards: Card[]): Card[] {
   const shuffled = [...cards];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -83,11 +86,12 @@ export default function GameScreen() {
       </View>
 
       {/* Player's hand with card interaction */}
+      {/* TODO (Task #266): canPlay should be dynamic based on game turn state */}
       <CardHand
         cards={playerHand}
         onPlayCards={handlePlayCards}
         onPass={handlePass}
-        canPlay={true}
+        canPlay={true} {/* Hardcoded for demo */}
       />
     </View>
   );
