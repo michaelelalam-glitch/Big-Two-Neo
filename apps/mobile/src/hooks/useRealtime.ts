@@ -3,11 +3,14 @@
  * 
  * Features:
  * - Room creation and joining with unique codes
- * - Real-time player presence tracking
+ * - Real-time player presence tracking via room_players table
  * - Game state synchronization across all clients
  * - Turn-based logic with optimistic updates
  * - Automatic reconnection handling
  * - 4-player multiplayer support
+ * 
+ * NOTE: This hook uses the `room_players` table for lobby management.
+ * The `players` table is used only by Edge Functions for game logic.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -144,7 +147,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   // State
   const [room, setRoom] = useState<Room | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [roomPlayers, setRoomPlayers] = useState<Player[]>([]); // Players in room_players table (lobby)
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerHands, setPlayerHands] = useState<Map<string, PlayerHand>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
@@ -157,7 +160,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const maxReconnectAttempts = 5;
   
   // Computed values
-  const currentPlayer = players.find(p => p.user_id === userId) || null;
+  const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
   const isHost = currentPlayer?.is_host || false;
   
   /**
@@ -173,7 +176,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   };
   
   /**
-   * Broadcast message to all players in the room
+   * Broadcast message to all room players in the lobby
    */
   const broadcastMessage = useCallback(async (event: BroadcastEvent, data: any) => {
     if (!channelRef.current || !room) return;
@@ -217,15 +220,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       // Create player record
       const { error: playerError } = await supabase
-        .from('players')
+        .from('room_players')
         .insert({
           room_id: newRoom.id,
           user_id: userId,
+          player_id: userId,
           username,
-          position: 0,
+          player_index: 0,
           is_host: true,
           is_ready: false,
-          connected: true,
+          is_bot: false,
         });
       
       if (playerError) throw playerError;
@@ -266,7 +270,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       // Check player count
       const { count } = await supabase
-        .from('players')
+        .from('room_players')
         .select('*', { count: 'exact', head: true })
         .eq('room_id', existingRoom.id);
       
@@ -274,28 +278,29 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error('Room is full');
       }
       
-      // Determine next available position
+      // Determine next available player_index
       const { data: existingPlayers } = await supabase
-        .from('players')
-        .select('position')
+        .from('room_players')
+        .select('player_index')
         .eq('room_id', existingRoom.id)
-        .order('position');
+        .order('player_index');
       
-      const takenPositions = new Set(existingPlayers?.map(p => p.position) || []);
-      let position = 0;
-      while (takenPositions.has(position) && position < 4) position++;
+      const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
+      let player_index = 0;
+      while (takenPositions.has(player_index) && player_index < 4) player_index++;
       
       // Create player record
       const { error: playerError } = await supabase
-        .from('players')
+        .from('room_players')
         .insert({
           room_id: existingRoom.id,
           user_id: userId,
+          player_id: userId,
           username,
-          position,
+          player_index,
           is_host: false,
           is_ready: false,
-          connected: true,
+          is_bot: false,
         });
       
       if (playerError) throw playerError;
@@ -306,7 +311,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       await joinChannel(existingRoom.id);
       
       // Broadcast join event
-      await broadcastMessage('player_joined', { user_id: userId, username, position });
+      await broadcastMessage('player_joined', { user_id: userId, username, player_index });
     } catch (err) {
       const error = err as Error;
       setError(error);
@@ -324,14 +329,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     if (!room || !currentPlayer) return;
     
     try {
-      // Update player as disconnected
+      // Delete player from room
       await supabase
-        .from('players')
-        .update({ connected: false })
+        .from('room_players')
+        .delete()
         .eq('id', currentPlayer.id);
       
       // Broadcast leave event
-      await broadcastMessage('player_left', { user_id: userId, position: currentPlayer.position });
+      await broadcastMessage('player_left', { user_id: userId, player_index: currentPlayer.player_index });
       
       // Unsubscribe from channel
       if (channelRef.current) {
@@ -361,7 +366,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     
     try {
       await supabase
-        .from('players')
+        .from('room_players')
         .update({ is_ready: ready })
         .eq('id', currentPlayer.id);
       
@@ -379,13 +384,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const startGame = useCallback(async (): Promise<void> => {
     if (!isHost || !room) return;
     
-    // Check if all players are ready
-    const allReady = players.every(p => p.is_ready);
+    // Check if all room players are ready
+    const allReady = roomPlayers.every(p => p.is_ready);
     if (!allReady) {
       throw new Error('All players must be ready');
     }
     
-    if (players.length < 2) {
+    if (roomPlayers.length < 2) {
       throw new Error('Need at least 2 players to start');
     }
     
@@ -419,13 +424,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       onError?.(error);
       throw error;
     }
-  }, [isHost, room, players, onError, broadcastMessage]);
+  }, [isHost, room, roomPlayers, onError, broadcastMessage]);
   
   /**
    * Play cards
    */
   const playCards = useCallback(async (cards: Card[]): Promise<void> => {
-    if (!gameState || !currentPlayer || gameState.current_turn !== currentPlayer.position) {
+    if (!gameState || !currentPlayer || gameState.current_turn !== currentPlayer.player_index) {
       throw new Error('Not your turn');
     }
     
@@ -468,19 +473,19 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .from('game_state')
         .update({
           last_play: {
-            position: currentPlayer.position,
+            position: currentPlayer.player_index,
             cards,
             combo_type: comboType,
           },
           pass_count: 0,
-          current_turn: (currentPlayer.position + 1) % players.length,
+          current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
         })
         .eq('id', gameState.id);
       
       if (updateError) throw updateError;
       
       await broadcastMessage('cards_played', {
-        position: currentPlayer.position,
+        player_index: currentPlayer.player_index,
         cards,
         combo_type: comboType,
       });
@@ -490,39 +495,39 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       onError?.(error);
       throw error;
     }
-  }, [gameState, currentPlayer, players, onError, broadcastMessage]);
+  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**
    * Pass turn
    */
   const pass = useCallback(async (): Promise<void> => {
-    if (!gameState || !currentPlayer || gameState.current_turn !== currentPlayer.position) {
+    if (!gameState || !currentPlayer || gameState.current_turn !== currentPlayer.player_index) {
       throw new Error('Not your turn');
     }
     
     try {
       const newPassCount = gameState.pass_count + 1;
       
-      // If all other players passed, clear the table
-      const clearTable = newPassCount >= players.length - 1;
+      // If all other room players passed, clear the table
+      const clearTable = newPassCount >= roomPlayers.length - 1;
       
       await supabase
         .from('game_state')
         .update({
           pass_count: clearTable ? 0 : newPassCount,
           last_play: clearTable ? null : gameState.last_play,
-          current_turn: (currentPlayer.position + 1) % players.length,
+          current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
         })
         .eq('id', gameState.id);
       
-      await broadcastMessage('player_passed', { position: currentPlayer.position });
+      await broadcastMessage('player_passed', { player_index: currentPlayer.player_index });
     } catch (err) {
       const error = err as Error;
       setError(error);
       onError?.(error);
       throw error;
     }
-  }, [gameState, currentPlayer, players, onError, broadcastMessage]);
+  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**
    * Reconnect to the room
@@ -649,17 +654,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   }, [userId, username, onDisconnect, reconnect]);
   
   /**
-   * Fetch all players in the room
+   * Fetch all room players from room_players table
    */
   const fetchPlayers = useCallback(async (roomId: string) => {
     const { data, error } = await supabase
-      .from('players')
+      .from('room_players')
       .select('*')
       .eq('room_id', roomId)
-      .order('position');
+      .order('player_index');
     
     if (!error && data) {
-      setPlayers(data);
+      setRoomPlayers(data);
     }
   }, []);
   
@@ -690,7 +695,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   return {
     room,
-    players,
+    players: roomPlayers, // Expose as 'players' for backward compatibility
     gameState,
     playerHands,
     isConnected,

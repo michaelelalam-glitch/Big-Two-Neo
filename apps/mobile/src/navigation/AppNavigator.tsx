@@ -6,12 +6,19 @@ import { useAuth } from '../contexts/AuthContext';
 import HomeScreen from '../screens/HomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import CreateRoomScreen from '../screens/CreateRoomScreen';
+import JoinRoomScreen from '../screens/JoinRoomScreen';
+import LobbyScreen from '../screens/LobbyScreen';
+import GameScreen from '../screens/GameScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   SignIn: undefined;
   Profile: undefined;
-  // Add more screens here as we build them
+  CreateRoom: undefined;
+  JoinRoom: undefined;
+  Lobby: { roomCode: string; isHost: boolean };
+  Game: { roomCode: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -46,6 +53,10 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+            <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
+            <Stack.Screen name="Lobby" component={LobbyScreen} />
+            <Stack.Screen name="Game" component={GameScreen} />
           </>
         )}
       </Stack.Navigator>
