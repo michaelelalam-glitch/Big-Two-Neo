@@ -1,6 +1,6 @@
 # Big2 Mobile
 
-A production-ready mobile application for playing Big 2 (Big Two) card game with real-time multiplayer and video chat.
+A production-ready mobile application for playing Big 2 (Big Two) card game with real-time authentication.
 
 ## 📱 Tech Stack
 
@@ -9,7 +9,7 @@ A production-ready mobile application for playing Big 2 (Big Two) card game with
 - **Navigation**: React Navigation (Stack Navigator)
 - **State Management**: Zustand
 - **Backend**: Supabase (Auth, Realtime, Database)
-- **Video Chat**: React Native WebRTC
+- **Authentication**: Apple Sign In, Google OAuth
 - **Styling**: React Native StyleSheet
 - **Haptics**: Expo Haptics
 
@@ -54,7 +54,7 @@ mobile/
 │   ├── screens/        # Screen components
 │   ├── navigation/     # Navigation configuration
 │   ├── hooks/          # Custom React hooks
-│   ├── services/       # API services (Supabase, WebRTC)
+│   ├── services/       # API services (Supabase)
 │   ├── store/          # Zustand state management
 │   ├── utils/          # Utility functions
 │   ├── types/          # TypeScript type definitions
@@ -113,8 +113,12 @@ npx eas-cli build --profile production --platform android
 - `@react-native-async-storage/async-storage` - Async storage
 - `zustand` - State management
 
+### Authentication
+- `@invertase/react-native-apple-authentication` - Apple Sign In
+- `expo-web-browser` - Google OAuth web browser
+- `expo-secure-store` - Secure credential storage
+
 ### Features
-- `react-native-webrtc` - Video chat
 - `expo-haptics` - Haptic feedback
 
 ## 🎨 Design System
