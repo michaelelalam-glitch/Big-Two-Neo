@@ -98,7 +98,7 @@ export default function JoinRoomScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>Join Room</Text>
         <Text style={styles.subtitle}>
-          Enter a 4-character room code to join
+          Enter a 6-character room code to join
         </Text>
 
         <View style={styles.inputContainer}>
