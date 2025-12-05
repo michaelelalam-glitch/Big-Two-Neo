@@ -7,6 +7,9 @@ import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
+// UI Constants
+const CARD_HAND_MAX_HEIGHT = 120; // Max height for card hand scroll area
+
 interface CardHandProps {
   cards: CardType[];
   onPlayCards: (selectedCards: CardType[]) => void;
@@ -35,9 +38,11 @@ export default function CardHand({
       const newSet = new Set(prev);
       if (newSet.has(cardId)) {
         newSet.delete(cardId);
+        // Light haptic for deselection (consistent with Card.tsx tap feedback)
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } else {
         newSet.add(cardId);
+        // Medium haptic for selection (more pronounced feedback)
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
       return newSet;
@@ -64,7 +69,8 @@ export default function CardHand({
   const handlePass = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPass();
-    setSelectedCardIds(new Set());
+    // Note: Keep selection intact after pass - user may want to adjust before playing
+    // setSelectedCardIds(new Set()); // Removed per Copilot feedback
   };
 
   // Sort is automatic by rank/suit
@@ -136,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   cardsScroll: {
-    maxHeight: 120,
+    maxHeight: CARD_HAND_MAX_HEIGHT,
   },
   cardsContainer: {
     flexDirection: 'row',
@@ -149,7 +155,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
     gap: SPACING.sm,
   },
-  // TODO: sortButton and sortButtonText reserved for future sort options feature
+  // Reserved for future sort options feature (Task #266+)
   clearButton: {
     alignSelf: 'flex-start',
     paddingVertical: SPACING.xs,
