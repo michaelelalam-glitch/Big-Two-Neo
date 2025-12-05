@@ -37,6 +37,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# build logs (may contain sensitive data)
+build.log
+*.build.log
+
 # generated native folders
 /ios
 /android

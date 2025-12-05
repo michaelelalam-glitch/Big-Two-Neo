@@ -26,22 +26,23 @@ export function sortHand(cards: Card[]): Card[] {
  * Sort straight cards in sequence order (not by value)
  * 
  * @param cards - Array of 5 cards forming a straight
- * @returns Cards sorted in sequence order
+ * @returns Cards sorted in sequence order (low to high in straight)
  */
 export function sortStraightCards(cards: Card[]): Card[] {
   if (cards.length !== 5) return sortHand(cards);
   
-  const sorted = sortHand(cards);
-  const ranks = sorted.map(c => c.rank);
+  // Get ranks without sorting by value first
+  const ranks = cards.map(c => c.rank);
   const seqIndex = findStraightSequenceIndex(ranks);
   
-  if (seqIndex === -1) return sorted;
+  if (seqIndex === -1) return sortHand(cards);
   
+  // Sort according to the valid sequence order
   const sequence = VALID_STRAIGHT_SEQUENCES[seqIndex];
   const result: Card[] = [];
   
   for (const rank of sequence) {
-    const card = sorted.find(c => c.rank === rank);
+    const card = cards.find(c => c.rank === rank);
     if (card) result.push(card);
   }
   
@@ -81,8 +82,8 @@ function countByRank(cards: Card[]): Record<string, number> {
 export function isStraight(cards: Card[]): { valid: boolean; sequence: string } {
   if (cards.length !== 5) return { valid: false, sequence: '' };
   
-  const sorted = sortHand(cards);
-  const ranks = sorted.map(c => c.rank);
+  // Get ranks (order doesn't matter for checking)
+  const ranks = cards.map(c => c.rank);
   const seqIndex = findStraightSequenceIndex(ranks);
   
   if (seqIndex !== -1) {
