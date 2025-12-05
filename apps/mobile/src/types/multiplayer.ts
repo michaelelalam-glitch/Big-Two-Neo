@@ -1,5 +1,9 @@
 /**
  * Type definitions for multiplayer game state and real-time synchronization
+ * 
+ * NOTE: Player interface represents data from the `room_players` table,
+ * which is used for lobby management. The separate `players` table is
+ * used only by Edge Functions for game logic.
  */
 
 export interface Room {
@@ -12,17 +16,21 @@ export interface Room {
   updated_at: string;
 }
 
+/**
+ * Player in room lobby (from room_players table)
+ * This represents a player in the lobby/matchmaking phase,
+ * NOT the active game state (which is managed by Edge Functions).
+ */
 export interface Player {
   id: string;
   room_id: string;
   user_id: string;
   username: string;
-  position: number; // 0-3 for 4-player game
+  player_index: number; // 0-3 for 4-player game
   is_host: boolean;
   is_ready: boolean;
-  connected: boolean;
-  created_at: string;
-  updated_at: string;
+  is_bot: boolean;
+  joined_at: string;
 }
 
 export interface GameState {
@@ -61,13 +69,13 @@ export type ComboType =
 
 export interface PlayerHand {
   player_id: string;
-  position: number;
+  player_index: number;
   cards: Card[];
   card_count: number;
 }
 
 export type GameActionPayload =
-  | { action_type: 'join'; username: string; position: number }
+  | { action_type: 'join'; username: string; player_index: number }
   | { action_type: 'leave' }
   | { action_type: 'ready'; is_ready: boolean }
   | { action_type: 'play'; cards: Card[]; combo_type: ComboType }
@@ -88,7 +96,7 @@ export interface PlayerPresence {
   user_id: string;
   username: string;
   online_at: string;
-  position?: number;
+  player_index?: number;
 }
 
 // Broadcast message types
@@ -104,13 +112,13 @@ export type BroadcastEvent =
   | 'reconnected';
 
 export type BroadcastData =
-  | { user_id: string; username: string; position: number }  // player_joined
-  | { user_id: string; position: number }  // player_left
+  | { user_id: string; username: string; player_index: number }  // player_joined
+  | { user_id: string; player_index: number }  // player_left
   | { user_id: string; ready: boolean }  // player_ready
   | { game_state: GameState }  // game_started
-  | { position: number; timer: number }  // turn_changed
-  | { position: number; cards: Card[]; combo_type: ComboType }  // cards_played
-  | { position: number }  // player_passed
+  | { player_index: number; timer: number }  // turn_changed
+  | { player_index: number; cards: Card[]; combo_type: ComboType }  // cards_played
+  | { player_index: number }  // player_passed
   | { winner_position: number }  // game_ended
   | { user_id: string };  // reconnected
 
@@ -157,8 +165,8 @@ export interface RealtimeChannelEvents {
   'player:updated': (payload: { player: Player }) => void;
   'game:started': (payload: { game_state: GameState }) => void;
   'game:updated': (payload: { game_state: GameState }) => void;
-  'turn:changed': (payload: { position: number; timer: number }) => void;
-  'cards:played': (payload: { position: number; cards: Card[]; combo_type: ComboType }) => void;
-  'player:passed': (payload: { position: number }) => void;
+  'turn:changed': (payload: { player_index: number; timer: number }) => void;
+  'cards:played': (payload: { player_index: number; cards: Card[]; combo_type: ComboType }) => void;
+  'player:passed': (payload: { player_index: number }) => void;
   'game:ended': (payload: { winner_position: number }) => void;
 }
