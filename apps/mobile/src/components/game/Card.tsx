@@ -21,7 +21,9 @@ interface CardProps {
 
 const CARD_WIDTH = 60;
 const CARD_HEIGHT = 84;
-const SELECTED_OFFSET = -20;
+const SELECTED_OFFSET = -20; // Offset for selected card elevation
+const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
+const CARD_OVERLAP_MARGIN = -8; // Negative margin for card overlap effect
 
 // Suit colors and symbols
 const SUIT_COLORS: Record<string, string> = {
@@ -74,15 +76,17 @@ export default function Card({
     })
     .onEnd(() => {
       // Snap to play zone if dragged far enough
-      if (translateY.value < -80) {
-        // Play card action (to be implemented)
+      if (translateY.value < DRAG_TO_PLAY_THRESHOLD) {
+        // TODO: Implement play action in Task #266
+        // For now, just provide feedback but don't actually play
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       translateY.value = withSpring(0);
       onDragEnd?.();
     });
 
-  const composedGesture = Gesture.Race(tapGesture, panGesture);
+  // Use Exclusive instead of Race - tap has priority, pan only works when dragging
+  const composedGesture = Gesture.Exclusive(tapGesture, panGesture);
 
   const animatedStyle = useAnimatedStyle(() => {
     const selectedOffset = isSelected ? SELECTED_OFFSET : 0;
@@ -130,7 +134,7 @@ export default function Card({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: -8, // Overlap cards slightly
+    marginHorizontal: CARD_OVERLAP_MARGIN, // Overlap cards slightly
   },
   card: {
     width: CARD_WIDTH,
