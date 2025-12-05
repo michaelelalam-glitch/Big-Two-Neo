@@ -2,8 +2,7 @@
  * Tests for useRealtime hook and multiplayer functionality
  */
 
-import { renderHook, act } from '@testing-library/react-hooks';
-import { waitFor } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import { supabase } from '../../services/supabase';
 
