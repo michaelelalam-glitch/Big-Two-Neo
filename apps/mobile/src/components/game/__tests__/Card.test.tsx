@@ -59,8 +59,9 @@ describe('Card Component', () => {
       />
     );
 
-    // Note: GestureDetector doesn't expose testID directly
-    // This test verifies the component structure
+    // Note: GestureDetector doesn't expose testID for direct gesture testing
+    // Gesture interactions require E2E tests with Detox or manual testing
+    // This test verifies the component renders without errors
     expect(mockOnToggleSelect).not.toHaveBeenCalled();
   });
 
