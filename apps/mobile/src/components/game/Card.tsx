@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -27,10 +27,10 @@ const CARD_OVERLAP_MARGIN = -8; // Negative margin for card overlap effect
 
 // Suit colors and symbols
 const SUIT_COLORS: Record<string, string> = {
-  H: '#E53935', // Hearts (red)
-  D: '#E53935', // Diamonds (red)
-  C: '#212121', // Clubs (black)
-  S: '#212121', // Spades (black)
+  H: COLORS.card.hearts, // Hearts (red)
+  D: COLORS.card.diamonds, // Diamonds (red)
+  C: COLORS.card.clubs, // Clubs (black)
+  S: COLORS.card.spades, // Spades (black)
 };
 
 const SUIT_SYMBOLS: Record<string, string> = {
@@ -40,7 +40,7 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
-export default function Card({
+const Card = React.memo(function Card({
   card,
   isSelected,
   onToggleSelect,
@@ -51,42 +51,51 @@ export default function Card({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
 
-  // Tap gesture for selection
+  // Tap gesture for selection (memoized for performance)
   // Note: Haptic feedback handled by CardHand to avoid duplicate feedback
-  const tapGesture = Gesture.Tap()
-    .enabled(!disabled)
-    .onStart(() => {
-      scale.value = withSpring(0.95, { damping: 10 });
-    })
-    .onEnd(() => {
-      scale.value = withSpring(1, { damping: 10 });
-      onToggleSelect(card.id);
-    });
+  const tapGesture = useMemo(
+    () => Gesture.Tap()
+      .enabled(!disabled)
+      .onStart(() => {
+        scale.value = withSpring(0.95, { damping: 10 });
+      })
+      .onEnd(() => {
+        scale.value = withSpring(1, { damping: 10 });
+        onToggleSelect(card.id);
+      }),
+    [disabled, card.id, onToggleSelect, scale]
+  );
 
-  // Pan gesture for dragging (future enhancement)
-  const panGesture = Gesture.Pan()
-    .enabled(!disabled && isSelected)
-    .onStart(() => {
-      onDragStart?.();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    })
-    .onUpdate((event) => {
-      // Only allow upward dragging
-      translateY.value = Math.min(0, event.translationY);
-    })
-    .onEnd(() => {
-      // Snap to play zone if dragged far enough
-      if (translateY.value < DRAG_TO_PLAY_THRESHOLD) {
-        // TODO: Implement play action in Task #266
-        // For now, just provide feedback but don't actually play
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-      translateY.value = withSpring(0);
-      onDragEnd?.();
-    });
+  // Pan gesture for dragging (future enhancement, memoized for performance)
+  const panGesture = useMemo(
+    () => Gesture.Pan()
+      .enabled(!disabled && isSelected)
+      .onStart(() => {
+        onDragStart?.();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      })
+      .onUpdate((event) => {
+        // Only allow upward dragging
+        translateY.value = Math.min(0, event.translationY);
+      })
+      .onEnd(() => {
+        // Snap to play zone if dragged far enough
+        if (translateY.value < DRAG_TO_PLAY_THRESHOLD) {
+          // TODO: Implement play action in Task #266
+          // For now, just provide feedback but don't actually play
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        translateY.value = withSpring(0);
+        onDragEnd?.();
+      }),
+    [disabled, isSelected, translateY, onDragStart, onDragEnd]
+  );
 
   // Use Exclusive instead of Race - tap has priority, pan only works when dragging
-  const composedGesture = Gesture.Exclusive(tapGesture, panGesture);
+  const composedGesture = useMemo(
+    () => Gesture.Exclusive(tapGesture, panGesture),
+    [tapGesture, panGesture]
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     const selectedOffset = isSelected ? SELECTED_OFFSET : 0;
@@ -104,7 +113,14 @@ export default function Card({
 
   return (
     <GestureDetector gesture={composedGesture}>
-      <Animated.View style={[styles.container, animatedStyle]}>
+      <Animated.View 
+        style={[styles.container, animatedStyle]}
+        accessible={true}
+        accessibilityLabel={`${card.rank} of ${suitSymbol}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected, disabled: disabled }}
+        accessibilityHint="Double tap to select or deselect this card"
+      >
         <View style={[styles.card, isSelected && styles.cardSelected]}>
           {/* Top-left corner */}
           <View style={styles.corner}>
@@ -130,7 +146,7 @@ export default function Card({
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -185,3 +201,5 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
+
+export default Card;

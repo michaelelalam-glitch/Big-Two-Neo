@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -30,8 +30,8 @@ export default function CardHand({
   // Sort cards (memoized to avoid re-sorting on every render)
   const sortedCards = useMemo(() => sortHand(cards), [cards]);
 
-  // Toggle card selection
-  const handleToggleSelect = (cardId: string) => {
+  // Toggle card selection (memoized to prevent card re-renders)
+  const handleToggleSelect = useCallback((cardId: string) => {
     if (disabled) return;
 
     const wasSelected = selectedCardIds.has(cardId);
@@ -54,31 +54,31 @@ export default function CardHand({
       // Medium haptic for selection (more pronounced feedback)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  };
+  }, [disabled, selectedCardIds]);
 
-  // Clear selection
-  const handleClearSelection = () => {
+  // Clear selection (memoized)
+  const handleClearSelection = useCallback(() => {
     setSelectedCardIds(new Set());
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, []);
 
-  // Play selected cards
-  const handlePlay = () => {
+  // Play selected cards (memoized)
+  const handlePlay = useCallback(() => {
     if (selectedCardIds.size === 0) return;
 
     const selected = sortedCards.filter((card) => selectedCardIds.has(card.id));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPlayCards(selected);
     setSelectedCardIds(new Set());
-  };
+  }, [selectedCardIds, sortedCards, onPlayCards]);
 
-  // Pass turn
-  const handlePass = () => {
+  // Pass turn (memoized)
+  const handlePass = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPass();
     // Note: Keep selection intact after pass - user may want to adjust before playing
     // setSelectedCardIds(new Set()); // Removed per Copilot feedback
-  };
+  }, [onPass]);
 
   // Sort is automatic by rank/suit
   // Future enhancement: Add different sort options
@@ -107,7 +107,13 @@ export default function CardHand({
       <View style={styles.actionsContainer}>
         {/* Selection info */}
         {selectedCardIds.size > 0 && (
-          <Pressable style={styles.clearButton} onPress={handleClearSelection}>
+          <Pressable 
+            style={styles.clearButton} 
+            onPress={handleClearSelection}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`Clear ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
+          >
             <Text style={styles.clearButtonText}>
               Clear ({selectedCardIds.size})
             </Text>
@@ -120,6 +126,10 @@ export default function CardHand({
             style={[styles.button, styles.passButton, !canPlay && styles.buttonDisabled]}
             onPress={handlePass}
             disabled={!canPlay || disabled}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Pass turn"
+            accessibilityState={{ disabled: !canPlay || disabled }}
           >
             <Text style={[styles.buttonText, styles.passButtonText]}>Pass</Text>
           </Pressable>
@@ -133,6 +143,10 @@ export default function CardHand({
             ]}
             onPress={handlePlay}
             disabled={selectedCardIds.size === 0 || !canPlay || disabled}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`Play ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
+            accessibilityState={{ disabled: selectedCardIds.size === 0 || !canPlay || disabled }}
           >
             <Text style={styles.buttonText}>
               Play {selectedCardIds.size > 0 ? `(${selectedCardIds.size})` : ''}

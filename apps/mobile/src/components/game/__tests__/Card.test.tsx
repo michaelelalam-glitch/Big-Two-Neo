@@ -50,7 +50,10 @@ describe('Card Component', () => {
     expect(suitElements).toBeTruthy();
   });
 
-  // TODO: Gesture testing requires E2E framework (Detox)\n  // GestureDetector doesn't expose testID for unit testing\n  // This test suite verifies component structure and rendering only\n  it('renders without errors when tapped', () => {
+  // TODO: Gesture testing requires E2E framework (Detox)
+  // GestureDetector doesn't expose testID for unit testing
+  // This test suite verifies component structure and rendering only
+  it('renders without errors when tapped', () => {
     const { getByTestId } = render(
       <Card
         card={mockCard}
@@ -59,7 +62,10 @@ describe('Card Component', () => {
       />
     );
 
-    // Verifies component renders correctly\n    // Actual tap gesture functionality requires E2E tests\n    expect(mockOnToggleSelect).not.toHaveBeenCalled();\n  });
+    // Verifies component renders correctly
+    // Actual tap gesture functionality requires E2E tests
+    expect(mockOnToggleSelect).not.toHaveBeenCalled();
+  });
 
   it('displays selected state with border', () => {
     const { getByText } = render(
