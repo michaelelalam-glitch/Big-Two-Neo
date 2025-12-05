@@ -48,12 +48,13 @@ export default function CreateRoomScreen() {
 
       if (roomError) throw roomError;
 
-      // Add host as first player
+      // Add creator as host in room_players
       const { error: playerError } = await supabase
         .from('room_players')
         .insert({
           room_id: roomData.id,
           user_id: user.id,
+          username: user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`,
           player_index: 0,
           is_host: true,
           is_ready: false,
