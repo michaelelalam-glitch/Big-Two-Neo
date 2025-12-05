@@ -224,7 +224,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .insert({
           room_id: newRoom.id,
           user_id: userId,
-          player_id: userId,
           username,
           player_index: 0,
           is_host: true,
@@ -295,7 +294,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .insert({
           room_id: existingRoom.id,
           user_id: userId,
-          player_id: userId,
           username,
           player_index,
           is_host: false,

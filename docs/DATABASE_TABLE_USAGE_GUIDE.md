@@ -39,7 +39,6 @@ The Big Two mobile app uses **two separate player tables** for different purpose
 - `is_host` (boolean): Room creator flag
 - `is_ready` (boolean): Ready to start game
 - `is_bot` (boolean): AI player flag
-- `is_connected` (boolean): Connection status
 - `joined_at` (timestamptz): Join timestamp
 
 **When to Use:**
