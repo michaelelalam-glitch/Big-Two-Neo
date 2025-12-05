@@ -3,6 +3,7 @@
 export const COLORS = {
   primary: '#25292e',
   secondary: '#4A90E2',
+  accent: '#FF6B35',
   success: '#4CAF50',
   error: '#F44336',
   warning: '#FF9800',
