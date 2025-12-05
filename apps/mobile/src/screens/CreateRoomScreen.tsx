@@ -54,7 +54,6 @@ export default function CreateRoomScreen() {
         .insert({
           room_id: roomData.id,
           user_id: user.id,
-          player_id: user.id,
           player_index: 0,
           is_host: true,
           is_ready: false,

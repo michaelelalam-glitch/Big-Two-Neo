@@ -66,7 +66,6 @@ export default function JoinRoomScreen() {
         .insert({
           room_id: roomData.id,
           user_id: user.id,
-          player_id: user.id,
           player_index: players.length,
           is_host: false,
           is_ready: false,

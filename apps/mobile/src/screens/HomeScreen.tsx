@@ -75,7 +75,6 @@ export default function HomeScreen() {
           .insert({
             room_id: roomWithSpace.id,
             user_id: user.id,
-            player_id: user.id,
             player_index: roomWithSpace.playerCount,
             is_host: false,
             is_ready: false,
@@ -117,7 +116,6 @@ export default function HomeScreen() {
           .insert({
             room_id: roomData.id,
             user_id: user.id,
-            player_id: user.id,
             player_index: 0,
             is_host: true,
             is_ready: false,
