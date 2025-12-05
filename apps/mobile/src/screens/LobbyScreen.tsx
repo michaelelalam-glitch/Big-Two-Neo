@@ -40,11 +40,12 @@ export default function LobbyScreen() {
 
   const loadPlayers = async () => {
     try {
-      // Get and cache roomId if not already set
-      if (!roomId) {
-        const id = await getRoomId();
-        if (!id) return; // Room not found, getRoomId handles navigation
-        setRoomId(id);
+      // Get roomId - either from state or fetch it
+      let currentRoomId = roomId;
+      if (!currentRoomId) {
+        currentRoomId = await getRoomId();
+        if (!currentRoomId) return; // Room not found, getRoomId handles navigation
+        setRoomId(currentRoomId);
       }
       
       // Use the username column to avoid N+1 query problem
@@ -58,7 +59,7 @@ export default function LobbyScreen() {
           is_bot,
           username
         `)
-        .eq('room_id', roomId)
+        .eq('room_id', currentRoomId)
         .order('player_index');
 
       if (error) throw error;
@@ -116,11 +117,13 @@ export default function LobbyScreen() {
 
   const handleToggleReady = async () => {
     try {
-      if (!roomId) return; // Use cached roomId
+      const currentRoomId = roomId || await getRoomId();
+      if (!currentRoomId) return;
+      
       const { error } = await supabase
         .from('room_players')
         .update({ is_ready: !isReady })
-        .eq('room_id', roomId)
+        .eq('room_id', currentRoomId)
         .eq('user_id', user?.id);
 
       if (error) throw error;
@@ -133,14 +136,15 @@ export default function LobbyScreen() {
 
   const handleLeaveRoom = async () => {
     try {
-      if (!roomId) return; // Use cached roomId
+      const currentRoomId = roomId || await getRoomId();
+      if (!currentRoomId) return;
       
       if (isHost) {
         // Delete the room if host leaves
         const { error } = await supabase
           .from('rooms')
           .delete()
-          .eq('id', roomId);
+          .eq('id', currentRoomId);
         
         if (error) throw error;
       } else {
@@ -148,7 +152,7 @@ export default function LobbyScreen() {
         const { error } = await supabase
           .from('room_players')
           .delete()
-          .eq('room_id', roomId)
+          .eq('room_id', currentRoomId)
           .eq('user_id', user?.id);
         
         if (error) throw error;
