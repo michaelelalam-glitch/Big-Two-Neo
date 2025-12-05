@@ -105,9 +105,9 @@ export default function JoinRoomScreen() {
             style={styles.input}
             value={roomCode}
             onChangeText={(text) => setRoomCode(text.toUpperCase())}
-            placeholder="ABCD"
+            placeholder="ABC123"
             placeholderTextColor={COLORS.gray.medium}
-            maxLength={4}
+            maxLength={6}
             autoCapitalize="characters"
             autoCorrect={false}
             editable={!isJoining}
@@ -115,9 +115,9 @@ export default function JoinRoomScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.joinButton, (isJoining || roomCode.length !== 4) && styles.buttonDisabled]}
+          style={[styles.joinButton, (isJoining || roomCode.length !== 6) && styles.buttonDisabled]}
           onPress={handleJoinRoom}
-          disabled={isJoining || roomCode.length !== 4}
+          disabled={isJoining || roomCode.length !== 6}
         >
           {isJoining ? (
             <ActivityIndicator color={COLORS.white} />
