@@ -1,88 +1,48 @@
 import React from 'react';
 import { Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
-import { AppleButton, appleAuth } from '@invertase/react-native-apple-authentication';
-import { supabase } from '../../services/supabase';
-import type { SignInWithIdTokenCredentials } from '@supabase/supabase-js';
 
+/**
+ * Apple Sign In - DISABLED (Backlogged)
+ * 
+ * This feature has been temporarily disabled and moved to backlog.
+ * The button is shown but does nothing when pressed.
+ * 
+ * TODO: Implement Apple Authentication later
+ * - Set up Apple Developer account
+ * - Configure Sign in with Apple capability
+ * - Integrate with Supabase Auth
+ */
 const AppleSignInButton = () => {
-  const onAppleButtonPress = async () => {
-    try {
-      // Perform Apple sign-in request
-      const appleAuthRequestResponse = await appleAuth.performRequest({
-        requestedOperation: appleAuth.Operation.LOGIN,
-        requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
-      });
-
-      // Get credential state (only works on real devices)
-      let credentialState;
-      try {
-        credentialState = await appleAuth.getCredentialStateForUser(
-          appleAuthRequestResponse.user
-        );
-      } catch (e) {
-        console.log('Credential state check failed (expected on simulator):', e);
-        // Continue anyway for simulator testing
-        credentialState = appleAuth.State.AUTHORIZED;
-      }
-
-      console.log('Apple sign in successful:', {
-        credentialState,
-        appleAuthRequestResponse,
-      });
-
-      if (
-        credentialState === appleAuth.State.AUTHORIZED &&
-        appleAuthRequestResponse.identityToken &&
-        appleAuthRequestResponse.authorizationCode
-      ) {
-        const signInWithIdTokenCredentials: SignInWithIdTokenCredentials = {
-          provider: 'apple',
-          token: appleAuthRequestResponse.identityToken,
-          nonce: appleAuthRequestResponse.nonce,
-          access_token: appleAuthRequestResponse.authorizationCode,
-        };
-
-        const { data, error } = await supabase.auth.signInWithIdToken(
-          signInWithIdTokenCredentials
-        );
-
-        if (error) {
-          console.error('Error signing in with Apple:', error);
-          throw error;
-        }
-
-        if (data) {
-          console.log('Apple sign in successful:', data);
-        }
-      }
-    } catch (error: any) {
-      console.error('Error during Apple sign in:', error);
-      if (error.code === appleAuth.Error.CANCELED) {
-        console.log('User canceled Apple Sign in');
-      } else {
-        throw error;
-      }
-    }
+  const onAppleButtonPress = () => {
+    console.log('Apple Sign In is currently disabled (backlogged feature)');
+    // No action - feature backlogged
   };
 
-  // iOS - Show native Apple Button
+  // iOS - Show disabled button
   if (Platform.OS === 'ios') {
     return (
-      <AppleButton
-        buttonStyle={AppleButton.Style.BLACK}
-        buttonType={AppleButton.Type.SIGN_IN}
-        style={styles.appleButton}
+      <TouchableOpacity 
+        style={[styles.customButton, styles.disabledButton]} 
         onPress={onAppleButtonPress}
-      />
+        activeOpacity={0.7}
+      >
+        <View style={styles.buttonContent}>
+          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
+        </View>
+      </TouchableOpacity>
     );
   }
 
-  // Android - Show custom button
+  // Android - Show disabled button
   if (Platform.OS === 'android') {
     return (
-      <TouchableOpacity style={styles.customButton} onPress={onAppleButtonPress}>
+      <TouchableOpacity 
+        style={[styles.customButton, styles.disabledButton]} 
+        onPress={onAppleButtonPress}
+        activeOpacity={0.7}
+      >
         <View style={styles.buttonContent}>
-          <Text style={styles.buttonText}>Sign in with Apple</Text>
+          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
         </View>
       </TouchableOpacity>
     );
@@ -93,10 +53,6 @@ const AppleSignInButton = () => {
 };
 
 const styles = StyleSheet.create({
-  appleButton: {
-    width: '100%',
-    height: 50,
-  },
   customButton: {
     width: '100%',
     height: 50,
@@ -104,6 +60,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   buttonContent: {
     flexDirection: 'row',

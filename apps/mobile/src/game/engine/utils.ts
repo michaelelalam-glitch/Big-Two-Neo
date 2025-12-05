@@ -25,12 +25,18 @@ export function isSameSet(a: Card[], b: Card[]): boolean {
 /**
  * Find the index of a valid straight sequence that matches the given ranks
  * 
- * @param ranks - Array of 5 rank strings
+ * @param ranks - Array of 5 rank strings (can be in any order)
  * @returns Index of matching sequence, or -1 if not found
  */
 export function findStraightSequenceIndex(ranks: string[]): number {
   if (ranks.length !== 5) return -1;
   
-  const rankStr = ranks.join('');
-  return VALID_STRAIGHT_SEQUENCES.findIndex(seq => seq.join('') === rankStr);
+  // Create a set for order-independent matching
+  const rankSet = new Set(ranks);
+  
+  // Check each valid sequence
+  return VALID_STRAIGHT_SEQUENCES.findIndex(seq => {
+    // All ranks in the sequence must be present in the input
+    return seq.every(rank => rankSet.has(rank));
+  });
 }

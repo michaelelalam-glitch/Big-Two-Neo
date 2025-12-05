@@ -263,11 +263,36 @@ export class BotAI {
    */
   private findAllPairs(hand: Card[]): string[][] {
     const pairs: string[][] = [];
-    for (let i = 0; i < hand.length - 1; i++) {
-      if (hand[i].rank === hand[i + 1].rank) {
-        pairs.push([hand[i].id, hand[i + 1].id]);
+    const rankGroups: Record<string, Card[]> = {};
+    
+    // Group cards by rank
+    for (const card of hand) {
+      if (!rankGroups[card.rank]) {
+        rankGroups[card.rank] = [];
+      }
+      rankGroups[card.rank].push(card);
+    }
+    
+    // Find all pairs (groups of 2+ cards with same rank)
+    for (const rank in rankGroups) {
+      const group = rankGroups[rank];
+      if (group.length >= 2) {
+        // Add first pair found for this rank
+        pairs.push([group[0].id, group[1].id]);
+        
+        // If 3+ cards of same rank, add other pair combinations
+        if (group.length >= 3) {
+          pairs.push([group[0].id, group[2].id]);
+          pairs.push([group[1].id, group[2].id]);
+        }
+        if (group.length === 4) {
+          pairs.push([group[0].id, group[3].id]);
+          pairs.push([group[1].id, group[3].id]);
+          pairs.push([group[2].id, group[3].id]);
+        }
       }
     }
+    
     return pairs;
   }
 
@@ -276,11 +301,32 @@ export class BotAI {
    */
   private findAllTriples(hand: Card[]): string[][] {
     const triples: string[][] = [];
-    for (let i = 0; i < hand.length - 2; i++) {
-      if (hand[i].rank === hand[i + 1].rank && hand[i].rank === hand[i + 2].rank) {
-        triples.push([hand[i].id, hand[i + 1].id, hand[i + 2].id]);
+    const rankGroups: Record<string, Card[]> = {};
+    
+    // Group cards by rank
+    for (const card of hand) {
+      if (!rankGroups[card.rank]) {
+        rankGroups[card.rank] = [];
+      }
+      rankGroups[card.rank].push(card);
+    }
+    
+    // Find all triples (groups of 3+ cards with same rank)
+    for (const rank in rankGroups) {
+      const group = rankGroups[rank];
+      if (group.length >= 3) {
+        // Add first triple found for this rank
+        triples.push([group[0].id, group[1].id, group[2].id]);
+        
+        // If 4 cards of same rank, add other triple combination
+        if (group.length === 4) {
+          triples.push([group[0].id, group[1].id, group[3].id]);
+          triples.push([group[0].id, group[2].id, group[3].id]);
+          triples.push([group[1].id, group[2].id, group[3].id]);
+        }
       }
     }
+    
     return triples;
   }
 
