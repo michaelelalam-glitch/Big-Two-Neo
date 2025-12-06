@@ -77,8 +77,36 @@ export default function CreateRoomScreen() {
                   }
 
                   console.log('✅ Left room:', existingCode);
-                  // Small delay to ensure DB state updated
-                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
+                  // Poll DB to confirm user has left before proceeding
+                  const maxAttempts = 10;
+                  const pollInterval = 300; // ms
+                  let attempt = 0;
+                  let isDeleted = false;
+                  
+                  while (attempt < maxAttempts && !isDeleted) {
+                    const { data: checkData, error: checkErr } = await supabase
+                      .from('room_players')
+                      .select('id')
+                      .eq('room_id', existingRoomPlayer.room_id)
+                      .eq('user_id', user.id);
+                    
+                    if (checkErr) break;
+                    if (!checkData || checkData.length === 0) {
+                      isDeleted = true;
+                      break;
+                    }
+                    
+                    attempt++;
+                    await new Promise(resolve => setTimeout(resolve, pollInterval));
+                  }
+                  
+                  if (!isDeleted) {
+                    Alert.alert('Error', 'Failed to confirm leaving room. Please try again.');
+                    setIsCreating(false);
+                    return;
+                  }
+                  
                   // Retry creating room
                   handleCreateRoom();
                 } catch (error: any) {

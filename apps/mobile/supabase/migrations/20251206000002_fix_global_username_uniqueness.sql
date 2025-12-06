@@ -60,7 +60,7 @@ BEGIN
   -- If user has an existing username, enforce it unless it's an auto-generated one
   IF v_existing_username IS NOT NULL AND LOWER(v_existing_username) != LOWER(p_username) THEN
     -- Allow changing username only if the existing one is auto-generated (Player_{uuid})
-    IF NOT (v_existing_username LIKE 'Player\_%') THEN
+    IF NOT (v_existing_username LIKE 'Player_%') THEN
       RAISE EXCEPTION 'You already have username "%". You cannot change your username.', v_existing_username;
     END IF;
   END IF;

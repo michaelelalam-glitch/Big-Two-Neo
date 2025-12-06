@@ -260,12 +260,25 @@ export default function LobbyScreen() {
         // Try to read the error body if available
         if (response.error.context?.bodyUsed === false && response.error.context?._bodyInit) {
           try {
-            // Note: Using String.fromCharCode instead of Buffer (not available in React Native)
-            const errorBody = JSON.parse(
-              response.error.context._bodyInit
-            );
-            errorMessage = errorBody.error || errorBody.message || errorMessage;
-            console.log('Parsed error body:', errorBody);
+            // Handle both string and binary buffer formats
+            let errorBodyString;
+            const bodyInit = response.error.context._bodyInit;
+            
+            if (typeof bodyInit === 'string') {
+              errorBodyString = bodyInit;
+            } else if (bodyInit instanceof ArrayBuffer) {
+              errorBodyString = String.fromCharCode.apply(null, Array.from(new Uint8Array(bodyInit)));
+            } else if (bodyInit instanceof Uint8Array) {
+              errorBodyString = String.fromCharCode.apply(null, Array.from(bodyInit));
+            } else {
+              errorBodyString = '';
+            }
+            
+            if (errorBodyString) {
+              const errorBody = JSON.parse(errorBodyString);
+              errorMessage = errorBody.error || errorBody.message || errorMessage;
+              console.log('Parsed error body:', errorBody);
+            }
           } catch (e) {
             console.log('Could not parse error body');
           }
