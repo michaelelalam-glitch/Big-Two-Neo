@@ -41,7 +41,7 @@ export default function JoinRoomScreen() {
       }
 
       if (existingRoomPlayer) {
-        const existingCode = existingRoomPlayer.rooms.code;
+        const existingCode = (existingRoomPlayer.rooms as any).code;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
           // Already in this room, just navigate

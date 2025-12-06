@@ -45,8 +45,8 @@ export default function CreateRoomScreen() {
       }
 
       if (existingRoomPlayer) {
-        const existingCode = existingRoomPlayer.rooms.code;
-        const roomStatus = existingRoomPlayer.rooms.status;
+        const existingCode = (existingRoomPlayer.rooms as any).code;
+        const roomStatus = (existingRoomPlayer.rooms as any).status;
         
         console.log('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
         

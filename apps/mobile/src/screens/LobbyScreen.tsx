@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -34,11 +34,33 @@ export default function LobbyScreen() {
   const [isReady, setIsReady] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const isLeavingRef = useRef(false); // Prevent double navigation
 
   useEffect(() => {
     loadPlayers();
     return subscribeToPlayers();
   }, [roomCode]);
+
+  const getRoomId = async () => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('code', roomCode)
+      .single();
+    
+    if (error || !data) {
+      console.log('[LobbyScreen] Room not found, navigating to Home (likely cleaned up)');
+      // Silently navigate home instead of showing error
+      // This happens when user leaves game and cleanup removes them from room
+      if (!isLeavingRef.current) {
+        isLeavingRef.current = true;
+        navigation.replace('Home');
+      }
+      return null;
+    }
+    
+    return data.id;
+  };
 
   const loadPlayers = async () => {
     try {
@@ -103,26 +125,20 @@ export default function LobbyScreen() {
       }
     } catch (error: any) {
       console.error('[LobbyScreen] Error loading players:', error);
-      Alert.alert('Error', 'Failed to load players');
+      // Don't show alert if room was cleaned up (user left)
+      // Just navigate home silently
+      if (error.message?.includes('not found') || error.code === 'PGRST116') {
+        console.log('[LobbyScreen] Room no longer exists, navigating home');
+        if (!isLeavingRef.current) {
+          isLeavingRef.current = true;
+          navigation.replace('Home');
+        }
+      } else {
+        Alert.alert('Error', 'Failed to load players');
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getRoomId = async () => {
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('id')
-      .eq('code', roomCode)
-      .single();
-    
-    if (error || !data) {
-      Alert.alert('Error', 'Room not found');
-      navigation.replace('Home');
-      return null;
-    }
-    
-    return data.id;
   };
 
   const subscribeToPlayers = () => {
@@ -309,6 +325,9 @@ export default function LobbyScreen() {
 
   const handleLeaveRoom = async () => {
     try {
+      // Set flag to prevent duplicate navigation
+      isLeavingRef.current = true;
+      
       const currentRoomId = roomId || await getRoomId();
       if (!currentRoomId) return;
       
@@ -334,6 +353,7 @@ export default function LobbyScreen() {
       navigation.replace('Home');
     } catch (error: any) {
       console.error('Error leaving room:', error);
+      isLeavingRef.current = false; // Reset flag on error
       Alert.alert('Error', 'Failed to leave room');
     }
   };
