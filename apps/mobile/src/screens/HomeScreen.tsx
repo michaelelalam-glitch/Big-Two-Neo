@@ -31,8 +31,8 @@ export default function HomeScreen() {
         return;
       }
 
-      if (data && data.rooms?.code) {
-        setCurrentRoom(data.rooms.code);
+      if (data && (data.rooms as any)?.code) {
+        setCurrentRoom((data.rooms as any).code);
       } else {
         setCurrentRoom(null);
       }
@@ -114,10 +114,10 @@ export default function HomeScreen() {
       }
 
       if (existingRoomPlayer) {
-        console.log('✅ User already in room:', existingRoomPlayer.rooms.code);
+        console.log('✅ User already in room:', (existingRoomPlayer.rooms as any).code);
         // User is already in a room, navigate there
-        setCurrentRoom(existingRoomPlayer.rooms.code);
-        navigation.replace('Lobby', { roomCode: existingRoomPlayer.rooms.code });
+        setCurrentRoom((existingRoomPlayer.rooms as any).code);
+        navigation.replace('Lobby', { roomCode: (existingRoomPlayer.rooms as any).code });
         return;
       }
 
@@ -281,7 +281,7 @@ export default function HomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.mainButton, styles.quickPlayButton, isQuickPlaying && styles.buttonDisabled]}
-            onPress={handleQuickPlay}
+            onPress={() => handleQuickPlay()}
             disabled={isQuickPlaying}
           >
             {isQuickPlaying ? (

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand } from '../components/game';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 
@@ -40,6 +42,8 @@ function shuffleDemoDeck(cards: Card[]): Card[] {
 
 export default function GameScreen() {
   const route = useRoute<GameScreenRouteProp>();
+  const navigation = useNavigation();
+  const { user } = useAuth();
   const { roomCode } = route.params;
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
 
@@ -51,6 +55,30 @@ export default function GameScreen() {
     const hand = shuffled.slice(0, 13);
     setPlayerHand(hand);
   }, [roomCode]);
+
+  // Cleanup: Remove player from room when unmounting
+  useEffect(() => {
+    return () => {
+      // Only cleanup if user exists and we have a valid room code
+      if (user?.id && roomCode) {
+        console.log(`🧹 [GameScreen] Cleanup: Removing user ${user.id} from room ${roomCode}`);
+        
+        // Use non-blocking cleanup (don't await)
+        supabase
+          .from('room_players')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('rooms.code', roomCode)
+          .then(({ error }) => {
+            if (error) {
+              console.error('❌ [GameScreen] Cleanup error:', error);
+            } else {
+              console.log('✅ [GameScreen] Successfully removed from room');
+            }
+          });
+      }
+    };
+  }, [user, roomCode]);
 
   const handlePlayCards = (cards: Card[]) => {
     console.log('Playing cards:', cards);
