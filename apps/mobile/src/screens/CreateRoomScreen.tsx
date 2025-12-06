@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -44,9 +45,10 @@ export default function CreateRoomScreen() {
         throw checkError;
       }
 
-      if (existingRoomPlayer) {
-        const existingCode = existingRoomPlayer.rooms.code;
-        const roomStatus = existingRoomPlayer.rooms.status;
+      const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
+      if (roomPlayer) {
+        const existingCode = roomPlayer.rooms.code;
+        const roomStatus = roomPlayer.rooms.status;
         
         console.log('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
         
