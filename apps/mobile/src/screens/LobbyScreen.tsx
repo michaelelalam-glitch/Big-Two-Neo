@@ -17,6 +17,7 @@ interface Player {
   player_index: number;
   is_ready: boolean;
   is_bot: boolean;
+  is_host: boolean;
   profiles?: {
     username?: string;
   };
@@ -25,13 +26,14 @@ interface Player {
 export default function LobbyScreen() {
   const navigation = useNavigation<LobbyScreenNavigationProp>();
   const route = useRoute<LobbyScreenRouteProp>();
-  const { roomCode, isHost } = route.params;
+  const { roomCode } = route.params;
   const { user } = useAuth();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [isHost, setIsHost] = useState(false);
 
   useEffect(() => {
     loadPlayers();
@@ -48,6 +50,8 @@ export default function LobbyScreen() {
         setRoomId(currentRoomId);
       }
       
+      console.log('[LobbyScreen] Loading players for room:', currentRoomId, 'user:', user?.id);
+      
       // Use the username column to avoid N+1 query problem
       const { data, error } = await supabase
         .from('room_players')
@@ -57,12 +61,18 @@ export default function LobbyScreen() {
           player_index,
           is_ready,
           is_bot,
+          is_host,
           username
         `)
         .eq('room_id', currentRoomId)
         .order('player_index');
 
-      if (error) throw error;
+      if (error) {
+        console.error('[LobbyScreen] Query error:', error);
+        throw error;
+      }
+      
+      console.log('[LobbyScreen] Raw query data:', JSON.stringify(data, null, 2));
       
       // Transform data to match Player interface (with profiles object for backward compatibility)
       const players = (data || []).map(player => ({
@@ -71,8 +81,28 @@ export default function LobbyScreen() {
       }));
       
       setPlayers(players);
+      
+      // Check if current user is the host - MUST happen after data is fetched
+      const currentUserPlayer = players.find(p => p.user_id === user?.id);
+      if (currentUserPlayer) {
+        const hostStatus = currentUserPlayer.is_host === true;
+        console.log('[LobbyScreen] ✅ Current user found:', {
+          user_id: user?.id,
+          is_host: currentUserPlayer.is_host,
+          hostStatus,
+          player_index: currentUserPlayer.player_index,
+          raw_player_data: JSON.stringify(currentUserPlayer),
+        });
+        setIsHost(hostStatus);
+      } else {
+        console.log('[LobbyScreen] ❌ Current user NOT found in players list!', {
+          user_id: user?.id,
+          all_user_ids: players.map(p => p.user_id),
+        });
+        setIsHost(false);
+      }
     } catch (error: any) {
-      console.error('Error loading players:', error);
+      console.error('[LobbyScreen] Error loading players:', error);
       Alert.alert('Error', 'Failed to load players');
     } finally {
       setIsLoading(false);
@@ -91,6 +121,7 @@ export default function LobbyScreen() {
       navigation.replace('Home');
       return null;
     }
+    
     return data.id;
   };
 
@@ -131,6 +162,148 @@ export default function LobbyScreen() {
     } catch (error: any) {
       console.error('Error toggling ready:', error);
       Alert.alert('Error', 'Failed to update ready status');
+    }
+  };
+
+  const handleStartWithBots = async () => {
+    try {
+      const currentRoomId = roomId || await getRoomId();
+      if (!currentRoomId) return;
+
+      // Get current user's room_player data
+      const { data: roomPlayerData, error: roomPlayerError } = await supabase
+        .from('room_players')
+        .select('id, username, player_index, is_host')
+        .eq('room_id', currentRoomId)
+        .eq('user_id', user?.id)
+        .single();
+
+      if (roomPlayerError || !roomPlayerData) {
+        console.error('Room player lookup error:', roomPlayerError);
+        Alert.alert('Error', 'Could not find your player data');
+        return;
+      }
+
+      // Check if user is host
+      if (!roomPlayerData.is_host) {
+        Alert.alert('Error', 'Only the host can start the game with bots');
+        return;
+      }
+
+      // Check if player already exists in players table
+      const { data: existingPlayer } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', currentRoomId)
+        .eq('player_index', roomPlayerData.player_index)
+        .single();
+
+      let playerIdToUse = existingPlayer?.id;
+
+      // If no player entry exists, create one
+      if (!playerIdToUse) {
+        console.log('Creating player entry for host...');
+        const { data: newPlayer, error: createPlayerError } = await supabase
+          .from('players')
+          .insert({
+            room_id: currentRoomId,
+            player_name: roomPlayerData.username || 'Player',
+            player_index: roomPlayerData.player_index,
+            is_bot: false,
+            status: 'online',
+            cards: [],
+            card_order: [],
+            score: 0,
+            tricks_won: 0,
+          })
+          .select('id')
+          .single();
+
+        if (createPlayerError || !newPlayer) {
+          console.error('Error creating player:', createPlayerError);
+          Alert.alert('Error', 'Failed to create player entry');
+          return;
+        }
+
+        playerIdToUse = newPlayer.id;
+
+        // Update room's host_player_id
+        await supabase
+          .from('rooms')
+          .update({ host_player_id: playerIdToUse })
+          .eq('id', currentRoomId);
+
+        console.log('Player entry created:', playerIdToUse);
+      }
+
+      console.log('Starting game with bots:', { room_id: currentRoomId, player_id: playerIdToUse });
+
+      // Call start-game edge function
+      const response = await supabase.functions.invoke('start-game', {
+        body: {
+          room_id: currentRoomId,
+          player_id: playerIdToUse,
+          with_bots: true,
+        },
+      });
+
+      console.log('Start game response:', { 
+        data: response.data, 
+        error: response.error,
+        status: response.error?.context?.status 
+      });
+
+      // Try to extract error message from response body
+      if (response.error) {
+        let errorMessage = response.error.message;
+        
+        // Try to read the error body if available
+        if (response.error.context?.bodyUsed === false && response.error.context?._bodyInit) {
+          try {
+            // Handle both string and binary buffer formats
+            let errorBodyString;
+            const bodyInit = response.error.context._bodyInit;
+            
+            if (typeof bodyInit === 'string') {
+              errorBodyString = bodyInit;
+            } else if (bodyInit instanceof ArrayBuffer) {
+              const decoder = new TextDecoder();
+              errorBodyString = decoder.decode(new Uint8Array(bodyInit));
+            } else if (bodyInit instanceof Uint8Array) {
+              const decoder = new TextDecoder();
+              errorBodyString = decoder.decode(bodyInit);
+            } else {
+              errorBodyString = '';
+            }
+            
+            if (errorBodyString) {
+              const errorBody = JSON.parse(errorBodyString);
+              errorMessage = errorBody.error || errorBody.message || errorMessage;
+              console.log('Parsed error body:', errorBody);
+            }
+          } catch (e) {
+            console.log('Could not parse error body');
+          }
+        }
+
+        console.error('Start game error details:', {
+          message: errorMessage,
+          status: response.error.context?.status,
+        });
+        
+        if (response.error.message?.includes('409') || response.error.context?.status === 409) {
+          // Game already started, navigate to game
+          navigation.replace('Game', { roomCode });
+        } else {
+          throw new Error(errorMessage);
+        }
+      } else {
+        // Success, navigate to game
+        navigation.replace('Game', { roomCode });
+      }
+    } catch (error: any) {
+      console.error('Error starting game:', error);
+      Alert.alert('Error', error.message || 'Failed to start game');
     }
   };
 
@@ -245,9 +418,23 @@ export default function LobbyScreen() {
           </Text>
         </TouchableOpacity>
 
-        {isHost && (
-          <Text style={styles.hostInfo}>
-            You're the host. Game will start when all players are ready.
+        {isHost ? (
+          <>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={handleStartWithBots}
+            >
+              <Text style={styles.startButtonText}>
+                🤖 Start with AI Bots
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.hostInfo}>
+              You're the host. Start with bots or wait for players.
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.waitingInfo}>
+            Waiting for host to start the game...
           </Text>
         )}
       </View>
@@ -373,10 +560,29 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
+  startButton: {
+    backgroundColor: '#8B5CF6',
+    padding: SPACING.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  startButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+  },
   hostInfo: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray.medium,
     textAlign: 'center',
     marginTop: SPACING.md,
+  },
+  waitingInfo: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray.medium,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    fontStyle: 'italic',
   },
 });
