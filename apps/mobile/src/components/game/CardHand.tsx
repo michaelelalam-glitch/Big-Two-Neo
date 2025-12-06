@@ -50,7 +50,7 @@ export default function CardHand({
       
       return newSet;
     });
-  }, [disabled]); // selectedCardIds removed from deps - state updates use functional form (prev) to access current value
+  }, [disabled]); // selectedCardIds removed from deps - state updates use functional form (prev) to avoid stale closures
 
   // Clear selection (memoized)
   const handleClearSelection = useCallback(() => {

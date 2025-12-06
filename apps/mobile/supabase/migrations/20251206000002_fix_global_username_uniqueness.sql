@@ -21,9 +21,14 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 COMMENT ON FUNCTION is_username_available IS
-  'Check if username is available globally across entire app (not room-specific). Usage: SELECT is_username_available(''desired_username'', NULL);';
+  'Check if username is available globally across entire app. Usage: SELECT is_username_available(''desired_username'', NULL);';
 
 -- Create GLOBAL unique index on username
+-- WARNING: This enforces global username uniqueness across all rooms.
+-- If a user leaves a room but their entry in room_players is not deleted,
+-- their username will remain unavailable for use in any other room.
+-- Ensure that application logic properly deletes room_players entries when users leave rooms,
+-- or users may be locked out of their preferred usernames.
 CREATE UNIQUE INDEX idx_room_players_username_global_unique
 ON room_players(LOWER(username));
 
@@ -52,9 +57,12 @@ BEGIN
   WHERE user_id = p_user_id
   LIMIT 1;
   
-  -- If user has an existing username, enforce it
+  -- If user has an existing username, enforce it unless it's an auto-generated one
   IF v_existing_username IS NOT NULL AND LOWER(v_existing_username) != LOWER(p_username) THEN
-    RAISE EXCEPTION 'You already have username "%". You cannot change your username.', v_existing_username;
+    -- Allow changing username only if the existing one is auto-generated (Player_{uuid})
+    IF NOT (v_existing_username LIKE 'Player\_%') THEN
+      RAISE EXCEPTION 'You already have username "%". You cannot change your username.', v_existing_username;
+    END IF;
   END IF;
   
   -- Step 2: Check if username is taken by another user (GLOBAL CHECK)

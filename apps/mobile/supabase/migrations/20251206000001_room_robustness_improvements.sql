@@ -383,7 +383,7 @@ EXCEPTION
           'username', p_username,
           'error', SQLERRM
         ),
-        NOW(),
+        TIMESTAMPTZ '1970-01-01 00:00:00+00',
         NOW()
       );
     END IF;
