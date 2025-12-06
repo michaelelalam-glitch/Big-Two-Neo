@@ -32,15 +32,110 @@ export default function CreateRoomScreen() {
 
     setIsCreating(true);
     try {
+      // Check if user is already in a room
+      const { data: existingRoomPlayer, error: checkError } = await supabase
+        .from('room_players')
+        .select('room_id, rooms!inner(code)')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw checkError;
+      }
+
+      if (existingRoomPlayer) {
+        const existingCode = existingRoomPlayer.rooms.code;
+        Alert.alert(
+          'Already in Room',
+          `You're already in room ${existingCode}. What would you like to do?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Go to Room', 
+              onPress: () => {
+                setIsCreating(false);
+                navigation.replace('Lobby', { roomCode: existingCode });
+              }
+            },
+            {
+              text: 'Leave & Create New',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  // Leave the existing room
+                  const { error: leaveError } = await supabase
+                    .from('room_players')
+                    .delete()
+                    .eq('room_id', existingRoomPlayer.room_id)
+                    .eq('user_id', user.id);
+
+                  if (leaveError) {
+                    console.error('Error leaving room:', leaveError);
+                    Alert.alert('Error', 'Failed to leave existing room');
+                    setIsCreating(false);
+                    return;
+                  }
+
+                  console.log('✅ Left room:', existingCode);
+                  
+                  // Poll DB to confirm user has left before proceeding
+                  const maxAttempts = 10;
+                  const pollInterval = 300; // ms
+                  let attempt = 0;
+                  let isDeleted = false;
+                  
+                  while (attempt < maxAttempts && !isDeleted) {
+                    const { data: checkData, error: checkErr } = await supabase
+                      .from('room_players')
+                      .select('id')
+                      .eq('room_id', existingRoomPlayer.room_id)
+                      .eq('user_id', user.id);
+                    
+                    if (checkErr) break;
+                    if (!checkData || checkData.length === 0) {
+                      isDeleted = true;
+                      break;
+                    }
+                    
+                    attempt++;
+                    await new Promise(resolve => setTimeout(resolve, pollInterval));
+                  }
+                  
+                  if (!isDeleted) {
+                    console.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
+                    Alert.alert(
+                      'Timeout', 
+                      'Taking longer than expected to leave room. Please try again or wait a moment.',
+                      [{ text: 'OK' }]
+                    );
+                    setIsCreating(false);
+                    return;
+                  }
+                  
+                  // Retry creating room
+                  handleCreateRoom();
+                } catch (error: any) {
+                  console.error('Error in leave & create:', error);
+                  Alert.alert('Error', 'Failed to leave room');
+                  setIsCreating(false);
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+
       const roomCode = generateRoomCode();
       
-      // Create room in Supabase
+      // Create PRIVATE room in Supabase
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
         .insert({
           code: roomCode,
-          host_id: user.id,
+          host_id: null, // Let join_room_atomic set the host
           status: 'waiting',
+          is_public: false, // PRIVATE room for Create Room
           created_at: new Date().toISOString(),
         })
         .select()
@@ -48,22 +143,24 @@ export default function CreateRoomScreen() {
 
       if (roomError) throw roomError;
 
-      // Add creator as host in room_players
-      const { error: playerError } = await supabase
-        .from('room_players')
-        .insert({
-          room_id: roomData.id,
-          user_id: user.id,
-          username: user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`,
-          player_index: 0,
-          is_host: true,
-          is_ready: false,
+      // Use atomic join to add creator as host
+      const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+      const { data: joinResult, error: playerError } = await supabase
+        .rpc('join_room_atomic', {
+          p_room_code: roomCode,
+          p_user_id: user.id,
+          p_username: username
         });
 
-      if (playerError) throw playerError;
+      if (playerError) {
+        console.error('❌ Atomic join error in CreateRoom:', playerError);
+        throw playerError;
+      }
+
+      console.log('✅ Host added to room (atomic):', joinResult);
 
       // Navigate to lobby
-      navigation.replace('Lobby', { roomCode, isHost: true });
+      navigation.replace('Lobby', { roomCode });
     } catch (error: any) {
       console.error('Error creating room:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));

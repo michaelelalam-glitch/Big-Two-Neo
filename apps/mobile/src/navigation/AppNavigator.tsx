@@ -17,7 +17,7 @@ export type RootStackParamList = {
   Profile: undefined;
   CreateRoom: undefined;
   JoinRoom: undefined;
-  Lobby: { roomCode: string; isHost: boolean };
+  Lobby: { roomCode: string };
   Game: { roomCode: string };
 };
 
