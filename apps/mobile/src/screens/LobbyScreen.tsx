@@ -127,7 +127,7 @@ export default function LobbyScreen() {
       console.error('[LobbyScreen] Error loading players:', error);
       // Don't show alert if room was cleaned up (user left)
       // Just navigate home silently
-      if (error.message?.includes('not found') || error.code === 'PGRST116') {
+      if (error?.message?.includes('not found') || error?.code === 'PGRST116') {
         console.log('[LobbyScreen] Room no longer exists, navigating home');
         if (!isLeavingRef.current) {
           isLeavingRef.current = true;
