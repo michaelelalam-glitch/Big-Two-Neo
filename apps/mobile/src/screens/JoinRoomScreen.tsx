@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 
@@ -40,8 +41,9 @@ export default function JoinRoomScreen() {
         throw checkError;
       }
 
-      if (existingRoomPlayer) {
-        const existingCode = (existingRoomPlayer.rooms as any).code;
+      const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
+      if (roomPlayer) {
+        const existingCode = roomPlayer.rooms.code;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
           // Already in this room, just navigate
