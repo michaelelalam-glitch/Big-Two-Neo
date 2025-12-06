@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 
 export interface Profile {
   id: string;
@@ -102,16 +103,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.log(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
         memberships.map(rm => rm.rooms?.code || 'unknown').join(', '));
 
-      // Remove user from all rooms (they shouldn't be in any on fresh login)
-      const { error: deleteError } = await supabase
-        .from('room_players')
-        .delete()
-        .eq('user_id', userId);
+      // Remove user from 'waiting' rooms only (future-proof for game persistence)
+      const waitingRoomIds = memberships
+        .filter(rm => rm.rooms?.status === 'waiting')
+        .map(rm => rm.room_id);
 
-      if (deleteError) {
-        console.error('❌ [AuthContext] Error removing stale memberships:', deleteError);
+      if (waitingRoomIds.length === 0) {
+        console.log('✅ [AuthContext] No stale (waiting) rooms to clean up');
       } else {
-        console.log('✅ [AuthContext] Successfully cleaned up stale room memberships');
+        const { error: deleteError } = await supabase
+          .from('room_players')
+          .delete()
+          .eq('user_id', userId)
+          .in('room_id', waitingRoomIds);
+
+        if (deleteError) {
+          console.error('❌ [AuthContext] Error removing stale memberships:', deleteError);
+        } else {
+          console.log(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
+        }
       }
     } catch (error) {
       console.error('❌ [AuthContext] Unexpected error in cleanup:', error);
