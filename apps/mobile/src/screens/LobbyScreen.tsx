@@ -403,9 +403,6 @@ export default function LobbyScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Debug: Display host status */}
-        {console.log('[LobbyScreen Render] isHost:', isHost, 'players:', players.length, 'user:', user?.id)}
-
         {isHost ? (
           <>
             <TouchableOpacity

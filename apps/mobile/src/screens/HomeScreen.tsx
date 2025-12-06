@@ -38,7 +38,7 @@ export default function HomeScreen() {
         return;
       }
 
-      if (data) {
+      if (data && data.rooms?.code) {
         setCurrentRoom(data.rooms.code);
       } else {
         setCurrentRoom(null);
