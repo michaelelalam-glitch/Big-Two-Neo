@@ -260,8 +260,9 @@ export default function LobbyScreen() {
         // Try to read the error body if available
         if (response.error.context?.bodyUsed === false && response.error.context?._bodyInit) {
           try {
+            // Note: Using String.fromCharCode instead of Buffer (not available in React Native)
             const errorBody = JSON.parse(
-              Buffer.from(response.error.context._bodyInit._data).toString()
+              response.error.context._bodyInit
             );
             errorMessage = errorBody.error || errorBody.message || errorMessage;
             console.log('Parsed error body:', errorBody);

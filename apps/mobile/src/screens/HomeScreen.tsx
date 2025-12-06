@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -173,9 +173,15 @@ export default function HomeScreen() {
           
           // Handle specific error cases
           if (joinError.message?.includes('Room is full') || joinError.message?.includes('Room not found')) {
-            console.log('⚠️ Room unavailable (full or deleted), creating new room instead...');
-            // Don't retry - just fall through to create a new room
-            roomWithSpace = null;
+            console.log('⚠️ Room unavailable (full or deleted), retrying...');
+            // Retry with a different room
+            if (retryCount < MAX_RETRIES) {
+              console.log(`🔄 Retrying Quick Play (${retryCount + 1}/${MAX_RETRIES})...`);
+              return handleQuickPlay(retryCount + 1);
+            } else {
+              console.log('⚠️ Max retries reached, creating new room instead...');
+              roomWithSpace = null;
+            }
           } else if (joinError.message?.includes('already in another room')) {
             Alert.alert('Error', 'You are already in another room. Please leave it first.');
             return;
@@ -196,7 +202,7 @@ export default function HomeScreen() {
       console.log('🆕 Creating new PUBLIC room...');
       const roomCode = generateRoomCode();
       
-      const { data: roomData, error: roomError } = await supabase
+      const { error: roomError } = await supabase
         .from('rooms')
         .insert({
           code: roomCode,

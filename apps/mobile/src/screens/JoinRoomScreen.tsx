@@ -94,7 +94,8 @@ export default function JoinRoomScreen() {
           Alert.alert('Error', 'You are already in another room. Please leave it first.');
           return;
         }
-        // Note: Username conflicts are impossible with auto-generated Player_{user_id} format
+        // Note: Username conflicts are unlikely with auto-generated Player_{user_id} format,
+        // but are still possible due to the global username uniqueness constraint.
         throw joinError;
       }
 

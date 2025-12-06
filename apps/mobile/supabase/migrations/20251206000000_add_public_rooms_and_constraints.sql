@@ -1,5 +1,5 @@
 -- Add public/private room support and enforce single-room membership
--- Migration: 20251206000001
+-- Migration: 20251206000000
 
 -- Add is_public column to rooms table
 ALTER TABLE rooms 
