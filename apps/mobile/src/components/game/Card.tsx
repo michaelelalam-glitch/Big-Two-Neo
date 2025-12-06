@@ -18,13 +18,21 @@ interface CardProps {
   onDragStart?: () => void;
   onDragEnd?: () => void;
   disabled?: boolean;
+  size?: 'hand' | 'table'; // Hand: 60×84, Table: 47×72
+  style?: any; // Additional styles for container
 }
 
-const CARD_WIDTH = 60;
-const CARD_HEIGHT = 84;
+// Hand card dimensions (default)
+const HAND_CARD_WIDTH = 60;
+const HAND_CARD_HEIGHT = 84;
+
+// Table card dimensions (smaller)
+const TABLE_CARD_WIDTH = 47;
+const TABLE_CARD_HEIGHT = 72;
+
 const SELECTED_OFFSET = -20; // Offset for selected card elevation
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
-const CARD_OVERLAP_MARGIN = -8; // Negative margin for card overlap effect
+const CARD_OVERLAP_MARGIN = -40; // Negative margin for card overlap effect (13 cards fit in ~300px)
 
 // Suit colors and symbols
 const SUIT_COLORS: Record<string, string> = {
@@ -48,9 +56,16 @@ const Card = React.memo(function Card({
   onDragStart,
   onDragEnd,
   disabled = false,
+  size = 'hand',
+  style,
 }: CardProps) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
+
+  // Calculate dimensions based on size
+  const cardWidth = size === 'table' ? TABLE_CARD_WIDTH : HAND_CARD_WIDTH;
+  const cardHeight = size === 'table' ? TABLE_CARD_HEIGHT : HAND_CARD_HEIGHT;
+  const sizeScale = size === 'table' ? 0.78 : 1; // 47/60 ≈ 0.78
 
   // Tap gesture for selection (memoized for performance)
   // Note: Haptic feedback handled by CardHand to avoid duplicate feedback
@@ -126,31 +141,35 @@ const Card = React.memo(function Card({
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View 
-        style={[styles.container, animatedStyle]}
+        style={[styles.container, animatedStyle, style]}
         accessible={true}
         accessibilityLabel={`${card.rank} of ${suitSymbol}`}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: disabled }}
         accessibilityHint="Double tap to select or deselect this card"
       >
-        <View style={[styles.card, isSelected && styles.cardSelected]}>
+        <View style={[
+          styles.card, 
+          isSelected && styles.cardSelected,
+          { width: cardWidth, height: cardHeight }
+        ]}>
           {/* Top-left corner */}
           <View style={styles.corner}>
-            <Text style={[styles.rank, { color: suitColor }]}>{card.rank}</Text>
-            <Text style={[styles.suit, { color: suitColor }]}>{suitSymbol}</Text>
+            <Text style={[styles.rank, { color: suitColor, fontSize: 16 * sizeScale }]}>{card.rank}</Text>
+            <Text style={[styles.suit, { color: suitColor, fontSize: 14 * sizeScale }]}>{suitSymbol}</Text>
           </View>
 
           {/* Center suit */}
-          <Text style={[styles.centerSuit, { color: suitColor }]}>
+          <Text style={[styles.centerSuit, { color: suitColor, fontSize: 32 * sizeScale, marginTop: 20 * sizeScale }]}>
             {suitSymbol}
           </Text>
 
           {/* Bottom-right corner (rotated) */}
           <View style={[styles.corner, styles.cornerBottom]}>
-            <Text style={[styles.rank, { color: suitColor }]}>
+            <Text style={[styles.rank, { color: suitColor, fontSize: 16 * sizeScale }]}>
               {card.rank}
             </Text>
-            <Text style={[styles.suit, { color: suitColor }]}>
+            <Text style={[styles.suit, { color: suitColor, fontSize: 14 * sizeScale }]}>
               {suitSymbol}
             </Text>
           </View>
@@ -162,11 +181,10 @@ const Card = React.memo(function Card({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: CARD_OVERLAP_MARGIN, // Overlap cards slightly
+    marginLeft: CARD_OVERLAP_MARGIN, // Overlap cards: right cards overlap left cards
   },
   card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
+    // Width and height set dynamically via props
     backgroundColor: '#FFFFFF',
     borderRadius: 6,
     borderWidth: 1,
@@ -187,30 +205,30 @@ const styles = StyleSheet.create({
   },
   corner: {
     position: 'absolute',
-    top: SPACING.xs,
-    left: SPACING.xs,
-    alignItems: 'center',
+    top: 2,
+    left: 2,
+    alignItems: 'flex-start',
   },
   cornerBottom: {
     top: undefined,
     left: undefined,
-    bottom: SPACING.xs,
-    right: SPACING.xs,
+    bottom: 2,
+    right: 2,
+    alignItems: 'flex-end',
     transform: [{ rotate: '180deg' }],
   },
   rank: {
-    fontSize: 16,
+    // fontSize set dynamically via inline style
     fontWeight: 'bold',
     lineHeight: 18,
   },
   suit: {
-    fontSize: 14,
+    // fontSize set dynamically via inline style
     lineHeight: 16,
   },
   centerSuit: {
-    fontSize: 32,
+    // fontSize and marginTop set dynamically via inline style
     textAlign: 'center',
-    marginTop: 20,
   },
 });
 
