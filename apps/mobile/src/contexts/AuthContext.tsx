@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 
 export interface Profile {
   id: string;
@@ -77,6 +78,56 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Clean up stale room memberships (e.g., from force-closed app)
+  const cleanupStaleRoomMembership = async (userId: string) => {
+    try {
+      console.log('🧹 [AuthContext] Cleaning up stale room memberships for user:', userId);
+      
+      // Check if user is in any room
+      const { data: roomMemberships, error: checkError } = await supabase
+        .from('room_players')
+        .select('room_id, rooms!inner(code, status)')
+        .eq('user_id', userId);
+
+      if (checkError) {
+        console.error('❌ [AuthContext] Error checking room memberships:', checkError);
+        return;
+      }
+
+      const memberships = (roomMemberships || []) as RoomPlayerWithRoom[];
+      if (memberships.length === 0) {
+        console.log('✅ [AuthContext] No stale rooms found');
+        return;
+      }
+
+      console.log(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
+        memberships.map(rm => rm.rooms?.code || 'unknown').join(', '));
+
+      // Remove user from 'waiting' rooms only (future-proof for game persistence)
+      const waitingRoomIds = memberships
+        .filter(rm => rm.rooms?.status === 'waiting')
+        .map(rm => rm.room_id);
+
+      if (waitingRoomIds.length === 0) {
+        console.log('✅ [AuthContext] No stale (waiting) rooms to clean up');
+      } else {
+        const { error: deleteError } = await supabase
+          .from('room_players')
+          .delete()
+          .eq('user_id', userId)
+          .in('room_id', waitingRoomIds);
+
+        if (deleteError) {
+          console.error('❌ [AuthContext] Error removing stale memberships:', deleteError);
+        } else {
+          console.log(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [AuthContext] Unexpected error in cleanup:', error);
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
     let mounted = true;
@@ -103,6 +154,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (initialSession?.user) {
             const profileData = await fetchProfile(initialSession.user.id);
             setProfile(profileData);
+            
+            // CRITICAL FIX: Clean up stale room memberships on login
+            // This handles cases where user force-closed app or didn't properly leave
+            await cleanupStaleRoomMembership(initialSession.user.id);
           }
 
           setIsLoading(false);

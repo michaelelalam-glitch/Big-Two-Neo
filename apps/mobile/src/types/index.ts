@@ -33,5 +33,15 @@ export interface GameState {
   winner?: string;
 }
 
+// Supabase query result types
+export interface RoomPlayerWithRoom {
+  room_id: string;
+  user_id?: string; // Optional - not always selected in queries
+  rooms: {
+    code: string;
+    status: string;
+  };
+}
+
 // Export multiplayer types
 export * from './multiplayer';
