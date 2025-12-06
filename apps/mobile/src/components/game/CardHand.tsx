@@ -34,27 +34,23 @@ export default function CardHand({
   const handleToggleSelect = useCallback((cardId: string) => {
     if (disabled) return;
 
-    const wasSelected = selectedCardIds.has(cardId);
-
     setSelectedCardIds((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(cardId)) {
+      const wasSelected = newSet.has(cardId);
+      
+      if (wasSelected) {
         newSet.delete(cardId);
+        // Light haptic for deselection
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } else {
         newSet.add(cardId);
+        // Medium haptic for selection (more pronounced feedback)
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+      
       return newSet;
     });
-
-    // Haptic feedback outside setState to avoid timing issues
-    if (wasSelected) {
-      // Light haptic for deselection
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      // Medium haptic for selection (more pronounced feedback)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [disabled, selectedCardIds]);
+  }, [disabled]);
 
   // Clear selection (memoized)
   const handleClearSelection = useCallback(() => {

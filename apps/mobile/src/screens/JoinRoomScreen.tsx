@@ -29,6 +29,41 @@ export default function JoinRoomScreen() {
 
     setIsJoining(true);
     try {
+      // Check if user is already in a room
+      const { data: existingRoomPlayer, error: checkError } = await supabase
+        .from('room_players')
+        .select('room_id, rooms!inner(code)')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw checkError;
+      }
+
+      if (existingRoomPlayer) {
+        const existingCode = existingRoomPlayer.rooms.code;
+        // Check if trying to join the same room they're already in
+        if (existingCode === roomCode.toUpperCase()) {
+          // Already in this room, just navigate
+          navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
+          return;
+        } else {
+          // In a different room
+          Alert.alert(
+            'Already in Room',
+            `You're already in room ${existingCode}. Leave it first to join a different room.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Go to Current Room', 
+                onPress: () => navigation.replace('Lobby', { roomCode: existingCode })
+              }
+            ]
+          );
+          return;
+        }
+      }
+
       // Find room by code
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
@@ -40,42 +75,32 @@ export default function JoinRoomScreen() {
         throw new Error('Room not found');
       }
 
-      // Check if room is full
-      const { data: players, error: playersError } = await supabase
-        .from('room_players')
-        .select('*')
-        .eq('room_id', roomData.id);
-
-      if (playersError) throw playersError;
-
-      if (players.length >= 4) {
-        throw new Error('Room is full (4/4 players)');
-      }
-
-      // Check if already in room
-      const alreadyInRoom = players.some(p => p.user_id === user.id);
-      if (alreadyInRoom) {
-        // Rejoin
-        navigation.replace('Lobby', { roomCode: roomCode.toUpperCase(), isHost: false });
-        return;
-      }
-
-      // Add player to room_players table
-      const { error: joinError } = await supabase
-        .from('room_players')
-        .insert({
-          room_id: roomData.id,
-          user_id: user.id,
-          username: user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`,
-          player_index: players.length,
-          is_host: false,
-          is_ready: false,
+      // Use atomic join function to prevent race conditions
+      const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+      const { data: joinResult, error: joinError } = await supabase
+        .rpc('join_room_atomic', {
+          p_room_code: roomCode.toUpperCase(),
+          p_user_id: user.id,
+          p_username: username
         });
 
-      if (joinError) throw joinError;
+      if (joinError) {
+        console.error('❌ Atomic join error:', joinError);
+        
+        // Handle specific error cases
+        if (joinError.message?.includes('Room is full')) {
+          throw new Error('Room is full (4/4 players)');
+        } else if (joinError.message?.includes('already in another room')) {
+          Alert.alert('Error', 'You are already in another room. Please leave it first.');
+          return;
+        }
+        // Note: Username conflicts are impossible with auto-generated Player_{user_id} format
+        throw joinError;
+      }
 
+      console.log('🎉 Successfully joined room (atomic):', joinResult);
       // Navigate to lobby
-      navigation.replace('Lobby', { roomCode: roomCode.toUpperCase(), isHost: false });
+      navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
       console.error('Error joining room:', error);
       Alert.alert('Error', error.message || 'Failed to join room');

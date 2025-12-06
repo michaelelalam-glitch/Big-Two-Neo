@@ -4,6 +4,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
@@ -57,11 +58,13 @@ const Card = React.memo(function Card({
     () => Gesture.Tap()
       .enabled(!disabled)
       .onStart(() => {
+        'worklet';
         scale.value = withSpring(0.95, { damping: 10 });
       })
       .onEnd(() => {
+        'worklet';
         scale.value = withSpring(1, { damping: 10 });
-        onToggleSelect(card.id);
+        runOnJS(onToggleSelect)(card.id);
       }),
     [disabled, card.id, onToggleSelect, scale]
   );
@@ -71,33 +74,42 @@ const Card = React.memo(function Card({
     () => Gesture.Pan()
       .enabled(!disabled && isSelected)
       .onStart(() => {
-        onDragStart?.();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        'worklet';
+        if (onDragStart) {
+          runOnJS(onDragStart)();
+        }
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
       })
       .onUpdate((event) => {
+        'worklet';
         // Only allow upward dragging
         translateY.value = Math.min(0, event.translationY);
       })
       .onEnd(() => {
+        'worklet';
         // Snap to play zone if dragged far enough
         if (translateY.value < DRAG_TO_PLAY_THRESHOLD) {
           // TODO: Implement play action in Task #266
           // For now, just provide feedback but don't actually play
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
         }
         translateY.value = withSpring(0);
-        onDragEnd?.();
+        if (onDragEnd) {
+          runOnJS(onDragEnd)();
+        }
       }),
     [disabled, isSelected, translateY, onDragStart, onDragEnd]
   );
 
-  // Use Exclusive instead of Race - tap has priority, pan only works when dragging
+  // Use Race instead of Exclusive - tap has priority over pan
+  // Race will complete with the first gesture that activates
   const composedGesture = useMemo(
-    () => Gesture.Exclusive(tapGesture, panGesture),
+    () => Gesture.Race(tapGesture, panGesture),
     [tapGesture, panGesture]
   );
 
   const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
     const selectedOffset = isSelected ? SELECTED_OFFSET : 0;
     return {
       transform: [
