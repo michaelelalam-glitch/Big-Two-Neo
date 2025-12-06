@@ -32,22 +32,27 @@ export default function CreateRoomScreen() {
 
     setIsCreating(true);
     try {
-      // Check if user is already in a room
+      // Check if user is already in a room (with status check)
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, rooms!inner(code)')
+        .select('room_id, rooms!inner(code, status)')
         .eq('user_id', user.id)
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('❌ Error checking existing room:', checkError);
         throw checkError;
       }
 
       if (existingRoomPlayer) {
         const existingCode = existingRoomPlayer.rooms.code;
+        const roomStatus = existingRoomPlayer.rooms.status;
+        
+        console.log('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
+        
         Alert.alert(
           'Already in Room',
-          `You're already in room ${existingCode}. What would you like to do?`,
+          `You're already in room ${existingCode} (${roomStatus}). What would you like to do?`,
           [
             { text: 'Cancel', style: 'cancel' },
             { 
