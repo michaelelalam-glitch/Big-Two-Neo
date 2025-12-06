@@ -329,7 +329,10 @@ export default function LobbyScreen() {
       isLeavingRef.current = true;
       
       const currentRoomId = roomId || await getRoomId();
-      if (!currentRoomId) return;
+      if (!currentRoomId) {
+        navigation.replace('Home');
+        return;
+      }
       
       if (isHost) {
         // Delete the room if host leaves
