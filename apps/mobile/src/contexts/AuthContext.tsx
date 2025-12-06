@@ -93,13 +93,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      if (!roomMemberships || roomMemberships.length === 0) {
+      const memberships = (roomMemberships || []) as RoomPlayerWithRoom[];
+      if (memberships.length === 0) {
         console.log('✅ [AuthContext] No stale rooms found');
         return;
       }
 
-      console.log(`⚠️ [AuthContext] Found ${roomMemberships.length} stale room(s):`, 
-        roomMemberships.map(rm => (rm.rooms as any)?.code || 'unknown').join(', '));
+      console.log(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
+        memberships.map(rm => rm.rooms?.code || 'unknown').join(', '));
 
       // Remove user from all rooms (they shouldn't be in any on fresh login)
       const { error: deleteError } = await supabase

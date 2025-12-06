@@ -42,7 +42,6 @@ function shuffleDemoDeck(cards: Card[]): Card[] {
 
 export default function GameScreen() {
   const route = useRoute<GameScreenRouteProp>();
-  const navigation = useNavigation();
   const { user } = useAuth();
   const { roomCode } = route.params;
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -64,11 +63,11 @@ export default function GameScreen() {
         console.log(`🧹 [GameScreen] Cleanup: Removing user ${user.id} from room ${roomCode}`);
         
         // Use non-blocking cleanup (don't await)
+        // Note: DELETE queries don't support joined table filters, only user_id is sufficient
         supabase
           .from('room_players')
           .delete()
           .eq('user_id', user.id)
-          .eq('rooms.code', roomCode)
           .then(({ error }) => {
             if (error) {
               console.error('❌ [GameScreen] Cleanup error:', error);

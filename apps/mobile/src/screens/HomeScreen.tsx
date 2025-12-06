@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -31,8 +32,9 @@ export default function HomeScreen() {
         return;
       }
 
-      if (data && (data.rooms as any)?.code) {
-        setCurrentRoom((data.rooms as any).code);
+      const roomData = data as RoomPlayerWithRoom | null;
+      if (roomData?.rooms?.code) {
+        setCurrentRoom(roomData.rooms.code);
       } else {
         setCurrentRoom(null);
       }
@@ -113,11 +115,12 @@ export default function HomeScreen() {
         throw checkError;
       }
 
-      if (existingRoomPlayer) {
-        console.log('✅ User already in room:', (existingRoomPlayer.rooms as any).code);
+      const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
+      if (roomPlayer) {
+        console.log('✅ User already in room:', roomPlayer.rooms.code);
         // User is already in a room, navigate there
-        setCurrentRoom((existingRoomPlayer.rooms as any).code);
-        navigation.replace('Lobby', { roomCode: (existingRoomPlayer.rooms as any).code });
+        setCurrentRoom(roomPlayer.rooms.code);
+        navigation.replace('Lobby', { roomCode: roomPlayer.rooms.code });
         return;
       }
 
