@@ -333,7 +333,9 @@ BEGIN
     'player_count', v_player_count + 1
   );
   
-  -- Step 12: Log successful join (optional)
+  -- Step 12: Log successful join (disabled for performance at scale - only errors logged)
+  -- Uncomment below to enable join success logging for debugging:
+  /*
   PERFORM log_room_event(
     v_room_id,
     'player_joined',
@@ -343,6 +345,7 @@ BEGIN
       'is_host', v_is_host
     )
   );
+  */
   
   RETURN v_result;
   
@@ -358,6 +361,30 @@ EXCEPTION
           'username', p_username,
           'error', SQLERRM
         )
+      );
+    ELSE
+      -- Room not found - log without room_id
+      INSERT INTO room_analytics (
+        room_id,
+        room_code,
+        status_reached,
+        error_type,
+        is_dirty,
+        metadata,
+        created_at,
+        event_at
+      ) VALUES (
+        NULL,
+        COALESCE(p_room_code, 'UNKNOWN'),
+        'waiting',
+        'room_not_found',
+        true,
+        jsonb_build_object(
+          'username', p_username,
+          'error', SQLERRM
+        ),
+        NOW(),
+        NOW()
       );
     END IF;
     

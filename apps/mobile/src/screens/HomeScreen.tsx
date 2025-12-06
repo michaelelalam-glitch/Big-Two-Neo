@@ -174,9 +174,10 @@ export default function HomeScreen() {
           // Handle specific error cases
           if (joinError.message?.includes('Room is full') || joinError.message?.includes('Room not found')) {
             console.log('⚠️ Room unavailable (full or deleted), retrying...');
-            // Retry with a different room
+            // Retry with a different room (early return to prevent loading state issues)
             if (retryCount < MAX_RETRIES) {
               console.log(`🔄 Retrying Quick Play (${retryCount + 1}/${MAX_RETRIES})...`);
+              setIsQuickPlaying(false); // Reset before retry
               return handleQuickPlay(retryCount + 1);
             } else {
               console.log('⚠️ Max retries reached, creating new room instead...');

@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_rooms_is_public_status ON rooms(is_public, status
 CREATE OR REPLACE FUNCTION check_user_not_in_room()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Check if user is already in ANY room
+  -- Check if user is already in ANY OTHER room (allows idempotent inserts to same room)
   IF EXISTS (
     SELECT 1 FROM room_players 
     WHERE user_id = NEW.user_id 

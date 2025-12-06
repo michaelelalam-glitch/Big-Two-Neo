@@ -26,11 +26,9 @@
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
-    "_comment": "react-native-reanimated is pinned to ^4.1.6 (not ^4.2.0) for compatibility with gesture handling fixes. Gesture.Race() API and runOnJS() worklet functionality verified working in this version. See TASK_264_CARD_SELECTION_CRASH_FIX.md for details.",
     "react-native-reanimated": "^4.1.6",
     "react-native-safe-area-context": "^5.6.2",
     "react-native-screens": "~4.16.0",
-    "_comment2": "react-native-worklets downgraded to ^0.5.1 (from ^0.7.0) for compatibility with react-native-reanimated 4.1.6. This version supports all required worklet functionality.",
     "react-native-worklets": "^0.5.1",
     "zustand": "^5.0.9"
   },
