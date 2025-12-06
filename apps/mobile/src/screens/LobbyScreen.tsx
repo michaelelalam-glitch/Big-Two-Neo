@@ -267,9 +267,11 @@ export default function LobbyScreen() {
             if (typeof bodyInit === 'string') {
               errorBodyString = bodyInit;
             } else if (bodyInit instanceof ArrayBuffer) {
-              errorBodyString = String.fromCharCode.apply(null, Array.from(new Uint8Array(bodyInit)));
+              const decoder = new TextDecoder();
+              errorBodyString = decoder.decode(new Uint8Array(bodyInit));
             } else if (bodyInit instanceof Uint8Array) {
-              errorBodyString = String.fromCharCode.apply(null, Array.from(bodyInit));
+              const decoder = new TextDecoder();
+              errorBodyString = decoder.decode(bodyInit);
             } else {
               errorBodyString = '';
             }

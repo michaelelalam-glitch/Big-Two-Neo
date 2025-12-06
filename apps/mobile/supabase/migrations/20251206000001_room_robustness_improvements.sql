@@ -41,6 +41,20 @@ CREATE INDEX idx_room_analytics_error ON room_analytics(error_type) WHERE error_
 CREATE INDEX idx_room_analytics_dirty ON room_analytics(is_dirty) WHERE is_dirty = true;
 CREATE INDEX idx_room_analytics_event_time ON room_analytics(event_at DESC);
 
+-- Enable Row Level Security and restrict access to trusted roles
+ALTER TABLE room_analytics ENABLE ROW LEVEL SECURITY;
+
+-- Only allow service_role to SELECT and INSERT (adjust role as needed for your setup)
+CREATE POLICY room_analytics_service_select ON room_analytics
+  FOR SELECT
+  TO service_role
+  USING (true);
+
+CREATE POLICY room_analytics_service_insert ON room_analytics
+  FOR INSERT
+  TO service_role
+  WITH CHECK (true);
+
 -- Function to log room lifecycle events
 CREATE OR REPLACE FUNCTION log_room_event(
   p_room_id UUID,

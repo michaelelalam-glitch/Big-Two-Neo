@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
-// According to the official documentation, the 'react-native-reanimated' import may still be needed
-// for proper initialization on some platforms, even with the Babel plugin. Retaining for safety.
+// Explicit import removed - Babel plugin handles initialization in v4.1.6+
+// See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';

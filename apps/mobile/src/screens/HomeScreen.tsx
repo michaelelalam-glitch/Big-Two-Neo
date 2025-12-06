@@ -16,14 +16,7 @@ export default function HomeScreen() {
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
 
-  // Check current room on screen focus
-  useFocusEffect(
-    React.useCallback(() => {
-      checkCurrentRoom();
-    }, [user])
-  );
-
-  const checkCurrentRoom = async () => {
+  const checkCurrentRoom = React.useCallback(async () => {
     if (!user) return;
     
     try {
@@ -46,7 +39,14 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error in checkCurrentRoom:', error);
     }
-  };
+  }, [user]);
+
+  // Check current room on screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      checkCurrentRoom();
+    }, [checkCurrentRoom])
+  );
 
   const handleLeaveCurrentRoom = async () => {
     if (!user || !currentRoom) return;
@@ -181,7 +181,7 @@ export default function HomeScreen() {
               return handleQuickPlay(retryCount + 1);
             } else {
               console.log('⚠️ Max retries reached, creating new room instead...');
-              roomWithSpace = null;
+              // Fall through to room creation logic
             }
           } else if (joinError.message?.includes('already in another room')) {
             Alert.alert('Error', 'You are already in another room. Please leave it first.');

@@ -35,4 +35,4 @@ CREATE TRIGGER enforce_single_room_membership
 
 -- Add comment for documentation
 COMMENT ON COLUMN rooms.is_public IS 'TRUE for public rooms (Quick Play), FALSE for private rooms (created via Create Room with code sharing)';
-COMMENT ON TRIGGER enforce_single_room_membership ON room_players IS 'Prevents users from joining multiple rooms simultaneously';
+COMMENT ON TRIGGER enforce_single_room_membership ON room_players IS 'Prevents INSERT operations that would place a user in multiple rooms';

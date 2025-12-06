@@ -102,7 +102,12 @@ export default function CreateRoomScreen() {
                   }
                   
                   if (!isDeleted) {
-                    Alert.alert('Error', 'Failed to confirm leaving room. Please try again.');
+                    console.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
+                    Alert.alert(
+                      'Timeout', 
+                      'Taking longer than expected to leave room. Please try again or wait a moment.',
+                      [{ text: 'OK' }]
+                    );
                     setIsCreating(false);
                     return;
                   }
