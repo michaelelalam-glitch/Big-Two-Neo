@@ -102,6 +102,16 @@ export default function GameScreen() {
             // Notify user and attempt recovery
             Alert.alert(
               'Bot Turn Error',
+              `Bot ${currentPlayer.name} encountered an error. The game will continue with the next player.`,
+              [{ text: 'OK' }]
+            );
+            
+            // Check for next player after brief delay
+            setTimeout(checkAndExecuteBotTurn, 100);
+          });
+            // Notify user and attempt recovery
+            Alert.alert(
+              'Bot Turn Error',
               `Bot ${currentPlayer.name} encountered an error. Continuing to next player.`,
               [{ text: 'OK' }]
             );
@@ -301,13 +311,13 @@ export default function GameScreen() {
     let isDeliberateLeave = false;
     
     // Listen for navigation events to detect deliberate exits
+    const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       // Only set as deliberate leave for certain navigation actions (e.g., back, pop, custom leave)
-      const actionType = e.data?.action?.type;
+      const actionType = e?.data?.action?.type;
       if (
-        actionType === 'POP' ||
-        actionType === 'GO_BACK' ||
-        actionType === 'NAVIGATE'
+        typeof actionType === 'string' &&
+        allowedActionTypes.includes(actionType)
       ) {
         isDeliberateLeave = true;
       }
@@ -395,7 +405,9 @@ export default function GameScreen() {
     } finally {
       // Release lock after short delay to prevent rapid double-taps
       setTimeout(() => {
-        setIsPlayingCards(false);
+        if (isMountedRef.current) {
+          setIsPlayingCards(false);
+        }
       }, 300);
     }
   };
@@ -436,7 +448,9 @@ export default function GameScreen() {
       Alert.alert('Cannot Pass', errorMessage);
     } finally {
       setTimeout(() => {
-        setIsPassing(false);
+        if (isMountedRef.current) {
+          setIsPassing(false);
+        }
       }, 300);
     }
   };
