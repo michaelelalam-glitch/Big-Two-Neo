@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Text, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Card from './Card';
@@ -7,8 +7,9 @@ import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
-// UI Constants
-const CARD_HAND_MAX_HEIGHT = 120; // Max height for card hand scroll area
+// Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
+// With 13 cards: 60px + (12 × 20px overlap) = 300px total width
+// If needed for very small screens, could add conditional ScrollView
 
 interface CardHandProps {
   cards: CardType[];
@@ -16,6 +17,7 @@ interface CardHandProps {
   onPass: () => void;
   canPlay?: boolean;
   disabled?: boolean;
+  hideButtons?: boolean; // New prop to hide internal buttons
 }
 
 export default function CardHand({
@@ -24,10 +26,13 @@ export default function CardHand({
   onPass,
   canPlay = true,
   disabled = false,
+  hideButtons = false,
 }: CardHandProps) {
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
   // Sort cards (memoized to avoid re-sorting on every render)
+  // sortHand returns ascending order for visual display:
+  // lowest rank (3) appears on the LEFT, highest (2) on the RIGHT in the card hand
   const sortedCards = useMemo(() => sortHand(cards), [cards]);
 
   // Toggle card selection (memoized to prevent card re-renders)
@@ -81,75 +86,73 @@ export default function CardHand({
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
-      {/* Card display area */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.cardsContainer}
-        style={styles.cardsScroll}
-      >
-        {sortedCards.map((card) => (
+      {/* Card display area with horizontal scroll for small screens */}
+      <View style={styles.cardsWrapper}>
+        {sortedCards.map((card, index) => (
           <Card
             key={card.id}
             card={card}
             isSelected={selectedCardIds.has(card.id)}
             onToggleSelect={handleToggleSelect}
             disabled={disabled}
+            style={{ zIndex: index }}
           />
         ))}
-      </ScrollView>
-
-      {/* Action buttons */}
-      <View style={styles.actionsContainer}>
-        {/* Selection info */}
-        {selectedCardIds.size > 0 && (
-          <Pressable 
-            style={styles.clearButton} 
-            onPress={handleClearSelection}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={`Clear ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
-          >
-            <Text style={styles.clearButtonText}>
-              Clear ({selectedCardIds.size})
-            </Text>
-          </Pressable>
-        )}
-
-        {/* Main actions */}
-        <View style={styles.mainActions}>
-          <Pressable
-            style={[styles.button, styles.passButton, !canPlay && styles.buttonDisabled]}
-            onPress={handlePass}
-            disabled={!canPlay || disabled}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Pass turn"
-            accessibilityState={{ disabled: !canPlay || disabled }}
-          >
-            <Text style={[styles.buttonText, styles.passButtonText]}>Pass</Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.button,
-              styles.playButton,
-              (selectedCardIds.size === 0 || !canPlay || disabled) &&
-                styles.buttonDisabled,
-            ]}
-            onPress={handlePlay}
-            disabled={selectedCardIds.size === 0 || !canPlay || disabled}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={`Play ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
-            accessibilityState={{ disabled: selectedCardIds.size === 0 || !canPlay || disabled }}
-          >
-            <Text style={styles.buttonText}>
-              Play {selectedCardIds.size > 0 ? `(${selectedCardIds.size})` : ''}
-            </Text>
-          </Pressable>
-        </View>
       </View>
+
+      {/* Action buttons - only show if not hidden */}
+      {!hideButtons && (
+        <View style={styles.actionsContainer}>
+          {/* Selection info */}
+          {selectedCardIds.size > 0 && (
+            <Pressable 
+              style={styles.clearButton} 
+              onPress={handleClearSelection}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`Clear ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
+            >
+              <Text style={styles.clearButtonText}>
+                Clear ({selectedCardIds.size})
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Main actions */}
+          <View style={styles.mainActions}>
+            <Pressable
+              style={[styles.button, styles.passButton, !canPlay && styles.buttonDisabled]}
+              onPress={handlePass}
+              disabled={!canPlay || disabled}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Pass turn"
+              accessibilityState={{ disabled: !canPlay || disabled }}
+            >
+              <Text style={[styles.buttonText, styles.passButtonText]}>Pass</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.button,
+                styles.playButton,
+                (selectedCardIds.size === 0 || !canPlay || disabled) &&
+                  styles.buttonDisabled,
+              ]}
+              onPress={handlePlay}
+              disabled={selectedCardIds.size === 0 || !canPlay || disabled}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`Play ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
+              accessibilityState={{ disabled: selectedCardIds.size === 0 || !canPlay || disabled }}
+            >
+              <Text style={styles.buttonText}>
+                Play {selectedCardIds.size > 0 ? `(${selectedCardIds.size})` : ''}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -158,14 +161,12 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.primary,
   },
-  cardsScroll: {
-    maxHeight: CARD_HAND_MAX_HEIGHT,
-  },
-  cardsContainer: {
+  cardsWrapper: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     alignItems: 'center',
+    justifyContent: 'center', // Center the cards horizontally
   },
   actionsContainer: {
     paddingHorizontal: SPACING.lg,
