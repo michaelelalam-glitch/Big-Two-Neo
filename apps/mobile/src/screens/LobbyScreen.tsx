@@ -336,11 +336,9 @@ export default function LobbyScreen() {
     } catch (error: any) {
       console.error('Error starting game:', error);
       Alert.alert('Error', error.message || 'Failed to start game');
-    } finally {
-      setTimeout(() => {
-        isStartingRef.current = false;
-        setIsStarting(false);
-      }, 500);
+      // Reset immediately on error
+      isStartingRef.current = false;
+      setIsStarting(false);
     }
   };
 

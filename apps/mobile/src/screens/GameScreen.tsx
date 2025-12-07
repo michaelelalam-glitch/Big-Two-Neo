@@ -423,7 +423,7 @@ export default function GameScreen() {
         // Loading state
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Initializing game...</Text>
-          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
+          <Text style={styles.loadingSubtext}>Initializing game and dealing cards...</Text>
         </View>
       ) : (
         <>
