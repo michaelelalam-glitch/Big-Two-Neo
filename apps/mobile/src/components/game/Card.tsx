@@ -9,7 +9,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import type { Card as CardType } from '../../game/types';
-import { COLORS, SPACING } from '../../constants';
+import { COLORS, SPACING, CARD_FONTS } from '../../constants';
 
 interface CardProps {
   card: CardType;
@@ -155,21 +155,21 @@ const Card = React.memo(function Card({
         ]}>
           {/* Top-left corner */}
           <View style={styles.corner}>
-            <Text style={[styles.rank, { color: suitColor, fontSize: 16 * sizeScale }]}>{card.rank}</Text>
-            <Text style={[styles.suit, { color: suitColor, fontSize: 14 * sizeScale }]}>{suitSymbol}</Text>
+            <Text style={[styles.rank, { color: suitColor, fontSize: CARD_FONTS.rankFontSize * sizeScale }]}>{card.rank}</Text>
+            <Text style={[styles.suit, { color: suitColor, fontSize: CARD_FONTS.suitFontSize * sizeScale }]}>{suitSymbol}</Text>
           </View>
 
           {/* Center suit */}
-          <Text style={[styles.centerSuit, { color: suitColor, fontSize: 32 * sizeScale, marginTop: 20 * sizeScale }]}>
+          <Text style={[styles.centerSuit, { color: suitColor, fontSize: CARD_FONTS.centerSuitFontSize * sizeScale, marginTop: CARD_FONTS.centerSuitMarginTop * sizeScale }]}>
             {suitSymbol}
           </Text>
 
           {/* Bottom-right corner (rotated) */}
           <View style={[styles.corner, styles.cornerBottom]}>
-            <Text style={[styles.rank, { color: suitColor, fontSize: 16 * sizeScale }]}>
+            <Text style={[styles.rank, { color: suitColor, fontSize: CARD_FONTS.rankFontSize * sizeScale }]}>
               {card.rank}
             </Text>
-            <Text style={[styles.suit, { color: suitColor, fontSize: 14 * sizeScale }]}>
+            <Text style={[styles.suit, { color: suitColor, fontSize: CARD_FONTS.suitFontSize * sizeScale }]}>
               {suitSymbol}
             </Text>
           </View>

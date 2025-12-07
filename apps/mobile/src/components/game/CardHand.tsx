@@ -7,7 +7,9 @@ import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
-// Removed CARD_HAND_MAX_HEIGHT - cards now fit without scrolling
+// Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
+// With 13 cards: 60px + (12 × 20px overlap) = 300px total width
+// If needed for very small screens, could add conditional ScrollView
 
 interface CardHandProps {
   cards: CardType[];
@@ -29,7 +31,8 @@ export default function CardHand({
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
   // Sort cards (memoized to avoid re-sorting on every render)
-  // sortHand returns ascending order: lowest rank (3) on LEFT, highest (2) on RIGHT
+  // sortHand returns ascending order for visual display:
+  // lowest rank (3) appears on the LEFT, highest (2) on the RIGHT in the card hand
   const sortedCards = useMemo(() => sortHand(cards), [cards]);
 
   // Toggle card selection (memoized to prevent card re-renders)

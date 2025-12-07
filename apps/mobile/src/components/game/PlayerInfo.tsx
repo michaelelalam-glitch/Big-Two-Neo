@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 
 interface PlayerInfoProps {
   name: string;
@@ -38,8 +38,7 @@ export default function PlayerInfo({
 
       {/* Card count badge */}
       <View style={styles.cardCountBadge}>
-        <Text style={styles.cardCountIcon}>🃏</Text>
-        <Text style={styles.cardCountText}>{cardCount}</Text>
+        <Text style={styles.cardCountText}>{cardCount} {cardCount === 1 ? 'Card' : 'Cards'}</Text>
       </View>
     </View>
   );
@@ -52,10 +51,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatarContainer: {
-    width: 70, // Exact Figma width
-    height: 70, // Exact Figma height
-    borderRadius: 35,
-    padding: 4,
+    width: LAYOUT.avatarSize,
+    height: LAYOUT.avatarSize,
+    borderRadius: LAYOUT.avatarBorderRadius,
+    padding: LAYOUT.avatarBorderWidth,
     backgroundColor: COLORS.gray.dark,
     marginBottom: SPACING.sm,
   },
@@ -70,16 +69,16 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 31,
+    borderRadius: LAYOUT.avatarInnerRadius,
     backgroundColor: COLORS.gray.medium,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: LAYOUT.avatarIconSize,
+    height: LAYOUT.avatarIconSize,
+    borderRadius: LAYOUT.avatarIconRadius,
     backgroundColor: COLORS.gray.light,
     opacity: 0.6,
   },
@@ -102,18 +101,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 52,
     left: -12,
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.black,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: 12,
-    gap: 4,
     borderWidth: 1,
     borderColor: COLORS.gray.medium,
-  },
-  cardCountIcon: {
-    fontSize: 12,
   },
   cardCountText: {
     color: COLORS.white,
