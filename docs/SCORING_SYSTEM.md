@@ -33,11 +33,11 @@ When the game ends, **the player with the LOWEST total score wins the game**.
 
 ### Match 1
 - Player 1 finishes first (plays last card) → **0 points**
-- Player 2 has 3 cards left → **3 points** (3 × 1)
-- Player 3 has 7 cards left → **14 points** (7 × 2)
+- Player 2 has 5 cards left → **10 points** (5 × 2)
+- Player 3 has 5 cards left → **10 points** (5 × 2)
 - Player 4 has 10 cards left → **30 points** (10 × 3)
 
-**Cumulative Scores:** [0, 3, 14, 30]
+**Cumulative Scores:** [0, 10, 10, 30]
 
 ### Match 2
 - Player 2 finishes first → **0 points this match**
@@ -45,7 +45,7 @@ When the game ends, **the player with the LOWEST total score wins the game**.
 - Player 3 has 4 cards left → **4 points this match** (4 × 1)
 - Player 4 has 11 cards left → **33 points this match** (11 × 3)
 
-**Cumulative Scores:** [18, 3, 18, 63]
+**Cumulative Scores:** [18, 10, 14, 63]
 
 ### Match 3
 - Player 3 finishes first → **0 points this match**
@@ -53,12 +53,12 @@ When the game ends, **the player with the LOWEST total score wins the game**.
 - Player 2 has 2 cards left → **2 points this match** (2 × 1)
 - Player 4 has 13 cards left → **39 points this match** (13 × 3)
 
-**Cumulative Scores:** [34, 5, 18, 102]
+**Cumulative Scores:** [34, 12, 14, 102]
 
 ### Game Ends
 Player 4 has reached **102 points** (≥ 101), so the game ends.
 
-**Winner:** Player 2 with the lowest score of **5 points** 🏆
+**Winner:** Player 2 with the lowest score of **12 points** 🏆
 
 ## Implementation Details
 
