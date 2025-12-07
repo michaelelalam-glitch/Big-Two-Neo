@@ -34,7 +34,11 @@ export default function LobbyScreen() {
   const [isReady, setIsReady] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const [isTogglingReady, setIsTogglingReady] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isLeaving, setIsLeavingState] = useState(false);
   const isLeavingRef = useRef(false); // Prevent double navigation
+  const isStartingRef = useRef(false); // Prevent duplicate start-game calls
 
   useEffect(() => {
     loadPlayers();
@@ -163,7 +167,10 @@ export default function LobbyScreen() {
   };
 
   const handleToggleReady = async () => {
+    if (isTogglingReady) return;
+    
     try {
+      setIsTogglingReady(true);
       const currentRoomId = roomId || await getRoomId();
       if (!currentRoomId) return;
       
@@ -178,11 +185,20 @@ export default function LobbyScreen() {
     } catch (error: any) {
       console.error('Error toggling ready:', error);
       Alert.alert('Error', 'Failed to update ready status');
+    } finally {
+      setIsTogglingReady(false);
     }
   };
 
   const handleStartWithBots = async () => {
+    if (isStarting || isStartingRef.current) {
+      console.log('⏭️ [LobbyScreen] Start already in progress, ignoring...');
+      return;
+    }
+    
     try {
+      isStartingRef.current = true;
+      setIsStarting(true);
       const currentRoomId = roomId || await getRoomId();
       if (!currentRoomId) return;
 
@@ -320,13 +336,21 @@ export default function LobbyScreen() {
     } catch (error: any) {
       console.error('Error starting game:', error);
       Alert.alert('Error', error.message || 'Failed to start game');
+    } finally {
+      setTimeout(() => {
+        isStartingRef.current = false;
+        setIsStarting(false);
+      }, 500);
     }
   };
 
   const handleLeaveRoom = async () => {
+    if (isLeavingRef.current || isLeaving) return;
+    
     try {
       // Set flag to prevent duplicate navigation
       isLeavingRef.current = true;
+      setIsLeavingState(true);
       
       const currentRoomId = roomId || await getRoomId();
       if (!currentRoomId) {
@@ -407,10 +431,15 @@ export default function LobbyScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.leaveButton}
+          style={[styles.leaveButton, isLeaving && styles.buttonDisabled]}
           onPress={handleLeaveRoom}
+          disabled={isLeaving}
         >
-          <Text style={styles.leaveButtonText}>← Leave</Text>
+          {isLeaving ? (
+            <ActivityIndicator color={COLORS.white} size="small" />
+          ) : (
+            <Text style={styles.leaveButtonText}>← Leave</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -433,23 +462,36 @@ export default function LobbyScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.readyButton, isReady && styles.readyButtonActive]}
+          style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
           onPress={handleToggleReady}
+          disabled={isTogglingReady}
         >
-          <Text style={styles.readyButtonText}>
-            {isReady ? '✓ Ready' : 'Ready Up'}
-          </Text>
+          {isTogglingReady ? (
+            <ActivityIndicator color={COLORS.white} size="small" />
+          ) : (
+            <Text style={styles.readyButtonText}>
+              {isReady ? '✓ Ready' : 'Ready Up'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {isHost ? (
           <>
             <TouchableOpacity
-              style={styles.startButton}
+              style={[styles.startButton, isStarting && styles.buttonDisabled]}
               onPress={handleStartWithBots}
+              disabled={isStarting}
             >
-              <Text style={styles.startButtonText}>
-                🤖 Start with AI Bots
-              </Text>
+              {isStarting ? (
+                <>
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                  <Text style={[styles.startButtonText, { marginTop: 4 }]}>Starting...</Text>
+                </>
+              ) : (
+                <Text style={styles.startButtonText}>
+                  🤖 Start with AI Bots
+                </Text>
+              )}
             </TouchableOpacity>
             <Text style={styles.hostInfo}>
               You're the host. Start with bots or wait for players.
@@ -582,6 +624,9 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   startButton: {
     backgroundColor: '#8B5CF6',
