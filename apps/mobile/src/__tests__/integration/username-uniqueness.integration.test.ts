@@ -63,22 +63,21 @@ describe('Username Uniqueness - Integration Tests', () => {
   beforeEach(async () => {
     // Clean up ALL data for test users BEFORE each test
     // This ensures each test starts with a clean slate
-    await supabase
-      .from('room_players')
-      .delete()
-      .in('user_id', [
+    await supabase.rpc('test_cleanup_user_data', { 
+      p_user_ids: [
         testUserId1,
         testUserId2,
         '2eab6a51-e47b-4c37-bb29-ed998e3ed30b', // guest user 2
-        '4ce1c03a-1b49-4e94-9572-60fe13759e14', // michael user
-      ]);
+        '4ce1c03a-1b49-4e94-9572-60fe13759e14'  // michael user
+      ] 
+    });
     
     // Wait for cleanup to propagate through database (200ms matches per-test delays)
     await new Promise(resolve => setTimeout(resolve, 200));
   });
 
   afterEach(async () => {
-    // Cleanup: Delete ALL room_players entries for test users
+    // Cleanup: Delete room_players entries for all test users
     // This allows username changes in subsequent tests
     await supabase.rpc('test_cleanup_user_data', { 
       p_user_ids: [
