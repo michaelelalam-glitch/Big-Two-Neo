@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,7 +19,7 @@ interface CardProps {
   onDragEnd?: () => void;
   disabled?: boolean;
   size?: 'hand' | 'table'; // Hand: 60×84, Table: 47×72
-  style?: any; // Additional styles for container
+  style?: StyleProp<ViewStyle>; // Additional styles for container
 }
 
 // Hand card dimensions (default)

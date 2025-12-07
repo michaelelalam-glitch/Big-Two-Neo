@@ -5,20 +5,22 @@ import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 interface PlayerInfoProps {
   name: string;
   cardCount: number;
-  score: number;
   isActive: boolean; // Current turn indicator
-  position: 'top' | 'left' | 'right' | 'bottom';
 }
 
 export default function PlayerInfo({
   name,
   cardCount,
-  score,
   isActive,
-  position,
 }: PlayerInfoProps) {
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}`;
+  
   return (
-    <View style={styles.container}>
+    <View 
+      style={styles.container}
+      accessibilityRole="summary"
+      accessibilityLabel={accessibilityLabel}
+    >
       {/* Avatar with turn indicator */}
       <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
         <View style={styles.avatar}>
@@ -58,8 +60,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   activeAvatar: {
-    backgroundColor: '#E74C3C', // Red border for active turn
-    shadowColor: '#E74C3C',
+    backgroundColor: COLORS.red.active, // Red border for active turn
+    shadowColor: COLORS.red.active,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 8,

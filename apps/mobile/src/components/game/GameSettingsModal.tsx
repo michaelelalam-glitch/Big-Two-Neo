@@ -45,26 +45,49 @@ export default function GameSettingsModal({
         <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Settings</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable 
+              onPress={onClose} 
+              style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Close settings"
+            >
               <Text style={styles.closeButtonText}>✕</Text>
             </Pressable>
           </View>
 
           <View style={styles.content}>
             {/* Sound Settings */}
-            <Pressable style={styles.menuItem}>
+            <Pressable 
+              style={styles.menuItem}
+              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              accessibilityRole="button"
+              accessibilityLabel="Sound Effects setting, currently on"
+              accessibilityHint="Tap to toggle sound effects"
+            >
               <Text style={styles.menuItemText}>🔊 Sound Effects</Text>
               <Text style={styles.menuItemValue}>On</Text>
             </Pressable>
 
             {/* Music Settings */}
-            <Pressable style={styles.menuItem}>
+            <Pressable 
+              style={styles.menuItem}
+              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              accessibilityRole="button"
+              accessibilityLabel="Music setting, currently on"
+              accessibilityHint="Tap to toggle music"
+            >
               <Text style={styles.menuItemText}>🎵 Music</Text>
               <Text style={styles.menuItemValue}>On</Text>
             </Pressable>
 
             {/* Vibration Settings */}
-            <Pressable style={styles.menuItem}>
+            <Pressable 
+              style={styles.menuItem}
+              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              accessibilityRole="button"
+              accessibilityLabel="Vibration setting, currently on"
+              accessibilityHint="Tap to toggle vibration"
+            >
               <Text style={styles.menuItemText}>📳 Vibration</Text>
               <Text style={styles.menuItemValue}>On</Text>
             </Pressable>
@@ -75,6 +98,9 @@ export default function GameSettingsModal({
             <Pressable
               style={[styles.menuItem, styles.leaveGameItem]}
               onPress={handleLeaveGame}
+              accessibilityRole="button"
+              accessibilityLabel="Leave game"
+              accessibilityHint="Leave the current game and return to home"
             >
               <Text style={[styles.menuItemText, styles.leaveGameText]}>
                 🚪 Leave Game
@@ -160,11 +186,11 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   leaveGameItem: {
-    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   leaveGameText: {
-    color: '#EF4444',
+    color: COLORS.danger,
   },
 });
