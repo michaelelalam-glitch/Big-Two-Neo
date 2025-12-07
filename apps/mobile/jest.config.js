@@ -4,7 +4,6 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  setupFiles: ['<rootDir>/node_modules/react-native-reanimated/jest-utils.js'],
   collectCoverageFrom: [
     'src/game/**/*.ts',
     '!src/game/**/*.test.ts',
