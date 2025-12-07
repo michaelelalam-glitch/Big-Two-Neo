@@ -83,8 +83,8 @@ export default function CardHand({
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
-      {/* Card display area */}
-      <View style={styles.cardsContainer}>
+      {/* Card display area with horizontal scroll for small screens */}
+      <View style={styles.cardsWrapper}>
         {sortedCards.map((card, index) => (
           <Card
             key={card.id}
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.primary,
   },
-  cardsContainer: {
+  cardsWrapper: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,

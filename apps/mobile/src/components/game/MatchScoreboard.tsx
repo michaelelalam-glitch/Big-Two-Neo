@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, FONT_SIZES } from '../../constants';
 
 interface Player {
   name: string;
@@ -14,8 +14,16 @@ interface MatchScoreboardProps {
 }
 
 export default function MatchScoreboard({ players, currentMatch }: MatchScoreboardProps) {
+  const accessibilityLabel = `Match ${currentMatch} scoreboard: ${players.map(p => 
+    `${p.name} has ${p.score} point${p.score !== 1 ? 's' : ''}`
+  ).join(', ')}`;
+  
   return (
-    <View style={styles.container}>
+    <View 
+      style={styles.container}
+      accessibilityRole="summary"
+      accessibilityLabel={accessibilityLabel}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Match {currentMatch}</Text>
@@ -96,12 +104,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   currentPlayerName: {
-    color: '#4A90E2', // Blue color for current player (you)
+    color: COLORS.blue.primary, // Blue color for current player (you)
   },
   score: {
     fontSize: FONT_SIZES.md, // Reduced from lg
     fontWeight: 'bold',
-    color: '#E74C3C',
+    color: COLORS.red.active,
     minWidth: 24,
     textAlign: 'right',
   },

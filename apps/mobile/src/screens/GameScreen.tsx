@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
@@ -51,8 +51,8 @@ export default function GameScreen() {
   
   // TODO: Replace with actual game state from GameStateManager/Supabase realtime
   // Demo game state for UI testing
-  const [currentTurn, setCurrentTurn] = useState<number>(0); // 0=you (bottom), 1=top, 2=left, 3=right
-  const [lastPlayedCards, setLastPlayedCards] = useState<Card[]>([
+  const [currentTurn] = useState<number>(0); // 0=you (bottom), 1=top, 2=left, 3=right
+  const [lastPlayedCards] = useState<Card[]>([
     { id: 'AS', rank: 'A', suit: 'S' },
     { id: 'AH', rank: 'A', suit: 'H' },
     { id: 'AC', rank: 'A', suit: 'C' },
@@ -68,7 +68,7 @@ export default function GameScreen() {
   // Demo player data - In production, this will come from game state
   // Position 0 (bottom) is always the current authenticated user
   // Positions 1-3 are opponents (bots or other real players)
-  const players = [
+  const players = useMemo(() => [
     { 
       name: currentPlayerName, // Authenticated user
       cardCount: 13, 
@@ -97,7 +97,7 @@ export default function GameScreen() {
       position: 'right' as const, 
       isActive: currentTurn === 3 
     },
-  ];
+  ], [currentPlayerName, currentTurn]);
 
   // Initialize demo hand
   useEffect(() => {
@@ -152,22 +152,33 @@ export default function GameScreen() {
     });
   };
 
+  // Memoize scoreboard players to prevent unnecessary re-renders
+  const scoreboardPlayers = useMemo(() => 
+    players.map((p, index) => ({ 
+      name: p.name, 
+      score: p.score,
+      isCurrentPlayer: index === 0 // First player is always the authenticated user
+    }))
+  , [players]);
+
   return (
     <View style={styles.container}>
       {/* Match Scoreboard (top-left, outside table) */}
       <View style={styles.scoreboardContainer}>
         <MatchScoreboard
-          players={players.map((p, index) => ({ 
-            name: p.name, 
-            score: p.score,
-            isCurrentPlayer: index === 0 // First player is always the authenticated user
-          }))}
+          players={scoreboardPlayers}
           currentMatch={1}
         />
       </View>
 
       {/* Hamburger menu (top-right, outside table) */}
-      <Pressable style={styles.menuContainer} onPress={() => setShowSettings(true)}>
+      <Pressable 
+        style={styles.menuContainer} 
+        onPress={() => setShowSettings(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open settings menu"
+        accessibilityHint="Opens game settings and options"
+      >
         <View style={styles.menuIcon}>
           <View style={styles.menuLine} />
           <View style={styles.menuLine} />
@@ -187,9 +198,7 @@ export default function GameScreen() {
         <PlayerInfo
           name={players[1].name}
           cardCount={players[1].cardCount}
-          score={players[1].score}
           isActive={players[1].isActive}
-          position="top"
         />
       </View>
 
@@ -202,9 +211,7 @@ export default function GameScreen() {
             <PlayerInfo
               name={players[2].name}
               cardCount={players[2].cardCount}
-              score={players[2].score}
               isActive={players[2].isActive}
-              position="left"
             />
           </View>
 
@@ -222,9 +229,7 @@ export default function GameScreen() {
             <PlayerInfo
               name={players[3].name}
               cardCount={players[3].cardCount}
-              score={players[3].score}
               isActive={players[3].isActive}
-              position="right"
             />
           </View>
         </View>
@@ -237,9 +242,7 @@ export default function GameScreen() {
           <PlayerInfo
             name={players[0].name}
             cardCount={players[0].cardCount}
-            score={players[0].score}
             isActive={players[0].isActive}
-            position="bottom"
           />
           
           {/* Action buttons next to player */}
@@ -248,6 +251,9 @@ export default function GameScreen() {
               style={[styles.actionButton, styles.passButton, !players[0].isActive && styles.buttonDisabled]}
               onPress={handlePass}
               disabled={!players[0].isActive}
+              accessibilityRole="button"
+              accessibilityLabel="Pass turn"
+              accessibilityState={{ disabled: !players[0].isActive }}
             >
               <Text style={[styles.actionButtonText, styles.passButtonText]}>Pass</Text>
             </Pressable>
@@ -259,12 +265,14 @@ export default function GameScreen() {
                 !players[0].isActive && styles.buttonDisabled,
               ]}
               onPress={() => {
-                const selectedCards = playerHand.filter((c, i) => i < 1); // Placeholder - will be replaced with actual selection
-                if (selectedCards.length > 0) {
-                  handlePlayCards(selectedCards);
-                }
+                // TODO: This needs to be connected to CardHand's selection state
+                // For now, this is a placeholder that will be replaced in Task #266
+                handlePlayCards([]);
               }}
               disabled={!players[0].isActive}
+              accessibilityRole="button"
+              accessibilityLabel="Play selected cards"
+              accessibilityState={{ disabled: !players[0].isActive }}
             >
               <Text style={styles.actionButtonText}>Play</Text>
             </Pressable>
@@ -327,11 +335,11 @@ const styles = StyleSheet.create({
   tableArea: {
     width: 340, // Exact Figma width
     height: 450, // Exact Figma height
-    backgroundColor: '#4A7C59', // Green felt color
+    backgroundColor: COLORS.table.background, // Green felt color
     alignSelf: 'center',
     borderRadius: 40,
     borderWidth: 5,
-    borderColor: '#7A7A7A',
+    borderColor: COLORS.table.border,
     paddingVertical: SPACING.xl,
     paddingHorizontal: SPACING.lg,
     justifyContent: 'center',

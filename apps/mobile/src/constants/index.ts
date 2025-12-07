@@ -9,6 +9,17 @@ export const COLORS = {
   warning: '#FF9800',
   white: '#FFFFFF',
   black: '#000000',
+  danger: '#EF4444', // Red for destructive actions
+  red: {
+    active: '#E74C3C', // Red for active turn indicator
+  },
+  blue: {
+    primary: '#4A90E2', // Blue for current player
+  },
+  table: {
+    background: '#4A7C59', // Green felt color
+    border: '#7A7A7A', // Gray border
+  },
   gray: {
     light: '#F5F5F5',
     medium: '#9E9E9E',

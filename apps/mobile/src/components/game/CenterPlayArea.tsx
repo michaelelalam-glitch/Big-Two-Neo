@@ -4,6 +4,10 @@ import Card from './Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
+// Card spacing constants
+const CARD_FIRST_MARGIN = 40;
+const CARD_SPACING = 48;
+
 interface CenterPlayAreaProps {
   lastPlayed: CardType[] | null;
   lastPlayedBy: string | null;
@@ -35,7 +39,7 @@ export default function CenterPlayArea({
             style={[
               styles.cardWrapper,
               { 
-                marginLeft: index > 0 ? 48 : 40, // Small gap between cards, no overlap
+                marginLeft: index > 0 ? CARD_SPACING : CARD_FIRST_MARGIN, // Small gap between cards, no overlap
                 zIndex: index,
               },
             ]}
@@ -54,7 +58,7 @@ export default function CenterPlayArea({
       {/* Last played text - directly on felt, white text */}
       {lastPlayedBy && (
         <Text style={styles.lastPlayedText} numberOfLines={1}>
-          Last played: {combinationType || 'Cards'}
+          Last played by {lastPlayedBy}: {combinationType || 'Cards'}
         </Text>
       )}
     </View>
