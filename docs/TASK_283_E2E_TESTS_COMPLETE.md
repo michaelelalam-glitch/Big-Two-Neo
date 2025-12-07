@@ -74,20 +74,42 @@ testUserId2: a3297019-266a-4fa7-be39-39e1f4beed04 (guest)
 
 **Problem:** Test cleanup was failing because `room_players` table has RLS enabled, preventing standard DELETE operations.
 
-**Solution:** Created `test_cleanup_user_data()` function with `SECURITY DEFINER` to bypass RLS:
+**Solution:** Created `test_cleanup_user_data()` function with `SECURITY DEFINER` to bypass RLS with authorization checks:
 
 ```sql
--- Migration: 20251207_add_test_cleanup_function.sql
+-- Migration: 20251207000001_add_test_cleanup_function.sql
 CREATE OR REPLACE FUNCTION test_cleanup_user_data(p_user_ids UUID[])
 RETURNS VOID
 SECURITY DEFINER  -- Bypasses RLS policies
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  caller_uid UUID;
+  allowed_test_users UUID[] := ARRAY[
+    '00817b76-e3c5-4535-8f72-56df66047bb2'::UUID,  -- testUserId1
+    'a3297019-266a-4fa7-be39-39e1f4beed04'::UUID,  -- testUserId2
+    '2eab6a51-e47b-4c37-bb29-ed998e3ed30b'::UUID,  -- guest user 2
+    '4ce1c03a-1b49-4e94-9572-60fe13759e14'::UUID   -- michael user
+  ];
+  user_id_to_delete UUID;
 BEGIN
-  DELETE FROM room_players WHERE user_id = ANY(p_user_ids);
+  -- Get the calling user's ID from JWT
+  caller_uid := NULLIF(current_setting('request.jwt.claim.sub', true), '')::UUID;
+  
+  -- Validate each user_id: allow only self or whitelisted test users
+  FOREACH user_id_to_delete IN ARRAY p_user_ids
+  LOOP
+    IF caller_uid = user_id_to_delete OR user_id_to_delete = ANY(allowed_test_users) THEN
+      DELETE FROM room_players WHERE user_id = user_id_to_delete;
+    ELSE
+      RAISE EXCEPTION 'Unauthorized: Cannot delete data for user %', user_id_to_delete;
+    END IF;
+  END LOOP;
 END;
 $$;
 ```
+
+**Security:** Only allows deletion of caller's own data or whitelisted test users. Production users cannot delete others' data.
 
 **Usage in tests:**
 ```typescript

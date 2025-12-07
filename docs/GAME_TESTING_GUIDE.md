@@ -51,7 +51,7 @@ This guide explains how to test the Big Two mobile game functionality, including
 
 ### Prerequisites
 ```bash
-cd /Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile
+cd apps/mobile
 pnpm install  # If not already installed
 ```
 
@@ -83,7 +83,7 @@ pnpm test -- game-logic.test.ts
 
 1. **Start Expo Dev Server:**
    ```bash
-   cd /Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile
+   cd apps/mobile
    pnpm start
    ```
 
