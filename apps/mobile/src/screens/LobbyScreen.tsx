@@ -326,12 +326,18 @@ export default function LobbyScreen() {
         if (response.error.message?.includes('409') || response.error.context?.status === 409) {
           // Game already started, navigate to game
           navigation.replace('Game', { roomCode });
+          // Reset after successful navigation
+          isStartingRef.current = false;
+          setIsStarting(false);
         } else {
           throw new Error(errorMessage);
         }
       } else {
         // Success, navigate to game
         navigation.replace('Game', { roomCode });
+        // Reset after successful navigation
+        isStartingRef.current = false;
+        setIsStarting(false);
       }
     } catch (error: any) {
       console.error('Error starting game:', error);
