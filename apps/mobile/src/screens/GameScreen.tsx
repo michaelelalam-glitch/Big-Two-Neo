@@ -45,6 +45,12 @@ export default function GameScreen() {
                            user?.email?.split('@')[0] || 
                            'Player';
 
+  // Bot turn timing configuration based on difficulty
+  const getBotDelayMs = (difficulty: 'easy' | 'medium' | 'hard' = 'medium'): number => {
+    const delays = { easy: 1200, medium: 800, hard: 500 };
+    return delays[difficulty];
+  };
+
   // Bot turn checker function (accessible from everywhere)
   const checkAndExecuteBotTurn = () => {
     if (!gameManagerRef.current) return;
@@ -77,8 +83,7 @@ export default function GameScreen() {
       
       console.log(`🤖 [GameScreen] Bot ${currentPlayer.name} is thinking...`);
       
-      // Bot turn timing: 800ms initial delay for natural feel, 100ms between subsequent bot turns
-      // Can be adjusted based on bot difficulty if needed (e.g., easy=1200ms, medium=800ms, hard=500ms)
+      // Bot turn timing: configurable delay for natural feel, 100ms between subsequent bot turns
       setTimeout(() => {
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
@@ -104,7 +109,7 @@ export default function GameScreen() {
             // Check for next bot turn after short delay to allow game recovery
             setTimeout(checkAndExecuteBotTurn, 500);
           });
-      }, 800);
+      }, getBotDelayMs('medium'));
     }
   };
 
@@ -297,8 +302,15 @@ export default function GameScreen() {
     
     // Listen for navigation events to detect deliberate exits
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      // If navigating away deliberately (e.g., back button, leave game)
-      isDeliberateLeave = true;
+      // Only set as deliberate leave for certain navigation actions (e.g., back, pop, custom leave)
+      const actionType = e.data?.action?.type;
+      if (
+        actionType === 'POP' ||
+        actionType === 'GO_BACK' ||
+        actionType === 'NAVIGATE'
+      ) {
+        isDeliberateLeave = true;
+      }
     });
 
     return () => {
@@ -446,6 +458,10 @@ export default function GameScreen() {
     }))
   , [players]);
 
+  // Extract disabled state logic to prevent duplication
+  const isPassDisabled = !players[0].isActive || isPassing;
+  const isPlayDisabled = !players[0].isActive || selectedCardIds.size === 0 || isPlayingCards;
+
   return (
     <View style={styles.container}>
       {isInitializing ? (
@@ -541,12 +557,12 @@ export default function GameScreen() {
               {/* Action buttons next to player */}
               <View style={styles.actionButtons}>
                 <Pressable
-                  style={[styles.actionButton, styles.passButton, (!players[0].isActive || isPassing) && styles.buttonDisabled]}
+                  style={[styles.actionButton, styles.passButton, isPassDisabled && styles.buttonDisabled]}
                   onPress={handlePass}
-                  disabled={!players[0].isActive || isPassing}
+                  disabled={isPassDisabled}
                   accessibilityRole="button"
                   accessibilityLabel="Pass turn"
-                  accessibilityState={{ disabled: !players[0].isActive || isPassing }}
+                  accessibilityState={{ disabled: isPassDisabled }}
                 >
                   {isPassing ? (
                     <ActivityIndicator color={COLORS.gray.light} size="small" accessibilityLabel="Passing turn" />
@@ -559,18 +575,18 @@ export default function GameScreen() {
                   style={[
                     styles.actionButton,
                     styles.playButton,
-                    (!players[0].isActive || selectedCardIds.size === 0 || isPlayingCards) && styles.buttonDisabled,
+                    isPlayDisabled && styles.buttonDisabled,
                   ]}
                   onPress={() => {
-                    if (selectedCardIds.size === 0 || isPlayingCards) return;
+                    if (isPlayDisabled) return;
                     const selected = playerHand.filter((card) => selectedCardIds.has(card.id));
                     handlePlayCards(selected);
                     setSelectedCardIds(new Set()); // Clear selection after play
                   }}
-                  disabled={!players[0].isActive || selectedCardIds.size === 0 || isPlayingCards}
+                  disabled={isPlayDisabled}
                   accessibilityRole="button"
                   accessibilityLabel="Play selected cards"
-                  accessibilityState={{ disabled: !players[0].isActive || selectedCardIds.size === 0 || isPlayingCards }}
+                  accessibilityState={{ disabled: isPlayDisabled }}
                 >
                   {isPlayingCards ? (
                     <ActivityIndicator color={COLORS.white} size="small" accessibilityLabel="Playing cards" />

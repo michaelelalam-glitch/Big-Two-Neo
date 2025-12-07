@@ -327,7 +327,6 @@ export default function LobbyScreen() {
           // Game already started, navigate to game
           navigation.replace('Game', { roomCode });
           // Reset after successful navigation
-          isStartingRef.current = false;
           setIsStarting(false);
         } else {
           throw new Error(errorMessage);
@@ -336,15 +335,16 @@ export default function LobbyScreen() {
         // Success, navigate to game
         navigation.replace('Game', { roomCode });
         // Reset after successful navigation
-        isStartingRef.current = false;
         setIsStarting(false);
       }
     } catch (error: any) {
       console.error('Error starting game:', error);
       Alert.alert('Error', error.message || 'Failed to start game');
       // Reset immediately on error
-      isStartingRef.current = false;
       setIsStarting(false);
+    } finally {
+      // Ensure ref is always reset
+      isStartingRef.current = false;
     }
   };
 
