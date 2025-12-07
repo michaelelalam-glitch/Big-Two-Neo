@@ -68,3 +68,43 @@ export type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 
  * Valid suit values
  */
 export type Suit = 'D' | 'C' | 'H' | 'S';
+
+/**
+ * Player match score information
+ */
+export interface PlayerMatchScore {
+  playerId: string;
+  playerName: string;
+  score: number; // Total cumulative score across all matches
+  matchScores: number[]; // Score history for each match
+}
+
+/**
+ * Match result when a player finishes their hand
+ */
+export interface MatchResult {
+  winnerId: string;
+  winnerName: string;
+  playerScores: PlayerMatchScore[];
+  matchNumber: number;
+  gameEnded: boolean; // True if someone reached 101+ points
+  finalWinnerId?: string; // Player with lowest score when game ends
+}
+
+/**
+ * Scoring breakdown for a single player in a match
+ * Scoring rules:
+ * - Winner: 0 points
+ * - 1-4 cards: 1 point per card
+ * - 5-9 cards: 2 points per card
+ * - 10-13 cards: 3 points per card
+ * - Game ends when any player reaches 101+ points
+ * - Player with lowest score wins the game
+ */
+export interface PlayerMatchScoreDetail {
+  playerId: string;
+  cardsRemaining: number;
+  pointsPerCard: number; // 1, 2, or 3 based on card count
+  finalScore: number; // cardsRemaining * pointsPerCard
+}
+
