@@ -34,8 +34,8 @@ export default function GameScreen() {
   const isExecutingBotTurnRef = useRef(false);
   const lastBotTurnPlayerIndexRef = useRef<number | null>(null);
   
-  // Track card play execution to prevent duplicates
-  const isPlayingCardsRef = useRef(false);
+  // Track card play execution to prevent duplicates (use state for UI updates)
+  const [isPlayingCards, setIsPlayingCards] = useState(false);
   
   // Track pass execution
   const [isPassing, setIsPassing] = useState(false);
@@ -218,11 +218,6 @@ export default function GameScreen() {
     return gameState.lastPlay.cards;
   }, [gameState]);
 
-  const currentTurn = useMemo(() => {
-    if (!gameState) return 0;
-    return gameState.currentPlayerIndex;
-  }, [gameState]);
-
   const lastPlayedBy = useMemo(() => {
     if (!gameState || gameState.roundHistory.length === 0) return null;
     const lastEntry = gameState.roundHistory[gameState.roundHistory.length - 1];
@@ -325,13 +320,13 @@ export default function GameScreen() {
     }
 
     // Prevent duplicate card plays
-    if (isPlayingCardsRef.current) {
+    if (isPlayingCards) {
       console.log('⏭️ [GameScreen] Card play already in progress, ignoring...');
       return;
     }
 
     try {
-      isPlayingCardsRef.current = true;
+      setIsPlayingCards(true);
       
       console.log('🎴 [GameScreen] Playing cards:', cards.map(c => c.id));
       
@@ -361,7 +356,7 @@ export default function GameScreen() {
     } finally {
       // Release lock after short delay to prevent rapid double-taps
       setTimeout(() => {
-        isPlayingCardsRef.current = false;
+        setIsPlayingCards(false);
       }, 300);
     }
   };
@@ -428,7 +423,7 @@ export default function GameScreen() {
         // Loading state
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Initializing game...</Text>
-          <Text style={styles.loadingSubtext}>Shuffling cards and dealing hands</Text>
+          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
         </View>
       ) : (
         <>
@@ -525,7 +520,7 @@ export default function GameScreen() {
                   accessibilityState={{ disabled: !players[0].isActive || isPassing }}
                 >
                   {isPassing ? (
-                    <ActivityIndicator color={COLORS.gray.light} size="small" />
+                    <ActivityIndicator color={COLORS.gray.light} size="small" accessibilityLabel="Passing turn" />
                   ) : (
                     <Text style={[styles.actionButtonText, styles.passButtonText]}>Pass</Text>
                   )}
@@ -535,21 +530,21 @@ export default function GameScreen() {
                   style={[
                     styles.actionButton,
                     styles.playButton,
-                    (!players[0].isActive || selectedCardIds.size === 0 || isPlayingCardsRef.current) && styles.buttonDisabled,
+                    (!players[0].isActive || selectedCardIds.size === 0 || isPlayingCards) && styles.buttonDisabled,
                   ]}
                   onPress={() => {
-                    if (selectedCardIds.size === 0 || isPlayingCardsRef.current) return;
+                    if (selectedCardIds.size === 0 || isPlayingCards) return;
                     const selected = playerHand.filter((card) => selectedCardIds.has(card.id));
                     handlePlayCards(selected);
                     setSelectedCardIds(new Set()); // Clear selection after play
                   }}
-                  disabled={!players[0].isActive || selectedCardIds.size === 0 || isPlayingCardsRef.current}
+                  disabled={!players[0].isActive || selectedCardIds.size === 0 || isPlayingCards}
                   accessibilityRole="button"
                   accessibilityLabel="Play selected cards"
-                  accessibilityState={{ disabled: !players[0].isActive || selectedCardIds.size === 0 || isPlayingCardsRef.current }}
+                  accessibilityState={{ disabled: !players[0].isActive || selectedCardIds.size === 0 || isPlayingCards }}
                 >
-                  {isPlayingCardsRef.current ? (
-                    <ActivityIndicator color={COLORS.white} size="small" />
+                  {isPlayingCards ? (
+                    <ActivityIndicator color={COLORS.white} size="small" accessibilityLabel="Playing cards" />
                   ) : (
                     <Text style={styles.actionButtonText}>Play</Text>
                   )}

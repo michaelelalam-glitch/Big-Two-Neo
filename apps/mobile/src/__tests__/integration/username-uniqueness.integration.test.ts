@@ -36,15 +36,6 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase credentials. Create .env.test file with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
 }
 
-// Helper to generate UUID v4
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
 describe('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
   let testRoomCode1: string;
@@ -66,10 +57,7 @@ describe('Username Uniqueness - Integration Tests', () => {
     testUserId2 = 'a3297019-266a-4fa7-be39-39e1f4beed04'; // guest user
     
     // Clean up any existing data before starting tests
-    await supabase
-      .from('room_players')
-      .delete()
-      .in('user_id', [testUserId1, testUserId2]);
+    await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
   });
 
   beforeEach(async () => {
@@ -85,17 +73,22 @@ describe('Username Uniqueness - Integration Tests', () => {
         '4ce1c03a-1b49-4e94-9572-60fe13759e14', // michael user
       ]);
     
-    // Wait longer to ensure cleanup propagates through database
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait for cleanup to propagate through database (200ms matches per-test delays)
+    await new Promise(resolve => setTimeout(resolve, 200));
   });
 
   afterEach(async () => {
     // Cleanup: Delete ALL room_players entries for test users
     // This allows username changes in subsequent tests
-    await supabase
-      .from('room_players')
-      .delete()
-      .in('user_id', [testUserId1, testUserId2]);
+    await supabase.rpc('test_cleanup_user_data', { 
+      p_user_ids: [
+        testUserId1,
+        testUserId2,
+        '2eab6a51-e47b-4c37-bb29-ed998e3ed30b', // guest user 2
+        '4ce1c03a-1b49-4e94-9572-60fe13759e14'  // michael user
+      ] 
+    });
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Don't delete the rooms themselves - they're permanent test fixtures
   });
@@ -131,7 +124,7 @@ describe('Username Uniqueness - Integration Tests', () => {
       });
 
       // Second user tries same username
-      const { data, error } = await supabase.rpc('join_room_atomic', {
+      const { error } = await supabase.rpc('join_room_atomic', {
         p_room_code: testRoomCode1,
         p_user_id: testUserId2,
         p_username: 'TestUser1',
@@ -156,7 +149,7 @@ describe('Username Uniqueness - Integration Tests', () => {
       });
 
       // User 2 tries to join room 2 with "GlobalTest"
-      const { data, error } = await supabase.rpc('join_room_atomic', {
+      const { error } = await supabase.rpc('join_room_atomic', {
         p_room_code: testRoomCode2,
         p_user_id: testUserId2,
         p_username: 'GlobalTest',
@@ -173,27 +166,29 @@ describe('Username Uniqueness - Integration Tests', () => {
       const botId1 = '2eab6a51-e47b-4c37-bb29-ed998e3ed30b'; // guest user 2
       const botId2 = '4ce1c03a-1b49-4e94-9572-60fe13759e14'; // michael user
 
-      // Bot 1 joins room 1
-      await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: botId1,
-        p_username: 'Bot',
-      });
+      try {
+        // Bot 1 joins room 1
+        await supabase.rpc('join_room_atomic', {
+          p_room_code: testRoomCode1,
+          p_user_id: botId1,
+          p_username: 'Bot',
+        });
 
-      // Bot 2 tries to join room 2 with same name
-      const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode2,
-        p_user_id: botId2,
-        p_username: 'Bot',
-      });
+        // Bot 2 tries to join room 2 with same name
+        const { error } = await supabase.rpc('join_room_atomic', {
+          p_room_code: testRoomCode2,
+          p_user_id: botId2,
+          p_username: 'Bot',
+        });
 
-      // With current global uniqueness, this WILL fail
-      // If bots need duplicate names, they need special handling
-      expect(error).toBeDefined();
-      expect(error?.message).toContain('already taken');
-      
-      // Cleanup bot entries
-      await supabase.from('room_players').delete().in('user_id', [botId1, botId2]);
+        // With current global uniqueness, this WILL fail
+        // If bots need duplicate names, they need special handling
+        expect(error).toBeDefined();
+        expect(error?.message).toContain('already taken');
+      } finally {
+        // Cleanup bot entries (ensure cleanup even if test fails)
+        await supabase.rpc('test_cleanup_user_data', { p_user_ids: [botId1, botId2] });
+      }
     });
   });
 
