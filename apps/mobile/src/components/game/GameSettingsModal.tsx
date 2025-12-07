@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, OVERLAYS } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -122,10 +122,10 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '85%',
-    maxWidth: 400,
+    maxWidth: MODAL.maxWidth,
     backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    borderWidth: 2,
+    borderRadius: MODAL.borderRadius,
+    borderWidth: MODAL.borderWidth,
     borderColor: COLORS.gray.medium,
     overflow: 'hidden',
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     backgroundColor: COLORS.gray.dark,
-    borderBottomWidth: 1,
+    borderBottomWidth: MODAL.headerBorderWidth,
     borderBottomColor: COLORS.gray.medium,
   },
   headerTitle: {
@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: MODAL.closeButtonSize,
+    height: MODAL.closeButtonSize,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: MODAL.closeButtonRadius,
+    backgroundColor: OVERLAYS.closeButtonBackground,
   },
   closeButtonText: {
     fontSize: FONT_SIZES.xl,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     backgroundColor: COLORS.gray.dark,
-    borderRadius: 12,
+    borderRadius: MODAL.menuItemBorderRadius,
     marginBottom: SPACING.sm,
   },
   menuItemText: {
@@ -181,13 +181,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   divider: {
-    height: 1,
+    height: MODAL.dividerHeight,
     backgroundColor: COLORS.gray.medium,
     marginVertical: SPACING.md,
   },
   leaveGameItem: {
     backgroundColor: OVERLAYS.leaveGameBackground,
-    borderWidth: 1,
+    borderWidth: MODAL.leaveGameBorderWidth,
     borderColor: OVERLAYS.leaveGameBorder,
   },
   leaveGameText: {
