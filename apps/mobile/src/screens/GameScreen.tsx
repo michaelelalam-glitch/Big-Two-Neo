@@ -109,16 +109,6 @@ export default function GameScreen() {
             // Check for next player after brief delay
             setTimeout(checkAndExecuteBotTurn, 100);
           });
-            // Notify user and attempt recovery
-            Alert.alert(
-              'Bot Turn Error',
-              `Bot ${currentPlayer.name} encountered an error. Continuing to next player.`,
-              [{ text: 'OK' }]
-            );
-            
-            // Check for next bot turn after short delay to allow game recovery
-            setTimeout(checkAndExecuteBotTurn, 500);
-          });
       }, getBotDelayMs('medium'));
     }
   };
