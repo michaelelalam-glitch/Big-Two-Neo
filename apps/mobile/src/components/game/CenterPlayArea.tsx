@@ -52,7 +52,7 @@ export default function CenterPlayArea({
       </View>
 
       {/* Last played text - directly on felt, white text */}
-      {lastPlayedBy && lastPlayed && lastPlayed.length > 0 && (
+      {lastPlayedBy && (
         <Text style={styles.lastPlayedText} numberOfLines={1}>
           Last played by {lastPlayedBy}: {combinationType || 'Cards'}
         </Text>
