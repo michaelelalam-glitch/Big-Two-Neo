@@ -143,6 +143,8 @@ export const MODAL = {
 export const CENTER_PLAY = {
   emptyStateBorderRadius: 16,
   emptyStateBorderWidth: 2,
+  cardFirstMargin: 40,
+  cardSpacing: 48,
 };
 
 // Positioning
@@ -155,6 +157,7 @@ export const POSITIONING = {
   actionButtonBorderRadius: 12,
   actionButtonMinWidth: 70,
   passButtonBorderWidth: 1,
+  sidePlayerTop: 0,
 };
 
 // Scoreboard detail dimensions
@@ -167,4 +170,38 @@ export const SCOREBOARD_DETAIL = {
   indicatorWidth: 16,
   iconFontSize: 10,
   scoreMinWidth: 24,
+};
+
+// Shadow properties
+export const SHADOWS = {
+  table: {
+    offset: { width: 0, height: 4 },
+    opacity: 0.3,
+    radius: 8,
+    elevation: 8,
+  },
+  scoreboard: {
+    offset: { width: 0, height: 2 },
+    opacity: 0.25,
+    radius: 4,
+    elevation: 5,
+  },
+  activeAvatar: {
+    offset: { width: 0, height: 0 },
+    opacity: 0.8,
+    radius: 8,
+    elevation: 8,
+  },
+};
+
+// Typography
+export const TYPOGRAPHY = {
+  rankLineHeight: 18,
+  suitLineHeight: 16,
+};
+
+// Opacities
+export const OPACITIES = {
+  avatarIcon: 0.6,
+  disabled: 0.5,
 };

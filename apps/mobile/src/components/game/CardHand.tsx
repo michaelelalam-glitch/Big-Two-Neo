@@ -18,6 +18,8 @@ interface CardHandProps {
   canPlay?: boolean;
   disabled?: boolean;
   hideButtons?: boolean; // New prop to hide internal buttons
+  selectedCardIds?: Set<string>; // Optional: lifted state for external control
+  onSelectionChange?: (selected: Set<string>) => void; // Optional: callback for lifted state
 }
 
 export default function CardHand({
@@ -27,8 +29,14 @@ export default function CardHand({
   canPlay = true,
   disabled = false,
   hideButtons = false,
+  selectedCardIds: externalSelectedCardIds,
+  onSelectionChange,
 }: CardHandProps) {
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
+  
+  // Use lifted state if provided, otherwise use internal state
+  const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
+  const setSelectedCardIds = onSelectionChange ?? setInternalSelectedCardIds;
 
   // Sort cards (memoized to avoid re-sorting on every render)
   // sortHand returns ascending order for visual display:

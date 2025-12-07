@@ -5,7 +5,7 @@ import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navig
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal } from '../components/game';
 import type { Card } from '../game/types';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -48,6 +48,7 @@ export default function GameScreen() {
   const { roomCode } = route.params;
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   
   // TODO: Replace with actual game state from GameStateManager/Supabase realtime
   // Demo game state for UI testing
@@ -262,17 +263,18 @@ export default function GameScreen() {
               style={[
                 styles.actionButton,
                 styles.playButton,
-                !players[0].isActive && styles.buttonDisabled,
+                (!players[0].isActive || selectedCardIds.size === 0) && styles.buttonDisabled,
               ]}
               onPress={() => {
-                // TODO: This needs to be connected to CardHand's selection state
-                // For now, this is a placeholder that will be replaced in Task #266
-                handlePlayCards([]);
+                if (selectedCardIds.size === 0) return;
+                const selected = playerHand.filter((card) => selectedCardIds.has(card.id));
+                handlePlayCards(selected);
+                setSelectedCardIds(new Set()); // Clear selection after play
               }}
-              disabled={!players[0].isActive}
+              disabled={!players[0].isActive || selectedCardIds.size === 0}
               accessibilityRole="button"
               accessibilityLabel="Play selected cards"
-              accessibilityState={{ disabled: !players[0].isActive }}
+              accessibilityState={{ disabled: !players[0].isActive || selectedCardIds.size === 0 }}
             >
               <Text style={styles.actionButtonText}>Play</Text>
             </Pressable>
@@ -287,6 +289,8 @@ export default function GameScreen() {
             onPass={handlePass}
             canPlay={players[0].isActive}
             hideButtons={true} // Hide internal buttons since we display them externally
+            selectedCardIds={selectedCardIds}
+            onSelectionChange={setSelectedCardIds}
           />
         </View>
       </View>
@@ -344,10 +348,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     justifyContent: 'center',
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: SHADOWS.table.offset,
+    shadowOpacity: SHADOWS.table.opacity,
+    shadowRadius: SHADOWS.table.radius,
+    elevation: SHADOWS.table.elevation,
   },
   middleRow: {
     flexDirection: 'row',
@@ -359,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     left: LAYOUT.playerOverlapOffset,
-    top: 0, 
+    top: POSITIONING.sidePlayerTop, 
   },
   centerPlayArea: {
     alignItems: 'center',
@@ -370,7 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     right: LAYOUT.playerOverlapOffset,
-    top: 0, // Align with green circle indicator
+    top: POSITIONING.sidePlayerTop, // Align with green circle indicator
   },
   bottomSection: {
     marginTop: POSITIONING.bottomSectionMarginTop,
@@ -405,7 +409,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray.medium,
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: OPACITIES.disabled,
   },
   actionButtonText: {
     color: COLORS.white,
