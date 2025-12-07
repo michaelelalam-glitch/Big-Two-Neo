@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONT_SIZES, LAYOUT, OVERLAYS } from '../../constants';
+import { COLORS, FONT_SIZES, LAYOUT, OVERLAYS, SCOREBOARD_DETAIL } from '../../constants';
 
 interface Player {
   name: string;
@@ -72,10 +72,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   header: {
-    borderBottomWidth: 2,
+    borderBottomWidth: SCOREBOARD_DETAIL.headerBorderWidth,
     borderBottomColor: COLORS.gray.medium,
-    paddingBottom: 4,
-    marginBottom: 4,
+    paddingBottom: SCOREBOARD_DETAIL.headerPaddingBottom,
+    marginBottom: SCOREBOARD_DETAIL.headerMarginBottom,
   },
   title: {
     fontSize: FONT_SIZES.md, // Reduced from lg
@@ -86,15 +86,15 @@ const styles = StyleSheet.create({
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 2,
-    gap: 6,
+    paddingVertical: SCOREBOARD_DETAIL.playerRowPaddingVertical,
+    gap: SCOREBOARD_DETAIL.playerRowGap,
   },
   playerIndicator: {
-    width: 16,
+    width: SCOREBOARD_DETAIL.indicatorWidth,
     alignItems: 'center',
   },
   playerIcon: {
-    fontSize: 10,
+    fontSize: SCOREBOARD_DETAIL.iconFontSize,
     color: COLORS.secondary,
   },
   playerName: {
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md, // Reduced from lg
     fontWeight: 'bold',
     color: COLORS.red.active,
-    minWidth: 24,
+    minWidth: SCOREBOARD_DETAIL.scoreMinWidth,
     textAlign: 'right',
   },
 });

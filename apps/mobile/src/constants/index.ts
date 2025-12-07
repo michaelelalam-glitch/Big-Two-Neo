@@ -110,4 +110,61 @@ export const OVERLAYS = {
   leaveGameBorder: 'rgba(239, 68, 68, 0.3)',
   modalOverlay: 'rgba(0, 0, 0, 0.7)',
   scoreboardBackground: 'rgba(255, 255, 255, 0.95)',
+  nameBadgeBackground: 'rgba(46, 125, 50, 0.9)', // Green badge for player names
+  closeButtonBackground: 'rgba(255, 255, 255, 0.1)', // Semi-transparent white for close button
+};
+
+// Badge dimensions
+export const BADGE = {
+  nameBorderRadius: 16,
+  nameBorderWidth: 2,
+  nameMinWidth: 80,
+  cardCountTop: 52,
+  cardCountLeft: -12,
+  cardCountPaddingVertical: 4,
+  cardCountBorderRadius: 12,
+  cardCountBorderWidth: 1,
+};
+
+// Modal dimensions
+export const MODAL = {
+  maxWidth: 400,
+  borderRadius: 20,
+  borderWidth: 2,
+  headerBorderWidth: 1,
+  closeButtonSize: 32,
+  closeButtonRadius: 16,
+  menuItemBorderRadius: 12,
+  dividerHeight: 1,
+  leaveGameBorderWidth: 1,
+};
+
+// Center Play Area
+export const CENTER_PLAY = {
+  emptyStateBorderRadius: 16,
+  emptyStateBorderWidth: 2,
+};
+
+// Positioning
+export const POSITIONING = {
+  scoreboardTop: 40,
+  scoreboardLeft: 16,
+  menuTop: 60,
+  menuLineBorderRadius: 2,
+  bottomSectionMarginTop: -50,
+  actionButtonBorderRadius: 12,
+  actionButtonMinWidth: 70,
+  passButtonBorderWidth: 1,
+};
+
+// Scoreboard detail dimensions
+export const SCOREBOARD_DETAIL = {
+  headerBorderWidth: 2,
+  headerPaddingBottom: 4,
+  headerMarginBottom: 4,
+  playerRowPaddingVertical: 2,
+  playerRowGap: 6,
+  indicatorWidth: 16,
+  iconFontSize: 10,
+  scoreMinWidth: 24,
 };

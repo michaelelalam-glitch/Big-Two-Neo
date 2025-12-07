@@ -5,7 +5,7 @@ import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navig
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal } from '../components/game';
 import type { Card } from '../game/types';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -301,13 +301,13 @@ const styles = StyleSheet.create({
   },
   scoreboardContainer: {
     position: 'absolute',
-    top: 40,
-    left: 16,
+    top: POSITIONING.scoreboardTop,
+    left: POSITIONING.scoreboardLeft,
     zIndex: 100,
   },
   menuContainer: {
     position: 'absolute',
-    top: 60,
+    top: POSITIONING.menuTop,
     right: SPACING.md,
     zIndex: 100,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     width: LAYOUT.menuLineWidth,
     height: LAYOUT.menuLineHeight,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderRadius: POSITIONING.menuLineBorderRadius,
   },
   topPlayerAboveTable: {
     alignItems: 'center',
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     top: 0, // Align with green circle indicator
   },
   bottomSection: {
-    marginTop: -50, // Overlap with table
+    marginTop: POSITIONING.bottomSectionMarginTop,
     zIndex: 50,
   },
   bottomPlayerWithActions: {
@@ -391,8 +391,8 @@ const styles = StyleSheet.create({
   actionButton: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
-    borderRadius: 12,
-    minWidth: 70,
+    borderRadius: POSITIONING.actionButtonBorderRadius,
+    minWidth: POSITIONING.actionButtonMinWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   passButton: {
     backgroundColor: COLORS.gray.dark,
-    borderWidth: 1,
+    borderWidth: POSITIONING.passButtonBorderWidth,
     borderColor: COLORS.gray.medium,
   },
   buttonDisabled: {

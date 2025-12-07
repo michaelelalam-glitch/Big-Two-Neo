@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE } from '../../constants';
 
 interface PlayerInfoProps {
   name: string;
@@ -83,13 +83,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   nameBadge: {
-    backgroundColor: 'rgba(46, 125, 50, 0.9)', // Green badge
+    backgroundColor: OVERLAYS.nameBadgeBackground,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: BADGE.nameBorderRadius,
+    borderWidth: BADGE.nameBorderWidth,
     borderColor: COLORS.white,
-    minWidth: 80,
+    minWidth: BADGE.nameMinWidth,
     alignItems: 'center',
   },
   nameText: {
@@ -99,13 +99,13 @@ const styles = StyleSheet.create({
   },
   cardCountBadge: {
     position: 'absolute',
-    top: 52,
-    left: -12,
+    top: BADGE.cardCountTop,
+    left: BADGE.cardCountLeft,
     backgroundColor: COLORS.black,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: BADGE.cardCountPaddingVertical,
+    borderRadius: BADGE.cardCountBorderRadius,
+    borderWidth: BADGE.cardCountBorderWidth,
     borderColor: COLORS.gray.medium,
   },
   cardCountText: {

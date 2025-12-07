@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Card from './Card';
 import type { Card as CardType } from '../../game/types';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, CENTER_PLAY } from '../../constants';
 
 // Card spacing constants
 const CARD_FIRST_MARGIN = 40;
@@ -10,7 +10,7 @@ const CARD_SPACING = 48;
 
 interface CenterPlayAreaProps {
   lastPlayed: CardType[] | null;
-  lastPlayedBy: string; // Player who played last
+  lastPlayedBy: string | null; // Player who played last (null before first play)
   combinationType?: string; // e.g., "Full house (A)", "Pair", "Single"
 }
 
@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: SPACING.xl,
     backgroundColor: OVERLAYS.emptyStateBackground,
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: CENTER_PLAY.emptyStateBorderRadius,
+    borderWidth: CENTER_PLAY.emptyStateBorderWidth,
     borderColor: OVERLAYS.emptyStateBorder,
     borderStyle: 'dashed',
   },
