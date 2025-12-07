@@ -24,16 +24,19 @@ BEGIN
   -- Get the calling user's ID from JWT
   caller_uid := NULLIF(current_setting('request.jwt.claim.sub', true), '')::UUID;
   
+  -- SECURITY: Only allow test users to call this function
+  IF caller_uid IS NULL OR NOT (caller_uid = ANY(allowed_test_users)) THEN
+    RAISE EXCEPTION 'Unauthorized: Only test users can call this function';
+  END IF;
+  
   -- Validate each user_id before deletion
   FOREACH user_id_to_delete IN ARRAY p_user_ids
   LOOP
-    -- Allow deletion if:
-    -- 1. The user is deleting their own data (caller_uid = user_id_to_delete)
-    -- 2. OR the user is in the allowed test users list
-    IF caller_uid = user_id_to_delete OR user_id_to_delete = ANY(allowed_test_users) THEN
+    -- Allow deletion only if user is in the allowed test users list
+    IF user_id_to_delete = ANY(allowed_test_users) THEN
       DELETE FROM room_players WHERE user_id = user_id_to_delete;
     ELSE
-      -- Unauthorized: trying to delete someone else's data
+      -- Unauthorized: trying to delete non-test user data
       RAISE EXCEPTION 'Unauthorized: Cannot delete data for user %', user_id_to_delete;
     END IF;
   END LOOP;
