@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONT_SIZES } from '../../constants';
+import { COLORS, FONT_SIZES, LAYOUT, OVERLAYS } from '../../constants';
 
 interface Player {
   name: string;
@@ -60,11 +60,11 @@ export default function MatchScoreboard({ players, currentMatch }: MatchScoreboa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 8,
-    padding: 8,
-    width: 140,
-    minHeight: 130, // Changed to minHeight to fit all 4 players
+    backgroundColor: OVERLAYS.scoreboardBackground,
+    borderRadius: LAYOUT.scoreboardBorderRadius,
+    padding: LAYOUT.scoreboardPadding,
+    width: LAYOUT.scoreboardWidth,
+    minHeight: LAYOUT.scoreboardMinHeight, // Changed to minHeight to fit all 4 players
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

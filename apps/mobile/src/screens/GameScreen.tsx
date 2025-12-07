@@ -5,7 +5,7 @@ import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navig
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal } from '../components/game';
 import type { Card } from '../game/types';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -312,33 +312,33 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   menuIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
+    width: LAYOUT.menuIconSize,
+    height: LAYOUT.menuIconSize,
+    backgroundColor: OVERLAYS.menuBackground,
+    borderRadius: LAYOUT.menuBorderRadius,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: LAYOUT.menuLineGap,
   },
   menuLine: {
-    width: 20,
-    height: 3,
+    width: LAYOUT.menuLineWidth,
+    height: LAYOUT.menuLineHeight,
     backgroundColor: COLORS.white,
     borderRadius: 2,
   },
   topPlayerAboveTable: {
     alignItems: 'center',
-    paddingTop: 140, // Space for scoreboard above
-    marginBottom: -25, // Slight overlap with table
+    paddingTop: LAYOUT.topPlayerSpacing, // Space for scoreboard above
+    marginBottom: LAYOUT.topPlayerOverlap, // Slight overlap with table
     zIndex: 50,
   },
   tableArea: {
-    width: 340, // Exact Figma width
-    height: 450, // Exact Figma height
+    width: LAYOUT.tableWidth,
+    height: LAYOUT.tableHeight,
     backgroundColor: COLORS.table.background, // Green felt color
     alignSelf: 'center',
-    borderRadius: 40,
-    borderWidth: 5,
+    borderRadius: LAYOUT.tableBorderRadius,
+    borderWidth: LAYOUT.tableBorderWidth,
     borderColor: COLORS.table.border,
     paddingVertical: SPACING.xl,
     paddingHorizontal: SPACING.lg,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   leftPlayerContainer: {
     alignItems: 'center',
     position: 'absolute',
-    left: -50,
+    left: LAYOUT.playerOverlapOffset,
     top: 0, 
   },
   centerPlayArea: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   rightPlayerContainer: {
     alignItems: 'center',
     position: 'absolute',
-    right: -50,
+    right: LAYOUT.playerOverlapOffset,
     top: 0, // Align with green circle indicator
   },
   bottomSection: {

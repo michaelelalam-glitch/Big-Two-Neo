@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, OVERLAYS } from '../../constants';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -61,7 +61,7 @@ export default function GameSettingsModal({
               style={styles.menuItem}
               onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
               accessibilityRole="button"
-              accessibilityLabel="Sound Effects setting, currently on"
+              accessibilityLabel="Sound Effects, currently on"
               accessibilityHint="Tap to toggle sound effects"
             >
               <Text style={styles.menuItemText}>🔊 Sound Effects</Text>
@@ -73,7 +73,7 @@ export default function GameSettingsModal({
               style={styles.menuItem}
               onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
               accessibilityRole="button"
-              accessibilityLabel="Music setting, currently on"
+              accessibilityLabel="Music, currently on"
               accessibilityHint="Tap to toggle music"
             >
               <Text style={styles.menuItemText}>🎵 Music</Text>
@@ -85,7 +85,7 @@ export default function GameSettingsModal({
               style={styles.menuItem}
               onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
               accessibilityRole="button"
-              accessibilityLabel="Vibration setting, currently on"
+              accessibilityLabel="Vibration, currently on"
               accessibilityHint="Tap to toggle vibration"
             >
               <Text style={styles.menuItemText}>📳 Vibration</Text>
@@ -103,7 +103,7 @@ export default function GameSettingsModal({
               accessibilityHint="Leave the current game and return to home"
             >
               <Text style={[styles.menuItemText, styles.leaveGameText]}>
-                🚪 Leave Game
+                Leave Game
               </Text>
             </Pressable>
           </View>
@@ -116,7 +116,7 @@ export default function GameSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: OVERLAYS.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -186,9 +186,9 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   leaveGameItem: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: OVERLAYS.leaveGameBackground,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: OVERLAYS.leaveGameBorder,
   },
   leaveGameText: {
     color: COLORS.danger,
