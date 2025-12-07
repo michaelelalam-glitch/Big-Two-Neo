@@ -95,7 +95,7 @@ CREATE TABLE test.room_players (LIKE public.room_players INCLUDING ALL);
 ### Cleanup Strategy
 
 Tests automatically clean up after themselves:
-- Delete test `room_players` entries using RPC function
+- Delete test `room_players` entries using `test_cleanup_user_data` RPC function (SECURITY DEFINER)
 - Test `rooms` (e.g., TSTAA1, TSTAA2) are permanent fixtures and are never deleted
 - Use unique test identifiers to avoid conflicts
 

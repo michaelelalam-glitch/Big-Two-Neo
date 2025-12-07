@@ -77,7 +77,8 @@ export default function GameScreen() {
       
       console.log(`🤖 [GameScreen] Bot ${currentPlayer.name} is thinking...`);
       
-      // Small delay to make gameplay feel more natural
+      // Bot turn timing: 800ms initial delay for natural feel, 100ms between subsequent bot turns
+      // Can be adjusted based on bot difficulty if needed (e.g., easy=1200ms, medium=800ms, hard=500ms)
       setTimeout(() => {
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
@@ -92,6 +93,16 @@ export default function GameScreen() {
             console.error('❌ [GameScreen] Bot turn failed:', error);
             isExecutingBotTurnRef.current = false;
             console.log('🔓 [GameScreen] Bot turn lock released (error)');
+            
+            // Notify user and attempt recovery
+            Alert.alert(
+              'Bot Turn Error',
+              `Bot ${currentPlayer.name} encountered an error. Continuing to next player.`,
+              [{ text: 'OK' }]
+            );
+            
+            // Check for next bot turn after short delay to allow game recovery
+            setTimeout(checkAndExecuteBotTurn, 500);
           });
       }, 800);
     }
@@ -297,6 +308,10 @@ export default function GameScreen() {
       if (isDeliberateLeave && user?.id && roomCode) {
         console.log(`🧹 [GameScreen] Deliberate exit: Removing user ${user.id} from room ${roomCode}`);
         
+        // Reset initialization refs to allow re-initialization in a new room
+        isInitializedRef.current = false;
+        initializedRoomRef.current = null;
+        
         // Use non-blocking cleanup (don't await)
         supabase
           .from('room_players')
@@ -312,6 +327,16 @@ export default function GameScreen() {
       }
     };
   }, [user, roomCode, navigation]);
+
+  // Track component mount status for async operations
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handlePlayCards = async (cards: Card[]) => {
     if (!gameManagerRef.current || !gameState) {
@@ -339,8 +364,10 @@ export default function GameScreen() {
       if (result.success) {
         console.log('✅ [GameScreen] Cards played successfully');
         
-        // Clear selection
-        setSelectedCardIds(new Set());
+        // Clear selection only if component is still mounted
+        if (isMountedRef.current) {
+          setSelectedCardIds(new Set());
+        }
         
         // Bot turns and match/game end will be handled by subscription callback
       } else {
@@ -381,8 +408,10 @@ export default function GameScreen() {
       if (result.success) {
         console.log('✅ [GameScreen] Pass successful');
         
-        // Clear selection
-        setSelectedCardIds(new Set());
+        // Clear selection only if component is still mounted
+        if (isMountedRef.current) {
+          setSelectedCardIds(new Set());
+        }
         
         // Bot turns will be triggered automatically by the subscription
       } else {
@@ -423,7 +452,7 @@ export default function GameScreen() {
         // Loading state
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Initializing game...</Text>
-          <Text style={styles.loadingSubtext}>Initializing game and dealing cards...</Text>
+          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
         </View>
       ) : (
         <>
