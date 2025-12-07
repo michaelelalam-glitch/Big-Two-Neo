@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 
 interface PlayerInfoProps {
   name: string;
@@ -61,10 +61,10 @@ const styles = StyleSheet.create({
   activeAvatar: {
     backgroundColor: COLORS.red.active, // Red border for active turn
     shadowColor: COLORS.red.active,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: SHADOWS.activeAvatar.offset,
+    shadowOpacity: SHADOWS.activeAvatar.opacity,
+    shadowRadius: SHADOWS.activeAvatar.radius,
+    elevation: SHADOWS.activeAvatar.elevation,
   },
   avatar: {
     width: '100%',
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     height: LAYOUT.avatarIconSize,
     borderRadius: LAYOUT.avatarIconRadius,
     backgroundColor: COLORS.gray.light,
-    opacity: 0.6,
+    opacity: OPACITIES.avatarIcon,
   },
   nameBadge: {
     backgroundColor: OVERLAYS.nameBadgeBackground,

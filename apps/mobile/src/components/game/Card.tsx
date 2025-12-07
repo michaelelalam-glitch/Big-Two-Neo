@@ -9,7 +9,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import type { Card as CardType } from '../../game/types';
-import { COLORS, SPACING, CARD_FONTS } from '../../constants';
+import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 
 interface CardProps {
   card: CardType;
@@ -220,11 +220,11 @@ const styles = StyleSheet.create({
   rank: {
     // fontSize set dynamically via inline style
     fontWeight: 'bold',
-    lineHeight: 18,
+    lineHeight: TYPOGRAPHY.rankLineHeight,
   },
   suit: {
     // fontSize set dynamically via inline style
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY.suitLineHeight,
   },
   centerSuit: {
     // fontSize and marginTop set dynamically via inline style

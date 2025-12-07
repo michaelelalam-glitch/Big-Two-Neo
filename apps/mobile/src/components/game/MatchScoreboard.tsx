@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONT_SIZES, LAYOUT, OVERLAYS, SCOREBOARD_DETAIL } from '../../constants';
+import { COLORS, FONT_SIZES, LAYOUT, OVERLAYS, SCOREBOARD_DETAIL, SHADOWS } from '../../constants';
 
 interface Player {
   name: string;
@@ -66,10 +66,10 @@ const styles = StyleSheet.create({
     width: LAYOUT.scoreboardWidth,
     minHeight: LAYOUT.scoreboardMinHeight, // Changed to minHeight to fit all 4 players
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: SHADOWS.scoreboard.offset,
+    shadowOpacity: SHADOWS.scoreboard.opacity,
+    shadowRadius: SHADOWS.scoreboard.radius,
+    elevation: SHADOWS.scoreboard.elevation,
   },
   header: {
     borderBottomWidth: SCOREBOARD_DETAIL.headerBorderWidth,
