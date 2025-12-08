@@ -414,7 +414,6 @@ export default function GameScreen() {
           const playedCardIds = new Set(cardIds);
           const updatedOrder = customCardOrder.filter(id => !playedCardIds.has(id));
           setCustomCardOrder(updatedOrder);
-          console.log('🔄 [GameScreen] Updated card order after play:', updatedOrder);
         }
         
         // Bot turns and match/game end will be handled by subscription callback
@@ -491,10 +490,6 @@ export default function GameScreen() {
 
   // Handle card rearrangement
   const handleCardsReorder = (reorderedCards: Card[]) => {
-    console.log('🔄 [GameScreen] Cards reordered by user:', {
-      cardCount: reorderedCards.length,
-      cardIds: reorderedCards.map(c => c.id)
-    });
     const newOrder = reorderedCards.map(card => card.id);
     setCustomCardOrder(newOrder);
   };
