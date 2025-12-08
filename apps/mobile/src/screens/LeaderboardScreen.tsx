@@ -165,12 +165,13 @@ export default function LeaderboardScreen() {
             `)
             .eq('user_id', user.id)
             .gte('updated_at', timeFilterDate || '1970-01-01')
+            .gt('games_played', 0)
             .single();
         }
 
         const { data: userRankData } = await userRankQuery;
 
-        if (userRankData) {
+        if (userRankData && userRankData.games_played > 0) {
           if (timeFilter === 'all_time') {
             setUserRank(userRankData);
           } else {
@@ -180,6 +181,7 @@ export default function LeaderboardScreen() {
               .from('player_stats')
               .select('*', { count: 'exact', head: true })
               .gte('updated_at', timeFilterDate!)
+              .gt('games_played', 0)
               .gt('rank_points', userRankData.rank_points);
 
             setUserRank({
@@ -195,6 +197,9 @@ export default function LeaderboardScreen() {
               rank: (count || 0) + 1,
             });
           }
+        } else {
+          // User hasn't played any games yet, clear rank card
+          setUserRank(null);
         }
       }
     } catch (error) {
