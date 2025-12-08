@@ -93,7 +93,7 @@ async function checkPlayerStats() {
   
   // Check if materialized view exists
   console.log('\n🔍 CHECKING MATERIALIZED VIEW STATUS:');
-  const { data: viewCheck, error: viewError } = await supabase
+  const { error: viewError } = await supabase
     .rpc('refresh_leaderboard');
   
   if (viewError) {

@@ -64,8 +64,10 @@ const ProfileScreen = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    fetchStats('initial');
-  }, [fetchStats]);
+    if (user?.id) {
+      fetchStats('initial');
+    }
+  }, [user?.id, fetchStats]);
 
   const onRefresh = useCallback(async () => {
     await fetchStats('refresh');
