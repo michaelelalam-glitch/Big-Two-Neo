@@ -210,16 +210,16 @@ CREATE INDEX IF NOT EXISTS idx_room_players_username ON room_players(username);
 -- Drop existing function if it exists
 DROP FUNCTION IF EXISTS refresh_leaderboard();
 
--- Recreate without CONCURRENTLY (more reliable for this use case)
+-- Recreate with CONCURRENTLY for better performance (unique index exists)
 CREATE OR REPLACE FUNCTION refresh_leaderboard()
 RETURNS VOID AS $$
 BEGIN
-  REFRESH MATERIALIZED VIEW leaderboard_global;
+  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Manually refresh the view now
-REFRESH MATERIALIZED VIEW leaderboard_global;
+REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
 
 -- Grant execute permission to authenticated and anonymous users
 GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated;

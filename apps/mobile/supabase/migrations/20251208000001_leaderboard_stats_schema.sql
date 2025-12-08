@@ -140,7 +140,7 @@ CREATE POLICY "Game history viewable by everyone" ON game_history
 
 -- Only service_role can insert (game results recorded by server)
 CREATE POLICY "Service role can insert game history" ON game_history
-  FOR INSERT TO service_role WITH CHECK (true);
+  FOR INSERT WITH CHECK ((auth.jwt()->>'role') = 'service_role');
 
 -- ============================================================================
 -- PART 3: LEADERBOARD MATERIALIZED VIEW (For Performance)
