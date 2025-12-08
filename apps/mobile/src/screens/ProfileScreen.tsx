@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,60 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
+
+interface PlayerStats {
+  games_played: number;
+  games_won: number;
+  games_lost: number;
+  win_rate: number;
+  total_points: number;
+  current_win_streak: number;
+  longest_win_streak: number;
+  rank_points: number;
+  global_rank: number | null;
+}
 
 const ProfileScreen = () => {
   const { user, profile, isLoading, signOut } = useAuth();
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+        console.error('[Profile] Stats fetch error:', error);
+      } else {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('[Profile] Error fetching stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStats();
+    setRefreshing(false);
+  }, [fetchStats]);
 
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -47,10 +96,76 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A90E2" />
+        }
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Profile</Text>
+          </View>
+
+          {/* Statistics Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Statistics</Text>
+            
+            {statsLoading ? (
+              <ActivityIndicator size="small" color="#4A90E2" style={{ paddingVertical: 20 }} />
+            ) : stats ? (
+              <>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.games_played}</Text>
+                    <Text style={styles.statLabel}>Games Played</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.games_won}</Text>
+                    <Text style={styles.statLabel}>Wins</Text>
+                  </View>
+                </View>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.win_rate.toFixed(1)}%</Text>
+                    <Text style={styles.statLabel}>Win Rate</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.rank_points}</Text>
+                    <Text style={styles.statLabel}>Rank Points</Text>
+                  </View>
+                </View>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.current_win_streak}</Text>
+                    <Text style={styles.statLabel}>Current Streak</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.longest_win_streak}</Text>
+                    <Text style={styles.statLabel}>Best Streak</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Total Points</Text>
+                  <Text style={styles.value}>{stats.total_points.toLocaleString()}</Text>
+                </View>
+
+                {stats.global_rank && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Global Rank</Text>
+                    <Text style={styles.value}>#{stats.global_rank}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.noStatsContainer}>
+                <Text style={styles.noStatsText}>No game statistics yet</Text>
+                <Text style={styles.noStatsSubtext}>Play your first game to see your stats!</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -206,6 +321,43 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#2a2d33',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#a0a0a0',
+    textAlign: 'center',
+  },
+  noStatsContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  noStatsText: {
+    fontSize: 16,
+    color: '#a0a0a0',
+    marginBottom: 8,
+  },
+  noStatsSubtext: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
