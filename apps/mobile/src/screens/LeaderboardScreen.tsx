@@ -43,7 +43,6 @@ export default function LeaderboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all_time');
-  const [boardType, setBoardType] = useState<LeaderboardType>('global');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
@@ -55,7 +54,7 @@ export default function LeaderboardScreen() {
       const startIndex = resetPagination ? 0 : page * PAGE_SIZE;
       const endIndex = startIndex + PAGE_SIZE - 1;
 
-      console.log('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter, boardType });
+      console.log('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter });
 
       // Calculate time filter date
       let timeFilterDate: string | null = null;
@@ -94,7 +93,7 @@ export default function LeaderboardScreen() {
               avatar_url
             )
           `)
-          .gte('updated_at', timeFilterDate!)
+          .gte('last_game_at', timeFilterDate!)
           .gt('games_played', 0)
           .order('rank_points', { ascending: false })
           .order('games_won', { ascending: false })
@@ -164,7 +163,7 @@ export default function LeaderboardScreen() {
               )
             `)
             .eq('user_id', user.id)
-            .gte('updated_at', timeFilterDate || '1970-01-01')
+            .gte('last_game_at', timeFilterDate || '1970-01-01')
             .gt('games_played', 0)
             .single();
         }
@@ -180,7 +179,7 @@ export default function LeaderboardScreen() {
             const { count } = await supabase
               .from('player_stats')
               .select('*', { count: 'exact', head: true })
-              .gte('updated_at', timeFilterDate!)
+              .gte('last_game_at', timeFilterDate!)
               .gt('games_played', 0)
               .gt('rank_points', userRankData.rank_points);
 
@@ -208,11 +207,11 @@ export default function LeaderboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, timeFilter, boardType, user]);
+  }, [page, timeFilter, user]);
 
   useEffect(() => {
     fetchLeaderboard(true);
-  }, [timeFilter, boardType]);
+  }, [timeFilter, fetchLeaderboard]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

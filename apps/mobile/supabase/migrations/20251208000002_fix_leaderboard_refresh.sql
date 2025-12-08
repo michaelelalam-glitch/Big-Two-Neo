@@ -1,20 +1,20 @@
 -- Fix for leaderboard refresh issue
--- This drops and recreates the refresh function to not use CONCURRENTLY
--- which can fail if the materialized view structure changed
+-- This restores CONCURRENTLY refresh for the materialized view
+-- Since we have a unique index on (user_id), CONCURRENTLY is safe and reduces locks
 
 -- Drop existing function
 DROP FUNCTION IF EXISTS refresh_leaderboard();
 
--- Recreate without CONCURRENTLY (more reliable, slightly more blocking)
+-- Recreate with CONCURRENTLY for better performance
 CREATE OR REPLACE FUNCTION refresh_leaderboard()
 RETURNS VOID AS $$
 BEGIN
-  REFRESH MATERIALIZED VIEW leaderboard_global;
+  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Manually refresh now
-REFRESH MATERIALIZED VIEW leaderboard_global;
+REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated;

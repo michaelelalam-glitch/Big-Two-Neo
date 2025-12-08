@@ -102,7 +102,7 @@ export default function StatsScreen() {
         throw statsError;
       }
 
-      setStats(statsData);
+      setStats(statsData || null);
 
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase

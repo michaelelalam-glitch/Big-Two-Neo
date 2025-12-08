@@ -206,6 +206,11 @@ DECLARE
   v_new_avg_position DECIMAL(3,2);
   v_new_avg_score DECIMAL(10,2);
 BEGIN
+  -- Security: Verify the user can only update their own stats
+  IF p_user_id != auth.uid() THEN
+    RAISE EXCEPTION 'Unauthorized: Cannot update stats for other users';
+  END IF;
+
   -- Get current stats
   SELECT * INTO v_stats FROM player_stats WHERE user_id = p_user_id;
   

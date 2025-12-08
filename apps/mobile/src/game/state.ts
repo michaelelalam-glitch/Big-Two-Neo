@@ -662,10 +662,23 @@ export class GameStateManager {
         royal_flushes: 0,
       };
 
+      // Explicit mapping from combo display names to database field names
+      const comboMapping: Record<string, keyof typeof comboCounts> = {
+        'single': 'singles',
+        'pair': 'pairs',
+        'triple': 'triples',
+        'straight': 'straights',
+        'full house': 'full_houses',
+        'four of a kind': 'four_of_a_kinds',
+        'straight flush': 'straight_flushes',
+        'royal flush': 'royal_flushes',
+      };
+
       humanPlays.forEach(play => {
-        const combo = play.combo.toLowerCase().replace(/\s+/g, '_');
-        if (combo in comboCounts) {
-          comboCounts[combo as keyof typeof comboCounts]++;
+        const comboName = play.combo.toLowerCase();
+        const dbField = comboMapping[comboName];
+        if (dbField) {
+          comboCounts[dbField]++;
         }
       });
 
