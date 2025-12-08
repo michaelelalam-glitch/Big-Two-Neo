@@ -125,9 +125,13 @@ export default function CardHand({
     // Haptic feedback handled in Card.tsx pan gesture to avoid duplication
   }, [selectedCardIds]);
 
-  // Handle long press - brings card to front
+  // Handle long press - brings card to front temporarily
   const handleLongPress = useCallback((cardId: string) => {
     setLongPressedCardId(cardId);
+    // Clear long press state after animation completes (if not dragging)
+    setTimeout(() => {
+      setLongPressedCardId(prev => prev === cardId ? null : prev);
+    }, 300); // Match the spring animation duration
   }, []);
 
   // Handle drag update for rearranging or playing
