@@ -56,14 +56,12 @@ export default function CardHand({
   
   // Update display cards when prop cards change
   React.useEffect(() => {
-    if (draggedCardId) {
-      // If cards change during a drag, cancel the drag and reset drag state
-      setDraggedCardId(null);
-      setDragTargetIndex(null);
-      setIsDraggingMultiple(false);
-      setSharedDragX(0);
-      setSharedDragY(0);
-    }
+    // If cards change, cancel any drag and reset drag state
+    setDraggedCardId(null);
+    setDragTargetIndex(null);
+    setIsDraggingMultiple(false);
+    setSharedDragX(0);
+    setSharedDragY(0);
     // Always update displayCards to match cards prop
     setDisplayCards(cards);
   }, [cards]);
@@ -124,10 +122,7 @@ export default function CardHand({
     // Check if dragging a selected card when multiple are selected
     const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
     setIsDraggingMultiple(isMultiDrag);
-    if (isMultiDrag) {
-      // Distinct haptic feedback for multi-card drag
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    }
+    // Haptic feedback handled in Card.tsx pan gesture to avoid duplication
   }, [selectedCardIds]);
 
   // Handle long press - brings card to front

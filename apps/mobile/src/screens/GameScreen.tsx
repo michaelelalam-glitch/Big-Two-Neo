@@ -231,6 +231,11 @@ export default function GameScreen() {
     if (!gameState) return [];
     const hand = gameState.players[0].hand; // Player is always at index 0
     
+    // Reset custom order if hand is empty (new round starting)
+    if (hand.length === 0 && customCardOrder.length > 0) {
+      setCustomCardOrder([]);
+    }
+    
     // If user has manually reordered cards, use that order
     if (customCardOrder.length > 0) {
       const orderedHand: Card[] = [];
@@ -412,7 +417,9 @@ export default function GameScreen() {
         // Preserve custom card order by removing only the played cards
         if (customCardOrder.length > 0) {
           const playedCardIds = new Set(cardIds);
-          const updatedOrder = customCardOrder.filter(id => !playedCardIds.has(id));
+          // Also filter out any IDs not present in the current hand
+          const currentHandCardIds = new Set(playerHand.map(card => card.id));
+          const updatedOrder = customCardOrder.filter(id => !playedCardIds.has(id) && currentHandCardIds.has(id));
           setCustomCardOrder(updatedOrder);
         }
         
