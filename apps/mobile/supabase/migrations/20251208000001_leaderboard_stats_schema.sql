@@ -60,6 +60,11 @@ CREATE INDEX idx_player_stats_games_won ON player_stats(games_won DESC);
 CREATE INDEX idx_player_stats_win_rate ON player_stats(win_rate DESC);
 CREATE INDEX idx_player_stats_updated ON player_stats(updated_at DESC);
 
+-- Add foreign key to profiles for PostgREST join support
+ALTER TABLE player_stats
+ADD CONSTRAINT player_stats_user_id_profiles_fkey 
+FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
 -- Enable RLS
 ALTER TABLE player_stats ENABLE ROW LEVEL SECURITY;
 
@@ -307,6 +312,15 @@ CREATE TRIGGER on_profile_created_create_stats
 -- Enable realtime for leaderboard tables
 ALTER PUBLICATION supabase_realtime ADD TABLE player_stats;
 ALTER PUBLICATION supabase_realtime ADD TABLE game_history;
+
+-- ============================================================================
+-- PART 7: INITIALIZE STATS FOR EXISTING USERS
+-- ============================================================================
+
+-- Create player_stats entries for all existing users
+INSERT INTO player_stats (user_id)
+SELECT id FROM auth.users
+ON CONFLICT (user_id) DO NOTHING;
 
 -- ============================================================================
 -- VERIFICATION QUERIES (Run these to test)
