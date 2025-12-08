@@ -258,6 +258,12 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
+          style={styles.leaderboardButton}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
+          <Text style={styles.leaderboardButtonText}>🏆 Leaderboard</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.profileButton}
           onPress={() => navigation.navigate('Profile')}
         >
@@ -330,6 +336,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  leaderboardButton: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  leaderboardButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
   profileButton: {
     backgroundColor: '#4A90E2',

@@ -10,6 +10,8 @@ import CreateRoomScreen from '../screens/CreateRoomScreen';
 import JoinRoomScreen from '../screens/JoinRoomScreen';
 import LobbyScreen from '../screens/LobbyScreen';
 import GameScreen from '../screens/GameScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import StatsScreen from '../screens/StatsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -19,6 +21,8 @@ export type RootStackParamList = {
   JoinRoom: undefined;
   Lobby: { roomCode: string };
   Game: { roomCode: string };
+  Leaderboard: undefined;
+  Stats: { userId?: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -57,6 +61,8 @@ export default function AppNavigator() {
             <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
             <Stack.Screen name="Lobby" component={LobbyScreen} />
             <Stack.Screen name="Game" component={GameScreen} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="Stats" component={StatsScreen} />
           </>
         )}
       </Stack.Navigator>
