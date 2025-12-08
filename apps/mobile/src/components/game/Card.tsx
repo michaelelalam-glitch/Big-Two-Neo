@@ -16,10 +16,17 @@ interface CardProps {
   isSelected: boolean;
   onToggleSelect: (cardId: string) => void;
   onDragStart?: () => void;
-  onDragEnd?: () => void;
+  onDragEnd?: (translationX: number, translationY: number) => void; // Returns final position for drop zone detection
+  onDragUpdate?: (translationX: number, translationY: number) => void; // Updated: both X and Y for drop zones
+  onLongPress?: () => void; // New: long press feedback
   disabled?: boolean;
   size?: 'hand' | 'table'; // Hand: 60×84, Table: 47×72
-  style?: StyleProp<ViewStyle>; // Additional styles for container
+  style?: StyleProp<ViewStyle>; // Additional styles for container (includes zIndex from parent)
+  zIndex?: number; // Explicit z-index control from parent
+  hasMultipleSelected?: boolean; // True if multiple cards are selected (disables rearrange, enables multi-drag)
+  isDraggingGroup?: boolean; // True if this card is part of a group being dragged
+  sharedDragX?: number; // Shared X translation for synchronized multi-card dragging
+  sharedDragY?: number; // Shared Y translation for synchronized multi-card dragging
 }
 
 // Hand card dimensions (default)
@@ -55,23 +62,57 @@ const Card = React.memo(function Card({
   onToggleSelect,
   onDragStart,
   onDragEnd,
+  onDragUpdate,
+  onLongPress,
   disabled = false,
   size = 'hand',
   style,
+  zIndex = 1,
+  hasMultipleSelected = false,
+  isDraggingGroup = false,
+  sharedDragX = 0,
+  sharedDragY = 0,
 }: CardProps) {
   const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(1); // New: for long press visual feedback
+  const isLongPressed = useSharedValue(false); // Track if card was long-pressed
 
   // Calculate dimensions based on size
   const cardWidth = size === 'table' ? TABLE_CARD_WIDTH : HAND_CARD_WIDTH;
   const cardHeight = size === 'table' ? TABLE_CARD_HEIGHT : HAND_CARD_HEIGHT;
   const sizeScale = size === 'table' ? 0.78 : 1; // 47/60 ≈ 0.78
 
+  // Long press gesture for visual feedback (opacity 0.7)
+  const longPressGesture = useMemo(
+    () => Gesture.LongPress()
+      .enabled(!disabled)
+      .minDuration(500)
+      .onStart(() => {
+        'worklet';
+        isLongPressed.value = true; // Mark as long-pressed
+        opacity.value = withSpring(0.7);
+        scale.value = withSpring(1.05);
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Heavy);
+      })
+      .onEnd(() => {
+        'worklet';
+        opacity.value = withSpring(1);
+        scale.value = withSpring(1);
+        if (onLongPress) {
+          runOnJS(onLongPress)();
+        }
+      }),
+    [disabled, opacity, scale, isLongPressed, onLongPress]
+  );
+
   // Tap gesture for selection (memoized for performance)
   // Note: Haptic feedback handled by CardHand to avoid duplicate feedback
   const tapGesture = useMemo(
     () => Gesture.Tap()
       .enabled(!disabled)
+      .maxDuration(500) // Prevent conflict with long press
       .onStart(() => {
         'worklet';
         scale.value = withSpring(0.95, { damping: 10 });
@@ -84,12 +125,25 @@ const Card = React.memo(function Card({
     [disabled, card.id, onToggleSelect, scale]
   );
 
-  // Pan gesture for dragging (future enhancement, memoized for performance)
+  // Pan gesture for dragging - supports both horizontal (rearrange) and vertical (play)
+  // BEHAVIOR: 
+  // - If multiple cards selected: drag immediately without long press (to play on table)
+  // - If single card: require long press first (for rearranging)
   const panGesture = useMemo(
     () => Gesture.Pan()
-      .enabled(!disabled && isSelected)
+      .enabled(!disabled)
+      .minDistance(10) // Require 10px movement to start pan
       .onStart(() => {
         'worklet';
+        // Allow drag if:
+        // 1. Multiple cards selected (hasMultipleSelected) - instant drag to play
+        // 2. Single card was long-pressed (isLongPressed) - drag to rearrange
+        const canDrag = hasMultipleSelected || isLongPressed.value;
+        if (!canDrag) {
+          return; // Don't start drag
+        }
+        scale.value = withSpring(1.1); // Slightly larger during drag
+        opacity.value = withSpring(0.9); // Slight transparency during drag
         if (onDragStart) {
           runOnJS(onDragStart)();
         }
@@ -97,43 +151,72 @@ const Card = React.memo(function Card({
       })
       .onUpdate((event) => {
         'worklet';
-        // Only allow upward dragging
-        translateY.value = Math.min(0, event.translationY);
+        // Only update position if drag is allowed
+        const canDrag = hasMultipleSelected || isLongPressed.value;
+        if (!canDrag) {
+          return;
+        }
+        // Allow free movement in both directions
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+        
+        // Notify parent for drop zone detection
+        if (onDragUpdate) {
+          runOnJS(onDragUpdate)(event.translationX, event.translationY);
+        }
       })
-      .onEnd(() => {
+      .onEnd((event) => {
         'worklet';
-        // Snap to play zone if dragged far enough
-        if (translateY.value < DRAG_TO_PLAY_THRESHOLD) {
-          // TODO: Implement play action in Task #266
-          // For now, just provide feedback but don't actually play
-          runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
+        // Reset visual state
+        scale.value = withSpring(1);
+        opacity.value = withSpring(1);
+        
+        // Only process drag end if drag was allowed
+        const canDrag = hasMultipleSelected || isLongPressed.value;
+        if (canDrag) {
+          // Notify parent with final position for drop zone detection
+          if (onDragEnd) {
+            runOnJS(onDragEnd)(event.translationX, event.translationY);
+          }
         }
+        
+        // Reset long press state
+        isLongPressed.value = false;
+        
+        // Animate back to original position
+        translateX.value = withSpring(0);
         translateY.value = withSpring(0);
-        if (onDragEnd) {
-          runOnJS(onDragEnd)();
-        }
       }),
-    [disabled, isSelected, translateY, onDragStart, onDragEnd]
+    [disabled, translateX, translateY, scale, opacity, isLongPressed, hasMultipleSelected, onDragStart, onDragEnd, onDragUpdate]
   );
 
-  // Use Race instead of Exclusive - tap has priority over pan
-  // Race will complete with the first gesture that activates
+  // Gesture composition: long press enables pan, tap is separate
+  // Simultaneous allows long press to activate pan gesture
   const composedGesture = useMemo(
-    () => Gesture.Race(tapGesture, panGesture),
-    [tapGesture, panGesture]
+    () => Gesture.Exclusive(
+      tapGesture,
+      Gesture.Simultaneous(longPressGesture, panGesture)
+    ),
+    [tapGesture, longPressGesture, panGesture]
   );
 
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
     const selectedOffset = isSelected ? SELECTED_OFFSET : 0;
+    // Use shared drag values when this card is part of a group drag
+    const effectiveTranslateX = isDraggingGroup ? sharedDragX : translateX.value;
+    const effectiveTranslateY = isDraggingGroup ? sharedDragY : translateY.value;
+    
     return {
       transform: [
-        { translateY: selectedOffset + translateY.value },
+        { translateX: effectiveTranslateX },
+        { translateY: selectedOffset + effectiveTranslateY },
         { scale: scale.value },
       ],
-      zIndex: isSelected ? 10 : 1,
+      opacity: opacity.value,
+      zIndex: zIndex, // Use z-index from parent for proper layering during drag
     };
-  });
+  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY]);
 
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
