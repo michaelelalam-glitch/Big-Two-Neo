@@ -591,8 +591,10 @@ export class GameStateManager {
       console.log(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
       
       // Save game stats to database (async, don't await to avoid blocking UI)
+      console.log('🔄 [Stats] Starting saveGameStatsToDatabase...');
       this.saveGameStatsToDatabase().catch(err => {
         console.error('❌ [Stats] Failed to save game stats:', err);
+        console.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
       });
     } else {
       // Continue to next match
@@ -611,9 +613,14 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
+    console.log('📊 [Stats] saveGameStatsToDatabase called');
+
     try {
       // Get current user
+      console.log('📊 [Stats] Getting current user...');
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('📊 [Stats] User:', user?.id ? `Found (${user.id})` : 'Not found');
+      
       if (!user) {
         console.log('⚠️ [Stats] No authenticated user, skipping stats save');
         return;
