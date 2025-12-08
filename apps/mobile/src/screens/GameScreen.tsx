@@ -39,6 +39,9 @@ export default function GameScreen() {
   
   // Track pass execution
   const [isPassing, setIsPassing] = useState(false);
+  
+  // Track custom card order (user can rearrange cards)
+  const [customCardOrder, setCustomCardOrder] = useState<string[]>([]);
 
   // Get player username from auth context (fallback to email prefix if no username)
   const currentPlayerName = user?.user_metadata?.username || 
@@ -226,8 +229,38 @@ export default function GameScreen() {
   // Derived state from game engine
   const playerHand = useMemo(() => {
     if (!gameState) return [];
-    return gameState.players[0].hand; // Player is always at index 0
-  }, [gameState]);
+    const hand = gameState.players[0].hand; // Player is always at index 0
+    
+    // Reset custom order if hand is empty (new round starting)
+    if (hand.length === 0 && customCardOrder.length > 0) {
+      setCustomCardOrder([]);
+    }
+    
+    // If user has manually reordered cards, use that order
+    if (customCardOrder.length > 0) {
+      const orderedHand: Card[] = [];
+      
+      // First, add cards in custom order that are still in hand
+      for (const cardId of customCardOrder) {
+        const card = hand.find(c => c.id === cardId);
+        if (card) orderedHand.push(card);
+      }
+      
+      // Then add any new cards that aren't in custom order (at the end)
+      for (const card of hand) {
+        if (!orderedHand.some(c => c.id === card.id)) {
+          orderedHand.push(card);
+        }
+      }
+      
+      // Only use custom order if we found at least some matching cards
+      if (orderedHand.length > 0) {
+        return orderedHand;
+      }
+    }
+    
+    return hand;
+  }, [gameState, customCardOrder]);
 
   const lastPlayedCards = useMemo(() => {
     if (!gameState || !gameState.lastPlay) return [];
@@ -381,6 +414,15 @@ export default function GameScreen() {
           setSelectedCardIds(new Set());
         }
         
+        // Preserve custom card order by removing only the played cards
+        if (customCardOrder.length > 0) {
+          const playedCardIds = new Set(cardIds);
+          // Also filter out any IDs not present in the current hand
+          const currentHandCardIds = new Set(playerHand.map(card => card.id));
+          const updatedOrder = customCardOrder.filter(id => !playedCardIds.has(id) && currentHandCardIds.has(id));
+          setCustomCardOrder(updatedOrder);
+        }
+        
         // Bot turns and match/game end will be handled by subscription callback
       } else {
         // Show error from validation
@@ -451,6 +493,12 @@ export default function GameScreen() {
       index: 0,
       routes: [{ name: 'Home' }],
     });
+  };
+
+  // Handle card rearrangement
+  const handleCardsReorder = (reorderedCards: Card[]) => {
+    const newOrder = reorderedCards.map(card => card.id);
+    setCustomCardOrder(newOrder);
   };
 
   // Memoize scoreboard players to prevent unnecessary re-renders
@@ -611,6 +659,7 @@ export default function GameScreen() {
                 hideButtons={true} // Hide internal buttons since we display them externally
                 selectedCardIds={selectedCardIds}
                 onSelectionChange={setSelectedCardIds}
+                onCardsReorder={handleCardsReorder}
               />
             </View>
           </View>
