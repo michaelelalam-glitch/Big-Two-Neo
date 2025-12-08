@@ -31,8 +31,14 @@ const ProfileScreen = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (loadingType: 'initial' | 'refresh' = 'initial') => {
     if (!user?.id) return;
+
+    if (loadingType === 'initial') {
+      setStatsLoading(true);
+    } else {
+      setRefreshing(true);
+    }
 
     try {
       const { data, error } = await supabase
@@ -49,18 +55,20 @@ const ProfileScreen = () => {
     } catch (error) {
       console.error('[Profile] Error fetching stats:', error);
     } finally {
-      setStatsLoading(false);
+      if (loadingType === 'initial') {
+        setStatsLoading(false);
+      } else {
+        setRefreshing(false);
+      }
     }
   }, [user?.id]);
 
   useEffect(() => {
-    fetchStats();
+    fetchStats('initial');
   }, [fetchStats]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchStats();
-    setRefreshing(false);
+    await fetchStats('refresh');
   }, [fetchStats]);
 
   const handleSignOut = async () => {
