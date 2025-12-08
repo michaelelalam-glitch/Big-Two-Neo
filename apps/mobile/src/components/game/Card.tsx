@@ -218,7 +218,7 @@ const Card = React.memo(function Card({
       opacity: isDraggingGroup ? 1 : opacity.value,
       zIndex: zIndex, // Use z-index from parent for proper layering during drag
     };
-  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY]);
+  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
