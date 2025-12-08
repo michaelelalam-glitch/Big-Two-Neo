@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sortHand, classifyCards, canBeatPlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
+import { supabase } from '../services/supabase';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -588,6 +589,11 @@ export class GameStateManager {
       
       const finalWinner = this.state.matchScores.find(s => s.playerId === this.state!.finalWinnerId);
       console.log(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
+      
+      // Save game stats to database (async, don't await to avoid blocking UI)
+      this.saveGameStatsToDatabase().catch(err => {
+        console.error('❌ [Stats] Failed to save game stats:', err);
+      });
     } else {
       // Continue to next match
       this.state.gameEnded = true; // Mark match as ended
@@ -595,6 +601,89 @@ export class GameStateManager {
       this.state.lastMatchWinnerId = matchWinnerId;
       
       console.log(`➡️ [Next Match] Match ${this.state.currentMatch + 1} will start with ${matchWinnerId} leading`);
+    }
+  }
+
+  /**
+   * Save game statistics to Supabase database
+   * Updates player_stats for the human player (not bots)
+   */
+  private async saveGameStatsToDatabase(): Promise<void> {
+    if (!this.state) return;
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('⚠️ [Stats] No authenticated user, skipping stats save');
+        return;
+      }
+
+      // Find human player in the game
+      const humanPlayer = this.state.players.find(p => !p.isBot);
+      if (!humanPlayer) {
+        console.log('⚠️ [Stats] No human player found');
+        return;
+      }
+
+      const humanScore = this.state.matchScores.find(s => s.playerId === humanPlayer.id);
+      if (!humanScore) {
+        console.log('⚠️ [Stats] No score found for human player');
+        return;
+      }
+
+      // Determine if player won (lowest score wins)
+      const won = this.state.finalWinnerId === humanPlayer.id;
+      
+      // Calculate finish position (1st = lowest score, 4th = highest score)
+      const sortedScores = [...this.state.matchScores].sort((a, b) => a.score - b.score);
+      const finishPosition = sortedScores.findIndex(s => s.playerId === humanPlayer.id) + 1;
+
+      // Count combo types from round history
+      const humanPlays = this.state.roundHistory.filter(
+        entry => entry.playerId === humanPlayer.id && !entry.passed
+      );
+      
+      const comboCounts = {
+        singles: 0,
+        pairs: 0,
+        triples: 0,
+        straights: 0,
+        full_houses: 0,
+        four_of_a_kinds: 0,
+        straight_flushes: 0,
+        royal_flushes: 0,
+      };
+
+      humanPlays.forEach(play => {
+        const combo = play.combo.toLowerCase().replace(/\s+/g, '_');
+        if (combo in comboCounts) {
+          comboCounts[combo as keyof typeof comboCounts]++;
+        }
+      });
+
+      console.log(`📊 [Stats] Saving: won=${won}, position=${finishPosition}, score=${humanScore.score}`);
+
+      // Call Supabase RPC function to update stats
+      const { error } = await supabase.rpc('update_player_stats_after_game', {
+        p_user_id: user.id,
+        p_won: won,
+        p_finish_position: finishPosition,
+        p_score: humanScore.score,
+        p_combos_played: comboCounts,
+      });
+
+      if (error) {
+        console.error('❌ [Stats] Error updating player stats:', error);
+      } else {
+        console.log('✅ [Stats] Player stats updated successfully');
+        
+        // Refresh leaderboard materialized view
+        await supabase.rpc('refresh_leaderboard');
+        console.log('✅ [Stats] Leaderboard refreshed');
+      }
+    } catch (error) {
+      console.error('❌ [Stats] Exception saving stats:', error);
     }
   }
 
