@@ -112,7 +112,7 @@ const Card = React.memo(function Card({
   const tapGesture = useMemo(
     () => Gesture.Tap()
       .enabled(!disabled)
-      .maxDuration(500) // Prevent conflict with long press
+      .maxDuration(450) // Prevent conflict with long press (set < long press minDuration)
       .onStart(() => {
         'worklet';
         scale.value = withSpring(0.95, { damping: 10 });
@@ -140,6 +140,8 @@ const Card = React.memo(function Card({
         // 2. Single card was long-pressed (isLongPressed) - drag to rearrange
         const canDrag = hasMultipleSelected || isLongPressed.value;
         if (!canDrag) {
+          // Provide subtle haptic feedback to indicate drag is not allowed
+          runOnJS(Haptics.selectionAsync)();
           return; // Don't start drag
         }
         scale.value = withSpring(1.1); // Slightly larger during drag
@@ -213,7 +215,7 @@ const Card = React.memo(function Card({
         { translateY: selectedOffset + effectiveTranslateY },
         { scale: scale.value },
       ],
-      opacity: opacity.value,
+      opacity: isDraggingGroup ? 1 : opacity.value,
       zIndex: zIndex, // Use z-index from parent for proper layering during drag
     };
   }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY]);
