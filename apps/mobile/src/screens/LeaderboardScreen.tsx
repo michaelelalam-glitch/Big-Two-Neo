@@ -170,31 +170,50 @@ export default function LeaderboardScreen() {
 
         const { data: userRankData } = await userRankQuery;
 
-        if (userRankData && userRankData.games_played > 0) {
+        if (userRankData) {
           if (timeFilter === 'all_time') {
-            setUserRank(userRankData);
+            // Only show rank if user has played games
+            if (userRankData.games_played > 0) {
+              setUserRank(userRankData);
+            } else {
+              setUserRank(null);
+            }
           } else {
-            // Transform weekly/daily data
-            // Calculate rank by counting users with higher points
-            const { count } = await supabase
+            // For weekly/daily: Check if user played ANY games in this period
+            // (not just total games_played, which could be from earlier)
+            const { data: periodGames } = await supabase
               .from('player_stats')
-              .select('*', { count: 'exact', head: true })
+              .select('games_played')
+              .eq('user_id', user.id)
               .gte('last_game_at', timeFilterDate!)
-              .gt('games_played', 0)
-              .gt('rank_points', userRankData.rank_points);
+              .single();
 
-            setUserRank({
-              user_id: userRankData.user_id,
-              username: userRankData.profiles.username,
-              avatar_url: userRankData.profiles.avatar_url,
-              rank_points: userRankData.rank_points,
-              games_played: userRankData.games_played,
-              games_won: userRankData.games_won,
-              win_rate: userRankData.win_rate,
-              longest_win_streak: userRankData.longest_win_streak,
-              current_win_streak: userRankData.current_win_streak,
-              rank: (count || 0) + 1,
-            });
+            // If no games in this period, hide rank card
+            if (!periodGames || periodGames.games_played === 0) {
+              setUserRank(null);
+            } else {
+              // Transform weekly/daily data
+              // Calculate rank by counting users with higher points
+              const { count } = await supabase
+                .from('player_stats')
+                .select('*', { count: 'exact', head: true })
+                .gte('last_game_at', timeFilterDate!)
+                .gt('games_played', 0)
+                .gt('rank_points', userRankData.rank_points);
+
+              setUserRank({
+                user_id: userRankData.user_id,
+                username: userRankData.profiles.username,
+                avatar_url: userRankData.profiles.avatar_url,
+                rank_points: userRankData.rank_points,
+                games_played: userRankData.games_played,
+                games_won: userRankData.games_won,
+                win_rate: userRankData.win_rate,
+                longest_win_streak: userRankData.longest_win_streak,
+                current_win_streak: userRankData.current_win_streak,
+                rank: (count || 0) + 1,
+              });
+            }
           }
         } else {
           // User hasn't played any games yet, clear rank card
@@ -211,7 +230,8 @@ export default function LeaderboardScreen() {
 
   useEffect(() => {
     fetchLeaderboard(true);
-  }, [timeFilter, fetchLeaderboard]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeFilter]); // Intentionally only trigger on timeFilter change, not fetchLeaderboard
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -221,8 +241,12 @@ export default function LeaderboardScreen() {
 
   const loadMore = useCallback(() => {
     if (!loading && hasMore) {
-      setPage(prev => prev + 1);
-      fetchLeaderboard(false);
+      // Increment page and pass the NEW page value to avoid stale closure
+      setPage(prev => {
+        const nextPage = prev + 1;
+        fetchLeaderboard(false);
+        return nextPage;
+      });
     }
   }, [loading, hasMore, fetchLeaderboard]);
 
@@ -286,9 +310,9 @@ export default function LeaderboardScreen() {
   const renderItem = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const isCurrentUser = user && item.user_id === user.id;
     const rankColor = 
-      item.rank === 1 ? '#FFD700' : 
-      item.rank === 2 ? '#C0C0C0' : 
-      item.rank === 3 ? '#CD7F32' : 
+      item.rank === 1 ? COLORS.gold : 
+      item.rank === 2 ? COLORS.silver : 
+      item.rank === 3 ? COLORS.bronze : 
       COLORS.white;
 
     return (
@@ -574,7 +598,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   winsText: {
-    color: '#4CAF50',
+    color: COLORS.success,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },

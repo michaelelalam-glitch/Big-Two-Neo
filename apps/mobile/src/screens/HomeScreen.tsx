@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   leaderboardButton: {
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.gold,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: COLORS.secondary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

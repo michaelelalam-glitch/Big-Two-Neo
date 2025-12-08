@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { COLORS } from '../constants';
 
 interface PlayerStats {
   games_played: number;
@@ -64,10 +65,8 @@ const ProfileScreen = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchStats('initial');
-    }
-  }, [user?.id, fetchStats]);
+    fetchStats('initial');
+  }, [fetchStats]);
 
   const onRefresh = useCallback(async () => {
     await fetchStats('refresh');
@@ -98,7 +97,7 @@ const ProfileScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
         </View>
       </SafeAreaView>
     );
@@ -109,7 +108,7 @@ const ProfileScreen = () => {
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A90E2" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />
         }
       >
         <View style={styles.content}>
@@ -122,7 +121,7 @@ const ProfileScreen = () => {
             <Text style={styles.sectionTitle}>📊 Statistics</Text>
             
             {statsLoading ? (
-              <ActivityIndicator size="small" color="#4A90E2" style={{ paddingVertical: 20 }} />
+              <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 20 }} />
             ) : stats ? (
               <>
                 <View style={styles.statsGrid}>
@@ -260,7 +259,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: COLORS.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -279,10 +278,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   section: {
-    backgroundColor: '#1c1f24',
+    backgroundColor: COLORS.background.dark,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -290,7 +289,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.white,
     marginBottom: 16,
   },
   infoRow: {
@@ -299,23 +298,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2d33',
+    borderBottomColor: COLORS.gray.darker,
   },
   label: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.gray.text,
     flex: 1,
   },
   value: {
     fontSize: 14,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',
   },
   valueSmall: {
     fontSize: 12,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',
@@ -328,7 +327,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   signOutButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -340,7 +339,7 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#2a2d33',
+    backgroundColor: COLORS.gray.darker,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -348,12 +347,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4A90E2',
+    color: COLORS.secondary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: COLORS.gray.text,
     textAlign: 'center',
   },
   noStatsContainer: {
@@ -362,12 +361,12 @@ const styles = StyleSheet.create({
   },
   noStatsText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: COLORS.gray.text,
     marginBottom: 8,
   },
   noStatsSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray.textDark,
   },
 });
 

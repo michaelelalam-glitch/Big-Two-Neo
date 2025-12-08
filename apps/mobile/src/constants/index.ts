@@ -10,6 +10,9 @@ export const COLORS = {
   white: '#FFFFFF',
   black: '#000000',
   danger: '#EF4444', // Red for destructive actions
+  gold: '#FFD700', // Gold for leaderboard first place
+  silver: '#C0C0C0', // Silver for leaderboard second place
+  bronze: '#CD7F32', // Bronze for leaderboard third place
   red: {
     active: '#E74C3C', // Red for active turn indicator
   },
@@ -24,12 +27,19 @@ export const COLORS = {
     light: '#F5F5F5',
     medium: '#9E9E9E',
     dark: '#424242',
+    darker: '#2a2d33', // Darker gray for UI elements
+    text: '#a0a0a0', // Gray text
+    textDark: '#666', // Darker gray text
   },
   card: {
     hearts: '#E74C3C',
     diamonds: '#E74C3C',
     clubs: '#2C3E50',
     spades: '#2C3E50',
+  },
+  background: {
+    dark: '#1c1f24', // Dark background for sections
+    primary: '#25292e', // Primary dark background
   },
 };
 

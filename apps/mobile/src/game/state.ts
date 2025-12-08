@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { sortHand, classifyCards, canBeatPlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
@@ -595,6 +596,16 @@ export class GameStateManager {
       this.saveGameStatsToDatabase().catch(err => {
         console.error('❌ [Stats] Failed to save game stats:', err);
         console.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
+        
+        // Notify user that stats weren't saved (dismissible, non-blocking)
+        setTimeout(() => {
+          Alert.alert(
+            'Stats Not Saved',
+            'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
+            [{ text: 'OK', style: 'cancel' }],
+            { cancelable: true }
+          );
+        }, 1000); // Delay to avoid interrupting game over UI
       });
     } else {
       // Continue to next match
@@ -639,10 +650,11 @@ export class GameStateManager {
         return;
       }
 
-      // Determine if player won (lowest score wins)
+      // Determine if player won (lowest score wins in Big Two)
       const won = this.state.finalWinnerId === humanPlayer.id;
       
-      // Calculate finish position (1st = lowest score, 4th = highest score)
+      // Calculate finish position (1st = winner with lowest score, 4th = loser with highest score)
+      // This is intentional Big Two game logic where lower scores are better
       const sortedScores = [...this.state.matchScores].sort((a, b) => a.score - b.score);
       const finishPosition = sortedScores.findIndex(s => s.playerId === humanPlayer.id) + 1;
 
@@ -663,6 +675,7 @@ export class GameStateManager {
       };
 
       // Explicit mapping from combo display names to database field names
+      // Using case-insensitive matching to handle variations in combo name formats
       const comboMapping: Record<string, keyof typeof comboCounts> = {
         'single': 'singles',
         'pair': 'pairs',
@@ -675,17 +688,21 @@ export class GameStateManager {
       };
 
       humanPlays.forEach(play => {
-        const comboName = play.combo.toLowerCase();
+        // Normalize combo name: trim whitespace and convert to lowercase for matching
+        const comboName = play.combo.trim().toLowerCase();
         const dbField = comboMapping[comboName];
         if (dbField) {
           comboCounts[dbField]++;
+        } else {
+          // Log unmatched combos for debugging
+          console.warn(`[Stats] Unmatched combo name: "${play.combo}" (normalized: "${comboName}")`);
         }
       });
 
       console.log(`📊 [Stats] Saving: won=${won}, position=${finishPosition}, score=${humanScore.score}`);
 
       // Call Supabase RPC function to update stats
-      const { error } = await supabase.rpc('update_player_stats_after_game', {
+      const { error: statsError } = await supabase.rpc('update_player_stats_after_game', {
         p_user_id: user.id,
         p_won: won,
         p_finish_position: finishPosition,
@@ -693,13 +710,20 @@ export class GameStateManager {
         p_combos_played: comboCounts,
       });
 
-      if (error) {
-        console.error('❌ [Stats] Error updating player stats:', error);
+      if (statsError) {
+        console.error('❌ [Stats] Error updating player stats:', statsError);
+        // Don't refresh leaderboard if stats update failed
+        throw new Error(`Stats update failed: ${statsError.message}`);
+      }
+
+      console.log('✅ [Stats] Player stats updated successfully');
+      
+      // Only refresh leaderboard if stats update succeeded
+      const { error: leaderboardError } = await supabase.rpc('refresh_leaderboard');
+      if (leaderboardError) {
+        console.error('⚠️ [Stats] Leaderboard refresh failed (non-critical):', leaderboardError);
+        // Don't throw - leaderboard refresh failure is non-critical
       } else {
-        console.log('✅ [Stats] Player stats updated successfully');
-        
-        // Refresh leaderboard materialized view
-        await supabase.rpc('refresh_leaderboard');
         console.log('✅ [Stats] Leaderboard refreshed');
       }
     } catch (error) {

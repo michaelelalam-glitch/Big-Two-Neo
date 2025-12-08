@@ -97,12 +97,19 @@ export default function StatsScreen() {
         .eq('user_id', userId)
         .single();
 
-      if (statsError && statsError.code !== 'PGRST116') { // PGRST116 = no rows
-        console.error('[Stats] Stats query error:', statsError);
-        throw statsError;
+      // Handle stats errors explicitly
+      if (statsError) {
+        if (statsError.code === 'PGRST116') {
+          // No rows found - user has no stats yet
+          setStats(null);
+        } else {
+          // Other error - log and throw
+          console.error('[Stats] Stats query error:', statsError);
+          throw statsError;
+        }
+      } else {
+        setStats(statsData);
       }
-
-      setStats(statsData || null);
 
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
@@ -567,7 +574,7 @@ const styles = StyleSheet.create({
   },
   historyItemWin: {
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: COLORS.success,
   },
   historyHeader: {
     flexDirection: 'row',
@@ -588,11 +595,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   winBadge: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.success,
     color: COLORS.white,
   },
   lossBadge: {
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.error,
     color: COLORS.white,
   },
   historyCode: {
