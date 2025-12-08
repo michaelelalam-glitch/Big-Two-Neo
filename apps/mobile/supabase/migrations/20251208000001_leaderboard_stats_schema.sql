@@ -73,10 +73,14 @@ CREATE POLICY "Player stats viewable by everyone" ON player_stats
   FOR SELECT USING (true);
 
 CREATE POLICY "Users can insert own stats" ON player_stats
-  FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own stats" ON player_stats
-  FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+-- REMOVED: Direct user UPDATE policy to prevent stat forgery
+-- Players cannot directly modify their stats to prevent leaderboard manipulation
+-- All stat updates must go through server-controlled RPC functions
+
+CREATE POLICY "Service role can update player stats" ON player_stats
+  FOR UPDATE TO service_role USING (true);
 
 -- ============================================================================
 -- PART 2: GAME HISTORY TABLE
@@ -138,9 +142,8 @@ ALTER TABLE game_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Game history viewable by everyone" ON game_history
   FOR SELECT USING (true);
 
--- Only service_role can insert (game results recorded by server)
-CREATE POLICY "Service role can insert game history" ON game_history
-  FOR INSERT WITH CHECK ((auth.jwt()->>'role') = 'service_role');
+-- NOTE: No RLS policy needed for INSERT - service_role bypasses RLS entirely.
+-- Access control is enforced at the application/API layer.
 
 -- ============================================================================
 -- PART 3: LEADERBOARD MATERIALIZED VIEW (For Performance)
@@ -193,6 +196,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to update player stats after game
+-- SECURITY: This function should only be called by the game server (service_role)
+-- or from a secure server-side context. It trusts all input parameters.
 CREATE OR REPLACE FUNCTION update_player_stats_after_game(
   p_user_id UUID,
   p_won BOOLEAN,
@@ -206,10 +211,9 @@ DECLARE
   v_new_avg_position DECIMAL(3,2);
   v_new_avg_score DECIMAL(10,2);
 BEGIN
-  -- Security: Verify the user can only update their own stats
-  IF p_user_id != auth.uid() THEN
-    RAISE EXCEPTION 'Unauthorized: Cannot update stats for other users';
-  END IF;
+  -- NOTE: This function is restricted to service_role via GRANT permissions.
+  -- The JWT role check has been removed because auth.uid() returns NULL in SECURITY DEFINER context.
+  -- Access control is enforced by revoking PUBLIC execute and granting only to service_role.
 
   -- Get current stats
   SELECT * INTO v_stats FROM player_stats WHERE user_id = p_user_id;
@@ -291,7 +295,23 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- PART 5: AUTOMATIC TRIGGERS
+-- PART 5: GRANT PERMISSIONS (Security)
+-- ============================================================================
+
+-- Revoke public execute on sensitive functions to prevent client-side manipulation
+REVOKE EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION initialize_player_stats(UUID) FROM PUBLIC;
+
+-- Grant execute only to service_role for leaderboard integrity
+-- Only trusted server-side code can modify stats
+GRANT EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB) TO service_role;
+GRANT EXECUTE ON FUNCTION initialize_player_stats(UUID) TO service_role;
+
+-- Allow authenticated users to refresh leaderboard view
+GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated, anon;
+
+-- ============================================================================
+-- PART 6: AUTOMATIC TRIGGERS
 -- ============================================================================
 
 -- Trigger to auto-create player_stats when profile is created
@@ -311,7 +331,7 @@ CREATE TRIGGER on_profile_created_create_stats
   FOR EACH ROW EXECUTE FUNCTION auto_create_player_stats();
 
 -- ============================================================================
--- PART 6: ENABLE REALTIME (Optional - for live leaderboard updates)
+-- PART 7: ENABLE REALTIME (Optional - for live leaderboard updates)
 -- ============================================================================
 
 -- Enable realtime for leaderboard tables
@@ -319,7 +339,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE player_stats;
 ALTER PUBLICATION supabase_realtime ADD TABLE game_history;
 
 -- ============================================================================
--- PART 7: INITIALIZE STATS FOR EXISTING USERS
+-- PART 8: INITIALIZE STATS FOR EXISTING USERS
 -- ============================================================================
 
 -- Create player_stats entries for all existing users

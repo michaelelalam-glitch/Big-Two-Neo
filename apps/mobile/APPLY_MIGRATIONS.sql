@@ -210,7 +210,8 @@ CREATE INDEX IF NOT EXISTS idx_room_players_username ON room_players(username);
 -- Drop existing function if it exists
 DROP FUNCTION IF EXISTS refresh_leaderboard();
 
--- Recreate with CONCURRENTLY for better performance (unique index exists)
+-- Recreate with CONCURRENTLY for better performance (unique index exists on user_id)
+-- CONCURRENTLY prevents table locks during refresh, allowing concurrent queries
 CREATE OR REPLACE FUNCTION refresh_leaderboard()
 RETURNS VOID AS $$
 BEGIN
