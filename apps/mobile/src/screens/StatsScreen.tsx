@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
   },
   emptyContainer: {
@@ -388,13 +388,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
   },
   emptyText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
     marginBottom: SPACING.sm,
   },
   emptySubtext: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.md,
     textAlign: 'center',
     marginBottom: SPACING.xl,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backIconText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xl,
   },
   profileSection: {
@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent,
   },
   avatarText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xxl * 1.5,
     fontWeight: 'bold',
   },
   username: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
     marginBottom: SPACING.xs,
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   globalRank: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.md,
     marginTop: SPACING.xs,
   },
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     marginBottom: SPACING.md,
@@ -500,13 +500,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   statValue: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
     marginBottom: SPACING.xs,
   },
   statLabel: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.sm,
   },
   streaksContainer: {
@@ -521,11 +521,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   streakLabel: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.md,
   },
   streakValue: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
@@ -549,13 +549,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   comboName: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.xs,
     textAlign: 'center',
     marginBottom: SPACING.xs,
   },
   comboCount: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: 'bold',
   },
@@ -589,18 +589,18 @@ const styles = StyleSheet.create({
   },
   winBadge: {
     backgroundColor: '#4CAF50',
-    color: COLORS.text,
+    color: COLORS.white,
   },
   lossBadge: {
     backgroundColor: '#F44336',
-    color: COLORS.text,
+    color: COLORS.white,
   },
   historyCode: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.xs,
   },
   historyTime: {
-    color: COLORS.text + '66',
+    color: COLORS.white + '66',
     fontSize: FONT_SIZES.xs,
   },
   historyPlayers: {
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   historyPlayerName: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.sm,
     flex: 1,
   },
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   historyDuration: {
-    color: COLORS.text + '66',
+    color: COLORS.white + '66',
     fontSize: FONT_SIZES.xs,
     fontStyle: 'italic',
   },

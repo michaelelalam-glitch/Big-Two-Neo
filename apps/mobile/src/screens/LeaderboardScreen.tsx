@@ -181,7 +181,7 @@ export default function LeaderboardScreen() {
       item.rank === 1 ? '#FFD700' : 
       item.rank === 2 ? '#C0C0C0' : 
       item.rank === 3 ? '#CD7F32' : 
-      COLORS.text;
+      COLORS.white;
 
     return (
       <TouchableOpacity
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
   },
   listContent: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.white,
     marginBottom: SPACING.md,
   },
   userRankCard: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   rankBadgeText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
@@ -353,13 +353,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userRankUsername: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   userRankStats: {
-    color: COLORS.text + 'CC',
+    color: COLORS.white + 'CC',
     fontSize: FONT_SIZES.sm,
   },
   filterContainer: {
@@ -379,15 +379,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
   },
   filterText: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: COLORS.text,
+    color: COLORS.white,
   },
   filterTextDisabled: {
-    color: COLORS.text + '40',
+    color: COLORS.white + '40',
   },
   columnHeaders: {
     flexDirection: 'row',
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.secondary,
   },
   columnHeader: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   avatarPlaceholder: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   lossesText: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.xs,
   },
   pointsColumn: {
@@ -493,13 +493,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: COLORS.text,
+    color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     marginBottom: SPACING.sm,
   },
   emptySubtext: {
-    color: COLORS.text + '99',
+    color: COLORS.white + '99',
     fontSize: FONT_SIZES.sm,
     textAlign: 'center',
   },
