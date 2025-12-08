@@ -20,6 +20,7 @@ interface CardHandProps {
   hideButtons?: boolean; // New prop to hide internal buttons
   selectedCardIds?: Set<string>; // Optional: lifted state for external control
   onSelectionChange?: (selected: Set<string>) => void; // Optional: callback for lifted state
+  onCardsReorder?: (reorderedCards: CardType[]) => void; // New: callback when cards are rearranged
 }
 
 export default function CardHand({
@@ -31,17 +32,30 @@ export default function CardHand({
   hideButtons = false,
   selectedCardIds: externalSelectedCardIds,
   onSelectionChange,
+  onCardsReorder,
 }: CardHandProps) {
   const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
+  const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null); // Track where card will be dropped
+  const [longPressedCardId, setLongPressedCardId] = useState<string | null>(null); // Track long-pressed card
+  const [isDraggingMultiple, setIsDraggingMultiple] = useState(false); // Track if dragging multiple selected cards
+  const [sharedDragX, setSharedDragX] = useState(0); // Shared X translation for all selected cards
+  const [sharedDragY, setSharedDragY] = useState(0); // Shared Y translation for all selected cards
   
   // Use lifted state if provided, otherwise use internal state
   const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
   const setSelectedCardIds = onSelectionChange ?? setInternalSelectedCardIds;
+  
+  // Update display cards when prop cards change (but not during drag)
+  React.useEffect(() => {
+    if (!draggedCardId) {
+      setDisplayCards(cards);
+    }
+  }, [cards, draggedCardId]);
 
-  // Sort cards (memoized to avoid re-sorting on every render)
-  // sortHand returns ascending order for visual display:
-  // lowest rank (3) appears on the LEFT, highest (2) on the RIGHT in the card hand
-  const sortedCards = useMemo(() => sortHand(cards), [cards]);
+  // Use display cards directly - parent manages the order
+  const sortedCards = displayCards;
 
   // Toggle card selection (memoized to prevent card re-renders)
   const handleToggleSelect = useCallback((cardId: string) => {
@@ -89,6 +103,106 @@ export default function CardHand({
     // setSelectedCardIds(new Set()); // Removed per Copilot feedback
   }, [onPass]);
 
+  // Handle drag start for rearranging or multi-card play
+  const handleDragStart = useCallback((cardId: string) => {
+    setDraggedCardId(cardId);
+    // Check if dragging a selected card when multiple are selected
+    const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
+    setIsDraggingMultiple(isMultiDrag);
+    console.log('🎯 [CardHand] Drag started:', cardId, isMultiDrag ? `(+ ${selectedCardIds.size - 1} other selected cards)` : '');
+  }, [selectedCardIds]);
+
+  // Handle long press - brings card to front
+  const handleLongPress = useCallback((cardId: string) => {
+    setLongPressedCardId(cardId);
+    console.log('🔍 [CardHand] Long press on', cardId);
+  }, []);
+
+  // Handle drag update for rearranging or playing
+  const handleDragUpdate = useCallback((cardId: string, translationX: number, translationY: number) => {
+    if (!draggedCardId || draggedCardId !== cardId) return;
+    
+    // If dragging multiple selected cards, update shared drag values for synchronized movement
+    if (isDraggingMultiple) {
+      setSharedDragX(translationX);
+      setSharedDragY(translationY);
+      setDragTargetIndex(null); // No rearranging when multi-dragging
+      return;
+    }
+    
+    // Only rearrange if dragging horizontally (not trying to play on table)
+    const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
+    if (!isHorizontalDrag) {
+      setDragTargetIndex(null);
+      return;
+    }
+    
+    const currentIndex = sortedCards.findIndex(c => c.id === cardId);
+    if (currentIndex === -1) return;
+    
+    // Calculate which position the card should swap to based on drag distance
+    // Each card takes up about 20px due to overlap (60px width - 40px overlap)
+    const CARD_SPACING = 20;
+    const positionShift = Math.round(translationX / CARD_SPACING);
+    const targetIndex = Math.max(0, Math.min(sortedCards.length - 1, currentIndex + positionShift));
+    
+    // Only store the target index, don't actually move the card yet
+    if (targetIndex !== currentIndex) {
+      setDragTargetIndex(targetIndex);
+    } else {
+      setDragTargetIndex(null);
+    }
+  }, [draggedCardId, sortedCards, isDraggingMultiple]);
+
+  // Handle drag end for rearranging or playing
+  const handleDragEnd = useCallback((cardId: string, translationX: number, translationY: number) => {
+    if (draggedCardId) {
+      const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
+      const isUpwardDrag = translationY < -80; // Dragged up more than 80px
+      
+      // If dragging multiple selected cards and dragged upward, play them
+      if (isDraggingMultiple && isUpwardDrag) {
+        console.log('🎮 [CardHand] Multiple cards dragged to play area:', selectedCardIds.size);
+        const selected = sortedCards.filter((card) => selectedCardIds.has(card.id));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onPlayCards(selected);
+        setSelectedCardIds(new Set()); // Clear selection after playing
+      }
+      // If dragged upward significantly (single card), treat as play attempt
+      else if (isUpwardDrag && !isHorizontalDrag && !isDraggingMultiple) {
+        console.log('🎮 [CardHand] Single card dragged to play area:', cardId);
+        // Play just this card
+        const card = sortedCards.find(c => c.id === cardId);
+        if (card) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          onPlayCards([card]);
+        }
+      } else if (isHorizontalDrag && dragTargetIndex !== null && !isDraggingMultiple) {
+        // Horizontal drag = rearrange (only for single card) - NOW apply the position change
+        const currentIndex = sortedCards.findIndex(c => c.id === cardId);
+        if (currentIndex !== -1 && dragTargetIndex !== currentIndex) {
+          const newCards = [...sortedCards];
+          const [draggedCard] = newCards.splice(currentIndex, 1);
+          newCards.splice(dragTargetIndex, 0, draggedCard);
+          setDisplayCards(newCards);
+          
+          console.log('🔄 [CardHand] Cards reordered on drop, notifying parent');
+          if (onCardsReorder && newCards.length > 0) {
+            onCardsReorder(newCards);
+          }
+        }
+      }
+      
+      // Reset drag state
+      setDraggedCardId(null);
+      setDragTargetIndex(null);
+      setLongPressedCardId(null); // Clear long press state
+      setIsDraggingMultiple(false);
+      setSharedDragX(0);
+      setSharedDragY(0);
+    }
+  }, [draggedCardId, dragTargetIndex, sortedCards, onCardsReorder, isDraggingMultiple, selectedCardIds, onPlayCards, setSelectedCardIds]);
+
   // Sort is automatic by rank/suit
   // Future enhancement: Add different sort options
 
@@ -96,16 +210,30 @@ export default function CardHand({
     <SafeAreaView edges={['bottom']} style={styles.container}>
       {/* Card display area with horizontal scroll for small screens */}
       <View style={styles.cardsWrapper}>
-        {sortedCards.map((card, index) => (
-          <Card
-            key={card.id}
-            card={card}
-            isSelected={selectedCardIds.has(card.id)}
-            onToggleSelect={handleToggleSelect}
-            disabled={disabled}
-            style={{ zIndex: index }}
-          />
-        ))}
+        {sortedCards.map((card, index) => {
+          const isThisCardSelected = selectedCardIds.has(card.id);
+          const hasMultipleSelected = selectedCardIds.size > 1;
+          const isDraggingThisGroup = isDraggingMultiple && isThisCardSelected;
+          
+          return (
+            <Card
+              key={card.id}
+              card={card}
+              isSelected={isThisCardSelected}
+              onToggleSelect={handleToggleSelect}
+              onDragStart={() => handleDragStart(card.id)}
+              onDragUpdate={(translationX, translationY) => handleDragUpdate(card.id, translationX, translationY)}
+              onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
+              onLongPress={() => handleLongPress(card.id)}
+              disabled={disabled}
+              zIndex={longPressedCardId === card.id ? 2000 : (draggedCardId === card.id ? 2000 : index + 1)}
+              hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
+              isDraggingGroup={isDraggingThisGroup}
+              sharedDragX={sharedDragX}
+              sharedDragY={sharedDragY}
+            />
+          );
+        })}
       </View>
 
       {/* Action buttons - only show if not hidden */}
