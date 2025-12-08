@@ -57,11 +57,49 @@ export default function LeaderboardScreen() {
 
       console.log('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter, boardType });
 
-      // Query from materialized view for performance
-      let query = supabase
-        .from('leaderboard_global')
-        .select('*')
-        .range(startIndex, endIndex);
+      // Calculate time filter date
+      let timeFilterDate: string | null = null;
+      if (timeFilter === 'weekly') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        timeFilterDate = weekAgo.toISOString();
+      } else if (timeFilter === 'daily') {
+        const dayAgo = new Date();
+        dayAgo.setDate(dayAgo.getDate() - 1);
+        timeFilterDate = dayAgo.toISOString();
+      }
+
+      // For weekly/daily, query player_stats directly with time filter
+      // For all_time, use the optimized materialized view
+      let query;
+      if (timeFilter === 'all_time') {
+        query = supabase
+          .from('leaderboard_global')
+          .select('*')
+          .range(startIndex, endIndex);
+      } else {
+        // Query player_stats with time filter and join profiles
+        query = supabase
+          .from('player_stats')
+          .select(`
+            user_id,
+            rank_points,
+            games_played,
+            games_won,
+            win_rate,
+            longest_win_streak,
+            current_win_streak,
+            profiles!inner (
+              username,
+              avatar_url
+            )
+          `)
+          .gte('updated_at', timeFilterDate!)
+          .gt('games_played', 0)
+          .order('rank_points', { ascending: false })
+          .order('games_won', { ascending: false })
+          .range(startIndex, endIndex);
+      }
 
       const { data, error } = await query;
 
@@ -70,25 +108,93 @@ export default function LeaderboardScreen() {
         throw error;
       }
 
-      if (resetPagination) {
-        setLeaderboard(data || []);
-        setPage(0);
+      // Transform data if querying player_stats directly (weekly/daily)
+      let transformedData: LeaderboardEntry[];
+      if (timeFilter === 'all_time') {
+        transformedData = data || [];
       } else {
-        setLeaderboard(prev => [...prev, ...(data || [])]);
+        // Transform joined data to match LeaderboardEntry interface
+        transformedData = (data || []).map((item: any, index: number) => ({
+          user_id: item.user_id,
+          username: item.profiles.username,
+          avatar_url: item.profiles.avatar_url,
+          rank_points: item.rank_points,
+          games_played: item.games_played,
+          games_won: item.games_won,
+          win_rate: item.win_rate,
+          longest_win_streak: item.longest_win_streak,
+          current_win_streak: item.current_win_streak,
+          rank: startIndex + index + 1, // Calculate rank based on position
+        }));
       }
 
-      setHasMore((data || []).length === PAGE_SIZE);
+      if (resetPagination) {
+        setLeaderboard(transformedData);
+        setPage(0);
+      } else {
+        setLeaderboard(prev => [...prev, ...transformedData]);
+      }
+
+      setHasMore(transformedData.length === PAGE_SIZE);
 
       // Fetch current user's rank separately
       if (user) {
-        const { data: userRankData } = await supabase
-          .from('leaderboard_global')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+        let userRankQuery;
+        if (timeFilter === 'all_time') {
+          userRankQuery = supabase
+            .from('leaderboard_global')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+        } else {
+          // For weekly/daily, calculate user's rank from player_stats
+          userRankQuery = supabase
+            .from('player_stats')
+            .select(`
+              user_id,
+              rank_points,
+              games_played,
+              games_won,
+              win_rate,
+              longest_win_streak,
+              current_win_streak,
+              profiles!inner (
+                username,
+                avatar_url
+              )
+            `)
+            .eq('user_id', user.id)
+            .gte('updated_at', timeFilterDate || '1970-01-01')
+            .single();
+        }
+
+        const { data: userRankData } = await userRankQuery;
 
         if (userRankData) {
-          setUserRank(userRankData);
+          if (timeFilter === 'all_time') {
+            setUserRank(userRankData);
+          } else {
+            // Transform weekly/daily data
+            // Calculate rank by counting users with higher points
+            const { count } = await supabase
+              .from('player_stats')
+              .select('*', { count: 'exact', head: true })
+              .gte('updated_at', timeFilterDate!)
+              .gt('rank_points', userRankData.rank_points);
+
+            setUserRank({
+              user_id: userRankData.user_id,
+              username: userRankData.profiles.username,
+              avatar_url: userRankData.profiles.avatar_url,
+              rank_points: userRankData.rank_points,
+              games_played: userRankData.games_played,
+              games_won: userRankData.games_won,
+              win_rate: userRankData.win_rate,
+              longest_win_streak: userRankData.longest_win_streak,
+              current_win_streak: userRankData.current_win_streak,
+              rank: (count || 0) + 1,
+            });
+          }
         }
       }
     } catch (error) {
@@ -148,18 +254,16 @@ export default function LeaderboardScreen() {
         <TouchableOpacity
           style={[styles.filterButton, timeFilter === 'weekly' && styles.filterButtonActive]}
           onPress={() => setTimeFilter('weekly')}
-          disabled={true}
         >
-          <Text style={[styles.filterText, styles.filterTextDisabled]}>
+          <Text style={[styles.filterText, timeFilter === 'weekly' && styles.filterTextActive]}>
             Weekly
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterButton, timeFilter === 'daily' && styles.filterButtonActive]}
           onPress={() => setTimeFilter('daily')}
-          disabled={true}
         >
-          <Text style={[styles.filterText, styles.filterTextDisabled]}>
+          <Text style={[styles.filterText, timeFilter === 'daily' && styles.filterTextActive]}>
             Daily
           </Text>
         </TouchableOpacity>
