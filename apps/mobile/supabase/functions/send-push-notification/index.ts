@@ -35,6 +35,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ⚠️ SECURITY WARNING: This function currently accepts arbitrary user_ids from untrusted clients.
+    // For production, implement JWT validation and derive target users from server-side context.
+    // See docs/BACKEND_PUSH_NOTIFICATION_INTEGRATION.md for security best practices.
+    
     // Create Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -56,6 +60,16 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'user_ids is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Validate notification data structure
+    if (data?.type === 'game_invite' || data?.type === 'your_turn' || data?.type === 'game_started') {
+      if (!data.roomCode) {
+        return new Response(
+          JSON.stringify({ error: 'roomCode is required for this notification type' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     // Get push tokens for the specified users

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   platform TEXT NOT NULL CHECK (platform IN ('ios', 'android', 'web')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT unique_user_token UNIQUE (user_id)
+  CONSTRAINT unique_user_platform_token UNIQUE (user_id, push_token)
 );
 
 -- Create index for faster lookups

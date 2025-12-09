@@ -7,7 +7,6 @@ import {
   registerForPushNotificationsAsync,
   savePushTokenToDatabase,
   removePushTokenFromDatabase,
-  setupNotificationListeners,
   getLastNotificationResponse,
   clearBadgeCount,
 } from '../services/notificationService';
@@ -124,7 +123,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
     // Check for notification that opened the app
     getLastNotificationResponse().then((response) => {
-      if (response) {
+      if (response && navigation) {
         console.log('App opened from notification:', response);
         handleNotificationResponse(response);
       }
