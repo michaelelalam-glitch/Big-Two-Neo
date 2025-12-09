@@ -366,6 +366,9 @@ await sendGameNotification(
 
 ### **Supabase Edge Function Example**
 
+**⚠️ SECURITY WARNING:** The example below accepts `userId` from request body without authentication. 
+This is for illustration only. Production code MUST authenticate callers and validate permissions.
+
 Create `supabase/functions/send-notification/index.ts`:
 
 ```typescript
@@ -375,6 +378,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 serve(async (req) => {
+  // SECURITY TODO: Validate Authorization header and derive userId from JWT
+  // Current implementation trusts userId from body (NOT production-ready)
   const { userId, title, body, data } = await req.json();
 
   // Get user's push token from database
@@ -427,6 +432,37 @@ serve(async (req) => {
 - ✅ Users can only access their own push tokens
 - ✅ Automatic cleanup on user deletion (CASCADE)
 - ✅ Unique constraint prevents duplicate tokens per user
+
+### **Edge Function Security (CRITICAL)**
+
+**⚠️ Current Limitation:** The edge function accepts arbitrary `user_ids` from untrusted clients using the public anon key.
+
+**Production Requirements:**
+1. **Authenticate all callers:** Validate Supabase user JWT in Authorization header
+2. **Server-side authorization:** Derive target users from authenticated context (e.g., room membership, friend lists)
+3. **Never trust client input:** Don't accept `user_ids` directly from request body
+4. **OR use backend-only:** Move notification logic to your game server with secret credentials
+
+**Example Secure Implementation:**
+```typescript
+// Validate JWT and get authenticated user
+const authHeader = req.headers.get('authorization');
+const jwt = authHeader?.replace('Bearer ', '');
+const { data: { user }, error } = await supabase.auth.getUser(jwt);
+
+if (error || !user) {
+  return new Response('Unauthorized', { status: 401 });
+}
+
+// Derive allowed targets (e.g., users in same room)
+const { data: roomMembers } = await supabase
+  .from('room_players')
+  .select('user_id')
+  .eq('room_id', roomId)
+  .eq('room_owner', user.id); // Only room owner can notify
+
+// Send notifications only to validated targets
+```
 
 ### **Token Storage**
 
