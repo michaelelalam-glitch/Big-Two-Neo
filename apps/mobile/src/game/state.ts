@@ -694,7 +694,7 @@ export class GameStateManager {
       const winnerUserId = winnerPlayer?.isBot ? `bot_${winnerPlayer.id}` : user.id;
 
       const gameCompletionData = {
-        room_id: 'local_game', // TODO: Real room ID in multiplayer
+        room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
         room_code: 'LOCAL', // TODO: Real room code in multiplayer
         players: playersData,
         winner_id: winnerUserId,
