@@ -150,10 +150,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const [room, setRoom] = useState<Room | null>(null);
   const [roomPlayers, setRoomPlayers] = useState<Player[]>([]); // Players in room_players table (lobby)
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [playerHands, setPlayerHands] = useState<Map<string, PlayerHand>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Server-authoritative multiplayer state
+  const [playerHand, setPlayerHand] = useState<Card[]>([]);
+  const [opponentHandCounts, setOpponentHandCounts] = useState<Map<string, number>>(new Map());
   
   // Refs
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -348,7 +351,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       setRoom(null);
       setRoomPlayers([]);
       setGameState(null);
-      setPlayerHands(new Map());
       setIsConnected(false);
     } catch (err) {
       const error = err as Error;
@@ -379,6 +381,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   /**
    * Start the game (host only)
+   * 
+   * Server-authoritative flow:
+   * 1. Update room status to 'playing'
+   * 2. Create game_state with phase 'dealing'
+   * 3. Call deal-cards Edge Function to shuffle and distribute cards
+   * 4. Fetch player's hand from database (server owns state)
+   * 5. Broadcast game_started event
    */
   const startGame = useCallback(async (): Promise<void> => {
     if (!isHost || !room) return;
@@ -416,6 +425,33 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       if (gameError) throw gameError;
       
+      // SERVER-AUTHORITATIVE: Deal cards via Edge Function
+      console.log('[useRealtime] Calling deal-cards Edge Function...');
+      const { data: dealResult, error: dealError } = await supabase.functions.invoke(
+        'deal-cards',
+        { body: { room_id: room.id } }
+      );
+      
+      if (dealError || !dealResult?.success) {
+        throw new Error(dealResult?.error || 'Failed to deal cards');
+      }
+      
+      console.log('[useRealtime] Cards dealt:', dealResult);
+      
+      // Fetch player's hand from database (server owns hands)
+      const { data: playerData, error: handError } = await supabase
+        .from('room_players')
+        .select('hand')
+        .eq('room_id', room.id)
+        .eq('player_id', userId)
+        .single();
+      
+      if (handError) throw handError;
+      
+      // Store hand in local state (for display only, server is source of truth)
+      setPlayerHand(playerData.hand || []);
+      console.log('[useRealtime] Player hand loaded:', playerData.hand?.length || 0, 'cards');
+      
       await broadcastMessage('game_started', { game_state: newGameState });
     } catch (err) {
       const error = err as Error;
@@ -423,7 +459,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       onError?.(error);
       throw error;
     }
-  }, [isHost, room, roomPlayers, onError, broadcastMessage]);
+  }, [isHost, room, roomPlayers, userId, onError, broadcastMessage]);
   
   /**
    * Play cards
@@ -437,6 +473,35 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // Validate cards array is not empty
       if (cards.length === 0) {
         throw new Error('Cannot play an empty hand');
+      }
+      
+      // SERVER-SIDE VALIDATION: Call Edge Function to validate one-card-left rule
+      if (room?.id) {
+        // NOTE: Edge Function requires room_players.hand column (Phase 2 migration)
+        // Until migration is applied, validation will return "Room not found" or similar error
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+          'validate-multiplayer-play',
+          {
+            body: {
+              room_id: room.id,
+              player_id: userId,
+              action: 'play',
+              cards: cards.map(c => ({
+                id: `${c.rank}${c.suit.charAt(0).toUpperCase()}`,
+                rank: c.rank,
+                suit: c.suit.charAt(0).toUpperCase(), // Convert to 'D', 'C', 'H', 'S'
+              })),
+            },
+          }
+        );
+        
+        if (validationError) {
+          throw new Error('Validation failed: ' + validationError.message);
+        }
+        
+        if (!validationResult?.valid) {
+          throw new Error(validationResult?.error || 'Invalid play');
+        }
       }
       
       // Determine combo type based on card count
@@ -483,6 +548,36 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       if (updateError) throw updateError;
       
+      // SERVER-AUTHORITATIVE: Update player's hand via Edge Function
+      console.log('[useRealtime] Updating hand via Edge Function...');
+      const { data: handResult, error: handError } = await supabase.functions.invoke(
+        'update-hand',
+        {
+          body: {
+            room_id: room!.id,
+            player_id: userId,
+            cards_played: cards.map(c => ({
+              id: `${c.rank}${c.suit.charAt(0).toUpperCase()}`,
+            })),
+          },
+        }
+      );
+      
+      if (handError || !handResult?.success) {
+        throw new Error(handResult?.error || 'Failed to update hand');
+      }
+      
+      // Update local hand state (server is source of truth)
+      setPlayerHand(handResult.new_hand);
+      console.log('[useRealtime] Hand updated:', handResult.hand_count, 'cards remaining');
+      
+      // Check if player won
+      if (handResult.game_ended) {
+        console.log('[useRealtime] 🎉 Player won!');
+        await broadcastMessage('game_ended', { winner_id: userId });
+        // TODO: Navigate to game over screen or show winner modal
+      }
+      
       await broadcastMessage('cards_played', {
         player_index: currentPlayer.player_index,
         cards,
@@ -494,7 +589,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       onError?.(error);
       throw error;
     }
-  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
+  }, [gameState, currentPlayer, roomPlayers, room, userId, onError, broadcastMessage]);
   
   /**
    * Pass turn
@@ -505,6 +600,28 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
+      // SERVER-SIDE VALIDATION: Call Edge Function to validate one-card-left rule
+      if (room?.id) {
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+          'validate-multiplayer-play',
+          {
+            body: {
+              room_id: room.id,
+              player_id: userId,
+              action: 'pass',
+            },
+          }
+        );
+        
+        if (validationError) {
+          throw new Error('Validation failed: ' + validationError.message);
+        }
+        
+        if (!validationResult?.valid) {
+          throw new Error(validationResult?.error || 'Cannot pass');
+        }
+      }
+      
       const newPassCount = gameState.pass_count + 1;
       
       // If all other room players passed, clear the table
@@ -526,7 +643,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       onError?.(error);
       throw error;
     }
-  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
+  }, [gameState, currentPlayer, roomPlayers, room, userId, onError, broadcastMessage]);
   
   /**
    * Reconnect to the room
@@ -682,6 +799,44 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
   }, []);
   
+  // Subscribe to hand count updates (for opponent card counts)
+  useEffect(() => {
+    if (!room?.id) return;
+    
+    const channel = supabase
+      .channel(`room:${room.id}:hand-updates`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'room_players',
+        filter: `room_id=eq.${room.id}`,
+      }, (payload) => {
+        const { player_id, hand_count } = payload.new as any;
+        
+        // Update opponent card counts (NOT their actual cards - that's private)
+        if (player_id !== userId) {
+          setOpponentHandCounts(prev => {
+            const updated = new Map(prev);
+            updated.set(player_id, hand_count || 0);
+            return updated;
+          });
+          console.log('[useRealtime] Opponent hand count updated:', player_id, hand_count);
+        } else {
+          // If our own hand was updated externally, sync local state
+          // This can happen if server updates hand via Edge Function
+          if (payload.new.hand) {
+            setPlayerHand(payload.new.hand);
+            console.log('[useRealtime] Player hand synced from server:', payload.new.hand.length);
+          }
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [room?.id, userId]);
+  
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -696,10 +851,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     room,
     players: roomPlayers, // Expose as 'players' for backward compatibility
     gameState,
-    playerHands,
     isConnected,
     isHost,
     currentPlayer,
+    playerHand, // Server-authoritative player hand
+    opponentHandCounts, // Map of player_id -> card count
     createRoom,
     joinRoom,
     leaveRoom,

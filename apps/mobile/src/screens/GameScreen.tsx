@@ -9,6 +9,7 @@ import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OP
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { useRealtime } from '../hooks/useRealtime';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -21,7 +22,27 @@ export default function GameScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   
-  // Game state management
+  // Detect multiplayer mode: real room codes are 6-character alphanumeric (e.g., "ABC123")
+  // Local games use "local" as roomCode
+  const isMultiplayer = roomCode !== 'local' && /^[A-Z0-9]{6}$/.test(roomCode);
+  
+  // Multiplayer game state (server-authoritative)
+  const multiplayerState = useRealtime({
+    userId: user?.id || '',
+    username: user?.user_metadata?.username || user?.email?.split('@')[0] || 'Player',
+    onError: (error) => {
+      console.error('❌ [GameScreen] Multiplayer error:', error);
+      Alert.alert('Multiplayer Error', error.message);
+    },
+    onDisconnect: () => {
+      console.warn('⚠️ [GameScreen] Disconnected from multiplayer');
+    },
+    onReconnect: () => {
+      console.log('✅ [GameScreen] Reconnected to multiplayer');
+    },
+  });
+  
+  // Local game state management (solo with bots)
   const gameManagerRef = useRef<GameStateManager | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -118,6 +139,13 @@ export default function GameScreen() {
 
   // Initialize game engine
   useEffect(() => {
+    // Skip local game initialization if in multiplayer mode
+    if (isMultiplayer) {
+      console.log('🌐 [GameScreen] Multiplayer mode detected, skipping local game init');
+      setIsInitializing(false);
+      return;
+    }
+    
     // Prevent multiple initializations for the same room
     if (isInitializedRef.current && initializedRoomRef.current === roomCode) {
       console.log('⏭️ [GameScreen] Game already initialized for room:', roomCode);
@@ -224,10 +252,15 @@ export default function GameScreen() {
     };
 
     initGame();
-  }, [roomCode, currentPlayerName]);
+  }, [roomCode, currentPlayerName, isMultiplayer]);
 
   // Derived state from game engine
   const playerHand = useMemo(() => {
+    // Use multiplayer hand if in multiplayer mode
+    if (isMultiplayer) {
+      return multiplayerState.playerHand || [];
+    }
+    
     if (!gameState) return [];
     const hand = gameState.players[0].hand; // Player is always at index 0
     
@@ -260,26 +293,94 @@ export default function GameScreen() {
     }
     
     return hand;
-  }, [gameState, customCardOrder]);
+  }, [gameState, customCardOrder, isMultiplayer, multiplayerState.playerHand]);
 
   const lastPlayedCards = useMemo(() => {
+    if (isMultiplayer) {
+      return multiplayerState.room?.game_state?.last_play?.cards || [];
+    }
     if (!gameState || !gameState.lastPlay) return [];
     return gameState.lastPlay.cards;
-  }, [gameState]);
+  }, [gameState, isMultiplayer, multiplayerState.room]);
 
   const lastPlayedBy = useMemo(() => {
+    if (isMultiplayer) {
+      const lastPlay = multiplayerState.room?.game_state?.last_play;
+      if (!lastPlay) return null;
+      // Find player name from onlinePlayers
+      const player = multiplayerState.onlinePlayers.find(p => p.userId === lastPlay.player_id);
+      return player?.username || 'Unknown';
+    }
     if (!gameState || gameState.roundHistory.length === 0) return null;
     const lastEntry = gameState.roundHistory[gameState.roundHistory.length - 1];
     return lastEntry.playerName;
-  }, [gameState]);
+  }, [gameState, isMultiplayer, multiplayerState.room, multiplayerState.onlinePlayers]);
 
   const lastPlayCombo = useMemo(() => {
+    if (isMultiplayer) {
+      return multiplayerState.room?.game_state?.last_play?.play_type || null;
+    }
     if (!gameState || !gameState.lastPlay) return null;
     return gameState.lastPlay.combo;
-  }, [gameState]);
+  }, [gameState, isMultiplayer, multiplayerState.room]);
 
   // Map game state players to UI format
   const players = useMemo(() => {
+    // Multiplayer mode: use online players and opponent card counts
+    if (isMultiplayer) {
+      const onlinePlayers = multiplayerState.onlinePlayers || [];
+      const currentUserId = user?.id;
+      const gameState = multiplayerState.room?.game_state;
+      
+      // Find current player
+      const currentPlayer = onlinePlayers.find(p => p.userId === currentUserId);
+      const currentPlayerName = currentPlayer?.username || 'You';
+      const currentPlayerCount = multiplayerState.playerHand?.length || 0;
+      
+      // Get other players
+      const otherPlayers = onlinePlayers.filter(p => p.userId !== currentUserId);
+      
+      // Build players array (current player + up to 3 opponents)
+      const positions = ['top', 'left', 'right'] as const;
+      const playersArray = [
+        {
+          name: currentPlayerName,
+          cardCount: currentPlayerCount,
+          score: 0, // TODO: Add scoring from game_state
+          position: 'bottom' as const,
+          isActive: gameState?.current_turn === currentUserId,
+        },
+      ];
+      
+      // Add opponents
+      otherPlayers.forEach((player, index) => {
+        if (index < 3) {
+          const cardCount = multiplayerState.opponentHandCounts.get(player.userId) || 13;
+          playersArray.push({
+            name: player.username,
+            cardCount,
+            score: 0, // TODO: Add scoring
+            position: positions[index],
+            isActive: gameState?.current_turn === player.userId,
+          });
+        }
+      });
+      
+      // Fill empty slots if less than 4 players
+      while (playersArray.length < 4) {
+        playersArray.push({
+          name: 'Waiting...',
+          cardCount: 0,
+          score: 0,
+          position: positions[playersArray.length - 1],
+          isActive: false,
+        });
+      }
+      
+      return playersArray;
+    }
+    
+    // Local mode: use local game state
     if (!gameState) {
       // Return placeholder while loading
       return [
@@ -326,7 +427,7 @@ export default function GameScreen() {
         isActive: gameState.currentPlayerIndex === 3
       },
     ];
-  }, [gameState, currentPlayerName]);
+  }, [gameState, currentPlayerName, isMultiplayer, multiplayerState, user?.id]);
 
   // Cleanup: Remove player from room when deliberately leaving (NOT on every unmount)
   useEffect(() => {
@@ -384,14 +485,45 @@ export default function GameScreen() {
   }, []);
 
   const handlePlayCards = async (cards: Card[]) => {
-    if (!gameManagerRef.current || !gameState) {
-      console.error('❌ [GameScreen] Game not initialized');
-      return;
-    }
-
     // Prevent duplicate card plays
     if (isPlayingCards) {
       console.log('⏭️ [GameScreen] Card play already in progress, ignoring...');
+      return;
+    }
+    
+    // Multiplayer mode: use server-authoritative playCards
+    if (isMultiplayer) {
+      if (!multiplayerState.playCards) {
+        console.error('❌ [GameScreen] Multiplayer not ready');
+        return;
+      }
+      
+      try {
+        setIsPlayingCards(true);
+        console.log('🌐 [GameScreen] Playing cards (multiplayer):', cards.map(c => c.id));
+        
+        await multiplayerState.playCards(cards);
+        
+        console.log('✅ [GameScreen] Cards played successfully (multiplayer)');
+        setSelectedCardIds(new Set());
+        
+      } catch (error) {
+        console.error('❌ [GameScreen] Failed to play cards (multiplayer):', error);
+        const errorMessage = error instanceof Error ? error.message : 'Invalid play';
+        Alert.alert('Invalid Move', errorMessage);
+      } finally {
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setIsPlayingCards(false);
+          }
+        }, 300);
+      }
+      return;
+    }
+    
+    // Local mode: use local game manager
+    if (!gameManagerRef.current || !gameState) {
+      console.error('❌ [GameScreen] Game not initialized');
       return;
     }
 
@@ -445,13 +577,44 @@ export default function GameScreen() {
   };
 
   const handlePass = async () => {
-    if (!gameManagerRef.current || !gameState) {
-      console.error('❌ [GameScreen] Game not initialized');
-      return;
-    }
-
     if (isPassing) {
       console.log('⏭️ [GameScreen] Pass already in progress, ignoring...');
+      return;
+    }
+    
+    // Multiplayer mode: use server-authoritative pass
+    if (isMultiplayer) {
+      if (!multiplayerState.pass) {
+        console.error('❌ [GameScreen] Multiplayer not ready');
+        return;
+      }
+      
+      try {
+        setIsPassing(true);
+        console.log('🌐 [GameScreen] Passing (multiplayer)...');
+        
+        await multiplayerState.pass();
+        
+        console.log('✅ [GameScreen] Pass successful (multiplayer)');
+        setSelectedCardIds(new Set());
+        
+      } catch (error) {
+        console.error('❌ [GameScreen] Failed to pass (multiplayer):', error);
+        const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
+        Alert.alert('Cannot Pass', errorMessage);
+      } finally {
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setIsPassing(false);
+          }
+        }, 300);
+      }
+      return;
+    }
+    
+    // Local mode: use local game manager
+    if (!gameManagerRef.current || !gameState) {
+      console.error('❌ [GameScreen] Game not initialized');
       return;
     }
 
@@ -516,11 +679,16 @@ export default function GameScreen() {
 
   return (
     <View style={styles.container}>
-      {isInitializing ? (
+      {(isInitializing || (isMultiplayer && !multiplayerState.room)) ? (
         // Loading state
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Initializing game...</Text>
-          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
+          <ActivityIndicator size="large" color={COLORS.accent} style={{ marginBottom: SPACING.md }} />
+          <Text style={styles.loadingText}>
+            {isMultiplayer ? 'Connecting to multiplayer...' : 'Initializing game...'}
+          </Text>
+          <Text style={styles.loadingSubtext}>
+            {isMultiplayer ? 'Syncing with server...' : 'Setting up game engine...'}
+          </Text>
         </View>
       ) : (
         <>

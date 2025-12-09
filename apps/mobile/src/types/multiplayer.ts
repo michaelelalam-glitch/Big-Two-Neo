@@ -133,10 +133,14 @@ export interface UseRealtimeReturn {
   room: Room | null;
   players: Player[];
   gameState: GameState | null;
-  playerHands: Map<string, PlayerHand>;
+  playerHands: Map<string, PlayerHand>; // TODO: Legacy, consider deprecating
   isConnected: boolean;
   isHost: boolean;
   currentPlayer: Player | null;
+  
+  // Server-authoritative multiplayer state (Option A)
+  playerHand: Card[]; // Current player's hand (from database)
+  opponentHandCounts: Map<string, number>; // player_id -> card count
   
   // Room management
   createRoom: () => Promise<Room>;
