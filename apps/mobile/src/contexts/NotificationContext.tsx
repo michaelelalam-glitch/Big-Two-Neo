@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -51,7 +51,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   // Register for push notifications when user logs in
-  const registerPushNotifications = async () => {
+  const registerPushNotifications = useCallback(async () => {
     if (!user) {
       console.warn('Cannot register push notifications: No user logged in');
       return;
@@ -73,10 +73,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     } catch (error) {
       console.error('Error registering push notifications:', error);
     }
-  };
+  }, [user]);
 
   // Unregister push notifications (call on sign out)
-  const unregisterPushNotifications = async () => {
+  const unregisterPushNotifications = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -87,10 +87,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     } catch (error) {
       console.error('Error unregistering push notifications:', error);
     }
-  };
+  }, [user]);
 
   // Handle deep linking from notifications
-  const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
+  const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
     const data = response.notification.request.content.data;
     console.log('Handling notification tap:', data);
 
@@ -107,7 +107,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     } else if (data.type === 'friend_request') {
       navigation.navigate('Profile');
     }
-  };
+  }, [navigation]);
 
   // Setup notification listeners
   useEffect(() => {
@@ -139,14 +139,14 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         responseListener.current.remove();
       }
     };
-  }, []);
+  }, [handleNotificationResponse]);
 
   // Auto-register when user logs in
   useEffect(() => {
     if (isLoggedIn && user && !isRegistered) {
       registerPushNotifications();
     }
-  }, [isLoggedIn, user, isRegistered]);
+  }, [isLoggedIn, user, isRegistered, registerPushNotifications]);
 
   const value: NotificationContextData = {
     expoPushToken,

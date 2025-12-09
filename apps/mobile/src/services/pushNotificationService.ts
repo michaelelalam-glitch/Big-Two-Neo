@@ -151,7 +151,8 @@ export async function notifyOtherPlayers(
   currentPlayerId: string,
   title: string,
   body: string,
-  roomCode: string
+  roomCode: string,
+  notificationType: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' = 'game_started'
 ): Promise<boolean> {
   const otherPlayerIds = allPlayerIds.filter(id => id !== currentPlayerId);
   
@@ -164,7 +165,7 @@ export async function notifyOtherPlayers(
     title,
     body,
     data: {
-      type: 'game_started',
+      type: notificationType,
       roomCode,
     },
   });

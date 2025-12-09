@@ -66,24 +66,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ### Example 1: Notify When Game Starts
 
 ```typescript
-import { notifyGameStarted } from '@big2/notification-service';
-
-async function startGame(roomCode: string, playerIds: string[]) {
-  // ... game start logic ...
-  
-  // Send notifications to all players
-  await notifyGameStarted(playerIds, roomCode);
-  
-  console.log(`Game started! Notified ${playerIds.length} players`);
-}
-```
-
-### Example 2: Notify Player Turn
-
-```typescript
-### Example 1: Notify When Game Starts
-
-```typescript
 import { notifyGameStarted } from '../services/pushNotificationService';
 
 async function startGame(roomCode: string, playerIds: string[]) {
@@ -129,11 +111,22 @@ async function inviteToRoom(roomCode: string, inviterUserId: string, invitedUser
     inviter.username
   ).catch(console.error);
 }
-``` 
+```
+
+### Example 4: Socket.IO Integration
+
+```typescript
+import { notifyGameStarted, notifyYourTurn } from '../services/pushNotificationService';
+
+io.on('connection', (socket) => {
+  // When a player joins a room
+  socket.on('join-room', async ({ roomCode, userId }) => {
+    socket.join(roomCode);
+    
     // If room is now full, start game and notify everyone
     if (room.players.length === 4) {
       const playerIds = room.players.map(p => p.userId);
-      await notifyGameStarted(playerIds, roomCode);
+      notifyGameStarted(playerIds, roomCode).catch(console.error);
       
       io.to(roomCode).emit('game-start', room);
     }
@@ -151,11 +144,11 @@ async function inviteToRoom(roomCode: string, inviterUserId: string, invitedUser
     
     // Notify the next player specifically
     if (gameState.currentTurn !== userId) {
-      await notifyYourTurn(
+      notifyYourTurn(
         gameState.currentTurn,
         roomCode,
         'Your turn to play!'
-      );
+      ).catch(console.error);
     }
   });
 });

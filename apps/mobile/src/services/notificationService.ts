@@ -73,20 +73,29 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       });
 
       // Channel for game invites
-      await Notifications.setNotificationChannelAsync('game_invites', {
-        name: 'Game Invites',
+      await Notifications.setNotificationChannelAsync('game-updates', {
+        name: 'Game Updates',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF6B6B',
         sound: 'default',
       });
 
-      // Channel for game events (your turn, game started, etc.)
-      await Notifications.setNotificationChannelAsync('game_events', {
-        name: 'Game Events',
+      // Channel for turn notifications
+      await Notifications.setNotificationChannelAsync('turn-notifications', {
+        name: 'Turn Notifications',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250],
         lightColor: '#4ECDC4',
+        sound: 'default',
+      });
+
+      // Channel for social interactions (friend requests, etc.)
+      await Notifications.setNotificationChannelAsync('social', {
+        name: 'Social',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250],
+        lightColor: '#95E1D3',
         sound: 'default',
       });
     }
