@@ -593,19 +593,28 @@ export class GameStateManager {
       
       // Save game stats to database (async, don't await to avoid blocking UI)
       console.log('🔄 [Stats] Starting saveGameStatsToDatabase...');
+      let alertShown = false; // Track if alert was shown to prevent duplicate alerts
       this.saveGameStatsToDatabase().catch(err => {
         console.error('❌ [Stats] Failed to save game stats:', err);
         console.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
         
         // Notify user that stats weren't saved (dismissible, non-blocking)
-        setTimeout(() => {
-          Alert.alert(
-            'Stats Not Saved',
-            'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
-            [{ text: 'OK', style: 'cancel' }],
-            { cancelable: true }
-          );
-        }, 1000); // Delay to avoid interrupting game over UI
+        // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
+        if (!alertShown) {
+          alertShown = true;
+          setTimeout(() => {
+            // Check if game is still active (user hasn't navigated away)
+            // If game state still exists, show the alert
+            if (this.state && this.state.gameOver) {
+              Alert.alert(
+                'Stats Not Saved',
+                'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
+                [{ text: 'OK', style: 'cancel' }],
+                { cancelable: true }
+              );
+            }
+          }, 1000); // Delay to avoid interrupting game over UI
+        }
       });
     } else {
       // Continue to next match
@@ -677,6 +686,9 @@ export class GameStateManager {
           const dbField = comboMapping[comboName];
           if (dbField) {
             comboCounts[dbField]++;
+          } else {
+            // Warn about unexpected combo names for easier debugging if game engine changes
+            console.warn(`[Stats] Unexpected combo name encountered: "${play.combo}" - This combo will not be counted in stats.`);
           }
         });
 
