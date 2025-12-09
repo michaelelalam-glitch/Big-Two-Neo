@@ -44,6 +44,15 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#FF6B6B",
+          "sounds": [],
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
       "expo-secure-store",
       "expo-web-browser"
     ],

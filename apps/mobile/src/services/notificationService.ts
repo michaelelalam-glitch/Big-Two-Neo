@@ -1,0 +1,251 @@
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { supabase } from './supabase';
+
+// Configure notification handler - determines how notifications appear when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+export interface PushToken {
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+}
+
+/**
+ * Registers the device for push notifications and returns the Expo push token
+ */
+export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  let token: string | null = null;
+
+  // Check if we're on a physical device
+  if (!Device.isDevice) {
+    console.warn('Push notifications only work on physical devices');
+    return null;
+  }
+
+  try {
+    // Check existing permissions
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    // Request permissions if not granted
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.warn('Failed to get push notification permissions');
+      return null;
+    }
+
+    // Get the Expo push token
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    
+    if (!projectId) {
+      console.error('Project ID not found in app configuration');
+      return null;
+    }
+
+    const expoPushToken = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+
+    token = expoPushToken.data;
+    console.log('Expo Push Token:', token);
+
+    // Configure Android notification channel
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF6B6B',
+      });
+
+      // Channel for game invites
+      await Notifications.setNotificationChannelAsync('game-updates', {
+        name: 'Game Updates',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF6B6B',
+        sound: 'default',
+      });
+
+      // Channel for turn notifications
+      await Notifications.setNotificationChannelAsync('turn-notifications', {
+        name: 'Turn Notifications',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250],
+        lightColor: '#4ECDC4',
+        sound: 'default',
+      });
+
+      // Channel for social interactions (friend requests, etc.)
+      await Notifications.setNotificationChannelAsync('social', {
+        name: 'Social',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250],
+        lightColor: '#95E1D3',
+        sound: 'default',
+      });
+    }
+
+    return token;
+  } catch (error) {
+    console.error('Error registering for push notifications:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves the push token to the database for the current user
+ */
+export async function savePushTokenToDatabase(
+  userId: string,
+  pushToken: string
+): Promise<boolean> {
+  try {
+    const platform = Platform.OS as 'ios' | 'android' | 'web';
+
+    const { error } = await supabase
+      .from('push_tokens')
+      .upsert(
+        {
+          user_id: userId,
+          push_token: pushToken,
+          platform: platform,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id',
+        }
+      );
+
+    if (error) {
+      console.error('Error saving push token:', error);
+      return false;
+    }
+
+    console.log('Push token saved successfully');
+    return true;
+  } catch (error) {
+    console.error('Error saving push token to database:', error);
+    return false;
+  }
+}
+
+/**
+ * Removes the push token from the database (call on sign out)
+ */
+export async function removePushTokenFromDatabase(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('push_tokens')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error removing push token:', error);
+      return false;
+    }
+
+    console.log('Push token removed successfully');
+    return true;
+  } catch (error) {
+    console.error('Error removing push token from database:', error);
+    return false;
+  }
+}
+
+/**
+ * Sets up notification listeners for handling incoming notifications
+ */
+export function setupNotificationListeners() {
+  // Listener for notifications received while app is in foreground
+  const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+    console.log('📱 Notification received:', notification);
+    // You can add custom handling here (e.g., show in-app alert)
+  });
+
+  // Listener for when user taps on notification
+  const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+    console.log('👆 Notification tapped:', response);
+    const data = response.notification.request.content.data;
+    
+    // Handle deep linking based on notification data
+    handleNotificationData(data);
+  });
+
+  return {
+    notificationListener,
+    responseListener,
+  };
+}
+
+/**
+ * Handles deep linking from notification data
+ */
+function handleNotificationData(data: Record<string, unknown>) {
+  console.log('Handling notification data:', data);
+
+  // You can implement navigation logic here
+  // For example:
+  // if (data.type === 'game_invite') {
+  //   navigation.navigate('Lobby', { roomCode: data.roomCode });
+  // } else if (data.type === 'your_turn') {
+  //   navigation.navigate('Game', { roomCode: data.roomCode });
+  // }
+}
+
+/**
+ * Schedules a local notification (for testing purposes)
+ */
+export async function scheduleLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body,
+      data: data || {},
+      sound: 'default',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+    },
+  });
+}
+
+/**
+ * Gets the last notification response (useful for deep linking on app launch)
+ */
+export async function getLastNotificationResponse() {
+  return await Notifications.getLastNotificationResponseAsync();
+}
+
+/**
+ * Clears app badge count
+ */
+export async function clearBadgeCount() {
+  await Notifications.setBadgeCountAsync(0);
+}
+
+/**
+ * Sets app badge count
+ */
+export async function setBadgeCount(count: number) {
+  await Notifications.setBadgeCountAsync(count);
+}
