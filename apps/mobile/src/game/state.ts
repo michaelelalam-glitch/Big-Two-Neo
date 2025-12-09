@@ -689,11 +689,15 @@ export class GameStateManager {
         };
       });
 
+      // Find the winner's user_id (not the internal player ID)
+      const winnerPlayer = this.state.players.find(p => p.id === this.state.finalWinnerId);
+      const winnerUserId = winnerPlayer?.isBot ? `bot_${winnerPlayer.id}` : user.id;
+
       const gameCompletionData = {
         room_id: 'local_game', // TODO: Real room ID in multiplayer
         room_code: 'LOCAL', // TODO: Real room code in multiplayer
         players: playersData,
-        winner_id: this.state.finalWinnerId || '',
+        winner_id: winnerUserId,
         game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
         started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
         finished_at: new Date().toISOString(),
