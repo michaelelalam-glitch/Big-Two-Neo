@@ -204,5 +204,28 @@ AND rp.username IS NULL;
 CREATE INDEX IF NOT EXISTS idx_room_players_username ON room_players(username);
 
 -- ============================================
+-- MIGRATION 3: Fix Leaderboard Refresh Function
+-- ============================================
+
+-- Drop existing function if it exists
+DROP FUNCTION IF EXISTS refresh_leaderboard();
+
+-- Recreate with CONCURRENTLY for better performance (unique index exists on user_id)
+-- CONCURRENTLY prevents table locks during refresh, allowing concurrent queries
+CREATE OR REPLACE FUNCTION refresh_leaderboard()
+RETURNS VOID AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Manually refresh the view now
+REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
+
+-- Grant execute permission to authenticated and anonymous users
+GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated;
+GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO anon;
+
+-- ============================================
 -- MIGRATIONS COMPLETE!
 -- ============================================
