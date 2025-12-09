@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -25,14 +26,17 @@ export default function NotificationSettingsScreen() {
   const [gameStartedEnabled, setGameStartedEnabled] = useState(true);
   const [friendRequestsEnabled, setFriendRequestsEnabled] = useState(true);
 
-  useEffect(() => {
-    checkNotificationStatus();
-  }, [isRegistered]);
+  // Note: Individual notification preferences are UI-only and not yet persisted to database
+  // TODO: Implement backend preference storage in future iteration (Task #TBD)
 
-  const checkNotificationStatus = async () => {
+  const checkNotificationStatus = useCallback(async () => {
     const { status } = await Notifications.getPermissionsAsync();
     setNotificationsEnabled(status === 'granted' && isRegistered);
-  };
+  }, [isRegistered]);
+
+  useEffect(() => {
+    checkNotificationStatus();
+  }, [checkNotificationStatus]);
 
   const handleToggleNotifications = async (value: boolean) => {
     if (value) {
@@ -55,8 +59,7 @@ export default function NotificationSettingsScreen() {
             {
               text: 'Open Settings',
               onPress: () => {
-                // iOS only - opens device settings
-                // Android users need to manually open settings
+                Linking.openSettings();
               },
             },
           ]

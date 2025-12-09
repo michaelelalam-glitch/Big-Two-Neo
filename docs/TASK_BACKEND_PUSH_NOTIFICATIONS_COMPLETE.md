@@ -103,6 +103,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
 ### Test Edge Function Directly
 
+**⚠️ SECURITY WARNING:** This testing method exposes the public anon key and is for DEVELOPMENT ONLY. 
+For production, implement proper authentication (see Security section below).
+
 ```bash
 curl -X POST \
   https://dppybucldqufbqhwnkxu.supabase.co/functions/v1/send-push-notification \
@@ -115,6 +118,16 @@ curl -X POST \
     "data": { "type": "game_invite", "roomCode": "TEST123" }
   }'
 ```
+
+## Security Considerations
+
+**CRITICAL:** The current implementation accepts arbitrary `user_ids` with only the public anon key. This is acceptable for testing but **NOT production-ready**.
+
+**Required for Production:**
+- Implement server-side authentication
+- Validate user JWT tokens in edge function
+- Derive target users from server context (e.g., room membership) instead of trusting client input
+- OR move notification logic entirely to backend server with secret API keys
 
 ## Next Steps (Created as Tasks)
 

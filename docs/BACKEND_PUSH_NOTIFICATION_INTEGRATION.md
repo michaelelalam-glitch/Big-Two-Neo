@@ -61,6 +61,18 @@ EXPO_PUBLIC_SUPABASE_URL=https://dppybucldqufbqhwnkxu.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
+## ⚠️ Security Considerations
+
+**IMPORTANT:** The current edge function implementation uses the public `SUPABASE_ANON_KEY` and accepts arbitrary `user_ids` in the request body. This is acceptable for **development/testing only**.
+
+**For production**, you must implement one of these security measures:
+
+1. **Server-side only calls**: Move notification logic to your backend server (not mobile app) using a secure API key
+2. **User JWT validation**: Modify the edge function to authenticate callers via Supabase user JWT and derive target users from server-side context (e.g., room membership) instead of trusting `user_ids` from the request
+3. **Separate service key**: Use a non-public server-only secret for the edge function and never expose it to the mobile app
+
+Without these protections, malicious users could send spam notifications to other users by simply extracting the anon key from your mobile app.
+
 ## Integration Examples
 
 ### Example 1: Notify When Game Starts
