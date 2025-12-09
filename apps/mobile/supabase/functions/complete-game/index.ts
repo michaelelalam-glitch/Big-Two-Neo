@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 interface GameCompletionRequest {
-  room_id: string;
+  room_id: string | null; // Must be valid UUID or null for local games
   room_code: string;
   players: {
     user_id: string;
@@ -118,11 +118,29 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
-    // STEP 2: RECORD GAME HISTORY (for audit trail)
+    // STEP 2: VALIDATE ROOM_ID (must be UUID or null)
+    // ============================================================================
+    
+    // Validate room_id: must be null (local games) or valid UUID format
+    if (gameData.room_id !== null) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(gameData.room_id)) {
+        console.error(`[Complete Game] Invalid room_id format: ${gameData.room_id}`);
+        return new Response(
+          JSON.stringify({ error: 'room_id must be a valid UUID or null' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ============================================================================
+    // STEP 3: RECORD GAME HISTORY (for audit trail)
     // ============================================================================
 
     // Filter out bot players - only record real user IDs in game_history
     // Bot user_ids like "bot_player-1" don't exist in auth.users and would violate FK constraints
+    // NOTE: This results in NULL values for bot player_id columns in game_history, which is expected
+    // behavior since bots don't have auth.users records. Usernames are still preserved for all players.
     const realPlayers = gameData.players.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
 
     const { error: historyError } = await supabaseAdmin

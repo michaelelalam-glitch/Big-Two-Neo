@@ -180,16 +180,17 @@ export default function LeaderboardScreen() {
             }
           } else {
             // For weekly/daily: Check if user played ANY games in this period
-            // (not just total games_played, which could be from earlier)
-            const { data: periodGames } = await supabase
-              .from('player_stats')
-              .select('games_played')
-              .eq('user_id', user.id)
-              .gte('last_game_at', timeFilterDate!)
-              .single();
+            // Query game_history to count actual games within the time range
+            const { data: periodGames, error: periodError } = await supabase
+              .from('game_history')
+              .select('id', { count: 'exact', head: true })
+              .or(`player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id}`)
+              .gte('finished_at', timeFilterDate!)
+              .limit(1);
 
             // If no games in this period, hide rank card
-            if (!periodGames || periodGames.games_played === 0) {
+            if (periodError || !periodGames) {
+              console.log('[Leaderboard] Error checking period games:', periodError);
               setUserRank(null);
             } else {
               // Transform weekly/daily data
