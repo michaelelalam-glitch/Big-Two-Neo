@@ -21,13 +21,10 @@ export default function NotificationSettingsScreen() {
     useNotifications();
   const { user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [gameInvitesEnabled, setGameInvitesEnabled] = useState(true);
-  const [yourTurnEnabled, setYourTurnEnabled] = useState(true);
-  const [gameStartedEnabled, setGameStartedEnabled] = useState(true);
-  const [friendRequestsEnabled, setFriendRequestsEnabled] = useState(true);
 
-  // Note: Individual notification preferences are UI-only and not yet persisted to database
-  // TODO: Implement backend preference storage in future iteration (Task #TBD)
+  // Note: Individual notification type toggles removed until backend preference storage is implemented
+  // Current implementation: Master toggle only (enable/disable all notifications)
+  // TODO: Add granular notification preferences in future iteration (Task #TBD) with database persistence
 
   const checkNotificationStatus = useCallback(async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -141,65 +138,12 @@ export default function NotificationSettingsScreen() {
           {notificationsEnabled && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.subsectionTitle}>Notification Types</Text>
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Game Invites</Text>
-                  <Text style={styles.settingDescription}>
-                    Get notified when someone invites you to a game
-                  </Text>
-                </View>
-                <Switch
-                  value={gameInvitesEnabled}
-                  onValueChange={setGameInvitesEnabled}
-                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
-                  thumbColor={gameInvitesEnabled ? COLORS.white : COLORS.gray.medium}
-                />
-              </View>
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Your Turn</Text>
-                  <Text style={styles.settingDescription}>Get notified when it's your turn</Text>
-                </View>
-                <Switch
-                  value={yourTurnEnabled}
-                  onValueChange={setYourTurnEnabled}
-                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
-                  thumbColor={yourTurnEnabled ? COLORS.white : COLORS.gray.medium}
-                />
-              </View>
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Game Started</Text>
-                  <Text style={styles.settingDescription}>
-                    Get notified when a game you joined has started
-                  </Text>
-                </View>
-                <Switch
-                  value={gameStartedEnabled}
-                  onValueChange={setGameStartedEnabled}
-                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
-                  thumbColor={gameStartedEnabled ? COLORS.white : COLORS.gray.medium}
-                />
-              </View>
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Friend Requests</Text>
-                  <Text style={styles.settingDescription}>
-                    Get notified when someone sends you a friend request
-                  </Text>
-                </View>
-                <Switch
-                  value={friendRequestsEnabled}
-                  onValueChange={setFriendRequestsEnabled}
-                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
-                  thumbColor={friendRequestsEnabled ? COLORS.white : COLORS.gray.medium}
-                />
-              </View>
+              <Text style={styles.subsectionTitle}>About Notifications</Text>
+              <Text style={styles.infoText}>
+                You'll receive notifications for game invites, your turn, game start, and friend requests.
+                {'\n\n'}
+                Granular notification preferences (choose which types to receive) will be available in a future update.
+              </Text>
             </>
           )}
         </View>
@@ -314,5 +258,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginTop: SPACING.xs,
+  },
+  infoText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray.light,
+    lineHeight: FONT_SIZES.sm * 1.5,
+    marginTop: SPACING.sm,
   },
 });

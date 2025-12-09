@@ -62,6 +62,16 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Validate required fields for game-related notifications
+    if (data?.type && ['game_invite', 'your_turn', 'game_started'].includes(data.type)) {
+      if (!data.roomCode) {
+        return new Response(
+          JSON.stringify({ error: 'roomCode is required for game notification types' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     // Validate notification data structure
     if (data?.type === 'game_invite' || data?.type === 'your_turn' || data?.type === 'game_started') {
       if (!data.roomCode) {
