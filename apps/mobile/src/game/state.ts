@@ -619,7 +619,7 @@ export class GameStateManager {
 
   /**
    * Save game statistics to Supabase database
-   * Updates player_stats for the human player (not bots)
+   * Calls server-side edge function to validate and update stats with service_role credentials
    */
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
@@ -637,95 +637,96 @@ export class GameStateManager {
         return;
       }
 
-      // Find human player in the game
-      const humanPlayer = this.state.players.find(p => !p.isBot);
-      if (!humanPlayer) {
-        console.log('⚠️ [Stats] No human player found');
-        return;
-      }
+      // Prepare game completion data for all players (including bots for now)
+      // TODO: In multiplayer mode, collect real player data from game state
+      const playersData = this.state.players.map(player => {
+        const playerScore = this.state!.matchScores.find(s => s.playerId === player.id);
+        const sortedScores = [...this.state!.matchScores].sort((a, b) => a.score - b.score);
+        const finishPosition = sortedScores.findIndex(s => s.playerId === player.id) + 1;
 
-      const humanScore = this.state.matchScores.find(s => s.playerId === humanPlayer.id);
-      if (!humanScore) {
-        console.log('⚠️ [Stats] No score found for human player');
-        return;
-      }
+        // Count combo types for this player
+        const playerPlays = this.state!.roundHistory.filter(
+          entry => entry.playerId === player.id && !entry.passed
+        );
+        
+        const comboCounts = {
+          singles: 0,
+          pairs: 0,
+          triples: 0,
+          straights: 0,
+          full_houses: 0,
+          four_of_a_kinds: 0,
+          straight_flushes: 0,
+          royal_flushes: 0,
+        };
 
-      // Determine if player won (lowest score wins in Big Two)
-      const won = this.state.finalWinnerId === humanPlayer.id;
-      
-      // Calculate finish position (1st = winner with lowest score, 4th = loser with highest score)
-      // This is intentional Big Two game logic where lower scores are better
-      const sortedScores = [...this.state.matchScores].sort((a, b) => a.score - b.score);
-      const finishPosition = sortedScores.findIndex(s => s.playerId === humanPlayer.id) + 1;
+        // Explicit mapping from combo display names to database field names
+        const comboMapping: Record<string, keyof typeof comboCounts> = {
+          'single': 'singles',
+          'pair': 'pairs',
+          'triple': 'triples',
+          'straight': 'straights',
+          'full house': 'full_houses',
+          'four of a kind': 'four_of_a_kinds',
+          'straight flush': 'straight_flushes',
+          'royal flush': 'royal_flushes',
+        };
 
-      // Count combo types from round history
-      const humanPlays = this.state.roundHistory.filter(
-        entry => entry.playerId === humanPlayer.id && !entry.passed
-      );
-      
-      const comboCounts = {
-        singles: 0,
-        pairs: 0,
-        triples: 0,
-        straights: 0,
-        full_houses: 0,
-        four_of_a_kinds: 0,
-        straight_flushes: 0,
-        royal_flushes: 0,
+        playerPlays.forEach(play => {
+          const comboName = play.combo.trim().toLowerCase();
+          const dbField = comboMapping[comboName];
+          if (dbField) {
+            comboCounts[dbField]++;
+          }
+        });
+
+        return {
+          user_id: player.isBot ? `bot_${player.id}` : user.id, // TODO: Real user IDs in multiplayer
+          username: player.name,
+          score: playerScore?.score || 0,
+          finish_position: finishPosition,
+          combos_played: comboCounts,
+        };
+      });
+
+      const gameCompletionData = {
+        room_id: 'local_game', // TODO: Real room ID in multiplayer
+        room_code: 'LOCAL', // TODO: Real room code in multiplayer
+        players: playersData,
+        winner_id: this.state.finalWinnerId || '',
+        game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
+        started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
+        finished_at: new Date().toISOString(),
       };
 
-      // Explicit mapping from combo display names to database field names
-      // Using case-insensitive matching to handle variations in combo name formats
-      const comboMapping: Record<string, keyof typeof comboCounts> = {
-        'single': 'singles',
-        'pair': 'pairs',
-        'triple': 'triples',
-        'straight': 'straights',
-        'full house': 'full_houses',
-        'four of a kind': 'four_of_a_kinds',
-        'straight flush': 'straight_flushes',
-        'royal flush': 'royal_flushes',
-      };
+      console.log(`📊 [Stats] Calling complete-game edge function`);
 
-      humanPlays.forEach(play => {
-        // Normalize combo name: trim whitespace and convert to lowercase for matching
-        const comboName = play.combo.trim().toLowerCase();
-        const dbField = comboMapping[comboName];
-        if (dbField) {
-          comboCounts[dbField]++;
-        } else {
-          // Log unmatched combos for debugging
-          console.warn(`[Stats] Unmatched combo name: "${play.combo}" (normalized: "${comboName}")`);
+      // Call server-side edge function to process game completion
+      // This uses service_role credentials on the server to update stats securely
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/complete-game`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gameCompletionData),
         }
-      });
+      );
 
-      console.log(`📊 [Stats] Saving: won=${won}, position=${finishPosition}, score=${humanScore.score}`);
-
-      // Call Supabase RPC function to update stats
-      const { error: statsError } = await supabase.rpc('update_player_stats_after_game', {
-        p_user_id: user.id,
-        p_won: won,
-        p_finish_position: finishPosition,
-        p_score: humanScore.score,
-        p_combos_played: comboCounts,
-      });
-
-      if (statsError) {
-        console.error('❌ [Stats] Error updating player stats:', statsError);
-        // Don't refresh leaderboard if stats update failed
-        throw new Error(`Stats update failed: ${statsError.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server returned ${response.status}`);
       }
 
-      console.log('✅ [Stats] Player stats updated successfully');
-      
-      // Only refresh leaderboard if stats update succeeded
-      const { error: leaderboardError } = await supabase.rpc('refresh_leaderboard');
-      if (leaderboardError) {
-        console.error('⚠️ [Stats] Leaderboard refresh failed (non-critical):', leaderboardError);
-        // Don't throw - leaderboard refresh failure is non-critical
-      } else {
-        console.log('✅ [Stats] Leaderboard refreshed');
-      }
+      const result = await response.json();
+      console.log('✅ [Stats] Game completed successfully:', result);
     } catch (error) {
       console.error('❌ [Stats] Exception saving stats:', error);
     }
