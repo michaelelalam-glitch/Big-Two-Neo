@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`📤 Sending notifications to ${tokens.length} device(s)`)
+    console.log(`📤 Sending notifications to ${tokens.length} device${tokens.length === 1 ? '' : 's'}`)
 
     // Prepare messages for Expo Push API
     const messages: PushMessage[] = tokens.map((token) => {
