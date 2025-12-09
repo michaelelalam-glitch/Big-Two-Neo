@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,69 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
+import { COLORS } from '../constants';
+
+interface PlayerStats {
+  games_played: number;
+  games_won: number;
+  games_lost: number;
+  win_rate: number;
+  total_points: number;
+  current_win_streak: number;
+  longest_win_streak: number;
+  rank_points: number;
+  global_rank: number | null;
+}
 
 const ProfileScreen = () => {
   const { user, profile, isLoading, signOut } = useAuth();
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = useCallback(async (loadingType: 'initial' | 'refresh' = 'initial') => {
+    if (!user?.id) return;
+
+    if (loadingType === 'initial') {
+      setStatsLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+        console.error('[Profile] Stats fetch error:', error);
+      } else {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('[Profile] Error fetching stats:', error);
+    } finally {
+      if (loadingType === 'initial') {
+        setStatsLoading(false);
+      } else {
+        setRefreshing(false);
+      }
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchStats('initial');
+  }, [fetchStats]);
+
+  const onRefresh = useCallback(async () => {
+    await fetchStats('refresh');
+  }, [fetchStats]);
 
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -39,7 +97,7 @@ const ProfileScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
+          <ActivityIndicator size="large" color={COLORS.secondary} />
         </View>
       </SafeAreaView>
     );
@@ -47,10 +105,76 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />
+        }
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Profile</Text>
+          </View>
+
+          {/* Statistics Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Statistics</Text>
+            
+            {statsLoading ? (
+              <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 20 }} />
+            ) : stats ? (
+              <>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.games_played}</Text>
+                    <Text style={styles.statLabel}>Games Played</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.games_won}</Text>
+                    <Text style={styles.statLabel}>Wins</Text>
+                  </View>
+                </View>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.win_rate.toFixed(1)}%</Text>
+                    <Text style={styles.statLabel}>Win Rate</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.rank_points}</Text>
+                    <Text style={styles.statLabel}>Rank Points</Text>
+                  </View>
+                </View>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.current_win_streak}</Text>
+                    <Text style={styles.statLabel}>Current Streak</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.longest_win_streak}</Text>
+                    <Text style={styles.statLabel}>Best Streak</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Total Points</Text>
+                  <Text style={styles.value}>{stats.total_points.toLocaleString()}</Text>
+                </View>
+
+                {stats.global_rank && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Global Rank</Text>
+                    <Text style={styles.value}>#{stats.global_rank}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.noStatsContainer}>
+                <Text style={styles.noStatsText}>No game statistics yet</Text>
+                <Text style={styles.noStatsSubtext}>Play your first game to see your stats!</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -135,7 +259,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: COLORS.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -154,10 +278,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   section: {
-    backgroundColor: '#1c1f24',
+    backgroundColor: COLORS.background.dark,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -165,7 +289,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.white,
     marginBottom: 16,
   },
   infoRow: {
@@ -174,23 +298,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2d33',
+    borderBottomColor: COLORS.gray.darker,
   },
   label: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.gray.text,
     flex: 1,
   },
   value: {
     fontSize: 14,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',
   },
   valueSmall: {
     fontSize: 12,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',
@@ -203,9 +327,46 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   signOutButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: COLORS.gray.darker,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.secondary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.gray.text,
+    textAlign: 'center',
+  },
+  noStatsContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  noStatsText: {
+    fontSize: 16,
+    color: COLORS.gray.text,
+    marginBottom: 8,
+  },
+  noStatsSubtext: {
+    fontSize: 14,
+    color: COLORS.gray.textDark,
   },
 });
 
