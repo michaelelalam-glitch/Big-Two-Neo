@@ -72,16 +72,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate notification data structure
-    if (data?.type === 'game_invite' || data?.type === 'your_turn' || data?.type === 'game_started') {
-      if (!data.roomCode) {
-        return new Response(
-          JSON.stringify({ error: 'roomCode is required for this notification type' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-    }
-
     // Get push tokens for the specified users
     const { data: tokens, error: tokensError } = await supabaseAdmin
       .from('push_tokens')
