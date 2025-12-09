@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationProvider } from '../contexts/NotificationContext';
 import HomeScreen from '../screens/HomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -12,6 +13,7 @@ import LobbyScreen from '../screens/LobbyScreen';
 import GameScreen from '../screens/GameScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import StatsScreen from '../screens/StatsScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -23,6 +25,7 @@ export type RootStackParamList = {
   Game: { roomCode: string };
   Leaderboard: undefined;
   Stats: { userId?: string };
+  NotificationSettings: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -44,28 +47,31 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        {!isLoggedIn ? (
-          // Auth Stack
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-        ) : (
-          // App Stack
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
-            <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
-            <Stack.Screen name="Lobby" component={LobbyScreen} />
-            <Stack.Screen name="Game" component={GameScreen} />
-            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-            <Stack.Screen name="Stats" component={StatsScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+      <NotificationProvider>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          {!isLoggedIn ? (
+            // Auth Stack
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+          ) : (
+            // App Stack
+            <>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+              <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
+              <Stack.Screen name="Lobby" component={LobbyScreen} />
+              <Stack.Screen name="Game" component={GameScreen} />
+              <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+              <Stack.Screen name="Stats" component={StatsScreen} />
+              <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NotificationProvider>
     </NavigationContainer>
   );
 }
