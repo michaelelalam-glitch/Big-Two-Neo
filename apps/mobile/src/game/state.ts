@@ -4,9 +4,11 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { sortHand, classifyCards, canBeatPlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
+import { supabase } from '../services/supabase';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -588,6 +590,32 @@ export class GameStateManager {
       
       const finalWinner = this.state.matchScores.find(s => s.playerId === this.state!.finalWinnerId);
       console.log(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
+      
+      // Save game stats to database (async, don't await to avoid blocking UI)
+      console.log('🔄 [Stats] Starting saveGameStatsToDatabase...');
+      let alertShown = false; // Track if alert was shown to prevent duplicate alerts
+      this.saveGameStatsToDatabase().catch(err => {
+        console.error('❌ [Stats] Failed to save game stats:', err);
+        console.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
+        
+        // Notify user that stats weren't saved (dismissible, non-blocking)
+        // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
+        if (!alertShown) {
+          alertShown = true;
+          setTimeout(() => {
+            // Check if game is still active (user hasn't navigated away)
+            // If game state still exists, show the alert
+            if (this.state && this.state.gameOver) {
+              Alert.alert(
+                'Stats Not Saved',
+                'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
+                [{ text: 'OK', style: 'cancel' }],
+                { cancelable: true }
+              );
+            }
+          }, 1000); // Delay to avoid interrupting game over UI
+        }
+      });
     } else {
       // Continue to next match
       this.state.gameEnded = true; // Mark match as ended
@@ -595,6 +623,128 @@ export class GameStateManager {
       this.state.lastMatchWinnerId = matchWinnerId;
       
       console.log(`➡️ [Next Match] Match ${this.state.currentMatch + 1} will start with ${matchWinnerId} leading`);
+    }
+  }
+
+  /**
+   * Save game statistics to Supabase database
+   * Calls server-side edge function to validate and update stats with service_role credentials
+   */
+  private async saveGameStatsToDatabase(): Promise<void> {
+    if (!this.state) return;
+
+    console.log('📊 [Stats] saveGameStatsToDatabase called');
+
+    try {
+      // Get current user
+      console.log('📊 [Stats] Getting current user...');
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('📊 [Stats] User:', user?.id ? `Found (${user.id})` : 'Not found');
+      
+      if (!user) {
+        console.log('⚠️ [Stats] No authenticated user, skipping stats save');
+        return;
+      }
+
+      // Prepare game completion data for all players (including bots for now)
+      // TODO: In multiplayer mode, collect real player data from game state
+      const playersData = this.state.players.map(player => {
+        const playerScore = this.state!.matchScores.find(s => s.playerId === player.id);
+        const sortedScores = [...this.state!.matchScores].sort((a, b) => a.score - b.score);
+        const finishPosition = sortedScores.findIndex(s => s.playerId === player.id) + 1;
+
+        // Count combo types for this player
+        const playerPlays = this.state!.roundHistory.filter(
+          entry => entry.playerId === player.id && !entry.passed
+        );
+        
+        const comboCounts = {
+          singles: 0,
+          pairs: 0,
+          triples: 0,
+          straights: 0,
+          full_houses: 0,
+          four_of_a_kinds: 0,
+          straight_flushes: 0,
+          royal_flushes: 0,
+        };
+
+        // Explicit mapping from combo display names to database field names
+        const comboMapping: Record<string, keyof typeof comboCounts> = {
+          'single': 'singles',
+          'pair': 'pairs',
+          'triple': 'triples',
+          'straight': 'straights',
+          'full house': 'full_houses',
+          'four of a kind': 'four_of_a_kinds',
+          'straight flush': 'straight_flushes',
+          'royal flush': 'royal_flushes',
+        };
+
+        playerPlays.forEach(play => {
+          const comboName = play.combo.trim().toLowerCase();
+          const dbField = comboMapping[comboName];
+          if (dbField) {
+            comboCounts[dbField]++;
+          } else {
+            // Warn about unexpected combo names for easier debugging if game engine changes
+            console.warn(`[Stats] Unexpected combo name encountered: "${play.combo}" - This combo will not be counted in stats.`);
+          }
+        });
+
+        return {
+          user_id: player.isBot ? `bot_${player.id}` : user.id, // TODO: Real user IDs in multiplayer
+          username: player.name,
+          score: playerScore?.score || 0,
+          finish_position: finishPosition,
+          combos_played: comboCounts,
+        };
+      });
+
+      // Find the winner's user_id (not the internal player ID)
+      const winnerPlayer = this.state.players.find(p => p.id === this.state.finalWinnerId);
+      const winnerUserId = winnerPlayer?.isBot ? `bot_${winnerPlayer.id}` : user.id;
+
+      const gameCompletionData = {
+        room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
+        room_code: 'LOCAL', // TODO: Real room code in multiplayer
+        players: playersData,
+        winner_id: winnerUserId,
+        game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
+        started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
+        finished_at: new Date().toISOString(),
+      };
+
+      console.log(`📊 [Stats] Calling complete-game edge function`);
+
+      // Call server-side edge function to process game completion
+      // This uses service_role credentials on the server to update stats securely
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/complete-game`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gameCompletionData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server returned ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ [Stats] Game completed successfully:', result);
+    } catch (error) {
+      console.error('❌ [Stats] Exception saving stats:', error);
     }
   }
 
