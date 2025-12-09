@@ -121,15 +121,19 @@ Deno.serve(async (req: Request) => {
     // STEP 2: RECORD GAME HISTORY (for audit trail)
     // ============================================================================
 
+    // Filter out bot players - only record real user IDs in game_history
+    // Bot user_ids like "bot_player-1" don't exist in auth.users and would violate FK constraints
+    const realPlayers = gameData.players.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
+
     const { error: historyError } = await supabaseAdmin
       .from('game_history')
       .insert({
         room_id: gameData.room_id,
         room_code: gameData.room_code,
-        player_1_id: gameData.players[0].user_id,
-        player_2_id: gameData.players[1].user_id,
-        player_3_id: gameData.players[2].user_id,
-        player_4_id: gameData.players[3].user_id,
+        player_1_id: realPlayers[0],
+        player_2_id: realPlayers[1],
+        player_3_id: realPlayers[2],
+        player_4_id: realPlayers[3],
         player_1_username: gameData.players[0].username,
         player_2_username: gameData.players[1].username,
         player_3_username: gameData.players[2].username,
@@ -138,7 +142,7 @@ Deno.serve(async (req: Request) => {
         player_2_score: gameData.players[1].score,
         player_3_score: gameData.players[2].score,
         player_4_score: gameData.players[3].score,
-        winner_id: gameData.winner_id,
+        winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,
         game_duration_seconds: gameData.game_duration_seconds,
         started_at: gameData.started_at,
         finished_at: gameData.finished_at,
@@ -155,10 +159,13 @@ Deno.serve(async (req: Request) => {
     console.log('[Complete Game] Game history recorded successfully');
 
     // ============================================================================
-    // STEP 3: UPDATE PLAYER STATS (for each player)
+    // STEP 3: UPDATE PLAYER STATS (for each REAL player only, skip bots)
     // ============================================================================
 
-    const statsUpdatePromises = gameData.players.map(async (player) => {
+    // Only update stats for real players (not bots)
+    const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));
+
+    const statsUpdatePromises = realPlayerData.map(async (player) => {
       const won = player.user_id === gameData.winner_id;
 
       console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}`);
