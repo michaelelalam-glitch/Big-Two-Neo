@@ -127,6 +127,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         console.log('App opened from notification:', response);
         handleNotificationResponse(response);
       }
+    }).catch((error) => {
+      console.error('Error getting last notification response:', error);
     });
 
     // Cleanup
