@@ -214,6 +214,7 @@ export class GameStateManager {
       lastMatchWinnerId: null,
       gameOver: false,
       finalWinnerId: null,
+      startedAt: Date.now(),
     };
 
     await this.saveState();
@@ -707,10 +708,10 @@ export class GameStateManager {
       if (!this.state.finalWinnerId) {
         throw new Error('No final winner ID found in state');
       }
-      const finalWinnerId = this.state.finalWinnerId; // Store in variable to satisfy TypeScript
+      const finalWinnerId = this.state.finalWinnerId; // Local variable to maintain non-null type after check
       const winnerPlayer = this.state.players.find(p => p.id === finalWinnerId);
       if (!winnerPlayer) {
-        throw new Error('Winner player not found in state');
+        throw new Error(`Winner player not found in state for finalWinnerId: ${finalWinnerId}`);
       }
       const winnerUserId = winnerPlayer.isBot ? `bot_${winnerPlayer.id}` : user.id;
 
