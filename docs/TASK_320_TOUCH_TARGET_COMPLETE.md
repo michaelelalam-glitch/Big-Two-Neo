@@ -22,22 +22,23 @@ Current card touch area is only **~20px wide** due to card overlap (-40px margin
 
 ### 1. Added Touch Target Padding Constant
 ```tsx
-// Touch target improvements (iOS HIG: 44×44pt minimum)
-const TOUCH_TARGET_PADDING = 12; // Invisible padding to expand hit area
+// Touch target improvements (30px touch target - balanced for fitting 13 cards)
+const TOUCH_TARGET_PADDING = 5; // Invisible padding to expand hit area
 ```
 
 **Calculation:**
 - Visible card overlap area: ~20px
-- Added padding: 12px × 2 (left/right) = 24px
-- **Total touch target: 20px + 24px = 44px** ✅
+- Added padding: 5px × 2 (left/right) = 10px
+- **Total touch target: 20px + 10px = 30px** ✅ (50% improvement over original 20px)
 
 ### 2. Created Touch Target Expansion Style
 ```tsx
 touchTargetExpansion: {
   // Add invisible padding to expand touch target area
-  // Left/right padding ensures minimum 44×44pt hit area (iOS HIG)
-  paddingHorizontal: TOUCH_TARGET_PADDING, // 12px each side = 24px total
+  // 30px touch target balances improved UX with fitting all 13 cards
+  paddingHorizontal: TOUCH_TARGET_PADDING, // 5px each side = 10px total
   paddingVertical: TOUCH_TARGET_PADDING, // Vertical padding for better tap accuracy
+  marginVertical: -TOUCH_TARGET_PADDING, // Prevents viewport overflow
 }
 ```
 
@@ -64,9 +65,9 @@ touchTargetExpansion: {
 - Accessibility: Below iOS HIG standards
 
 ### After
-- Touch area: **~44px wide** (meets iOS HIG minimum)
-- User experience: Much easier to tap cards accurately
-- Accessibility: ✅ Compliant with iOS Human Interface Guidelines
+- Touch area: **~30px wide** (50% improvement, fits all 13 cards)
+- User experience: Significantly easier to tap cards accurately
+- Trade-off: Prioritized fitting all cards over strict iOS HIG compliance (44×44pt)
 
 ---
 
@@ -115,11 +116,12 @@ The project has 17 pre-existing TypeScript errors in other files:
 ### Padding Strategy
 The touch target padding is **invisible** - it doesn't change the visual appearance of the cards, only expands the hit area for gesture detection.
 
-### Why 12px?
+### Why 5px (30px total)?
 - Visible overlap area: 20px (60px card width - 40px overlap)
-- iOS HIG minimum: 44px
-- Required additional padding: 44px - 20px = 24px
-- Split evenly: 24px ÷ 2 = **12px per side**
+- iOS HIG ideal: 44px (would require 12px padding)
+- **Constraint:** User feedback showed all 13 cards must be visible
+- **Trade-off:** Reduced to 5px padding (30px touch target) to fit all cards
+- **Result:** 50% improvement over original 20px while maintaining visibility
 
 ### Maintains Existing Behavior
 - ✅ Card overlap visual (-40px margin) unchanged
@@ -134,11 +136,11 @@ The touch target padding is **invisible** - it doesn't change the visual appeara
 
 | Guideline | Before | After | Status |
 |-----------|--------|-------|--------|
-| iOS HIG Min Touch Target (44×44pt) | ❌ 20px | ✅ 44px | **PASS** |
-| Android Material (48dp) | ❌ 20px | ⚠️ 44px | **CLOSE** |
-| WCAG 2.1 Target Size (44×44px) | ❌ 20px | ✅ 44px | **PASS** |
+| iOS HIG Min Touch Target (44×44pt) | ❌ 20px | ⚠️ 30px | **IMPROVED** |
+| Android Material (48dp) | ❌ 20px | ⚠️ 30px | **IMPROVED** |
+| WCAG 2.1 Target Size (44×44px) | ❌ 20px | ⚠️ 30px | **IMPROVED** |
 
-**Note:** Android Material Design recommends 48dp, we're at 44px (very close). Can adjust to 16px padding if needed.
+**Trade-off Decision:** Prioritized displaying all 13 cards (user requirement) over strict accessibility compliance. 30px provides 50% improvement while maintaining full hand visibility. Future enhancement: Make padding configurable in accessibility settings.
 
 ---
 
@@ -175,12 +177,15 @@ The touch target padding is **invisible** - it doesn't change the visual appeara
 
 ## ✅ Success Criteria Met
 
-- [x] Touch target meets iOS HIG minimum (44×44pt)
+- [x] Touch target improved by 50% (20px → 30px)
+- [x] All 13 cards fit and remain visible (primary constraint)
 - [x] No visual changes to card appearance
 - [x] No TypeScript errors introduced
 - [x] Gesture handlers still functional
 - [x] Code changes documented
+- [x] Added 60px horizontal offset for better hand alignment
 - [ ] Tested on physical devices (pending)
+- [ ] iOS HIG 44×44pt compliance (future: configurable padding)
 
 ---
 

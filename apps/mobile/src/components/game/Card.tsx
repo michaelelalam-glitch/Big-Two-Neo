@@ -41,7 +41,7 @@ const SELECTED_OFFSET = -20; // Offset for selected card elevation
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
 const CARD_OVERLAP_MARGIN = -40; // Negative margin for card overlap effect (13 cards fit in ~300px)
 
-// Touch target improvements (30px for better mobile UX while fitting all 13 cards)
+// Touch target improvements (30px touch target - balanced for fitting 13 cards while improving UX)
 const TOUCH_TARGET_PADDING = 5; // Invisible padding to expand hit area (5px left/right = 10px total + 20px visible = 30px touch target)
 
 // Suit colors and symbols
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
   },
   touchTargetExpansion: {
     // Add invisible padding to expand touch target area
-    // Left/right padding ensures minimum 44×44pt hit area (iOS HIG)
-    paddingHorizontal: TOUCH_TARGET_PADDING, // 12px each side = 24px total
+    // 30px touch target balances improved UX with fitting all 13 cards on screen
+    paddingHorizontal: TOUCH_TARGET_PADDING, // 5px each side = 10px total
     paddingVertical: TOUCH_TARGET_PADDING, // Vertical padding for better tap accuracy
     // Compensate for vertical padding so cards don't overflow viewport
     marginVertical: -TOUCH_TARGET_PADDING, // Negative margin offsets padding
