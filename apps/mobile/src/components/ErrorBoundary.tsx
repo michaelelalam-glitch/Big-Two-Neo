@@ -130,7 +130,8 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.white + 'CC', // 80% opacity
+    color: COLORS.white,
+    opacity: 0.8, // 80% opacity
     marginBottom: SPACING.xl,
     textAlign: 'center',
     lineHeight: 22,
