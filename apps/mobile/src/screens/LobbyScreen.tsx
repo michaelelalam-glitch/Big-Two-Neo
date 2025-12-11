@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -53,7 +54,7 @@ export default function LobbyScreen() {
       .single();
     
     if (error || !data) {
-      console.log('[LobbyScreen] Room not found, navigating to Home (likely cleaned up)');
+      roomLogger.info('[LobbyScreen] Room not found, navigating to Home (likely cleaned up)');
       // Silently navigate home instead of showing error
       // This happens when user leaves game and cleanup removes them from room
       if (!isLeavingRef.current) {
@@ -76,7 +77,7 @@ export default function LobbyScreen() {
         setRoomId(currentRoomId);
       }
       
-      console.log('[LobbyScreen] Loading players for room:', currentRoomId, 'user:', user?.id);
+      roomLogger.info('[LobbyScreen] Loading players for room:', currentRoomId, 'user:', user?.id);
       
       // Use the username column to avoid N+1 query problem
       const { data, error } = await supabase
@@ -94,11 +95,11 @@ export default function LobbyScreen() {
         .order('player_index');
 
       if (error) {
-        console.error('[LobbyScreen] Query error:', error);
+        roomLogger.error('[LobbyScreen] Query error:', error);
         throw error;
       }
       
-      console.log('[LobbyScreen] Raw query data:', JSON.stringify(data, null, 2));
+      roomLogger.info('[LobbyScreen] Raw query data:', JSON.stringify(data, null, 2));
       
       // Transform data to match Player interface (with profiles object for backward compatibility)
       const players = (data || []).map(player => ({
@@ -112,7 +113,7 @@ export default function LobbyScreen() {
       const currentUserPlayer = players.find(p => p.user_id === user?.id);
       if (currentUserPlayer) {
         const hostStatus = currentUserPlayer.is_host === true;
-        console.log('[LobbyScreen] ✅ Current user found:', {
+        roomLogger.info('[LobbyScreen] ✅ Current user found:', {
           user_id: user?.id,
           is_host: currentUserPlayer.is_host,
           hostStatus,
@@ -121,18 +122,18 @@ export default function LobbyScreen() {
         });
         setIsHost(hostStatus);
       } else {
-        console.log('[LobbyScreen] ❌ Current user NOT found in players list!', {
+        roomLogger.info('[LobbyScreen] ❌ Current user NOT found in players list!', {
           user_id: user?.id,
           all_user_ids: players.map(p => p.user_id),
         });
         setIsHost(false);
       }
     } catch (error: any) {
-      console.error('[LobbyScreen] Error loading players:', error);
+      roomLogger.error('[LobbyScreen] Error loading players:', error?.message || error?.code || String(error));
       // Don't show alert if room was cleaned up (user left)
       // Just navigate home silently
       if (error?.message?.includes('not found') || error?.code === 'PGRST116') {
-        console.log('[LobbyScreen] Room no longer exists, navigating home');
+        roomLogger.info('[LobbyScreen] Room no longer exists, navigating home');
         if (!isLeavingRef.current) {
           isLeavingRef.current = true;
           navigation.replace('Home');
@@ -183,7 +184,7 @@ export default function LobbyScreen() {
       if (error) throw error;
       setIsReady(!isReady);
     } catch (error: any) {
-      console.error('Error toggling ready:', error);
+      roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
       Alert.alert('Error', 'Failed to update ready status');
     } finally {
       setIsTogglingReady(false);
@@ -192,7 +193,7 @@ export default function LobbyScreen() {
 
   const handleStartWithBots = async () => {
     if (isStarting || isStartingRef.current) {
-      console.log('⏭️ [LobbyScreen] Start already in progress, ignoring...');
+      roomLogger.info('⏭️ [LobbyScreen] Start already in progress, ignoring...');
       return;
     }
     
@@ -211,7 +212,7 @@ export default function LobbyScreen() {
         .single();
 
       if (roomPlayerError || !roomPlayerData) {
-        console.error('Room player lookup error:', roomPlayerError);
+        roomLogger.error('Room player lookup error:', roomPlayerError?.message || roomPlayerError?.code || 'Unknown error');
         Alert.alert('Error', 'Could not find your player data');
         return;
       }
@@ -234,7 +235,7 @@ export default function LobbyScreen() {
 
       // If no player entry exists, create one
       if (!playerIdToUse) {
-        console.log('Creating player entry for host...');
+        roomLogger.info('Creating player entry for host...');
         const { data: newPlayer, error: createPlayerError } = await supabase
           .from('players')
           .insert({
@@ -252,7 +253,7 @@ export default function LobbyScreen() {
           .single();
 
         if (createPlayerError || !newPlayer) {
-          console.error('Error creating player:', createPlayerError);
+          roomLogger.error('Error creating player:', createPlayerError?.message || createPlayerError?.code || 'Unknown error');
           Alert.alert('Error', 'Failed to create player entry');
           return;
         }
@@ -265,10 +266,10 @@ export default function LobbyScreen() {
           .update({ host_player_id: playerIdToUse })
           .eq('id', currentRoomId);
 
-        console.log('Player entry created:', playerIdToUse);
+        roomLogger.info('Player entry created:', playerIdToUse);
       }
 
-      console.log('Starting game for room:', currentRoomId);
+      roomLogger.info('Starting game for room:', currentRoomId);
 
       // ARCHITECTURE: Single-player bot games use CLIENT-SIDE game initialization
       // 
@@ -299,7 +300,7 @@ export default function LobbyScreen() {
       navigation.replace('Game', { roomCode });
       setIsStarting(false);
     } catch (error: any) {
-      console.error('Error starting game:', error);
+      roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
       Alert.alert('Error', error.message || 'Failed to start game');
       // Reset immediately on error
       setIsStarting(false);
@@ -344,7 +345,7 @@ export default function LobbyScreen() {
       
       navigation.replace('Home');
     } catch (error: any) {
-      console.error('Error leaving room:', error);
+      roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
       isLeavingRef.current = false; // Reset flag on error
       Alert.alert('Error', 'Failed to leave room');
     }

@@ -10,6 +10,7 @@ import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type M
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
+import { gameLogger, statsLogger } from '../utils/logger';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -317,7 +318,7 @@ export class GameStateManager {
       return null;
     }
 
-    console.log(`🎲 [GameStateManager] Getting bot play for ${currentPlayer.name}...`);
+    gameLogger.debug(`🎲 [GameStateManager] Getting bot play for ${currentPlayer.name}...`);
 
     // Get bot play
     const botAI = createBotAI(currentPlayer.botDifficulty);
@@ -331,7 +332,7 @@ export class GameStateManager {
       difficulty: currentPlayer.botDifficulty,
     });
 
-    console.log(`🃏 [GameStateManager] Bot ${currentPlayer.name} decision:`, 
+    gameLogger.debug(`🃏 [GameStateManager] Bot ${currentPlayer.name} decision:`, 
       botPlay.cards ? `Play ${botPlay.cards.length} card(s)` : 'Pass',
       botPlay.reasoning ? `(${botPlay.reasoning})` : ''
     );
@@ -343,7 +344,7 @@ export class GameStateManager {
       await this.playCards(botPlay.cards);
     }
     
-    console.log(`✅ [GameStateManager] Bot ${currentPlayer.name} turn complete. Next player: ${this.state.players[this.state.currentPlayerIndex].name}`);
+    gameLogger.debug(`✅ [GameStateManager] Bot ${currentPlayer.name} turn complete. Next player: ${this.state.players[this.state.currentPlayerIndex].name}`);
     
     // Return updated state
     return this.state;
@@ -360,8 +361,8 @@ export class GameStateManager {
         this.notifyListeners();
         return this.state;
       }
-    } catch (error) {
-      console.error('Failed to load game state:', error);
+    } catch (error: any) {
+      gameLogger.error('Failed to load game state:', error?.message || String(error));
     }
     return null;
   }
@@ -376,7 +377,7 @@ export class GameStateManager {
       const stateJson = JSON.stringify(this.state);
       await AsyncStorage.setItem(GAME_STATE_KEY, stateJson);
     } catch (error) {
-      console.error('Failed to save game state:', error);
+      gameLogger.error('Failed to save game state:', error);
     }
   }
 
@@ -388,8 +389,8 @@ export class GameStateManager {
       await AsyncStorage.removeItem(GAME_STATE_KEY);
       this.state = null;
       this.notifyListeners();
-    } catch (error) {
-      console.error('Failed to clear game state:', error);
+    } catch (error: any) {
+      gameLogger.error('Failed to clear game state:', error?.message || String(error));
     }
   }
 
@@ -566,7 +567,7 @@ export class GameStateManager {
   private async handleMatchEnd(matchWinnerId: string): Promise<void> {
     if (!this.state) return;
 
-    console.log(`🏆 [Match End] Match ${this.state.currentMatch} won by ${matchWinnerId}`);
+    gameLogger.info(`🏆 [Match End] Match ${this.state.currentMatch} won by ${matchWinnerId}`);
 
     // Calculate scores for this match
     const matchScoreDetails = calculateMatchScores(this.state.players, matchWinnerId);
@@ -577,7 +578,7 @@ export class GameStateManager {
       if (playerScore) {
         playerScore.matchScores.push(detail.finalScore);
         playerScore.score += detail.finalScore;
-        console.log(`📊 [Scoring] ${playerScore.playerName}: +${detail.finalScore} (total: ${playerScore.score})`);
+        gameLogger.debug(`📊 [Scoring] ${playerScore.playerName}: +${detail.finalScore} (total: ${playerScore.score})`);
       }
     });
 
@@ -592,14 +593,14 @@ export class GameStateManager {
       this.state.winnerId = matchWinnerId; // Last match winner
       
       const finalWinner = this.state.matchScores.find(s => s.playerId === this.state!.finalWinnerId);
-      console.log(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
+      gameLogger.info(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
       
       // Save game stats to database (async, don't await to avoid blocking UI)
-      console.log('🔄 [Stats] Starting saveGameStatsToDatabase...');
+      statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
       let alertShown = false; // Track if alert was shown to prevent duplicate alerts
       this.saveGameStatsToDatabase().catch(err => {
-        console.error('❌ [Stats] Failed to save game stats:', err);
-        console.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
+        // Only log error message/code to avoid exposing database internals or sensitive data
+        statsLogger.error('❌ [Stats] Failed to save game stats:', err?.message || err?.code || String(err));
         
         // Notify user that stats weren't saved (dismissible, non-blocking)
         // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
@@ -625,7 +626,7 @@ export class GameStateManager {
       this.state.winnerId = matchWinnerId;
       this.state.lastMatchWinnerId = matchWinnerId;
       
-      console.log(`➡️ [Next Match] Match ${this.state.currentMatch + 1} will start with ${matchWinnerId} leading`);
+      gameLogger.info(`➡️ [Next Match] Match ${this.state.currentMatch + 1} will start with ${matchWinnerId} leading`);
     }
   }
 
@@ -636,16 +637,16 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
-    console.log('📊 [Stats] saveGameStatsToDatabase called');
+    statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
 
     try {
       // Get current user
-      console.log('📊 [Stats] Getting current user...');
+      statsLogger.debug('📊 [Stats] Getting current user...');
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('📊 [Stats] User:', user?.id ? `Found (${user.id})` : 'Not found');
+      statsLogger.debug('📊 [Stats] User:', user?.id ? `Found (${user.id.slice(0, 8)}...)` : 'Not found');
       
       if (!user) {
-        console.log('⚠️ [Stats] No authenticated user, skipping stats save');
+        statsLogger.warn('⚠️ [Stats] No authenticated user, skipping stats save');
         return;
       }
 
@@ -691,7 +692,7 @@ export class GameStateManager {
             comboCounts[dbField]++;
           } else {
             // Warn about unexpected combo names for easier debugging if game engine changes
-            console.warn(`[Stats] Unexpected combo name encountered: "${play.combo}" - This combo will not be counted in stats.`);
+            statsLogger.warn(`[Stats] Unexpected combo name encountered: "${play.combo}" - This combo will not be counted in stats.`);
           }
         });
 
@@ -725,7 +726,7 @@ export class GameStateManager {
         finished_at: new Date().toISOString(),
       };
 
-      console.log(`📊 [Stats] Calling complete-game edge function`);
+      statsLogger.info(`📊 [Stats] Calling complete-game edge function`);
 
       // Call server-side edge function to process game completion
       // This uses service_role credentials on the server to update stats securely
@@ -752,9 +753,9 @@ export class GameStateManager {
       }
 
       const result = await response.json();
-      console.log('✅ [Stats] Game completed successfully:', result);
+      statsLogger.info('✅ [Stats] Game completed successfully:', result);
     } catch (error) {
-      console.error('❌ [Stats] Exception saving stats:', error);
+      statsLogger.error('❌ [Stats] Exception saving stats:', error);
     }
   }
 
@@ -767,10 +768,10 @@ export class GameStateManager {
       return { success: false, error: 'Cannot start new match' };
     }
 
-    console.log(`🆕 [New Match] Starting match ${this.state.currentMatch + 1}`);
+    gameLogger.info(`🆕 [New Match] Starting match ${this.state.currentMatch + 1}`);
     
     // Log existing card counts before dealing
-    console.log(`🧹 [Pre-Deal] Card counts:`, this.state.players.map(p => `${p.name}: ${p.hand.length}`).join(', '));
+    gameLogger.debug(`🧹 [Pre-Deal] Card counts:`, this.state.players.map(p => `${p.name}: ${p.hand.length}`).join(', '));
 
     // Increment match number
     this.state.currentMatch++;
@@ -781,7 +782,7 @@ export class GameStateManager {
     this.dealCards(this.state.players, shuffledDeck);
     
     // Log card counts after dealing
-    console.log(`🎴 [Post-Deal] Card counts:`, this.state.players.map(p => `${p.name}: ${p.hand.length}`).join(', '));
+    gameLogger.debug(`🎴 [Post-Deal] Card counts:`, this.state.players.map(p => `${p.name}: ${p.hand.length}`).join(', '));
 
     // Find the previous match winner and make them start
     let startingPlayerIndex = 0;
@@ -808,7 +809,7 @@ export class GameStateManager {
     await this.saveState();
     this.notifyListeners();
 
-    console.log(`✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`);
+    gameLogger.info(`✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`);
 
     return { success: true };
   }
