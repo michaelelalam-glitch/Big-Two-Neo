@@ -1,7 +1,7 @@
 # Native Module Upgrade Guide
 
 **Last Updated:** December 11, 2025  
-**React Native Version:** 0.82.1  
+**React Native Version:** 0.81.5  
 **Expo SDK:** 54
 
 ---
@@ -31,9 +31,9 @@
 ## Why This Matters
 
 When you upgrade packages like:
-- `react-native` 0.81.5 → 0.82.1
-- `react-native-reanimated` 4.1.1 → 4.2.0  
-- `react-native-worklets` 0.5.1 → 0.7.1
+- `react-native-reanimated` 4.1.1 → 4.1.6
+- `react-native-worklets` (locked to 0.5.1 by Expo SDK 54)
+- `@supabase/supabase-js` 2.86.0 → 2.87.1
 
 **Expo Go CANNOT run your app** because it was compiled with the old versions.
 
@@ -119,12 +119,12 @@ npm run ios
 ### Current Versions (Dec 2025)
 ```json
 {
-  "react": "19.1.1",              // Matches RN 0.82.1 renderer
-  "react-native": "0.82.1",       // Latest stable
-  "react-native-reanimated": "4.2.0",  // New Architecture required
-  "react-native-worklets": "0.7.1",    // Breaking: runOnUIAsync signature
+  "react": "19.1.0",              // Matches RN 0.81.5 renderer
+  "react-native": "0.81.5",       // Locked by Expo SDK 54
+  "react-native-reanimated": "4.1.6",  // Latest compatible with Expo SDK 54
+  "react-native-worklets": "0.5.1",    // Locked by Expo SDK 54
   "@supabase/supabase-js": "2.87.1",   // Latest bug fixes
-  "react-native-gesture-handler": "2.29.1"  // Latest patch
+  "react-native-gesture-handler": "~2.28.0"  // Expo SDK 54 compatible
 }
 ```
 
