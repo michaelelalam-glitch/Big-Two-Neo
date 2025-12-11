@@ -33,6 +33,9 @@ export {
   isStraight,
 } from './engine/game-logic';
 
+// Export highest play detector (for auto-pass timer)
+export { isHighestPossiblePlay } from './engine/highest-play-detector';
+
 // Export bot AI
 export {
   BotAI,

@@ -56,6 +56,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '4D', rank: '4', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '5D', rank: '5', suit: 'D' },
           { id: '5C', rank: '5', suit: 'C' },
@@ -63,7 +64,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
           { id: '6S', rank: '6', suit: 'S' },
           { id: '6D', rank: '6', suit: 'D' },
         ],
-        combo: 'Full House',
+        combo_type: 'Full House',
       };
       expect(canBeatPlay(newCards, lastPlay)).toBe(false);
     });
@@ -79,6 +80,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '3D', rank: '3', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '4D', rank: '4', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
@@ -100,6 +102,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '4D', rank: '4', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '5D', rank: '5', suit: 'D' },
           { id: '5C', rank: '5', suit: 'C' },
@@ -123,6 +126,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '7D', rank: '7', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: 'AC', rank: 'A', suit: 'C' },
           { id: 'AH', rank: 'A', suit: 'H' },
@@ -145,11 +149,12 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '6S', rank: '6', suit: 'S' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '4D', rank: '4', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
         ],
-        combo: 'Pair',
+        combo_type: 'Pair',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       expect(result).not.toBeNull();
@@ -164,12 +169,13 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '6S', rank: '6', suit: 'S' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '4D', rank: '4', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
           { id: '4H', rank: '4', suit: 'H' },
         ],
-        combo: 'Triple',
+        combo_type: 'Triple',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       expect(result).not.toBeNull();
@@ -186,6 +192,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: 'QC', rank: 'Q', suit: 'C' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '3D', rank: '3', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
@@ -193,7 +200,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
           { id: '6S', rank: '6', suit: 'S' },
           { id: '7C', rank: '7', suit: 'C' },
         ],
-        combo: 'Straight',
+        combo_type: 'Straight',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       expect(result).not.toBeNull();
@@ -209,6 +216,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: 'KD', rank: 'K', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '3C', rank: '3', suit: 'C' },
           { id: '4H', rank: '4', suit: 'H' },
@@ -216,7 +224,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
           { id: '6D', rank: '6', suit: 'D' },
           { id: '7C', rank: '7', suit: 'C' },
         ],
-        combo: 'Straight',
+        combo_type: 'Straight',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       expect(result).not.toBeNull();
@@ -233,6 +241,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '7C', rank: '7', suit: 'C' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '3D', rank: '3', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
@@ -240,7 +249,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
           { id: '6H', rank: '6', suit: 'H' },
           { id: '7H', rank: '7', suit: 'H' },
         ],
-        combo: 'Straight',
+        combo_type: 'Straight',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       expect(result).not.toBeNull();
@@ -256,6 +265,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: '6D', rank: '6', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '7D', rank: '7', suit: 'D' },
           { id: '8D', rank: '8', suit: 'D' },
@@ -263,7 +273,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
           { id: '10D', rank: '10', suit: 'D' },
           { id: 'JD', rank: 'J', suit: 'D' },
         ],
-        combo: 'Straight Flush',
+        combo_type: 'Straight Flush',
       };
       const result = findRecommendedPlay(hand, lastPlay, false);
       // Four of a kind cannot beat straight flush
@@ -279,6 +289,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         { id: 'JD', rank: 'J', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: 'KD', rank: 'K', suit: 'D' },
           { id: 'KC', rank: 'K', suit: 'C' },

@@ -42,8 +42,26 @@ export interface GameState {
   pass_count: number; // consecutive passes
   game_phase: 'dealing' | 'playing' | 'finished';
   winner_position: number | null;
+  
+  // Auto-pass timer state (for highest play detection)
+  auto_pass_timer: AutoPassTimerState | null;
+  played_cards: Card[]; // All cards played this game (for highest play detection)
+  
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Auto-pass timer state
+ * Triggered when the highest possible card/combo is played
+ * Gives players 10 seconds to manually pass before auto-passing
+ */
+export interface AutoPassTimerState {
+  active: boolean;
+  started_at: string; // ISO timestamp when timer started
+  duration_ms: number; // Total duration in milliseconds (default: 10000)
+  remaining_ms: number; // Milliseconds remaining
+  triggering_play: LastPlay; // The play that triggered the timer
 }
 
 export interface LastPlay {
@@ -53,19 +71,21 @@ export interface LastPlay {
 }
 
 export interface Card {
-  suit: 'clubs' | 'diamonds' | 'hearts' | 'spades';
+  id: string; // Unique identifier, e.g., "3D", "AS" (rank + suit abbreviation, no dash)
+  suit: 'D' | 'C' | 'H' | 'S'; // D=Diamonds, C=Clubs, H=Hearts, S=Spades
   rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
 }
 
 export type ComboType = 
-  | 'single'
-  | 'pair'
-  | 'triple'
-  | 'straight'
-  | 'flush'
-  | 'full_house'
-  | 'four_of_a_kind'
-  | 'straight_flush';
+  | 'Single'
+  | 'Pair'
+  | 'Triple'
+  | 'Straight'
+  | 'Flush'
+  | 'Full House'
+  | 'Four of a Kind'
+  | 'Straight Flush'
+  | 'unknown';
 
 export interface PlayerHand {
   player_id: string;

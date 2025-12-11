@@ -121,8 +121,9 @@ describe('Bot AI - Following (beating last play)', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '4D', rank: '4', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
 
     const options: BotPlayOptions = {
@@ -148,8 +149,9 @@ describe('Bot AI - Following (beating last play)', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: 'AS', rank: 'A', suit: 'S' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
 
     const options: BotPlayOptions = {
@@ -174,11 +176,12 @@ describe('Bot AI - Following (beating last play)', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '4D', rank: '4', suit: 'D' },
         { id: '4C', rank: '4', suit: 'C' },
       ],
-      combo: 'Pair',
+      combo_type: 'Pair',
     };
 
     const options: BotPlayOptions = {
@@ -207,8 +210,9 @@ describe('Bot AI - Difficulty Levels', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '4D', rank: '4', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
 
     const options: BotPlayOptions = {
@@ -245,8 +249,9 @@ describe('Bot AI - Difficulty Levels', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '4D', rank: '4', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
 
     const options: BotPlayOptions = {
@@ -271,8 +276,9 @@ describe('Bot AI - Difficulty Levels', () => {
     ];
 
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '3D', rank: '3', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
 
     const options: BotPlayOptions = {

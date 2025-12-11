@@ -146,7 +146,7 @@ describe('Game State Manager - Play Cards', () => {
 
     expect(newState.lastPlay).not.toBeNull();
     expect(newState.lastPlay!.cards).toHaveLength(1);
-    expect(newState.lastPlay!.combo).toBe('Single');
+    expect(newState.lastPlay!.combo_type).toBe('Single');
   });
 
   test('sets isFirstPlayOfGame to false after first play', async () => {
