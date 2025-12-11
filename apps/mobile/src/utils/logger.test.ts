@@ -6,16 +6,16 @@
 import log, { gameLogger, authLogger, statsLogger, notificationLogger, uiLogger, networkLogger, roomLogger } from './logger';
 
 export function testLogger() {
-  console.log('=== Logger Test Started ===\n');
+  log.info('=== Logger Test Started ===');
 
   // Test base logger
-  console.log('Testing base logger:');
+  log.info('Testing base logger:');
   log.debug('Debug message');
   log.info('Info message');
   log.warn('Warning message');
   log.error('Error message');
 
-  console.log('\nTesting namespaced loggers:');
+  log.info('Testing namespaced loggers:');
 
   // Test all namespaced loggers
   gameLogger.debug('Game debug');
@@ -39,12 +39,9 @@ export function testLogger() {
   roomLogger.info('Room info');
   roomLogger.debug('Room debug');
 
-  console.log('\n=== Logger Test Complete ===');
-  console.log('✅ If you see colored/formatted logs above, logger is working!');
-  console.log('✅ In production, logs will be written to file instead of console');
+  log.info('=== Logger Test Complete ===');
+  log.info('✅ If you see colored/formatted logs above, logger is working!');
+  log.info('✅ In production, logs will be written to file instead of console');
 }
 
-// Auto-run test when imported in development
-if (__DEV__) {
-  testLogger();
-}
+// To run the logger test, manually invoke testLogger() from your test runner or script.

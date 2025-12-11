@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 ? (rm.rooms.length > 0 ? rm.rooms[0] : null)
                 : rm.rooms
         }))
-        .filter((rm): rm is RoomPlayerWithRoom => rm.rooms !== null);
+        .filter((rm): rm is RoomPlayerWithRoom => rm.rooms != null);
       if (memberships.length === 0) {
         roomLogger.info('✅ [AuthContext] No stale rooms found');
         return;

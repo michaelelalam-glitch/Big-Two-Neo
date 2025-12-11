@@ -51,12 +51,12 @@ const ProfileScreen = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-        statsLogger.error('[Profile] Stats fetch error:', { error });
+        statsLogger.error('[Profile] Stats fetch error:', error);
       } else {
         setStats(data);
       }
     } catch (error) {
-      statsLogger.error('[Profile] Error fetching stats:', { error });
+      statsLogger.error('[Profile] Error fetching stats:', error);
     } finally {
       if (loadingType === 'initial') {
         setStatsLoading(false);
@@ -87,7 +87,7 @@ const ProfileScreen = () => {
           try {
             await signOut();
           } catch (error) {
-            authLogger.error('Error signing out:', { error });
+            authLogger.error('Error signing out:', error);
             Alert.alert('Error', 'Failed to sign out. Please try again.');
           }
         },

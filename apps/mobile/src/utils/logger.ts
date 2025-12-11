@@ -62,7 +62,7 @@ const prodConfig = {
 };
 
 // Create the base logger with environment-specific config
-// @ts-ignore - Complex conditional typing for react-native-logs
+// @ts-expect-error - The config object type (devConfig/prodConfig) does not strictly match the expected type for logger.createLogger due to conditional transport and transportOptions properties.
 const log = logger.createLogger(__DEV__ ? devConfig : prodConfig);
 
 // Export namespaced loggers for different modules
