@@ -9,6 +9,7 @@ import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OP
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -515,8 +516,14 @@ export default function GameScreen() {
   const isPlayDisabled = !players[0].isActive || selectedCardIds.size === 0 || isPlayingCards;
 
   return (
-    <View style={styles.container}>
-      {isInitializing ? (
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('[GameScreen] Error caught by boundary:', error);
+        console.error('[GameScreen] Component stack:', errorInfo.componentStack);
+      }}
+    >
+      <View style={styles.container}>
+        {isInitializing ? (
         // Loading state
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Initializing game...</Text>
@@ -665,7 +672,8 @@ export default function GameScreen() {
           </View>
         </>
       )}
-    </View>
+      </View>
+    </ErrorBoundary>
   );
 }
 

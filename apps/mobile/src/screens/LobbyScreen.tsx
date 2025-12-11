@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -393,7 +394,8 @@ export default function LobbyScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.leaveButton, isLeaving && styles.buttonDisabled]}
@@ -469,6 +471,7 @@ export default function LobbyScreen() {
         )}
       </View>
     </SafeAreaView>
+    </ErrorBoundary>
   );
 }
 
@@ -611,11 +614,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
   },
-  waitingInfo: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray.medium,
-    textAlign: 'center',
-    marginTop: SPACING.md,
-    fontStyle: 'italic',
-  },
-});
+    waitingInfo: {
+      fontSize: FONT_SIZES.sm,
+      color: COLORS.gray.medium,
+      textAlign: 'center',
+      marginTop: SPACING.md,
+      fontStyle: 'italic',
+    },
+  });
