@@ -33,6 +33,19 @@ export interface LastPlay {
 }
 
 /**
+ * Auto-pass timer state
+ * Triggered when the highest possible card/combo is played
+ * Gives players 10 seconds to manually pass before auto-passing
+ */
+export interface AutoPassTimerState {
+  active: boolean;
+  started_at: string; // ISO timestamp when timer started
+  duration_ms: number; // Total duration in milliseconds (default: 10000)
+  remaining_ms: number; // Milliseconds remaining
+  triggering_play: LastPlay; // The play that triggered the timer
+}
+
+/**
  * Result of straight validation
  */
 export interface StraightValidation {
