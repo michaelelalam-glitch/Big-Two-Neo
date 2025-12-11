@@ -38,6 +38,7 @@ describe('Bot AI - First Play (3D requirement)', () => {
       lastPlay: null,
       isFirstPlayOfGame: true,
       playerCardCounts: [3, 13, 13, 13],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -56,6 +57,7 @@ describe('Bot AI - First Play (3D requirement)', () => {
       lastPlay: null,
       isFirstPlayOfGame: true,
       playerCardCounts: [2, 13, 13, 13],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -77,6 +79,7 @@ describe('Bot AI - Leading (no last play)', () => {
       lastPlay: null,
       isFirstPlayOfGame: false,
       playerCardCounts: [3, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'easy',
     };
 
@@ -100,6 +103,7 @@ describe('Bot AI - Leading (no last play)', () => {
       lastPlay: null,
       isFirstPlayOfGame: false,
       playerCardCounts: [6, 8, 8, 8],
+      currentPlayerIndex: 0,
       difficulty: 'hard',
     };
 
@@ -126,6 +130,7 @@ describe('Bot AI - Following (beating last play)', () => {
       lastPlay,
       isFirstPlayOfGame: false,
       playerCardCounts: [3, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -152,6 +157,7 @@ describe('Bot AI - Following (beating last play)', () => {
       lastPlay,
       isFirstPlayOfGame: false,
       playerCardCounts: [2, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -180,6 +186,7 @@ describe('Bot AI - Following (beating last play)', () => {
       lastPlay,
       isFirstPlayOfGame: false,
       playerCardCounts: [4, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -209,6 +216,7 @@ describe('Bot AI - Difficulty Levels', () => {
       lastPlay,
       isFirstPlayOfGame: false,
       playerCardCounts: [3, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'easy',
     };
 
@@ -246,6 +254,7 @@ describe('Bot AI - Difficulty Levels', () => {
       lastPlay,
       isFirstPlayOfGame: false,
       playerCardCounts: [2, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -270,7 +279,8 @@ describe('Bot AI - Difficulty Levels', () => {
       hand,
       lastPlay,
       isFirstPlayOfGame: false,
-      playerCardCounts: [2, 12, 12, 12], // Opponents have many cards
+      playerCardCounts: [2, 12, 12, 12],
+      currentPlayerIndex: 0, // Opponents have many cards
       difficulty: 'hard',
     };
 
@@ -287,6 +297,7 @@ describe('Bot AI - Edge Cases', () => {
       lastPlay: null,
       isFirstPlayOfGame: false,
       playerCardCounts: [0, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -302,6 +313,7 @@ describe('Bot AI - Edge Cases', () => {
       lastPlay: null,
       isFirstPlayOfGame: false,
       playerCardCounts: [1, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 
@@ -317,6 +329,7 @@ describe('Bot AI - Edge Cases', () => {
       lastPlay: null,
       isFirstPlayOfGame: false,
       playerCardCounts: [1, 10, 10, 10],
+      currentPlayerIndex: 0,
       difficulty: 'medium',
     };
 

@@ -98,8 +98,9 @@ export default function GameScreen() {
             // Check for next bot turn
             setTimeout(checkAndExecuteBotTurn, 100);
           })
-          .catch((error) => {
-            gameLogger.error('❌ [GameScreen] Bot turn failed:', error);
+          .catch((error: any) => {
+            // Only log error message/code to avoid exposing game state internals
+            gameLogger.error('❌ [GameScreen] Bot turn failed:', error?.message || error?.code || String(error));
             isExecutingBotTurnRef.current = false;
             gameLogger.debug('🔓 [GameScreen] Bot turn lock released (error)');
             
@@ -172,7 +173,9 @@ export default function GameScreen() {
                       gameLogger.info('✅ [GameScreen] New match started');
                       // Bot turns will be triggered by the subscription callback
                     } else {
-                      gameLogger.error('❌ [GameScreen] Failed to start new match:', result.error);
+                      // Only log error message to avoid exposing game state internals
+                      const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
+                      gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
                     }
                   }
                 }
@@ -429,8 +432,9 @@ export default function GameScreen() {
         // Show error from validation
         Alert.alert('Invalid Move', result.error || 'Invalid play');
       }
-    } catch (error) {
-      gameLogger.error('❌ [GameScreen] Failed to play cards:', error);
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing game state internals
+      gameLogger.error('❌ [GameScreen] Failed to play cards:', error?.message || error?.code || String(error));
       
       // Show user-friendly error
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
@@ -474,8 +478,9 @@ export default function GameScreen() {
       } else {
         Alert.alert('Cannot Pass', result.error || 'Cannot pass');
       }
-    } catch (error) {
-      gameLogger.error('❌ [GameScreen] Failed to pass:', error);
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing game state internals
+      gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
       
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
       Alert.alert('Cannot Pass', errorMessage);

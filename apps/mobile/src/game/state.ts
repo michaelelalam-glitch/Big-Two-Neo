@@ -5,7 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import { sortHand, classifyCards, canBeatPlay } from './engine';
+import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
@@ -278,7 +278,42 @@ export class GameStateManager {
       return { success: false, error: 'Cannot pass when leading' };
     }
 
+    // Check "One Card Left" rule - cannot pass if next player has 1 card and you have valid single
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const nextPlayerIndex = turnOrder[this.state.currentPlayerIndex];
+    const nextPlayer = this.state.players[nextPlayerIndex];
+    const nextPlayerCardCount = nextPlayer.hand.length;
+    
+    // Debug logging for One Card Left rule
+    gameLogger.debug('[OneCardLeft] Checking pass validation:', {
+      currentPlayer: currentPlayer.name,
+      nextPlayer: nextPlayer.name,
+      nextPlayerCardCount,
+      lastPlayType: this.state.lastPlay?.combo,
+      lastPlayCards: this.state.lastPlay?.cards.length,
+    });
+    
+    const passValidation = canPassWithOneCardLeftRule(
+      currentPlayer.hand,
+      nextPlayerCardCount,
+      this.state.lastPlay
+    );
+    
+    gameLogger.debug('[OneCardLeft] Pass validation result:', passValidation);
+    
+    if (!passValidation.canPass) {
+      // Enhance error message with next player's name for clarity
+      const baseError = passValidation.error ?? "You cannot pass in this situation.";
+      const enhancedError = baseError.replace(
+        'opponent has',
+        `${nextPlayer.name} (next player) has`
+      );
+      gameLogger.debug('[OneCardLeft] Blocking pass with error:', enhancedError);
+      return { success: false, error: enhancedError };
+    }
+
     currentPlayer.passed = true;
     this.state.consecutivePasses++;
 
@@ -329,6 +364,7 @@ export class GameStateManager {
       lastPlay: this.state.lastPlay,
       isFirstPlayOfGame: this.state.isFirstPlayOfGame,
       playerCardCounts,
+      currentPlayerIndex: this.state.currentPlayerIndex,
       difficulty: currentPlayer.botDifficulty,
     });
 
@@ -376,8 +412,9 @@ export class GameStateManager {
     try {
       const stateJson = JSON.stringify(this.state);
       await AsyncStorage.setItem(GAME_STATE_KEY, stateJson);
-    } catch (error) {
-      gameLogger.error('Failed to save game state:', error);
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing storage internals
+      gameLogger.error('Failed to save game state:', error?.message || error?.code || String(error));
     }
   }
 
@@ -510,6 +547,23 @@ export class GameStateManager {
       if (!canBeatPlay(cards, this.state!.lastPlay)) {
         return { valid: false, error: 'Cannot beat last play' };
       }
+    }
+
+    // Check "One Card Left" rule
+    // Get next player's card count (anticlockwise turn order: 0→3→1→2→0)
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+    const nextPlayerCardCount = this.state!.players[nextPlayerIndex].hand.length;
+    
+    const oneCardLeftValidation = validateOneCardLeftRule(
+      cards,
+      player.hand,
+      nextPlayerCardCount,
+      this.state!.lastPlay
+    );
+    
+    if (!oneCardLeftValidation.valid) {
+      return { valid: false, error: oneCardLeftValidation.error };
     }
 
     return { valid: true };
@@ -754,8 +808,9 @@ export class GameStateManager {
 
       const result = await response.json();
       statsLogger.info('✅ [Stats] Game completed successfully:', result);
-    } catch (error) {
-      statsLogger.error('❌ [Stats] Exception saving stats:', error);
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing DB internals
+      statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
     }
   }
 

@@ -171,6 +171,8 @@ pnpm test -- game-logic.test.ts
 - [ ] Pairs beat by higher rank
 - [ ] 5-card combos beat by type (Straight < Flush < Full House < Four of Kind < Straight Flush)
 - [ ] Round resets after 3 consecutive passes
+- [ ] **One Card Left Rule:** When next player has 1 card and last play was a single, current player MUST play their highest valid single (cannot pass or play lower single)
+- [ ] One Card Left rule does NOT apply to pairs, triples, or 5-card combos
 
 ### 6. Game Flow
 - [ ] Turn indicator shows current player

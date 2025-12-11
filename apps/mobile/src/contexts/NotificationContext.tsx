@@ -84,15 +84,22 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       setExpoPushToken(null);
       setIsRegistered(false);
       notificationLogger.info('✅ Push notifications unregistered successfully');
-    } catch (error) {
-      notificationLogger.error('Error unregistering push notifications:', error);
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing internal error details
+      notificationLogger.error('Error unregistering push notifications:', error?.message || error?.code || String(error));
     }
   }, [user]);
 
   // Handle deep linking from notifications
   const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
     const data = response.notification.request.content.data;
-    notificationLogger.info('Handling notification tap:', data);
+    // Only log notification type and room code, redact user IDs and other sensitive data
+    const sanitizedData = {
+      type: data.type,
+      roomCode: data.roomCode,
+      // Omit userId, sender info, etc.
+    };
+    notificationLogger.info('Handling notification tap:', sanitizedData);
 
     // Clear badge when user interacts with notification
     clearBadgeCount();

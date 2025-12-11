@@ -29,7 +29,8 @@ export default function HomeScreen() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        roomLogger.error('Error checking current room:', error);
+        // Only log error message/code to avoid exposing DB internals
+        roomLogger.error('Error checking current room:', error?.message || error?.code || 'Unknown error');
         return;
       }
 
@@ -74,7 +75,8 @@ export default function HomeScreen() {
               Alert.alert('Success', 'Left the room');
               setCurrentRoom(null);
             } catch (error: any) {
-              roomLogger.error('Error leaving room:', error);
+              // Only log error message/code to avoid exposing DB internals
+              roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
               Alert.alert('Error', 'Failed to leave room');
             }
           }
@@ -245,8 +247,8 @@ export default function HomeScreen() {
       setCurrentRoom(roomCode);
       navigation.replace('Lobby', { roomCode });
     } catch (error: any) {
-      roomLogger.error('❌ Error with quick play:', error);
-      roomLogger.error('Error details:', JSON.stringify(error, null, 2));
+      // Only log error message/code to avoid exposing DB internals, auth tokens, or stack traces
+      roomLogger.error('❌ Error with quick play:', error?.message || error?.code || String(error));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to join or create room';
       Alert.alert('Error', errorMessage);
     } finally {

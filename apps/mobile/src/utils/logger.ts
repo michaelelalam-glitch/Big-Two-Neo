@@ -20,12 +20,14 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
 // Dynamically import expo-file-system if available (graceful degradation)
 // Using require() with try-catch allows optional peer dependencies without build failures
 // This is standard practice for React Native optional dependencies (static bundlers handle this)
-let FileSystem: any;
+// @ts-expect-error - expo-file-system is optional, so type declaration may not exist
+let FileSystem: typeof import('expo-file-system') | undefined;
 try {
   FileSystem = require('expo-file-system');
 } catch (e) {
   // FileSystem not available - will use console transport even in production
   // This is acceptable for environments where file system access is not available
+  FileSystem = undefined;
   if (__DEV__) {
     console.warn('[Logger] expo-file-system not available - using console transport');
   }
@@ -65,7 +67,7 @@ const prodConfig = {
   transport: FileSystem ? fileAsyncTransport : consoleTransport,
   transportOptions: FileSystem ? {
     FS: FileSystem,
-    fileName: `app_logs_{date-today}.log`, // Date-based rotation (react-native-logs built-in)
+    fileName: 'app_logs_{date-today}.log', // Date-based rotation (react-native-logs built-in placeholder syntax)
   } : {},
   async: true,
   dateFormat: 'time' as const,
@@ -74,7 +76,7 @@ const prodConfig = {
   enabled: true,
 };
 
-// Note: The 'as any' assertion below is necessary because:
+// Note: @ts-expect-error is necessary because:
 // 1. react-native-logs has complex conditional types for transport/transportOptions
 // 2. Our runtime dynamic config selection (__DEV__ ? devConfig : prodConfig) creates type conflicts
 // 3. The library's types expect static config, but we provide conditional config
@@ -83,7 +85,8 @@ const prodConfig = {
 // and reduce maintainability without improving type safety in this specific case.
 
 // Create the base logger with environment-specific config
-const log = logger.createLogger(__DEV__ ? devConfig : prodConfig as any);
+// @ts-expect-error - runtime dynamic config creates type conflicts with library's conditional types
+const log = logger.createLogger(__DEV__ ? devConfig : prodConfig);
 
 // Export namespaced loggers for different modules
 export const authLogger = log.extend('AUTH');
