@@ -57,16 +57,6 @@ function cardsEqual(a: Card, b: Card): boolean {
   return a.id === b.id;
 }
 
-/**
- * Check if two arrays of cards are equal (same cards, any order)
- */
-function combosEqual(a: Card[], b: Card[]): boolean {
-  if (a.length !== b.length) return false;
-  const sortedA = sortHand(a);
-  const sortedB = sortHand(b);
-  return sortedA.every((card, i) => cardsEqual(card, sortedB[i]));
-}
-
 // ============================================
 // SINGLES
 // ============================================
@@ -92,14 +82,28 @@ function isHighestRemainingSingle(card: Card, playedCards: Card[]): boolean {
 
 /**
  * Generate all possible pairs from remaining cards
+ * Optimized: O(n) by grouping cards by rank first
  */
 function generateAllPairs(remaining: Card[]): Card[][] {
   const pairs: Card[][] = [];
   
-  for (let i = 0; i < remaining.length; i++) {
-    for (let j = i + 1; j < remaining.length; j++) {
-      if (remaining[i].rank === remaining[j].rank) {
-        pairs.push([remaining[i], remaining[j]]);
+  // Group cards by rank
+  const rankGroups: { [rank: string]: Card[] } = {};
+  for (const card of remaining) {
+    if (!rankGroups[card.rank]) {
+      rankGroups[card.rank] = [];
+    }
+    rankGroups[card.rank].push(card);
+  }
+  
+  // For each group with at least 2 cards, generate all unique pairs
+  for (const rank in rankGroups) {
+    const group = rankGroups[rank];
+    if (group.length >= 2) {
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          pairs.push([group[i], group[j]]);
+        }
       }
     }
   }
@@ -168,18 +172,29 @@ function isHighestRemainingPair(pair: Card[], playedCards: Card[]): boolean {
 
 /**
  * Generate all possible triples from remaining cards
+ * Optimized: O(n) by grouping cards by rank first
  */
 function generateAllTriples(remaining: Card[]): Card[][] {
   const triples: Card[][] = [];
   
-  for (let i = 0; i < remaining.length; i++) {
-    for (let j = i + 1; j < remaining.length; j++) {
-      for (let k = j + 1; k < remaining.length; k++) {
-        if (
-          remaining[i].rank === remaining[j].rank &&
-          remaining[j].rank === remaining[k].rank
-        ) {
-          triples.push([remaining[i], remaining[j], remaining[k]]);
+  // Group cards by rank
+  const rankGroups: { [rank: string]: Card[] } = {};
+  for (const card of remaining) {
+    if (!rankGroups[card.rank]) {
+      rankGroups[card.rank] = [];
+    }
+    rankGroups[card.rank].push(card);
+  }
+  
+  // For each group with at least 3 cards, generate all unique triples
+  for (const rank in rankGroups) {
+    const group = rankGroups[rank];
+    if (group.length >= 3) {
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          for (let k = j + 1; k < group.length; k++) {
+            triples.push([group[i], group[j], group[k]]);
+          }
         }
       }
     }

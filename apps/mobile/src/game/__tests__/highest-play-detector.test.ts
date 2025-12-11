@@ -257,79 +257,23 @@ describe('Highest Play Detector', () => {
     
     it('does NOT trigger for Royal Hearts if Royal Spades still possible', () => {
       const playedCards: Card[] = [
-        // Only break 2 royals, leaving Spades intact
-        { id: 'JH', rank: 'J', suit: 'H' },   // Breaks Royal Hearts (but we're testing it anyway)
-        { id: 'QC', rank: 'Q', suit: 'C' },   // Breaks Royal Clubs
-        { id: 'KD', rank: 'K', suit: 'D' },   // Breaks Royal Diamonds
+        // Only break some royals, leaving Royal Spades intact
+        { id: 'JC', rank: 'J', suit: 'C' },   // Breaks Royal Clubs
+        { id: 'JD', rank: 'J', suit: 'D' },   // Breaks Royal Diamonds
       ];
       
+      // Attempt to play Royal Hearts
       const royalHearts: Card[] = [
         { id: '10H', rank: '10', suit: 'H' },
-        { id: 'JH', rank: 'J', suit: 'H' },   // Actually this was played, so invalid test
+        { id: 'JH', rank: 'J', suit: 'H' },
         { id: 'QH', rank: 'Q', suit: 'H' },
         { id: 'KH', rank: 'K', suit: 'H' },
         { id: 'AH', rank: 'A', suit: 'H' },
       ];
       
-      // Royal Spades still possible (higher suit), so should not trigger
-      // But this test is invalid because JH was played
-      // Let's fix:
-      const validRoyalHearts: Card[] = [
-        { id: '10C', rank: '10', suit: 'C' },  // Use clubs instead
-        { id: 'JC', rank: 'J', suit: 'C' },
-        { id: 'QC', rank: 'Q', suit: 'C' },  // QC was played, invalid
-        { id: 'KC', rank: 'K', suit: 'C' },
-        { id: 'AC', rank: 'A', suit: 'C' },
-      ];
-      
-      // Actually, let's create a clean test
-    });
-    
-    it('early game: 4 random cards break all royal flushes', () => {
-      // This is the KEY test for user's understanding
-      const playedCards: Card[] = [
-        { id: '10H', rank: '10', suit: 'H' },  // Breaks Royal Hearts
-        { id: 'JC', rank: 'J', suit: 'C' },    // Breaks Royal Clubs
-        { id: 'QS', rank: 'Q', suit: 'S' },    // Breaks Royal Spades
-        { id: 'KD', rank: 'K', suit: 'D' },    // Breaks Royal Diamonds
-      ];
-      
-      // Now check if any royal is possible
-      // Royal Spades: need 10S,JS,QS,KS,AS → QS played → NO
-      // Royal Hearts: need 10H,JH,QH,KH,AH → 10H played → NO
-      // Royal Clubs: need 10C,JC,QC,KC,AC → JC played → NO
-      // Royal Diamonds: need 10D,JD,QD,KD,AD → KD played → NO
-      
-      // So straight flush 9-K becomes highest
-      const straightFlush9High: Card[] = [
-        { id: '9S', rank: '9', suit: 'S' },
-        { id: '10S', rank: '10', suit: 'S' },
-        { id: 'JS', rank: 'J', suit: 'S' },
-        { id: 'QD', rank: 'Q', suit: 'D' },  // QS played, use QD - WAIT wrong suit!
-        { id: 'KS', rank: 'K', suit: 'S' },
-      ];
-      
-      // That's invalid. Let me create valid SF:
-      const validSF: Card[] = [
-        { id: '9D', rank: '9', suit: 'D' },
-        { id: '10C', rank: '10', suit: 'C' },  // Different suit - invalid!
-        { id: 'JD', rank: 'J', suit: 'D' },
-        { id: 'QD', rank: 'Q', suit: 'D' },
-        { id: 'KH', rank: 'K', suit: 'H' },  // Different suit - invalid!
-      ];
-      
-      // Need same suit for SF. Let's check 9D-KD:
-      const sf9ToKDiamonds: Card[] = [
-        { id: '9D', rank: '9', suit: 'D' },
-        { id: '10D', rank: '10', suit: 'D' },
-        { id: 'JD', rank: 'J', suit: 'D' },
-        { id: 'QD', rank: 'Q', suit: 'D' },
-        { id: 'KD', rank: 'K', suit: 'D' },  // KD was played!
-      ];
-      
-      // Since KD is played, this SF is impossible too
-      // The test confirms: with those 4 cards, NO royal possible
-      // Would need more complex test setup
+      // Royal Spades is still possible (none of its cards have been played)
+      // So Royal Hearts is NOT the highest possible straight flush
+      expect(isHighestPossiblePlay(royalHearts, playedCards)).toBe(false);
     });
   });
   

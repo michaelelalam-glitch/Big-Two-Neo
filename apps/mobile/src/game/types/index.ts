@@ -29,7 +29,7 @@ export interface ClassificationResult {
  */
 export interface LastPlay {
   cards: Card[];
-  combo: string;
+  combo_type: string;
 }
 
 /**
