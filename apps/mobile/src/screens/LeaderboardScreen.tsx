@@ -110,7 +110,7 @@ export default function LeaderboardScreen() {
       // Transform data if querying player_stats directly (weekly/daily)
       let transformedData: LeaderboardEntry[];
       if (timeFilter === 'all_time') {
-        transformedData = data || [];
+        transformedData = (data || []) as LeaderboardEntry[];
       } else {
         // Transform joined data to match LeaderboardEntry interface
         transformedData = (data || []).map((item: any, index: number) => ({
