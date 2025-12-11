@@ -599,8 +599,8 @@ export class GameStateManager {
       statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
       let alertShown = false; // Track if alert was shown to prevent duplicate alerts
       this.saveGameStatsToDatabase().catch(err => {
-        statsLogger.error('❌ [Stats] Failed to save game stats:', err);
-        statsLogger.error('❌ [Stats] Error details:', JSON.stringify(err, null, 2));
+        // Only log error message/code to avoid exposing database internals or sensitive data
+        statsLogger.error('❌ [Stats] Failed to save game stats:', err?.message || err?.code || String(err));
         
         // Notify user that stats weren't saved (dismissible, non-blocking)
         // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)

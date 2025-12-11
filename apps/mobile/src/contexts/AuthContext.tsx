@@ -214,11 +214,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        authLogger.error('Error signing out:', error);
+        // Only log error message to avoid exposing auth tokens/session data
+        authLogger.error('Error signing out:', error?.message || String(error));
         throw error;
       }
-    } catch (error) {
-      authLogger.error('Error signing out:', error);
+    } catch (error: any) {
+      // Only log error message to avoid exposing auth tokens/session data
+      authLogger.error('Error signing out:', error?.message || String(error));
       throw error;
     }
   };

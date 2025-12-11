@@ -44,4 +44,16 @@ export function testLogger() {
   log.info('✅ In production, logs will be written to file instead of console');
 }
 
-// To run the logger test, manually invoke testLogger() from your test runner or script.
+/**
+ * How to run this test:
+ * 
+ * Option 1: Import and call in your app temporarily
+ *   import { testLogger } from './src/utils/logger-manual-test';
+ *   testLogger(); // Call once to see logger output
+ * 
+ * Option 2: Run directly with ts-node (if available)
+ *   npx ts-node apps/mobile/src/utils/logger-manual-test.ts
+ * 
+ * Option 3: Invoke from React Native debugger console
+ *   import('./src/utils/logger-manual-test').then(m => m.testLogger())
+ */

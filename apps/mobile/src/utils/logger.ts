@@ -5,22 +5,30 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
  * 
  * Features:
  * - Development: Colored console output with all levels
- * - Production: File logging with error+ levels only  
+ * - Production: File logging with warn+ levels (errors AND warnings)
  * - Supports namespaces for different modules
  * - Async for better performance
+ * 
+ * Security Notes:
+ * - File logs use date-based rotation (one file per day) to prevent unbounded growth
+ * - Production logs capture warn/error levels only to minimize sensitive data exposure
+ * - Always sanitize error objects before logging (use error.message, not full error object)
  * 
  * Note: expo-file-system is optional - if not available, falls back to console in production
  */
 
 // Dynamically import expo-file-system if available (graceful degradation)
 // Using require() with try-catch allows optional peer dependencies without build failures
-// This is standard practice for React Native optional dependencies
+// This is standard practice for React Native optional dependencies (static bundlers handle this)
 let FileSystem: any;
 try {
   FileSystem = require('expo-file-system');
 } catch (e) {
   // FileSystem not available - will use console transport even in production
   // This is acceptable for environments where file system access is not available
+  if (__DEV__) {
+    console.warn('[Logger] expo-file-system not available - using console transport');
+  }
 }
 
 // Define log levels
@@ -53,11 +61,11 @@ const devConfig = {
 
 const prodConfig = {
   levels,
-  severity: 'error' as const,
+  severity: 'warn' as const, // Capture warn + error in production (important events)
   transport: FileSystem ? fileAsyncTransport : consoleTransport,
   transportOptions: FileSystem ? {
     FS: FileSystem,
-    fileName: `app_logs_{date-today}.log`,
+    fileName: `app_logs_{date-today}.log`, // Date-based rotation (react-native-logs built-in)
   } : {},
   async: true,
   dateFormat: 'time' as const,
@@ -66,11 +74,15 @@ const prodConfig = {
   enabled: true,
 };
 
+// Note: The 'as any' assertion below is necessary because:
+// 1. react-native-logs has complex conditional types for transport/transportOptions
+// 2. Our runtime dynamic config selection (__DEV__ ? devConfig : prodConfig) creates type conflicts
+// 3. The library's types expect static config, but we provide conditional config
+// 4. This is safe - we follow the library's documented API patterns exactly
+// Alternative approaches (creating union types, separate createLogger calls) would duplicate code
+// and reduce maintainability without improving type safety in this specific case.
+
 // Create the base logger with environment-specific config
-// Using 'as any' here because react-native-logs has complex conditional types that conflict
-// with our runtime conditional logic (dev vs prod, with/without FileSystem).
-// The library's type system expects static config but we're providing dynamic conditional config.
-// This is safe because we're following the library's documented API patterns.
 const log = logger.createLogger(__DEV__ ? devConfig : prodConfig as any);
 
 // Export namespaced loggers for different modules
