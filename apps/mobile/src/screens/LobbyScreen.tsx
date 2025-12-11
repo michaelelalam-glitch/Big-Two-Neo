@@ -268,23 +268,20 @@ export default function LobbyScreen() {
         console.log('Player entry created:', playerIdToUse);
       }
 
-      console.log('Starting game with bots:', { room_id: currentRoomId, player_id: playerIdToUse });
+      console.log('Starting game for room:', currentRoomId);
 
-      // Call start-game RPC to initialize game state and create bot players
-      const { data: startGameData, error: startGameError } = await supabase
-        .rpc('start_game', { 
-          room_id: currentRoomId,
-          player_id: playerIdToUse,
-          with_bots: true 
-        });
+      // Update room status to 'playing' - bot players will be created by GameScreen
+      // Note: In single-player mode, bots are client-side AI created during game initialization
+      const { error: updateError } = await supabase
+        .from('rooms')
+        .update({ status: 'playing' })
+        .eq('id', currentRoomId);
 
-      console.log('Start game response:', { data: startGameData, error: startGameError });
-
-      if (startGameError) {
-        throw new Error(`Failed to start game: ${startGameError.message}`);
+      if (updateError) {
+        throw new Error(`Failed to start game: ${updateError.message}`);
       }
 
-      // Navigate to game screen on success
+      // Navigate to game screen - GameScreen will initialize bot players
       navigation.replace('Game', { roomCode });
       setIsStarting(false);
     } catch (error: any) {
