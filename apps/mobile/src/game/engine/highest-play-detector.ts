@@ -438,60 +438,97 @@ function isHighestRemainingFiveCardCombo(
         return true;
       }
       
-      // For non-royal straight flushes, simplified check
-      // In production, would check all possible better SF
+      // For non-royal straight flushes, check if any stronger straight flush can still be formed
+      // Find the current sequence index
+      const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
+        seq => seq.join('') === straightInfo.sequence
+      );
+      
+      // Check for same suit, higher sequence
+      for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+        const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+        const ids = seq.map(rank => `${rank}${suit}`);
+        if (ids.every(id => remaining.some(c => c.id === id))) {
+          return false; // A higher sequence exists in the same suit
+        }
+      }
+      
+      // Check for same sequence, higher suit
+      for (const otherSuit of SUITS) {
+        if (SUIT_VALUE[otherSuit] > SUIT_VALUE[suit]) {
+          const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
+          const ids = currentSeq.map(rank => `${rank}${otherSuit}`);
+          if (ids.every(id => remaining.some(c => c.id === id))) {
+            return false; // Same sequence exists in a higher suit
+          }
+        }
+      }
+      
       return true;
     }
     
     case 'Four of a Kind': {
-      // Check if four 2s can be formed (always highest)
-      const twos = remaining.filter(c => c.rank === '2');
-      if (twos.length >= 4) {
-        return sorted.filter(c => c.rank === '2').length === 4;
+      // Iterate through all ranks in descending order to find highest possible four of a kind
+      for (const rank of [...RANKS].reverse()) {
+        const cardsOfRank = remaining.filter(c => c.rank === rank);
+        if (cardsOfRank.length >= 4) {
+          // If the current play is four of this rank, it's the highest possible
+          return sorted.filter(c => c.rank === rank).length === 4;
+        }
       }
-      
-      // Check if four Aces can be formed
-      const aces = remaining.filter(c => c.rank === 'A');
-      if (aces.length >= 4) {
-        return sorted.filter(c => c.rank === 'A').length === 4;
-      }
-      
+      // If no four of a kind is possible in remaining, any four of a kind is highest
       return true;
     }
     
     case 'Full House': {
-      // Check if triple 2s + any pair can be formed
-      const twos = remaining.filter(c => c.rank === '2');
-      
-      // Find if there's another rank with at least 2 cards
-      const rankCounts = new Map<string, number>();
+      // Find the highest possible triple rank and a pair from remaining cards
+      const rankCounts: Record<string, number> = {};
       for (const card of remaining) {
-        if (card.rank !== '2') {
-          rankCounts.set(card.rank, (rankCounts.get(card.rank) || 0) + 1);
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+      }
+
+      // Iterate ranks in descending order to find highest possible triple
+      let highestTripleRank: string | null = null;
+      for (const rank of [...RANKS].reverse()) {
+        if (rankCounts[rank] && rankCounts[rank] >= 3) {
+          highestTripleRank = rank;
+          break;
         }
       }
-      
-      const hasOtherPair = Array.from(rankCounts.values()).some(count => count >= 2);
-      
-      if (twos.length >= 3 && (hasOtherPair || twos.length >= 5)) {
-        // Triple 2s is possible, check if current play has it
-        const counts: Record<string, number> = {};
-        for (const card of sorted) {
-          counts[card.rank] = (counts[card.rank] || 0) + 1;
-        }
-        
-        let tripleRank = '';
-        for (const rank in counts) {
-          if (counts[rank] === 3) {
-            tripleRank = rank;
-            break;
-          }
-        }
-        
-        return tripleRank === '2';
+
+      // If no triple can be formed, allow the play
+      if (!highestTripleRank) {
+        return true;
       }
-      
-      return true;
+
+      // Check if a pair of a different rank can be formed
+      let hasPair = false;
+      for (const rank of RANKS) {
+        if (rank !== highestTripleRank && rankCounts[rank] && rankCounts[rank] >= 2) {
+          hasPair = true;
+          break;
+        }
+      }
+
+      // If no pair can be formed, allow the play
+      if (!hasPair) {
+        return true;
+      }
+
+      // Check if the played Full House uses the highest possible triple rank
+      const playedCounts: Record<string, number> = {};
+      for (const card of sorted) {
+        playedCounts[card.rank] = (playedCounts[card.rank] || 0) + 1;
+      }
+      let playedTripleRank: string | null = null;
+      for (const rank in playedCounts) {
+        if (playedCounts[rank] === 3) {
+          playedTripleRank = rank;
+          break;
+        }
+      }
+
+      return playedTripleRank === highestTripleRank;
     }
     
     case 'Flush':
