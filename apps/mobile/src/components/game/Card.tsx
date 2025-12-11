@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
     paddingVertical: TOUCH_TARGET_PADDING, // Vertical padding for better tap accuracy
     // Compensate for vertical padding so cards don't overflow viewport
     marginVertical: -TOUCH_TARGET_PADDING, // Negative margin offsets padding
-    // Note: paddingHorizontal does NOT affect card spacing because cards are siblings
-    // in CardHand's flexbox. The CARD_OVERLAP_MARGIN on container creates overlap.
-    // Padding only expands the gesture detection area, not the layout box.
+    // Note: paddingHorizontal DOES affect card spacing because it increases the layout box size.
+    // In React Native, padding is part of the box model and will impact flexbox layout calculations.
+    // Be sure to test that all 13 cards fit as intended and that CARD_OVERLAP_MARGIN creates the desired overlap.
   },
   card: {
     // Width and height set dynamically via props

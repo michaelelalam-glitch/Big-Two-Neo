@@ -224,4 +224,4 @@ The touch target padding is **invisible** - it doesn't change the visual appeara
 
 **Task Complete!** 🎉
 
-Users will now have a significantly better experience tapping cards on mobile devices, meeting iOS accessibility standards.
+Users will now have a significantly better experience tapping cards on mobile devices, with improved accessibility—though the touch targets do not yet fully meet iOS accessibility standards.
