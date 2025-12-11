@@ -94,10 +94,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      const memberships: RoomPlayerWithRoom[] = (roomMemberships || []).map((rm: any) => ({
-        ...rm,
-        rooms: Array.isArray(rm.rooms) ? (rm.rooms.length > 0 ? rm.rooms[0] : null) : rm.rooms
-      }));
+      const memberships: RoomPlayerWithRoom[] = (roomMemberships || [])
+        .map((rm: any) => ({
+          ...rm,
+          rooms: Array.isArray(rm.rooms) ? (rm.rooms.length > 0 ? rm.rooms[0] : null) : rm.rooms
+        }))
+        .filter(rm => rm.rooms !== null);
       if (memberships.length === 0) {
         console.log('✅ [AuthContext] No stale rooms found');
         return;

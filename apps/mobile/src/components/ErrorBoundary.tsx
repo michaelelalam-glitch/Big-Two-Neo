@@ -74,7 +74,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   resetError = () => {
     // Call optional reset handler to allow parent to reset state
     if (this.props.onReset) {
-      this.props.onReset();
+      try {
+        this.props.onReset();
+      } catch (resetError) {
+        console.error('[ErrorBoundary] onReset failed:', resetError);
+      }
     }
     
     this.setState({

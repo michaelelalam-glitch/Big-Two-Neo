@@ -241,7 +241,7 @@ componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
 
 ## 🎓 Key Learnings
 
-1. **Error Boundaries are Class Components:** No function component equivalent yet (React 19.1.0)
+1. **Error Boundaries are Class Components:** No function component equivalent yet
 2. **Two Methods Required:**
    - `getDerivedStateFromError` (update state, no side effects)
    - `componentDidCatch` (log errors, side effects allowed)
