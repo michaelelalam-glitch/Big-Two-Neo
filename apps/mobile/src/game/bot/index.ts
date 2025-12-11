@@ -8,6 +8,7 @@ import {
   classifyCards, 
   canBeatPlay, 
   findRecommendedPlay,
+  findHighestBeatingSingle,
   type Card,
   type LastPlay,
   type ComboType
@@ -20,6 +21,7 @@ export interface BotPlayOptions {
   lastPlay: LastPlay | null;
   isFirstPlayOfGame: boolean;
   playerCardCounts: number[];
+  currentPlayerIndex: number; // Index of the current bot player
   difficulty?: BotDifficulty;
 }
 
@@ -47,7 +49,7 @@ export class BotAI {
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, playerCardCounts } = options;
+    const { hand, lastPlay, isFirstPlayOfGame, playerCardCounts, currentPlayerIndex } = options;
     
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
@@ -64,7 +66,7 @@ export class BotAI {
     }
 
     // Following - try to beat last play
-    return this.handleFollowing(hand, lastPlay, playerCardCounts);
+    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex);
   }
 
   /**
@@ -138,10 +140,30 @@ export class BotAI {
   private handleFollowing(
     hand: Card[], 
     lastPlay: LastPlay, 
-    playerCardCounts: number[]
+    playerCardCounts: number[],
+    currentPlayerIndex: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
     const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+
+    // Check "One Card Left" rule
+    // Find the next player's card count (player after current bot)
+    // Use anticlockwise turn order: 0→3, 1→2, 2→0, 3→1
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const nextPlayerIndex = turnOrder[currentPlayerIndex];
+    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    
+    // If next player has 1 card and last play was a single, MUST play highest single
+    if (nextPlayerCardCount === 1 && lastPlay.cards.length === 1) {
+      const highestSingle = findHighestBeatingSingle(sorted, lastPlay);
+      if (highestSingle) {
+        return {
+          cards: [highestSingle.id],
+          reasoning: `One Card Left rule: must play highest single (${highestSingle.rank}${highestSingle.suit}) - opponent has 1 card`
+        };
+      }
+      // If no valid single, can pass (but shouldn't happen often)
+    }
 
     // Easy difficulty: random decisions
     if (this.difficulty === 'easy') {
