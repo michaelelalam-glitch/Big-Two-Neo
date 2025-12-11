@@ -435,3 +435,120 @@ export function findRecommendedPlay(
   // Can't beat - recommend passing (return null)
   return null;
 }
+
+/**
+ * Find the highest single card that beats the last play
+ * 
+ * @param hand - Player's current hand
+ * @param lastPlay - Previous play (null if leading)
+ * @returns The highest single card that beats lastPlay, or null if none exists
+ * @pure
+ */
+export function findHighestBeatingSingle(
+  hand: Card[],
+  lastPlay: LastPlay | null
+): Card | null {
+  if (hand.length === 0) return null;
+  
+  const sorted = sortHand(hand);
+  
+  // If no last play (leading), return highest card
+  if (!lastPlay) {
+    return sorted[sorted.length - 1];
+  }
+  
+  // Find all singles that beat the last play
+  const beatingSingles = sorted.filter(card => canBeatPlay([card], lastPlay));
+  
+  // Return the highest one
+  if (beatingSingles.length > 0) {
+    return beatingSingles[beatingSingles.length - 1];
+  }
+  
+  return null;
+}
+
+/**
+ * Check if "One Card Left" rule applies
+ * When next player has 1 card, current player MUST play their highest single (if playing a single)
+ * 
+ * @param selectedCards - Cards player is trying to play
+ * @param currentPlayerHand - Current player's full hand
+ * @param nextPlayerCardCount - Number of cards next player has
+ * @param lastPlay - Previous play (null if leading)
+ * @returns Validation result with error message if rule is violated
+ */
+export function validateOneCardLeftRule(
+  selectedCards: Card[],
+  currentPlayerHand: Card[],
+  nextPlayerCardCount: number,
+  lastPlay: LastPlay | null
+): { valid: boolean; error?: string; requiredCard?: Card } {
+  // Rule only applies when next player has exactly 1 card
+  if (nextPlayerCardCount !== 1) {
+    return { valid: true };
+  }
+  
+  // Rule only applies to singles
+  if (selectedCards.length !== 1) {
+    return { valid: true };
+  }
+  
+  // Find the highest single that beats the last play
+  const highestSingle = findHighestBeatingSingle(currentPlayerHand, lastPlay);
+  
+  // If no valid single exists, rule doesn't apply
+  if (!highestSingle) {
+    return { valid: true };
+  }
+  
+  // Check if player is playing the highest single
+  const playedCard = selectedCards[0];
+  if (playedCard.id !== highestSingle.id) {
+    return {
+      valid: false,
+      error: `Must play highest single (${highestSingle.rank}${highestSingle.suit}) when opponent has 1 card left`,
+      requiredCard: highestSingle
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Check if player can pass when "One Card Left" rule applies
+ * Player CANNOT pass if they have a valid single and next player has 1 card
+ * 
+ * @param currentPlayerHand - Current player's full hand
+ * @param nextPlayerCardCount - Number of cards next player has
+ * @param lastPlay - Previous play (null if leading - can't pass when leading anyway)
+ * @returns { canPass: boolean, error?: string }
+ */
+export function canPassWithOneCardLeftRule(
+  currentPlayerHand: Card[],
+  nextPlayerCardCount: number,
+  lastPlay: LastPlay | null
+): { canPass: boolean; error?: string } {
+  // Can't pass when leading anyway
+  if (!lastPlay) {
+    return { canPass: false, error: 'Cannot pass when leading' };
+  }
+  
+  // Rule only applies when next player has exactly 1 card AND last play was a single
+  if (nextPlayerCardCount !== 1 || lastPlay.cards.length !== 1) {
+    return { canPass: true };
+  }
+  
+  // Check if player has a valid single that beats the last play
+  const highestSingle = findHighestBeatingSingle(currentPlayerHand, lastPlay);
+  
+  if (highestSingle) {
+    return {
+      canPass: false,
+      error: `Cannot pass when opponent has 1 card left and you have a valid single (must play ${highestSingle.rank}${highestSingle.suit})`
+    };
+  }
+  
+  // No valid single, can pass normally
+  return { canPass: true };
+}

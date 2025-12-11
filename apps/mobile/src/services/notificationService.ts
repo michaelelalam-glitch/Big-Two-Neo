@@ -102,8 +102,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     return token;
-  } catch (error) {
-    notificationLogger.error('Error registering for push notifications:', error);
+  } catch (error: any) {
+    // Only log error message/code to avoid exposing internal error details (DB connections, stack traces, etc.)
+    notificationLogger.error('Error registering for push notifications:', error?.message || error?.code || String(error));
     return null;
   }
 }
@@ -133,14 +134,16 @@ export async function savePushTokenToDatabase(
       );
 
     if (error) {
-      notificationLogger.error('Error saving push token:', error);
+      // Only log error message/code to avoid exposing internal error details
+      notificationLogger.error('Error saving push token:', error?.message || error?.code || 'Unknown error');
       return false;
     }
 
     notificationLogger.info('Push token saved successfully');
     return true;
-  } catch (error) {
-    notificationLogger.error('Error saving push token to database:', error);
+  } catch (error: any) {
+    // Only log error message/code to avoid exposing internal error details
+    notificationLogger.error('Error saving push token to database:', error?.message || error?.code || String(error));
     return false;
   }
 }
@@ -162,8 +165,9 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
 
     notificationLogger.info('Push token removed successfully');
     return true;
-  } catch (error) {
-    notificationLogger.error('Error removing push token from database:', error);
+  } catch (error: any) {
+    // Only log error message/code to avoid exposing internal error details
+    notificationLogger.error('Error removing push token from database:', error?.message || error?.code || String(error));
     return false;
   }
 }

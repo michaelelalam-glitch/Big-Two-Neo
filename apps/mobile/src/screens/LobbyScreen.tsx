@@ -95,7 +95,8 @@ export default function LobbyScreen() {
         .order('player_index');
 
       if (error) {
-        roomLogger.error('[LobbyScreen] Query error:', error);
+        // Only log error message/code to avoid exposing DB internals
+        roomLogger.error('[LobbyScreen] Query error:', error?.message || error?.code || 'Unknown error');
         throw error;
       }
       
