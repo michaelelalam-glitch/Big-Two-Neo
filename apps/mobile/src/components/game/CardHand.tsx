@@ -106,10 +106,11 @@ export default function CardHand({
     };
 
     if (onSelectionChange) {
-      // Lifted state: call the callback with new selection
+      // Lifted state: selectedCardIds is in deps array, so callback recreates when it changes
+      // This ensures we always have the latest value (no stale closure)
       onSelectionChange(updateSelection(selectedCardIds));
     } else {
-      // Internal state: update directly
+      // Internal state: update directly with functional form
       setInternalSelectedCardIds(updateSelection);
     }
   }, [disabled, selectedCardIds, onSelectionChange]);
