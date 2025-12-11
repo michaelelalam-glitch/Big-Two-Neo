@@ -30,6 +30,24 @@ interface CardHandProps {
   onCardsReorder?: (reorderedCards: CardType[]) => void; // New: callback when cards are rearranged
 }
 
+// Consolidated drag state interface
+interface DragState {
+  draggedCardId: string | null;
+  targetIndex: number | null;
+  longPressedCardId: string | null;
+  isDraggingMultiple: boolean;
+  sharedTranslation: { x: number; y: number };
+}
+
+// Initial drag state
+const initialDragState: DragState = {
+  draggedCardId: null,
+  targetIndex: null,
+  longPressedCardId: null,
+  isDraggingMultiple: false,
+  sharedTranslation: { x: 0, y: 0 },
+};
+
 export default function CardHand({
   cards,
   onPlayCards,
@@ -41,14 +59,14 @@ export default function CardHand({
   onSelectionChange,
   onCardsReorder,
 }: CardHandProps) {
+  // Consolidated state: selection
   const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  
+  // Consolidated state: drag operations
+  const [dragState, setDragState] = useState<DragState>(initialDragState);
+  
+  // Separate state: display cards (managed independently)
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
-  const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null); // Track where card will be dropped
-  const [longPressedCardId, setLongPressedCardId] = useState<string | null>(null); // Track long-pressed card
-  const [isDraggingMultiple, setIsDraggingMultiple] = useState(false); // Track if dragging multiple selected cards
-  const [sharedDragX, setSharedDragX] = useState(0); // Shared X translation for all selected cards
-  const [sharedDragY, setSharedDragY] = useState(0); // Shared Y translation for all selected cards
   
   // Use lifted state if provided, otherwise use internal state
   const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
@@ -56,12 +74,8 @@ export default function CardHand({
   
   // Update display cards when prop cards change
   React.useEffect(() => {
-    // If cards change, cancel any drag and reset drag state
-    setDraggedCardId(null);
-    setDragTargetIndex(null);
-    setIsDraggingMultiple(false);
-    setSharedDragX(0);
-    setSharedDragY(0);
+    // Reset all drag state when cards change
+    setDragState(initialDragState);
     // Always update displayCards to match cards prop
     setDisplayCards(cards);
   }, [cards]);
@@ -74,7 +88,7 @@ export default function CardHand({
   const handleToggleSelect = useCallback((cardId: string) => {
     if (disabled) return;
 
-    setSelectedCardIds((prev) => {
+    const updateSelection = (prev: Set<string>) => {
       const newSet = new Set(prev);
       const wasSelected = newSet.has(cardId);
       
@@ -89,14 +103,27 @@ export default function CardHand({
       }
       
       return newSet;
-    });
-  }, [disabled]); // selectedCardIds removed from deps - state updates use functional form (prev) to avoid stale closures
+    };
+
+    if (onSelectionChange) {
+      // Lifted state: call the callback with new selection
+      onSelectionChange(updateSelection(selectedCardIds));
+    } else {
+      // Internal state: update directly
+      setInternalSelectedCardIds(updateSelection);
+    }
+  }, [disabled, selectedCardIds, onSelectionChange]);
 
   // Clear selection (memoized)
   const handleClearSelection = useCallback(() => {
-    setSelectedCardIds(new Set());
+    const emptySet = new Set<string>();
+    if (onSelectionChange) {
+      onSelectionChange(emptySet);
+    } else {
+      setInternalSelectedCardIds(emptySet);
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+  }, [onSelectionChange]);
 
   // Play selected cards (memoized)
   const handlePlay = useCallback(() => {
@@ -105,8 +132,15 @@ export default function CardHand({
     const selected = orderedCards.filter((card) => selectedCardIds.has(card.id));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPlayCards(selected);
-    setSelectedCardIds(new Set());
-  }, [selectedCardIds, orderedCards, onPlayCards]);
+    
+    // Clear selection after playing
+    const emptySet = new Set<string>();
+    if (onSelectionChange) {
+      onSelectionChange(emptySet);
+    } else {
+      setInternalSelectedCardIds(emptySet);
+    }
+  }, [selectedCardIds, orderedCards, onPlayCards, onSelectionChange]);
 
   // Pass turn (memoized)
   const handlePass = useCallback(() => {
@@ -118,38 +152,54 @@ export default function CardHand({
 
   // Handle drag start for rearranging or multi-card play
   const handleDragStart = useCallback((cardId: string) => {
-    setDraggedCardId(cardId);
     // Check if dragging a selected card when multiple are selected
     const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
-    setIsDraggingMultiple(isMultiDrag);
+    
+    setDragState({
+      draggedCardId: cardId,
+      targetIndex: null,
+      longPressedCardId: null,
+      isDraggingMultiple: isMultiDrag,
+      sharedTranslation: { x: 0, y: 0 },
+    });
     // Haptic feedback handled in Card.tsx pan gesture to avoid duplication
   }, [selectedCardIds]);
 
   // Handle long press - brings card to front temporarily
   const handleLongPress = useCallback((cardId: string) => {
-    setLongPressedCardId(cardId);
+    setDragState(prev => ({
+      ...prev,
+      longPressedCardId: cardId,
+    }));
+    
     // Clear long press state after animation completes (if not dragging)
     setTimeout(() => {
-      setLongPressedCardId(prev => prev === cardId ? null : prev);
+      setDragState(prev => 
+        prev.longPressedCardId === cardId 
+          ? { ...prev, longPressedCardId: null } 
+          : prev
+      );
     }, 300); // Match the spring animation duration
   }, []);
 
   // Handle drag update for rearranging or playing
   const handleDragUpdate = useCallback((cardId: string, translationX: number, translationY: number) => {
-    if (!draggedCardId || draggedCardId !== cardId) return;
+    if (!dragState.draggedCardId || dragState.draggedCardId !== cardId) return;
     
     // If dragging multiple selected cards, update shared drag values for synchronized movement
-    if (isDraggingMultiple) {
-      setSharedDragX(translationX);
-      setSharedDragY(translationY);
-      setDragTargetIndex(null); // No rearranging when multi-dragging
+    if (dragState.isDraggingMultiple) {
+      setDragState(prev => ({
+        ...prev,
+        sharedTranslation: { x: translationX, y: translationY },
+        targetIndex: null, // No rearranging when multi-dragging
+      }));
       return;
     }
     
     // Only rearrange if dragging horizontally (not trying to play on table)
     const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
     if (!isHorizontalDrag) {
-      setDragTargetIndex(null);
+      setDragState(prev => ({ ...prev, targetIndex: null }));
       return;
     }
     
@@ -162,40 +212,47 @@ export default function CardHand({
     
     // Only store the target index, don't actually move the card yet
     if (targetIndex !== currentIndex) {
-      setDragTargetIndex(targetIndex);
+      setDragState(prev => ({ ...prev, targetIndex }));
     } else {
-      setDragTargetIndex(null);
+      setDragState(prev => ({ ...prev, targetIndex: null }));
     }
-  }, [draggedCardId, orderedCards, isDraggingMultiple]);
+  }, [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards]);
 
   // Handle drag end for rearranging or playing
   const handleDragEnd = useCallback((cardId: string, translationX: number, translationY: number) => {
-    if (draggedCardId) {
+    if (dragState.draggedCardId) {
       const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
       const isUpwardDrag = translationY < DRAG_TO_PLAY_THRESHOLD;
       
       // If dragging multiple selected cards and dragged upward, play them
-      if (isDraggingMultiple && isUpwardDrag) {
+      if (dragState.isDraggingMultiple && isUpwardDrag) {
         const selected = orderedCards.filter((card) => selectedCardIds.has(card.id));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onPlayCards(selected);
-        setSelectedCardIds(new Set()); // Clear selection after playing
+        
+        // Clear selection after playing
+        const emptySet = new Set<string>();
+        if (onSelectionChange) {
+          onSelectionChange(emptySet);
+        } else {
+          setInternalSelectedCardIds(emptySet);
+        }
       }
       // If dragged upward significantly (single card), treat as play attempt
-      else if (isUpwardDrag && !isHorizontalDrag && !isDraggingMultiple) {
+      else if (isUpwardDrag && !isHorizontalDrag && !dragState.isDraggingMultiple) {
         // Play just this card
         const card = orderedCards.find(c => c.id === cardId);
         if (card) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           onPlayCards([card]);
         }
-      } else if (isHorizontalDrag && dragTargetIndex !== null && !isDraggingMultiple) {
+      } else if (isHorizontalDrag && dragState.targetIndex !== null && !dragState.isDraggingMultiple) {
         // Horizontal drag = rearrange (only for single card) - NOW apply the position change
         const currentIndex = orderedCards.findIndex(c => c.id === cardId);
-        if (currentIndex !== -1 && dragTargetIndex !== currentIndex) {
+        if (currentIndex !== -1 && dragState.targetIndex !== currentIndex) {
           const newCards = [...orderedCards];
           const [draggedCard] = newCards.splice(currentIndex, 1);
-          newCards.splice(dragTargetIndex, 0, draggedCard);
+          newCards.splice(dragState.targetIndex, 0, draggedCard);
           setDisplayCards(newCards);
           
           if (onCardsReorder && newCards.length > 0) {
@@ -204,15 +261,10 @@ export default function CardHand({
         }
       }
       
-      // Reset drag state
-      setDraggedCardId(null);
-      setDragTargetIndex(null);
-      setLongPressedCardId(null); // Clear long press state
-      setIsDraggingMultiple(false);
-      setSharedDragX(0);
-      setSharedDragY(0);
+      // Reset all drag state
+      setDragState(initialDragState);
     }
-  }, [draggedCardId, dragTargetIndex, orderedCards, onCardsReorder, isDraggingMultiple, selectedCardIds, onPlayCards, setSelectedCardIds]);
+  }, [dragState, orderedCards, selectedCardIds, onPlayCards, setSelectedCardIds, onCardsReorder]);
 
   // Card display order is managed by the parent (e.g., via customCardOrder) or user rearrangement.
   // Future enhancement: Allow user to choose different sort options (e.g., by rank/suit).
@@ -224,7 +276,7 @@ export default function CardHand({
         {orderedCards.map((card, index) => {
           const isThisCardSelected = selectedCardIds.has(card.id);
           const hasMultipleSelected = selectedCardIds.size > 1;
-          const isDraggingThisGroup = isDraggingMultiple && isThisCardSelected;
+          const isDraggingThisGroup = dragState.isDraggingMultiple && isThisCardSelected;
           
           return (
             <Card
@@ -237,11 +289,11 @@ export default function CardHand({
               onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
               onLongPress={() => handleLongPress(card.id)}
               disabled={disabled}
-              zIndex={draggedCardId === card.id ? 3000 : (longPressedCardId === card.id ? 2000 : index + 1)}
+              zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
               hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
               isDraggingGroup={isDraggingThisGroup}
-              sharedDragX={sharedDragX}
-              sharedDragY={sharedDragY}
+              sharedDragX={dragState.sharedTranslation.x}
+              sharedDragY={dragState.sharedTranslation.y}
             />
           );
         })}
