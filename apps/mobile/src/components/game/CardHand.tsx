@@ -68,9 +68,10 @@ export default function CardHand({
   // Separate state: display cards (managed independently)
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
   
-  // Use lifted state if provided, otherwise use internal state
+  // Selection state: If external state is provided, use it; otherwise use internal state.
+  // The setter pattern was intentionally removed. All selection updates now use explicit
+  // conditional checks for onSelectionChange throughout the code (see handleToggleSelect, etc.).
   const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
-  const setSelectedCardIds = onSelectionChange ?? setInternalSelectedCardIds;
   
   // Update display cards when prop cards change
   React.useEffect(() => {
