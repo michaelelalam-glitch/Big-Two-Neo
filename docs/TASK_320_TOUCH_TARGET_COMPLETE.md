@@ -55,6 +55,25 @@ touchTargetExpansion: {
 >
 ```
 
+### 4. Added 60px Horizontal Offset to Card Hand
+```tsx
+// In CardHand.tsx
+cardsWrapper: {
+  flexDirection: 'row',
+  paddingHorizontal: SPACING.lg,
+  paddingVertical: SPACING.md,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginLeft: 60, // Move all cards 60px to the right
+}
+```
+
+**Why 60px?**
+- User-requested adjustment for better hand alignment on screen
+- Shifts entire card hand to the right for improved visual balance
+- Works well on standard phone screen sizes (375px-428px width)
+- Future enhancement: Make responsive for smaller/larger devices
+
 ---
 
 ## 🎯 Impact
@@ -102,12 +121,17 @@ The project has 17 pre-existing TypeScript errors in other files:
 
 ## 📁 Files Modified
 
-**Single file changed:**
+**Two files changed:**
 - `apps/mobile/src/components/game/Card.tsx`
   - Added `TOUCH_TARGET_PADDING` constant (+1 line)
-  - Added `touchTargetExpansion` style (+5 lines)
+  - Added `touchTargetExpansion` style (+8 lines with comments)
   - Applied style to `Animated.View` (+1 line modified)
-  - **Net change:** +7 lines
+  - **Net change:** +10 lines
+
+- `apps/mobile/src/components/game/CardHand.tsx`
+  - Added `marginLeft: 60` to shift hand horizontally (+1 line)
+  - Added responsive offset comment (+1 line)
+  - **Net change:** +2 lines
 
 ---
 

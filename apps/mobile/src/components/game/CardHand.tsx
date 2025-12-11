@@ -372,7 +372,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center', // Center the cards horizontally
-    marginLeft: 60, // Move all cards 60px to the right
+    marginLeft: 60, // Move all cards 60px to the right (requested by user for better hand alignment)
+    // Note: Fixed offset works for standard phone screens. Future: make responsive based on screen width for smaller devices.
   },
   actionsContainer: {
     paddingHorizontal: SPACING.lg,
