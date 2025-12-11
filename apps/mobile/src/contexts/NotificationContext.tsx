@@ -70,8 +70,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           notificationLogger.info('✅ Push notifications registered successfully');
         }
       }
-    } catch (error) {
-      notificationLogger.error('Error registering push notifications:', error);
+    } catch (error: any) {
+      notificationLogger.error('Error registering push notifications:', error?.message || error?.code || String(error));
     }
   }, [user]);
 
@@ -113,7 +113,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   useEffect(() => {
     // Handle notification received while app is open
     notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
-      notificationLogger.info('📱 Notification received:', notif);
+      // Log only essential fields to avoid exposing sensitive user data
+      const { title, body } = notif.request.content;
+      const notifType = notif.request.content.data?.type;
+      notificationLogger.info('📱 Notification received:', { title, body, type: notifType });
       setNotification(notif);
     });
 
@@ -125,11 +128,14 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     // Check for notification that opened the app
     getLastNotificationResponse().then((response) => {
       if (response && navigation) {
-        notificationLogger.info('App opened from notification:', response);
+        // Log only essential fields to avoid exposing sensitive user data
+        const title = response?.notification?.request?.content?.title;
+        const type = response?.notification?.request?.content?.data?.type;
+        notificationLogger.info('App opened from notification:', { title, type });
         handleNotificationResponse(response);
       }
-    }).catch((error) => {
-      notificationLogger.error('Error getting last notification response:', error);
+    }).catch((error: any) => {
+      notificationLogger.error('Error getting last notification response:', error?.message || error?.code || String(error));
     });
 
     // Cleanup

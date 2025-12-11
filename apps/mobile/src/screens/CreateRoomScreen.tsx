@@ -42,7 +42,7 @@ export default function CreateRoomScreen() {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-        roomLogger.error('❌ Error checking existing room:', checkError);
+        roomLogger.error('❌ Error checking existing room:', checkError?.message || checkError?.code || 'Unknown error');
         throw checkError;
       }
 

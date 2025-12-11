@@ -39,8 +39,8 @@ export default function HomeScreen() {
       } else {
         setCurrentRoom(null);
       }
-    } catch (error) {
-      roomLogger.error('Error in checkCurrentRoom:', error);
+    } catch (error: any) {
+      roomLogger.error('Error in checkCurrentRoom:', error?.message || error?.code || String(error));
     }
   }, [user]);
 
@@ -173,7 +173,7 @@ export default function HomeScreen() {
           });
 
         if (joinError) {
-          roomLogger.error('❌ Atomic join error:', joinError);
+          roomLogger.error('❌ Atomic join error:', joinError?.message || joinError?.code || 'Unknown error');
           
           // Handle specific error cases
           if (joinError.message?.includes('Room is full') || joinError.message?.includes('Room not found')) {
@@ -220,7 +220,7 @@ export default function HomeScreen() {
         .single();
 
       if (roomError) {
-        roomLogger.error('❌ Room creation error:', roomError);
+        roomLogger.error('❌ Room creation error:', roomError?.message || roomError?.code || 'Unknown error');
         throw roomError;
       }
       roomLogger.info('✅ Public room created:', roomCode);
@@ -235,7 +235,7 @@ export default function HomeScreen() {
         });
 
       if (playerError) {
-        roomLogger.error('❌ Player insertion error (atomic):', playerError);
+        roomLogger.error('❌ Player insertion error (atomic):', playerError?.message || playerError?.code || 'Unknown error');
         throw playerError;
       }
       roomLogger.info('✅ Host added to public room (atomic):', joinResult);

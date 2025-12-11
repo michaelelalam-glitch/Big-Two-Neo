@@ -104,7 +104,7 @@ export default function LeaderboardScreen() {
       const { data, error } = await query;
 
       if (error) {
-        statsLogger.error('[Leaderboard] Query error:', error);
+        statsLogger.error('[Leaderboard] Query error:', error?.message || error?.code || 'Unknown error');
         throw error;
       }
 
@@ -222,8 +222,8 @@ export default function LeaderboardScreen() {
           setUserRank(null);
         }
       }
-    } catch (error) {
-      statsLogger.error('[Leaderboard] Error fetching leaderboard:', error);
+    } catch (error: any) {
+      statsLogger.error('[Leaderboard] Error fetching leaderboard:', error?.message || error?.code || String(error));
     } finally {
       setLoading(false);
       setRefreshing(false);

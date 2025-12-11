@@ -89,7 +89,7 @@ export default function StatsScreen() {
     if (!userId) return;
 
     try {
-      statsLogger.info('[Stats] Fetching data for user:', userId);
+      statsLogger.info('[Stats] Fetching data for user:', userId.slice(0, 8) + '...');
 
       // Fetch player stats
       const { data: statsData, error: statsError } = await supabase
@@ -105,7 +105,7 @@ export default function StatsScreen() {
           setStats(null);
         } else {
           // Other error - log and throw
-          statsLogger.error('[Stats] Stats query error:', statsError);
+          statsLogger.error('[Stats] Stats query error:', statsError?.message || statsError?.code || 'Unknown error');
           throw statsError;
         }
       } else {

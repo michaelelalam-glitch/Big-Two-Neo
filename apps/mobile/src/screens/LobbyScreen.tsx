@@ -129,7 +129,7 @@ export default function LobbyScreen() {
         setIsHost(false);
       }
     } catch (error: any) {
-      roomLogger.error('[LobbyScreen] Error loading players:', error);
+      roomLogger.error('[LobbyScreen] Error loading players:', error?.message || error?.code || String(error));
       // Don't show alert if room was cleaned up (user left)
       // Just navigate home silently
       if (error?.message?.includes('not found') || error?.code === 'PGRST116') {
@@ -184,7 +184,7 @@ export default function LobbyScreen() {
       if (error) throw error;
       setIsReady(!isReady);
     } catch (error: any) {
-      roomLogger.error('Error toggling ready:', error);
+      roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
       Alert.alert('Error', 'Failed to update ready status');
     } finally {
       setIsTogglingReady(false);
@@ -212,7 +212,7 @@ export default function LobbyScreen() {
         .single();
 
       if (roomPlayerError || !roomPlayerData) {
-        roomLogger.error('Room player lookup error:', roomPlayerError);
+        roomLogger.error('Room player lookup error:', roomPlayerError?.message || roomPlayerError?.code || 'Unknown error');
         Alert.alert('Error', 'Could not find your player data');
         return;
       }
@@ -253,7 +253,7 @@ export default function LobbyScreen() {
           .single();
 
         if (createPlayerError || !newPlayer) {
-          roomLogger.error('Error creating player:', createPlayerError);
+          roomLogger.error('Error creating player:', createPlayerError?.message || createPlayerError?.code || 'Unknown error');
           Alert.alert('Error', 'Failed to create player entry');
           return;
         }
@@ -300,7 +300,7 @@ export default function LobbyScreen() {
       navigation.replace('Game', { roomCode });
       setIsStarting(false);
     } catch (error: any) {
-      roomLogger.error('Error starting game:', error);
+      roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
       Alert.alert('Error', error.message || 'Failed to start game');
       // Reset immediately on error
       setIsStarting(false);
@@ -345,7 +345,7 @@ export default function LobbyScreen() {
       
       navigation.replace('Home');
     } catch (error: any) {
-      roomLogger.error('Error leaving room:', error);
+      roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
       isLeavingRef.current = false; // Reset flag on error
       Alert.alert('Error', 'Failed to leave room');
     }

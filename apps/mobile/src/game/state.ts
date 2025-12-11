@@ -361,8 +361,8 @@ export class GameStateManager {
         this.notifyListeners();
         return this.state;
       }
-    } catch (error) {
-      gameLogger.error('Failed to load game state:', error);
+    } catch (error: any) {
+      gameLogger.error('Failed to load game state:', error?.message || String(error));
     }
     return null;
   }
@@ -389,8 +389,8 @@ export class GameStateManager {
       await AsyncStorage.removeItem(GAME_STATE_KEY);
       this.state = null;
       this.notifyListeners();
-    } catch (error) {
-      gameLogger.error('Failed to clear game state:', error);
+    } catch (error: any) {
+      gameLogger.error('Failed to clear game state:', error?.message || String(error));
     }
   }
 
@@ -643,7 +643,7 @@ export class GameStateManager {
       // Get current user
       statsLogger.debug('📊 [Stats] Getting current user...');
       const { data: { user } } = await supabase.auth.getUser();
-      statsLogger.debug('📊 [Stats] User:', user?.id ? `Found (${user.id})` : 'Not found');
+      statsLogger.debug('📊 [Stats] User:', user?.id ? `Found (${user.id.slice(0, 8)}...)` : 'Not found');
       
       if (!user) {
         statsLogger.warn('⚠️ [Stats] No authenticated user, skipping stats save');

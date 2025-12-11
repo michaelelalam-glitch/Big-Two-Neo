@@ -60,13 +60,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        authLogger.error('Error fetching profile:', error);
+        authLogger.error('Error fetching profile:', error?.message || error?.code || 'Unknown error');
         return null;
       }
 
       return data;
-    } catch (error) {
-      authLogger.error('Error fetching profile:', error);
+    } catch (error: any) {
+      authLogger.error('Error fetching profile:', error?.message || error?.code || String(error));
       return null;
     }
   };
@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('user_id', userId);
 
       if (checkError) {
-        roomLogger.error('❌ [AuthContext] Error checking room memberships:', checkError);
+        roomLogger.error('❌ [AuthContext] Error checking room memberships:', checkError?.message || checkError?.code || 'Unknown error');
         return;
       }
 
@@ -129,13 +129,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .in('room_id', waitingRoomIds);
 
         if (deleteError) {
-          roomLogger.error('❌ [AuthContext] Error removing stale memberships:', deleteError);
+          roomLogger.error('❌ [AuthContext] Error removing stale memberships:', deleteError?.message || deleteError?.code || 'Unknown error');
         } else {
           roomLogger.info(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
         }
       }
-    } catch (error) {
-      roomLogger.error('❌ [AuthContext] Unexpected error in cleanup:', error);
+    } catch (error: any) {
+      roomLogger.error('❌ [AuthContext] Unexpected error in cleanup:', error?.message || error?.code || String(error));
     }
   };
 

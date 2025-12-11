@@ -156,7 +156,7 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
       .eq('user_id', userId);
 
     if (error) {
-      notificationLogger.error('Error removing push token:', error);
+      notificationLogger.error('Error removing push token:', error?.message || error?.code || 'Unknown error');
       return false;
     }
 
@@ -174,13 +174,20 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
 export function setupNotificationListeners() {
   // Listener for notifications received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
-    notificationLogger.info('📱 Notification received:', notification);
+    // Log only essential fields to avoid exposing sensitive user data
+    const { title, body } = notification.request.content;
+    const type = notification.request.content.data?.type;
+    notificationLogger.info('📱 Notification received:', { title, body, type });
     // You can add custom handling here (e.g., show in-app alert)
   });
 
   // Listener for when user taps on notification
   const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-    notificationLogger.info('👆 Notification tapped:', response);
+    // Log only essential fields to avoid exposing sensitive user data
+    const title = response?.notification?.request?.content?.title;
+    const type = response?.notification?.request?.content?.data?.type;
+    const notifId = response?.notification?.request?.identifier;
+    notificationLogger.info('👆 Notification tapped:', { title, type, id: notifId });
     const data = response.notification.request.content.data;
     
     // Handle deep linking based on notification data

@@ -88,7 +88,7 @@ export default function JoinRoomScreen() {
         });
 
       if (joinError) {
-        roomLogger.error('❌ Atomic join error:', joinError);
+        roomLogger.error('❌ Atomic join error:', joinError?.message || joinError?.code || 'Unknown error');
         
         // Handle specific error cases
         if (joinError.message?.includes('Room is full')) {
@@ -106,7 +106,7 @@ export default function JoinRoomScreen() {
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
-      roomLogger.error('Error joining room:', error);
+      roomLogger.error('Error joining room:', error?.message || error?.code || String(error));
       Alert.alert('Error', error.message || 'Failed to join room');
     } finally {
       setIsJoining(false);

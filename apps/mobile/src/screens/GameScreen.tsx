@@ -217,8 +217,8 @@ export default function GameScreen() {
         return () => {
           unsubscribe();
         };
-      } catch (error) {
-        gameLogger.error('❌ [GameScreen] Failed to initialize game:', error);
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
         setIsInitializing(false);
         Alert.alert('Error', 'Failed to initialize game. Please try again.');
       }
@@ -365,7 +365,7 @@ export default function GameScreen() {
           .eq('user_id', user.id)
           .then(({ error }) => {
             if (error) {
-              gameLogger.error('❌ [GameScreen] Cleanup error:', error);
+              gameLogger.error('❌ [GameScreen] Cleanup error:', error?.message || error?.code || 'Unknown error');
             } else {
               gameLogger.info('✅ [GameScreen] Successfully removed from room');
             }

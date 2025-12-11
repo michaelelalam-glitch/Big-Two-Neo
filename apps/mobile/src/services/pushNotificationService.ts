@@ -58,15 +58,16 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
 
     if (!response.ok) {
       const error = await response.json();
-      notificationLogger.error('Failed to send push notifications:', error);
+      // Log only error message, not full response (may contain API keys)
+      notificationLogger.error('Failed to send push notifications:', error?.message || error?.error || 'API request failed');
       return false;
     }
 
     const result = await response.json();
     notificationLogger.info(`✅ Sent ${result.sent} notification(s)`);
     return true;
-  } catch (error) {
-    notificationLogger.error('Error sending push notifications:', error);
+  } catch (error: any) {
+    notificationLogger.error('Error sending push notifications:', error?.message || error?.code || String(error));
     return false;
   }
 }

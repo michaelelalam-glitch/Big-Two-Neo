@@ -47,7 +47,7 @@ const GoogleSignInButton = () => {
         'big2mobile://google-auth',
         { showInRecents: true }
       ).catch((err) => {
-        authLogger.error('openAuthSessionAsync - error', { err });
+        authLogger.error('openAuthSessionAsync - error', err?.message || err?.code || String(err));
         throw err;
       });
 
@@ -56,7 +56,13 @@ const GoogleSignInButton = () => {
       if (result && result.type === 'success') {
         authLogger.info('openAuthSessionAsync - success');
         const params = extractParamsFromUrl(result.url);
-        authLogger.debug('openAuthSessionAsync - success params', { params });
+        // Redact sensitive tokens before logging
+        const redactedParams = {
+          ...params,
+          access_token: params.access_token ? '[REDACTED]' : undefined,
+          refresh_token: params.refresh_token ? '[REDACTED]' : undefined,
+        };
+        authLogger.debug('openAuthSessionAsync - success params', { params: redactedParams });
 
         if (params.access_token && params.refresh_token) {
           authLogger.debug('Setting session...');
@@ -64,10 +70,15 @@ const GoogleSignInButton = () => {
             access_token: params.access_token,
             refresh_token: params.refresh_token,
           });
-          authLogger.debug('setSession - result', { data, error });
+          // Redact sensitive tokens from session data before logging
+          const redactedData = data ? {
+            user: data.user ? { id: data.user.id, email: data.user.email } : null,
+            session: data.session ? '[REDACTED]' : null
+          } : data;
+          authLogger.debug('setSession - result', { data: redactedData, error: error?.message });
 
           if (error) {
-            authLogger.error('Error setting session:', error);
+            authLogger.error('Error setting session:', error?.message || error?.code || 'Unknown error');
             throw error;
           }
         } else {
@@ -76,8 +87,8 @@ const GoogleSignInButton = () => {
       } else {
         authLogger.info('OAuth flow cancelled or failed');
       }
-    } catch (error) {
-      authLogger.error('Error during Google sign in:', error);
+    } catch (error: any) {
+      authLogger.error('Error during Google sign in:', error?.message || error?.code || String(error));
       throw error;
     }
   };
