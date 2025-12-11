@@ -7,7 +7,6 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import ErrorBoundary from '../components/ErrorBoundary';
 import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -396,7 +395,6 @@ export default function LobbyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ErrorBoundary>
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.leaveButton, isLeaving && styles.buttonDisabled]}
@@ -471,7 +469,6 @@ export default function LobbyScreen() {
           </Text>
         )}
       </View>
-      </ErrorBoundary>
     </SafeAreaView>
   );
 }

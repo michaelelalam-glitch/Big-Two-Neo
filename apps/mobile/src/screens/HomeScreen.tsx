@@ -8,7 +8,6 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
-import ErrorBoundary from '../components/ErrorBoundary';
 import { roomLogger } from '../utils/logger';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -258,7 +257,6 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ErrorBoundary>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.leaderboardButton}
@@ -293,8 +291,8 @@ export default function HomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.mainButton, styles.quickPlayButton, isQuickPlaying && styles.buttonDisabled]}
-            onPress={() => handleQuickPlay()}
-            disabled={isQuickPlaying}
+            onPress={handleQuickPlay}
+            disabled={isQuickPlaying}>
           >
             {isQuickPlaying ? (
               <>
@@ -326,7 +324,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      </ErrorBoundary>
     </SafeAreaView>
   );
 }

@@ -13,7 +13,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { COLORS } from '../constants';
-import ErrorBoundary from '../components/ErrorBoundary';
 import { statsLogger, authLogger } from '../utils/logger';
 
 interface PlayerStats {
@@ -107,7 +106,6 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ErrorBoundary>
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
@@ -255,7 +253,6 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-      </ErrorBoundary>
     </SafeAreaView>
   );
 };

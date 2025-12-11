@@ -11,7 +11,7 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
  */
 
 // Note: Conditional import causes type issues, so we conditionally configure instead
-let FileSystem: any;
+let FileSystem: typeof import('expo-file-system') | undefined;
 try {
   FileSystem = require('expo-file-system');
 } catch (e) {
