@@ -73,7 +73,7 @@ export default function CreateRoomScreen() {
                   const { error: leaveError } = await supabase
                     .from('room_players')
                     .delete()
-                    .eq('room_id', existingRoomPlayer.room_id)
+                    .eq('room_id', roomPlayer.room_id)
                     .eq('user_id', user.id);
 
                   if (leaveError) {
@@ -95,7 +95,7 @@ export default function CreateRoomScreen() {
                     const { data: checkData, error: checkErr } = await supabase
                       .from('room_players')
                       .select('id')
-                      .eq('room_id', existingRoomPlayer.room_id)
+                      .eq('room_id', roomPlayer.room_id)
                       .eq('user_id', user.id);
                     
                     if (checkErr) break;
