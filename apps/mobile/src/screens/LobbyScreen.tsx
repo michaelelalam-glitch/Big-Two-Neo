@@ -270,8 +270,18 @@ export default function LobbyScreen() {
 
       console.log('Starting game for room:', currentRoomId);
 
-      // Update room status to 'playing' - bot players will be created by GameScreen
-      // Note: In single-player mode, bots are client-side AI created during game initialization
+      // ARCHITECTURE: Single-player bot games use CLIENT-SIDE game initialization
+      // 
+      // Why no RPC call here:
+      // - Bots are local AI created by GameStateManager.initializeGame() in GameScreen
+      // - No start_game RPC exists (nor is it needed for client-side bots)
+      // - GameScreen auto-initializes when mounting: creates 3 bot players, deals cards, starts game
+      //
+      // Server role: Only tracks room status for lobby UI
+      // Bot creation: Happens in apps/mobile/src/game/state.ts:157-180
+      // Game state: Stored in client memory (not database) for single-player
+      //
+      // Note: Multiplayer (4 humans) uses DIFFERENT code path in useRealtime.ts:383-429
       const { error: updateError } = await supabase
         .from('rooms')
         .update({ status: 'playing' })
@@ -281,7 +291,11 @@ export default function LobbyScreen() {
         throw new Error(`Failed to start game: ${updateError.message}`);
       }
 
-      // Navigate to game screen - GameScreen will initialize bot players
+      // Navigate to GameScreen which will:
+      // 1. Call createGameStateManager()
+      // 2. Run manager.initializeGame({ playerName, botCount: 3, botDifficulty: 'medium' })
+      // 3. Create bot players (Bot 1, Bot 2, Bot 3)
+      // 4. Deal cards and start game
       navigation.replace('Game', { roomCode });
       setIsStarting(false);
     } catch (error: any) {
