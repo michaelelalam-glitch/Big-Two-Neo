@@ -264,7 +264,7 @@ export default function CardHand({
       // Reset all drag state
       setDragState(initialDragState);
     }
-  }, [dragState, orderedCards, selectedCardIds, onPlayCards, setSelectedCardIds, onCardsReorder]);
+  }, [dragState, orderedCards, selectedCardIds, onPlayCards, onSelectionChange, onCardsReorder]);
 
   // Card display order is managed by the parent (e.g., via customCardOrder) or user rearrangement.
   // Future enhancement: Allow user to choose different sort options (e.g., by rank/suit).
