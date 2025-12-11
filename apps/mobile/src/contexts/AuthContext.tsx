@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
+import { authLogger, roomLogger } from '../utils/logger';
 
 export interface Profile {
   id: string;
@@ -59,13 +60,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        authLogger.error('Error fetching profile:', error?.message || error?.code || 'Unknown error');
         return null;
       }
 
       return data;
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch (error: any) {
+      authLogger.error('Error fetching profile:', error?.message || error?.code || String(error));
       return null;
     }
   };
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Clean up stale room memberships (e.g., from force-closed app)
   const cleanupStaleRoomMembership = async (userId: string) => {
     try {
-      console.log('🧹 [AuthContext] Cleaning up stale room memberships for user:', userId);
+      roomLogger.info('🧹 [AuthContext] Cleaning up stale room memberships for user:', userId);
       
       // Check if user is in any room
       const { data: roomMemberships, error: checkError } = await supabase
@@ -90,17 +91,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('user_id', userId);
 
       if (checkError) {
-        console.error('❌ [AuthContext] Error checking room memberships:', checkError);
+        roomLogger.error('❌ [AuthContext] Error checking room memberships:', checkError?.message || checkError?.code || 'Unknown error');
         return;
       }
 
-      const memberships = (roomMemberships || []) as RoomPlayerWithRoom[];
+      const memberships: RoomPlayerWithRoom[] = (roomMemberships || [])
+        .map((rm: any) => ({
+          ...rm,
+          rooms:
+            rm.rooms == null
+              ? null
+              : Array.isArray(rm.rooms)
+                ? (rm.rooms.length > 0 ? rm.rooms[0] : null)
+                : rm.rooms
+        }))
+        .filter((rm): rm is RoomPlayerWithRoom => rm.rooms != null);
       if (memberships.length === 0) {
-        console.log('✅ [AuthContext] No stale rooms found');
+        roomLogger.info('✅ [AuthContext] No stale rooms found');
         return;
       }
 
-      console.log(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
+      roomLogger.info(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
         memberships.map(rm => rm.rooms?.code || 'unknown').join(', '));
 
       // Remove user from 'waiting' rooms only (future-proof for game persistence)
@@ -109,7 +120,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .map(rm => rm.room_id);
 
       if (waitingRoomIds.length === 0) {
-        console.log('✅ [AuthContext] No stale (waiting) rooms to clean up');
+        roomLogger.info('✅ [AuthContext] No stale (waiting) rooms to clean up');
       } else {
         const { error: deleteError } = await supabase
           .from('room_players')
@@ -118,13 +129,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .in('room_id', waitingRoomIds);
 
         if (deleteError) {
-          console.error('❌ [AuthContext] Error removing stale memberships:', deleteError);
+          roomLogger.error('❌ [AuthContext] Error removing stale memberships:', deleteError?.message || deleteError?.code || 'Unknown error');
         } else {
-          console.log(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
+          roomLogger.info(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
         }
       }
-    } catch (error) {
-      console.error('❌ [AuthContext] Unexpected error in cleanup:', error);
+    } catch (error: any) {
+      roomLogger.error('❌ [AuthContext] Unexpected error in cleanup:', error?.message || error?.code || String(error));
     }
   };
 
@@ -143,7 +154,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('Error fetching session:', error);
+          authLogger.error('Error fetching session:', error);
         }
 
         if (mounted) {
@@ -163,7 +174,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        authLogger.error('Error initializing auth:', error);
         if (mounted) {
           setIsLoading(false);
         }
@@ -176,7 +187,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      console.log('Auth state changed:', { event: _event, session: newSession });
+      authLogger.debug('Auth state changed:', { event: _event, session: newSession });
 
       if (mounted) {
         setSession(newSession);
@@ -203,11 +214,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Error signing out:', error);
+        // Only log error message to avoid exposing auth tokens/session data
+        authLogger.error('Error signing out:', error?.message || String(error));
         throw error;
       }
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch (error: any) {
+      // Only log error message to avoid exposing auth tokens/session data
+      authLogger.error('Error signing out:', error?.message || String(error));
       throw error;
     }
   };

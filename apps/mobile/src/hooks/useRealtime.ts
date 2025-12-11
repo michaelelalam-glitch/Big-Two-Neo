@@ -29,6 +29,7 @@ import {
   BroadcastPayload,
   PlayerPresence,
 } from '../types/multiplayer';
+import { networkLogger } from '../utils/logger';
 
 interface UseRealtimeOptions {
   userId: string;
@@ -573,13 +574,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     channel
       .on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState<PlayerPresence>();
-        console.log('Presence sync:', presenceState);
+        networkLogger.debug('Presence sync:', presenceState);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('Player joined presence:', key, newPresences);
+        networkLogger.debug('Player joined presence:', key, newPresences);
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('Player left presence:', key, leftPresences);
+        networkLogger.debug('Player left presence:', key, leftPresences);
       });
     
     // Subscribe to broadcast events

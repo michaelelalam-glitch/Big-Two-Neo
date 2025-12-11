@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { COLORS } from '../constants';
+import { statsLogger, authLogger } from '../utils/logger';
 
 interface PlayerStats {
   games_played: number;
@@ -49,12 +50,12 @@ const ProfileScreen = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-        console.error('[Profile] Stats fetch error:', error);
+        statsLogger.error('[Profile] Stats fetch error:', error?.message || error?.code || 'Unknown error');
       } else {
         setStats(data);
       }
-    } catch (error) {
-      console.error('[Profile] Error fetching stats:', error);
+    } catch (error: any) {
+      statsLogger.error('[Profile] Error fetching stats:', error?.message || error?.code || String(error));
     } finally {
       if (loadingType === 'initial') {
         setStatsLoading(false);
@@ -84,8 +85,8 @@ const ProfileScreen = () => {
         onPress: async () => {
           try {
             await signOut();
-          } catch (error) {
-            console.error('Error signing out:', error);
+          } catch (error: any) {
+            authLogger.error('Error signing out:', error?.message || String(error));
             Alert.alert('Error', 'Failed to sign out. Please try again.');
           }
         },

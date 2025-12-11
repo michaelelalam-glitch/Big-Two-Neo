@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { TouchableOpacity, Text, View, StyleSheet, Image } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabase';
+import { authLogger } from '../../utils/logger';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -23,7 +24,7 @@ const GoogleSignInButton = () => {
 
   const onSignInButtonPress = async () => {
     try {
-      console.log('Google sign in - start');
+      authLogger.info('Google sign in - start');
 
       const res = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -37,7 +38,7 @@ const GoogleSignInButton = () => {
       const googleOAuthUrl = res.data.url;
 
       if (!googleOAuthUrl) {
-        console.error('No OAuth URL found!');
+        authLogger.error('No OAuth URL found!');
         return;
       }
 
@@ -46,37 +47,48 @@ const GoogleSignInButton = () => {
         'big2mobile://google-auth',
         { showInRecents: true }
       ).catch((err) => {
-        console.error('openAuthSessionAsync - error', { err });
+        authLogger.error('openAuthSessionAsync - error', err?.message || err?.code || String(err));
         throw err;
       });
 
-      console.log('openAuthSessionAsync - result', { result });
+      authLogger.debug('openAuthSessionAsync - result', { result });
 
       if (result && result.type === 'success') {
-        console.log('openAuthSessionAsync - success');
+        authLogger.info('openAuthSessionAsync - success');
         const params = extractParamsFromUrl(result.url);
-        console.log('openAuthSessionAsync - success params', { params });
+        // Redact sensitive tokens before logging
+        const redactedParams = {
+          ...params,
+          access_token: params.access_token ? '[REDACTED]' : undefined,
+          refresh_token: params.refresh_token ? '[REDACTED]' : undefined,
+        };
+        authLogger.debug('openAuthSessionAsync - success params', { params: redactedParams });
 
         if (params.access_token && params.refresh_token) {
-          console.log('Setting session...');
+          authLogger.debug('Setting session...');
           const { data, error } = await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
           });
-          console.log('setSession - result', { data, error });
+          // Redact sensitive tokens from session data before logging
+          const redactedData = data ? {
+            user: data.user ? { id: data.user.id, email: data.user.email } : null,
+            session: data.session ? '[REDACTED]' : null
+          } : data;
+          authLogger.debug('setSession - result', { data: redactedData, error: error?.message });
 
           if (error) {
-            console.error('Error setting session:', error);
+            authLogger.error('Error setting session:', error?.message || error?.code || 'Unknown error');
             throw error;
           }
         } else {
-          console.error('Missing tokens in OAuth callback');
+          authLogger.error('Missing tokens in OAuth callback');
         }
       } else {
-        console.log('OAuth flow cancelled or failed');
+        authLogger.info('OAuth flow cancelled or failed');
       }
-    } catch (error) {
-      console.error('Error during Google sign in:', error);
+    } catch (error: any) {
+      authLogger.error('Error during Google sign in:', error?.message || error?.code || String(error));
       throw error;
     }
   };

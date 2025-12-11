@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { API } from '../constants';
+import { networkLogger } from '../utils/logger';
 
 const supabaseUrl = API.SUPABASE_URL;
 const supabaseAnonKey = API.SUPABASE_ANON_KEY;
@@ -12,7 +13,7 @@ const ExpoSecureStoreAdapter = {
   },
   setItem: (key: string, value: string) => {
     if (value.length > 2048) {
-      console.warn(
+      networkLogger.warn(
         'Value being stored in SecureStore is larger than 2048 bytes and it may not be stored successfully. In a future SDK version, this call may throw an error.'
       );
     }
