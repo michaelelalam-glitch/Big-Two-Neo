@@ -614,11 +614,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
   },
-    waitingInfo: {
-      fontSize: FONT_SIZES.sm,
-      color: COLORS.gray.medium,
-      textAlign: 'center',
-      marginTop: SPACING.md,
-      fontStyle: 'italic',
-    },
-  });
+  waitingInfo: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray.medium,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    fontStyle: 'italic',
+  },
+});

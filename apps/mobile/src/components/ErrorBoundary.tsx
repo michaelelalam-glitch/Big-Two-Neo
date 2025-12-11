@@ -6,6 +6,7 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  onReset?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -64,6 +65,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    * Reset error state (for retry functionality)
    */
   resetError = () => {
+    // Call optional reset handler to allow parent to reset state
+    if (this.props.onReset) {
+      this.props.onReset();
+    }
+    
     this.setState({
       hasError: false,
       error: null,
@@ -84,7 +90,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorTitle}>Something went wrong</Text>
             <Text style={styles.errorMessage}>
-              {this.state.error?.message || 'An unexpected error occurred'}
+              {__DEV__
+                ? (this.state.error?.message || 'An unexpected error occurred')
+                : 'An unexpected error occurred'}
             </Text>
             <TouchableOpacity
               style={styles.retryButton}

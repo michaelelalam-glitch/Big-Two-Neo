@@ -69,8 +69,6 @@ export default function CreateRoomScreen() {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  if (!existingRoomPlayer) return;
-                  
                   // Leave the existing room
                   const { error: leaveError } = await supabase
                     .from('room_players')
