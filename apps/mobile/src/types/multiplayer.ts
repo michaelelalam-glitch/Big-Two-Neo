@@ -71,7 +71,7 @@ export interface LastPlay {
 }
 
 export interface Card {
-  id: string; // Unique identifier, e.g., "3D", "AS" (rank + suit abbreviation)
+  id: string; // Unique identifier, e.g., "3D", "AS" (rank + suit abbreviation, no dash)
   suit: 'D' | 'C' | 'H' | 'S'; // D=Diamonds, C=Clubs, H=Hearts, S=Spades
   rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
 }
