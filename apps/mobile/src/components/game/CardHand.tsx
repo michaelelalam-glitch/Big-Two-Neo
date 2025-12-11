@@ -372,6 +372,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center', // Center the cards horizontally
+    marginLeft: 60, // Move all cards 60px to the right
   },
   actionsContainer: {
     paddingHorizontal: SPACING.lg,

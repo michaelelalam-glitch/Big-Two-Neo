@@ -41,6 +41,9 @@ const SELECTED_OFFSET = -20; // Offset for selected card elevation
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
 const CARD_OVERLAP_MARGIN = -40; // Negative margin for card overlap effect (13 cards fit in ~300px)
 
+// Touch target improvements (30px for better mobile UX while fitting all 13 cards)
+const TOUCH_TARGET_PADDING = 5; // Invisible padding to expand hit area (5px left/right = 10px total + 20px visible = 30px touch target)
+
 // Suit colors and symbols
 const SUIT_COLORS: Record<string, string> = {
   H: COLORS.card.hearts, // Hearts (red)
@@ -226,7 +229,12 @@ const Card = React.memo(function Card({
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View 
-        style={[styles.container, animatedStyle, style]}
+        style={[
+          styles.container, 
+          animatedStyle, 
+          style,
+          styles.touchTargetExpansion, // Add invisible padding for larger touch area
+        ]}
         accessible={true}
         accessibilityLabel={`${card.rank} of ${suitSymbol}`}
         accessibilityRole="button"
@@ -267,6 +275,14 @@ const Card = React.memo(function Card({
 const styles = StyleSheet.create({
   container: {
     marginLeft: CARD_OVERLAP_MARGIN, // Overlap cards: right cards overlap left cards
+  },
+  touchTargetExpansion: {
+    // Add invisible padding to expand touch target area
+    // Left/right padding ensures minimum 44×44pt hit area (iOS HIG)
+    paddingHorizontal: TOUCH_TARGET_PADDING, // 12px each side = 24px total
+    paddingVertical: TOUCH_TARGET_PADDING, // Vertical padding for better tap accuracy
+    // Compensate for vertical padding so cards don't overflow viewport
+    marginVertical: -TOUCH_TARGET_PADDING, // Negative margin offsets padding
   },
   card: {
     // Width and height set dynamically via props
