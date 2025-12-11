@@ -8,14 +8,19 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
  * - Production: File logging with error+ levels only  
  * - Supports namespaces for different modules
  * - Async for better performance
+ * 
+ * Note: expo-file-system is optional - if not available, falls back to console in production
  */
 
-// Note: Conditional import causes type issues, so we conditionally configure instead
-let FileSystem: typeof import('expo-file-system') | undefined;
+// Dynamically import expo-file-system if available (graceful degradation)
+// Using require() with try-catch allows optional peer dependencies without build failures
+// This is standard practice for React Native optional dependencies
+let FileSystem: any;
 try {
   FileSystem = require('expo-file-system');
 } catch (e) {
-  // FileSystem not available, will use console transport only
+  // FileSystem not available - will use console transport even in production
+  // This is acceptable for environments where file system access is not available
 }
 
 // Define log levels
@@ -62,8 +67,11 @@ const prodConfig = {
 };
 
 // Create the base logger with environment-specific config
-// @ts-expect-error - The config object type (devConfig/prodConfig) does not strictly match the expected type for logger.createLogger due to conditional transport and transportOptions properties.
-const log = logger.createLogger(__DEV__ ? devConfig : prodConfig);
+// Using 'as any' here because react-native-logs has complex conditional types that conflict
+// with our runtime conditional logic (dev vs prod, with/without FileSystem).
+// The library's type system expects static config but we're providing dynamic conditional config.
+// This is safe because we're following the library's documented API patterns.
+const log = logger.createLogger(__DEV__ ? devConfig : prodConfig as any);
 
 // Export namespaced loggers for different modules
 export const authLogger = log.extend('AUTH');
