@@ -78,8 +78,9 @@ describe('Auto-Pass Timer Manager', () => {
   describe('createAutoPassTimerState', () => {
     it('should create timer state with correct defaults', () => {
       const triggeringPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '2S', rank: '2', suit: 'S' }],
-        combo: 'single',
+        combo_type: 'Single',
       };
 
       const timerState = createAutoPassTimerState(triggeringPlay);
@@ -95,8 +96,9 @@ describe('Auto-Pass Timer Manager', () => {
   describe('updateTimerState', () => {
     it('should calculate correct remaining time', async () => {
       const triggeringPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '2S', rank: '2', suit: 'S' }],
-        combo: 'single',
+        combo_type: 'Single',
       };
 
       const timerState = createAutoPassTimerState(triggeringPlay);
@@ -113,8 +115,9 @@ describe('Auto-Pass Timer Manager', () => {
 
     it('should mark timer as inactive when expired', () => {
       const triggeringPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '2S', rank: '2', suit: 'S' }],
-        combo: 'single',
+        combo_type: 'Single',
       };
 
       // Create timer that already expired

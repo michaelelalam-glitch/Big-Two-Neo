@@ -17,8 +17,8 @@ export const AUTO_PASS_TIMER_DURATION_MS = 10000; // 10 seconds
  * Timer instance tracking
  */
 interface TimerInstance {
-  timeoutId: NodeJS.Timeout;
-  intervalId: NodeJS.Timeout;
+  timeoutId: ReturnType<typeof setTimeout>;
+  intervalId: ReturnType<typeof setInterval>;
   onTick: (remainingMs: number) => void;
   onComplete: () => void;
 }

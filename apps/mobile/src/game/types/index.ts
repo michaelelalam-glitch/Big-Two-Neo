@@ -12,8 +12,8 @@
  */
 export interface Card {
   id: string;      // e.g., "3D", "AS"
-  rank: string;    // rank: '3'-'10', 'J', 'Q', 'K', 'A', '2'
-  suit: string;    // suit: 'D', 'C', 'H', 'S'
+  rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
+  suit: 'D' | 'C' | 'H' | 'S';    // D=Diamonds, C=Clubs, H=Hearts, S=Spades
 }
 
 /**
@@ -28,22 +28,13 @@ export interface ClassificationResult {
  * Information about the last play in the game
  */
 export interface LastPlay {
+  position: number;
   cards: Card[];
-  combo_type: string;
+  combo_type: ComboType;
 }
 
-/**
- * Auto-pass timer state
- * Triggered when the highest possible card/combo is played
- * Gives players 10 seconds to manually pass before auto-passing
- */
-export interface AutoPassTimerState {
-  active: boolean;
-  started_at: string; // ISO timestamp when timer started
-  duration_ms: number; // Total duration in milliseconds (default: 10000)
-  remaining_ms: number; // Milliseconds remaining
-  triggering_play: LastPlay; // The play that triggered the timer
-}
+// Re-export shared types from multiplayer types to avoid duplication
+export type { AutoPassTimerState, ComboType } from '../../types/multiplayer';
 
 /**
  * Result of straight validation
@@ -57,20 +48,6 @@ export interface StraightValidation {
  * Count of cards grouped by rank
  */
 export type RankCount = Record<string, number>;
-
-/**
- * Valid combo types in Big Two
- */
-export type ComboType =
-  | 'Single'
-  | 'Pair'
-  | 'Triple'
-  | 'Straight'
-  | 'Flush'
-  | 'Full House'
-  | 'Four of a Kind'
-  | 'Straight Flush'
-  | 'unknown';
 
 /**
  * Valid rank values

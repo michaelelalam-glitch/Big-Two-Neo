@@ -77,14 +77,15 @@ export interface Card {
 }
 
 export type ComboType = 
-  | 'single'
-  | 'pair'
-  | 'triple'
-  | 'straight'
-  | 'flush'
-  | 'full_house'
-  | 'four_of_a_kind'
-  | 'straight_flush';
+  | 'Single'
+  | 'Pair'
+  | 'Triple'
+  | 'Straight'
+  | 'Flush'
+  | 'Full House'
+  | 'Four of a Kind'
+  | 'Straight Flush'
+  | 'unknown';
 
 export interface PlayerHand {
   player_id: string;
