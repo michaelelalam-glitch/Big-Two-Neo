@@ -24,17 +24,8 @@ export interface ClassificationResult {
   sortedCards: Card[]; // Cards sorted in proper display order
 }
 
-/**
- * Information about the last play in the game
- */
-export interface LastPlay {
-  position: number;
-  cards: Card[];
-  combo_type: ComboType;
-}
-
 // Re-export shared types from multiplayer types to avoid duplication
-export type { AutoPassTimerState, ComboType } from '../../types/multiplayer';
+export type { AutoPassTimerState, ComboType, LastPlay } from '../../types/multiplayer';
 
 /**
  * Result of straight validation

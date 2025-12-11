@@ -537,28 +537,116 @@ function isHighestRemainingFiveCardCombo(
         return false;
       }
       
-      // If triple ranks match, pair must also be highest
+      // If triple ranks match, pair must also be highest (for same triple rank comparison)
       return playedPairRank === highestPairRank;
     }
     
-    case 'Flush':
+    case 'Flush': {
+      // For flush, we already verified no stronger combo types exist (SF, 4K, FH)
+      // Now enumerate all possible flushes and check if this is the highest
+      
+      const currentSuit = sorted[0].suit;
+      const allSameSuit = sorted.every(c => c.suit === currentSuit);
+      if (!allSameSuit) return false;
+      
+      // Generate all possible 5-card flushes from remaining cards
+      const suitCards = remaining.filter(c => c.suit === currentSuit);
+      
+      if (suitCards.length < 5) {
+        // No other flush possible in this suit
+        return true;
+      }
+      
+      // Check if there's a higher 5-card combination in the same suit
+      // Sort by rank to find highest 5 cards
+      const sortedSuitCards = sortHand(suitCards);
+      const top5 = sortedSuitCards.slice(-5);
+      
+      // Compare current flush with best possible flush
+      const currentSorted = sortHand(sorted);
+      for (let i = 4; i >= 0; i--) {
+        const currentRank = RANK_VALUE[currentSorted[i].rank];
+        const bestRank = RANK_VALUE[top5[i].rank];
+        
+        if (currentRank > bestRank) return true;
+        if (currentRank < bestRank) return false;
+      }
+      
+      return true; // Same flush
+    }
+    
     case 'Straight': {
-      // For flush and straight, we already checked that stronger combo types don't exist
-      // Now check if this specific flush/straight is the highest of its type
-      // 
-      // Strategy: Since these are complex to enumerate fully, we use a conservative approach:
-      // - Already verified no stronger combo TYPE exists (SF, 4K, FH done above)
-      // - Return true if this combo contains at least one rank-2 card OR
-      // - Contains an Ace and no 2s remain in deck
-      // 
-      // This is conservative but correct for the auto-pass timer use case
-      // (prevents false positives while allowing true highest plays)
+      // For straight, we already verified no stronger combo types exist
+      // Now check if this is the highest possible straight
       
-      const hasTwo = sorted.some(c => c.rank === '2');
-      const hasAce = sorted.some(c => c.rank === 'A');
-      const twosRemaining = remaining.some(c => c.rank === '2');
+      const straightInfo = isStraight(sorted);
+      if (!straightInfo.valid) return false;
       
-      return hasTwo || (hasAce && !twosRemaining);
+      // Find the current sequence index
+      const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
+        seq => seq.join('') === straightInfo.sequence
+      );
+      
+      if (currentSeqIdx === -1) return false;
+      
+      // Check if any higher sequence can be formed
+      for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+        const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+        const canForm = seq.every(rank => remaining.some(c => c.rank === rank));
+        
+        if (canForm) {
+          return false; // A higher straight is possible
+        }
+      }
+      
+      // No higher straight possible - check if this is the best of current sequence
+      // For same sequence, compare highest suit
+      const highestCard = sorted[sorted.length - 1];
+      const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
+      
+      // Find all possible straights of the same sequence from remaining cards
+      const possibleStraights: Card[][] = [];
+      
+      // Generate all combinations by trying different suits for each rank
+      function generateStraightsRecursive(rankIdx: number, current: Card[]): void {
+        if (rankIdx === currentSeq.length) {
+          possibleStraights.push([...current]);
+          return;
+        }
+        
+        const rank = currentSeq[rankIdx];
+        const cardsOfRank = remaining.filter(c => c.rank === rank);
+        
+        for (const card of cardsOfRank) {
+          current.push(card);
+          generateStraightsRecursive(rankIdx + 1, current);
+          current.pop();
+        }
+      }
+      
+      generateStraightsRecursive(0, []);
+      
+      if (possibleStraights.length === 0) {
+        return true; // No other straights of same sequence possible
+      }
+      
+      // Find the straight with the highest suit
+      let bestStraight = possibleStraights[0];
+      for (const straight of possibleStraights) {
+        const straightSorted = sortHand(straight);
+        const bestSorted = sortHand(bestStraight);
+        const straightHigh = straightSorted[straightSorted.length - 1];
+        const bestHigh = bestSorted[bestSorted.length - 1];
+        
+        if (SUIT_VALUE[straightHigh.suit] > SUIT_VALUE[bestHigh.suit]) {
+          bestStraight = straight;
+        }
+      }
+      
+      const bestSorted = sortHand(bestStraight);
+      const bestHigh = bestSorted[bestSorted.length - 1];
+      
+      return SUIT_VALUE[highestCard.suit] >= SUIT_VALUE[bestHigh.suit];
     }
     
     default:
