@@ -394,8 +394,8 @@ export default function LobbyScreen() {
   }
 
   return (
-    <ErrorBoundary>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <ErrorBoundary>
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.leaveButton, isLeaving && styles.buttonDisabled]}
@@ -470,12 +470,10 @@ export default function LobbyScreen() {
           </Text>
         )}
       </View>
+      </ErrorBoundary>
     </SafeAreaView>
-    </ErrorBoundary>
   );
-}
-
-const styles = StyleSheet.create({
+}const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,

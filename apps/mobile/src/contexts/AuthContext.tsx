@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const memberships: RoomPlayerWithRoom[] = (roomMemberships || []).map((rm: any) => ({
         ...rm,
-        rooms: Array.isArray(rm.rooms) ? rm.rooms[0] : rm.rooms
+        rooms: Array.isArray(rm.rooms) ? (rm.rooms.length > 0 ? rm.rooms[0] : null) : rm.rooms
       }));
       if (memberships.length === 0) {
         console.log('✅ [AuthContext] No stale rooms found');

@@ -256,8 +256,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <ErrorBoundary>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <ErrorBoundary>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.leaderboardButton}
@@ -325,12 +325,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      </ErrorBoundary>
     </SafeAreaView>
-    </ErrorBoundary>
   );
-}
-
-const styles = StyleSheet.create({
+}const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,

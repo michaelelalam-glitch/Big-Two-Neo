@@ -38,20 +38,16 @@ const memberships: RoomPlayerWithRoom[] = (roomMemberships || []).map((rm: any) 
 
 **Fix:**
 ```tsx
-// Added null check at the start of the handler
-onPress: async () => {
-  try {
-    if (!existingRoomPlayer) return;
-    
-    // Now safe to use existingRoomPlayer.room_id
-    const { error: leaveError } = await supabase
-      .from('room_players')
-      .delete()
-      .eq('room_id', existingRoomPlayer.room_id)
-      .eq('user_id', user.id);
+// Use the typed roomPlayer variable instead of existingRoomPlayer
+// roomPlayer is already null-checked with if (roomPlayer) {...}
+const { error: leaveError } = await supabase
+  .from('room_players')
+  .delete()
+  .eq('room_id', roomPlayer.room_id)  // Changed from existingRoomPlayer
+  .eq('user_id', user.id);
 ```
 
-**Reason:** TypeScript strict null checks require explicit null handling before accessing properties.
+**Reason:** TypeScript strict null checks require using the typed variable that's already been null-checked.
 
 ---
 
@@ -139,7 +135,7 @@ npx tsc --noEmit
 ## 📝 Files Modified
 
 1. `/apps/mobile/src/contexts/AuthContext.tsx` - Fixed type conversion
-2. `/apps/mobile/src/screens/CreateRoomScreen.tsx` - Added null checks (2 locations)
+2. `/apps/mobile/src/screens/CreateRoomScreen.tsx` - Used typed variable instead of nullable one
 3. `/apps/mobile/src/screens/HomeScreen.tsx` - Fixed onPress handler
 4. `/apps/mobile/src/screens/LeaderboardScreen.tsx` - Added type assertion
 5. `/apps/mobile/tsconfig.json` - Excluded Supabase functions

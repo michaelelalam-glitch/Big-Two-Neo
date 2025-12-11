@@ -105,8 +105,8 @@ const ProfileScreen = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <ErrorBoundary>
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
@@ -254,8 +254,8 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </ErrorBoundary>
     </SafeAreaView>
-    </ErrorBoundary>
   );
 };
 

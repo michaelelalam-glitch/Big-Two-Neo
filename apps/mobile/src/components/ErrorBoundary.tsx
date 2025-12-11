@@ -19,9 +19,16 @@ interface ErrorBoundaryState {
  * and displays a fallback UI instead of crashing the entire app.
  * 
  * Usage:
- * <ErrorBoundary fallback={<CustomErrorUI />}>
+ * <ErrorBoundary
+ *   fallback={<CustomErrorUI />}
+ *   onError={(error, info) => logToService(error)}
+ *   onReset={() => resetComponentState()}
+ * >
  *   <YourComponent />
  * </ErrorBoundary>
+ * 
+ * Note: onReset is called when user clicks "Try Again" - use it to reset
+ * parent component state to prevent the same error from occurring again.
  */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -139,7 +146,7 @@ const styles = StyleSheet.create({
   errorMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.white,
-    opacity: 0.8, // 80% opacity
+    opacity: 0.8,
     marginBottom: SPACING.xl,
     textAlign: 'center',
     lineHeight: 22,
