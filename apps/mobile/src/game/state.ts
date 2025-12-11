@@ -9,6 +9,7 @@ import { sortHand, classifyCards, canBeatPlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
+import { API } from '../constants';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -38,6 +39,7 @@ export interface GameState {
   lastMatchWinnerId: string | null; // Winner of previous match (starts next match)
   gameOver: boolean; // True when a player reaches 101+ points
   finalWinnerId: string | null; // Overall game winner (lowest score)
+  startedAt?: number; // Timestamp when the game started (for duration calculation)
 }
 
 export interface RoundHistoryEntry {
@@ -212,6 +214,7 @@ export class GameStateManager {
       lastMatchWinnerId: null,
       gameOver: false,
       finalWinnerId: null,
+      startedAt: Date.now(),
     };
 
     await this.saveState();
@@ -702,8 +705,15 @@ export class GameStateManager {
       });
 
       // Find the winner's user_id (not the internal player ID)
-      const winnerPlayer = this.state.players.find(p => p.id === this.state.finalWinnerId);
-      const winnerUserId = winnerPlayer?.isBot ? `bot_${winnerPlayer.id}` : user.id;
+      if (!this.state.finalWinnerId) {
+        throw new Error('No final winner ID found in state');
+      }
+      const finalWinnerId = this.state.finalWinnerId; // Local variable to maintain non-null type after check
+      const winnerPlayer = this.state.players.find(p => p.id === finalWinnerId);
+      if (!winnerPlayer) {
+        throw new Error(`Winner player not found in state for finalWinnerId: ${finalWinnerId}`);
+      }
+      const winnerUserId = winnerPlayer.isBot ? `bot_${winnerPlayer.id}` : user.id;
 
       const gameCompletionData = {
         room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
@@ -725,7 +735,7 @@ export class GameStateManager {
       }
 
       const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/complete-game`,
+        `${API.SUPABASE_URL}/functions/v1/complete-game`,
         {
           method: 'POST',
           headers: {
