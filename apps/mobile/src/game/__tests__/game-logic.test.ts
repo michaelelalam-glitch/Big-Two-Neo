@@ -10,6 +10,9 @@ import {
   canBeatPlay,
   findRecommendedPlay,
   isStraight,
+  findHighestBeatingSingle,
+  validateOneCardLeftRule,
+  canPassWithOneCardLeftRule,
 } from '../engine/game-logic';
 import type { Card, LastPlay } from '../types';
 
@@ -416,3 +419,225 @@ describe('Game Logic - classifyAndSortCards', () => {
     expect(result.sortedCards).toEqual([]);
   });
 });
+
+describe('Game Logic - One Card Left Rule', () => {
+  describe('findHighestBeatingSingle', () => {
+    test('finds highest single that beats last play', () => {
+      const hand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+        { id: '7H', rank: '7', suit: 'H' },
+        { id: 'KS', rank: 'K', suit: 'S' },
+      ];
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = findHighestBeatingSingle(hand, lastPlay);
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe('KS'); // Highest card that beats 3D
+    });
+
+    test('returns null when no singles beat last play', () => {
+      const hand: Card[] = [
+        { id: '3D', rank: '3', suit: 'D' },
+      ];
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3C', rank: '3', suit: 'C' }],
+        combo: 'Single',
+      };
+
+      const result = findHighestBeatingSingle(hand, lastPlay);
+      expect(result).toBeNull(); // 3D cannot beat 3C (same rank, lower suit: D < C)
+    });
+
+    test('returns highest card when no last play (leading)', () => {
+      const hand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+
+      const result = findHighestBeatingSingle(hand, null);
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe('AS'); // Highest card in hand
+    });
+
+    test('returns null for empty hand', () => {
+      const result = findHighestBeatingSingle([], null);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('validateOneCardLeftRule', () => {
+    test('allows play when next player does not have 1 card', () => {
+      const selectedCards: Card[] = [{ id: '4D', rank: '4', suit: 'D' }];
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+      const nextPlayerCardCount = 5; // Not 1
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.valid).toBe(true);
+    });
+
+    test('allows non-single plays even when next player has 1 card', () => {
+      const selectedCards: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '4C', rank: '4', suit: 'C' },
+      ];
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '4C', rank: '4', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+      const nextPlayerCardCount = 1; // Has 1 card
+      const lastPlay: LastPlay = {
+        cards: [
+          { id: '3D', rank: '3', suit: 'D' },
+          { id: '3C', rank: '3', suit: 'C' },
+        ],
+        combo: 'Pair',
+      };
+
+      const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.valid).toBe(true); // Pairs not restricted
+    });
+
+    test('enforces highest single when next player has 1 card', () => {
+      const selectedCards: Card[] = [{ id: '4D', rank: '4', suit: 'D' }];
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Must play highest single');
+      expect(result.error).toContain('AS'); // Should mention ace of spades
+    });
+
+    test('allows highest single when next player has 1 card', () => {
+      const selectedCards: Card[] = [{ id: 'AS', rank: 'A', suit: 'S' }];
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.valid).toBe(true);
+    });
+
+    test('allows play when no valid singles exist', () => {
+      const selectedCards: Card[] = [{ id: '3C', rank: '3', suit: 'C' }];
+      const currentPlayerHand: Card[] = [
+        { id: '3C', rank: '3', suit: 'C' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.valid).toBe(true); // No valid single to enforce
+    });
+  });
+
+  describe('canPassWithOneCardLeftRule', () => {
+    test('prevents pass when next player has 1 card and player has valid single', () => {
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3D', rank: '3', suit: 'D' }],
+        combo: 'Single',
+      };
+
+      const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.canPass).toBe(false);
+      expect(result.error).toContain('Cannot pass');
+      expect(result.error).toContain('1 card left');
+    });
+
+    test('allows pass when next player does not have 1 card', () => {
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+      ];
+      const nextPlayerCardCount = 5;
+      const lastPlay: LastPlay = {
+        cards: [{ id: 'AS', rank: 'A', suit: 'S' }],
+        combo: 'Single',
+      };
+
+      const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.canPass).toBe(true);
+    });
+
+    test('allows pass when player has no valid singles', () => {
+      const currentPlayerHand: Card[] = [
+        { id: '3D', rank: '3', suit: 'D' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [{ id: '3C', rank: '3', suit: 'C' }],
+        combo: 'Single',
+      };
+
+      const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.canPass).toBe(true); // 3D cannot beat 3C (D < C)
+    });
+
+    test('allows pass when last play was not a single', () => {
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5C', rank: '5', suit: 'C' },
+      ];
+      const nextPlayerCardCount = 1;
+      const lastPlay: LastPlay = {
+        cards: [
+          { id: '3D', rank: '3', suit: 'D' },
+          { id: '3C', rank: '3', suit: 'C' },
+        ],
+        combo: 'Pair',
+      };
+
+      const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
+      expect(result.canPass).toBe(true); // Rule only applies to singles
+    });
+
+    test('prevents pass when leading (null lastPlay)', () => {
+      const currentPlayerHand: Card[] = [
+        { id: '4D', rank: '4', suit: 'D' },
+      ];
+      const nextPlayerCardCount = 1;
+
+      const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, null);
+      expect(result.canPass).toBe(false);
+      expect(result.error).toContain('Cannot pass when leading');
+    });
+  });
+});
+

@@ -123,7 +123,8 @@ export default function CreateRoomScreen() {
                   // Retry creating room
                   handleCreateRoom();
                 } catch (error: any) {
-                  roomLogger.error('Error in leave & create:', error);
+                  // Only log error message/code to avoid exposing DB internals
+                  roomLogger.error('Error in leave & create:', error?.message || error?.code || String(error));
                   Alert.alert('Error', 'Failed to leave room');
                   setIsCreating(false);
                 }
@@ -170,8 +171,8 @@ export default function CreateRoomScreen() {
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode });
     } catch (error: any) {
-      roomLogger.error('Error creating room:', error);
-      roomLogger.error('Error details:', JSON.stringify(error, null, 2));
+      // Only log error message/code to avoid exposing DB internals or auth tokens
+      roomLogger.error('Error creating room:', error?.message || error?.code || String(error));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to create room';
       Alert.alert('Error', errorMessage);
     } finally {

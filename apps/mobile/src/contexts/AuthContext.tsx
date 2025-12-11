@@ -96,16 +96,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       const memberships: RoomPlayerWithRoom[] = (roomMemberships || [])
-        .map((rm: any) => ({
-          ...rm,
-          rooms:
-            rm.rooms == null
-              ? null
-              : Array.isArray(rm.rooms)
-                ? (rm.rooms.length > 0 ? rm.rooms[0] : null)
-                : rm.rooms
-        }))
-        .filter((rm): rm is RoomPlayerWithRoom => rm.rooms != null);
+        .map((rm: any) => {
+          const normalizedRoom = rm.rooms == null
+            ? null
+            : Array.isArray(rm.rooms)
+              ? (rm.rooms.length > 0 ? rm.rooms[0] : null)
+              : rm.rooms;
+          
+          return {
+            ...rm,
+            rooms: normalizedRoom
+          };
+        })
+        .filter((rm): rm is RoomPlayerWithRoom => rm.rooms !== null && rm.rooms !== undefined);
       if (memberships.length === 0) {
         roomLogger.info('✅ [AuthContext] No stale rooms found');
         return;
@@ -154,7 +157,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } = await supabase.auth.getSession();
 
         if (error) {
-          authLogger.error('Error fetching session:', error);
+          // Only log error message to avoid exposing auth internals/tokens
+          authLogger.error('Error fetching session:', error?.message || error?.code || 'Unknown error');
         }
 
         if (mounted) {
@@ -173,8 +177,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
           setIsLoading(false);
         }
-      } catch (error) {
-        authLogger.error('Error initializing auth:', error);
+      } catch (error: any) {
+        // Only log error message to avoid exposing auth internals/tokens
+        authLogger.error('Error initializing auth:', error?.message || error?.code || String(error));
         if (mounted) {
           setIsLoading(false);
         }
@@ -187,7 +192,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      authLogger.debug('Auth state changed:', { event: _event, session: newSession });
+      // Redact sensitive session data (contains access/refresh tokens)
+      const sanitizedSession = newSession ? {
+        user: { id: newSession.user.id, email: newSession.user.email },
+        expires_at: newSession.expires_at
+      } : null;
+      authLogger.debug('Auth state changed:', { event: _event, session: sanitizedSession });
 
       if (mounted) {
         setSession(newSession);

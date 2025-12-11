@@ -18,7 +18,7 @@ The One Card Left rule was using **simple clockwise arithmetic** to find the nex
 const nextPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
 ```
 
-**But Big Two uses ANTICLOCKWISE (COUNTERCLOCKWISE) turn order!**
+**But Big Two uses ANTICLOCKWISE (counterclockwise) turn order!**
 
 ### The Correct Turn Order
 
@@ -35,8 +35,8 @@ Player Layout (4 players):
 └─────────────────────────┘
 
 Turn Order (Anticlockwise):
-Player 0 → Player 3 → Player 2 → Player 1 → Player 0
-(Bottom) → (Right) → (Left) → (Top) → (Bottom)
+Player 0 → Player 3 → Player 1 → Player 2 → Player 0
+(Bottom) → (Right) → (Top) → (Left) → (Bottom)
 ```
 
 **Turn Order Mapping:**
@@ -45,7 +45,7 @@ Player 0 → Player 3 → Player 2 → Player 1 → Player 0
 - If current player is **2** (Left), next is **0** (Bottom)
 - If current player is **3** (Right), next is **1** (Top)
 
-**Array representation:** `[3, 2, 0, 1]`
+**Array representation:** `[3, 2, 0, 1]` (produces sequence 0→3→1→2→0)
 
 ---
 

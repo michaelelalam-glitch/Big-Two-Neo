@@ -18,11 +18,11 @@ The One Card Left rule was using **clockwise arithmetic** to find the next playe
 const nextPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
 ```
 
-**But Big Two uses ANTICLOCKWISE (COUNTERCLOCKWISE) turn order:**
+**But Big Two uses ANTICLOCKWISE (counterclockwise) turn order:**
 
 ```
-Turn Order: 0 → 3 → 2 → 1 → 0
-          (Bottom → Right → Left → Top → Bottom)
+Turn Order: 0 → 3 → 1 → 2 → 0
+          (Bottom → Right → Top → Left → Bottom)
 ```
 
 ### Impact

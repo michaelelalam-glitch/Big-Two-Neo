@@ -280,14 +280,14 @@ export class GameStateManager {
 
     // Check "One Card Left" rule - cannot pass if next player has 1 card and you have valid single
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
-    // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1
+    // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
     const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
     const nextPlayerIndex = turnOrder[this.state.currentPlayerIndex];
     const nextPlayer = this.state.players[nextPlayerIndex];
     const nextPlayerCardCount = nextPlayer.hand.length;
     
     // Debug logging for One Card Left rule
-    console.log('[OneCardLeft] Checking pass validation:', {
+    gameLogger.debug('[OneCardLeft] Checking pass validation:', {
       currentPlayer: currentPlayer.name,
       nextPlayer: nextPlayer.name,
       nextPlayerCardCount,
@@ -301,16 +301,17 @@ export class GameStateManager {
       this.state.lastPlay
     );
     
-    console.log('[OneCardLeft] Pass validation result:', passValidation);
+    gameLogger.debug('[OneCardLeft] Pass validation result:', passValidation);
     
     if (!passValidation.canPass) {
       // Enhance error message with next player's name for clarity
-      const enhancedError = passValidation.error?.replace(
+      const baseError = passValidation.error ?? "You cannot pass in this situation.";
+      const enhancedError = baseError.replace(
         'opponent has',
         `${nextPlayer.name} (next player) has`
       );
-      console.log('[OneCardLeft] Blocking pass with error:', enhancedError);
-      return { success: false, error: enhancedError || passValidation.error };
+      gameLogger.debug('[OneCardLeft] Blocking pass with error:', enhancedError);
+      return { success: false, error: enhancedError };
     }
 
     currentPlayer.passed = true;
@@ -549,7 +550,7 @@ export class GameStateManager {
     }
 
     // Check "One Card Left" rule
-    // Get next player's card count (anticlockwise turn order)
+    // Get next player's card count (anticlockwise turn order: 0→3→1→2→0)
     const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
     const nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
     const nextPlayerCardCount = this.state!.players[nextPlayerIndex].hand.length;
