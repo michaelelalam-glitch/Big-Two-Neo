@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { roomLogger } from '../utils/logger';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -29,7 +30,7 @@ export default function HomeScreen() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error checking current room:', error);
+        roomLogger.error('Error checking current room:', error);
         return;
       }
 
@@ -40,7 +41,7 @@ export default function HomeScreen() {
         setCurrentRoom(null);
       }
     } catch (error) {
-      console.error('Error in checkCurrentRoom:', error);
+      roomLogger.error('Error in checkCurrentRoom:', error);
     }
   }, [user]);
 
@@ -74,7 +75,7 @@ export default function HomeScreen() {
               Alert.alert('Success', 'Left the room');
               setCurrentRoom(null);
             } catch (error: any) {
-              console.error('Error leaving room:', error);
+              roomLogger.error('Error leaving room:', error);
               Alert.alert('Error', 'Failed to leave room');
             }
           }
@@ -100,11 +101,11 @@ export default function HomeScreen() {
       return;
     }
 
-    console.log(`🎮 Quick Play started for user: ${user.id} (retry ${retryCount}/${MAX_RETRIES})`);
+    roomLogger.info(`🎮 Quick Play started for user: ${user.id} (retry ${retryCount}/${MAX_RETRIES})`);
     setIsQuickPlaying(true);
     try {
       // STEP 1: Check if user is already in a room
-      console.log('🔍 Checking if user is already in a room...');
+      roomLogger.info('🔍 Checking if user is already in a room...');
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
         .select('room_id, rooms!inner(code, status)')
@@ -112,13 +113,13 @@ export default function HomeScreen() {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('❌ Error checking existing room:', checkError);
+        roomLogger.error('❌ Error checking existing room:', checkError);
         throw checkError;
       }
 
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
-        console.log('✅ User already in room:', roomPlayer.rooms.code);
+        roomLogger.info('✅ User already in room:', roomPlayer.rooms.code);
         // User is already in a room, navigate there
         setCurrentRoom(roomPlayer.rooms.code);
         navigation.replace('Lobby', { roomCode: roomPlayer.rooms.code });
@@ -126,7 +127,7 @@ export default function HomeScreen() {
       }
 
       // STEP 2: Try to find PUBLIC waiting rooms with space
-      console.log('📡 Fetching public waiting rooms...');
+      roomLogger.info('📡 Fetching public waiting rooms...');
       const { data: availableRooms, error: searchError } = await supabase
         .from('rooms')
         .select('id, code, status, created_at, is_public')
@@ -134,23 +135,23 @@ export default function HomeScreen() {
         .eq('is_public', true)
         .order('created_at', { ascending: true });
 
-      console.log('📊 Public rooms found:', availableRooms?.length || 0);
+      roomLogger.info('📊 Public rooms found:', availableRooms?.length || 0);
       if (searchError) {
-        console.error('❌ Search error:', searchError);
+        roomLogger.error('❌ Search error:', searchError);
         throw searchError;
       }
 
       // STEP 3: Check each room for space
       let roomWithSpace = null;
       if (availableRooms && availableRooms.length > 0) {
-        console.log('🔍 Checking rooms for space...');
+        roomLogger.info('🔍 Checking rooms for space...');
         for (const room of availableRooms) {
           const { count } = await supabase
             .from('room_players')
             .select('*', { count: 'exact', head: true })
             .eq('room_id', room.id);
           
-          console.log(`  Room ${room.code}: ${count}/4 players`);
+          roomLogger.info(`  Room ${room.code}: ${count}/4 players`);
           if (count !== null && count < 4) {
             roomWithSpace = { ...room, playerCount: count };
             break;
@@ -160,7 +161,7 @@ export default function HomeScreen() {
 
       // STEP 4: Join existing room OR create new public room
       if (roomWithSpace) {
-        console.log('✅ Joining existing public room via atomic join:', roomWithSpace.code);
+        roomLogger.info('✅ Joining existing public room via atomic join:', roomWithSpace.code);
         
         const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
         
@@ -173,18 +174,18 @@ export default function HomeScreen() {
           });
 
         if (joinError) {
-          console.error('❌ Atomic join error:', joinError);
+          roomLogger.error('❌ Atomic join error:', joinError);
           
           // Handle specific error cases
           if (joinError.message?.includes('Room is full') || joinError.message?.includes('Room not found')) {
-            console.log('⚠️ Room unavailable (full or deleted), retrying...');
+            roomLogger.info('⚠️ Room unavailable (full or deleted), retrying...');
             // Retry with a different room (early return to prevent loading state issues)
             if (retryCount < MAX_RETRIES) {
-              console.log(`🔄 Retrying Quick Play (${retryCount + 1}/${MAX_RETRIES})...`);
+              roomLogger.info(`🔄 Retrying Quick Play (${retryCount + 1}/${MAX_RETRIES})...`);
               setIsQuickPlaying(false); // Reset before retry
               return handleQuickPlay(retryCount + 1);
             } else {
-              console.log('⚠️ Max retries reached, creating new room instead...');
+              roomLogger.info('⚠️ Max retries reached, creating new room instead...');
               // Fall through to room creation logic
             }
           } else if (joinError.message?.includes('already in another room')) {
@@ -196,7 +197,7 @@ export default function HomeScreen() {
           }
         } else {
           // Success - joined the room
-          console.log('🎉 Successfully joined room (atomic):', joinResult);
+          roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
           setCurrentRoom(roomWithSpace.code);
           navigation.replace('Lobby', { roomCode: roomWithSpace.code });
           return;
@@ -204,7 +205,7 @@ export default function HomeScreen() {
       }
 
       // Create a new PUBLIC room if no valid room found
-      console.log('🆕 Creating new PUBLIC room...');
+      roomLogger.info('🆕 Creating new PUBLIC room...');
       const roomCode = generateRoomCode();
       
       const { error: roomError } = await supabase
@@ -220,10 +221,10 @@ export default function HomeScreen() {
         .single();
 
       if (roomError) {
-        console.error('❌ Room creation error:', roomError);
+        roomLogger.error('❌ Room creation error:', roomError);
         throw roomError;
       }
-      console.log('✅ Public room created:', roomCode);
+      roomLogger.info('✅ Public room created:', roomCode);
 
       // Use atomic join to add host as first player
       const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
@@ -235,22 +236,22 @@ export default function HomeScreen() {
         });
 
       if (playerError) {
-        console.error('❌ Player insertion error (atomic):', playerError);
+        roomLogger.error('❌ Player insertion error (atomic):', playerError);
         throw playerError;
       }
-      console.log('✅ Host added to public room (atomic):', joinResult);
+      roomLogger.info('✅ Host added to public room (atomic):', joinResult);
 
       // Navigate to lobby
-      console.log('🚀 Navigating to lobby...');
+      roomLogger.info('🚀 Navigating to lobby...');
       setCurrentRoom(roomCode);
       navigation.replace('Lobby', { roomCode });
     } catch (error: any) {
-      console.error('❌ Error with quick play:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      roomLogger.error('❌ Error with quick play:', error);
+      roomLogger.error('Error details:', JSON.stringify(error, null, 2));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to join or create room';
       Alert.alert('Error', errorMessage);
     } finally {
-      console.log('🏁 Quick Play finished');
+      roomLogger.info('🏁 Quick Play finished');
       setIsQuickPlaying(false);
     }
   };

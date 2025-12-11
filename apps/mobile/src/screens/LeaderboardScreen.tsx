@@ -16,6 +16,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { statsLogger } from '../utils/logger';
 
 type LeaderboardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Leaderboard'>;
 
@@ -54,7 +55,7 @@ export default function LeaderboardScreen() {
       const startIndex = resetPagination ? 0 : page * PAGE_SIZE;
       const endIndex = startIndex + PAGE_SIZE - 1;
 
-      console.log('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter });
+      statsLogger.info('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter });
 
       // Calculate time filter date
       let timeFilterDate: string | null = null;
@@ -103,7 +104,7 @@ export default function LeaderboardScreen() {
       const { data, error } = await query;
 
       if (error) {
-        console.error('[Leaderboard] Query error:', error);
+        statsLogger.error('[Leaderboard] Query error:', error);
         throw error;
       }
 
@@ -190,7 +191,7 @@ export default function LeaderboardScreen() {
 
             // If no games in this period, hide rank card
             if (periodError || !periodGames) {
-              console.log('[Leaderboard] Error checking period games:', periodError);
+              statsLogger.info('[Leaderboard] Error checking period games:', periodError);
               setUserRank(null);
             } else {
               // Transform weekly/daily data
@@ -222,7 +223,7 @@ export default function LeaderboardScreen() {
         }
       }
     } catch (error) {
-      console.error('[Leaderboard] Error fetching leaderboard:', error);
+      statsLogger.error('[Leaderboard] Error fetching leaderboard:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

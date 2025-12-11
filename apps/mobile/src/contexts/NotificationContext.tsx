@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { notificationLogger } from '../utils/logger';
 import {
   registerForPushNotificationsAsync,
   savePushTokenToDatabase,
@@ -52,7 +53,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   // Register for push notifications when user logs in
   const registerPushNotifications = useCallback(async () => {
     if (!user) {
-      console.warn('Cannot register push notifications: No user logged in');
+      notificationLogger.warn('Cannot register push notifications: No user logged in');
       return;
     }
 
@@ -66,11 +67,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         const saved = await savePushTokenToDatabase(user.id, token);
         if (saved) {
           setIsRegistered(true);
-          console.log('✅ Push notifications registered successfully');
+          notificationLogger.info('✅ Push notifications registered successfully');
         }
       }
     } catch (error) {
-      console.error('Error registering push notifications:', error);
+      notificationLogger.error('Error registering push notifications:', error);
     }
   }, [user]);
 
@@ -82,16 +83,16 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       await removePushTokenFromDatabase(user.id);
       setExpoPushToken(null);
       setIsRegistered(false);
-      console.log('✅ Push notifications unregistered successfully');
+      notificationLogger.info('✅ Push notifications unregistered successfully');
     } catch (error) {
-      console.error('Error unregistering push notifications:', error);
+      notificationLogger.error('Error unregistering push notifications:', error);
     }
   }, [user]);
 
   // Handle deep linking from notifications
   const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
     const data = response.notification.request.content.data;
-    console.log('Handling notification tap:', data);
+    notificationLogger.info('Handling notification tap:', data);
 
     // Clear badge when user interacts with notification
     clearBadgeCount();
@@ -112,7 +113,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   useEffect(() => {
     // Handle notification received while app is open
     notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
-      console.log('📱 Notification received:', notif);
+      notificationLogger.info('📱 Notification received:', notif);
       setNotification(notif);
     });
 
@@ -124,11 +125,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     // Check for notification that opened the app
     getLastNotificationResponse().then((response) => {
       if (response && navigation) {
-        console.log('App opened from notification:', response);
+        notificationLogger.info('App opened from notification:', response);
         handleNotificationResponse(response);
       }
     }).catch((error) => {
-      console.error('Error getting last notification response:', error);
+      notificationLogger.error('Error getting last notification response:', error);
     });
 
     // Cleanup

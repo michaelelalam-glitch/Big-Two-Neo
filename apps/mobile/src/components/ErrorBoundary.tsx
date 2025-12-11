@@ -1,6 +1,7 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { uiLogger } from '../utils/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -55,9 +56,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    * This is called during the commit phase, so side effects are allowed
    */
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // Log to console in development
-    console.error('ErrorBoundary caught an error:', error);
-    console.error('Component stack:', errorInfo.componentStack);
+    // Log error details
+    uiLogger.error('ErrorBoundary caught an error:', error);
+    uiLogger.error('Component stack:', errorInfo.componentStack);
 
     // Call optional error handler (can be used for error reporting services)
     if (this.props.onError) {
@@ -77,7 +78,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       try {
         this.props.onReset();
       } catch (resetError) {
-        console.error('[ErrorBoundary] onReset failed:', resetError);
+        uiLogger.error('[ErrorBoundary] onReset failed:', resetError);
       }
     }
     

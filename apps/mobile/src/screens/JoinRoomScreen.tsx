@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
+import { roomLogger } from '../utils/logger';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 
@@ -87,7 +88,7 @@ export default function JoinRoomScreen() {
         });
 
       if (joinError) {
-        console.error('❌ Atomic join error:', joinError);
+        roomLogger.error('❌ Atomic join error:', joinError);
         
         // Handle specific error cases
         if (joinError.message?.includes('Room is full')) {
@@ -101,11 +102,11 @@ export default function JoinRoomScreen() {
         throw joinError;
       }
 
-      console.log('🎉 Successfully joined room (atomic):', joinResult);
+      roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
-      console.error('Error joining room:', error);
+      roomLogger.error('Error joining room:', error);
       Alert.alert('Error', error.message || 'Failed to join room');
     } finally {
       setIsJoining(false);

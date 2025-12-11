@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
+import { roomLogger } from '../utils/logger';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -41,7 +42,7 @@ export default function CreateRoomScreen() {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('❌ Error checking existing room:', checkError);
+        roomLogger.error('❌ Error checking existing room:', checkError);
         throw checkError;
       }
 
@@ -50,7 +51,7 @@ export default function CreateRoomScreen() {
         const existingCode = roomPlayer.rooms.code;
         const roomStatus = roomPlayer.rooms.status;
         
-        console.log('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
+        roomLogger.warn('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
         
         Alert.alert(
           'Already in Room',
@@ -77,13 +78,13 @@ export default function CreateRoomScreen() {
                     .eq('user_id', user.id);
 
                   if (leaveError) {
-                    console.error('Error leaving room:', leaveError);
+                    roomLogger.error('Error leaving room:', leaveError);
                     Alert.alert('Error', 'Failed to leave existing room');
                     setIsCreating(false);
                     return;
                   }
 
-                  console.log('✅ Left room:', existingCode);
+                  roomLogger.info('✅ Left room:', existingCode);
                   
                   // Poll DB to confirm user has left before proceeding
                   const maxAttempts = 10;
@@ -109,7 +110,7 @@ export default function CreateRoomScreen() {
                   }
                   
                   if (!isDeleted) {
-                    console.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
+                    roomLogger.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
                     Alert.alert(
                       'Timeout', 
                       'Taking longer than expected to leave room. Please try again or wait a moment.',
@@ -122,7 +123,7 @@ export default function CreateRoomScreen() {
                   // Retry creating room
                   handleCreateRoom();
                 } catch (error: any) {
-                  console.error('Error in leave & create:', error);
+                  roomLogger.error('Error in leave & create:', error);
                   Alert.alert('Error', 'Failed to leave room');
                   setIsCreating(false);
                 }
@@ -160,17 +161,17 @@ export default function CreateRoomScreen() {
         });
 
       if (playerError) {
-        console.error('❌ Atomic join error in CreateRoom:', playerError);
+        roomLogger.error('❌ Atomic join error in CreateRoom:', playerError);
         throw playerError;
       }
 
-      console.log('✅ Host added to room (atomic):', joinResult);
+      roomLogger.info('✅ Host added to room (atomic):', joinResult);
 
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode });
     } catch (error: any) {
-      console.error('Error creating room:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      roomLogger.error('Error creating room:', error);
+      roomLogger.error('Error details:', JSON.stringify(error, null, 2));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to create room';
       Alert.alert('Error', errorMessage);
     } finally {

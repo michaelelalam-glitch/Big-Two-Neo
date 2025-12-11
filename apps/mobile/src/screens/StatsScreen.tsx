@@ -17,6 +17,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { statsLogger } from '../utils/logger';
 
 type StatsScreenRouteProp = RouteProp<RootStackParamList, 'Stats'>;
 type StatsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Stats'>;
@@ -88,7 +89,7 @@ export default function StatsScreen() {
     if (!userId) return;
 
     try {
-      console.log('[Stats] Fetching data for user:', userId);
+      statsLogger.info('[Stats] Fetching data for user:', userId);
 
       // Fetch player stats
       const { data: statsData, error: statsError } = await supabase
@@ -104,7 +105,7 @@ export default function StatsScreen() {
           setStats(null);
         } else {
           // Other error - log and throw
-          console.error('[Stats] Stats query error:', statsError);
+          statsLogger.error('[Stats] Stats query error:', statsError);
           throw statsError;
         }
       } else {
@@ -119,7 +120,7 @@ export default function StatsScreen() {
         .single();
 
       if (profileError) {
-        console.error('[Stats] Profile query error:', profileError);
+        statsLogger.error('[Stats] Profile query error:', profileError);
         throw profileError;
       }
 
@@ -134,13 +135,13 @@ export default function StatsScreen() {
         .limit(10);
 
       if (historyError) {
-        console.error('[Stats] History query error:', historyError);
+        statsLogger.error('[Stats] History query error:', historyError);
       } else {
         setGameHistory(historyData || []);
       }
 
     } catch (error) {
-      console.error('[Stats] Error fetching data:', error);
+      statsLogger.error('[Stats] Error fetching data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

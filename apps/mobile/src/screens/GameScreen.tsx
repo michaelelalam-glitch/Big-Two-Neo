@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { gameLogger } from '../utils/logger';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -68,7 +69,7 @@ export default function GameScreen() {
     const isNewTrickLeader = !currentState.lastPlay && currentState.consecutivePasses === 0;
     const turnChanged = lastBotTurnPlayerIndexRef.current !== currentState.currentPlayerIndex;
     
-    console.log('🔍 [GameScreen] Bot turn check:', {
+    gameLogger.debug('🔍 [GameScreen] Bot turn check:', {
       currentPlayer: currentPlayer.name,
       isBot: currentPlayer.isBot,
       gameEnded: currentState.gameEnded,
@@ -85,23 +86,23 @@ export default function GameScreen() {
       isExecutingBotTurnRef.current = true;
       lastBotTurnPlayerIndexRef.current = currentState.currentPlayerIndex;
       
-      console.log(`🤖 [GameScreen] Bot ${currentPlayer.name} is thinking...`);
+      gameLogger.info(`🤖 [GameScreen] Bot ${currentPlayer.name} is thinking...`);
       
       // Bot turn timing: configurable delay for natural feel, 100ms between subsequent bot turns
       setTimeout(() => {
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
-            console.log(`✅ [GameScreen] Bot ${currentPlayer.name} turn finished`);
+            gameLogger.info(`✅ [GameScreen] Bot ${currentPlayer.name} turn finished`);
             // Release lock immediately after turn completes
             isExecutingBotTurnRef.current = false;
-            console.log('🔓 [GameScreen] Bot turn lock released');
+            gameLogger.debug('🔓 [GameScreen] Bot turn lock released');
             // Check for next bot turn
             setTimeout(checkAndExecuteBotTurn, 100);
           })
           .catch((error) => {
-            console.error('❌ [GameScreen] Bot turn failed:', error);
+            gameLogger.error('❌ [GameScreen] Bot turn failed:', error);
             isExecutingBotTurnRef.current = false;
-            console.log('🔓 [GameScreen] Bot turn lock released (error)');
+            gameLogger.debug('🔓 [GameScreen] Bot turn lock released (error)');
             
             // Notify user and attempt recovery
             Alert.alert(
@@ -121,13 +122,13 @@ export default function GameScreen() {
   useEffect(() => {
     // Prevent multiple initializations for the same room
     if (isInitializedRef.current && initializedRoomRef.current === roomCode) {
-      console.log('⏭️ [GameScreen] Game already initialized for room:', roomCode);
+      gameLogger.debug('⏭️ [GameScreen] Game already initialized for room:', roomCode);
       return;
     }
 
     const initGame = async () => {
       try {
-        console.log('🎮 [GameScreen] Initializing game engine for room:', roomCode);
+        gameLogger.info('🎮 [GameScreen] Initializing game engine for room:', roomCode);
         
         // Mark as initializing
         isInitializedRef.current = true;
@@ -139,7 +140,7 @@ export default function GameScreen() {
         
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
-          console.log('📊 [GameScreen] Game state updated:', {
+          gameLogger.debug('📊 [GameScreen] Game state updated:', {
             currentPlayer: state.players[state.currentPlayerIndex].name,
             handSize: state.players[0].hand.length,
             lastPlay: state.lastPlay?.combo || 'none',
@@ -166,13 +167,13 @@ export default function GameScreen() {
                 {
                   text: 'Next Match',
                   onPress: async () => {
-                    console.log('🔄 [GameScreen] Starting next match...');
+                    gameLogger.info('🔄 [GameScreen] Starting next match...');
                     const result = await manager.startNewMatch();
                     if (result.success) {
-                      console.log('✅ [GameScreen] New match started');
+                      gameLogger.info('✅ [GameScreen] New match started');
                       // Bot turns will be triggered by the subscription callback
                     } else {
-                      console.error('❌ [GameScreen] Failed to start new match:', result.error);
+                      gameLogger.error('❌ [GameScreen] Failed to start new match:', result.error);
                     }
                   }
                 }
@@ -210,7 +211,7 @@ export default function GameScreen() {
 
         setGameState(initialState);
         setIsInitializing(false);
-        console.log('✅ [GameScreen] Game initialized successfully');
+        gameLogger.info('✅ [GameScreen] Game initialized successfully');
 
         // Bot turn will be triggered by subscription callback
 
@@ -218,7 +219,7 @@ export default function GameScreen() {
           unsubscribe();
         };
       } catch (error) {
-        console.error('❌ [GameScreen] Failed to initialize game:', error);
+        gameLogger.error('❌ [GameScreen] Failed to initialize game:', error);
         setIsInitializing(false);
         Alert.alert('Error', 'Failed to initialize game. Please try again.');
       }
@@ -352,7 +353,7 @@ export default function GameScreen() {
       
       // Only cleanup if this is a deliberate leave (not a re-render)
       if (isDeliberateLeave && user?.id && roomCode) {
-        console.log(`🧹 [GameScreen] Deliberate exit: Removing user ${user.id} from room ${roomCode}`);
+        gameLogger.info(`🧹 [GameScreen] Deliberate exit: Removing user ${user.id} from room ${roomCode}`);
         
         // Reset initialization refs to allow re-initialization in a new room
         isInitializedRef.current = false;
@@ -365,9 +366,9 @@ export default function GameScreen() {
           .eq('user_id', user.id)
           .then(({ error }) => {
             if (error) {
-              console.error('❌ [GameScreen] Cleanup error:', error);
+              gameLogger.error('❌ [GameScreen] Cleanup error:', error);
             } else {
-              console.log('✅ [GameScreen] Successfully removed from room');
+              gameLogger.info('✅ [GameScreen] Successfully removed from room');
             }
           });
       }
@@ -386,20 +387,20 @@ export default function GameScreen() {
 
   const handlePlayCards = async (cards: Card[]) => {
     if (!gameManagerRef.current || !gameState) {
-      console.error('❌ [GameScreen] Game not initialized');
+      gameLogger.error('❌ [GameScreen] Game not initialized');
       return;
     }
 
     // Prevent duplicate card plays
     if (isPlayingCards) {
-      console.log('⏭️ [GameScreen] Card play already in progress, ignoring...');
+      gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
       return;
     }
 
     try {
       setIsPlayingCards(true);
       
-      console.log('🎴 [GameScreen] Playing cards:', cards.map(c => c.id));
+      gameLogger.info('🎴 [GameScreen] Playing cards:', cards.map(c => c.id));
       
       // Get card IDs to play
       const cardIds = cards.map(c => c.id);
@@ -408,7 +409,7 @@ export default function GameScreen() {
       const result = await gameManagerRef.current.playCards(cardIds);
       
       if (result.success) {
-        console.log('✅ [GameScreen] Cards played successfully');
+        gameLogger.info('✅ [GameScreen] Cards played successfully');
         
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {
@@ -430,7 +431,7 @@ export default function GameScreen() {
         Alert.alert('Invalid Move', result.error || 'Invalid play');
       }
     } catch (error) {
-      console.error('❌ [GameScreen] Failed to play cards:', error);
+      gameLogger.error('❌ [GameScreen] Failed to play cards:', error);
       
       // Show user-friendly error
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
@@ -447,23 +448,23 @@ export default function GameScreen() {
 
   const handlePass = async () => {
     if (!gameManagerRef.current || !gameState) {
-      console.error('❌ [GameScreen] Game not initialized');
+      gameLogger.error('❌ [GameScreen] Game not initialized');
       return;
     }
 
     if (isPassing) {
-      console.log('⏭️ [GameScreen] Pass already in progress, ignoring...');
+      gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
       return;
     }
 
     try {
       setIsPassing(true);
-      console.log('⏭️ [GameScreen] Player passing...');
+      gameLogger.info('⏭️ [GameScreen] Player passing...');
       
       const result = await gameManagerRef.current.pass();
       
       if (result.success) {
-        console.log('✅ [GameScreen] Pass successful');
+        gameLogger.info('✅ [GameScreen] Pass successful');
         
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {
@@ -475,7 +476,7 @@ export default function GameScreen() {
         Alert.alert('Cannot Pass', result.error || 'Cannot pass');
       }
     } catch (error) {
-      console.error('❌ [GameScreen] Failed to pass:', error);
+      gameLogger.error('❌ [GameScreen] Failed to pass:', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
       Alert.alert('Cannot Pass', errorMessage);
@@ -518,8 +519,8 @@ export default function GameScreen() {
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        console.error('[GameScreen] Error caught by boundary:', error);
-        console.error('[GameScreen] Component stack:', errorInfo.componentStack);
+        gameLogger.error('[GameScreen] Error caught by boundary:', error);
+        gameLogger.error('[GameScreen] Component stack:', errorInfo.componentStack);
       }}
     >
       <View style={styles.container}>

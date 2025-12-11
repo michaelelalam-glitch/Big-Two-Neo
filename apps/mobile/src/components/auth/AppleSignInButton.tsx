@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
+import { authLogger } from '../../utils/logger';
 
 /**
  * Apple Sign In - DISABLED (Backlogged)
@@ -14,7 +15,7 @@ import { Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native
  */
 const AppleSignInButton = () => {
   const onAppleButtonPress = () => {
-    console.log('Apple Sign In is currently disabled (backlogged feature)');
+    authLogger.info('Apple Sign In is currently disabled (backlogged feature)');
     // No action - feature backlogged
   };
 

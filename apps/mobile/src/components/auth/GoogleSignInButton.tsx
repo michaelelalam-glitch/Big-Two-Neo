@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { TouchableOpacity, Text, View, StyleSheet, Image } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabase';
+import { authLogger } from '../../utils/logger';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -23,7 +24,7 @@ const GoogleSignInButton = () => {
 
   const onSignInButtonPress = async () => {
     try {
-      console.log('Google sign in - start');
+      authLogger.info('Google sign in - start');
 
       const res = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -37,7 +38,7 @@ const GoogleSignInButton = () => {
       const googleOAuthUrl = res.data.url;
 
       if (!googleOAuthUrl) {
-        console.error('No OAuth URL found!');
+        authLogger.error('No OAuth URL found!');
         return;
       }
 
@@ -46,37 +47,37 @@ const GoogleSignInButton = () => {
         'big2mobile://google-auth',
         { showInRecents: true }
       ).catch((err) => {
-        console.error('openAuthSessionAsync - error', { err });
+        authLogger.error('openAuthSessionAsync - error', { err });
         throw err;
       });
 
-      console.log('openAuthSessionAsync - result', { result });
+      authLogger.debug('openAuthSessionAsync - result', { result });
 
       if (result && result.type === 'success') {
-        console.log('openAuthSessionAsync - success');
+        authLogger.info('openAuthSessionAsync - success');
         const params = extractParamsFromUrl(result.url);
-        console.log('openAuthSessionAsync - success params', { params });
+        authLogger.debug('openAuthSessionAsync - success params', { params });
 
         if (params.access_token && params.refresh_token) {
-          console.log('Setting session...');
+          authLogger.debug('Setting session...');
           const { data, error } = await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
           });
-          console.log('setSession - result', { data, error });
+          authLogger.debug('setSession - result', { data, error });
 
           if (error) {
-            console.error('Error setting session:', error);
+            authLogger.error('Error setting session:', error);
             throw error;
           }
         } else {
-          console.error('Missing tokens in OAuth callback');
+          authLogger.error('Missing tokens in OAuth callback');
         }
       } else {
-        console.log('OAuth flow cancelled or failed');
+        authLogger.info('OAuth flow cancelled or failed');
       }
     } catch (error) {
-      console.error('Error during Google sign in:', error);
+      authLogger.error('Error during Google sign in:', error);
       throw error;
     }
   };

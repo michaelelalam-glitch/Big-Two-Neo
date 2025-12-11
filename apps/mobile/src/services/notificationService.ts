@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { notificationLogger } from '../utils/logger';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -28,7 +29,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
   // Check if we're on a physical device
   if (!Device.isDevice) {
-    console.warn('Push notifications only work on physical devices');
+    notificationLogger.warn('Push notifications only work on physical devices');
     return null;
   }
 
@@ -44,7 +45,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     if (finalStatus !== 'granted') {
-      console.warn('Failed to get push notification permissions');
+      notificationLogger.warn('Failed to get push notification permissions');
       return null;
     }
 
@@ -52,7 +53,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
     if (!projectId) {
-      console.error('Project ID not found in app configuration');
+      notificationLogger.error('Project ID not found in app configuration');
       return null;
     }
 
@@ -61,7 +62,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     });
 
     token = expoPushToken.data;
-    console.log('Expo Push Token:', token);
+    notificationLogger.info('Expo Push Token:', token);
 
     // Configure Android notification channel
     if (Platform.OS === 'android') {
@@ -102,7 +103,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     return token;
   } catch (error) {
-    console.error('Error registering for push notifications:', error);
+    notificationLogger.error('Error registering for push notifications:', error);
     return null;
   }
 }
@@ -132,14 +133,14 @@ export async function savePushTokenToDatabase(
       );
 
     if (error) {
-      console.error('Error saving push token:', error);
+      notificationLogger.error('Error saving push token:', error);
       return false;
     }
 
-    console.log('Push token saved successfully');
+    notificationLogger.info('Push token saved successfully');
     return true;
   } catch (error) {
-    console.error('Error saving push token to database:', error);
+    notificationLogger.error('Error saving push token to database:', error);
     return false;
   }
 }
@@ -155,14 +156,14 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
       .eq('user_id', userId);
 
     if (error) {
-      console.error('Error removing push token:', error);
+      notificationLogger.error('Error removing push token:', error);
       return false;
     }
 
-    console.log('Push token removed successfully');
+    notificationLogger.info('Push token removed successfully');
     return true;
   } catch (error) {
-    console.error('Error removing push token from database:', error);
+    notificationLogger.error('Error removing push token from database:', error);
     return false;
   }
 }
@@ -173,13 +174,13 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
 export function setupNotificationListeners() {
   // Listener for notifications received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
-    console.log('📱 Notification received:', notification);
+    notificationLogger.info('📱 Notification received:', notification);
     // You can add custom handling here (e.g., show in-app alert)
   });
 
   // Listener for when user taps on notification
   const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-    console.log('👆 Notification tapped:', response);
+    notificationLogger.info('👆 Notification tapped:', response);
     const data = response.notification.request.content.data;
     
     // Handle deep linking based on notification data
@@ -196,7 +197,7 @@ export function setupNotificationListeners() {
  * Handles deep linking from notification data
  */
 function handleNotificationData(data: Record<string, unknown>) {
-  console.log('Handling notification data:', data);
+  notificationLogger.info('Handling notification data:', data);
 
   // You can implement navigation logic here
   // For example:

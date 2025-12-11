@@ -15,6 +15,7 @@ import * as Notifications from 'expo-notifications';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationLogger } from '../utils/logger';
 
 export default function NotificationSettingsScreen() {
   const { expoPushToken, isRegistered, registerPushNotifications, unregisterPushNotifications } =
@@ -106,7 +107,7 @@ export default function NotificationSettingsScreen() {
 
       Alert.alert('Test Notification Sent', 'You should receive a notification in 2 seconds!');
     } catch (error) {
-      console.error('Error sending test notification:', error);
+      notificationLogger.error('Error sending test notification:', error);
       Alert.alert('Error', 'Failed to send test notification.');
     }
   };

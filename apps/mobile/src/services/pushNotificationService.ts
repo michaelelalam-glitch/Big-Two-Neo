@@ -5,11 +5,13 @@
  * for game events (invites, turns, game start, etc.)
  */
 
+import { notificationLogger } from '../utils/logger';
+
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('⚠️ Supabase credentials not found. Push notifications will not work.');
+  notificationLogger.warn('⚠️ Supabase credentials not found. Push notifications will not work.');
 }
 
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/send-push-notification`;
@@ -33,7 +35,7 @@ interface SendNotificationOptions {
  */
 async function sendPushNotifications(options: SendNotificationOptions): Promise<boolean> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn('Skipping push notification: Supabase not configured');
+    notificationLogger.warn('Skipping push notification: Supabase not configured');
     return false;
   }
 
@@ -56,15 +58,15 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('Failed to send push notifications:', error);
+      notificationLogger.error('Failed to send push notifications:', error);
       return false;
     }
 
     const result = await response.json();
-    console.log(`✅ Sent ${result.sent} notification(s)`);
+    notificationLogger.info(`✅ Sent ${result.sent} notification(s)`);
     return true;
   } catch (error) {
-    console.error('Error sending push notifications:', error);
+    notificationLogger.error('Error sending push notifications:', error);
     return false;
   }
 }
