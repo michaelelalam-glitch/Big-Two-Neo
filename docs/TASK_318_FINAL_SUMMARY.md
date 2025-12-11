@@ -173,7 +173,7 @@ npx expo start            # Daily development
 ## 🛣️ Future Upgrade Path
 
 ### Option 1: Wait for Expo SDK 55 Stable (RECOMMENDED)
-- **Timeline:** Unknown (estimated Q1-Q2 2026) _(This is a speculative estimate; please check the official Expo roadmap or changelog for the actual stable release date.)_
+- **Timeline:** Unknown _(Please check the official Expo roadmap or changelog for the actual stable release date.)_
 - **Effort:** Low - Official support for RN 0.82+
 - **Risk:** Low - Fully tested compatibility
 - **Action:** Monitor https://expo.dev/changelog

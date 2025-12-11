@@ -69,8 +69,12 @@ export default function CardHand({
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
   
   // Selection state: If external state is provided, use it; otherwise use internal state.
-  // The setter pattern was intentionally removed. All selection updates now use explicit
-  // conditional checks for onSelectionChange throughout the code (see handleToggleSelect, etc.).
+  // The setter pattern (const setSelectedCardIds = onSelectionChange ?? setInternalSelectedCardIds)
+  // was intentionally removed because:
+  // 1. Better type safety: TypeScript can't infer correct types for conditional setter assignment
+  // 2. Clearer intent: Explicit checks make it obvious when using lifted vs internal state
+  // 3. Avoids re-renders: Conditional setter reference changes on every render when onSelectionChange changes
+  // All selection updates use explicit checks for onSelectionChange (see handleToggleSelect, handleClearSelection, etc.)
   const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
   
   // Update display cards when prop cards change
