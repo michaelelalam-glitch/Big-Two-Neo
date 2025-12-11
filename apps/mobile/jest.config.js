@@ -17,7 +17,11 @@ module.exports = {
       statements: 80,
     },
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets)/)',
+  ],
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$': '<rootDir>/src/game/__tests__/__mocks__/async-storage.ts',
+    '^react-native$': '<rootDir>/src/game/__tests__/__mocks__/react-native.ts',
   },
 };
