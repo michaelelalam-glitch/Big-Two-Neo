@@ -8,14 +8,15 @@ describe('One Card Left Rule - Debug User Issue', () => {
     // Next player has 1 card
     
     const currentPlayerHand: Card[] = [
-      { id: '3H', rank: '3', suit: '♥' },
-      { id: '5H', rank: '5', suit: '♥' },
-      { id: '7D', rank: '7', suit: '♦' },
+      { id: '3H', rank: '3', suit: 'H' },
+      { id: '5H', rank: '5', suit: 'H' },
+      { id: '7D', rank: '7', suit: 'D' },
     ];
     
     const lastPlay: LastPlay = {
-      cards: [{ id: '4S', rank: '4', suit: '♠' }],
-      combo: 'single',
+        position: 0,
+      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      combo_type: 'Single',
     };
     
     const nextPlayerCardCount = 1; // Next player has 1 card
@@ -35,14 +36,15 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should find the highest beating single correctly', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: '♥' },
-      { id: '5H', rank: '5', suit: '♥' },
-      { id: '7D', rank: '7', suit: '♦' },
+      { id: '3H', rank: '3', suit: 'H' },
+      { id: '5H', rank: '5', suit: 'H' },
+      { id: '7D', rank: '7', suit: 'D' },
     ];
     
     const lastPlay: LastPlay = {
-      cards: [{ id: '4S', rank: '4', suit: '♠' }],
-      combo: 'single',
+        position: 0,
+      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      combo_type: 'Single',
     };
     
     const highest = findHighestBeatingSingle(hand, lastPlay);
@@ -54,17 +56,18 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should allow passing when last play was a pair (not a single)', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: '♥' },
-      { id: '5H', rank: '5', suit: '♥' },
-      { id: '7D', rank: '7', suit: '♦' },
+      { id: '3H', rank: '3', suit: 'H' },
+      { id: '5H', rank: '5', suit: 'H' },
+      { id: '7D', rank: '7', suit: 'D' },
     ];
     
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
-        { id: '4S', rank: '4', suit: '♠' },
-        { id: '4H', rank: '4', suit: '♥' },
+        { id: '4S', rank: '4', suit: 'S' },
+        { id: '4H', rank: '4', suit: 'H' },
       ],
-      combo: 'pair',
+      combo_type: 'Pair',
     };
     
     const nextPlayerCardCount = 1;
@@ -81,14 +84,15 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should allow passing when next player does NOT have 1 card', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: '♥' },
-      { id: '5H', rank: '5', suit: '♥' },
-      { id: '7D', rank: '7', suit: '♦' },
+      { id: '3H', rank: '3', suit: 'H' },
+      { id: '5H', rank: '5', suit: 'H' },
+      { id: '7D', rank: '7', suit: 'D' },
     ];
     
     const lastPlay: LastPlay = {
-      cards: [{ id: '4S', rank: '4', suit: '♠' }],
-      combo: 'single',
+        position: 0,
+      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      combo_type: 'Single',
     };
     
     const nextPlayerCardCount = 3; // Next player has 3 cards

@@ -47,7 +47,7 @@ export interface RoundHistoryEntry {
   playerId: string;
   playerName: string;
   cards: Card[];
-  combo: ComboType;
+  combo_type: ComboType;
   timestamp: number;
   passed: boolean;
 }
@@ -291,7 +291,7 @@ export class GameStateManager {
       currentPlayer: currentPlayer.name,
       nextPlayer: nextPlayer.name,
       nextPlayerCardCount,
-      lastPlayType: this.state.lastPlay?.combo,
+      lastPlayType: this.state.lastPlay?.combo_type,
       lastPlayCards: this.state.lastPlay?.cards.length,
     });
     
@@ -322,7 +322,7 @@ export class GameStateManager {
       playerId: currentPlayer.id,
       playerName: currentPlayer.name,
       cards: [],
-      combo: 'unknown',
+      combo_type: 'unknown',
       timestamp: Date.now(),
       passed: true,
     });
@@ -578,7 +578,7 @@ export class GameStateManager {
 
     // Update game state
     const combo = classifyCards(cards);
-    this.state!.lastPlay = { cards, combo };
+    this.state!.lastPlay = { position: this.state!.currentPlayerIndex, cards, combo_type: combo };
     this.state!.lastPlayPlayerIndex = this.state!.currentPlayerIndex; // Track trick winner
     this.state!.consecutivePasses = 0;
     this.state!.isFirstPlayOfGame = false;
@@ -593,7 +593,7 @@ export class GameStateManager {
       playerId: player.id,
       playerName: player.name,
       cards,
-      combo,
+      combo_type: combo,
       timestamp: Date.now(),
       passed: false,
     });
@@ -740,13 +740,13 @@ export class GameStateManager {
         };
 
         playerPlays.forEach(play => {
-          const comboName = play.combo.trim().toLowerCase();
+          const comboName = play.combo_type.trim().toLowerCase();
           const dbField = comboMapping[comboName];
           if (dbField) {
             comboCounts[dbField]++;
           } else {
             // Warn about unexpected combo names for easier debugging if game engine changes
-            statsLogger.warn(`[Stats] Unexpected combo name encountered: "${play.combo}" - This combo will not be counted in stats.`);
+            statsLogger.warn(`[Stats] Unexpected combo name encountered: "${play.combo_type}" - This combo will not be counted in stats.`);
           }
         });
 

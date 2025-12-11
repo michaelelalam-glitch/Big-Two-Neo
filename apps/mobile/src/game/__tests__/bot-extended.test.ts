@@ -16,8 +16,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'JD', rank: 'J', suit: 'D' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       let passCount = 0;
@@ -71,8 +72,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '8S', rank: '8', suit: 'S' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       let passCount = 0;
@@ -109,8 +111,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '7H', rank: '7', suit: 'H' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [3, 3], currentPlayerIndex: 0 });
@@ -128,8 +131,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'AD', rank: 'A', suit: 'D' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       // When opponent has 1-2 cards, hard bot is more likely to play
@@ -166,8 +170,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'KS', rank: 'K', suit: 'S' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [3, 4], currentPlayerIndex: 0 });
@@ -186,8 +191,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '9S', rank: '9', suit: 'S' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: '4D', rank: '4', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -229,11 +235,12 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '6S', rank: '6', suit: 'S' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [
           { id: '4D', rank: '4', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
         ],
-        combo: 'Pair' as const,
+        combo_type: 'Pair' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -250,12 +257,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '6S', rank: '6', suit: 'S' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [
           { id: '4D', rank: '4', suit: 'D' },
           { id: '4C', rank: '4', suit: 'C' },
           { id: '4H', rank: '4', suit: 'H' },
         ],
-        combo: 'Triple' as const,
+        combo_type: 'Triple' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -269,8 +277,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '4C', rank: '4', suit: 'C' },
       ];
       const lastPlay = {
+        position: 0,
         cards: [{ id: 'AD', rank: 'A', suit: 'D' }],
-        combo: 'Single' as const,
+        combo_type: 'Single' as const,
       };
 
       const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [2, 2], currentPlayerIndex: 0 });

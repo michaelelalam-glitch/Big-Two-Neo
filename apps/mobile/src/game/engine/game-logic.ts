@@ -265,10 +265,10 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
   if (newCombo === 'unknown') return false;
   
   const newStrength = COMBO_STRENGTH[newCombo] || 0;
-  const lastStrength = COMBO_STRENGTH[lastPlay.combo] || 0;
+  const lastStrength = COMBO_STRENGTH[lastPlay.combo_type] || 0;
   
   // Different combo types - compare strength
-  if (newCombo !== lastPlay.combo) {
+  if (newCombo !== lastPlay.combo_type) {
     return newStrength > lastStrength;
   }
   

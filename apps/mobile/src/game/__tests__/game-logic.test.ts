@@ -220,8 +220,9 @@ describe('Game Logic - Beat Validation', () => {
   test('canBeatPlay single beats lower single', () => {
     const newCards: Card[] = [{ id: '4D', rank: '4', suit: 'D' }];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '3D', rank: '3', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(true);
   });
@@ -229,8 +230,9 @@ describe('Game Logic - Beat Validation', () => {
   test('canBeatPlay single cannot beat higher single', () => {
     const newCards: Card[] = [{ id: '3D', rank: '3', suit: 'D' }];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '4D', rank: '4', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(false);
   });
@@ -241,11 +243,12 @@ describe('Game Logic - Beat Validation', () => {
       { id: '4C', rank: '4', suit: 'C' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '3D', rank: '3', suit: 'D' },
         { id: '3C', rank: '3', suit: 'C' },
       ],
-      combo: 'Pair',
+      combo_type: 'Pair',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(true);
   });
@@ -253,11 +256,12 @@ describe('Game Logic - Beat Validation', () => {
   test('canBeatPlay wrong number of cards cannot beat', () => {
     const newCards: Card[] = [{ id: '4D', rank: '4', suit: 'D' }];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '3D', rank: '3', suit: 'D' },
         { id: '3C', rank: '3', suit: 'C' },
       ],
-      combo: 'Pair',
+      combo_type: 'Pair',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(false);
   });
@@ -271,6 +275,7 @@ describe('Game Logic - Beat Validation', () => {
       { id: 'JD', rank: 'J', suit: 'D' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '3C', rank: '3', suit: 'C' },
         { id: '4H', rank: '4', suit: 'H' },
@@ -278,7 +283,7 @@ describe('Game Logic - Beat Validation', () => {
         { id: '6D', rank: '6', suit: 'D' },
         { id: '7C', rank: '7', suit: 'C' },
       ],
-      combo: 'Straight',
+      combo_type: 'Straight',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(true);
   });
@@ -292,6 +297,7 @@ describe('Game Logic - Beat Validation', () => {
       { id: '4D', rank: '4', suit: 'D' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '5D', rank: '5', suit: 'D' },
         { id: '7D', rank: '7', suit: 'D' },
@@ -299,7 +305,7 @@ describe('Game Logic - Beat Validation', () => {
         { id: 'JD', rank: 'J', suit: 'D' },
         { id: 'KD', rank: 'K', suit: 'D' },
       ],
-      combo: 'Flush',
+      combo_type: 'Flush',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(true);
   });
@@ -313,6 +319,7 @@ describe('Game Logic - Beat Validation', () => {
       { id: '3D', rank: '3', suit: 'D' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [
         { id: '4D', rank: '4', suit: 'D' },
         { id: '4C', rank: '4', suit: 'C' },
@@ -320,7 +327,7 @@ describe('Game Logic - Beat Validation', () => {
         { id: '6S', rank: '6', suit: 'S' },
         { id: '6D', rank: '6', suit: 'D' },
       ],
-      combo: 'Full House',
+      combo_type: 'Full House',
     };
     expect(canBeatPlay(newCards, lastPlay)).toBe(true);
   });
@@ -363,8 +370,9 @@ describe('Game Logic - Recommended Play', () => {
       { id: '4C', rank: '4', suit: 'C' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '4D', rank: '4', suit: 'D' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
     const result = findRecommendedPlay(hand, lastPlay, false);
     expect(result).toEqual(['4C']); // Lowest that beats 4D
@@ -376,8 +384,9 @@ describe('Game Logic - Recommended Play', () => {
       { id: '4C', rank: '4', suit: 'C' },
     ];
     const lastPlay: LastPlay = {
+        position: 0,
       cards: [{ id: '2S', rank: '2', suit: 'S' }],
-      combo: 'Single',
+      combo_type: 'Single',
     };
     const result = findRecommendedPlay(hand, lastPlay, false);
     expect(result).toBeNull();
@@ -430,8 +439,9 @@ describe('Game Logic - One Card Left Rule', () => {
         { id: 'KS', rank: 'K', suit: 'S' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = findHighestBeatingSingle(hand, lastPlay);
@@ -444,8 +454,9 @@ describe('Game Logic - One Card Left Rule', () => {
         { id: '3D', rank: '3', suit: 'D' },
       ];
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3C', rank: '3', suit: 'C' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = findHighestBeatingSingle(hand, lastPlay);
@@ -480,8 +491,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 5; // Not 1
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -500,11 +512,12 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1; // Has 1 card
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '3D', rank: '3', suit: 'D' },
           { id: '3C', rank: '3', suit: 'C' },
         ],
-        combo: 'Pair',
+        combo_type: 'Pair',
       };
 
       const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -520,8 +533,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -539,8 +553,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -554,8 +569,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = validateOneCardLeftRule(selectedCards, currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -571,8 +587,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3D', rank: '3', suit: 'D' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -588,8 +605,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 5;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: 'AS', rank: 'A', suit: 'S' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -602,8 +620,9 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [{ id: '3C', rank: '3', suit: 'C' }],
-        combo: 'Single',
+        combo_type: 'Single',
       };
 
       const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);
@@ -617,11 +636,12 @@ describe('Game Logic - One Card Left Rule', () => {
       ];
       const nextPlayerCardCount = 1;
       const lastPlay: LastPlay = {
+        position: 0,
         cards: [
           { id: '3D', rank: '3', suit: 'D' },
           { id: '3C', rank: '3', suit: 'C' },
         ],
-        combo: 'Pair',
+        combo_type: 'Pair',
       };
 
       const result = canPassWithOneCardLeftRule(currentPlayerHand, nextPlayerCardCount, lastPlay);

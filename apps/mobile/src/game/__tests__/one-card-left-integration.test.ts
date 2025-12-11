@@ -18,20 +18,20 @@ describe('One Card Left Rule - Integration Test', () => {
     
     // Give Player 1 (human) some cards including cards higher than 4
     state.players[0].hand = [
-      { id: '5H', rank: '5', suit: '♥' },
-      { id: '7D', rank: '7', suit: '♦' },
-      { id: 'KS', rank: 'K', suit: '♠' },
+      { id: '5H', rank: '5', suit: 'H' },
+      { id: '7D', rank: '7', suit: 'D' },
+      { id: 'KS', rank: 'K', suit: 'S' },
     ];
     
     // Give Bot 1 (next player) exactly 1 card
     state.players[1].hand = [
-      { id: 'AH', rank: 'A', suit: '♥' },
+      { id: 'AH', rank: 'A', suit: 'H' },
     ];
     
     // Give Bot 2 some cards
     state.players[2].hand = [
-      { id: '3D', rank: '3', suit: '♦' },
-      { id: '6C', rank: '6', suit: '♣' },
+      { id: '3D', rank: '3', suit: 'D' },
+      { id: '6C', rank: '6', suit: 'C' },
     ];
     
     // Set current player to Player 1 (index 0)
@@ -41,8 +41,9 @@ describe('One Card Left Rule - Integration Test', () => {
     
     // Set last play to a single 4♠
     state.lastPlay = {
-      cards: [{ id: '4S', rank: '4', suit: '♠' }],
-      combo: 'single',
+        position: 0,
+      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      combo_type: 'Single',
     };
     
     console.log('\n=== Test Scenario ===');
@@ -77,19 +78,19 @@ describe('One Card Left Rule - Integration Test', () => {
     if (!state) throw new Error('State not initialized');
     
     state.players[0].hand = [
-      { id: '3H', rank: '3', suit: '♥' },
-      { id: '3S', rank: '3', suit: '♠' },
+      { id: '3H', rank: '3', suit: 'H' },
+      { id: '3S', rank: '3', suit: 'S' },
     ];
     
     state.players[1].hand = [
-      { id: '6H', rank: '6', suit: '♥' },
-      { id: '7H', rank: '7', suit: '♥' },
-      { id: '8H', rank: '8', suit: '♥' },
+      { id: '6H', rank: '6', suit: 'H' },
+      { id: '7H', rank: '7', suit: 'H' },
+      { id: '8H', rank: '8', suit: 'H' },
     ]; // 3 cards - rule doesn't apply
     
     state.players[2].hand = [
-      { id: '9C', rank: '9', suit: '♣' },
-      { id: 'TC', rank: '10', suit: '♣' },
+      { id: '9C', rank: '9', suit: 'C' },
+      { id: 'TC', rank: '10', suit: 'C' },
     ];
     
     state.currentPlayerIndex = 0;
@@ -97,8 +98,9 @@ describe('One Card Left Rule - Integration Test', () => {
     state.isFirstPlayOfGame = false;
     
     state.lastPlay = {
-      cards: [{ id: 'KS', rank: 'K', suit: '♠' }],
-      combo: 'single',
+        position: 0,
+      cards: [{ id: 'KS', rank: 'K', suit: 'S' }],
+      combo_type: 'Single',
     };
     
     console.log('\n=== Test Scenario (Should Allow Pass) ===');
