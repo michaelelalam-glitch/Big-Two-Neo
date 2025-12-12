@@ -163,6 +163,7 @@ export class GameStateManager {
 
   /**
    * Start timer countdown interval (runs every 100ms)
+   * CRITICAL: Checks gameEnded to prevent infinite loop
    */
   private startTimerCountdown(): void {
     // Prevent starting multiple intervals
@@ -171,6 +172,15 @@ export class GameStateManager {
     }
     
     this.timerInterval = setInterval(() => {
+      // CRITICAL FIX: Stop timer if match/game has ended
+      if (this.state?.gameEnded || this.state?.gameOver) {
+        if (this.state.auto_pass_timer) {
+          gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - game ended');
+          this.state.auto_pass_timer = null;
+        }
+        return;
+      }
+
       if (!this.state?.auto_pass_timer?.active) {
         return;
       }
@@ -746,6 +756,13 @@ export class GameStateManager {
     if (!this.state) return;
 
     gameLogger.info(`🏆 [Match End] Match ${this.state.currentMatch} won by ${matchWinnerId}`);
+
+    // CRITICAL FIX: Cancel auto-pass timer when match ends
+    // This prevents infinite loop when bot plays last card + highest play
+    if (this.state.auto_pass_timer?.active) {
+      gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
+      this.state.auto_pass_timer = null;
+    }
 
     // Calculate scores for this match
     const matchScoreDetails = calculateMatchScores(this.state.players, matchWinnerId);
