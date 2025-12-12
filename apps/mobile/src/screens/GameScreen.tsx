@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal } from '../components/game';
+import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -219,6 +219,10 @@ export default function GameScreen() {
 
         return () => {
           unsubscribe();
+          // Cleanup timer interval to prevent memory leaks
+          if (gameManagerRef.current) {
+            gameManagerRef.current.destroy();
+          }
         };
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
@@ -589,6 +593,14 @@ export default function GameScreen() {
                   lastPlayedBy={lastPlayedBy || 'Waiting...'}
                   combinationType={lastPlayCombo || 'No plays yet'}
                 />
+                
+                {/* Auto-Pass Timer Display */}
+                {gameState?.auto_pass_timer && (
+                  <AutoPassTimer
+                    timerState={gameState.auto_pass_timer}
+                    currentPlayerIndex={0} // Player is always at index 0 in local game
+                  />
+                )}
               </View>
 
               {/* Right player (James) */}
