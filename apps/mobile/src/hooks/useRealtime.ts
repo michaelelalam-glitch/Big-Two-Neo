@@ -820,10 +820,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       timerIntervalRef.current = null;
     }
     
-    // CRITICAL FIX: Cancel timer if game has finished
+    // CRITICAL FIX: Skip timer start if game has finished
     // This prevents infinite loop when bot plays last card + highest play
     if (gameState?.game_phase === 'finished') {
-      networkLogger.info('⏰ [Auto-Pass Timer] Cancelling timer - game finished');
+      networkLogger.info('⏰ [Auto-Pass Timer] Skipping timer start - game finished');
       return;
     }
     
