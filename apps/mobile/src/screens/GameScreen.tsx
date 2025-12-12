@@ -219,6 +219,10 @@ export default function GameScreen() {
 
         return () => {
           unsubscribe();
+          // Cleanup timer interval to prevent memory leaks
+          if (gameManagerRef.current) {
+            gameManagerRef.current.destroy();
+          }
         };
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));

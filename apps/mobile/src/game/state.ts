@@ -189,6 +189,14 @@ export class GameStateManager {
         this.state.auto_pass_timer = null;
         this.isExecutingAutoPass = true;
         
+        // Safety timeout to force-reset flag if pass() hangs (prevents permanent lock)
+        const safetyTimeout = setTimeout(() => {
+          if (this.isExecutingAutoPass) {
+            gameLogger.warn('⏰ [Auto-Pass Timer] Safety timeout triggered - force-resetting isExecutingAutoPass flag');
+            this.isExecutingAutoPass = false;
+          }
+        }, 30000); // 30 second timeout
+        
         // Execute pass action
         this.pass().then((result) => {
           if (result.success) {
@@ -199,7 +207,8 @@ export class GameStateManager {
         }).catch((error) => {
           gameLogger.error('⏰ [Auto-Pass Timer] Auto-pass error:', error);
         }).finally(() => {
-          // Reset flag after pass completes
+          // Clear safety timeout and reset flag after pass completes
+          clearTimeout(safetyTimeout);
           this.isExecutingAutoPass = false;
         });
       }
@@ -395,8 +404,10 @@ export class GameStateManager {
     });
 
     // Cancel auto-pass timer if active AND it's the same player who triggered it
+    // If player_id is undefined, cancel anyway as a fallback (defensive programming)
     if (this.state.auto_pass_timer?.active && 
-        this.state.auto_pass_timer.player_id === currentPlayer.id) {
+        (this.state.auto_pass_timer.player_id === undefined || 
+         this.state.auto_pass_timer.player_id === currentPlayer.id)) {
       gameLogger.info(`⏹️ [Auto-Pass Timer] Cancelled by manual pass from ${currentPlayer.name}`);
       this.state.auto_pass_timer = null;
     }
@@ -679,7 +690,13 @@ export class GameStateManager {
       // Clear timer if it was active
       // Note: If highest play was made, no one can beat it, so this should never trigger
       if (this.state!.auto_pass_timer?.active) {
-        gameLogger.info(`⏹️ [Auto-Pass Timer] Cleared (should not happen if highest play logic is correct)`);
+        gameLogger.error(
+          `⏹️ [Auto-Pass Timer] Timer cleared unexpectedly! This indicates a bug in highest play detection logic.\n` +
+          `  Player: ${player.name} (ID: ${player.id})\n` +
+          `  Cards played: ${JSON.stringify(cards.map(c => `${c.rank}${c.suit}`))}\n` +
+          `  Current lastPlay: ${JSON.stringify(this.state!.lastPlay)}\n` +
+          `  Triggering play was: ${JSON.stringify(this.state!.auto_pass_timer.triggering_play)}`
+        );
         this.state!.auto_pass_timer = null;
       }
     }
