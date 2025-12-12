@@ -39,6 +39,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
           cards: [{ id: '2S', rank: '2', suit: 'S' }],
           combo_type: 'Single',
         },
+        player_id: 'player-0',
       };
       
       expect(timerState.active).toBe(true);
@@ -61,6 +62,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
           ],
           combo_type: 'Pair',
         },
+        player_id: 'player-2',
       };
       
       expect(timerState.triggering_play.cards.length).toBe(2);
@@ -152,6 +154,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
           cards: [{ id: '2S', rank: '2', suit: 'S' }],
           combo_type: 'Single',
         },
+        player_id: 'player-0',
       };
       
       expect(timerState).toHaveProperty('active');
@@ -177,6 +180,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
           cards: [{ id: 'AS', rank: 'A', suit: 'S' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
       
       const timestamp = new Date(timerState.started_at);
