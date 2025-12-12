@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
+import { type AutoPassTimerState } from '../types/multiplayer';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
@@ -21,15 +22,6 @@ export interface Player {
   isBot: boolean;
   botDifficulty?: BotDifficulty;
   passed: boolean;
-}
-
-export interface AutoPassTimerState {
-  active: boolean;
-  started_at: string;
-  duration_ms: number;
-  remaining_ms: number;
-  triggering_play: LastPlay;
-  player_id: string; // ID of player who triggered the timer
 }
 
 export interface GameState {
@@ -162,6 +154,7 @@ export class GameStateManager {
   private state: GameState | null = null;
   private listeners: GameStateListener[] = [];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private isExecutingAutoPass: boolean = false; // Prevent re-entry
 
   constructor() {
     this.state = null;
@@ -187,8 +180,14 @@ export class GameStateManager {
 
       // If timer expired, execute auto-pass
       if (remaining === 0) {
+        // Prevent re-entry if auto-pass is already executing
+        if (this.isExecutingAutoPass) {
+          return;
+        }
+
         gameLogger.info('⏰ [Auto-Pass Timer] Timer expired - executing auto-pass');
         this.state.auto_pass_timer = null;
+        this.isExecutingAutoPass = true;
         
         // Execute pass action
         this.pass().then((result) => {
@@ -199,6 +198,9 @@ export class GameStateManager {
           }
         }).catch((error) => {
           gameLogger.error('⏰ [Auto-Pass Timer] Auto-pass error:', error);
+        }).finally(() => {
+          // Reset flag after pass completes
+          this.isExecutingAutoPass = false;
         });
       }
 

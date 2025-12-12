@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import type { AutoPassTimerState } from '../../types/multiplayer';
-import { COLORS, SPACING, FONT_SIZES, SHADOWS } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
@@ -19,18 +19,15 @@ export default function AutoPassTimer({
   timerState,
   currentPlayerIndex,
 }: AutoPassTimerProps) {
-  const [displaySeconds, setDisplaySeconds] = useState<number>(10);
   const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
     if (!timerState || !timerState.active) {
-      setDisplaySeconds(10);
       return;
     }
 
     // Calculate display seconds (rounded)
     const seconds = Math.ceil(timerState.remaining_ms / 1000);
-    setDisplaySeconds(seconds);
 
     // Start pulse animation when timer is active and below 5 seconds
     if (seconds <= 5) {

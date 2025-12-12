@@ -130,15 +130,15 @@ function determine5CardCombo(cards: Card[]): ComboType {
   
   // Determine combo type
   if (isFlush && isStraight) {
-    return 'straight_flush';
+    return 'Straight Flush';
   } else if (counts[0] === 4) {
-    return 'four_of_a_kind';
+    return 'Four of a Kind';
   } else if (counts[0] === 3 && counts[1] === 2) {
-    return 'full_house';
+    return 'Full House';
   } else if (isFlush) {
-    return 'flush';
+    return 'Flush';
   } else if (isStraight) {
-    return 'straight';
+    return 'Straight';
   } else {
     throw new Error('Invalid 5-card combination');
   }
@@ -160,6 +160,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
@@ -444,21 +445,21 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       let comboType: ComboType;
       switch (cards.length) {
         case 1:
-          comboType = 'single';
+          comboType = 'Single';
           break;
         case 2:
           // Validate that both cards have the same rank
           if (cards[0].rank !== cards[1].rank) {
             throw new Error('Invalid pair: cards must have matching ranks');
           }
-          comboType = 'pair';
+          comboType = 'Pair';
           break;
         case 3:
           // Validate that all three cards have the same rank
           if (cards[0].rank !== cards[1].rank || cards[0].rank !== cards[2].rank) {
             throw new Error('Invalid triple: all cards must have matching ranks');
           }
-          comboType = 'triple';
+          comboType = 'Triple';
           break;
         case 5:
           // Determine 5-card combo type by checking card properties
@@ -467,6 +468,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         default:
           throw new Error('Invalid card combination');
       }
+      
+      // Check if there's an active auto-pass timer to cancel
+      const hasActiveTimer = gameState.auto_pass_timer?.active;
       
       // Update game state
       const { error: updateError } = await supabase
@@ -479,6 +483,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           },
           pass_count: 0,
           current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
+          // Clear auto-pass timer when new play is made
+          auto_pass_timer: null,
         })
         .eq('id', gameState.id);
       
@@ -489,6 +495,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         cards,
         combo_type: comboType,
       });
+      
+      // If there was an active timer, broadcast cancellation
+      if (hasActiveTimer) {
+        await broadcastMessage('auto_pass_timer_cancelled', {
+          player_index: currentPlayer.player_index,
+          reason: 'new_play' as const,
+        });
+      }
     } catch (err) {
       const error = err as Error;
       setError(error);
@@ -511,16 +525,30 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // If all other room players passed, clear the table
       const clearTable = newPassCount >= roomPlayers.length - 1;
       
+      // Check if there's an active auto-pass timer to cancel
+      const hasActiveTimer = gameState.auto_pass_timer?.active;
+      
       await supabase
         .from('game_state')
         .update({
           pass_count: clearTable ? 0 : newPassCount,
           last_play: clearTable ? null : gameState.last_play,
           current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
+          // Clear auto-pass timer on manual pass
+          auto_pass_timer: null,
         })
         .eq('id', gameState.id);
       
+      // Broadcast manual pass event
       await broadcastMessage('player_passed', { player_index: currentPlayer.player_index });
+      
+      // If there was an active timer, broadcast cancellation
+      if (hasActiveTimer) {
+        await broadcastMessage('auto_pass_timer_cancelled', {
+          player_index: currentPlayer.player_index,
+          reason: 'manual_pass' as const,
+        });
+      }
     } catch (err) {
       const error = err as Error;
       setError(error);
@@ -604,6 +632,45 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'game_ended' }, (payload) => {
+        fetchGameState(roomId);
+      })
+      .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
+        networkLogger.debug('Auto-pass timer started:', payload);
+        // Immediately update local state with timer info from broadcast
+        if (payload && typeof payload === 'object' && 'timer_state' in payload) {
+          const data = payload as any;
+          setGameState(prevState => {
+            if (!prevState) return prevState;
+            return {
+              ...prevState,
+              auto_pass_timer: data.timer_state,
+            };
+          });
+        }
+        fetchGameState(roomId);
+      })
+      .on('broadcast', { event: 'auto_pass_timer_cancelled' }, (payload) => {
+        networkLogger.debug('Auto-pass timer cancelled:', payload);
+        // Clear timer immediately
+        setGameState(prevState => {
+          if (!prevState) return prevState;
+          return {
+            ...prevState,
+            auto_pass_timer: null,
+          };
+        });
+        fetchGameState(roomId);
+      })
+      .on('broadcast', { event: 'auto_pass_executed' }, (payload) => {
+        networkLogger.debug('Auto-pass executed:', payload);
+        // Clear timer and fetch updated game state
+        setGameState(prevState => {
+          if (!prevState) return prevState;
+          return {
+            ...prevState,
+            auto_pass_timer: null,
+          };
+        });
         fetchGameState(roomId);
       });
     
@@ -690,8 +757,76 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
       }
+      // Cleanup timer interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
     };
   }, []);
+  
+  /**
+   * Auto-pass timer countdown effect
+   * Updates remaining_ms every 100ms when timer is active
+   */
+  useEffect(() => {
+    // Clear existing interval
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    
+    // If no timer or timer is inactive, nothing to do
+    if (!gameState?.auto_pass_timer || !gameState.auto_pass_timer.active) {
+      return;
+    }
+    
+    const timerState = gameState.auto_pass_timer;
+    
+    // Calculate elapsed time since timer started
+    const calculateRemainingMs = (): number => {
+      const startedAt = new Date(timerState.started_at).getTime();
+      const now = Date.now();
+      const elapsed = now - startedAt;
+      const remaining = Math.max(0, timerState.duration_ms - elapsed);
+      return remaining;
+    };
+    
+    // Start interval to update timer every 100ms
+    timerIntervalRef.current = setInterval(() => {
+      const remaining = calculateRemainingMs();
+      
+      // Update game state with new remaining_ms
+      setGameState(prevState => {
+        if (!prevState || !prevState.auto_pass_timer) return prevState;
+        
+        return {
+          ...prevState,
+          auto_pass_timer: {
+            ...prevState.auto_pass_timer,
+            remaining_ms: remaining,
+            // Deactivate when timer expires
+            active: remaining > 0,
+          },
+        };
+      });
+      
+      // Clear interval when timer expires
+      if (remaining <= 0) {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+      }
+    }, 100); // Update every 100ms for smooth countdown
+    
+    // Cleanup on unmount or when timer changes
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [gameState?.auto_pass_timer?.active, gameState?.auto_pass_timer?.started_at]);
   
   return {
     room,
