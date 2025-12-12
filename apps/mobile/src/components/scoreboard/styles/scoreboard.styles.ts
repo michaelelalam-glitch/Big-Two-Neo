@@ -8,7 +8,7 @@
  * Date: December 12, 2025
  */
 
-import { StyleSheet, Dimensions, Platform, PixelRatio } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 import { ScoreboardColors } from './colors';
 
 // ============================================================================
@@ -563,7 +563,6 @@ export const responsive = {
   screenWidth: SCREEN_WIDTH,
   screenHeight: SCREEN_HEIGHT,
   minTouchTarget: MIN_TOUCH_TARGET,
-  fontScale,
 };
 
 // ============================================================================
