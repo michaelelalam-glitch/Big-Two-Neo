@@ -16,9 +16,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { scoreboardStyles } from './styles/scoreboard.styles';
 import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
 import { ExpandedScoreboardProps } from '../../types/scoreboard';
+import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   playerNames,
@@ -32,66 +32,69 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   onTogglePlayHistory,
   isExpanded,
 }) => {
+  // Use responsive styles
+  const styles = useExpandedScoreboardStyles();
+
   return (
-    <View style={scoreboardStyles.expandedContainer}>
+    <View style={styles.expandedContainer}>
       {/* Header */}
-      <View style={scoreboardStyles.expandedHeader}>
-        <Text style={scoreboardStyles.expandedTitle}>
+      <View style={styles.expandedHeader}>
+        <Text style={styles.expandedTitle}>
           {isGameFinished ? '🏁 Final Scores' : `Match ${matchNumber} History`}
         </Text>
         
-        <View style={scoreboardStyles.headerButtons}>
+        <View style={styles.headerButtons}>
           {/* Play History Button */}
           {onTogglePlayHistory && (
             <TouchableOpacity
-              style={scoreboardStyles.iconButton}
+              style={styles.iconButton}
               onPress={onTogglePlayHistory}
               activeOpacity={0.7}
               accessibilityLabel="Open play history"
               accessibilityRole="button"
             >
-              <Text style={scoreboardStyles.iconButtonText}>📜</Text>
+              <Text style={styles.iconButtonText}>📜</Text>
             </TouchableOpacity>
           )}
           
           {/* Close/Minimize Button */}
           {onToggleExpand && (
             <TouchableOpacity
-              style={scoreboardStyles.closeButton}
+              style={styles.closeButton}
               onPress={onToggleExpand}
               activeOpacity={0.7}
               accessibilityLabel="Minimize scoreboard"
               accessibilityRole="button"
             >
-              <Text style={scoreboardStyles.closeButtonText}>◀ Close</Text>
+              <Text style={styles.closeButtonText}>◀ Close</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
       {/* Score Table */}
-      <View style={scoreboardStyles.tableContainer}>
+      <View style={styles.tableContainer}>
         <ScrollView 
-          style={scoreboardStyles.tableScrollView}
+          style={styles.tableScrollView}
           showsVerticalScrollIndicator={true}
           nestedScrollEnabled={true}
         >
           {/* Table Header Row */}
-          <View style={scoreboardStyles.tableHeaderRow}>
+          <View style={styles.tableHeaderRow}>
             {/* Match # column */}
-            <View style={[scoreboardStyles.tableHeaderCell, scoreboardStyles.tableHeaderCellFirst]}>
-              <Text style={scoreboardStyles.tableHeaderText}>Match</Text>
+            <View style={[styles.tableHeaderCell, styles.tableHeaderCellFirst]}>
+              <Text style={styles.tableHeaderText}>Match</Text>
             </View>
             
             {/* Player name columns */}
             {playerNames.map((name, index) => {
               const isCurrentPlayer = index === currentPlayerIndex;
               return (
-                <View key={`header-${index}`} style={scoreboardStyles.tableHeaderCell}>
+                <View key={`header-${index}`} style={styles.tableHeaderCell}>
                   <Text
                     style={[
-                      scoreboardStyles.tableHeaderText,
-                      isCurrentPlayer && scoreboardStyles.tableHeaderTextCurrent,
+                      styles.tableHeaderText,
+                      isCurrentPlayer && styles.tableHeaderTextCurrent,
                     ]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
@@ -111,13 +114,13 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               <View
                 key={`match-${match.matchNumber}`}
                 style={[
-                  scoreboardStyles.tableRow,
-                  !isEvenRow && scoreboardStyles.tableRowAlt,
+                  styles.tableRow,
+                  !isEvenRow && styles.tableRowAlt,
                 ]}
               >
                 {/* Match number */}
-                <View style={[scoreboardStyles.tableCell, scoreboardStyles.tableCellFirst]}>
-                  <Text style={scoreboardStyles.tableCellText}>#{match.matchNumber}</Text>
+                <View style={[styles.tableCell, styles.tableCellFirst]}>
+                  <Text style={styles.tableCellText}>#{match.matchNumber}</Text>
                 </View>
                 
                 {/* Player scores for this match */}
@@ -126,11 +129,11 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                   const pointsColor = getPointsColor(points);
                   
                   return (
-                    <View key={`match-${match.matchNumber}-p${playerIndex}`} style={scoreboardStyles.tableCell}>
-                      <Text style={[scoreboardStyles.tableCellText, { color: pointsColor }]}>
+                    <View key={`match-${match.matchNumber}-p${playerIndex}`} style={styles.tableCell}>
+                      <Text style={[styles.tableCellText, { color: pointsColor }]}>
                         {points > 0 ? `+${points}` : points}
                       </Text>
-                      <Text style={[scoreboardStyles.tableCellLabel, { color: ScoreboardColors.text.muted }]}>
+                      <Text style={[styles.tableCellLabel, { color: ScoreboardColors.text.muted }]}>
                         ({score})
                       </Text>
                     </View>
@@ -142,28 +145,28 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
 
           {/* Current Match Row (only if game not finished) */}
           {!isGameFinished && (
-            <View style={[scoreboardStyles.tableRow, scoreboardStyles.tableRowCurrent]}>
+            <View style={[styles.tableRow, styles.tableRowCurrent]}>
               {/* Match number */}
-              <View style={[scoreboardStyles.tableCell, scoreboardStyles.tableCellFirst]}>
-                <Text style={[scoreboardStyles.tableCellText, { color: ScoreboardColors.text.highlight }]}>
+              <View style={[styles.tableCell, styles.tableCellFirst]}>
+                <Text style={[styles.tableCellText, { color: ScoreboardColors.text.highlight }]}>
                   #{matchNumber}
                 </Text>
               </View>
               
               {/* Card counts */}
               {cardCounts.map((count, playerIndex) => (
-                <View key={`current-p${playerIndex}`} style={scoreboardStyles.tableCell}>
-                  <Text style={scoreboardStyles.tableCellText}>🃏 {count}</Text>
+                <View key={`current-p${playerIndex}`} style={styles.tableCell}>
+                  <Text style={styles.tableCellText}>🃏 {count}</Text>
                 </View>
               ))}
             </View>
           )}
 
           {/* Total Row */}
-          <View style={[scoreboardStyles.tableRow, scoreboardStyles.totalRow]}>
+          <View style={[styles.tableRow, styles.totalRow]}>
             {/* Label */}
-            <View style={[scoreboardStyles.tableCell, scoreboardStyles.tableCellFirst, scoreboardStyles.totalCell]}>
-              <Text style={[scoreboardStyles.tableCellText, scoreboardStyles.totalCellText]}>
+            <View style={[styles.tableCell, styles.tableCellFirst, styles.totalCell]}>
+              <Text style={[styles.tableCellText, styles.totalCellText]}>
                 Total
               </Text>
             </View>
@@ -173,11 +176,11 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               const scoreColor = getScoreColor(score, isGameFinished, currentScores);
               
               return (
-                <View key={`total-p${playerIndex}`} style={[scoreboardStyles.tableCell, scoreboardStyles.totalCell]}>
+                <View key={`total-p${playerIndex}`} style={[styles.tableCell, styles.totalCell]}>
                   <Text
                     style={[
-                      scoreboardStyles.tableCellText,
-                      scoreboardStyles.totalCellText,
+                      styles.tableCellText,
+                      styles.totalCellText,
                       { color: scoreColor },
                     ]}
                   >
