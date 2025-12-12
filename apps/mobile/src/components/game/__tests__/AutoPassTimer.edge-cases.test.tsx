@@ -52,7 +52,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // Timer renders with initial state
       await waitFor(() => {
-        expect(getByText(/Auto-pass in 10s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - 10s to pass/)).toBeTruthy();
       });
     });
 
@@ -73,7 +73,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // Timer should show ~3 seconds remaining
       await waitFor(() => {
-        expect(getByText(/Auto-pass in [2-3]s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - [2-3]s to pass/)).toBeTruthy();
       });
     });
 
@@ -139,7 +139,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // First timer running
       await waitFor(() => {
-        expect(getByText(/Auto-pass in 10s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - 10s to pass/)).toBeTruthy();
         expect(getByText(/Highest Play: Single/)).toBeTruthy();
       });
 
@@ -162,7 +162,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // New timer should reset to 10 seconds
       await waitFor(() => {
-        expect(getByText(/Auto-pass in 10s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - 10s to pass/)).toBeTruthy();
         expect(getByText(/Highest Play: Pair/)).toBeTruthy();
       });
     });
@@ -269,7 +269,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         triggering_play: createMockLastPlay('Single'),
       };
 
-      const { queryByText } = render(
+      render(
         <AutoPassTimer timerState={timerState} currentPlayerIndex={currentPlayerIndex} />
       );
 
@@ -287,7 +287,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         triggering_play: createMockLastPlay('Single'),
       };
 
-      const { queryByText } = render(
+      render(
         <AutoPassTimer timerState={timerState} currentPlayerIndex={currentPlayerIndex} />
       );
 
@@ -332,7 +332,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // Timer continues to render (verifies no crash during network outage)
       await waitFor(() => {
-        expect(getByText(/Auto-pass in 10s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - 10s to pass/)).toBeTruthy();
       });
     });
 
@@ -369,7 +369,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // Should sync with server state
       await waitFor(() => {
-        expect(getByText(/Auto-pass in [5-6]s/)).toBeTruthy();
+        expect(getByText(/No one can beat this play - [5-6]s to pass/)).toBeTruthy();
       });
     });
 
@@ -397,7 +397,7 @@ describe('AutoPassTimer - Edge Cases', () => {
 
       // Should restore timer
       await waitFor(() => {
-        expect(getByText(/Auto-pass in/)).toBeTruthy();
+        expect(getByText(/No one can beat this play/)).toBeTruthy();
         expect(getByText(/Highest Play: Pair/)).toBeTruthy();
       });
     });

@@ -164,7 +164,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('Auto-pass in 7s if no manual pass')).toBeTruthy();
+      expect(getByText('No one can beat this play - 7s to pass')).toBeTruthy();
     });
 
     it('should update message when time changes', () => {
@@ -173,13 +173,13 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('Auto-pass in 3s if no manual pass')).toBeTruthy();
+      expect(getByText('No one can beat this play - 3s to pass')).toBeTruthy();
 
       // Simulate time passing
       const updatedTimerState = createTimerState({ remaining_ms: 2000 });
       rerender(<AutoPassTimer timerState={updatedTimerState} currentPlayerIndex={0} />);
 
-      expect(getByText('Auto-pass in 2s if no manual pass')).toBeTruthy();
+      expect(getByText('No one can beat this play - 2s to pass')).toBeTruthy();
     });
   });
 
@@ -200,7 +200,7 @@ describe('AutoPassTimer Component', () => {
       );
 
       expect(getByText('1')).toBeTruthy();
-      expect(getByText('Auto-pass in 1s if no manual pass')).toBeTruthy();
+      expect(getByText('No one can beat this play - 1s to pass')).toBeTruthy();
     });
 
     it('should handle full duration (10 seconds)', () => {
