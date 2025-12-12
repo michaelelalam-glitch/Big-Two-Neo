@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, StyleProp, ImageStyle } from 'react-native';
 import { getCardAsset } from '../../../utils/cardAssets';
 
 interface CardImageProps {
@@ -12,7 +12,7 @@ interface CardImageProps {
   suit: string; // H, D, C, S
   width?: number;
   height?: number;
-  style?: any;
+  style?: StyleProp<ImageStyle>;
 }
 
 /**

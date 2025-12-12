@@ -26,47 +26,26 @@ export const HandCard: React.FC<HandCardProps> = ({
 }) => {
   // Format combo type for display
   const formatComboType = (type: string): string => {
-    // First try exact match (handles PascalCase from ComboType)
-    switch (type) {
-      case 'Single':
+    const normalized = type.replace(/[_\s]/g, '').toLowerCase();
+    switch (normalized) {
+      case 'single':
         return 'Single';
-      case 'Pair':
+      case 'pair':
         return 'Pair';
-      case 'Triple':
+      case 'triple':
         return 'Triple';
-      case 'Straight':
+      case 'straight':
         return 'Straight';
-      case 'Flush':
+      case 'flush':
         return 'Flush';
-      case 'Full House':
+      case 'fullhouse':
         return 'Full House';
-      case 'Four of a Kind':
+      case 'fourofakind':
         return 'Four of a Kind';
-      case 'Straight Flush':
+      case 'straightflush':
         return 'Straight Flush';
       default:
-        // Fallback: normalize common alternative formats
-        const normalized = type.replace(/[_\s]/g, '').toLowerCase();
-        switch (normalized) {
-          case 'single':
-            return 'Single';
-          case 'pair':
-            return 'Pair';
-          case 'triple':
-            return 'Triple';
-          case 'straight':
-            return 'Straight';
-          case 'flush':
-            return 'Flush';
-          case 'fullhouse':
-            return 'Full House';
-          case 'fourofakind':
-            return 'Four of a Kind';
-          case 'straightflush':
-            return 'Straight Flush';
-          default:
-            return type;
-        }
+        return type;
     }
   };
 
@@ -87,9 +66,9 @@ export const HandCard: React.FC<HandCardProps> = ({
 
       {/* Cards */}
       <View style={scoreboardStyles.handCardsContainer}>
-        {hand.cards.map((card) => (
+        {hand.cards.map((card, idx) => (
           <CardImage
-            key={card.id}
+            key={`${card.rank}-${card.suit}-${idx}`}
             rank={card.rank}
             suit={card.suit}
             width={35}

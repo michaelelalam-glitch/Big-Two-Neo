@@ -17,10 +17,9 @@ import { ScoreboardColors } from './colors';
 
 // Note: These values are computed at module load time and won't update dynamically.
 // For responsive orientation changes, components should use useWindowDimensions() hook.
-// For dynamic font scaling, consider using Text's allowFontScaling prop.
+// fontScale removed to prevent quadratic scaling (Text components already apply font scaling by default)
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isPortrait = SCREEN_HEIGHT > SCREEN_WIDTH;
-const fontScale = PixelRatio.getFontScale();
 
 // Calculate responsive sizes
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
@@ -81,7 +80,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   matchTitle: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: ScoreboardColors.text.highlight,
     letterSpacing: 0.5,
@@ -109,7 +108,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   iconButtonText: {
-    fontSize: moderateScale(12) * fontScale,
+    fontSize: moderateScale(12),
     color: ScoreboardColors.button.text,
     fontWeight: '600',
   },
@@ -139,7 +138,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   playerName: {
-    fontSize: moderateScale(13) * fontScale,
+    fontSize: moderateScale(13),
     fontWeight: '500',
     color: ScoreboardColors.text.primary,
     flex: 1,
@@ -157,13 +156,13 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   cardCount: {
-    fontSize: moderateScale(12) * fontScale,
+    fontSize: moderateScale(12),
     color: ScoreboardColors.text.secondary,
     fontWeight: '500',
   },
 
   playerScore: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     minWidth: moderateScale(40),
     textAlign: 'right',
@@ -193,7 +192,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   expandedTitle: {
-    fontSize: moderateScale(16) * fontScale,
+    fontSize: moderateScale(16),
     fontWeight: '700',
     color: ScoreboardColors.text.highlight,
   },
@@ -209,7 +208,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   closeButtonText: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     color: ScoreboardColors.button.text,
     fontWeight: '600',
   },
@@ -251,7 +250,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   tableHeaderText: {
-    fontSize: moderateScale(12) * fontScale,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: ScoreboardColors.text.primary,
     textAlign: 'center',
@@ -291,13 +290,13 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   tableCellText: {
-    fontSize: moderateScale(13) * fontScale,
+    fontSize: moderateScale(13),
     color: ScoreboardColors.text.primary,
     textAlign: 'center',
   },
 
   tableCellLabel: {
-    fontSize: moderateScale(11) * fontScale,
+    fontSize: moderateScale(11),
     color: ScoreboardColors.text.secondary,
     fontWeight: '600',
   },
@@ -313,7 +312,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   totalCellText: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     fontWeight: '700',
   },
 
@@ -357,7 +356,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   modalTitle: {
-    fontSize: moderateScale(18) * fontScale,
+    fontSize: moderateScale(18),
     fontWeight: '700',
     color: ScoreboardColors.text.highlight,
   },
@@ -373,7 +372,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   modalCloseButtonText: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     color: ScoreboardColors.button.text,
     fontWeight: '600',
   },
@@ -423,13 +422,13 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   matchCardTitle: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: ScoreboardColors.matchCard.headerText,
   },
 
   matchCardIcon: {
-    fontSize: moderateScale(16) * fontScale,
+    fontSize: moderateScale(16),
     color: ScoreboardColors.button.icon,
   },
 
@@ -465,13 +464,13 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   handPlayerName: {
-    fontSize: moderateScale(13) * fontScale,
+    fontSize: moderateScale(13),
     fontWeight: '600',
     color: ScoreboardColors.handCard.playerName,
   },
 
   handComboType: {
-    fontSize: moderateScale(11) * fontScale,
+    fontSize: moderateScale(11),
     color: ScoreboardColors.handCard.comboType,
     fontStyle: 'italic',
   },
@@ -530,7 +529,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   emptyStateText: {
-    fontSize: moderateScale(14) * fontScale,
+    fontSize: moderateScale(14),
     color: ScoreboardColors.text.muted,
     textAlign: 'center',
   },
@@ -546,7 +545,7 @@ export const scoreboardStyles = StyleSheet.create({
   },
 
   badgeText: {
-    fontSize: moderateScale(10) * fontScale,
+    fontSize: moderateScale(10),
     color: '#FFFFFF',
     fontWeight: '700',
   },

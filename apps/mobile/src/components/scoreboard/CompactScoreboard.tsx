@@ -38,12 +38,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
     if (isGameFinished && !isExpanded && onToggleExpandRef.current) {
       onToggleExpandRef.current();
     }
-  }, [isGameFinished, isExpanded]);
-
-  // Don't render if expanded (show ExpandedScoreboard instead)
-  if (isExpanded) {
-    return null;
-  }
+  }, [isGameFinished, isExpanded, onToggleExpandRef]);nToggleExpandRef]);
 
   return (
     <View style={scoreboardStyles.compactContainer}>

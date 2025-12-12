@@ -32,11 +32,6 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   onTogglePlayHistory,
   isExpanded,
 }) => {
-  // Don't render if not expanded
-  if (!isExpanded) {
-    return null;
-  }
-
   return (
     <View style={scoreboardStyles.expandedContainer}>
       {/* Header */}
