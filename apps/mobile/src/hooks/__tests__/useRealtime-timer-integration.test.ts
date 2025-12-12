@@ -62,20 +62,21 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
       // The real integration test happens in the UI where gameState flows from database
       const timerState: AutoPassTimerState = {
         active: true,
-        started_at: new Date().toISOString(),
+        started_at: new Date(Date.now() - 3000).toISOString(),
         duration_ms: 10000,
-        remaining_ms: 10000,
+        remaining_ms: 7000,
         triggering_play: {
           position: 1,
           cards: [{ id: '2S', suit: 'S', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
 
       // Verify timer structure is valid
       expect(timerState.active).toBe(true);
       expect(timerState.duration_ms).toBe(10000);
-      expect(timerState.remaining_ms).toBe(10000);
+      expect(timerState.remaining_ms).toBe(7000);
       
       // Verify countdown calculation logic
       const startedAt = new Date(timerState.started_at).getTime();
@@ -100,6 +101,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2S', suit: 'S', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
 
       // Calculate remaining time
@@ -123,6 +125,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2S', suit: 'S', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
 
       // Timer is active
@@ -148,6 +151,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2H', suit: 'H', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-2',
       };
 
       const broadcast = {
@@ -205,6 +209,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2S', suit: 'S', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
 
       act(() => {
@@ -251,6 +256,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2H', suit: 'H', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-2',
       };
 
       act(() => {
@@ -290,6 +296,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
                 cards: [{ id: '2S', suit: 'S', rank: '2' }],
                 combo_type: 'Single',
               },
+              player_id: `player-${i}`,
             };
             result.current.gameState = {
               id: 'game-1',
@@ -363,6 +370,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
           cards: [{ id: '2S', suit: 'S', rank: '2' }],
           combo_type: 'Single',
         },
+        player_id: 'player-1',
       };
 
       act(() => {
