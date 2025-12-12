@@ -62,7 +62,7 @@ export interface AutoPassTimerState {
   duration_ms: number; // Total duration in milliseconds (default: 10000)
   remaining_ms: number; // Milliseconds remaining
   triggering_play: LastPlay; // The play that triggered the timer
-  player_id?: string; // ID of player who triggered the timer (optional for backward compatibility)
+  player_id: string; // ID of player who triggered the timer
 }
 
 export interface LastPlay {
