@@ -28,6 +28,7 @@ import {
   BroadcastEvent,
   BroadcastPayload,
   PlayerPresence,
+  AutoPassTimerState,
 } from '../types/multiplayer';
 import { networkLogger } from '../utils/logger';
 
@@ -147,13 +148,42 @@ function determine5CardCombo(cards: Card[]): ComboType {
 /**
  * Type guard to validate auto-pass timer broadcast payload
  */
-function isValidTimerStatePayload(payload: unknown): payload is { timer_state: unknown } {
+function isValidTimerStatePayload(
+  payload: unknown
+): payload is { timer_state: AutoPassTimerState } {
+  if (typeof payload !== 'object' || payload === null || !('timer_state' in payload)) {
+    return false;
+  }
+  
+  const timerState = (payload as { timer_state: unknown }).timer_state;
+  
+  if (typeof timerState !== 'object' || timerState === null) {
+    return false;
+  }
+  
+  const state = timerState as Record<string, unknown>;
+  
+  // Validate basic timer fields
+  if (
+    typeof state.active !== 'boolean' ||
+    typeof state.started_at !== 'string' ||
+    typeof state.duration_ms !== 'number' ||
+    typeof state.remaining_ms !== 'number'
+  ) {
+    return false;
+  }
+  
+  // Validate triggering_play structure
+  const triggeringPlay = state.triggering_play;
+  if (typeof triggeringPlay !== 'object' || triggeringPlay === null) {
+    return false;
+  }
+  
+  const play = triggeringPlay as Record<string, unknown>;
   return (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'timer_state' in payload &&
-    typeof (payload as {timer_state: unknown}).timer_state === 'object' &&
-    (payload as {timer_state: unknown}).timer_state !== null
+    typeof play.position === 'number' &&
+    Array.isArray(play.cards) &&
+    typeof play.combo_type === 'string'
   );
 }
 
@@ -655,7 +685,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             if (!prevState) return prevState;
             return {
               ...prevState,
-              auto_pass_timer: payload.timer_state as any, // Type validated by guard
+              auto_pass_timer: payload.timer_state, // Type validated by guard
             };
           });
         } else {

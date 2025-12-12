@@ -165,6 +165,11 @@ export class GameStateManager {
    * Start timer countdown interval (runs every 100ms)
    */
   private startTimerCountdown(): void {
+    // Prevent starting multiple intervals
+    if (this.timerInterval !== null) {
+      return;
+    }
+    
     this.timerInterval = setInterval(() => {
       if (!this.state?.auto_pass_timer?.active) {
         return;
@@ -195,7 +200,7 @@ export class GameStateManager {
             gameLogger.warn('⏰ [Auto-Pass Timer] Safety timeout triggered - force-resetting isExecutingAutoPass flag');
             this.isExecutingAutoPass = false;
           }
-        }, 30000); // 30 second timeout
+        }, 10000); // 10 second timeout
         
         // Execute pass action
         this.pass().then((result) => {
