@@ -129,7 +129,10 @@ export type BroadcastEvent =
   | 'cards_played'
   | 'player_passed'
   | 'game_ended'
-  | 'reconnected';
+  | 'reconnected'
+  | 'auto_pass_timer_started'  // New: Timer started for highest play
+  | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
+  | 'auto_pass_executed';  // New: Auto-pass executed after timer expired
 
 export type BroadcastData =
   | { user_id: string; username: string; player_index: number }  // player_joined
@@ -140,7 +143,10 @@ export type BroadcastData =
   | { player_index: number; cards: Card[]; combo_type: ComboType }  // cards_played
   | { player_index: number }  // player_passed
   | { winner_position: number }  // game_ended
-  | { user_id: string };  // reconnected
+  | { user_id: string }  // reconnected
+  | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
+  | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
+  | { player_index: number };  // auto_pass_executed
 
 export interface BroadcastPayload {
   event: BroadcastEvent;

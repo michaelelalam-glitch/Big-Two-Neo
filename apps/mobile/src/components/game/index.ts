@@ -4,3 +4,4 @@ export { default as PlayerInfo } from './PlayerInfo';
 export { default as MatchScoreboard } from './MatchScoreboard';
 export { default as CenterPlayArea } from './CenterPlayArea';
 export { default as GameSettingsModal } from './GameSettingsModal';
+export { default as AutoPassTimer } from './AutoPassTimer';

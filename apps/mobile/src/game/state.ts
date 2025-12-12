@@ -5,7 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule } from './engine';
+import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
@@ -21,6 +21,15 @@ export interface Player {
   isBot: boolean;
   botDifficulty?: BotDifficulty;
   passed: boolean;
+}
+
+export interface AutoPassTimerState {
+  active: boolean;
+  started_at: string;
+  duration_ms: number;
+  remaining_ms: number;
+  triggering_play: LastPlay;
+  player_id: string; // ID of player who triggered the timer
 }
 
 export interface GameState {
@@ -41,6 +50,9 @@ export interface GameState {
   gameOver: boolean; // True when a player reaches 101+ points
   finalWinnerId: string | null; // Overall game winner (lowest score)
   startedAt?: number; // Timestamp when the game started (for duration calculation)
+  // Auto-pass timer (for highest play detection)
+  auto_pass_timer: AutoPassTimerState | null;
+  played_cards: Card[]; // All cards played this match (for highest play detection)
 }
 
 export interface RoundHistoryEntry {
@@ -149,9 +161,60 @@ function findFinalWinner(matchScores: PlayerMatchScore[]): string {
 export class GameStateManager {
   private state: GameState | null = null;
   private listeners: GameStateListener[] = [];
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.state = null;
+    this.startTimerCountdown();
+  }
+
+  /**
+   * Start timer countdown interval (runs every 100ms)
+   */
+  private startTimerCountdown(): void {
+    this.timerInterval = setInterval(() => {
+      if (!this.state?.auto_pass_timer?.active) {
+        return;
+      }
+
+      const startedAt = new Date(this.state.auto_pass_timer.started_at).getTime();
+      const now = Date.now();
+      const elapsed = now - startedAt;
+      const remaining = Math.max(0, this.state.auto_pass_timer.duration_ms - elapsed);
+
+      // Update remaining time
+      this.state.auto_pass_timer.remaining_ms = remaining;
+
+      // If timer expired, execute auto-pass
+      if (remaining === 0) {
+        gameLogger.info('⏰ [Auto-Pass Timer] Timer expired - executing auto-pass');
+        this.state.auto_pass_timer = null;
+        
+        // Execute pass action
+        this.pass().then((result) => {
+          if (result.success) {
+            gameLogger.info('⏰ [Auto-Pass Timer] Auto-pass successful');
+          } else {
+            gameLogger.warn('⏰ [Auto-Pass Timer] Auto-pass failed:', result.error);
+          }
+        }).catch((error) => {
+          gameLogger.error('⏰ [Auto-Pass Timer] Auto-pass error:', error);
+        });
+      }
+
+      // Notify listeners to update UI
+      this.notifyListeners();
+    }, 100); // Update every 100ms for smooth countdown
+  }
+
+  /**
+   * Clean up timer interval
+   */
+  destroy(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
   }
 
   /**
@@ -216,6 +279,8 @@ export class GameStateManager {
       gameOver: false,
       finalWinnerId: null,
       startedAt: Date.now(),
+      auto_pass_timer: null,
+      played_cards: [],
     };
 
     await this.saveState();
@@ -326,6 +391,13 @@ export class GameStateManager {
       timestamp: Date.now(),
       passed: true,
     });
+
+    // Cancel auto-pass timer if active AND it's the same player who triggered it
+    if (this.state.auto_pass_timer?.active && 
+        this.state.auto_pass_timer.player_id === currentPlayer.id) {
+      gameLogger.info(`⏹️ [Auto-Pass Timer] Cancelled by manual pass from ${currentPlayer.name}`);
+      this.state.auto_pass_timer = null;
+    }
 
     // If all other players passed, current trick is over
     if (this.state.consecutivePasses >= this.state.players.length - 1) {
@@ -583,6 +655,33 @@ export class GameStateManager {
     this.state!.consecutivePasses = 0;
     this.state!.isFirstPlayOfGame = false;
 
+    // Check if this is the highest possible play BEFORE adding to played_cards
+    // (needs to check against cards already played, not including current play)
+    const isHighest = isHighestPossiblePlay(cards, this.state!.played_cards);
+    
+    // Now add cards to played_cards history for future highest play detection
+    this.state!.played_cards.push(...cards);
+
+    if (isHighest) {
+      gameLogger.info(`🔥 [Auto-Pass Timer] Highest play detected! Starting 10s timer for ${player.name}`);
+      const now = new Date().toISOString();
+      this.state!.auto_pass_timer = {
+        active: true,
+        started_at: now,
+        duration_ms: 10000, // 10 seconds
+        remaining_ms: 10000,
+        triggering_play: this.state!.lastPlay,
+        player_id: player.id, // Track who triggered the timer
+      };
+    } else {
+      // Clear timer if it was active
+      // Note: If highest play was made, no one can beat it, so this should never trigger
+      if (this.state!.auto_pass_timer?.active) {
+        gameLogger.info(`⏹️ [Auto-Pass Timer] Cleared (should not happen if highest play logic is correct)`);
+        this.state!.auto_pass_timer = null;
+      }
+    }
+
     // Reset all passed flags
     for (const p of this.state!.players) {
       p.passed = false;
@@ -605,6 +704,9 @@ export class GameStateManager {
   private startNewTrick(): void {
     this.state!.lastPlay = null;
     this.state!.consecutivePasses = 0;
+
+    // Clear auto-pass timer when trick ends
+    this.state!.auto_pass_timer = null;
 
     // Reset passed flags
     for (const player of this.state!.players) {
@@ -855,6 +957,8 @@ export class GameStateManager {
     this.state.gameEnded = false;
     this.state.winnerId = null;
     this.state.roundHistory = [];
+    this.state.auto_pass_timer = null; // Clear timer for new match
+    this.state.played_cards = []; // Clear played cards history for new match
 
     // Reset player states
     for (const player of this.state.players) {
