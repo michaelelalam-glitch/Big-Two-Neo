@@ -10,8 +10,7 @@
  * Fix: Timer countdown checks gameEnded/gameOver and cancels timer state.
  */
 
-import { GameStateManager } from '../state';
-import type { GameConfig } from '../types';
+import { GameStateManager, type GameConfig } from '../state';
 
 describe('Auto-Pass Timer Cancellation on Game End', () => {
   let manager: GameStateManager;
@@ -53,6 +52,11 @@ describe('Auto-Pass Timer Cancellation on Game End', () => {
         started_at: new Date().toISOString(),
         duration_ms: 10000,
         remaining_ms: 10000,
+        triggering_play: { 
+          position: 2, 
+          combo_type: 'Single', 
+          cards: [{ id: '2S', suit: 'S' as const, rank: '2' as const }] 
+        },
       };
     }
     
@@ -97,6 +101,11 @@ describe('Auto-Pass Timer Cancellation on Game End', () => {
         started_at: new Date().toISOString(),
         duration_ms: 10000,
         remaining_ms: 10000,
+        triggering_play: { 
+          position: 1, 
+          combo_type: 'Single', 
+          cards: [{ id: '2S', suit: 'S' as const, rank: '2' as const }] 
+        },
       };
     }
     
@@ -134,6 +143,11 @@ describe('Auto-Pass Timer Cancellation on Game End', () => {
         started_at: new Date().toISOString(),
         duration_ms: 10000,
         remaining_ms: 10000,
+        triggering_play: { 
+          position: 3, 
+          combo_type: 'Single', 
+          cards: [{ id: '2S', suit: 'S' as const, rank: '2' as const }] 
+        },
       };
       state.gameEnded = false;
       state.gameOver = false;
@@ -169,6 +183,11 @@ describe('Auto-Pass Timer Cancellation on Game End', () => {
         started_at: new Date().toISOString(),
         duration_ms: 100, // Very short for testing
         remaining_ms: 100,
+        triggering_play: { 
+          position: 2, 
+          combo_type: 'Single', 
+          cards: [{ id: '2S', suit: 'S' as const, rank: '2' as const }] 
+        },
       };
       
       // Game ends immediately
