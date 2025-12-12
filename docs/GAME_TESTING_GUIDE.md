@@ -332,10 +332,127 @@ pnpm run ios  # or: pnpm run android
 - ✅ Intuitive card selection
 - ✅ Clear turn indicators
 - ✅ Responsive bot turns
+- ✅ Auto-pass timer visual feedback
+
+---
+
+## 🆕 Auto-Pass Timer Testing (v1.1.0)
+
+### What to Test
+
+The auto-pass timer triggers when the highest possible card/combo is played. Test these scenarios:
+
+#### 1. **Timer Activation**
+- ✅ Play `2♠` (highest single) → Timer should start
+- ✅ Play `2♥-2♠` pair → Timer should start
+- ✅ Play Royal Flush `10♠-J♠-Q♠-K♠-A♠` → Timer should start
+- ✅ Play `A♠` when `2♠` is already played → No timer (not highest)
+
+#### 2. **Visual Indicators**
+- ✅ Circular progress ring appears
+- ✅ Countdown shows correct seconds (10 → 0)
+- ✅ Color changes: Blue (10-6s) → Orange (5-4s) → Red (3-1s)
+- ✅ Pulse animation starts at ≤ 5 seconds
+- ✅ Combo type displays correctly (e.g., "Single", "Pair")
+- ✅ Message reads: "Auto-pass in Xs if no manual pass"
+
+#### 3. **Timer Cancellation**
+- ✅ Manual pass → Timer disappears immediately
+- ✅ `auto_pass_timer_cancelled` event broadcast
+- ✅ Turn advances normally
+
+#### 4. **Auto-Pass Execution**
+- ✅ Wait 10 seconds without action → Player automatically passes
+- ✅ `auto_pass_executed` event broadcast
+- ✅ Turn advances to next player
+- ✅ Timer disappears
+
+#### 5. **Edge Cases**
+- ✅ Player disconnects during timer → Timer continues
+- ✅ Player reconnects → Timer state restored with correct countdown
+- ✅ Room closes during timer → Timer cancelled cleanly
+- ✅ Game ends during timer → Timer cleared
+- ✅ Sequential timers → Each timer independent and correct
+
+#### 6. **Multiplayer Sync**
+- ✅ All players see same countdown
+- ✅ Manual pass cancels timer for all players
+- ✅ Auto-pass executes for all players simultaneously
+- ✅ WebSocket events received by all clients
+
+### Testing Commands
+
+```bash
+# Run auto-pass timer tests
+cd apps/mobile
+npm test -- auto-pass-timer.test.ts
+
+# Run timer UI component tests
+npm test -- AutoPassTimer.test.tsx
+
+# Run WebSocket event tests
+npm test -- useRealtime-autopass.test.ts
+```
+
+### Manual Testing Steps
+
+1. **Start a multiplayer game:**
+   ```bash
+   cd apps/mobile
+   pnpm start
+   # Open on 2+ devices/simulators
+   ```
+
+2. **Test highest play detection:**
+   - Player 1 plays `2♠` → Observe timer (10s)
+   - Player 2 waits → Auto-pass should execute at 0s
+   - Player 3 plays `2♥-2♣` pair → New timer starts
+
+3. **Test manual cancellation:**
+   - Player 1 plays `2♠` → Timer starts
+   - Player 2 clicks "Pass" at 5s → Timer cancels
+   - Verify turn advances normally
+
+4. **Test reconnection:**
+   - Player 1 plays `2♠` → Timer starts
+   - Player 2 force quits app at 7s
+   - Player 2 reopens app → Should see ~5s remaining
+   - Timer continues from correct time
+
+5. **Test visual states:**
+   - Observe color changes (blue → orange → red)
+   - Verify pulse animation at ≤ 5 seconds
+   - Check all combo types display correctly
+
+### Expected Test Results
+
+```
+✅ Auto-Pass Timer Manager (9/9 tests)
+✅ AutoPassTimer Component (18/18 tests)
+✅ WebSocket Events (14/14 tests)
+
+Total: 41/41 tests passing (100%)
+```
 
 ---
 
 ## 🔧 Troubleshooting
+
+### Timer Not Appearing
+- Verify `gameState.auto_pass_timer` is not null
+- Check if play is actually the highest possible
+- Inspect WebSocket `auto_pass_timer_started` event
+- Review browser console for errors
+
+### Timer Not Cancelling
+- Ensure `auto_pass_timer_cancelled` event broadcasts
+- Check database `auto_pass_timer` field updates to null
+- Verify manual pass triggers timer cancellation logic
+
+### Timer Countdown Incorrect
+- Check `started_at` timestamp is valid ISO string
+- Verify `remaining_ms` calculation accounts for elapsed time
+- Ensure client and server clocks are reasonably synced
 
 ### Tests Won't Run
 ```bash
@@ -372,6 +489,11 @@ pnpm start --clear
 
 ## 📚 Related Documentation
 
+- **[GAME_RULES.md](./GAME_RULES.md)** - Complete game rules with auto-pass timer
+- **[AUTO_PASS_TIMER_EDGE_CASES.md](./AUTO_PASS_TIMER_EDGE_CASES.md)** - Edge case handling
+- **[AUTO_PASS_TIMER_HIGHEST_PLAY_DETECTION.md](./AUTO_PASS_TIMER_HIGHEST_PLAY_DETECTION.md)** - Detection algorithm
+- **[TASK_334_TIMER_UI_COMPLETE.md](./TASK_334_TIMER_UI_COMPLETE.md)** - Timer UI implementation
+- **[TASK_336_WEBSOCKET_EVENTS_COMPLETE.md](./TASK_336_WEBSOCKET_EVENTS_COMPLETE.md)** - WebSocket events
 - **[TASK_261_COMPLETE.md](./TASK_261_COMPLETE.md)** - Game engine migration details
 - **[TASK_261_ISSUES_FIXED.md](./TASK_261_ISSUES_FIXED.md)** - Bug fixes and improvements
 - **[README.md](../apps/mobile/README.md)** - Mobile app setup guide
@@ -386,8 +508,11 @@ After successful testing:
 2. Compare bot behavior with web version
 3. Test on multiple devices/screen sizes
 4. Conduct user acceptance testing
-5. Prepare for production deployment
+5. **Test auto-pass timer in real multiplayer scenarios**
+6. **Verify timer behavior under poor network conditions**
+7. Prepare for production deployment
 
 ---
 
 **Happy Testing! 🎮🃏**
+
