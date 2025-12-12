@@ -15,6 +15,9 @@ import { ScoreboardColors } from './colors';
 // RESPONSIVE UTILITIES
 // ============================================================================
 
+// Note: These values are computed at module load time and won't update dynamically.
+// For responsive orientation changes, components should use useWindowDimensions() hook.
+// For dynamic font scaling, consider using Text's allowFontScaling prop.
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isPortrait = SCREEN_HEIGHT > SCREEN_WIDTH;
 const fontScale = PixelRatio.getFontScale();
@@ -84,6 +87,8 @@ export const scoreboardStyles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  // Note: 'gap' property is supported in React Native 0.71+
+  // For older versions, replace with margin/padding on child elements
   headerButtons: {
     flexDirection: 'row',
     gap: moderateScale(8),

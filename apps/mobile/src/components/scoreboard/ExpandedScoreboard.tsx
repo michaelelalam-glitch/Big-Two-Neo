@@ -17,7 +17,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { scoreboardStyles } from './styles/scoreboard.styles';
-import { ScoreboardColors, getPlayerNameColor, getScoreColor, getPointsColor } from './styles/colors';
+import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
 import { ExpandedScoreboardProps } from '../../types/scoreboard';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
@@ -36,8 +36,6 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   if (!isExpanded) {
     return null;
   }
-
-  const playerCount = playerNames.length;
 
   return (
     <View style={scoreboardStyles.expandedContainer}>

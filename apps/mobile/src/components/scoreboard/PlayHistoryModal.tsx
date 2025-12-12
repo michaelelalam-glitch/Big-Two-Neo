@@ -17,15 +17,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withTiming,
-  useSharedValue,
-  FadeIn,
-  FadeOut,
-} from 'react-native-reanimated';
 import { scoreboardStyles } from './styles/scoreboard.styles';
-import { ScoreboardColors } from './styles/colors';
 import { PlayHistoryModalProps } from '../../types/scoreboard';
 import { HandCard } from './components/HandCard';
 
