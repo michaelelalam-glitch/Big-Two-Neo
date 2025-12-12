@@ -833,7 +833,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
     }, 100); // Update every 100ms for smooth countdown
     
-    // Cleanup on unmount or when timer changes
+    // Cleanup function to clear interval when effect re-runs or unmounts
+    // This ensures proper cleanup when:
+    // - Timer is cancelled
+    // - Timer expires
+    // - Component unmounts
     return () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);

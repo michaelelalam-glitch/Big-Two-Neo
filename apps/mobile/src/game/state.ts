@@ -408,6 +408,10 @@ export class GameStateManager {
     if (this.state.auto_pass_timer?.active && 
         (this.state.auto_pass_timer.player_id === undefined || 
          this.state.auto_pass_timer.player_id === currentPlayer.id)) {
+      // Log warning if player_id is missing (indicates potential bug)
+      if (this.state.auto_pass_timer.player_id === undefined) {
+        gameLogger.warn('[Auto-Pass Timer] player_id is undefined when canceling timer. This may indicate a bug in timer assignment.');
+      }
       gameLogger.info(`⏹️ [Auto-Pass Timer] Cancelled by manual pass from ${currentPlayer.name}`);
       this.state.auto_pass_timer = null;
     }
@@ -690,14 +694,14 @@ export class GameStateManager {
       // Clear timer if it was active
       // Note: If highest play was made, no one can beat it, so this should never trigger
       if (this.state!.auto_pass_timer?.active) {
-        gameLogger.error(
+        // This is a critical bug - throw exception to catch it in development/testing
+        throw new Error(
           `⏹️ [Auto-Pass Timer] Timer cleared unexpectedly! This indicates a bug in highest play detection logic.\n` +
           `  Player: ${player.name} (ID: ${player.id})\n` +
           `  Cards played: ${JSON.stringify(cards.map(c => `${c.rank}${c.suit}`))}\n` +
           `  Current lastPlay: ${JSON.stringify(this.state!.lastPlay)}\n` +
           `  Triggering play was: ${JSON.stringify(this.state!.auto_pass_timer.triggering_play)}`
         );
-        this.state!.auto_pass_timer = null;
       }
     }
 
