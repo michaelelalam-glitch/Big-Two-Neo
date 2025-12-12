@@ -11,12 +11,12 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { scoreboardStyles } from './styles/scoreboard.styles';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
 import { ScoreboardProps } from '../../types/scoreboard';
 import { CompactScoreboard } from './CompactScoreboard';
 import { ExpandedScoreboard } from './ExpandedScoreboard';
 import { PlayHistoryModal } from './PlayHistoryModal';
+import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 
 export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   playerNames,
@@ -28,6 +28,9 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   scoreHistory,
   playHistory,
 }) => {
+  // Use responsive container styles
+  const styles = useScoreboardContainerStyles();
+  
   const {
     isScoreboardExpanded,
     setIsScoreboardExpanded,
@@ -53,7 +56,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   return (
     <>
       {/* Main Scoreboard Container */}
-      <View style={scoreboardStyles.container}>
+      <View style={styles.container}>
         {/* Compact View */}
         {!isScoreboardExpanded && (
           <CompactScoreboard
