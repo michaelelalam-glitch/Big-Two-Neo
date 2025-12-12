@@ -69,6 +69,10 @@ describe('Auto-Pass Timer Cancellation on Game End', () => {
     
     // CRITICAL CHECK: Timer should be cancelled (null) by now
     // The timer countdown detected gameEnded and set auto_pass_timer = null
+    // NOTE: The timer interval itself continues running (by design) and only
+    // becomes inactive when auto_pass_timer is null. The interval is only
+    // cleared in destroy() method. This test verifies the timer STATE is
+    // properly cancelled, which prevents the infinite loop.
     const currentState = manager.getState();
     expect(currentState?.auto_pass_timer).toBeNull();
     
