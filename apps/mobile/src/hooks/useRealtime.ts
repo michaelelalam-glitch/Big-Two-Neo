@@ -811,12 +811,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   /**
    * Auto-pass timer countdown effect
    * Updates remaining_ms every 100ms when timer is active
+   * CRITICAL: Cancels timer when match ends to prevent infinite loop
    */
   useEffect(() => {
     // Clear existing interval
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
+    }
+    
+    // CRITICAL FIX: Skip timer start if game has finished
+    // This prevents infinite loop when bot plays last card + highest play
+    if (gameState?.game_phase === 'finished') {
+      networkLogger.info('⏰ [Auto-Pass Timer] Skipping timer start - game finished');
+      return;
     }
     
     // If no timer or timer is inactive, nothing to do
@@ -867,6 +875,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // This ensures proper cleanup when:
     // - Timer is cancelled
     // - Timer expires
+    // - Game finishes (game_phase becomes 'finished')
     // - Component unmounts
     return () => {
       if (timerIntervalRef.current) {
@@ -874,7 +883,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         timerIntervalRef.current = null;
       }
     };
-  }, [gameState?.auto_pass_timer?.active, gameState?.auto_pass_timer?.started_at]);
+  }, [
+    gameState?.auto_pass_timer?.active, 
+    gameState?.auto_pass_timer?.started_at,
+    gameState?.game_phase // CRITICAL: Re-run when game finishes
+  ]);
   
   return {
     room,
