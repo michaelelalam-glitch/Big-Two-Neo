@@ -10,14 +10,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
 import { gameLogger } from '../utils/logger';
+import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
+import type { ScoreHistory } from '../types/scoreboard';
+import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
 
-export default function GameScreen() {
+function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user } = useAuth();
+  const { addScoreHistory, setIsScoreboardExpanded } = useScoreboard(); // Task #351 & #352
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
@@ -26,6 +30,9 @@ export default function GameScreen() {
   const gameManagerRef = useRef<GameStateManager | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Task #355: Play history tracking - automatically sync game plays to scoreboard
+  usePlayHistoryTracking(gameState);
   
   // Track initialization to prevent multiple inits
   const isInitializedRef = useRef(false);
@@ -155,6 +162,28 @@ export default function GameScreen() {
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
             
+            // Task #351: Track score history for scoreboard
+            // Extract points added this match from matchScores array
+            const pointsAdded: number[] = [];
+            const cumulativeScores: number[] = [];
+            
+            matchScores.forEach(playerScore => {
+              // Get the latest match score (points added this match)
+              const latestMatchScore = playerScore.matchScores[playerScore.matchScores.length - 1] || 0;
+              pointsAdded.push(latestMatchScore);
+              cumulativeScores.push(playerScore.score);
+            });
+            
+            const scoreHistory: ScoreHistory = {
+              matchNumber: state.currentMatch,
+              pointsAdded,
+              scores: cumulativeScores,
+              timestamp: new Date().toISOString(),
+            };
+            
+            addScoreHistory(scoreHistory);
+            gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
+            
             // Build score summary
             const scoreSummary = matchScores
               .map(s => `${s.playerName}: ${s.score} pts`)
@@ -186,6 +215,10 @@ export default function GameScreen() {
           
           // Handle game over (101+ points reached)
           if (state.gameOver) {
+            // Task #352: Auto-expand scoreboard on game end
+            setIsScoreboardExpanded(true);
+            gameLogger.info('📊 [Auto-Expand] Scoreboard expanded - game over detected');
+            
             const finalWinner = state.matchScores.find(s => s.playerId === state.finalWinnerId);
             const scoreSummary = state.matchScores
               .sort((a, b) => a.score - b.score)
@@ -684,6 +717,15 @@ export default function GameScreen() {
         </>
       )}
     </View>
+  );
+}
+
+// Wrapper component with ScoreboardProvider for Task #351
+export default function GameScreen() {
+  return (
+    <ScoreboardProvider>
+      <GameScreenContent />
+    </ScoreboardProvider>
   );
 }
 
