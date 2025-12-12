@@ -37,8 +37,8 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -59,7 +59,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "big2-mobile-app"
+        "projectId": "e9655e19-679f-4683-924a-581c54736a73"
       }
     }
   }

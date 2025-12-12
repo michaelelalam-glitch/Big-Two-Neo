@@ -48,12 +48,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
         activeOpacity={1}
         onPress={onClose}
       >
-        {/* Modal Container (prevent close on tap) */}
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-          style={scoreboardStyles.modalContainer}
-        >
+        {/* Modal Container (prevent close on tap) - using View wrapper instead of stopPropagation */}
+        <View style={scoreboardStyles.modalContainer}>
           {/* Header */}
           <View style={scoreboardStyles.modalHeader}>
             <Text style={scoreboardStyles.modalTitle}>📜 Play History</Text>
@@ -188,7 +184,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               </View>
             )}
           </ScrollView>
-        </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </Modal>
   );

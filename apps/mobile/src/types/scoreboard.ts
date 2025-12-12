@@ -226,11 +226,6 @@ export type ScoreColorType =
   | 'default';      // Default color
 
 /**
- * Player position in the game (0-3 for 4 players)
- */
-export type PlayerPosition = 0 | 1 | 2 | 3;
-
-/**
  * Game phase for scoreboard display
  */
 export type GamePhase = 
