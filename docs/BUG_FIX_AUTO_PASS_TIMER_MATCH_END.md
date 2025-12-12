@@ -201,7 +201,7 @@ useEffect(() => {
 
 **Before Fix:**
 - ❌ Game crashes when bot wins with highest play
-- ❌ 60+ state updates per 10 seconds
+- ❌ 60+ state updates in 10 seconds
 - ❌ New match cannot start
 - ❌ Poor user experience (black screen)
 
