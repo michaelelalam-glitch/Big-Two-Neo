@@ -178,11 +178,6 @@ export class GameStateManager {
           gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - game ended');
           this.state.auto_pass_timer = null;
         }
-        // CRITICAL: Clear the interval itself to stop the loop
-        if (this.timerInterval !== null) {
-          clearInterval(this.timerInterval);
-          this.timerInterval = null;
-        }
         return;
       }
 
@@ -767,11 +762,6 @@ export class GameStateManager {
     if (this.state.auto_pass_timer?.active) {
       gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
       this.state.auto_pass_timer = null;
-      // CRITICAL: Clear the interval itself to stop the loop
-      if (this.timerInterval !== null) {
-        clearInterval(this.timerInterval);
-        this.timerInterval = null;
-      }
     }
 
     // Calculate scores for this match
