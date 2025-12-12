@@ -42,10 +42,15 @@ export interface GameScoreHistory {
 // ============================================================================
 
 /**
+ * Player position index (0 = first player, 1 = second, etc.)
+ */
+export type PlayerPosition = 0 | 1 | 2 | 3;
+
+/**
  * Represents a single hand (card play) in the play history
  */
 export interface PlayHistoryHand {
-  by: number;                // Player index who played this hand (0-3)
+  by: PlayerPosition;        // Player index who played this hand (0-3)
   type: string;              // Combo type: 'single', 'pair', 'triple', 'straight', etc.
   count: number;             // Number of cards in the play
   cards: Card[];             // The actual cards played

@@ -12,10 +12,10 @@
  * Date: December 12, 2025
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { scoreboardStyles } from './styles/scoreboard.styles';
-import { ScoreboardColors, getPlayerNameColor, getScoreColor } from './styles/colors';
+import { getPlayerNameColor, getScoreColor } from './styles/colors';
 import { CompactScoreboardProps } from '../../types/scoreboard';
 
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
@@ -31,11 +31,14 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   isExpanded,
 }) => {
   // Auto-expand when game finishes
+  const onToggleExpandRef = useRef(onToggleExpand);
+  onToggleExpandRef.current = onToggleExpand;
+
   useEffect(() => {
-    if (isGameFinished && !isExpanded && onToggleExpand) {
-      onToggleExpand();
+    if (isGameFinished && !isExpanded && onToggleExpandRef.current) {
+      onToggleExpandRef.current();
     }
-  }, [isGameFinished, isExpanded, onToggleExpand]);
+  }, [isGameFinished, isExpanded]);
 
   // Don't render if expanded (show ExpandedScoreboard instead)
   if (isExpanded) {

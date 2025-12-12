@@ -74,15 +74,30 @@ export const isStraight = (cards: Card[]): boolean => {
   const sorted = sortCards(cards);
   const firstRank = getRankValue(sorted[0].rank);
 
+  // Normal straight check
+  let isNormalStraight = true;
   for (let i = 1; i < sorted.length; i++) {
     const expectedRank = firstRank + i;
     const actualRank = getRankValue(sorted[i].rank);
     if (actualRank !== expectedRank) {
-      return false;
+      isNormalStraight = false;
+      break;
     }
   }
+  if (isNormalStraight) return true;
 
-  return true;
+  // Special case: A-2-3-4-5 straight (wrap-around)
+  const ranks = cards.map(card => card.rank);
+  const wrapStraight = ['A', '2', '3', '4', '5'];
+  if (
+    cards.length === 5 &&
+    wrapStraight.every(rank => ranks.includes(rank)) &&
+    ranks.every(rank => wrapStraight.includes(rank))
+  ) {
+    return true;
+  }
+
+  return false;
 };
 
 /**
@@ -138,10 +153,7 @@ export const classifyAndSortCards = (cards: Card[], comboType?: string): {
     }
   }
 
-  // For straights and straight flushes, ensure proper display order
-  if (detectedStraight) {
-    sortedCards = sortCards(cards);
-  }
+  // Cards are already sorted at line 119, no need to sort again
 
   return {
     sortedCards,
@@ -159,10 +171,9 @@ export const groupCardsByRank = (cards: Card[]): Map<string, Card[]> => {
   
   for (const card of cards) {
     const rank = card.rank;
-    if (!groups.has(rank)) {
-      groups.set(rank, []);
-    }
-    groups.get(rank)!.push(card);
+    const group = groups.get(rank) || [];
+    group.push(card);
+    groups.set(rank, group);
   }
   
   return groups;
@@ -175,17 +186,4 @@ export const groupCardsByRank = (cards: Card[]): Map<string, Card[]> => {
 export const formatCardsForDisplay = (cards: Card[], comboType?: string): Card[] => {
   const { sortedCards } = classifyAndSortCards(cards, comboType);
   return sortedCards;
-};
-
-export default {
-  getRankValue,
-  getSuitValue,
-  compareCards,
-  sortCards,
-  isStraight,
-  isFlush,
-  isStraightFlush,
-  classifyAndSortCards,
-  groupCardsByRank,
-  formatCardsForDisplay,
 };
