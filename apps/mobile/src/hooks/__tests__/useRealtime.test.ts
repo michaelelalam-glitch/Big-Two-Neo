@@ -749,7 +749,7 @@ describe('useRealtime', () => {
       expect(updateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           last_play: expect.objectContaining({
-            combo_type: 'full_house',
+            combo_type: 'Full House',
           }),
         })
       );
@@ -802,7 +802,7 @@ describe('useRealtime', () => {
       expect(updateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           last_play: expect.objectContaining({
-            combo_type: 'four_of_a_kind',
+            combo_type: 'Four of a Kind',
           }),
         })
       );
@@ -855,7 +855,7 @@ describe('useRealtime', () => {
       expect(updateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           last_play: expect.objectContaining({
-            combo_type: 'straight_flush',
+            combo_type: 'Straight Flush',
           }),
         })
       );

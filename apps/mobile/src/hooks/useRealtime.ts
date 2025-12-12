@@ -42,10 +42,10 @@ interface UseRealtimeOptions {
 export type { UseRealtimeOptions };
 
 /**
- * Determines the type of 5-card combination in Big Two (e.g., straight, flush, full house, four of a kind, straight flush).
+ * Determines the type of 5-card combination in Big Two (e.g., Straight, Flush, Full House, Four of a Kind, Straight Flush).
  *
  * @param {Card[]} cards - An array of exactly 5 Card objects. Each card should have a `rank` and `suit` property.
- * @returns {ComboType} The type of 5-card combo: 'straight', 'flush', 'full_house', 'four_of_a_kind', or 'straight_flush'.
+ * @returns {ComboType} The type of 5-card combo: 'Straight', 'Flush', 'Full House', 'Four of a Kind', or 'Straight Flush'.
  * @throws {Error} If the input array does not contain exactly 5 cards, or if the cards do not form a valid 5-card combination.
  *
  * Logic:
@@ -54,11 +54,11 @@ export type { UseRealtimeOptions };
  * - Checks for straight (consecutive ranks following Big Two rules).
  * - Counts rank frequencies to identify four of a kind and full house.
  * - Returns the appropriate ComboType based on Big Two rules:
- *   - 'straight_flush': both straight and flush.
- *   - 'four_of_a_kind': four cards of the same rank.
- *   - 'full_house': three cards of one rank and two of another.
- *   - 'flush': all cards of the same suit.
- *   - 'straight': five consecutive ranks.
+ *   - 'Straight Flush': both straight and flush.
+ *   - 'Four of a Kind': four cards of the same rank.
+ *   - 'Full House': three cards of one rank and two of another.
+ *   - 'Flush': all cards of the same suit.
+ *   - 'Straight': five consecutive ranks.
  *   - Throws error if none of the above.
  */
 function determine5CardCombo(cards: Card[]): ComboType {
@@ -142,6 +142,19 @@ function determine5CardCombo(cards: Card[]): ComboType {
   } else {
     throw new Error('Invalid 5-card combination');
   }
+}
+
+/**
+ * Type guard to validate auto-pass timer broadcast payload
+ */
+function isValidTimerStatePayload(payload: unknown): payload is { timer_state: unknown } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'timer_state' in payload &&
+    typeof (payload as {timer_state: unknown}).timer_state === 'object' &&
+    (payload as {timer_state: unknown}).timer_state !== null
+  );
 }
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
@@ -637,15 +650,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
         networkLogger.debug('Auto-pass timer started:', payload);
         // Immediately update local state with timer info from broadcast
-        if (payload && typeof payload === 'object' && 'timer_state' in payload) {
-          const data = payload as any;
+        if (isValidTimerStatePayload(payload)) {
           setGameState(prevState => {
             if (!prevState) return prevState;
             return {
               ...prevState,
-              auto_pass_timer: data.timer_state,
+              auto_pass_timer: payload.timer_state as any, // Type validated by guard
             };
           });
+        } else {
+          networkLogger.warn('Invalid auto_pass_timer_started payload:', payload);
         }
         fetchGameState(roomId);
       })
