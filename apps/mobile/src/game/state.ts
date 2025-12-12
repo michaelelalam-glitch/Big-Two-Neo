@@ -409,14 +409,8 @@ export class GameStateManager {
     });
 
     // Cancel auto-pass timer if active AND it's the same player who triggered it
-    // If player_id is undefined, cancel anyway as a fallback (defensive programming)
     if (this.state.auto_pass_timer?.active && 
-        (this.state.auto_pass_timer.player_id === undefined || 
-         this.state.auto_pass_timer.player_id === currentPlayer.id)) {
-      // Log warning if player_id is missing (indicates potential bug)
-      if (this.state.auto_pass_timer.player_id === undefined) {
-        gameLogger.warn('[Auto-Pass Timer] player_id is undefined when canceling timer. This may indicate a bug in timer assignment.');
-      }
+        this.state.auto_pass_timer.player_id === currentPlayer.id) {
       gameLogger.info(`⏹️ [Auto-Pass Timer] Cancelled by manual pass from ${currentPlayer.name}`);
       this.state.auto_pass_timer = null;
     }
