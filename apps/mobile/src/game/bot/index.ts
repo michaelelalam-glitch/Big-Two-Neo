@@ -153,8 +153,14 @@ export class BotAI {
     const nextPlayerIndex = turnOrder[currentPlayerIndex];
     const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
     
+    // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
+    // If so, don't apply One Card Left rule (they already won, no need to block them)
+    const lastPlayPlayerCardCount = playerCardCounts[lastPlay.position];
+    const lastPlayerHasWon = lastPlayPlayerCardCount === 0;
+    
     // If next player has 1 card and last play was a single, MUST play highest single
-    if (nextPlayerCardCount === 1 && lastPlay.cards.length === 1) {
+    // UNLESS the lastPlay player already won (has 0 cards), then bot can play normally
+    if (!lastPlayerHasWon && nextPlayerCardCount === 1 && lastPlay.cards.length === 1) {
       const highestSingle = findHighestBeatingSingle(sorted, lastPlay);
       if (highestSingle) {
         return {

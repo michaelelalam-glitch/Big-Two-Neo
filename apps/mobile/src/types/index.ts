@@ -45,3 +45,6 @@ export interface RoomPlayerWithRoom {
 
 // Export multiplayer types
 export * from './multiplayer';
+
+// Export scoreboard types
+export * from './scoreboard';
