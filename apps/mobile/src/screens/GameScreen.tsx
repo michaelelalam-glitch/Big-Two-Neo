@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Vibration, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { CardHand, PlayerInfo, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
+import { CardHand, PlayerInfo, CenterPlayArea, GameSettingsModal, AutoPassTimer, HelperButtons } from '../components/game';
 import { ScoreboardContainer } from '../components/scoreboard';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
@@ -14,6 +14,7 @@ import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import type { ScoreHistory } from '../types/scoreboard';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
+import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -584,6 +585,100 @@ function GameScreenContent() {
     setCustomCardOrder(newOrder);
   };
 
+  // Helper Buttons Handlers (Task #388-390)
+  
+  /**
+   * Sort button handler - Arranges cards from lowest to highest
+   * Task #388: Implement Sort button functionality
+   */
+  const handleSort = () => {
+    if (!gameState || playerHand.length === 0) return;
+    
+    // Haptic feedback (50ms vibration)
+    Vibration.vibrate(50);
+    
+    // Sort hand
+    const sorted = sortHandLowestToHighest(playerHand);
+    const newOrder = sorted.map(card => card.id);
+    setCustomCardOrder(newOrder);
+    
+    gameLogger.info('[GameScreen] Sorted hand lowest to highest');
+  };
+
+  /**
+   * Smart Sort button handler - Groups cards by combo type
+   * Task #389: Implement Smart Sort button functionality
+   */
+  const handleSmartSort = () => {
+    if (!gameState || playerHand.length === 0) return;
+    
+    // Haptic feedback (double vibration: 30ms, pause 50ms, 30ms)
+    Vibration.vibrate([30, 50, 30]);
+    
+    // Smart sort hand
+    const smartSorted = smartSortHand(playerHand);
+    const newOrder = smartSorted.map(card => card.id);
+    setCustomCardOrder(newOrder);
+    
+    // Toast message
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
+    } else if (Platform.OS === 'ios') {
+      Alert.alert('Hand organized by combos');
+    }
+    
+    gameLogger.info('[GameScreen] Smart sorted hand by combo type');
+  };
+
+  /**
+   * Hint button handler - Suggests best play
+   * Task #390: Implement Hint button functionality
+   */
+  const handleHint = () => {
+    if (!gameState || playerHand.length === 0) return;
+    
+    const isFirstPlay = gameState.lastPlay === null && gameState.players.every(p => p.hand.length === 13);
+    const recommended = findHintPlay(
+      playerHand,
+      gameState.lastPlay,
+      isFirstPlay
+    );
+    
+    if (recommended === null) {
+      // No valid play - recommend passing
+      Vibration.vibrate([50, 100, 50]); // Double vibration for pass
+      
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
+      } else if (Platform.OS === 'ios') {
+        Alert.alert('No valid play - recommend passing');
+      }
+      
+      gameLogger.info('[GameScreen] Hint: No valid play, recommend pass');
+    } else {
+      // Valid play found - auto-select cards
+      Vibration.vibrate([30, 50, 30]); // Success pattern
+      
+      const recommendedSet = new Set(recommended);
+      setSelectedCardIds(recommendedSet);
+      
+      const cardCount = recommended.length;
+      const comboType = cardCount === 1 ? 'Single' : 
+                       cardCount === 2 ? 'Pair' : 
+                       cardCount === 3 ? 'Triple' : 
+                       cardCount === 5 ? '5-card combo' : 
+                       `${cardCount} card${cardCount > 1 ? 's' : ''}`;
+      
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
+      } else if (Platform.OS === 'ios') {
+        Alert.alert(`Recommended: ${comboType}`);
+      }
+      
+      gameLogger.info(`[GameScreen] Hint: Recommended ${cardCount} card(s)`);
+    }
+  };
+
   // Memoize scoreboard players to prevent unnecessary re-renders
   const scoreboardPlayers = useMemo(() => 
     players.map((p, index) => ({ 
@@ -693,6 +788,16 @@ function GameScreenContent() {
 
           {/* Bottom section: Player info, action buttons, and hand */}
           <View style={styles.bottomSection}>
+            {/* Helper Buttons Row - positioned above Pass/Play buttons */}
+            <View style={styles.helperButtonsRow}>
+              <HelperButtons
+                onSort={handleSort}
+                onSmartSort={handleSmartSort}
+                onHint={handleHint}
+                disabled={!players[0].isActive || playerHand.length === 0}
+              />
+            </View>
+            
             {/* Player info with action buttons next to it */}
             <View style={styles.bottomPlayerWithActions}>
               <PlayerInfo
@@ -808,6 +913,7 @@ const styles = StyleSheet.create({
   topPlayerAboveTable: {
     alignItems: 'center',
     paddingTop: LAYOUT.topPlayerSpacing, // Space for scoreboard above
+    paddingLeft: LAYOUT.leftPlayerOffset, // Move to the right of scoreboard
     marginBottom: LAYOUT.topPlayerOverlap, // Slight overlap with table
     zIndex: 50,
   },
@@ -854,6 +960,14 @@ const styles = StyleSheet.create({
   bottomSection: {
     marginTop: POSITIONING.bottomSectionMarginTop,
     zIndex: 50,
+  },
+  helperButtonsRow: {
+    position: 'absolute',
+    bottom: POSITIONING.helperButtonsBottom,
+    left: POSITIONING.helperButtonsLeft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 100,
   },
   bottomPlayerWithActions: {
     flexDirection: 'row',
