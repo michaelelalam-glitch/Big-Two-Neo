@@ -73,30 +73,36 @@ export default function AutoPassTimer({
   // Get combo type display text
   const comboText = timerState.triggering_play.combo_type;
 
+  // Memoize animated styles to prevent React freeze error
+  const animatedContainerStyle = { transform: [{ scale: pulseAnim }] };
+  const progressBackgroundStyle = { borderColor: COLORS.gray.medium };
+  const progressRingStyle = {
+    borderColor: timerColor,
+    transform: [{ rotate: `${-90 + (360 * (1 - progress))}deg` }]
+  };
+  const timerNumberStyle = { color: timerColor };
+
   return (
     <Animated.View 
       style={[
         styles.container,
-        { transform: [{ scale: pulseAnim }] }
+        animatedContainerStyle
       ]}
     >
       {/* Circular progress ring */}
       <View style={styles.timerCircle}>
         {/* Background circle */}
-        <View style={[styles.progressBackground, { borderColor: COLORS.gray.medium }]} />
+        <View style={[styles.progressBackground, progressBackgroundStyle]} />
         
         {/* Progress ring (rendered as partial circle) */}
         <View style={[
           styles.progressRing,
-          {
-            borderColor: timerColor,
-            transform: [{ rotate: `${-90 + (360 * (1 - progress))}deg` }]
-          }
+          progressRingStyle
         ]} />
         
         {/* Center content */}
         <View style={styles.timerContent}>
-          <Text style={[styles.timerNumber, { color: timerColor }]}>
+          <Text style={[styles.timerNumber, timerNumberStyle]}>
             {currentSeconds}
           </Text>
           <Text style={styles.timerLabel}>sec</Text>

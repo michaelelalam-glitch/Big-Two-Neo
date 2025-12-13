@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { useWindowDimensions, Platform } from 'react-native';
+import { useWindowDimensions, Platform, StyleSheet } from 'react-native';
 import { ScoreboardColors } from '../styles/colors';
 
 // Minimum touch target size (iOS HIG & Material Design)
@@ -90,7 +90,7 @@ export const useResponsiveDimensions = (): ResponsiveDimensions => {
 export const useScoreboardContainerStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
+  return useMemo(() => StyleSheet.create({
     container: {
       position: 'absolute' as const,
       top: dims.moderateScale(12),
@@ -122,7 +122,7 @@ export const useScoreboardContainerStyles = () => {
 export const useCompactScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
+  return useMemo(() => StyleSheet.create({
     compactContainer: {
       backgroundColor: ScoreboardColors.background.compact,
       borderRadius: dims.moderateScale(8),
@@ -232,18 +232,14 @@ export const useCompactScoreboardStyles = () => {
 export const useExpandedScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
+  return useMemo(() => StyleSheet.create({
     expandedContainer: {
       backgroundColor: ScoreboardColors.background.expanded,
       borderRadius: dims.moderateScale(8),
-      padding: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
+      padding: dims.moderateScale(8),
       minWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(300),
-      maxWidth: dims.isPortrait 
-        ? dims.screenWidth * 0.95 
-        : dims.isLargeDevice 
-          ? dims.moderateScale(700) 
-          : dims.moderateScale(600),
-      maxHeight: dims.screenHeight * 0.7,
+      maxWidth: dims.screenWidth - dims.moderateScale(24),
+      maxHeight: dims.screenHeight * 0.85,
     },
 
     expandedHeader: {
@@ -307,7 +303,7 @@ export const useExpandedScoreboardStyles = () => {
     },
 
     tableScrollView: {
-      maxHeight: dims.screenHeight * 0.5,
+      maxHeight: dims.screenHeight * 0.7,
     },
 
     tableHeaderRow: {
@@ -320,14 +316,14 @@ export const useExpandedScoreboardStyles = () => {
     tableHeaderCell: {
       flex: 1,
       paddingVertical: dims.moderateScale(10),
-      paddingHorizontal: dims.isSmallDevice ? dims.moderateScale(6) : dims.moderateScale(8),
+      paddingHorizontal: dims.moderateScale(4),
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
-      minWidth: dims.isSmallDevice ? dims.moderateScale(70) : dims.moderateScale(80),
+      width: dims.screenWidth * 0.18,
     },
 
     tableHeaderCellFirst: {
-      minWidth: dims.isSmallDevice ? dims.moderateScale(50) : dims.moderateScale(60),
+      width: dims.screenWidth * 0.15,
       alignItems: 'flex-start' as const,
     },
 
@@ -360,14 +356,14 @@ export const useExpandedScoreboardStyles = () => {
     tableCell: {
       flex: 1,
       paddingVertical: dims.moderateScale(8),
-      paddingHorizontal: dims.isSmallDevice ? dims.moderateScale(6) : dims.moderateScale(8),
+      paddingHorizontal: dims.moderateScale(4),
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
-      minWidth: dims.isSmallDevice ? dims.moderateScale(70) : dims.moderateScale(80),
+      width: dims.screenWidth * 0.18,
     },
 
     tableCellFirst: {
-      minWidth: dims.isSmallDevice ? dims.moderateScale(50) : dims.moderateScale(60),
+      width: dims.screenWidth * 0.15,
       alignItems: 'flex-start' as const,
     },
 
@@ -424,7 +420,7 @@ export const useExpandedScoreboardStyles = () => {
 export const usePlayHistoryModalStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
+  return useMemo(() => StyleSheet.create({
     modalOverlay: {
       flex: 1,
       backgroundColor: ScoreboardColors.background.overlay,
@@ -441,7 +437,7 @@ export const usePlayHistoryModalStyles = () => {
         : dims.isLargeDevice 
           ? dims.moderateScale(700) 
           : dims.moderateScale(600),
-      maxHeight: dims.screenHeight * 0.8,
+      height: dims.screenHeight * 0.75, // Fixed height to extend almost to bottom
       ...Platform.select({
         ios: {
           shadowColor: ScoreboardColors.shadow.heavy,
@@ -487,8 +483,8 @@ export const usePlayHistoryModalStyles = () => {
     },
 
     modalContent: {
+      flex: 1,
       padding: dims.moderateScale(16),
-      maxHeight: dims.screenHeight * 0.7,
     },
 
     modalScrollView: {
@@ -579,7 +575,8 @@ export const usePlayHistoryModalStyles = () => {
     handCardsContainer: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      gap: dims.moderateScale(4),
+      gap: dims.moderateScale(6),
+      alignItems: 'center' as const,
     },
 
     cardImage: {

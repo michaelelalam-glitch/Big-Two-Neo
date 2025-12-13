@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Card from './Card';
 import type { Card as CardType } from '../../game/types';
@@ -15,6 +15,16 @@ export default function CenterPlayArea({
   lastPlayedBy,
   combinationType,
 }: CenterPlayAreaProps) {
+  // Memoize card wrapper styles to prevent React freeze error
+  // Creating style objects inline causes React dev mode freeze issues
+  const cardWrapperStyles = useMemo(() => {
+    if (!lastPlayed) return [];
+    return lastPlayed.map((_, index) => ({
+      marginLeft: index > 0 ? CENTER_PLAY.cardSpacing : CENTER_PLAY.cardFirstMargin,
+      zIndex: index,
+    }));
+  }, [lastPlayed]);
+
   if (!lastPlayed || lastPlayed.length === 0) {
     return (
       <View style={styles.container}>
@@ -34,10 +44,7 @@ export default function CenterPlayArea({
             key={card.id}
             style={[
               styles.cardWrapper,
-              { 
-                marginLeft: index > 0 ? CENTER_PLAY.cardSpacing : CENTER_PLAY.cardFirstMargin, // Small gap between cards, no overlap
-                zIndex: index,
-              },
+              cardWrapperStyles[index],
             ]}
           >
             <Card 

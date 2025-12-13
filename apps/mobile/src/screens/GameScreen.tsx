@@ -575,10 +575,17 @@ function GameScreenContent() {
         <>
           {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
           <ScoreboardContainer
-            playerNames={players.map(p => p.name)}
-            currentScores={players.map(p => p.score)}
-            cardCounts={players.map(p => p.hand.length)}
-            currentPlayerIndex={gameState?.currentPlayerIndex || 0}
+            playerNames={[players[0].name, players[3].name, players[1].name, players[2].name]}
+            currentScores={[players[0].score, players[3].score, players[1].score, players[2].score]}
+            cardCounts={[players[0].cardCount, players[3].cardCount, players[1].cardCount, players[2].cardCount]}
+            currentPlayerIndex={
+              // Map game state index to scoreboard display order [0, 3, 1, 2]
+              gameState?.currentPlayerIndex === 0 ? 0 : // michael -> position 0
+              gameState?.currentPlayerIndex === 3 ? 1 : // bot3 -> position 1
+              gameState?.currentPlayerIndex === 1 ? 2 : // bot1 -> position 2
+              gameState?.currentPlayerIndex === 2 ? 3 : // bot2 -> position 3
+              0
+            }
             matchNumber={gameState?.currentMatch || 1}
             isGameFinished={gameState?.gameEnded || false}
             scoreHistory={scoreHistory}

@@ -59,7 +59,7 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
-const Card = React.memo(function Card({
+function Card({
   card,
   isSelected,
   onToggleSelect,
@@ -226,6 +226,28 @@ const Card = React.memo(function Card({
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
 
+  const rankStyle = useMemo(() => ({
+    color: suitColor,
+    fontSize: CARD_FONTS.rankFontSize * sizeScale,
+  }), [suitColor, sizeScale]);
+
+  const suitStyle = useMemo(() => ({
+    color: suitColor,
+    fontSize: CARD_FONTS.suitFontSize * sizeScale,
+  }), [suitColor, sizeScale]);
+
+  const centerSuitStyle = useMemo(() => ({
+    color: suitColor,
+    fontSize: CARD_FONTS.centerSuitFontSize * sizeScale,
+    marginTop: CARD_FONTS.centerSuitMarginTop * sizeScale,
+  }), [suitColor, sizeScale]);
+
+  // Memoize container dimensions to prevent React freeze error
+  const containerDimensions = useMemo(() => ({
+    width: cardWidth,
+    height: cardHeight,
+  }), [cardWidth, cardHeight]);
+
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View 
@@ -242,35 +264,38 @@ const Card = React.memo(function Card({
         accessibilityHint="Double tap to select or deselect this card"
       >
         <View style={[
-          styles.card, 
+          styles.cardContainer, 
           isSelected && styles.cardSelected,
-          { width: cardWidth, height: cardHeight }
+          containerDimensions
         ]}>
-          {/* Top-left corner */}
-          <View style={styles.corner}>
-            <Text style={[styles.rank, { color: suitColor, fontSize: CARD_FONTS.rankFontSize * sizeScale }]}>{card.rank}</Text>
-            <Text style={[styles.suit, { color: suitColor, fontSize: CARD_FONTS.suitFontSize * sizeScale }]}>{suitSymbol}</Text>
-          </View>
+          {/* Text-based card rendering (SVG images causing freeze errors in dev mode) */}
+          <View style={styles.card}>
+              {/* Top-left corner */}
+              <View style={styles.corner}>
+                <Text style={[styles.rank, rankStyle]}>{card.rank}</Text>
+                <Text style={[styles.suit, suitStyle]}>{suitSymbol}</Text>
+              </View>
 
-          {/* Center suit */}
-          <Text style={[styles.centerSuit, { color: suitColor, fontSize: CARD_FONTS.centerSuitFontSize * sizeScale, marginTop: CARD_FONTS.centerSuitMarginTop * sizeScale }]}>
-            {suitSymbol}
-          </Text>
+              {/* Center suit */}
+              <Text style={[styles.centerSuit, centerSuitStyle]}>
+                {suitSymbol}
+              </Text>
 
-          {/* Bottom-right corner (rotated) */}
-          <View style={[styles.corner, styles.cornerBottom]}>
-            <Text style={[styles.rank, { color: suitColor, fontSize: CARD_FONTS.rankFontSize * sizeScale }]}>
-              {card.rank}
-            </Text>
-            <Text style={[styles.suit, { color: suitColor, fontSize: CARD_FONTS.suitFontSize * sizeScale }]}>
-              {suitSymbol}
-            </Text>
-          </View>
+              {/* Bottom-right corner (rotated) */}
+              <View style={[styles.corner, styles.cornerBottom]}>
+                <Text style={[styles.rank, rankStyle]}>
+                  {card.rank}
+                </Text>
+                <Text style={[styles.suit, suitStyle]}>
+                  {suitSymbol}
+                </Text>
+              </View>
+            </View>
         </View>
       </Animated.View>
     </GestureDetector>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -287,13 +312,10 @@ const styles = StyleSheet.create({
     // In React Native, padding is part of the box model and will impact flexbox layout calculations.
     // Be sure to test that all 13 cards fit as intended and that CARD_OVERLAP_MARGIN creates the desired overlap.
   },
-  card: {
+  cardContainer: {
     // Width and height set dynamically via props
-    backgroundColor: '#FFFFFF',
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    padding: SPACING.xs,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -301,11 +323,22 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardSelected: {
+    // Enhanced border for selected state
+    borderWidth: 3,
     borderColor: COLORS.accent,
-    borderWidth: 2,
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
+  },
+  // Fallback text-based card styles (used if SVG asset not found)
+  card: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: SPACING.xs,
   },
   corner: {
     position: 'absolute',
@@ -333,6 +366,9 @@ const styles = StyleSheet.create({
   centerSuit: {
     // fontSize and marginTop set dynamically via inline style
     textAlign: 'center',
+  },
+  cardImage: {
+    borderRadius: 6,
   },
 });
 
