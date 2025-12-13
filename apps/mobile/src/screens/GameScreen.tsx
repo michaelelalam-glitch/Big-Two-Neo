@@ -360,7 +360,8 @@ function GameScreenContent() {
 
   // Map game state players to UI format
   const players = useMemo(() => {
-    if (!gameState) {
+    // Return placeholder while loading OR if players don't have hands yet (initialization race condition)
+    if (!gameState || !gameState.players || gameState.players.length !== 4 || !gameState.players[0]?.hand) {
       // Return placeholder while loading
       return [
         { name: currentPlayerName, cardCount: 13, score: 0, position: 'bottom' as const, isActive: true },
