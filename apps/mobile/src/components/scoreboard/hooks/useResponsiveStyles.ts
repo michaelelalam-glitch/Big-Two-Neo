@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { useWindowDimensions, Platform, StyleSheet } from 'react-native';
+import { useWindowDimensions, Platform } from 'react-native';
 import { ScoreboardColors } from '../styles/colors';
 
 // Minimum touch target size (iOS HIG & Material Design)
