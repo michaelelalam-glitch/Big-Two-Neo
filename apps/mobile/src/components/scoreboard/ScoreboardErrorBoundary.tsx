@@ -16,6 +16,13 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
+// Theme colors for error UI
+const ERROR_COLOR = '#ff6b6b';
+const PRIMARY_COLOR = '#4a9eff';
+const BG_DARK = '#2a2a2a';
+const TEXT_WHITE = '#ffffff';
+const OVERLAY_BG = 'rgba(0, 0, 0, 0.5)';
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -76,7 +83,11 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
 
       // Default fallback UI
       return (
-        <View style={styles.errorContainer}>
+        <View 
+          style={styles.errorContainer}
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+        >
           <View style={styles.errorCard}>
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorTitle}>Scoreboard Error</Text>
@@ -113,16 +124,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: OVERLAY_BG,
   },
   errorCard: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: BG_DARK,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     maxWidth: 400,
     borderWidth: 2,
-    borderColor: '#ff6b6b',
+    borderColor: ERROR_COLOR,
   },
   errorIcon: {
     fontSize: 48,
@@ -131,34 +142,34 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ff6b6b',
+    color: ERROR_COLOR,
     marginBottom: 8,
     textAlign: 'center',
   },
   errorMessage: {
     fontSize: 14,
-    color: '#ffffff',
+    color: TEXT_WHITE,
     textAlign: 'center',
     marginBottom: 16,
     opacity: 0.8,
   },
   errorDetails: {
     fontSize: 12,
-    color: '#ff6b6b',
+    color: ERROR_COLOR,
     textAlign: 'center',
     marginBottom: 16,
     fontFamily: 'monospace',
     opacity: 0.7,
   },
   retryButton: {
-    backgroundColor: '#4a9eff',
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 8,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: TEXT_WHITE,
     fontSize: 16,
     fontWeight: '600',
   },
