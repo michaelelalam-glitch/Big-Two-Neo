@@ -17,7 +17,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
-import { PlayHistoryModalProps, PlayHistoryMatch } from '../../types/scoreboard';
+import { PlayHistoryModalProps, PlayHistoryMatch, PlayHistoryHand } from '../../types/scoreboard';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
 
@@ -27,6 +27,9 @@ type ListItem =
   | { type: 'divider' }
   | { type: 'pastHeader' }
   | { type: 'pastMatch'; data: PlayHistoryMatch; matchNumber: number };
+
+// Static content container style
+const CONTENT_CONTAINER_STYLE = { paddingBottom: 20 };
 
 export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   visible,
@@ -81,9 +84,6 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     return `item-${index}`;
   }, []);
   
-  // Content container style (memoized)
-  const contentContainerStyle = useMemo(() => ({ paddingBottom: 20 }), []);
-  
   // Render item (memoized)
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.type === 'current') {
@@ -109,7 +109,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 </Text>
               </View>
             ) : (
-              item.data.hands.map((hand: any, index: number) => {
+              item.data.hands.map((hand: PlayHistoryHand, index: number) => {
                 const isLatest = index === item.data.hands.length - 1;
                 const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
                 
@@ -176,7 +176,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                   </Text>
                 </View>
               ) : (
-                match.hands.map((hand: any, index: number) => {
+                match.hands.map((hand: PlayHistoryHand, index: number) => {
                   const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
                   
                   return (
@@ -245,7 +245,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               style={styles.modalContent}
-              contentContainerStyle={contentContainerStyle}
+              contentContainerStyle={CONTENT_CONTAINER_STYLE}
               showsVerticalScrollIndicator={true}
               // Performance optimizations
               windowSize={5} // Reduce from default 21 to save memory
