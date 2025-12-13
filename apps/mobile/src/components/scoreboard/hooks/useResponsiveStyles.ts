@@ -122,7 +122,7 @@ export const useScoreboardContainerStyles = () => {
 export const useCompactScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => StyleSheet.create({
+  return useMemo(() => ({
     compactContainer: {
       backgroundColor: ScoreboardColors.background.compact,
       borderRadius: dims.moderateScale(8),
@@ -232,7 +232,7 @@ export const useCompactScoreboardStyles = () => {
 export const useExpandedScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => StyleSheet.create({
+  return useMemo(() => ({
     expandedContainer: {
       backgroundColor: ScoreboardColors.background.expanded,
       borderRadius: dims.moderateScale(8),
@@ -420,7 +420,7 @@ export const useExpandedScoreboardStyles = () => {
 export const usePlayHistoryModalStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => StyleSheet.create({
+  return useMemo(() => ({
     modalOverlay: {
       flex: 1,
       backgroundColor: ScoreboardColors.background.overlay,
