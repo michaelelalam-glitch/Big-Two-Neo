@@ -1052,28 +1052,24 @@ export class GameStateManager {
    */
   private advanceToNextPlayer(): void {
     const startingPlayer = this.state!.currentPlayerIndex;
-    let attempts = 0;
-    const maxAttempts = this.state!.players.length; // Prevent infinite loop
-    
-    do {
-      // Anticlockwise turn order mapping for visual layout
-      const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-      this.state!.currentPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
-      attempts++;
-      
-      // If we've wrapped back to the starting player, this may indicate that all other players have finished
-      // (i.e., have no cards left), which is a legitimate endgame scenario. However, reaching this condition
-      // could also indicate a programming error or unexpected state. This check acts as a safeguard and should
-      // not normally be triggered during regular gameplay except in such endgame scenarios.
-      if (this.state!.currentPlayerIndex === startingPlayer || attempts >= maxAttempts) {
-        gameLogger.warn(`⚠️ [advanceToNextPlayer] Wrapped back to starting player ${startingPlayer}. All other players may be finished.`);
-        break;
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    let nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+
+    // Try to find the next player with cards, looping at most once through all players
+    while (nextPlayerIndex !== startingPlayer) {
+      if (this.state!.players[nextPlayerIndex].hand.length > 0) {
+        this.state!.currentPlayerIndex = nextPlayerIndex;
+        return;
       }
-    } while (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0);
-    
-    // After the loop, ensure currentPlayerIndex points to a player with cards.
-    // If not, handle the endgame scenario (all players are out of cards).
-    if (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0) {
+      nextPlayerIndex = turnOrder[nextPlayerIndex];
+    }
+
+    // If we get here, either only the starting player has cards, or no one has cards
+    if (this.state!.players[startingPlayer].hand.length > 0) {
+      this.state!.currentPlayerIndex = startingPlayer;
+      // Only the starting player has cards; continue with them
+    } else {
+      // No players have cards remaining - endgame scenario
       gameLogger.warn('[advanceToNextPlayer] No players with cards remaining. Game should end.');
       // The game should have already ended via checkGameOver() after the last card was played.
       // This is a safeguard in case we reach an invalid state.

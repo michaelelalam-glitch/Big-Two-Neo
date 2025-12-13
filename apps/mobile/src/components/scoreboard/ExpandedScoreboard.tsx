@@ -174,7 +174,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
             </View>
             
             {/* Final scores - calculated from last scoreHistory entry */}
-            {(() => {
+            {React.useMemo(() => {
               // Use cumulative scores from last completed match, or currentScores if no history
               const totalScores = scoreHistory.length > 0 
                 ? scoreHistory[scoreHistory.length - 1].scores 
@@ -197,7 +197,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                   </View>
                 );
               });
-            })()}
+            }, [scoreHistory, currentScores, isGameFinished])}
           </View>
         </ScrollView>
       </View>

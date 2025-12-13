@@ -411,14 +411,17 @@ function GameScreenContent() {
       // Get highest card in straight (sort descending, take first)
       const sorted = sortCardsForDisplay(cards, 'Straight');
       const highCard = sorted[0];
+      if (!highCard) return 'Straight';
       return `Straight to ${highCard.rank}`;
     } else if (combo === 'Flush' && cards.length > 0) {
       const sorted = sortCardsForDisplay(cards, 'Flush');
       const highCard = sorted[0];
+      if (!highCard) return 'Flush';
       return `Flush ${SUIT_NAMES[highCard.suit] || highCard.suit} (${highCard.rank} high)`;
     } else if (combo === 'Straight Flush' && cards.length > 0) {
       const sorted = sortCardsForDisplay(cards, 'Straight Flush');
       const highCard = sorted[0];
+      if (!highCard) return 'Straight Flush';
       return `Straight Flush ${SUIT_NAMES[highCard.suit] || highCard.suit} to ${highCard.rank}`;
     }
     

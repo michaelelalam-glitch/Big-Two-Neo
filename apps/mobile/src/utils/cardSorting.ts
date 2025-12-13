@@ -332,7 +332,7 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         if (group.length === 4) {
           quads = sortCards(group).reverse(); // Highest suit first
         } else {
-          kicker = group;
+          kicker = sortCards(group).reverse(); // Highest suit first (for consistency)
         }
       }
       
