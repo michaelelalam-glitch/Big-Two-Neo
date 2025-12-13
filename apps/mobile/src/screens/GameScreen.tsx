@@ -3,21 +3,64 @@ import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
+import { CardHand, PlayerInfo, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
+import { ScoreboardContainer } from '../components/scoreboard';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { createGameStateManager, type GameState, type GameStateManager, type Player } from '../game/state';
 import { gameLogger } from '../utils/logger';
+import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
+import type { ScoreHistory } from '../types/scoreboard';
+import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
 
-export default function GameScreen() {
+/**
+ * Maps players array to scoreboard display order [0, 3, 1, 2]
+ * This order places the user at top-left, then arranges bots clockwise
+ * @param players - Array of 4 players in game state order
+ * @param mapper - Function to extract desired property from each player
+ * @returns Array of values in scoreboard display order
+ */
+function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Player) => T): T[] {
+  // Scoreboard display order: [player 0, player 3, player 1, player 2]
+  // This creates a clockwise arrangement: user (top-left), bot3 (top-right), bot1 (bottom-left), bot2 (bottom-right)
+  return [
+    mapper(players[0]),
+    mapper(players[3]),
+    mapper(players[1]),
+    mapper(players[2])
+  ];
+}
+
+/**
+ * Maps game state player index to scoreboard display position
+ * @param gameIndex - Player index in game state (0-3)
+ * @returns Position index in scoreboard display (0-3)
+ */
+function mapGameIndexToScoreboardPosition(gameIndex: number): number {
+  // Mapping: game index -> scoreboard position
+  // 0 -> 0 (user stays at position 0)
+  // 3 -> 1 (bot3 to position 1)
+  // 1 -> 2 (bot1 to position 2)
+  // 2 -> 3 (bot2 to position 3)
+  const mapping: Record<number, number> = { 0: 0, 3: 1, 1: 2, 2: 3 };
+  return mapping[gameIndex] ?? 0;
+}
+
+function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user } = useAuth();
+  const { 
+    addScoreHistory, 
+    setIsScoreboardExpanded, 
+    scoreHistory, 
+    playHistoryByMatch 
+  } = useScoreboard(); // Task #351 & #352 & #355
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
@@ -26,6 +69,9 @@ export default function GameScreen() {
   const gameManagerRef = useRef<GameStateManager | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Task #355: Play history tracking - automatically sync game plays to scoreboard
+  usePlayHistoryTracking(gameState);
   
   // Track initialization to prevent multiple inits
   const isInitializedRef = useRef(false);
@@ -155,6 +201,28 @@ export default function GameScreen() {
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
             
+            // Task #351: Track score history for scoreboard
+            // Extract points added this match from matchScores array
+            const pointsAdded: number[] = [];
+            const cumulativeScores: number[] = [];
+            
+            matchScores.forEach(playerScore => {
+              // Get the latest match score (points added this match)
+              const latestMatchScore = playerScore.matchScores[playerScore.matchScores.length - 1] || 0;
+              pointsAdded.push(latestMatchScore);
+              cumulativeScores.push(playerScore.score);
+            });
+            
+            const scoreHistory: ScoreHistory = {
+              matchNumber: state.currentMatch,
+              pointsAdded,
+              scores: cumulativeScores,
+              timestamp: new Date().toISOString(),
+            };
+            
+            addScoreHistory(scoreHistory);
+            gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
+            
             // Build score summary
             const scoreSummary = matchScores
               .map(s => `${s.playerName}: ${s.score} pts`)
@@ -186,6 +254,10 @@ export default function GameScreen() {
           
           // Handle game over (101+ points reached)
           if (state.gameOver) {
+            // Task #352: Auto-expand scoreboard on game end
+            setIsScoreboardExpanded(true);
+            gameLogger.info('📊 [Auto-Expand] Scoreboard expanded - game over detected');
+            
             const finalWinner = state.matchScores.find(s => s.playerId === state.finalWinnerId);
             const scoreSummary = state.matchScores
               .sort((a, b) => a.score - b.score)
@@ -288,7 +360,8 @@ export default function GameScreen() {
 
   // Map game state players to UI format
   const players = useMemo(() => {
-    if (!gameState) {
+    // Return placeholder while loading OR if players don't have hands yet (initialization race condition)
+    if (!gameState || !gameState.players || gameState.players.length !== 4 || !gameState.players[0]?.hand) {
       // Return placeholder while loading
       return [
         { name: currentPlayerName, cardCount: 13, score: 0, position: 'bottom' as const, isActive: true },
@@ -534,13 +607,17 @@ export default function GameScreen() {
         </View>
       ) : (
         <>
-          {/* Match Scoreboard (top-left, outside table) */}
-          <View style={styles.scoreboardContainer}>
-            <MatchScoreboard
-              players={scoreboardPlayers}
-              currentMatch={gameState?.currentMatch || 1}
-            />
-          </View>
+          {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
+          <ScoreboardContainer
+            playerNames={mapPlayersToScoreboardOrder(players, p => p.name)}
+            currentScores={mapPlayersToScoreboardOrder(players, p => p.score)}
+            cardCounts={mapPlayersToScoreboardOrder(players, p => p.cardCount)}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
+            matchNumber={gameState?.currentMatch || 1}
+            isGameFinished={gameState?.gameEnded || false}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+          />
 
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
@@ -684,6 +761,15 @@ export default function GameScreen() {
         </>
       )}
     </View>
+  );
+}
+
+// Wrapper component with ScoreboardProvider for Task #351
+export default function GameScreen() {
+  return (
+    <ScoreboardProvider>
+      <GameScreenContent />
+    </ScoreboardProvider>
   );
 }
 
