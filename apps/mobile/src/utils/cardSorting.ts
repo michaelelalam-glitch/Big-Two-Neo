@@ -314,6 +314,11 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         }
       }
       
+      // Fallback: if groups not found, return descending order
+      if (triple.length === 0 || pair.length === 0) {
+        return [...sortedAsc].reverse();
+      }
+      
       return [...triple, ...pair];
     }
       
@@ -329,6 +334,11 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         } else {
           kicker = group;
         }
+      }
+      
+      // Fallback: if groups not found, return descending order
+      if (quads.length === 0) {
+        return [...sortedAsc].reverse();
       }
       
       return [...quads, ...kicker];

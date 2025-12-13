@@ -20,6 +20,18 @@ import { sortCardsForDisplay } from '../utils/cardSorting';
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
 
+// Constants
+const SUIT_NAMES: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
+
+// Helper functions
+const getRankCounts = (cards: Card[]): Record<string, number> => {
+  const rankCounts: Record<string, number> = {};
+  cards.forEach(card => {
+    rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+  });
+  return rankCounts;
+};
+
 /**
  * Maps players array to scoreboard display order [0, 3, 1, 2]
  * This order places the user at top-left, then arranges bots clockwise
@@ -388,17 +400,11 @@ function GameScreenContent() {
       return `Triple ${cards[0].rank}s`;
     } else if (combo === 'Full House' && cards.length > 0) {
       // Find the triple (3 of a kind) - it's the combo's key rank
-      const rankCounts: Record<string, number> = {};
-      cards.forEach(card => {
-        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
-      });
+      const rankCounts = getRankCounts(cards);
       const tripleRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 3);
       return tripleRank ? `Full House (${tripleRank}s)` : 'Full House';
     } else if (combo === 'Four of a Kind' && cards.length > 0) {
-      const rankCounts: Record<string, number> = {};
-      cards.forEach(card => {
-        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
-      });
+      const rankCounts = getRankCounts(cards);
       const quadRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 4);
       return quadRank ? `Four ${quadRank}s` : 'Four of a Kind';
     } else if (combo === 'Straight' && cards.length > 0) {
@@ -409,13 +415,11 @@ function GameScreenContent() {
     } else if (combo === 'Flush' && cards.length > 0) {
       const sorted = sortCardsForDisplay(cards, 'Flush');
       const highCard = sorted[0];
-      const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
-      return `Flush ${suitNames[highCard.suit] || highCard.suit} (${highCard.rank} high)`;
+      return `Flush ${SUIT_NAMES[highCard.suit] || highCard.suit} (${highCard.rank} high)`;
     } else if (combo === 'Straight Flush' && cards.length > 0) {
       const sorted = sortCardsForDisplay(cards, 'Straight Flush');
       const highCard = sorted[0];
-      const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
-      return `Straight Flush ${suitNames[highCard.suit] || highCard.suit} to ${highCard.rank}`;
+      return `Straight Flush ${SUIT_NAMES[highCard.suit] || highCard.suit} to ${highCard.rank}`;
     }
     
     return combo;

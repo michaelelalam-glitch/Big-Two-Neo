@@ -1070,6 +1070,15 @@ export class GameStateManager {
         break;
       }
     } while (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0);
+    
+    // After the loop, ensure currentPlayerIndex points to a player with cards.
+    // If not, handle the endgame scenario (all players are out of cards).
+    if (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0) {
+      gameLogger.warn('[advanceToNextPlayer] No players with cards remaining. Game should end.');
+      // The game should have already ended via checkGameOver() after the last card was played.
+      // This is a safeguard in case we reach an invalid state.
+      this.state!.gameEnded = true;
+    }
   }
 
   /**
