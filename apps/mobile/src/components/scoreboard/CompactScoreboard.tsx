@@ -81,10 +81,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
       </View>
 
       {/* Player scores list */}
-      <ScrollView 
-        style={styles.playerList}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.playerList}>
         {playerNames.map((name, index) => {
           const isCurrentPlayer = index === currentPlayerIndex;
           const score = currentScores[index] || 0;
@@ -135,7 +132,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
             </View>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 };

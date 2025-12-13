@@ -18,7 +18,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { PlayHistoryModalProps } from '../../types/scoreboard';
-import { HandCard } from './components/HandCard';
+import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
 
 export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
@@ -46,12 +46,14 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
       statusBarTranslucent={true}
     >
       {/* Overlay */}
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        {/* Modal Container (prevent close on tap) - using View wrapper instead of stopPropagation */}
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        
+        {/* Modal Container (prevent close on tap) */}
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
@@ -75,7 +77,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
             nestedScrollEnabled={true}
           >
             {/* Current Match (Always Expanded) */}
-            {currentMatchData && currentMatchData.hands.length > 0 && (
+            {currentMatchData && (
               <View style={[styles.matchCard, styles.matchCardCurrent]}>
                 {/* Match Header */}
                 <View style={styles.matchCardHeader}>
@@ -90,7 +92,10 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                   {currentMatchData.hands.length === 0 ? (
                     <View style={styles.emptyState}>
                       <Text style={styles.emptyStateText}>
-                        No plays yet this match
+                        🃏 No cards played yet this match
+                      </Text>
+                      <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 4 }]}>
+                        Cards will appear here after each play
                       </Text>
                     </View>
                   ) : (
@@ -188,7 +193,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
             )}
           </ScrollView>
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 };

@@ -13,8 +13,13 @@ module.exports = {
   },
   collectCoverageFrom: [
     'src/game/**/*.ts',
+    'src/components/scoreboard/**/*.{ts,tsx}',
+    'src/contexts/ScoreboardContext.tsx',
     '!src/game/**/*.test.ts',
     '!src/game/**/index.ts',
+    '!src/components/scoreboard/**/*.test.{ts,tsx}',
+    '!src/components/scoreboard/**/index.ts',
+    '!src/components/scoreboard/styles/**',
   ],
   coverageThreshold: {
     global: {

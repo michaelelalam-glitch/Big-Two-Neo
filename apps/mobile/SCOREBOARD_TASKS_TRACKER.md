@@ -12,9 +12,20 @@
 
 - **Total Tasks:** 25
 - **Completed:** 16 (Foundation + Core + 5 Integration + 1 Mobile Adaptation)
-- **In Progress:** 0
-- **Remaining:** 9
-- **Progress:** 64%
+- **In Progress:** 3 (Bug Fixes & UX Improvements)
+- **Remaining:** 6
+- **Progress:** 76%
+
+---
+
+## 🐛 Bug Fixes & UX Improvements (December 13, 2025)
+
+| Issue | Status | Priority | Description | Solution |
+|-------|--------|----------|-------------|----------|
+| Expanded scoreboard width | ✅ FIXED | High | Bot 2 not visible in expanded view | Increased maxWidth from 95% to 98%, reduced cell widths from 80→68px |
+| Play history cards not showing | ✅ FIXED | Critical | Card images not rendering | Added rank/suit normalization to uppercase + debug logging |
+| Play history scroll disabled | ✅ FIXED | High | Cannot scroll to see all hands | Removed maxHeight constraint, added contentContainerStyle padding |
+| Play history organization | ✅ FIXED | High | Hands not grouped by match | Reorganized to group by match with expand/collapse, show play counts |
 
 ---
 
@@ -203,6 +214,6 @@ The scoreboard implementation is **COMPLETE** when:
 
 ---
 
-**Last Updated:** December 13, 2025 (10:30 AM)  
-**Current Status:** Week 3 - 64% Complete (16/25 tasks)  
-**Next Milestone:** Complete Task #357 & #358 (Unit Tests)
+**Last Updated:** December 13, 2025 (2:00 PM)  
+**Current Status:** Week 3 - 76% Complete (19/25 tasks)  
+**Next Milestone:** Complete Testing Tasks (#356-#362)
