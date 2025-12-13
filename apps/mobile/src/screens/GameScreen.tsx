@@ -228,12 +228,15 @@ function GameScreenContent() {
             });
             
             // CRITICAL FIX: Reorder scores to match scoreboard display order [0,3,1,2]
-            // matchScores is in game state order [0,1,2,3], but scoreboard displays [0,3,1,2]
+            // matchScores is in game state order [0,1,2,3] (player indices)
+            // but scoreboard displays in visual layout order [0,3,1,2] (bottom, top, left, right)
+            // This transformation ensures scores are displayed correctly in the UI
+            // without this fix, player scores would appear in wrong positions on scoreboard
             const reorderedPointsAdded = [
-              pointsAdded[0],
-              pointsAdded[3],
-              pointsAdded[1],
-              pointsAdded[2]
+              pointsAdded[0],  // Bottom player (index 0) stays at position 0
+              pointsAdded[3],  // Right player (index 3) moves to position 1 
+              pointsAdded[1],  // Top player (index 1) moves to position 2
+              pointsAdded[2]   // Left player (index 2) moves to position 3
             ];
             const reorderedScores = [
               cumulativeScores[0],

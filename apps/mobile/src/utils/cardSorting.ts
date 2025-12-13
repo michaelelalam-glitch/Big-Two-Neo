@@ -202,6 +202,9 @@ export const formatCardsForDisplay = (cards: Card[], comboType?: string): Card[]
  * - Pairs/Triples: Highest suit first
  * - Singles: Returned as single-element array
  * 
+ * Suit hierarchy (highest to lowest): Spades > Hearts > Clubs > Diamonds
+ * (See SUIT_ORDER constant: ['D', 'C', 'H', 'S'])
+ * 
  * @param cards - Cards to sort for display
  * @param comboType - Optional combo type (if known)
  * @returns Cards sorted in descending order for visual display
@@ -271,11 +274,15 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         // A-2-3-4-5: Display as 5-4-3-2-A (5 is highest in sequence, A is lowest)
         // sortedAsc for this would be [3, 4, 5, A(14), 2(15)]
         // We want: 5, 4, 3, 2, A
-        const card5 = cards.find(c => c.rank === '5')!;
-        const card4 = cards.find(c => c.rank === '4')!;
-        const card3 = cards.find(c => c.rank === '3')!;
-        const card2 = cards.find(c => c.rank === '2')!;
-        const cardA = cards.find(c => c.rank === 'A')!;
+        const card5 = cards.find(c => c.rank === '5');
+        const card4 = cards.find(c => c.rank === '4');
+        const card3 = cards.find(c => c.rank === '3');
+        const card2 = cards.find(c => c.rank === '2');
+        const cardA = cards.find(c => c.rank === 'A');
+        if (!card5 || !card4 || !card3 || !card2 || !cardA) {
+          // Data corruption: fallback to regular reverse
+          return sortedAsc.slice().reverse();
+        }
         return [card5, card4, card3, card2, cardA];
       }
       
@@ -286,7 +293,11 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         // For sequence like 3-4-5-6-2: Display as 6-5-4-3-2
         // We need to find the second-highest rank value to determine sequence
         const cardsWithout2 = sortedAsc.filter(c => c.rank !== '2');
-        const card2 = sortedAsc.find(c => c.rank === '2')!;
+        const card2 = sortedAsc.find(c => c.rank === '2');
+        if (!card2) {
+          // Data corruption: fallback to regular reverse
+          return sortedAsc.slice().reverse();
+        }
         
         // Reverse the non-2 cards and append 2 at the end
         return [...cardsWithout2.reverse(), card2];

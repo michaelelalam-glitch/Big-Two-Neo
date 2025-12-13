@@ -51,6 +51,20 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   }, [playHistory, currentMatch]);
   
   const currentMatchData = playHistory.find((m) => m.matchNumber === currentMatch);
+  
+  // Memoize reversed hands for current match (performance optimization)
+  const currentMatchReversedHands = useMemo(() => {
+    return currentMatchData?.hands ? [...currentMatchData.hands].reverse() : [];
+  }, [currentMatchData?.hands]);
+  
+  // Memoize reversed hands for each past match (performance optimization)
+  const pastMatchReversedHands = useMemo(() => {
+    const map = new Map<number, PlayHistoryHand[]>();
+    pastMatches.forEach(match => {
+      map.set(match.matchNumber, [...match.hands].reverse());
+    });
+    return map;
+  }, [pastMatches]);
 
   // Build flat list data (memoized for performance)
   const listData = useMemo(() => {
@@ -121,8 +135,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 </Text>
               </View>
             ) : (
-              // Task #377: Reverse hands array to show newest plays first
-              [...item.data.hands].reverse().map((hand: PlayHistoryHand, index: number) => {
+              // Task #377: Use memoized reversed hands array (performance optimized)
+              currentMatchReversedHands.map((hand: PlayHistoryHand, index: number) => {
                 const originalIndex = item.data.hands.length - 1 - index;
                 const isLatest = originalIndex === item.data.hands.length - 1;
                 const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
@@ -191,8 +205,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                   </Text>
                 </View>
               ) : (
-                // Task #377: Reverse hands array to show newest plays first
-                [...match.hands].reverse().map((hand: PlayHistoryHand, index: number) => {
+                // Task #377: Use memoized reversed hands array (performance optimized)
+                (pastMatchReversedHands.get(match.matchNumber) || []).map((hand: PlayHistoryHand, index: number) => {
                   const originalIndex = match.hands.length - 1 - index;
                   const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
                   
@@ -214,7 +228,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     }
     
     return null;
-  }, [currentMatch, playerNames, collapsedMatches, onToggleMatch, styles]);
+  }, [currentMatch, playerNames, collapsedMatches, onToggleMatch, styles, currentMatchReversedHands, pastMatchReversedHands]);
 
   return (
     <Modal

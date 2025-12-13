@@ -104,7 +104,8 @@ export class BotAI {
 
     // CRITICAL: Check "One Card Left" rule when leading
     // Find the next player's card count (player after current bot)
-    // Use anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
+    // Use anticlockwise turn order: for each player index i, turnOrder[i] gives the next player.
+    // Mapping: 0→3, 1→2, 2→0, 3→1. Example sequence starting from 0: 0→3→1→2→0.
     const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
     const nextPlayerIndex = turnOrder[currentPlayerIndex];
     const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
