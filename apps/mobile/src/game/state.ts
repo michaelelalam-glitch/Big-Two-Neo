@@ -767,15 +767,30 @@ export class GameStateManager {
     // Calculate scores for this match
     const matchScoreDetails = calculateMatchScores(this.state.players, matchWinnerId);
 
-    // Update cumulative scores
+    // Prepare score history data for scoreboard
+    const pointsAdded: number[] = [];
+    const cumulativeScores: number[] = [];
+
+    // Update cumulative scores and build history arrays
     matchScoreDetails.forEach(detail => {
       const playerScore = this.state!.matchScores.find(s => s.playerId === detail.playerId);
       if (playerScore) {
         playerScore.matchScores.push(detail.finalScore);
         playerScore.score += detail.finalScore;
         gameLogger.debug(`📊 [Scoring] ${playerScore.playerName}: +${detail.finalScore} (total: ${playerScore.score})`);
+        
+        // Build history arrays (in player order)
+        pointsAdded.push(detail.finalScore);
+        cumulativeScores.push(playerScore.score);
       }
     });
+
+    // Emit score history for scoreboard (Task #351)
+    // This allows ScoreboardContext to track match score history
+    gameLogger.info(`📊 [Score History] Match ${this.state.currentMatch}: points=${JSON.stringify(pointsAdded)}, totals=${JSON.stringify(cumulativeScores)}`);
+    
+    // Notify listeners with updated state (includes score history in matchScores)
+    this.notifyListeners();
 
     // Check if game should end (someone reached 101+ points)
     const gameEnds = shouldGameEnd(this.state.matchScores);
