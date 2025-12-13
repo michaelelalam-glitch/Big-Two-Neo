@@ -295,7 +295,7 @@ const Card = React.memo(function Card({
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
