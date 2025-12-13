@@ -8,19 +8,22 @@ import { sortCardsForDisplay } from '../../utils/cardSorting';
 interface CenterPlayAreaProps {
   lastPlayed: CardType[] | null;
   lastPlayedBy: string | null; // Player who played last (null before first play)
-  combinationType?: string; // e.g., "Full house (A)", "Pair", "Single"
+  combinationType?: string | null; // Raw combo type for sorting: "Straight", "Flush", etc.
+  comboDisplayText?: string; // Formatted display text: "Straight to 6", "Flush ♥ (A high)", etc.
 }
 
 export default function CenterPlayArea({
   lastPlayed,
   lastPlayedBy,
   combinationType,
+  comboDisplayText,
 }: CenterPlayAreaProps) {
   // Sort cards for display (highest card first - Task #313)
   // This ensures straights show as 6-5-4-3-2 instead of 3-4-5-6-2
+  // Use raw combinationType (not formatted text) for proper sorting
   const displayCards = useMemo(() => {
     if (!lastPlayed || lastPlayed.length === 0) return [];
-    return sortCardsForDisplay(lastPlayed, combinationType);
+    return sortCardsForDisplay(lastPlayed, combinationType || undefined);
   }, [lastPlayed, combinationType]);
 
   // Memoize card wrapper styles to prevent React freeze error
@@ -69,7 +72,7 @@ export default function CenterPlayArea({
       {/* Last played text - directly on felt, white text */}
       {lastPlayedBy && (
         <Text style={styles.lastPlayedText} numberOfLines={1}>
-          Last played by {lastPlayedBy}: {combinationType || 'Cards'}
+          Last played by {lastPlayedBy}: {comboDisplayText || 'Cards'}
         </Text>
       )}
     </View>

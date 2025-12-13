@@ -385,6 +385,13 @@ function GameScreenContent() {
     return lastPlayEntry?.playerName || null;
   }, [gameState]);
 
+  // Raw combo type for card sorting (e.g., "Straight", "Flush")
+  const lastPlayComboType = useMemo(() => {
+    if (!gameState || !gameState.lastPlay) return null;
+    return gameState.lastPlay.combo_type;
+  }, [gameState]);
+
+  // Formatted combo display text (e.g., "Straight to 6", "Flush ♥ (A high)")
   const lastPlayCombo = useMemo(() => {
     if (!gameState || !gameState.lastPlay) return null;
     
@@ -836,7 +843,8 @@ function GameScreenContent() {
                 <CenterPlayArea
                   lastPlayed={lastPlayedCards}
                   lastPlayedBy={lastPlayedBy || 'Waiting...'}
-                  combinationType={lastPlayCombo || 'No plays yet'}
+                  combinationType={lastPlayComboType}
+                  comboDisplayText={lastPlayCombo || 'No plays yet'}
                 />
                 
                 {/* Auto-Pass Timer Display */}
