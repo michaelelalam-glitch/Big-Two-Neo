@@ -12,11 +12,12 @@
  * Date: December 12, 2025
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { HandCardProps } from '../../../types/scoreboard';
 import { CardImage } from './CardImage';
 import { usePlayHistoryModalStyles } from '../hooks/useResponsiveStyles';
+import { sortCardsForDisplay } from '../../../utils/cardSorting';
 
 export const HandCard: React.FC<HandCardProps> = ({
   hand,
@@ -26,6 +27,12 @@ export const HandCard: React.FC<HandCardProps> = ({
 }) => {
   // Use responsive styles
   const styles = usePlayHistoryModalStyles();
+  
+  // Sort cards for display (highest first - Task #313)
+  const displayCards = useMemo(() => {
+    if (!hand.cards || hand.cards.length === 0) return [];
+    return sortCardsForDisplay(hand.cards, hand.type);
+  }, [hand.cards, hand.type]);
   
   // Format combo type for display
   const formatComboType = (type: string): string => {
@@ -67,10 +74,10 @@ export const HandCard: React.FC<HandCardProps> = ({
         </Text>
       </View>
 
-      {/* Cards */}
+      {/* Cards - Task #313: Display sorted with highest card first */}
       <View style={styles.handCardsContainer}>
-        {hand.cards && hand.cards.length > 0 ? (
-          hand.cards.map((card, idx) => (
+        {displayCards.length > 0 ? (
+          displayCards.map((card, idx) => (
             <CardImage
               key={`${card.rank}-${card.suit}-${idx}`}
               rank={card.rank}
