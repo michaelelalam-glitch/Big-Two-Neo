@@ -309,7 +309,6 @@ describe('Scoreboard Integration Test', () => {
           addMatches();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
         }, []);
-        }, []);
 
         const currentMatch = scoreHistory.length + 1;
 
@@ -491,10 +490,11 @@ describe('Scoreboard Integration Test', () => {
         );
       };
 
-      renderWithProvider(<TestComponent />);
+      const { getByText } = renderWithProvider(<TestComponent />);
 
       await waitFor(() => {
-        // Container check removed
+        // Verify that player names are rendered (basic container check)
+        expect(getByText('Alice')).toBeTruthy();
       });
     });
 
