@@ -75,6 +75,7 @@ export const LAYOUT = {
   
   // Player positioning
   playerOverlapOffset: -50,
+  leftPlayerOffset: 228, // Position to the right of scoreboard (scoreboard width ~200px + left position 12px + spacing 16px)
   topPlayerSpacing: 140,
   topPlayerOverlap: -25,
   

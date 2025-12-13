@@ -35,11 +35,6 @@ export default function PlayerInfo({
           {name}
         </Text>
       </View>
-
-      {/* Card count badge */}
-      <View style={styles.cardCountBadge}>
-        <Text style={styles.cardCountText}>{cardCount} {cardCount === 1 ? 'Card' : 'Cards'}</Text>
-      </View>
     </View>
   );
 }
@@ -95,22 +90,6 @@ const styles = StyleSheet.create({
   nameText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
-  },
-  cardCountBadge: {
-    position: 'absolute',
-    top: BADGE.cardCountTop,
-    left: BADGE.cardCountLeft,
-    backgroundColor: COLORS.black,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: BADGE.cardCountPaddingVertical,
-    borderRadius: BADGE.cardCountBorderRadius,
-    borderWidth: BADGE.cardCountBorderWidth,
-    borderColor: COLORS.gray.medium,
-  },
-  cardCountText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.sm,
     fontWeight: 'bold',
   },
 });
