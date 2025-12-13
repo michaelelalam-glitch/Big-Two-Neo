@@ -17,9 +17,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { scoreboardStyles } from './styles/scoreboard.styles';
 import { PlayHistoryModalProps } from '../../types/scoreboard';
 import { HandCard } from './components/HandCard';
+import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
 
 export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   visible,
@@ -30,6 +30,9 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   onClose,
   onToggleMatch,
 }) => {
+  // Use responsive styles
+  const styles = usePlayHistoryModalStyles();
+  
   // Separate past and current matches
   const pastMatches = playHistory.filter((m) => m.matchNumber < currentMatch);
   const currentMatchData = playHistory.find((m) => m.matchNumber === currentMatch);
@@ -44,49 +47,49 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     >
       {/* Overlay */}
       <TouchableOpacity
-        style={scoreboardStyles.modalOverlay}
+        style={styles.modalOverlay}
         activeOpacity={1}
         onPress={onClose}
       >
         {/* Modal Container (prevent close on tap) - using View wrapper instead of stopPropagation */}
-        <View style={scoreboardStyles.modalContainer}>
+        <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={scoreboardStyles.modalHeader}>
-            <Text style={scoreboardStyles.modalTitle}>📜 Play History</Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>📜 Play History</Text>
             
             <TouchableOpacity
-              style={scoreboardStyles.modalCloseButton}
+              style={styles.modalCloseButton}
               onPress={onClose}
               activeOpacity={0.7}
               accessibilityLabel="Close play history"
               accessibilityRole="button"
             >
-              <Text style={scoreboardStyles.modalCloseButtonText}>✕ Close</Text>
+              <Text style={styles.modalCloseButtonText}>✕ Close</Text>
             </TouchableOpacity>
           </View>
 
           {/* Content */}
           <ScrollView
-            style={scoreboardStyles.modalContent}
+            style={styles.modalContent}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
           >
             {/* Current Match (Always Expanded) */}
             {currentMatchData && currentMatchData.hands.length > 0 && (
-              <View style={[scoreboardStyles.matchCard, scoreboardStyles.matchCardCurrent]}>
+              <View style={[styles.matchCard, styles.matchCardCurrent]}>
                 {/* Match Header */}
-                <View style={scoreboardStyles.matchCardHeader}>
-                  <Text style={scoreboardStyles.matchCardTitle}>
+                <View style={styles.matchCardHeader}>
+                  <Text style={styles.matchCardTitle}>
                     🎯 Match {currentMatch} (Current)
                   </Text>
-                  <Text style={scoreboardStyles.matchCardIcon}>▼</Text>
+                  <Text style={styles.matchCardIcon}>▼</Text>
                 </View>
 
                 {/* Hands */}
-                <View style={scoreboardStyles.matchCardContent}>
+                <View style={styles.matchCardContent}>
                   {currentMatchData.hands.length === 0 ? (
-                    <View style={scoreboardStyles.emptyState}>
-                      <Text style={scoreboardStyles.emptyStateText}>
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>
                         No plays yet this match
                       </Text>
                     </View>
@@ -113,8 +116,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
             {/* Past Matches (Collapsible) */}
             {pastMatches.length > 0 && (
               <>
-                <View style={scoreboardStyles.divider} />
-                <Text style={[scoreboardStyles.tableCellLabel, { marginBottom: 8 }]}>
+                <View style={styles.divider} />
+                <Text style={[styles.tableCellLabel, { marginBottom: 8 }]}>
                   Past Matches (tap to expand)
                 </Text>
               </>
@@ -126,20 +129,20 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 const isCollapsed = collapsedMatches.has(match.matchNumber);
                 
                 return (
-                  <View key={`match-${match.matchNumber}`} style={scoreboardStyles.matchCard}>
+                  <View key={`match-${match.matchNumber}`} style={styles.matchCard}>
                     {/* Match Header (Touchable) */}
                     <TouchableOpacity
-                      style={scoreboardStyles.matchCardHeader}
+                      style={styles.matchCardHeader}
                       onPress={() => onToggleMatch(match.matchNumber)}
                       activeOpacity={0.7}
                       accessibilityLabel={`${isCollapsed ? 'Expand' : 'Collapse'} match ${match.matchNumber}`}
                       accessibilityRole="button"
                     >
-                      <View style={scoreboardStyles.matchCardHeaderTouchable}>
-                        <Text style={scoreboardStyles.matchCardTitle}>
+                      <View style={styles.matchCardHeaderTouchable}>
+                        <Text style={styles.matchCardTitle}>
                           Match {match.matchNumber}
                         </Text>
-                        <Text style={scoreboardStyles.matchCardIcon}>
+                        <Text style={styles.matchCardIcon}>
                           {isCollapsed ? '▶' : '▼'}
                         </Text>
                       </View>
@@ -147,10 +150,10 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
 
                     {/* Hands (Collapsible) */}
                     {!isCollapsed && (
-                      <View style={scoreboardStyles.matchCardContent}>
+                      <View style={styles.matchCardContent}>
                         {match.hands.length === 0 ? (
-                          <View style={scoreboardStyles.emptyState}>
-                            <Text style={scoreboardStyles.emptyStateText}>
+                          <View style={styles.emptyState}>
+                            <Text style={styles.emptyStateText}>
                               No plays recorded
                             </Text>
                           </View>
@@ -177,8 +180,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
 
             {/* Empty State */}
             {playHistory.length === 0 && (
-              <View style={scoreboardStyles.emptyState}>
-                <Text style={scoreboardStyles.emptyStateText}>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
                   No play history yet. Start playing to see card history!
                 </Text>
               </View>

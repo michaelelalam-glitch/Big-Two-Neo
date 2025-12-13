@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { CardHand, PlayerInfo, MatchScoreboard, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
+import { CardHand, PlayerInfo, CenterPlayArea, GameSettingsModal, AutoPassTimer } from '../components/game';
+import { ScoreboardContainer } from '../components/scoreboard';
 import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +22,12 @@ function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user } = useAuth();
-  const { addScoreHistory, setIsScoreboardExpanded } = useScoreboard(); // Task #351 & #352
+  const { 
+    addScoreHistory, 
+    setIsScoreboardExpanded, 
+    scoreHistory, 
+    playHistoryByMatch 
+  } = useScoreboard(); // Task #351 & #352 & #355
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
@@ -567,13 +573,17 @@ function GameScreenContent() {
         </View>
       ) : (
         <>
-          {/* Match Scoreboard (top-left, outside table) */}
-          <View style={styles.scoreboardContainer}>
-            <MatchScoreboard
-              players={scoreboardPlayers}
-              currentMatch={gameState?.currentMatch || 1}
-            />
-          </View>
+          {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
+          <ScoreboardContainer
+            playerNames={players.map(p => p.name)}
+            currentScores={players.map(p => p.score)}
+            cardCounts={players.map(p => p.hand.length)}
+            currentPlayerIndex={gameState?.currentPlayerIndex || 0}
+            matchNumber={gameState?.currentMatch || 1}
+            isGameFinished={gameState?.gameEnded || false}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+          />
 
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
