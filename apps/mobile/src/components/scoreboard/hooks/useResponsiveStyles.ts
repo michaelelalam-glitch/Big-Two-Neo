@@ -642,6 +642,13 @@ export const usePlayHistoryModalStyles = () => {
       textAlign: 'center' as const,
     },
 
+    emptyStateTextSmall: {
+      fontSize: dims.moderateScale(12),
+      color: ScoreboardColors.text.muted,
+      textAlign: 'center' as const,
+      marginTop: dims.moderateScale(4),
+    },
+
     divider: {
       height: 1,
       backgroundColor: ScoreboardColors.border.primary,
@@ -652,6 +659,13 @@ export const usePlayHistoryModalStyles = () => {
       fontSize: dims.moderateScale(11),
       color: ScoreboardColors.text.secondary,
       fontWeight: '600' as const,
+    },
+
+    pastMatchesHeaderText: {
+      fontSize: dims.moderateScale(11),
+      color: ScoreboardColors.text.secondary,
+      fontWeight: '600' as const,
+      marginBottom: dims.moderateScale(8),
     },
   }), [dims]);
 };
