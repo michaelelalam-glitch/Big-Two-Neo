@@ -623,9 +623,6 @@ function GameScreenContent() {
     // Toast message
     if (Platform.OS === 'android') {
       ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
-    } else {
-      // iOS: Can use Alert or a toast library
-      Alert.alert('Smart Sort', 'Hand organized by combos', [{ text: 'OK' }], { cancelable: true });
     }
     
     gameLogger.info('[GameScreen] Smart sorted hand by combo type');
@@ -651,8 +648,6 @@ function GameScreenContent() {
       
       if (Platform.OS === 'android') {
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
-      } else {
-        Alert.alert('Hint', 'No valid play available - recommend passing', [{ text: 'OK' }]);
       }
       
       gameLogger.info('[GameScreen] Hint: No valid play, recommend pass');
@@ -672,8 +667,6 @@ function GameScreenContent() {
       
       if (Platform.OS === 'android') {
         ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
-      } else {
-        Alert.alert('Hint', `Recommended: ${comboType}`, [{ text: 'OK' }]);
       }
       
       gameLogger.info(`[GameScreen] Hint: Recommended ${cardCount} card(s)`);
