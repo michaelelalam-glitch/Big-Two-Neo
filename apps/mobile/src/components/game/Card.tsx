@@ -59,7 +59,7 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
-function Card({
+const Card = React.memo(function Card({
   card,
   isSelected,
   onToggleSelect,
