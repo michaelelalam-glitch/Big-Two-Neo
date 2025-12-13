@@ -15,11 +15,18 @@
  * Date: December 12, 2025
  */
 
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { PlayHistoryModalProps } from '../../types/scoreboard';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
+
+// Type for FlatList items (header, current match, past matches)
+type ListItem = 
+  | { type: 'current'; data: any }
+  | { type: 'divider' }
+  | { type: 'pastHeader' }
+  | { type: 'pastMatch'; data: any; matchNumber: number };
 
 export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   visible,
@@ -36,6 +43,165 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   // Separate past and current matches
   const pastMatches = playHistory.filter((m) => m.matchNumber < currentMatch);
   const currentMatchData = playHistory.find((m) => m.matchNumber === currentMatch);
+
+  // Build flat list data (memoized for performance)
+  const listData = useMemo(() => {
+    const items: ListItem[] = [];
+    
+    // Current match
+    if (currentMatchData) {
+      items.push({ type: 'current', data: currentMatchData });
+    }
+    
+    // Divider and past header if there are past matches
+    if (pastMatches.length > 0) {
+      items.push({ type: 'divider' });
+      items.push({ type: 'pastHeader' });
+      
+      // Add past matches (newest first)
+      pastMatches
+        .sort((a, b) => b.matchNumber - a.matchNumber)
+        .forEach((match) => {
+          items.push({ type: 'pastMatch', data: match, matchNumber: match.matchNumber });
+        });
+    }
+    
+    return items;
+  }, [currentMatchData, pastMatches, collapsedMatches]);
+  
+  // Get item layout for performance (fixed height estimation)
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: 150, // Estimated average height per item
+      offset: 150 * index,
+      index,
+    }),
+    []
+  );
+  
+  // Key extractor
+  const keyExtractor = useCallback((item: ListItem, index: number) => {
+    if (item.type === 'current') return 'current-match';
+    if (item.type === 'divider') return 'divider';
+    if (item.type === 'pastHeader') return 'past-header';
+    if (item.type === 'pastMatch') return `match-${item.matchNumber}`;
+    return `item-${index}`;
+  }, []);
+  
+  // Render item (memoized)
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.type === 'current') {
+      return (
+        <View style={[styles.matchCard, styles.matchCardCurrent]}>
+          {/* Match Header */}
+          <View style={styles.matchCardHeader}>
+            <Text style={styles.matchCardTitle}>
+              🎯 Match {currentMatch} (Current)
+            </Text>
+            <Text style={styles.matchCardIcon}>▼</Text>
+          </View>
+
+          {/* Hands */}
+          <View style={styles.matchCardContent}>
+            {item.data.hands.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  🃏 No cards played yet this match
+                </Text>
+                <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 4 }]}>
+                  Cards will appear here after each play
+                </Text>
+              </View>
+            ) : (
+              item.data.hands.map((hand: any, index: number) => {
+                const isLatest = index === item.data.hands.length - 1;
+                const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
+                
+                return (
+                  <HandCard
+                    key={`current-hand-${index}`}
+                    hand={hand}
+                    playerName={playerName}
+                    isLatest={isLatest}
+                    isCurrentMatch={true}
+                  />
+                );
+              })
+            )}
+          </View>
+        </View>
+      );
+    }
+    
+    if (item.type === 'divider') {
+      return <View style={styles.divider} />;
+    }
+    
+    if (item.type === 'pastHeader') {
+      return (
+        <Text style={[styles.tableCellLabel, { marginBottom: 8 }]}>
+          Past Matches (tap to expand)
+        </Text>
+      );
+    }
+    
+    if (item.type === 'pastMatch') {
+      const match = item.data;
+      const isCollapsed = collapsedMatches.has(match.matchNumber);
+      
+      return (
+        <View style={styles.matchCard}>
+          {/* Match Header (Touchable) */}
+          <TouchableOpacity
+            style={styles.matchCardHeader}
+            onPress={() => onToggleMatch(match.matchNumber)}
+            activeOpacity={0.7}
+            accessibilityLabel={`${isCollapsed ? 'Expand' : 'Collapse'} match ${match.matchNumber}`}
+            accessibilityHint={`${isCollapsed ? 'Show' : 'Hide'} card plays for this match`}
+            accessibilityRole="button"
+          >
+            <View style={styles.matchCardHeaderTouchable}>
+              <Text style={styles.matchCardTitle}>
+                Match {match.matchNumber}
+              </Text>
+              <Text style={styles.matchCardIcon}>
+                {isCollapsed ? '▶' : '▼'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Hands (Collapsible) */}
+          {!isCollapsed && (
+            <View style={styles.matchCardContent}>
+              {match.hands.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>
+                    No plays recorded
+                  </Text>
+                </View>
+              ) : (
+                match.hands.map((hand: any, index: number) => {
+                  const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
+                  
+                  return (
+                    <HandCard
+                      key={`match-${match.matchNumber}-hand-${index}`}
+                      hand={hand}
+                      playerName={playerName}
+                      isLatest={false}
+                      isCurrentMatch={false}
+                    />
+                  );
+                })
+              )}
+            </View>
+          )}
+        </View>
+      );
+    }
+    
+    return null;
+  }, [currentMatch, playerNames, collapsedMatches, onToggleMatch, styles]);
 
   return (
     <Modal
@@ -70,128 +236,30 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
-          <ScrollView
-            style={styles.modalContent}
-            showsVerticalScrollIndicator={true}
-            nestedScrollEnabled={true}
-          >
-            {/* Current Match (Always Expanded) */}
-            {currentMatchData && (
-              <View style={[styles.matchCard, styles.matchCardCurrent]}>
-                {/* Match Header */}
-                <View style={styles.matchCardHeader}>
-                  <Text style={styles.matchCardTitle}>
-                    🎯 Match {currentMatch} (Current)
-                  </Text>
-                  <Text style={styles.matchCardIcon}>▼</Text>
-                </View>
-
-                {/* Hands */}
-                <View style={styles.matchCardContent}>
-                  {currentMatchData.hands.length === 0 ? (
-                    <View style={styles.emptyState}>
-                      <Text style={styles.emptyStateText}>
-                        🃏 No cards played yet this match
-                      </Text>
-                      <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 4 }]}>
-                        Cards will appear here after each play
-                      </Text>
-                    </View>
-                  ) : (
-                    currentMatchData.hands.map((hand, index) => {
-                      const isLatest = index === currentMatchData.hands.length - 1;
-                      const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
-                      
-                      return (
-                        <HandCard
-                          key={`current-hand-${index}`}
-                          hand={hand}
-                          playerName={playerName}
-                          isLatest={isLatest}
-                          isCurrentMatch={true}
-                        />
-                      );
-                    })
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Past Matches (Collapsible) */}
-            {pastMatches.length > 0 && (
-              <>
-                <View style={styles.divider} />
-                <Text style={[styles.tableCellLabel, { marginBottom: 8 }]}>
-                  Past Matches (tap to expand)
-                </Text>
-              </>
-            )}
-
-            {pastMatches
-              .sort((a, b) => b.matchNumber - a.matchNumber) // Newest first
-              .map((match) => {
-                const isCollapsed = collapsedMatches.has(match.matchNumber);
-                
-                return (
-                  <View key={`match-${match.matchNumber}`} style={styles.matchCard}>
-                    {/* Match Header (Touchable) */}
-                    <TouchableOpacity
-                      style={styles.matchCardHeader}
-                      onPress={() => onToggleMatch(match.matchNumber)}
-                      activeOpacity={0.7}
-                      accessibilityLabel={`${isCollapsed ? 'Expand' : 'Collapse'} match ${match.matchNumber}`}
-                      accessibilityRole="button"
-                    >
-                      <View style={styles.matchCardHeaderTouchable}>
-                        <Text style={styles.matchCardTitle}>
-                          Match {match.matchNumber}
-                        </Text>
-                        <Text style={styles.matchCardIcon}>
-                          {isCollapsed ? '▶' : '▼'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    {/* Hands (Collapsible) */}
-                    {!isCollapsed && (
-                      <View style={styles.matchCardContent}>
-                        {match.hands.length === 0 ? (
-                          <View style={styles.emptyState}>
-                            <Text style={styles.emptyStateText}>
-                              No plays recorded
-                            </Text>
-                          </View>
-                        ) : (
-                          match.hands.map((hand, index) => {
-                            const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
-                            
-                            return (
-                              <HandCard
-                                key={`match-${match.matchNumber}-hand-${index}`}
-                                hand={hand}
-                                playerName={playerName}
-                                isLatest={false}
-                                isCurrentMatch={false}
-                              />
-                            );
-                          })
-                        )}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-
-            {/* Empty State */}
-            {playHistory.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
-                  No play history yet. Start playing to see card history!
-                </Text>
-              </View>
-            )}
-          </ScrollView>
+          {/* Content - Optimized FlatList */}
+          {playHistory.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                No play history yet. Start playing to see card history!
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={listData}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              getItemLayout={getItemLayout}
+              style={styles.modalContent}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={true}
+              // Performance optimizations
+              windowSize={5} // Reduce from default 21 to save memory
+              removeClippedSubviews={true} // Detach offscreen views
+              maxToRenderPerBatch={5} // Reduce from default 10
+              initialNumToRender={10} // Cover initial viewport
+              updateCellsBatchingPeriod={50} // Default batch delay
+            />
+          )}
         </View>
       </View>
     </Modal>
