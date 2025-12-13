@@ -16,7 +16,6 @@ import {
 } from '../game/engine/constants';
 import {
   sortHand,
-  canBeatPlay,
   findRecommendedPlay,
   isStraight,
 } from '../game/engine/game-logic';
@@ -294,7 +293,7 @@ export function smartSortHand(hand: Card[]): Card[] {
   const remaining = hand.filter(c => !usedCards.has(c.id));
   const rankGroups = groupByRank(remaining);
   
-  for (const [rank, cards] of Object.entries(rankGroups)) {
+  for (const cards of Object.values(rankGroups)) {
     if (cards.length === 4) {
       // Split 4-of-a-kind into two pairs
       pairs.push([cards[0], cards[1]]);

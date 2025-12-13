@@ -963,12 +963,12 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   helperButtonsRow: {
-    position: 'absolute',  // Makes it float independently
-    bottom: 240,           // Y-axis: increase to move UP, decrease to move DOWN
-    left: 210,             // X-axis: increase to move RIGHT, decrease to move LEFT
+    position: 'absolute',
+    bottom: POSITIONING.helperButtonsBottom,
+    left: POSITIONING.helperButtonsLeft,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 100,           // Ensures buttons appear above other elements
+    zIndex: 100,
   },
   bottomPlayerWithActions: {
     flexDirection: 'row',

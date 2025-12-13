@@ -12,8 +12,8 @@
  */
 
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { SPACING, FONT_SIZES } from '../../constants';
 
 interface HelperButtonsProps {
   onSort: () => void;
@@ -96,11 +96,11 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   button: {
-    minHeight: 44, // iOS/Android minimum touch target
+    minHeight: 44,
     minWidth: 44,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm,
-    borderRadius: 12, // Match Pass/Play rounded style
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

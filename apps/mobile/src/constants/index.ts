@@ -169,6 +169,8 @@ export const POSITIONING = {
   actionButtonMinWidth: 70,
   passButtonBorderWidth: 1,
   sidePlayerTop: 0,
+  helperButtonsBottom: 240,
+  helperButtonsLeft: 210,
 };
 
 // Scoreboard detail dimensions
