@@ -109,7 +109,8 @@ const GameFlowSimulator: React.FC<{
     };
 
     simulateGame();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+  }, []);
 
   return (
     <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -194,7 +195,7 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [30, 60, 90, 0],
             scores: [60, 120, 180, 0],
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -263,7 +264,7 @@ describe('Scoreboard Integration Test', () => {
             ],
             winner: 2,
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -277,10 +278,11 @@ describe('Scoreboard Integration Test', () => {
         );
       };
 
-      renderWithProvider(<TestComponent />);
+      const { getByText } = renderWithProvider(<TestComponent />);
 
       await waitFor(() => {
-        // Container check removed
+        // Verify that play history is tracked (at least player names are rendered)
+        expect(getByText('Alice')).toBeTruthy();
       });
     });
 
@@ -303,7 +305,7 @@ describe('Scoreboard Integration Test', () => {
           };
 
           addMatches();
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         const currentMatch = scoreHistory.length + 1;
 
@@ -344,7 +346,7 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [50, 25, 75, 10],
             scores: [50, 25, 75, 10],
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -377,7 +379,7 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [-10, -20, 30, 0],
             scores: [-10, -20, 30, 0],
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -409,7 +411,7 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [50, 50, 50, 50],
             scores: [50, 50, 50, 50],
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -439,7 +441,7 @@ describe('Scoreboard Integration Test', () => {
   describe('Play History Tracking', () => {
     it('should track hands in correct order', async () => {
       const TestComponent = () => {
-        const { addPlayHistory, playHistoryByMatch } = useScoreboard();
+        const { addPlayHistory } = useScoreboard();
 
         React.useEffect(() => {
           const hands: PlayHistoryHand[] = [
@@ -467,7 +469,7 @@ describe('Scoreboard Integration Test', () => {
             matchNumber: 1,
             hands,
           });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -526,7 +528,7 @@ describe('Scoreboard Integration Test', () => {
           };
 
           addHandsSequentially();
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -585,7 +587,7 @@ describe('Scoreboard Integration Test', () => {
               ) || [10, 20, 30, 0],
             });
           }
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -607,7 +609,7 @@ describe('Scoreboard Integration Test', () => {
     });
 
     it('should handle game with different player counts', async () => {
-      const twoPlayerTest = renderWithProvider(
+      const { getByText: getByTextTwo } = renderWithProvider(
         <ScoreboardContainer scoreHistory={[]} playHistory={[]}
           playerNames={['Alice', 'Bob']}
           currentScores={[50, 30]}
@@ -619,10 +621,12 @@ describe('Scoreboard Integration Test', () => {
       );
 
       await waitFor(() => {
-        // Container check removed
+        // Verify 2-player game renders correctly
+        expect(getByTextTwo('Alice')).toBeTruthy();
+        expect(getByTextTwo('Bob')).toBeTruthy();
       });
 
-      const threePlayerTest = renderWithProvider(
+      const { getByText: getByTextThree } = renderWithProvider(
         <ScoreboardContainer scoreHistory={[]} playHistory={[]}
           playerNames={['Alice', 'Bob', 'Charlie']}
           currentScores={[50, 30, 40]}
@@ -634,7 +638,10 @@ describe('Scoreboard Integration Test', () => {
       );
 
       await waitFor(() => {
-        // Container check removed
+        // Verify 3-player game renders correctly
+        expect(getByTextThree('Alice')).toBeTruthy();
+        expect(getByTextThree('Bob')).toBeTruthy();
+        expect(getByTextThree('Charlie')).toBeTruthy();
       });
     });
   });

@@ -46,9 +46,23 @@ const RANK_MAP: Record<string, 'ace' | '2' | '3' | '4' | '5' | '6' | '7' | '8' |
 };
 
 /**
- * Image source paths for React Native Image component
- * CRITICAL: Direct require() at module level to ensure stable, pre-frozen references
- * React Native's deepFreeze will freeze these ONCE when module loads, not on every render
+ * Image source paths for React Native Image component.
+ * 
+ * CRITICAL: Direct require() at module level to ensure stable, pre-frozen references.
+ * React Native's deepFreeze will freeze these ONCE when the module loads, not on every render.
+ * 
+ * This design is intentional: React Native expects image sources to be static and referentially stable.
+ * If require() is called dynamically or inside a function/component, it can cause unnecessary re-renders,
+ * performance issues, or even runtime errors due to how React Native manages image assets internally.
+ * 
+ * Limitation: All card image assets must be statically imported here. Dynamic loading of new assets at runtime
+ * is not supported with this approach. If new card images are added, this mapping must be updated and the app rebuilt.
+ * 
+ * Edge case: If an asset is missing from this mapping, attempts to render that card will fail at runtime.
+ * 
+ * For more details, see:
+ *   - https://reactnative.dev/docs/images#static-image-resources
+ *   - https://github.com/facebook/react-native/issues/9397
  */
 const CARD_IMAGE_SOURCES: Record<string, ImageSourcePropType> = {
   // Hearts

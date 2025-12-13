@@ -515,7 +515,7 @@ describe('ExpandedScoreboard', () => {
 
     it('should handle matches with no score history', () => {
       const emptyHistory: ScoreHistory[] = [];
-      render(
+      const { getByText } = render(
         <ExpandedScoreboard playHistory={[]} isExpanded={false} cardCounts={mockCardCounts} currentPlayerIndex={0}
           playerNames={mockPlayerNames}
           currentScores={[0, 0, 0, 0]}
@@ -525,7 +525,8 @@ describe('ExpandedScoreboard', () => {
         />
       );
 
-      // Container check removed
+      // Should render with default empty state - verify player names are shown
+      expect(getByText('Alice')).toBeTruthy();
     });
   });
 

@@ -284,13 +284,10 @@ export default function CardHand({
           const hasMultipleSelected = selectedCardIds.size > 1;
           const isDraggingThisGroup = dragState.isDraggingMultiple && isThisCardSelected;
           
-          // Create a shallow copy to avoid React deep freeze issues in dev mode
-          const cardCopy = { ...card };
-          
           return (
             <Card
               key={card.id}
-              card={cardCopy}
+              card={card}
               isSelected={isThisCardSelected}
               onToggleSelect={handleToggleSelect}
               onDragStart={() => handleDragStart(card.id)}

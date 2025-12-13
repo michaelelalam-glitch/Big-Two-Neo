@@ -90,7 +90,7 @@ export const useResponsiveDimensions = (): ResponsiveDimensions => {
 export const useScoreboardContainerStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => StyleSheet.create({
+  return useMemo(() => ({
     container: {
       position: 'absolute' as const,
       top: dims.moderateScale(12),

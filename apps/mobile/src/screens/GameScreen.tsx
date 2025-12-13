@@ -18,6 +18,39 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
 
+/**
+ * Maps players array to scoreboard display order [0, 3, 1, 2]
+ * This order places the user at top-left, then arranges bots clockwise
+ * @param players - Array of 4 players in game state order
+ * @param mapper - Function to extract desired property from each player
+ * @returns Array of values in scoreboard display order
+ */
+function mapPlayersToScoreboardOrder<T>(players: Array<any>, mapper: (player: any) => T): T[] {
+  // Scoreboard display order: [player 0, player 3, player 1, player 2]
+  // This creates a clockwise arrangement: user (top-left), bot3 (top-right), bot1 (bottom-left), bot2 (bottom-right)
+  return [
+    mapper(players[0]),
+    mapper(players[3]),
+    mapper(players[1]),
+    mapper(players[2])
+  ];
+}
+
+/**
+ * Maps game state player index to scoreboard display position
+ * @param gameIndex - Player index in game state (0-3)
+ * @returns Position index in scoreboard display (0-3)
+ */
+function mapGameIndexToScoreboardPosition(gameIndex: number): number {
+  // Mapping: game index -> scoreboard position
+  // 0 -> 0 (user stays at position 0)
+  // 3 -> 1 (bot3 to position 1)
+  // 1 -> 2 (bot1 to position 2)
+  // 2 -> 3 (bot2 to position 3)
+  const mapping: Record<number, number> = { 0: 0, 3: 1, 1: 2, 2: 3 };
+  return mapping[gameIndex] ?? 0;
+}
+
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
@@ -575,17 +608,10 @@ function GameScreenContent() {
         <>
           {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
           <ScoreboardContainer
-            playerNames={[players[0].name, players[3].name, players[1].name, players[2].name]}
-            currentScores={[players[0].score, players[3].score, players[1].score, players[2].score]}
-            cardCounts={[players[0].cardCount, players[3].cardCount, players[1].cardCount, players[2].cardCount]}
-            currentPlayerIndex={
-              // Map game state index to scoreboard display order [0, 3, 1, 2]
-              gameState?.currentPlayerIndex === 0 ? 0 : // michael -> position 0
-              gameState?.currentPlayerIndex === 3 ? 1 : // bot3 -> position 1
-              gameState?.currentPlayerIndex === 1 ? 2 : // bot1 -> position 2
-              gameState?.currentPlayerIndex === 2 ? 3 : // bot2 -> position 3
-              0
-            }
+            playerNames={mapPlayersToScoreboardOrder(players, p => p.name)}
+            currentScores={mapPlayersToScoreboardOrder(players, p => p.score)}
+            cardCounts={mapPlayersToScoreboardOrder(players, p => p.cardCount)}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
             matchNumber={gameState?.currentMatch || 1}
             isGameFinished={gameState?.gameEnded || false}
             scoreHistory={scoreHistory}
