@@ -104,7 +104,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 <Text style={styles.emptyStateText}>
                   🃏 No cards played yet this match
                 </Text>
-                <Text style={[styles.emptyStateText, { fontSize: 12, marginTop: 4 }]}>
+                <Text style={styles.emptyStateTextSmall}>
                   Cards will appear here after each play
                 </Text>
               </View>
@@ -135,7 +135,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     
     if (item.type === 'pastHeader') {
       return (
-        <Text style={[styles.tableCellLabel, { marginBottom: 8 }]}>
+        <Text style={styles.pastMatchesHeaderText}>
           Past Matches (tap to expand)
         </Text>
       );
