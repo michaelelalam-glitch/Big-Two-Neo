@@ -1,67 +1,122 @@
 /**
  * CardImage Component for Scoreboard
- * Displays card SVG images from assets
+ * Displays text-based card rendering (SVG images cause freeze errors in dev mode)
+ *
+ * TODO: This is a temporary workaround for a React Native issue where SVG images can cause freeze errors in development mode.
+ * See: https://github.com/software-mansion/react-native-svg/issues for general discussion of SVG issues in React Native.
+ * This only affects development mode; SVG rendering may be restored once the issue is resolved or a stable workaround is found.
+ * Track progress and consider reverting to SVG-based rendering in the future.
  */
 
 import React from 'react';
-import { View, Image, StyleSheet, StyleProp, ImageStyle } from 'react-native';
-import { getCardAsset } from '../../../utils/cardAssets';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface CardImageProps {
   rank: string; // A, 2-10, J, Q, K
   suit: string; // H, D, C, S
   width?: number;
   height?: number;
-  style?: StyleProp<ImageStyle>;
 }
 
+// Suit colors matching game cards
+const SUIT_COLORS: Record<string, string> = {
+  H: '#ef4444', // Hearts (red)
+  D: '#ef4444', // Diamonds (red)
+  C: '#1f2937', // Clubs (black)
+  S: '#1f2937', // Spades (black)
+};
+
+// Suit symbols
+const SUIT_SYMBOLS: Record<string, string> = {
+  H: '♥',
+  D: '♦',
+  C: '♣',
+  S: '♠',
+};
+
 /**
- * Renders a card image from SVG assets
+ * Renders a text-based card (avoids SVG freeze issues)
  * Used in scoreboard play history to show cards played
  */
-export const CardImage: React.FC<CardImageProps> = ({
+const CardImageComponent: React.FC<CardImageProps> = ({
   rank,
   suit,
   width = 35,
   height = 51,
-  style,
 }) => {
-  const cardAsset = getCardAsset(rank, suit);
+  // Normalize rank and suit to uppercase
+  const normalizedRank = String(rank).toUpperCase();
+  const normalizedSuit = String(suit).toUpperCase();
   
-  if (!cardAsset) {
-    // Fallback for invalid card
-    return (
-      <View style={[styles.fallback, { width, height }, style]}>
-        <View style={styles.fallbackInner} />
-      </View>
-    );
-  }
+  const suitSymbol = SUIT_SYMBOLS[normalizedSuit] || '?';
+  const suitColor = SUIT_COLORS[normalizedSuit] || '#1f2937';
   
   return (
-    <Image
-      source={cardAsset}
-      style={[styles.card, { width, height }, style]}
-      resizeMode="contain"
-    />
+    <View style={[styles.card, { width, height }]}>
+      {/* Top-left corner */}
+      <View style={styles.corner}>
+        <Text style={[styles.rank, { color: suitColor }]}>{normalizedRank}</Text>
+        <Text style={[styles.suit, { color: suitColor }]}>{suitSymbol}</Text>
+      </View>
+
+      {/* Center suit */}
+      <Text style={[styles.centerSuit, { color: suitColor }]}>
+        {suitSymbol}
+      </Text>
+
+      {/* Bottom-right corner (rotated) */}
+      <View style={[styles.corner, styles.cornerBottom]}>
+        <Text style={[styles.rank, { color: suitColor }]}>
+          {normalizedRank}
+        </Text>
+        <Text style={[styles.suit, { color: suitColor }]}>
+          {suitSymbol}
+        </Text>
+      </View>
+    </View>
   );
 };
 
+export const CardImage = React.memo(CardImageComponent);
+CardImage.displayName = 'CardImage';
+
 const styles = StyleSheet.create({
   card: {
-    // Default styling for card images
-  },
-  fallback: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 3,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    justifyContent: 'center',
+    padding: 2,
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
     alignItems: 'center',
   },
-  fallbackInner: {
-    width: '60%',
-    height: '80%',
-    backgroundColor: '#e5e7eb',
-    borderRadius: 1,
+  cornerBottom: {
+    top: undefined,
+    left: undefined,
+    bottom: 2,
+    right: 2,
+    transform: [{ rotate: '180deg' }],
+  },
+  rank: {
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+  },
+  suit: {
+    fontSize: 9,
+    lineHeight: 10,
+  },
+  centerSuit: {
+    position: 'absolute',
+    fontSize: 16,
+    fontWeight: '600',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -8 }, { translateY: -10 }],
   },
 });

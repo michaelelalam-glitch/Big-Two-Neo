@@ -17,6 +17,9 @@ export const View = 'View';
 export const Text = 'Text';
 export const Pressable = 'Pressable';
 export const ActivityIndicator = 'ActivityIndicator';
+export const TouchableOpacity = 'TouchableOpacity';
+export const ScrollView = 'ScrollView';
+export const Modal = 'Modal';
 
 export const Animated = {
   Value: jest.fn(() => ({
@@ -34,3 +37,11 @@ export const Animated = {
     start: jest.fn(),
   })),
 };
+
+// Mock useWindowDimensions hook
+export const useWindowDimensions = jest.fn(() => ({
+  width: 375,
+  height: 812,
+  scale: 2,
+  fontScale: 1,
+}));

@@ -9,7 +9,7 @@ import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { createGameStateManager, type GameState, type GameStateManager, type Player } from '../game/state';
 import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import type { ScoreHistory } from '../types/scoreboard';
@@ -17,6 +17,39 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
+
+/**
+ * Maps players array to scoreboard display order [0, 3, 1, 2]
+ * This order places the user at top-left, then arranges bots clockwise
+ * @param players - Array of 4 players in game state order
+ * @param mapper - Function to extract desired property from each player
+ * @returns Array of values in scoreboard display order
+ */
+function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Player) => T): T[] {
+  // Scoreboard display order: [player 0, player 3, player 1, player 2]
+  // This creates a clockwise arrangement: user (top-left), bot3 (top-right), bot1 (bottom-left), bot2 (bottom-right)
+  return [
+    mapper(players[0]),
+    mapper(players[3]),
+    mapper(players[1]),
+    mapper(players[2])
+  ];
+}
+
+/**
+ * Maps game state player index to scoreboard display position
+ * @param gameIndex - Player index in game state (0-3)
+ * @returns Position index in scoreboard display (0-3)
+ */
+function mapGameIndexToScoreboardPosition(gameIndex: number): number {
+  // Mapping: game index -> scoreboard position
+  // 0 -> 0 (user stays at position 0)
+  // 3 -> 1 (bot3 to position 1)
+  // 1 -> 2 (bot1 to position 2)
+  // 2 -> 3 (bot2 to position 3)
+  const mapping: Record<number, number> = { 0: 0, 3: 1, 1: 2, 2: 3 };
+  return mapping[gameIndex] ?? 0;
+}
 
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
@@ -327,7 +360,8 @@ function GameScreenContent() {
 
   // Map game state players to UI format
   const players = useMemo(() => {
-    if (!gameState) {
+    // Return placeholder while loading OR if players don't have hands yet (initialization race condition)
+    if (!gameState || !gameState.players || gameState.players.length !== 4 || !gameState.players[0]?.hand) {
       // Return placeholder while loading
       return [
         { name: currentPlayerName, cardCount: 13, score: 0, position: 'bottom' as const, isActive: true },
@@ -575,10 +609,10 @@ function GameScreenContent() {
         <>
           {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
           <ScoreboardContainer
-            playerNames={players.map(p => p.name)}
-            currentScores={players.map(p => p.score)}
-            cardCounts={players.map(p => p.hand.length)}
-            currentPlayerIndex={gameState?.currentPlayerIndex || 0}
+            playerNames={mapPlayersToScoreboardOrder(players, p => p.name)}
+            currentScores={mapPlayersToScoreboardOrder(players, p => p.score)}
+            cardCounts={mapPlayersToScoreboardOrder(players, p => p.cardCount)}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
             matchNumber={gameState?.currentMatch || 1}
             isGameFinished={gameState?.gameEnded || false}
             scoreHistory={scoreHistory}

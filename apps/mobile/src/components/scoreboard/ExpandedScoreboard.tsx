@@ -77,10 +77,10 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
         <ScrollView 
           style={styles.tableScrollView}
           showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
+          nestedScrollEnabled={false}
         >
-          {/* Table Header Row */}
-          <View style={styles.tableHeaderRow}>
+            {/* Table Header Row */}
+            <View style={styles.tableHeaderRow}>
             {/* Match # column */}
             <View style={[styles.tableHeaderCell, styles.tableHeaderCellFirst]}>
               <Text style={styles.tableHeaderText}>Match</Text>

@@ -44,3 +44,6 @@ build.log
 # generated native folders
 /ios
 /android
+
+# migration scripts (one-time use only)
+fix-tests.sh

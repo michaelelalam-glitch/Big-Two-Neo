@@ -69,15 +69,19 @@ export const HandCard: React.FC<HandCardProps> = ({
 
       {/* Cards */}
       <View style={styles.handCardsContainer}>
-        {hand.cards.map((card, idx) => (
-          <CardImage
-            key={`${card.rank}-${card.suit}-${idx}`}
-            rank={card.rank}
-            suit={card.suit}
-            width={35}
-            height={51}
-          />
-        ))}
+        {hand.cards && hand.cards.length > 0 ? (
+          hand.cards.map((card, idx) => (
+            <CardImage
+              key={`${card.rank}-${card.suit}-${idx}`}
+              rank={card.rank}
+              suit={card.suit}
+              width={40}
+              height={58}
+            />
+          ))
+        ) : (
+          <Text style={styles.handComboType}>No cards recorded</Text>
+        )}
       </View>
     </View>
   );
