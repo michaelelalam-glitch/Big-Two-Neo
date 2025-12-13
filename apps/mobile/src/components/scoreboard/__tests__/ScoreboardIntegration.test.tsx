@@ -309,6 +309,7 @@ describe('Scoreboard Integration Test', () => {
           addMatches();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
         }, []);
+        }, []);
 
         const currentMatch = scoreHistory.length + 1;
 
@@ -550,10 +551,11 @@ describe('Scoreboard Integration Test', () => {
         );
       };
 
-      renderWithProvider(<TestComponent />);
+      const { getByText } = renderWithProvider(<TestComponent />);
 
       await waitFor(() => {
-        // Container check removed
+        // Verify that hands are added and player names are rendered
+        expect(getByText('Alice')).toBeTruthy();
       }, { timeout: 3000 });
     });
   });
@@ -595,7 +597,8 @@ describe('Scoreboard Integration Test', () => {
               ) || [10, 20, 30, 0],
             });
           }
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -609,10 +612,11 @@ describe('Scoreboard Integration Test', () => {
         );
       };
 
-      renderWithProvider(<TestComponent />);
+      const { getByText } = renderWithProvider(<TestComponent />);
 
       await waitFor(() => {
-        // Container check removed
+        // Verify that rapid completions are handled (at least player names are rendered)
+        expect(getByText('Alice')).toBeTruthy();
       });
     });
 
