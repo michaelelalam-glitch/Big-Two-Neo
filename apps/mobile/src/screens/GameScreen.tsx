@@ -402,15 +402,18 @@ function GameScreenContent() {
       const quadRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 4);
       return quadRank ? `Four ${quadRank}s` : 'Four of a Kind';
     } else if (combo === 'Straight' && cards.length > 0) {
-      // Get highest card in straight
-      const highCard = cards[cards.length - 1];
+      // Get highest card in straight (sort descending, take first)
+      const sorted = sortCardsForDisplay(cards, 'Straight');
+      const highCard = sorted[0];
       return `Straight to ${highCard.rank}`;
     } else if (combo === 'Flush' && cards.length > 0) {
-      const highCard = cards[cards.length - 1];
+      const sorted = sortCardsForDisplay(cards, 'Flush');
+      const highCard = sorted[0];
       const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
       return `Flush ${suitNames[highCard.suit] || highCard.suit} (${highCard.rank} high)`;
     } else if (combo === 'Straight Flush' && cards.length > 0) {
-      const highCard = cards[cards.length - 1];
+      const sorted = sortCardsForDisplay(cards, 'Straight Flush');
+      const highCard = sorted[0];
       const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
       return `Straight Flush ${suitNames[highCard.suit] || highCard.suit} to ${highCard.rank}`;
     }

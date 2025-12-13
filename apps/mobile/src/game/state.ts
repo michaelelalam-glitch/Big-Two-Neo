@@ -1061,8 +1061,10 @@ export class GameStateManager {
       this.state!.currentPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
       attempts++;
       
-      // If we've wrapped back to starting player, all other players are finished
-      // This should only happen in edge cases (shouldn't reach here normally)
+      // If we've wrapped back to the starting player, this may indicate that all other players have finished
+      // (i.e., have no cards left), which is a legitimate endgame scenario. However, reaching this condition
+      // could also indicate a programming error or unexpected state. This check acts as a safeguard and should
+      // not normally be triggered during regular gameplay except in such endgame scenarios.
       if (this.state!.currentPlayerIndex === startingPlayer || attempts >= maxAttempts) {
         gameLogger.warn(`⚠️ [advanceToNextPlayer] Wrapped back to starting player ${startingPlayer}. All other players may be finished.`);
         break;

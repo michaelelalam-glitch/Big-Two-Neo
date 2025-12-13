@@ -200,7 +200,7 @@ export const formatCardsForDisplay = (cards: Card[], comboType?: string): Card[]
  * - Full House: Three-of-a-kind first, then pair
  * - Four of a Kind: Four cards together, then kicker
  * - Pairs/Triples: Highest suit first
- * - Singles: As-is
+ * - Singles: Returned as single-element array
  * 
  * @param cards - Cards to sort for display
  * @param comboType - Optional combo type (if known)
@@ -306,7 +306,7 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       let triple: Card[] = [];
       let pair: Card[] = [];
       
-      for (const [_, group] of rankGroups) {
+      for (const group of rankGroups.values()) {
         if (group.length === 3) {
           triple = sortCards(group).reverse(); // Highest suit first
         } else if (group.length === 2) {
@@ -323,7 +323,7 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       let quads: Card[] = [];
       let kicker: Card[] = [];
       
-      for (const [_, group] of rankGroups) {
+      for (const group of rankGroups.values()) {
         if (group.length === 4) {
           quads = sortCards(group).reverse(); // Highest suit first
         } else {

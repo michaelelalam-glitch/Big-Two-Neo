@@ -80,7 +80,7 @@ describe('sortCardsForDisplay - Task #313', () => {
       expect(result[4].rank).toBe('3'); // Lowest last
     });
 
-    it('should display high straight with 2 as 2-6-5-4-3 (highest first)', () => {
+    it('should display high straight with 2 as 6-5-4-3-2 (highest first)', () => {
       const cards = [
         createCard('3', 'D'),
         createCard('4', 'S'),
@@ -99,7 +99,7 @@ describe('sortCardsForDisplay - Task #313', () => {
       expect(result[4].rank).toBe('2'); // 2 appears last in straight sequence
     });
 
-    it('should display wrap-around straight 5-4-3-2-A as 5-4-3-2-A', () => {
+    it('should display wrap-around straight A-2-3-4-5 as 5-4-3-2-A (highest first)', () => {
       const cards = [
         createCard('A', 'S'),
         createCard('2', 'H'),
