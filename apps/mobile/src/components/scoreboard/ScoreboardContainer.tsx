@@ -60,55 +60,49 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
       <View style={styles.container}>
         {/* Compact View */}
         {!isScoreboardExpanded && (
-          <ScoreboardErrorBoundary>
-            <CompactScoreboard
-              playerNames={playerNames}
-              currentScores={currentScores}
-              cardCounts={cardCounts}
-              currentPlayerIndex={currentPlayerIndex}
-              matchNumber={matchNumber}
-              isGameFinished={isGameFinished}
-              scoreHistory={scoreHistory}
-              playHistory={playHistory}
-              isExpanded={isScoreboardExpanded}
-              onToggleExpand={handleToggleExpand}
-              onTogglePlayHistory={handleTogglePlayHistory}
-            />
-          </ScoreboardErrorBoundary>
+          <CompactScoreboard
+            playerNames={playerNames}
+            currentScores={currentScores}
+            cardCounts={cardCounts}
+            currentPlayerIndex={currentPlayerIndex}
+            matchNumber={matchNumber}
+            isGameFinished={isGameFinished}
+            scoreHistory={scoreHistory}
+            playHistory={playHistory}
+            isExpanded={isScoreboardExpanded}
+            onToggleExpand={handleToggleExpand}
+            onTogglePlayHistory={handleTogglePlayHistory}
+          />
         )}
 
         {/* Expanded View */}
         {isScoreboardExpanded && (
-          <ScoreboardErrorBoundary>
-            <ExpandedScoreboard
-              playerNames={playerNames}
-              currentScores={currentScores}
-              cardCounts={cardCounts}
-              currentPlayerIndex={currentPlayerIndex}
-              matchNumber={matchNumber}
-              isGameFinished={isGameFinished}
-              scoreHistory={scoreHistory}
-              playHistory={playHistory}
-              isExpanded={isScoreboardExpanded}
-              onToggleExpand={handleToggleExpand}
-              onTogglePlayHistory={handleTogglePlayHistory}
-            />
-          </ScoreboardErrorBoundary>
+          <ExpandedScoreboard
+            playerNames={playerNames}
+            currentScores={currentScores}
+            cardCounts={cardCounts}
+            currentPlayerIndex={currentPlayerIndex}
+            matchNumber={matchNumber}
+            isGameFinished={isGameFinished}
+            scoreHistory={scoreHistory}
+            playHistory={playHistory}
+            isExpanded={isScoreboardExpanded}
+            onToggleExpand={handleToggleExpand}
+            onTogglePlayHistory={handleTogglePlayHistory}
+          />
         )}
       </View>
 
       {/* Play History Modal */}
-      <ScoreboardErrorBoundary>
-        <PlayHistoryModal
-          visible={isPlayHistoryOpen}
-          playerNames={playerNames}
-          playHistory={playHistory}
-          currentMatch={matchNumber}
-          collapsedMatches={collapsedMatches}
-          onClose={handleClosePlayHistory}
-          onToggleMatch={toggleMatchCollapse}
-        />
-      </ScoreboardErrorBoundary>
+      <PlayHistoryModal
+        visible={isPlayHistoryOpen}
+        playerNames={playerNames}
+        playHistory={playHistory}
+        currentMatch={matchNumber}
+        collapsedMatches={collapsedMatches}
+        onClose={handleClosePlayHistory}
+        onToggleMatch={toggleMatchCollapse}
+      />
     </ScoreboardErrorBoundary>
   );
 };
