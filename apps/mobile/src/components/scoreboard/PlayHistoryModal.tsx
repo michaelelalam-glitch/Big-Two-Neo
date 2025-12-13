@@ -17,16 +17,16 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
-import { PlayHistoryModalProps } from '../../types/scoreboard';
+import { PlayHistoryModalProps, PlayHistoryMatch } from '../../types/scoreboard';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
 
 // Type for FlatList items (header, current match, past matches)
 type ListItem = 
-  | { type: 'current'; data: any }
+  | { type: 'current'; data: PlayHistoryMatch }
   | { type: 'divider' }
   | { type: 'pastHeader' }
-  | { type: 'pastMatch'; data: any; matchNumber: number };
+  | { type: 'pastMatch'; data: PlayHistoryMatch; matchNumber: number };
 
 export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   visible,
@@ -40,8 +40,13 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   // Use responsive styles
   const styles = usePlayHistoryModalStyles();
   
-  // Separate past and current matches
-  const pastMatches = playHistory.filter((m) => m.matchNumber < currentMatch);
+  // Separate past and current matches (sorted once)
+  const pastMatches = useMemo(() => {
+    return playHistory
+      .filter((m) => m.matchNumber < currentMatch)
+      .sort((a, b) => b.matchNumber - a.matchNumber); // Newest first
+  }, [playHistory, currentMatch]);
+  
   const currentMatchData = playHistory.find((m) => m.matchNumber === currentMatch);
 
   // Build flat list data (memoized for performance)
@@ -58,26 +63,14 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
       items.push({ type: 'divider' });
       items.push({ type: 'pastHeader' });
       
-      // Add past matches (newest first)
-      pastMatches
-        .sort((a, b) => b.matchNumber - a.matchNumber)
-        .forEach((match) => {
-          items.push({ type: 'pastMatch', data: match, matchNumber: match.matchNumber });
-        });
+      // Add past matches (already sorted)
+      pastMatches.forEach((match) => {
+        items.push({ type: 'pastMatch', data: match, matchNumber: match.matchNumber });
+      });
     }
     
     return items;
-  }, [currentMatchData, pastMatches, collapsedMatches]);
-  
-  // Get item layout for performance (fixed height estimation)
-  const getItemLayout = useCallback(
-    (_: any, index: number) => ({
-      length: 150, // Estimated average height per item
-      offset: 150 * index,
-      index,
-    }),
-    []
-  );
+  }, [currentMatchData, pastMatches]);
   
   // Key extractor
   const keyExtractor = useCallback((item: ListItem, index: number) => {
@@ -87,6 +80,9 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     if (item.type === 'pastMatch') return `match-${item.matchNumber}`;
     return `item-${index}`;
   }, []);
+  
+  // Content container style (memoized)
+  const contentContainerStyle = useMemo(() => ({ paddingBottom: 20 }), []);
   
   // Render item (memoized)
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
@@ -248,9 +244,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               data={listData}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
-              getItemLayout={getItemLayout}
               style={styles.modalContent}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={contentContainerStyle}
               showsVerticalScrollIndicator={true}
               // Performance optimizations
               windowSize={5} // Reduce from default 21 to save memory
