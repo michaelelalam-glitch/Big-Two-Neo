@@ -14,9 +14,9 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
-import { scoreboardStyles } from '../styles/scoreboard.styles';
 import { HandCardProps } from '../../../types/scoreboard';
 import { CardImage } from './CardImage';
+import { usePlayHistoryModalStyles } from '../hooks/useResponsiveStyles';
 
 export const HandCard: React.FC<HandCardProps> = ({
   hand,
@@ -24,6 +24,9 @@ export const HandCard: React.FC<HandCardProps> = ({
   isLatest,
   isCurrentMatch,
 }) => {
+  // Use responsive styles
+  const styles = usePlayHistoryModalStyles();
+  
   // Format combo type for display
   const formatComboType = (type: string): string => {
     const normalized = type.replace(/[_\s]/g, '').toLowerCase();
@@ -52,20 +55,20 @@ export const HandCard: React.FC<HandCardProps> = ({
   return (
     <View
       style={[
-        scoreboardStyles.handCard,
-        isLatest && isCurrentMatch && scoreboardStyles.handCardLatest,
+        styles.handCard,
+        isLatest && isCurrentMatch && styles.handCardLatest,
       ]}
     >
       {/* Header: Player name + Combo type */}
-      <View style={scoreboardStyles.handCardHeader}>
-        <Text style={scoreboardStyles.handPlayerName}>{playerName}</Text>
-        <Text style={scoreboardStyles.handComboType}>
+      <View style={styles.handCardHeader}>
+        <Text style={styles.handPlayerName}>{playerName}</Text>
+        <Text style={styles.handComboType}>
           {formatComboType(hand.type)} ({hand.count})
         </Text>
       </View>
 
       {/* Cards */}
-      <View style={scoreboardStyles.handCardsContainer}>
+      <View style={styles.handCardsContainer}>
         {hand.cards.map((card, idx) => (
           <CardImage
             key={`${card.rank}-${card.suit}-${idx}`}

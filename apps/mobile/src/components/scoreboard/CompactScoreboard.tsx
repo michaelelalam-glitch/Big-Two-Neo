@@ -14,9 +14,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { scoreboardStyles } from './styles/scoreboard.styles';
 import { getPlayerNameColor, getScoreColor } from './styles/colors';
 import { CompactScoreboardProps } from '../../types/scoreboard';
+import { useCompactScoreboardStyles, useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   playerNames,
@@ -30,6 +30,9 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   onTogglePlayHistory,
   isExpanded,
 }) => {
+  // Use responsive styles
+  const styles = useCompactScoreboardStyles();
+
   // Auto-expand when game finishes
   const onToggleExpandRef = useRef(onToggleExpand);
   onToggleExpandRef.current = onToggleExpand;
@@ -41,37 +44,37 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   }, [isGameFinished, isExpanded]);
 
   return (
-    <View style={scoreboardStyles.compactContainer}>
+    <View style={styles.compactContainer}>
       {/* Header with match number and action buttons */}
-      <View style={scoreboardStyles.compactHeader}>
-        <Text style={scoreboardStyles.matchTitle}>
+      <View style={styles.compactHeader}>
+        <Text style={styles.matchTitle}>
           {isGameFinished ? '🏁 Game Over' : `Match ${matchNumber}`}
         </Text>
         
-        <View style={scoreboardStyles.headerButtons}>
+        <View style={styles.headerButtons}>
           {/* Play History Button */}
           {onTogglePlayHistory && (
             <TouchableOpacity
-              style={scoreboardStyles.iconButton}
+              style={styles.iconButton}
               onPress={onTogglePlayHistory}
               activeOpacity={0.7}
               accessibilityLabel="Open play history"
               accessibilityRole="button"
             >
-              <Text style={scoreboardStyles.iconButtonText}>📜</Text>
+              <Text style={styles.iconButtonText}>📜</Text>
             </TouchableOpacity>
           )}
           
           {/* Expand Button */}
           {onToggleExpand && (
             <TouchableOpacity
-              style={scoreboardStyles.iconButton}
+              style={styles.iconButton}
               onPress={onToggleExpand}
               activeOpacity={0.7}
               accessibilityLabel="Expand scoreboard"
               accessibilityRole="button"
             >
-              <Text style={scoreboardStyles.iconButtonText}>▶</Text>
+              <Text style={styles.iconButtonText}>▶</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -79,7 +82,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
 
       {/* Player scores list */}
       <ScrollView 
-        style={scoreboardStyles.playerList}
+        style={styles.playerList}
         showsVerticalScrollIndicator={false}
       >
         {playerNames.map((name, index) => {
@@ -93,16 +96,16 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
             <View
               key={`player-${index}`}
               style={[
-                scoreboardStyles.playerRow,
-                isCurrentPlayer && scoreboardStyles.playerRowCurrent,
+                styles.playerRow,
+                isCurrentPlayer && styles.playerRowCurrent,
               ]}
             >
               {/* Player name */}
               <Text
                 style={[
-                  scoreboardStyles.playerName,
+                  styles.playerName,
                   { color: nameColor },
-                  isCurrentPlayer && scoreboardStyles.playerNameCurrent,
+                  isCurrentPlayer && styles.playerNameCurrent,
                 ]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -111,10 +114,10 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
               </Text>
 
               {/* Stats: card count + score */}
-              <View style={scoreboardStyles.playerStats}>
+              <View style={styles.playerStats}>
                 {/* Card count (only show during active game) */}
                 {!isGameFinished && (
-                  <Text style={scoreboardStyles.cardCount}>
+                  <Text style={styles.cardCount}>
                     🃏 {cardCount}
                   </Text>
                 )}
@@ -122,7 +125,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
                 {/* Score */}
                 <Text
                   style={[
-                    scoreboardStyles.playerScore,
+                    styles.playerScore,
                     { color: scoreColor },
                   ]}
                 >
