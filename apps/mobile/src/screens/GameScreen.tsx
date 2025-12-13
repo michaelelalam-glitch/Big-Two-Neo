@@ -9,7 +9,7 @@ import type { Card } from '../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING, SHADOWS, OPACITIES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { createGameStateManager, type GameState, type GameStateManager, type Player } from '../game/state';
 import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import type { ScoreHistory } from '../types/scoreboard';
@@ -25,7 +25,7 @@ type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
  * @param mapper - Function to extract desired property from each player
  * @returns Array of values in scoreboard display order
  */
-function mapPlayersToScoreboardOrder<T>(players: Array<any>, mapper: (player: any) => T): T[] {
+function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Player) => T): T[] {
   // Scoreboard display order: [player 0, player 3, player 1, player 2]
   // This creates a clockwise arrangement: user (top-left), bot3 (top-right), bot1 (bottom-left), bot2 (bottom-right)
   return [

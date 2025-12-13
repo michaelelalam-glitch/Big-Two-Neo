@@ -429,6 +429,14 @@ export const usePlayHistoryModalStyles = () => {
       padding: dims.moderateScale(20),
     },
 
+    modalBackdrop: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+
     modalContainer: {
       backgroundColor: ScoreboardColors.background.modal,
       borderRadius: dims.moderateScale(12),

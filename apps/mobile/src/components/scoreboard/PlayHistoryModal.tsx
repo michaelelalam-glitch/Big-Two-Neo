@@ -48,13 +48,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
       {/* Overlay */}
       <View style={styles.modalOverlay}>
         <TouchableOpacity
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
+          style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={onClose}
         />
