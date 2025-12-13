@@ -1051,11 +1051,30 @@ export class GameStateManager {
    * Anticlockwise order: 0 → 3 → 1 → 2 → 0
    */
   private advanceToNextPlayer(): void {
-    do {
-      // Anticlockwise turn order mapping for visual layout
-      const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-      this.state!.currentPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
-    } while (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0);
+    const startingPlayer = this.state!.currentPlayerIndex;
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    let nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+
+    // Try to find the next player with cards, looping at most once through all players
+    while (nextPlayerIndex !== startingPlayer) {
+      if (this.state!.players[nextPlayerIndex].hand.length > 0) {
+        this.state!.currentPlayerIndex = nextPlayerIndex;
+        return;
+      }
+      nextPlayerIndex = turnOrder[nextPlayerIndex];
+    }
+
+    // If we get here, either only the starting player has cards, or no one has cards
+    if (this.state!.players[startingPlayer].hand.length > 0) {
+      this.state!.currentPlayerIndex = startingPlayer;
+      // Only the starting player has cards; continue with them
+    } else {
+      // No players have cards remaining - endgame scenario
+      gameLogger.warn('[advanceToNextPlayer] No players with cards remaining. Game should end.');
+      // The game should have already ended via checkGameOver() after the last card was played.
+      // This is a safeguard in case we reach an invalid state.
+      this.state!.gameEnded = true;
+    }
   }
 
   /**
