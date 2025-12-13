@@ -89,17 +89,29 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     if (item.type === 'current') {
       return (
         <View style={[styles.matchCard, styles.matchCardCurrent]}>
-          {/* Match Header */}
-          <View style={styles.matchCardHeader}>
-            <Text style={styles.matchCardTitle}>
-              🎯 Match {currentMatch} (Current)
-            </Text>
-            <Text style={styles.matchCardIcon}>▼</Text>
-          </View>
+          {/* Match Header - Task #376: Make collapsible */}
+          <TouchableOpacity
+            style={styles.matchCardHeader}
+            onPress={() => onToggleMatch(currentMatch)}
+            activeOpacity={0.7}
+            accessibilityLabel={`${collapsedMatches.has(currentMatch) ? 'Expand' : 'Collapse'} current match`}
+            accessibilityHint={`${collapsedMatches.has(currentMatch) ? 'Show' : 'Hide'} card plays for current match`}
+            accessibilityRole="button"
+          >
+            <View style={styles.matchCardHeaderTouchable}>
+              <Text style={styles.matchCardTitle}>
+                🎯 Match {currentMatch} (Current)
+              </Text>
+              <Text style={styles.matchCardIcon}>
+                {collapsedMatches.has(currentMatch) ? '▶' : '▼'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-          {/* Hands */}
-          <View style={styles.matchCardContent}>
-            {item.data.hands.length === 0 ? (
+          {/* Hands - Task #376: Collapsible */}
+          {!collapsedMatches.has(currentMatch) && (
+            <View style={styles.matchCardContent}>
+              {item.data.hands.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
                   🃏 No cards played yet this match
@@ -109,13 +121,15 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 </Text>
               </View>
             ) : (
-              item.data.hands.map((hand: PlayHistoryHand, index: number) => {
-                const isLatest = index === item.data.hands.length - 1;
+              // Task #377: Reverse hands array to show newest plays first
+              [...item.data.hands].reverse().map((hand: PlayHistoryHand, index: number) => {
+                const originalIndex = item.data.hands.length - 1 - index;
+                const isLatest = originalIndex === item.data.hands.length - 1;
                 const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
                 
                 return (
                   <HandCard
-                    key={`current-hand-${index}`}
+                    key={`current-hand-${originalIndex}`}
                     hand={hand}
                     playerName={playerName}
                     isLatest={isLatest}
@@ -124,7 +138,8 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                 );
               })
             )}
-          </View>
+            </View>
+          )}
         </View>
       );
     }
@@ -176,12 +191,14 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
                   </Text>
                 </View>
               ) : (
-                match.hands.map((hand: PlayHistoryHand, index: number) => {
+                // Task #377: Reverse hands array to show newest plays first
+                [...match.hands].reverse().map((hand: PlayHistoryHand, index: number) => {
+                  const originalIndex = match.hands.length - 1 - index;
                   const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
                   
                   return (
                     <HandCard
-                      key={`match-${match.matchNumber}-hand-${index}`}
+                      key={`match-${match.matchNumber}-hand-${originalIndex}`}
                       hand={hand}
                       playerName={playerName}
                       isLatest={false}

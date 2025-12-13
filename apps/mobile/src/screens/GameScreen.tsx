@@ -15,6 +15,7 @@ import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext
 import type { ScoreHistory } from '../types/scoreboard';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
+import { sortCardsForDisplay } from '../utils/cardSorting';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -190,7 +191,7 @@ function GameScreenContent() {
           gameLogger.debug('📊 [GameScreen] Game state updated:', {
             currentPlayer: state.players[state.currentPlayerIndex].name,
             handSize: state.players[0].hand.length,
-            lastPlay: state.lastPlay?.combo || 'none',
+            lastPlay: state.lastPlay?.combo_type || 'none',
             gameEnded: state.gameEnded,
             gameOver: state.gameOver
           });
@@ -214,10 +215,25 @@ function GameScreenContent() {
               cumulativeScores.push(playerScore.score);
             });
             
+            // CRITICAL FIX: Reorder scores to match scoreboard display order [0,3,1,2]
+            // matchScores is in game state order [0,1,2,3], but scoreboard displays [0,3,1,2]
+            const reorderedPointsAdded = [
+              pointsAdded[0],
+              pointsAdded[3],
+              pointsAdded[1],
+              pointsAdded[2]
+            ];
+            const reorderedScores = [
+              cumulativeScores[0],
+              cumulativeScores[3],
+              cumulativeScores[1],
+              cumulativeScores[2]
+            ];
+            
             const scoreHistory: ScoreHistory = {
               matchNumber: state.currentMatch,
-              pointsAdded,
-              scores: cumulativeScores,
+              pointsAdded: reorderedPointsAdded,
+              scores: reorderedScores,
               timestamp: new Date().toISOString(),
             };
             
@@ -350,13 +366,56 @@ function GameScreenContent() {
 
   const lastPlayedBy = useMemo(() => {
     if (!gameState || gameState.roundHistory.length === 0) return null;
-    const lastEntry = gameState.roundHistory[gameState.roundHistory.length - 1];
-    return lastEntry.playerName;
+    // Task #379: Find the last entry where cards were actually played (not a pass)
+    const lastPlayEntry = [...gameState.roundHistory]
+      .reverse()
+      .find(entry => !entry.passed && entry.cards.length > 0);
+    return lastPlayEntry?.playerName || null;
   }, [gameState]);
 
   const lastPlayCombo = useMemo(() => {
     if (!gameState || !gameState.lastPlay) return null;
-    return gameState.lastPlay.combo;
+    
+    const combo = gameState.lastPlay.combo_type;
+    const cards = gameState.lastPlay.cards;
+    
+    // Format combo type with high card details
+    if (combo === 'Single' && cards.length > 0) {
+      return `Single ${cards[0].rank}`;
+    } else if (combo === 'Pair' && cards.length > 0) {
+      return `Pair of ${cards[0].rank}s`;
+    } else if (combo === 'Triple' && cards.length > 0) {
+      return `Triple ${cards[0].rank}s`;
+    } else if (combo === 'Full House' && cards.length > 0) {
+      // Find the triple (3 of a kind) - it's the combo's key rank
+      const rankCounts: Record<string, number> = {};
+      cards.forEach(card => {
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+      });
+      const tripleRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 3);
+      return tripleRank ? `Full House (${tripleRank}s)` : 'Full House';
+    } else if (combo === 'Four of a Kind' && cards.length > 0) {
+      const rankCounts: Record<string, number> = {};
+      cards.forEach(card => {
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+      });
+      const quadRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 4);
+      return quadRank ? `Four ${quadRank}s` : 'Four of a Kind';
+    } else if (combo === 'Straight' && cards.length > 0) {
+      // Get highest card in straight
+      const highCard = cards[cards.length - 1];
+      return `Straight to ${highCard.rank}`;
+    } else if (combo === 'Flush' && cards.length > 0) {
+      const highCard = cards[cards.length - 1];
+      const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
+      return `Flush ${suitNames[highCard.suit] || highCard.suit} (${highCard.rank} high)`;
+    } else if (combo === 'Straight Flush' && cards.length > 0) {
+      const highCard = cards[cards.length - 1];
+      const suitNames: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };
+      return `Straight Flush ${suitNames[highCard.suit] || highCard.suit} to ${highCard.rank}`;
+    }
+    
+    return combo;
   }, [gameState]);
 
   // Map game state players to UI format
@@ -480,10 +539,14 @@ function GameScreenContent() {
     try {
       setIsPlayingCards(true);
       
-      gameLogger.info('🎴 [GameScreen] Playing cards:', cards.map(c => c.id));
+      // Task #313: Auto-sort cards for proper display order before submission
+      // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
+      const sortedCards = sortCardsForDisplay(cards);
       
-      // Get card IDs to play
-      const cardIds = cards.map(c => c.id);
+      gameLogger.info('🎴 [GameScreen] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
+      
+      // Get card IDs to play (using sorted order)
+      const cardIds = sortedCards.map(c => c.id);
       
       // Attempt to play cards through game engine
       const result = await gameManagerRef.current.playCards(cardIds);
@@ -976,10 +1039,12 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.xs,
+    zIndex: 150, // Task #380: Above scoreboard (zIndex: 100) to allow interaction when expanded
   },
   actionButtons: {
     flexDirection: 'row',
     gap: SPACING.sm,
+    zIndex: 150, // Task #380: Above scoreboard (zIndex: 100) to allow interaction when expanded
   },
   actionButton: {
     paddingVertical: SPACING.sm,

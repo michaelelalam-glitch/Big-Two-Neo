@@ -1051,10 +1051,22 @@ export class GameStateManager {
    * Anticlockwise order: 0 → 3 → 1 → 2 → 0
    */
   private advanceToNextPlayer(): void {
+    const startingPlayer = this.state!.currentPlayerIndex;
+    let attempts = 0;
+    const maxAttempts = this.state!.players.length; // Prevent infinite loop
+    
     do {
       // Anticlockwise turn order mapping for visual layout
       const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
       this.state!.currentPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+      attempts++;
+      
+      // If we've wrapped back to starting player, all other players are finished
+      // This should only happen in edge cases (shouldn't reach here normally)
+      if (this.state!.currentPlayerIndex === startingPlayer || attempts >= maxAttempts) {
+        gameLogger.warn(`⚠️ [advanceToNextPlayer] Wrapped back to starting player ${startingPlayer}. All other players may be finished.`);
+        break;
+      }
     } while (this.state!.players[this.state!.currentPlayerIndex].hand.length === 0);
   }
 

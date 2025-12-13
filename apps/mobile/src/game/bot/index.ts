@@ -62,7 +62,7 @@ export class BotAI {
 
     // Leading (no last play)
     if (!lastPlay) {
-      return this.handleLeading(hand, playerCardCounts);
+      return this.handleLeading(hand, playerCardCounts, currentPlayerIndex);
     }
 
     // Following - try to beat last play
@@ -98,9 +98,25 @@ export class BotAI {
   /**
    * Handle leading (no previous play to beat)
    */
-  private handleLeading(hand: Card[], playerCardCounts: number[]): BotPlayResult {
+  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number): BotPlayResult {
     const sorted = sortHand(hand);
     const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+
+    // CRITICAL: Check "One Card Left" rule when leading
+    // Find the next player's card count (player after current bot)
+    // Use anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const nextPlayerIndex = turnOrder[currentPlayerIndex];
+    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    
+    // If next player has 1 card, MUST lead with highest single to block them
+    if (nextPlayerCardCount === 1) {
+      const highestSingle = sorted[sorted.length - 1]; // Last card is highest
+      return {
+        cards: [highestSingle.id],
+        reasoning: `One Card Left rule (leading): must play highest single (${highestSingle.rank}${highestSingle.suit}) - next player has 1 card`
+      };
+    }
 
     // Hard difficulty: strategic leading
     if (this.difficulty === 'hard') {

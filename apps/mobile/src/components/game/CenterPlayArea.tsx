@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Card from './Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, CENTER_PLAY } from '../../constants';
+import { sortCardsForDisplay } from '../../utils/cardSorting';
 
 interface CenterPlayAreaProps {
   lastPlayed: CardType[] | null;
@@ -15,17 +16,24 @@ export default function CenterPlayArea({
   lastPlayedBy,
   combinationType,
 }: CenterPlayAreaProps) {
+  // Sort cards for display (highest card first - Task #313)
+  // This ensures straights show as 6-5-4-3-2 instead of 3-4-5-6-2
+  const displayCards = useMemo(() => {
+    if (!lastPlayed || lastPlayed.length === 0) return [];
+    return sortCardsForDisplay(lastPlayed, combinationType);
+  }, [lastPlayed, combinationType]);
+
   // Memoize card wrapper styles to prevent React freeze error
   // Creating style objects inline causes React dev mode freeze issues
   const cardWrapperStyles = useMemo(() => {
-    if (!lastPlayed) return [];
-    return lastPlayed.map((_, index) => ({
+    if (!displayCards || displayCards.length === 0) return [];
+    return displayCards.map((_, index) => ({
       marginLeft: index > 0 ? CENTER_PLAY.cardSpacing : CENTER_PLAY.cardFirstMargin,
       zIndex: index,
     }));
-  }, [lastPlayed]);
+  }, [displayCards]);
 
-  if (!lastPlayed || lastPlayed.length === 0) {
+  if (displayCards.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
@@ -37,9 +45,9 @@ export default function CenterPlayArea({
 
   return (
     <View style={styles.container}>
-      {/* Cards display */}
+      {/* Cards display - Task #313: Cards sorted with highest first */}
       <View style={styles.cardsContainer}>
-        {lastPlayed.map((card, index) => (
+        {displayCards.map((card, index) => (
           <View
             key={card.id}
             style={[

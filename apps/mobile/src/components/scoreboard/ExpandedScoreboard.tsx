@@ -173,24 +173,31 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               </Text>
             </View>
             
-            {/* Final scores */}
-            {currentScores.map((score, playerIndex) => {
-              const scoreColor = getScoreColor(score, isGameFinished, currentScores);
+            {/* Final scores - calculated from last scoreHistory entry */}
+            {(() => {
+              // Use cumulative scores from last completed match, or currentScores if no history
+              const totalScores = scoreHistory.length > 0 
+                ? scoreHistory[scoreHistory.length - 1].scores 
+                : currentScores;
               
-              return (
-                <View key={`total-p${playerIndex}`} style={[styles.tableCell, styles.totalCell]}>
-                  <Text
-                    style={[
-                      styles.tableCellText,
-                      styles.totalCellText,
-                      { color: scoreColor },
-                    ]}
-                  >
-                    {score > 0 ? `+${score}` : score}
-                  </Text>
-                </View>
-              );
-            })}
+              return totalScores.map((score, playerIndex) => {
+                const scoreColor = getScoreColor(score, isGameFinished, totalScores);
+                
+                return (
+                  <View key={`total-p${playerIndex}`} style={[styles.tableCell, styles.totalCell]}>
+                    <Text
+                      style={[
+                        styles.tableCellText,
+                        styles.totalCellText,
+                        { color: scoreColor },
+                      ]}
+                    >
+                      {score > 0 ? `+${score}` : score}
+                    </Text>
+                  </View>
+                );
+              });
+            })()}
           </View>
         </ScrollView>
       </View>
