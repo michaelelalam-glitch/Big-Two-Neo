@@ -51,6 +51,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               onPress={onTogglePlayHistory}
               activeOpacity={0.7}
               accessibilityLabel="Open play history"
+              accessibilityHint="View all card plays from this game"
               accessibilityRole="button"
             >
               <Text style={styles.iconButtonText}>📜</Text>
@@ -64,6 +65,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               onPress={onToggleExpand}
               activeOpacity={0.7}
               accessibilityLabel="Minimize scoreboard"
+              accessibilityHint="Return to compact scoreboard view"
               accessibilityRole="button"
             >
               <Text style={styles.closeButtonText}>◀ Close</Text>

@@ -59,6 +59,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
               onPress={onTogglePlayHistory}
               activeOpacity={0.7}
               accessibilityLabel="Open play history"
+              accessibilityHint="View all card plays from this game"
               accessibilityRole="button"
             >
               <Text style={styles.iconButtonText}>📜</Text>
@@ -72,6 +73,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
               onPress={onToggleExpand}
               activeOpacity={0.7}
               accessibilityLabel="Expand scoreboard"
+              accessibilityHint="Show detailed scoreboard with full statistics"
               accessibilityRole="button"
             >
               <Text style={styles.iconButtonText}>▶</Text>
