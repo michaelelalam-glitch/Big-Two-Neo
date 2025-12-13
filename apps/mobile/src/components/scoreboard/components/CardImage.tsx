@@ -3,7 +3,7 @@
  * Displays text-based card rendering (SVG images cause freeze errors in dev mode)
  *
  * TODO: This is a temporary workaround for a React Native issue where SVG images can cause freeze errors in development mode.
- * See: https://github.com/software-mansion/react-native-svg/issues (or relevant issue tracker).
+ * See: https://github.com/software-mansion/react-native-svg/issues for general discussion of SVG issues in React Native.
  * This only affects development mode; SVG rendering may be restored once the issue is resolved or a stable workaround is found.
  * Track progress and consider reverting to SVG-based rendering in the future.
  */

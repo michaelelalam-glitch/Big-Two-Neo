@@ -109,7 +109,7 @@ const GameFlowSimulator: React.FC<{
     };
 
     simulateGame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
   }, []);
 
   return (
@@ -195,7 +195,8 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [30, 60, 90, 0],
             scores: [60, 120, 180, 0],
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -264,7 +265,8 @@ describe('Scoreboard Integration Test', () => {
             ],
             winner: 2,
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -305,7 +307,8 @@ describe('Scoreboard Integration Test', () => {
           };
 
           addMatches();
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         const currentMatch = scoreHistory.length + 1;
 
@@ -346,7 +349,8 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [50, 25, 75, 10],
             scores: [50, 25, 75, 10],
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -379,7 +383,8 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [-10, -20, 30, 0],
             scores: [-10, -20, 30, 0],
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -411,7 +416,8 @@ describe('Scoreboard Integration Test', () => {
             pointsAdded: [50, 50, 50, 50],
             scores: [50, 50, 50, 50],
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -469,7 +475,8 @@ describe('Scoreboard Integration Test', () => {
             matchNumber: 1,
             hands,
           });
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
@@ -528,7 +535,8 @@ describe('Scoreboard Integration Test', () => {
           };
 
           addHandsSequentially();
-        }, []); // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once on mount for test setup
+        }, []);
 
         return (
           <ScoreboardContainer scoreHistory={[]} playHistory={[]}
