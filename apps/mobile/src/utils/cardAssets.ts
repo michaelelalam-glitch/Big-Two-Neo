@@ -1,13 +1,17 @@
 /**
  * Card Asset Mapping Utility
- * Maps game card format (r, s) to SVG asset paths
+ * Maps game card format (r, s) to image sources
+ * 
+ * Returns require() paths for React Native Image component
  */
+
+import { ImageSourcePropType } from 'react-native';
 
 export interface CardAssetMapping {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
   rank: 'ace' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'jack' | 'queen' | 'king';
   fileName: string;
-  assetPath: any; // require() return type
+  source: ImageSourcePropType; // Image source
 }
 
 /**
@@ -42,10 +46,11 @@ const RANK_MAP: Record<string, 'ace' | '2' | '3' | '4' | '5' | '6' | '7' | '8' |
 };
 
 /**
- * Pre-loaded card asset map for fast lookups
- * Format: {suit}_{rank} -> require path
+ * Image source paths for React Native Image component
+ * CRITICAL: Direct require() at module level to ensure stable, pre-frozen references
+ * React Native's deepFreeze will freeze these ONCE when module loads, not on every render
  */
-const CARD_ASSETS: Record<string, any> = {
+const CARD_IMAGE_SOURCES: Record<string, ImageSourcePropType> = {
   // Hearts
   'hearts_ace': require('../../assets/cards/hearts_ace.svg'),
   'hearts_2': require('../../assets/cards/hearts_2.svg'),
@@ -108,12 +113,12 @@ const CARD_ASSETS: Record<string, any> = {
 };
 
 /**
- * Get SVG asset for a card based on game format
+ * Get image source for a card based on game format
  * @param rank - Card rank (A, 2-10, J, Q, K)
  * @param suit - Card suit (H, D, C, S)
- * @returns SVG asset require path
+ * @returns Image source for React Native Image component or null
  */
-export function getCardAsset(rank: string, suit: string): any {
+export function getCardAsset(rank: string, suit: string): ImageSourcePropType | null {
   const assetSuit = SUIT_MAP[suit.toUpperCase()];
   const assetRank = RANK_MAP[rank.toUpperCase()];
   
@@ -123,7 +128,8 @@ export function getCardAsset(rank: string, suit: string): any {
   }
   
   const key = `${assetSuit}_${assetRank}`;
-  return CARD_ASSETS[key] || null;
+  // Return pre-loaded module-level asset (already frozen at module initialization)
+  return CARD_IMAGE_SOURCES[key] || null;
 }
 
 /**
@@ -142,13 +148,14 @@ export function getCardMapping(rank: string, suit: string): CardAssetMapping | n
   
   const fileName = `${assetSuit}_${assetRank}.svg`;
   const key = `${assetSuit}_${assetRank}`;
+  const source = CARD_IMAGE_SOURCES[key];
   
-  return {
+  return source ? {
     suit: assetSuit,
     rank: assetRank,
     fileName,
-    assetPath: CARD_ASSETS[key],
-  };
+    source, // Return pre-loaded source directly
+  } : null;
 }
 
 /**

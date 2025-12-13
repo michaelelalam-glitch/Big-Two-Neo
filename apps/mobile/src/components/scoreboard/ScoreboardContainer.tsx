@@ -13,9 +13,9 @@ import React from 'react';
 import { View } from 'react-native';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
 import { ScoreboardProps } from '../../types/scoreboard';
-import { CompactScoreboard } from './CompactScoreboard';
-import { ExpandedScoreboard } from './ExpandedScoreboard';
-import { PlayHistoryModal } from './PlayHistoryModal';
+import CompactScoreboard from './CompactScoreboard';
+import ExpandedScoreboard from './ExpandedScoreboard';
+import PlayHistoryModal from './PlayHistoryModal';
 import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 
 export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
