@@ -4,6 +4,11 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { authLogger, roomLogger } from '../utils/logger';
 
+// Profile fetch retry configuration
+const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
+const RETRY_DELAY_MS = 800; // Reduced from 1000ms
+const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
+
 export interface Profile {
   id: string;
   username?: string;
@@ -55,10 +60,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Fetch user profile from database with retry logic for race conditions
   const fetchProfile = async (userId: string, retryCount = 0): Promise<Profile | null> => {
-    const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
-    const RETRY_DELAY_MS = 800; // Reduced from 1000ms
-    const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
-
     try {
       authLogger.info('👤 [fetchProfile] Querying profiles table for:', userId, retryCount > 0 ? `(Retry ${retryCount}/${MAX_RETRIES})` : '');
       
@@ -311,7 +312,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               authLogger.info('✅ [AuthContext] Profile found:', profileData.username);
             } else {
               authLogger.error('❌ [AuthContext] Profile NOT found! User:', newSession.user.id);
-              authLogger.error('❌ [AuthContext] App will continue without profile data.');
+              authLogger.error('❌ [AuthContext] App will continue without profile data. The user may experience limited or degraded functionality until profile information is available.');
             }
             setProfile(profileData);
           } catch (fetchError: any) {
