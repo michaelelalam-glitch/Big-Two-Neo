@@ -65,7 +65,7 @@ const GoogleSignInButton = () => {
         authLogger.debug('openAuthSessionAsync - success params', { params: redactedParams });
 
         if (params.access_token && params.refresh_token) {
-          authLogger.debug('Setting session...');
+          authLogger.info('🔑 [GoogleSignIn] Setting session with OAuth tokens...');
           const { data, error } = await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
@@ -73,13 +73,20 @@ const GoogleSignInButton = () => {
           // Redact sensitive tokens from session data before logging
           const redactedData = data ? {
             user: data.user ? { id: data.user.id, email: data.user.email } : null,
-            session: data.session ? '[REDACTED]' : null
+            session: data.session ? { exists: !!data.session, expires_at: data.session?.expires_at } : null
           } : data;
-          authLogger.debug('setSession - result', { data: redactedData, error: error?.message });
+          authLogger.info('🔑 [GoogleSignIn] setSession result:', { data: redactedData, error: error?.message });
 
           if (error) {
-            authLogger.error('Error setting session:', error?.message || error?.code || 'Unknown error');
+            authLogger.error('❌ [GoogleSignIn] ERROR setting session:', error?.message || error?.code || 'Unknown error');
+            authLogger.error('❌ [GoogleSignIn] Full error:', JSON.stringify(error, null, 2));
             throw error;
+          }
+          
+          if (data?.session) {
+            authLogger.info('✅ [GoogleSignIn] Session created successfully! User:', data.user?.id);
+          } else {
+            authLogger.error('❌ [GoogleSignIn] setSession returned success but no session in data!');
           }
         } else {
           authLogger.error('Missing tokens in OAuth callback');
