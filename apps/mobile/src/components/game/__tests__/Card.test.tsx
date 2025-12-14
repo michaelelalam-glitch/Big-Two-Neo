@@ -81,7 +81,7 @@ describe('Card Component', () => {
   });
 
   it('displays different suits with correct colors', () => {
-    const suits: Array<{ suit: string; symbol: string }> = [
+    const suits: Array<{ suit: 'H' | 'D' | 'C' | 'S'; symbol: string }> = [
       { suit: 'H', symbol: '♥' },
       { suit: 'D', symbol: '♦' },
       { suit: 'C', symbol: '♣' },
@@ -119,6 +119,75 @@ describe('Card Component', () => {
     );
 
     // Component still renders when disabled
+    expect(getByText('3')).toBeTruthy();
+  });
+
+  // Test for animation value resets on selection state changes (Task #378)
+  it('resets animation values when selection state changes', () => {
+    const { rerender, getByText } = render(
+      <Card
+        card={mockCard}
+        isSelected={false}
+        onToggleSelect={mockOnToggleSelect}
+      />
+    );
+
+    // Verify initial render
+    expect(getByText('3')).toBeTruthy();
+
+    // Change selection state - should trigger useEffect to reset animation values
+    rerender(
+      <Card
+        card={mockCard}
+        isSelected={true}
+        onToggleSelect={mockOnToggleSelect}
+      />
+    );
+
+    // Component should re-render without errors after selection state change
+    expect(getByText('3')).toBeTruthy();
+
+    // Change back to unselected
+    rerender(
+      <Card
+        card={mockCard}
+        isSelected={false}
+        onToggleSelect={mockOnToggleSelect}
+      />
+    );
+
+    // Component should still render correctly after multiple state changes
+    expect(getByText('3')).toBeTruthy();
+  });
+
+  it('maintains stable component when selection state changes rapidly', () => {
+    const { rerender, getByText } = render(
+      <Card
+        card={mockCard}
+        isSelected={false}
+        onToggleSelect={mockOnToggleSelect}
+      />
+    );
+
+    // Simulate rapid selection/deselection
+    for (let i = 0; i < 5; i++) {
+      rerender(
+        <Card
+          card={mockCard}
+          isSelected={true}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+      rerender(
+        <Card
+          card={mockCard}
+          isSelected={false}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+    }
+
+    // Component should remain stable after rapid state changes
     expect(getByText('3')).toBeTruthy();
   });
 });

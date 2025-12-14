@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -87,16 +87,16 @@ const Card = React.memo(function Card({
   const cardHeight = size === 'table' ? TABLE_CARD_HEIGHT : HAND_CARD_HEIGHT;
   const sizeScale = size === 'table' ? 0.78 : 1; // 47/60 ≈ 0.78
 
-  // FIX: Task #378 - Force opacity reset when selection state changes (Android fix)
+  // FIX: Task #378 - Force opacity and scale reset when selection state changes (Android fix)
   // CRITICAL: Must run synchronously to override any pending animations
+  // Note: Do not reset translateX/translateY here to avoid interrupting drag gestures
   useEffect(() => {
     // ALWAYS reset opacity and scale when isSelected changes
     // This prevents stale animated values from persisting on Android
     opacity.value = 1;
     scale.value = 1;
-    translateX.value = 0;
-    translateY.value = 0;
-  }, [isSelected, opacity, scale, translateX, translateY]);
+    // Do not reset translateX/translateY here to avoid interrupting drags
+  }, [isSelected, opacity, scale]);
 
   // Long press gesture for visual feedback (opacity 0.7)
   const longPressGesture = useMemo(
@@ -134,9 +134,7 @@ const Card = React.memo(function Card({
       .onEnd(() => {
         'worklet';
         scale.value = withSpring(1, { damping: 10 });
-        // FIX: Task #378 - Reset opacity to 1 on tap to fix Android deselection bug
-        // Ensures cards are fully visible after deselection (Android persists stale opacity values)
-        opacity.value = withSpring(1);
+        // Opacity reset handled by useEffect on isSelected change
         runOnJS(onToggleSelect)(card.id);
       }),
     [disabled, card.id, onToggleSelect, scale, opacity]
@@ -276,6 +274,8 @@ const Card = React.memo(function Card({
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: disabled }}
         accessibilityHint="Double tap to select or deselect this card"
+        // Set to false to avoid hardware texture caching issues on Android
+        // This prevents rendering artifacts when animated values are reset
         renderToHardwareTextureAndroid={false}
         needsOffscreenAlphaCompositing={true}
         collapsable={false}
