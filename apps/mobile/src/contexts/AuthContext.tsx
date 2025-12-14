@@ -7,15 +7,21 @@ import { authLogger, roomLogger } from '../utils/logger';
 /**
  * Profile fetch retry configuration
  * 
- * These values have been tuned through testing to balance user experience with reliability:
- * - MAX_RETRIES: 4 attempts handles transient network/DB issues without excessive delay
- * - RETRY_DELAY_MS: 800ms provides quick retries while avoiding rate limiting
- * - QUERY_TIMEOUT_MS: 8000ms accommodates slower networks without blocking indefinitely
+ * These initial values are based on development testing to balance user experience with reliability.
+ * They may require adjustment based on production metrics and user feedback.
  * 
- * Historical adjustments:
- * - MAX_RETRIES: 5 → 4 (reduced to fail faster for unrecoverable errors)
- * - RETRY_DELAY_MS: 1000ms → 800ms (optimized for mobile network conditions)
- * - QUERY_TIMEOUT_MS: 5000ms → 8000ms (increased for first-time OAuth profile creation)
+ * Rationale:
+ * - MAX_RETRIES: 4 attempts (initial + 3 retries) handles transient network/DB issues
+ *   without excessive delay. Tuned during OAuth race condition testing.
+ * - RETRY_DELAY_MS: 800ms provides quick retries while avoiding rate limiting.
+ *   Tested against mobile network latency patterns.
+ * - QUERY_TIMEOUT_MS: 8000ms accommodates slower networks and first-time OAuth profile
+ *   creation without blocking indefinitely. Based on observed trigger completion times.
+ * 
+ * TODO: Monitor production metrics and adjust if needed based on:
+ *   - Profile fetch success rates
+ *   - Average query completion times
+ *   - User-reported authentication delays
  */
 const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
 const RETRY_DELAY_MS = 800;
@@ -125,7 +131,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           return fetchProfile(userId, retryCount + 1);
         }
         
-        authLogger.error('❌ [fetchProfile] Profile NOT FOUND after all retries! This should never happen with OAuth.');
+        authLogger.error('❌ [fetchProfile] Profile NOT FOUND after all retries! Profile creation may have failed or is still pending.');
         return null;
       }
 
