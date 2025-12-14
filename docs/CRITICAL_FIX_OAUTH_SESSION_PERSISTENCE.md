@@ -92,12 +92,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Using AsyncStorage instead of SecureStore to handle large OAuth sessions
 // that exceed the 2048-byte SecureStore limit (as recommended by Supabase docs)
 // 
-// SECURITY NOTE: AsyncStorage stores data unencrypted in the app sandbox.
-// For enhanced security in production, consider encrypting the session blob
-// with aes-js and storing the encryption key in SecureStore, as suggested
-// in Supabase docs. However, for most mobile apps, the OS app sandbox provides
-// sufficient isolation, as data is only accessible by the app itself or on
-// compromised devices (rooted/jailbroken).
+// ⚠️ SECURITY CONSIDERATION:
+// AsyncStorage stores data unencrypted in the app sandbox. While the OS-level
+// app sandbox provides isolation, a compromised device (rooted/jailbroken,
+// malware, or backup extraction) could expose session tokens, allowing account takeover.
+// 
+// RECOMMENDED FOR PRODUCTION:
+// Consider encrypting the session blob with aes-js and storing the encryption
+// key in SecureStore/platform keychain. This adds defense-in-depth against
+// device compromise. See Supabase docs: https://supabase.com/docs/guides/auth/sessions
+// 
+// Trade-off: The current implementation prioritizes functionality over defense-in-depth.
+// For most consumer apps, OS sandbox isolation is acceptable. For apps handling
+// sensitive data (financial, health), implement encryption.
 const AsyncStorageAdapter = {
   getItem: (key: string) => {
     return AsyncStorage.getItem(key);

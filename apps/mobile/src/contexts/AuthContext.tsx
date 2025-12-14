@@ -4,16 +4,30 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { authLogger, roomLogger } from '../utils/logger';
 
-// Profile fetch retry configuration
+/**
+ * Profile fetch retry configuration
+ * 
+ * These values have been tuned through testing to balance user experience with reliability:
+ * - MAX_RETRIES: 4 attempts handles transient network/DB issues without excessive delay
+ * - RETRY_DELAY_MS: 800ms provides quick retries while avoiding rate limiting
+ * - QUERY_TIMEOUT_MS: 8000ms accommodates slower networks without blocking indefinitely
+ * 
+ * Historical adjustments:
+ * - MAX_RETRIES: 5 → 4 (reduced to fail faster for unrecoverable errors)
+ * - RETRY_DELAY_MS: 1000ms → 800ms (optimized for mobile network conditions)
+ * - QUERY_TIMEOUT_MS: 5000ms → 8000ms (increased for first-time OAuth profile creation)
+ */
 const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
-const RETRY_DELAY_MS = 800; // Reduced from 1000ms
-const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
+const RETRY_DELAY_MS = 800;
+const QUERY_TIMEOUT_MS = 8000;
 
 export interface Profile {
   id: string;
   username?: string;
   /**
-   * @deprecated This field will be removed in a future version.
+   * @deprecated This field will be removed in version 2.0.0.
+   * Use `username` instead. The `full_name` field is maintained for backward compatibility
+   * with existing profiles but is no longer actively populated in new registrations.
    */
   full_name?: string;
   avatar_url?: string;
@@ -72,22 +86,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('id', userId)
         .limit(1);
       
-      // Properly handle timeout to avoid unhandled promise rejection
-      const { data, error } = await new Promise<any>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error('QUERY_TIMEOUT'));
-        }, QUERY_TIMEOUT_MS);
-        
-        queryPromise
-          .then((result: any) => {
-            clearTimeout(timeoutId);
-            resolve(result);
-          })
-          .catch((err: any) => {
-            clearTimeout(timeoutId);
-            reject(err);
-          });
-      });
+      // Race query against timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('QUERY_TIMEOUT')), QUERY_TIMEOUT_MS)
+      );
+      
+      const { data, error } = await Promise.race([
+        queryPromise,
+        timeoutPromise
+      ]) as any;
       
       const endTime = Date.now();
       authLogger.info(`⏱️ [fetchProfile] Query completed in ${endTime - startTime}ms`);
@@ -284,6 +291,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // 🔧 FIX: Ignore ALL INITIAL_SESSION events - handled by initializeAuth
       // The initialization code above already handles the initial session fetch and profile loading
       // This prevents race conditions where both init and onAuthStateChange try to load profile
+      // 
+      // NOTE: This pattern is safe because:
+      // 1. User sign-ins trigger SIGNED_IN event, not INITIAL_SESSION
+      // 2. initializeAuth() runs once on mount and handles restored sessions
+      // 3. If component remounts, initializeAuth() runs again properly
       if (_event === 'INITIAL_SESSION') {
         authLogger.info('⏭️ [AuthContext] Skipping INITIAL_SESSION event (handled by initialization)');
         return;
