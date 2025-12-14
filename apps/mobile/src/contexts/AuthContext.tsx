@@ -8,6 +8,10 @@ export interface Profile {
   id: string;
   username?: string;
   display_name?: string;
+  /**
+   * @deprecated Use display_name instead. This field will be removed in a future version.
+   */
+  full_name?: string;
   avatar_url?: string;
   updated_at?: string;
 }
@@ -49,12 +53,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [initialSessionHandled, setInitialSessionHandled] = useState<boolean>(false);
 
   // Fetch user profile from database with retry logic for race conditions
   const fetchProfile = async (userId: string, retryCount = 0): Promise<Profile | null> => {
-    const MAX_RETRIES = 3; // Reduced from 5 - fail faster
+    const MAX_RETRIES = 3; // 3 retries after initial attempt = 4 total attempts (0, 1, 2, 3)
     const RETRY_DELAY_MS = 800; // Reduced from 1000ms
     const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
 
@@ -70,11 +72,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('id', userId)
         .limit(1);
       
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('QUERY_TIMEOUT')), QUERY_TIMEOUT_MS)
-      );
-      
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      // Properly handle timeout to avoid unhandled promise rejection
+      const { data, error } = await new Promise<any>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('QUERY_TIMEOUT'));
+        }, QUERY_TIMEOUT_MS);
+        
+        queryPromise
+          .then((result: any) => {
+            clearTimeout(timeoutId);
+            resolve(result);
+          })
+          .catch((err: any) => {
+            clearTimeout(timeoutId);
+            reject(err);
+          });
+      });
       
       const endTime = Date.now();
       authLogger.info(`⏱️ [fetchProfile] Query completed in ${endTime - startTime}ms`);
@@ -230,10 +243,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         if (mounted) {
-          // CRITICAL: Set this flag IMMEDIATELY before any async work
-          // This prevents race condition where onAuthStateChange fires before we finish init
-          setInitialSessionHandled(true);
-          
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
 
@@ -247,7 +256,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             await cleanupStaleRoomMembership(initialSession.user.id);
           }
 
-          setIsInitialized(true);
           setIsLoading(false);
           authLogger.info('✅ [AuthContext] Initialization complete, session:', initialSession ? 'present' : 'null');
         }

@@ -234,7 +234,7 @@ const Card = React.memo(function Card({
       opacity: isDraggingGroup ? 1 : opacity.value,
       zIndex: zIndex, // Use z-index from parent for proper layering during drag
     };
-  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY, opacity, scale]);
+  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
@@ -333,7 +333,9 @@ const styles = StyleSheet.create({
   cardContainer: {
     // Width and height set dynamically via props
     borderRadius: 6,
-    // REMOVED: overflow: 'hidden' - causes clipping on Android during transform animations
+    // Explicitly set overflow: 'visible' to avoid clipping on Android during transform animations.
+    // NOTE: This may cause visual artifacts with rounded corners when scaling/transforms are applied.
+    overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
