@@ -118,9 +118,9 @@ The user still gets excellent visual feedback without the Android bug!
 ### Primary Change
 - `apps/mobile/src/components/game/Card.tsx`
   - **Removed `elevation: 5` from `cardSelected` style** (Line 348)
-  - Added comment explaining the fix
-  - Kept `renderToHardwareTextureAndroid={true}` for additional safety
-  - **Total:** 1 critical line removed + comments
+  - Added `useEffect` to reset animated values on selection state changes
+  - Set `renderToHardwareTextureAndroid={false}` (matches implementation)
+  - **Total:** useEffect hook added, elevation removed, rendering flags set
 
 ---
 
@@ -195,11 +195,11 @@ The user still gets excellent visual feedback without the Android bug!
 
 **After:**
 ```
-1. User selects card → elevation: 5, translateY: -20
-2. renderToHardwareTextureAndroid forces card onto hardware texture
-3. User deselects card → elevation: 3, translateY: 0
-4. Transitions happen on cached hardware texture (no layer switch)
-5. Card remains visible throughout animation
+1. User selects card → animated values (opacity, scale, translateX, translateY) updated for selection
+2. User deselects card → useEffect resets animated values to default (opacity: 1, scale: 1)
+3. No elevation change occurs; elevation remains constant (e.g., 3)
+4. No layer switching or hardware texture caching is needed
+5. Card remains visible throughout animation due to consistent animated state
 ```
 
 ### Android-Specific Considerations

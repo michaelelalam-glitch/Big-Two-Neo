@@ -13,7 +13,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
 // Card spacing for drag rearrangement calculation
 // FIX: Corrected card spacing calculation to match actual layout
-// Formula: HAND_CARD_WIDTH (60) + CARD_OVERLAP_MARGIN (-40) + (TOUCH_TARGET_PADDING × 2) (10)
+// Formula: HAND_CARD_WIDTH (60) + CARD_OVERLAP_MARGIN (-40) + TOUCH_TARGET_PADDING per side × 2 sides (5×2=10)
 // = 60 - 40 + 10 = 30px effective spacing per card
 // Previous value of 20px caused cards to land in wrong positions (33% error)
 const CARD_SPACING = 30;
@@ -289,7 +289,7 @@ export default function CardHand({
           
           return (
             <Card
-              key={`${card.id}-${isThisCardSelected ? 'selected' : 'unselected'}`}
+              key={card.id}
               card={card}
               isSelected={isThisCardSelected}
               onToggleSelect={handleToggleSelect}
