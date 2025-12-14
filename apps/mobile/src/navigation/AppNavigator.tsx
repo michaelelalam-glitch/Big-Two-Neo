@@ -41,7 +41,14 @@ function LoadingScreen() {
 export default function AppNavigator() {
   const { isLoading, isLoggedIn } = useAuth();
 
+  // Log navigation state for debugging
+  React.useEffect(() => {
+    console.log('📱 [AppNavigator] State:', { isLoading, isLoggedIn });
+    console.log('📱 [AppNavigator] Will render:', isLoggedIn ? 'App Stack (Home)' : 'Auth Stack (SignIn)');
+  }, [isLoading, isLoggedIn]);
+
   if (isLoading) {
+    console.log('⏳ [AppNavigator] Loading...');
     return <LoadingScreen />;
   }
 

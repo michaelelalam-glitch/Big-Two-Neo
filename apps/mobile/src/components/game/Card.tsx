@@ -88,13 +88,14 @@ const Card = React.memo(function Card({
   const sizeScale = size === 'table' ? 0.78 : 1; // 47/60 ≈ 0.78
 
   // FIX: Task #378 - Force opacity and scale reset when selection state changes (Android fix)
-  // CRITICAL: Must run synchronously to override any pending animations
+  // CRITICAL: Must use withSpring to cancel any pending animations
   // Note: Do not reset translateX/translateY here to avoid interrupting drag gestures
   useEffect(() => {
     // ALWAYS reset opacity and scale when isSelected changes
     // This prevents stale animated values from persisting on Android
-    opacity.value = 1;
-    scale.value = 1;
+    // Use withSpring to properly cancel any pending animations from drag gestures
+    opacity.value = withSpring(1, { damping: 20, stiffness: 300 });
+    scale.value = withSpring(1, { damping: 20, stiffness: 300 });
     // Do not reset translateX/translateY here to avoid interrupting drags
   }, [isSelected, opacity, scale]);
 
@@ -332,7 +333,9 @@ const styles = StyleSheet.create({
   cardContainer: {
     // Width and height set dynamically via props
     borderRadius: 6,
-    overflow: 'hidden',
+    // Explicitly set overflow: 'visible' to avoid clipping on Android during transform animations.
+    // NOTE: This may cause visual artifacts with rounded corners when scaling/transforms are applied.
+    overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
