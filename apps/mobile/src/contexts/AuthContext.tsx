@@ -7,7 +7,7 @@ import { authLogger, roomLogger } from '../utils/logger';
 export interface Profile {
   id: string;
   username?: string;
-  full_name?: string;
+  display_name?: string;
   avatar_url?: string;
   updated_at?: string;
 }
@@ -49,24 +49,83 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [initialSessionHandled, setInitialSessionHandled] = useState<boolean>(false);
 
-  // Fetch user profile from database
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile from database with retry logic for race conditions
+  const fetchProfile = async (userId: string, retryCount = 0): Promise<Profile | null> => {
+    const MAX_RETRIES = 3; // Reduced from 5 - fail faster
+    const RETRY_DELAY_MS = 800; // Reduced from 1000ms
+    const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
+
     try {
-      const { data, error } = await supabase
+      authLogger.info('👤 [fetchProfile] Querying profiles table for:', userId, retryCount > 0 ? `(Retry ${retryCount}/${MAX_RETRIES})` : '');
+      
+      const startTime = Date.now();
+      
+      // Use simpler query without .single() to avoid PGRST116 errors
+      const queryPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .limit(1);
+      
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('QUERY_TIMEOUT')), QUERY_TIMEOUT_MS)
+      );
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
+      const endTime = Date.now();
+      authLogger.info(`⏱️ [fetchProfile] Query completed in ${endTime - startTime}ms`);
 
-      if (error && error.code !== 'PGRST116') {
-        authLogger.error('Error fetching profile:', error?.message || error?.code || 'Unknown error');
+      authLogger.info('👤 [fetchProfile] Query completed:', { hasData: !!data, hasError: !!error, errorCode: error?.code, errorMsg: error?.message });
+
+      if (error) {
+        authLogger.error('❌ [fetchProfile] Error:', error?.message || error?.code || 'Unknown error');
+        
+        // Retry on any error
+        if (retryCount < MAX_RETRIES) {
+          authLogger.warn(`⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          return fetchProfile(userId, retryCount + 1);
+        }
+        
         return null;
       }
 
-      return data;
+      // Handle array response from .limit(1) instead of .single()
+      const profileData = Array.isArray(data) ? data[0] : data;
+      
+      if (!profileData) {
+        // Profile not found - could be a race condition with trigger
+        if (retryCount < MAX_RETRIES) {
+          authLogger.warn(`⚠️ [fetchProfile] Profile NOT FOUND yet (attempt ${retryCount + 1}/${MAX_RETRIES + 1}). Waiting for trigger to complete...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          return fetchProfile(userId, retryCount + 1);
+        }
+        
+        authLogger.error('❌ [fetchProfile] Profile NOT FOUND after all retries! This should never happen with OAuth.');
+        return null;
+      }
+
+      authLogger.info('✅ [fetchProfile] Profile found:', { username: profileData?.username, id: userId });
+      return profileData;
     } catch (error: any) {
-      authLogger.error('Error fetching profile:', error?.message || error?.code || String(error));
+      // Check if it's a timeout
+      if (error?.message === 'QUERY_TIMEOUT') {
+        authLogger.error(`❌ [fetchProfile] Query TIMED OUT after ${QUERY_TIMEOUT_MS}ms!`);
+        if (retryCount < MAX_RETRIES) {
+          authLogger.warn(`⏳ [fetchProfile] Retrying after timeout (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          return fetchProfile(userId, retryCount + 1);
+        } else {
+          authLogger.error('❌ [fetchProfile] GIVING UP after all retries. Network issue or Supabase not responding.');
+          // Return null to allow app to continue loading without profile
+          return null;
+        }
+      }
+      authLogger.error('❌ [fetchProfile] Unexpected error:', error?.message || error?.code || String(error));
       return null;
     }
   };
@@ -117,24 +176,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       roomLogger.info(`⚠️ [AuthContext] Found ${memberships.length} stale room(s):`, 
         memberships.map(rm => rm.rooms?.code || 'unknown').join(', '));
 
-      // Remove user from 'waiting' rooms only (future-proof for game persistence)
-      const waitingRoomIds = memberships
-        .filter(rm => rm.rooms?.status === 'waiting')
-        .map(rm => rm.room_id);
+      // ENHANCED CLEANUP: Remove user from ALL non-active rooms on sign-in
+      // This fixes the multi-account Google auth issue where stale usernames block new sign-ins
+      // Strategy:
+      // 1. Remove from 'waiting' rooms (lobbies that never started)
+      // 2. Remove from 'finished' rooms (completed games)
+      // 3. Keep 'playing' rooms only if game is active (for reconnection)
+      const roomsToClean = memberships.filter(rm => {
+        const status = rm.rooms?.status;
+        // Clean up waiting and finished rooms
+        return status === 'waiting' || status === 'finished';
+      });
 
-      if (waitingRoomIds.length === 0) {
-        roomLogger.info('✅ [AuthContext] No stale (waiting) rooms to clean up');
+      const roomIdsToClean = roomsToClean.map(rm => rm.room_id);
+
+      if (roomIdsToClean.length === 0) {
+        roomLogger.info('✅ [AuthContext] No stale rooms to clean up');
       } else {
         const { error: deleteError } = await supabase
           .from('room_players')
           .delete()
           .eq('user_id', userId)
-          .in('room_id', waitingRoomIds);
+          .in('room_id', roomIdsToClean);
 
         if (deleteError) {
           roomLogger.error('❌ [AuthContext] Error removing stale memberships:', deleteError?.message || deleteError?.code || 'Unknown error');
         } else {
-          roomLogger.info(`✅ [AuthContext] Successfully cleaned up ${waitingRoomIds.length} stale (waiting) room memberships`);
+          roomLogger.info(`✅ [AuthContext] Successfully cleaned up ${roomIdsToClean.length} stale room memberships (waiting/finished)`);
         }
       }
     } catch (error: any) {
@@ -162,6 +230,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         if (mounted) {
+          // CRITICAL: Set this flag IMMEDIATELY before any async work
+          // This prevents race condition where onAuthStateChange fires before we finish init
+          setInitialSessionHandled(true);
+          
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
 
@@ -175,7 +247,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             await cleanupStaleRoomMembership(initialSession.user.id);
           }
 
+          setIsInitialized(true);
           setIsLoading(false);
+          authLogger.info('✅ [AuthContext] Initialization complete, session:', initialSession ? 'present' : 'null');
         }
       } catch (error: any) {
         // Only log error message to avoid exposing auth internals/tokens
@@ -197,19 +271,63 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         user: { id: newSession.user.id, email: newSession.user.email },
         expires_at: newSession.expires_at
       } : null;
-      authLogger.debug('Auth state changed:', { event: _event, session: sanitizedSession });
+      authLogger.info('🔄 [AuthContext] Auth state changed:', { event: _event, session: sanitizedSession });
+
+      // 🔧 FIX: Ignore ALL INITIAL_SESSION events - handled by initializeAuth
+      // The initialization code above already handles the initial session fetch and profile loading
+      // This prevents race conditions where both init and onAuthStateChange try to load profile
+      if (_event === 'INITIAL_SESSION') {
+        authLogger.info('⏭️ [AuthContext] Skipping INITIAL_SESSION event (handled by initialization)');
+        return;
+      }
 
       if (mounted) {
+        // CRITICAL: Keep loading state until profile is fetched
+        // This prevents UI from rendering before profile data is ready
+        // Only do this for non-INITIAL_SESSION events (sign in, token refresh, etc.)
+        if (newSession?.user) {
+          authLogger.info('⏳ [AuthContext] Session detected, keeping loading state until profile is ready...');
+          setIsLoading(true);
+        }
+
+        authLogger.info('🔄 [AuthContext] Setting session state...', { hasSession: !!newSession });
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         // Fetch profile when session changes
+        let profileData = null;
         if (newSession?.user) {
-          const profileData = await fetchProfile(newSession.user.id);
-          setProfile(profileData);
+          try {
+            authLogger.info('👤 [AuthContext] Fetching profile for user:', newSession.user.id);
+            profileData = await fetchProfile(newSession.user.id);
+            if (profileData) {
+              authLogger.info('✅ [AuthContext] Profile found:', profileData.username);
+            } else {
+              authLogger.error('❌ [AuthContext] Profile NOT found! User:', newSession.user.id);
+              authLogger.error('❌ [AuthContext] App will continue without profile data.');
+            }
+            setProfile(profileData);
+          } catch (fetchError: any) {
+            authLogger.error('❌ [AuthContext] CRITICAL: Profile fetch threw exception:', fetchError?.message);
+            setProfile(null);
+          } finally {
+            // CRITICAL: ALWAYS clear loading state, even if profile fetch fails
+            // This prevents infinite loading screen
+            setIsLoading(false);
+            authLogger.info('✅ [AuthContext] Profile fetch complete, clearing loading state');
+          }
         } else {
+          authLogger.info('🚪 [AuthContext] No session - clearing profile');
           setProfile(null);
+          setIsLoading(false);
         }
+        
+        authLogger.info('📊 [AuthContext] Final state:', { 
+          hasSession: !!newSession, 
+          hasProfile: !!profileData,
+          isLoggedIn: !!newSession,
+          isLoading: !newSession || !!profileData
+        });
       }
     });
 
@@ -220,14 +338,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   // Sign out function
+  // ENHANCED: Clean up room_players entries on sign-out to prevent username conflicts
   const signOut = async () => {
     try {
+      const currentUserId = user?.id;
+      
+      // CRITICAL: Clean up room_players entries BEFORE signing out
+      // This prevents stale username entries that block future sign-ins
+      if (currentUserId) {
+        authLogger.info('🧹 [AuthContext] Cleaning up user data before sign-out');
+        
+        // Remove ALL room_players entries for this user
+        const { error: cleanupError } = await supabase
+          .from('room_players')
+          .delete()
+          .eq('user_id', currentUserId);
+
+        if (cleanupError) {
+          authLogger.error('⚠️ [AuthContext] Error cleaning up room data on sign-out:', cleanupError?.message);
+          // Continue with sign-out even if cleanup fails
+        } else {
+          authLogger.info('✅ [AuthContext] Successfully cleaned up all room data');
+        }
+      }
+
       const { error } = await supabase.auth.signOut();
       if (error) {
         // Only log error message to avoid exposing auth tokens/session data
         authLogger.error('Error signing out:', error?.message || String(error));
         throw error;
       }
+      
+      authLogger.info('✅ [AuthContext] Sign-out successful');
     } catch (error: any) {
       // Only log error message to avoid exposing auth tokens/session data
       authLogger.error('Error signing out:', error?.message || String(error));
