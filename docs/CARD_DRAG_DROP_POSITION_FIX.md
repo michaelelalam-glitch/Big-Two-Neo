@@ -33,7 +33,7 @@ const CARD_SPACING = 20;
 // Actual card spacing calculation:
 // Card Width:           60px  (HAND_CARD_WIDTH)
 // Overlap Margin:      -40px  (CARD_OVERLAP_MARGIN from Card.tsx)
-// Touch Target Padding: 10px  (TOUCH_TARGET_PADDING × 2 from Card.tsx)
+// Touch Target Padding: 10px  (TOUCH_TARGET_PADDING of 5px × 2 sides from Card.tsx)
 // ─────────────────────────────
 // TOTAL:                30px per card
 

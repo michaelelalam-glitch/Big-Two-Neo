@@ -137,7 +137,7 @@ const Card = React.memo(function Card({
         // Opacity reset handled by useEffect on isSelected change
         runOnJS(onToggleSelect)(card.id);
       }),
-    [disabled, card.id, onToggleSelect, scale, opacity]
+    [disabled, card.id, onToggleSelect, scale]
   );
 
   // Pan gesture for dragging - supports both horizontal (rearrange) and vertical (play)
