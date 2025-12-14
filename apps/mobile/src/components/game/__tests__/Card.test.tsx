@@ -125,7 +125,7 @@ describe('Card Component', () => {
   // Test for animation value resets on selection state changes (Task #378)
   // NOTE: This test validates component stability during selection state changes.
   // Actual animation value resets (opacity, scale) are Reanimated shared values
-  // that don't directly affect the DOM and would require E2E testing to verify.
+  // that don't directly affect the rendered component tree and would require E2E testing to verify.
   it('resets animation values when selection state changes', () => {
     const { rerender, getByText } = render(
       <Card
