@@ -101,6 +101,7 @@ export const useScoreboardContainerStyles = () => {
           ? dims.moderateScale(500) 
           : dims.moderateScale(400),
       zIndex: 100,
+      pointerEvents: 'box-none' as const, // Task #380: Allow touch events to pass through to elements below
       ...Platform.select({
         ios: {
           shadowColor: ScoreboardColors.shadow.heavy,
@@ -129,6 +130,7 @@ export const useCompactScoreboardStyles = () => {
       padding: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
       minWidth: dims.isSmallDevice ? dims.moderateScale(180) : dims.moderateScale(200),
       maxWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
+      pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },
 
     compactHeader: {
@@ -240,6 +242,7 @@ export const useExpandedScoreboardStyles = () => {
       minWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(300),
       maxWidth: dims.screenWidth - dims.moderateScale(24),
       maxHeight: dims.screenHeight * 0.85,
+      pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },
 
     expandedHeader: {
