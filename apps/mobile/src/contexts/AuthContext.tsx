@@ -7,9 +7,8 @@ import { authLogger, roomLogger } from '../utils/logger';
 export interface Profile {
   id: string;
   username?: string;
-  display_name?: string;
   /**
-   * @deprecated Use display_name instead. This field will be removed in a future version.
+   * @deprecated This field will be removed in a future version.
    */
   full_name?: string;
   avatar_url?: string;
@@ -56,7 +55,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Fetch user profile from database with retry logic for race conditions
   const fetchProfile = async (userId: string, retryCount = 0): Promise<Profile | null> => {
-    const MAX_RETRIES = 3; // 3 retries after initial attempt = 4 total attempts (0, 1, 2, 3)
+    const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
     const RETRY_DELAY_MS = 800; // Reduced from 1000ms
     const QUERY_TIMEOUT_MS = 8000; // Increased from 5000ms - give network more time
 
