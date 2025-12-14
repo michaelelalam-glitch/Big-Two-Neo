@@ -118,8 +118,8 @@ The user still gets excellent visual feedback without the Android bug!
 ### Primary Change
 - `apps/mobile/src/components/game/Card.tsx`
   - **Removed `elevation: 5` from `cardSelected` style** (Line 348)
-  - Added `useEffect` to reset animated values on selection state changes
-  - Set `renderToHardwareTextureAndroid={false}` (matches implementation)
+  - Added `useEffect` to reset animated values (opacity, scale) on selection state changes
+  - Set `renderToHardwareTextureAndroid={false}` to disable hardware texture caching, which prevents rendering artifacts when animated values are reset
   - **Total:** useEffect hook added, elevation removed, rendering flags set
 
 ---
