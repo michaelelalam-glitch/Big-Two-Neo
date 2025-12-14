@@ -8,12 +8,15 @@ import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
 // Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
-// With 13 cards: 60px + (12 × 20px overlap) = 300px total width
+// With 13 cards: 60px + (12 × 30px overlap) = 420px total width
 // If needed for very small screens, could add conditional ScrollView
 
 // Card spacing for drag rearrangement calculation
-// Each card takes up about 20px due to overlap (60px width - 40px overlap)
-const CARD_SPACING = 20;
+// FIX: Corrected card spacing calculation to match actual layout
+// Formula: HAND_CARD_WIDTH (60) + CARD_OVERLAP_MARGIN (-40) + (TOUCH_TARGET_PADDING × 2) (10)
+// = 60 - 40 + 10 = 30px effective spacing per card
+// Previous value of 20px caused cards to land in wrong positions (33% error)
+const CARD_SPACING = 30;
 
 // Drag threshold for playing cards (matches Card.tsx DRAG_TO_PLAY_THRESHOLD)
 const DRAG_TO_PLAY_THRESHOLD = -80;
@@ -286,7 +289,7 @@ export default function CardHand({
           
           return (
             <Card
-              key={card.id}
+              key={`${card.id}-${isThisCardSelected ? 'selected' : 'unselected'}`}
               card={card}
               isSelected={isThisCardSelected}
               onToggleSelect={handleToggleSelect}
