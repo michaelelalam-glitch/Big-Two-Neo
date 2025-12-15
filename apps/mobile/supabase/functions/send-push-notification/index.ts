@@ -36,6 +36,9 @@ interface NotificationRequest {
 // Base64url encode utility (RFC 7519 compliant)
 // Moved outside to avoid recreation on every getAccessToken call
 const base64url = (input: string): string => {
+  if (!input || typeof input !== 'string' || input.trim() === '') {
+    throw new Error('base64url: input must be a non-empty string');
+  }
   return btoa(input)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -140,10 +143,19 @@ async function getAccessToken(): Promise<string> {
 }
 
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
+// Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
 function isValidFCMToken(token: string): boolean {
-  // FCM tokens are typically 152-163 characters, alphanumeric with colons, hyphens, underscores
-  const fcmTokenPattern = /^[a-zA-Z0-9:_-]{100,200}$/;
-  return fcmTokenPattern.test(token);
+  // Lenient pattern: 50+ chars, alphanumeric with common separators
+  // Logs warning for tokens outside typical 140-170 char range but doesn't reject
+  const lenientPattern = /^[a-zA-Z0-9:._-]{50,}$/;
+  const isValid = lenientPattern.test(token);
+  
+  // Log if token length is unusual (for monitoring/debugging)
+  if (isValid && (token.length < 140 || token.length > 170)) {
+    console.warn(`⚠️ FCM token length ${token.length} outside typical 140-170 range (still valid)`);
+  }
+  
+  return isValid;
 }
 
 Deno.serve(async (req) => {

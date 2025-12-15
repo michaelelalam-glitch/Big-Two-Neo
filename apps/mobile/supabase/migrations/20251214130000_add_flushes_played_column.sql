@@ -10,9 +10,19 @@ ALTER TABLE player_stats
 ADD COLUMN IF NOT EXISTS flushes_played INTEGER DEFAULT 0;
 
 -- Add constraint to ensure non-negative values
-ALTER TABLE player_stats
-ADD CONSTRAINT check_flushes_played_non_negative 
-CHECK (flushes_played >= 0);
+-- Note: PostgreSQL doesn't support IF NOT EXISTS for constraints in ALTER TABLE,
+-- so we use DO block to handle re-runs gracefully
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'check_flushes_played_non_negative'
+  ) THEN
+    ALTER TABLE player_stats
+    ADD CONSTRAINT check_flushes_played_non_negative 
+    CHECK (flushes_played >= 0);
+  END IF;
+END $$;
 
 -- Note: No backfill needed since DEFAULT 0 prevents NULL values
 -- Existing records will automatically have 0 from the DEFAULT constraint

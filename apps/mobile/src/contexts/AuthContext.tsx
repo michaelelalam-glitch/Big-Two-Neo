@@ -423,7 +423,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // 🔔 PUSH NOTIFICATIONS: Register in background (non-blocking)
             // This handles new sign-ins (SIGNED_IN event) and ensures token is registered
             authLogger.info('🔔 [AuthContext] Registering for push notifications...');
-            registerPushNotifications(newSession.user.id); // NO await - runs in background
+            registerPushNotifications(newSession.user.id).catch((err) => {
+              authLogger.error('Error registering for push notifications:', err?.message || err?.code || String(err));
+            }); // Fire-and-forget with error logging
           } catch (fetchError: any) {
             authLogger.error('❌ [AuthContext] CRITICAL: Profile fetch threw exception:', fetchError?.message);
             setProfile(null);
