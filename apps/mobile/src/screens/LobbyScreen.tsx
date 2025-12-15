@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { roomLogger } from '../utils/logger';
+import { notifyGameStarted } from '../services/pushNotificationTriggers';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -292,6 +293,12 @@ export default function LobbyScreen() {
       if (updateError) {
         throw new Error(`Failed to start game: ${updateError.message}`);
       }
+
+      // 🔔 Send push notification to player when game starts
+      roomLogger.info('📤 Sending game start notification...');
+      notifyGameStarted(currentRoomId, roomCode).catch(err => 
+        roomLogger.error('❌ Failed to send game start notification:', err)
+      );
 
       // Navigate to GameScreen which will:
       // 1. Call createGameStateManager()

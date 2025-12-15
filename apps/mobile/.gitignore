@@ -47,3 +47,8 @@ build.log
 
 # migration scripts (one-time use only)
 fix-tests.sh
+
+# CRITICAL: Firebase and EAS credentials (NEVER commit these!)
+google-services.json
+credentials.json
+credentials/
