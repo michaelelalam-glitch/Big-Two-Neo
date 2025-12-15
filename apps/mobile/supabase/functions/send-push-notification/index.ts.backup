@@ -32,7 +32,7 @@ interface NotificationRequest {
   badge?: number;
 }
 
-// Get OAuth2 access token from service account using Google's library approach
+// Get OAuth2 access token from service account
 async function getAccessToken(): Promise<string> {
   const serviceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
   if (!serviceAccountJson) {
@@ -41,71 +41,30 @@ async function getAccessToken(): Promise<string> {
   
   const serviceAccount = JSON.parse(serviceAccountJson)
   
-  // Use Google's JWT signing approach with proper base64url encoding
+  // Create JWT
   const now = Math.floor(Date.now() / 1000)
-  
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT'
-  }
-  
-  const payload = {
+  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const jwtPayload = btoa(JSON.stringify({
     iss: serviceAccount.client_email,
     scope: FCM_SCOPES.join(' '),
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now,
-  }
+  }))
   
-  // Base64url encode (not base64!)
-  const base64url = (input: string) => {
-    return btoa(input)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
-  }
-  
-  const encodedHeader = base64url(JSON.stringify(header))
-  const encodedPayload = base64url(JSON.stringify(payload))
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`
-  
-  // Import the private key
-  const pemHeader = '-----BEGIN PRIVATE KEY-----'
-  const pemFooter = '-----END PRIVATE KEY-----'
-  const pemContents = serviceAccount.private_key
-    .replace(pemHeader, '')
-    .replace(pemFooter, '')
-    .replace(/\s/g, '')
-  
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
-  
+  // Sign JWT with private key
+  const encoder = new TextEncoder()
+  const data = encoder.encode(`${jwtHeader}.${jwtPayload}`)
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
-    binaryDer,
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign']
   )
-  
-  // Sign the token
-  const encoder = new TextEncoder()
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    privateKey,
-    encoder.encode(unsignedToken)
-  )
-  
-  // Base64url encode the signature
-  const signatureArray = new Uint8Array(signature)
-  const signatureBase64 = btoa(String.fromCharCode(...signatureArray))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
-  
-  const jwt = `${unsignedToken}.${signatureBase64}`
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, data)
+  const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+  const jwt = `${jwtHeader}.${jwtPayload}.${jwtSignature}`
   
   // Exchange JWT for access token
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -116,12 +75,20 @@ async function getAccessToken(): Promise<string> {
   
   const tokenData = await tokenResponse.json()
   if (!tokenResponse.ok) {
-    console.error('❌ OAuth2 token error:', tokenData)
     throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`)
   }
   
-  console.log('✅ Got OAuth2 access token successfully')
   return tokenData.access_token
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '')
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes.buffer
 }
 
 Deno.serve(async (req) => {
@@ -131,6 +98,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ⚠️ SECURITY WARNING: This function currently accepts arbitrary user_ids from untrusted clients.
+    // For production, implement JWT validation and derive target users from server-side context.
+    // See docs/BACKEND_PUSH_NOTIFICATION_INTEGRATION.md for security best practices.
+    
     // Create Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -186,9 +157,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`📤 Sending notifications to ${tokens.length} device(s)`)
+    console.log(`📤 Sending notifications to ${tokens.length} device${tokens.length === 1 ? '' : 's'}`)
 
-    // Prepare messages
+    // Prepare messages for Expo Push API
     const messages: PushMessage[] = tokens.map((token) => {
       const message: PushMessage = {
         to: token.push_token,
@@ -228,7 +199,7 @@ Deno.serve(async (req) => {
     // Get OAuth2 token for FCM v1 API
     const accessToken = await getAccessToken()
     
-    // Send notifications via FCM v1 API
+    // Send notifications via FCM v1 API (bypassing Expo)
     const results = []
     for (const message of messages) {
       try {
@@ -251,29 +222,6 @@ Deno.serve(async (req) => {
         }
         
         const response = await fetch(FCM_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(fcmMessage),
-        })
-        
-        const result = await response.json()
-        
-        if (!response.ok) {
-          console.error(`❌ FCM error for ${message.to}:`, result)
-          results.push({ status: 'error', message: result })
-        } else {
-          console.log(`✅ Sent to ${message.to}`)
-          results.push({ status: 'ok', id: result.name })
-        }
-      } catch (error) {
-        console.error(`❌ Error sending to ${message.to}:`, error)
-        results.push({ status: 'error', message: error.message })
-      }
-    }
-
     console.log('✅ Notifications sent via FCM v1 API:', results)
 
     // Return success response
@@ -282,6 +230,29 @@ Deno.serve(async (req) => {
         success: true,
         sent: messages.length,
         results: results,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    ) }
+    }
+
+    const result = await response.json()
+    
+    if (!response.ok) {
+      console.error('Expo Push API error:', result)
+      return new Response(
+        JSON.stringify({ error: 'Failed to send notifications', details: result }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('✅ Notifications sent successfully:', result)
+
+    // Return success response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        sent: messages.length,
+        results: result.data,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
