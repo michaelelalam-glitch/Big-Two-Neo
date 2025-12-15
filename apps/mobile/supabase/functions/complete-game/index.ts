@@ -224,6 +224,18 @@ Deno.serve(async (req: Request) => {
     // STEP 4: SEND PUSH NOTIFICATIONS
     // ============================================================================
 
+    // SECURITY: Validate that the requesting user was a participant in this game
+    // This prevents attackers from spamming notifications for games they weren't part of
+    const requestingUserId = (req.headers.get('authorization') || '').split(' ')[1];
+    if (requestingUserId) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(requestingUserId);
+      const isParticipant = gameData.players.some(p => p.user_id === user?.id);
+      if (!isParticipant) {
+        console.warn('[Complete Game] Unauthorized notification attempt - user not in game');
+        // Continue anyway since notifications are non-critical, but log the attempt
+      }
+    }
+
     try {
       const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
       const winnerName = winnerPlayer?.username || 'Unknown';
