@@ -6,7 +6,8 @@ const corsHeaders = {
 }
 
 // FCM v1 API configuration
-const FCM_API_URL = 'https://fcm.googleapis.com/v1/projects/big2-969bc/messages:send'
+const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID') || 'big2-969bc'; // Fallback for backward compatibility
+const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
 const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 interface PushMessage {

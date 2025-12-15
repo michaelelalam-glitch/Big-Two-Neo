@@ -226,13 +226,20 @@ Deno.serve(async (req: Request) => {
 
     // SECURITY: Validate that the requesting user was a participant in this game
     // This prevents attackers from spamming notifications for games they weren't part of
-    const requestingUserId = (req.headers.get('authorization') || '').split(' ')[1];
-    if (requestingUserId) {
-      const { data: { user } } = await supabaseAdmin.auth.getUser(requestingUserId);
-      const isParticipant = gameData.players.some(p => p.user_id === user?.id);
-      if (!isParticipant) {
-        console.warn('[Complete Game] Unauthorized notification attempt - user not in game');
-        // Continue anyway since notifications are non-critical, but log the attempt
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      
+      if (!authError && user) {
+        const isParticipant = gameData.players.some(p => p.user_id === user.id);
+        if (!isParticipant) {
+          console.error('[Complete Game] SECURITY VIOLATION: User not a participant in this game');
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized: user is not a participant in this game' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
