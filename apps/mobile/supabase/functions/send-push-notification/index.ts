@@ -232,9 +232,15 @@ Deno.serve(async (req) => {
     const results = []
     for (const message of messages) {
       try {
+        // Extract token: handle both wrapped (ExponentPushToken[...]) and native FCM tokens
+        let token = message.to;
+        if (token.startsWith('ExponentPushToken[') && token.endsWith(']')) {
+          token = token.slice(18, -1); // Remove wrapper
+        }
+        
         const fcmMessage = {
           message: {
-            token: message.to.replace('ExponentPushToken[', '').replace(']', ''),
+            token: token,
             notification: {
               title: message.title,
               body: message.body,
