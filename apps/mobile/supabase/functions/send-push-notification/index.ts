@@ -33,6 +33,15 @@ interface NotificationRequest {
   badge?: number;
 }
 
+// Base64url encode utility (RFC 7519 compliant)
+// Moved outside to avoid recreation on every getAccessToken call
+const base64url = (input: string): string => {
+  return btoa(input)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+};
+
 // Get OAuth2 access token from service account using Google's library approach
 async function getAccessToken(): Promise<string> {
   const serviceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
@@ -56,14 +65,6 @@ async function getAccessToken(): Promise<string> {
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now,
-  }
-  
-  // Base64url encode (not base64!)
-  const base64url = (input: string) => {
-    return btoa(input)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
   }
   
   const encodedHeader = base64url(JSON.stringify(header))
@@ -237,6 +238,13 @@ Deno.serve(async (req) => {
         let token = message.to;
         if (token.startsWith('ExponentPushToken[') && token.endsWith(']')) {
           token = token.slice(18, -1); // Remove wrapper
+        }
+        
+        // Validate token: must be non-empty and reasonably well-formed
+        if (!token || typeof token !== 'string' || token.trim() === '') {
+          console.error(`❌ Invalid push token for message:`, message.to);
+          results.push({ status: 'error', message: 'Invalid push token', to: message.to });
+          continue;
         }
         
         const fcmMessage = {

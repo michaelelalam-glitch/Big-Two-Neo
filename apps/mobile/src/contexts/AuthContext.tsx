@@ -82,38 +82,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   /**
    * Register device for push notifications and save token to database
-   * This function is idempotent and safe to call multiple times
-   * Runs completely in background and never blocks authentication
+   * This function is idempotent and safe to call multiple times.
+   * Returns a Promise<boolean> indicating success (true) or failure (false).
+   * Does not throw; errors are logged and false is returned on failure.
    */
-  const registerPushNotifications = async (userId: string): Promise<void> => {
-    // Run in background - don't await or block
-    Promise.resolve().then(async () => {
-      try {
-        notificationLogger.info('🔔 [registerPushNotifications] Starting registration process...');
-        
-        // Request permissions and get push token
-        const pushToken = await registerForPushNotificationsAsync();
-        
-        if (!pushToken) {
-          notificationLogger.warn('⚠️ [registerPushNotifications] Failed to get push token (might be simulator or permissions denied)');
-          return;
-        }
-        
-        notificationLogger.info('🎯 [registerPushNotifications] Got push token, now saving to database...');
-        
-        // Save token to database
-        const success = await savePushTokenToDatabase(userId, pushToken);
-        
-        if (success) {
-          notificationLogger.info('✅ [registerPushNotifications] Complete! Token saved to database.');
-        } else {
-          notificationLogger.error('❌ [registerPushNotifications] Failed to save token to database');
-        }
-      } catch (error: any) {
-        // Don't throw - notification registration should not block authentication
-        notificationLogger.error('❌ [registerPushNotifications] Error during registration:', error?.message || String(error));
+  const registerPushNotifications = async (userId: string): Promise<boolean> => {
+    try {
+      notificationLogger.info('🔔 [registerPushNotifications] Starting registration process...');
+      
+      // Request permissions and get push token
+      const pushToken = await registerForPushNotificationsAsync();
+      
+      if (!pushToken) {
+        notificationLogger.warn('⚠️ [registerPushNotifications] Failed to get push token (might be simulator or permissions denied)');
+        return false;
       }
-    });
+      
+      notificationLogger.info('🎯 [registerPushNotifications] Got push token, now saving to database...');
+      
+      // Save token to database
+      const success = await savePushTokenToDatabase(userId, pushToken);
+      
+      if (success) {
+        notificationLogger.info('✅ [registerPushNotifications] Complete! Token saved to database.');
+        return true;
+      } else {
+        notificationLogger.error('❌ [registerPushNotifications] Failed to save token to database');
+        return false;
+      }
+    } catch (error: any) {
+      // Don't throw - notification registration should not block authentication
+      notificationLogger.error('❌ [registerPushNotifications] Error during registration:', error?.message || String(error));
+      return false;
+    }
   };
 
   // Fetch user profile from database with retry logic for race conditions

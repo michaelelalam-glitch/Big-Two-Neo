@@ -14,10 +14,8 @@ ALTER TABLE player_stats
 ADD CONSTRAINT check_flushes_played_non_negative 
 CHECK (flushes_played >= 0);
 
--- Backfill any existing records (set to 0 if null)
-UPDATE player_stats
-SET flushes_played = 0
-WHERE flushes_played IS NULL;
+-- Note: No backfill needed since DEFAULT 0 prevents NULL values
+-- Existing records will automatically have 0 from the DEFAULT constraint
 
 -- Create index for performance (optional but recommended)
 CREATE INDEX IF NOT EXISTS idx_player_stats_flushes_played 
