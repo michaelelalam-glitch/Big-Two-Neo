@@ -17,7 +17,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import { notifyGameStarted, notifyPlayerTurn, notifyPlayerJoined, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
+import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import {
   Room,
   Player,
