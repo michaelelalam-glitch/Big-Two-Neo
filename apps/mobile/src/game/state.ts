@@ -34,7 +34,8 @@ export interface GameState {
   gameStarted: boolean;
   gameEnded: boolean;
   winnerId: string | null;
-  roundHistory: RoundHistoryEntry[];
+  roundHistory: RoundHistoryEntry[]; // Current match plays only
+  gameRoundHistory: RoundHistoryEntry[]; // ALL plays across ALL matches (for stats)
   // Match scoring system
   currentMatch: number; // Current match number (starts at 1)
   matchScores: PlayerMatchScore[]; // Cumulative scores for each player
@@ -171,6 +172,9 @@ export class GameStateManager {
       return;
     }
     
+    // Track last notified second to prevent excessive notifications
+    let lastNotifiedSecond: number | null = null;
+    
     this.timerInterval = setInterval(() => {
       // CRITICAL FIX: Stop timer if match/game has ended
       if (this.state?.gameEnded || this.state?.gameOver) {
@@ -192,6 +196,9 @@ export class GameStateManager {
 
       // Update remaining time
       this.state.auto_pass_timer.remaining_ms = remaining;
+      
+      // Calculate current displayed second
+      const currentSecond = Math.ceil(remaining / 1000);
 
       // If timer expired, execute auto-pass
       if (remaining === 0) {
@@ -203,6 +210,9 @@ export class GameStateManager {
         gameLogger.info('⏰ [Auto-Pass Timer] Timer expired - executing auto-pass');
         this.state.auto_pass_timer = null;
         this.isExecutingAutoPass = true;
+        
+        // Reset lastNotifiedSecond for next timer
+        lastNotifiedSecond = null;
         
         // Safety timeout to force-reset flag if pass() hangs (prevents permanent lock)
         const safetyTimeout = setTimeout(() => {
@@ -228,8 +238,12 @@ export class GameStateManager {
         });
       }
 
-      // Notify listeners to update UI
-      this.notifyListeners();
+      // Only notify listeners when the displayed second changes (not every 100ms)
+      // This prevents console spam: 10 notifications instead of 100+ during countdown
+      if (currentSecond !== lastNotifiedSecond) {
+        lastNotifiedSecond = currentSecond;
+        this.notifyListeners();
+      }
     }, 100); // Update every 100ms for smooth countdown
   }
 
@@ -285,6 +299,17 @@ export class GameStateManager {
       playerName: player.name,
       score: 0,
       matchScores: [],
+      matchComboStats: {
+        singles: [],
+        pairs: [],
+        triples: [],
+        straights: [],
+        flushes: [],
+        full_houses: [],
+        four_of_a_kinds: [],
+        straight_flushes: [],
+        royal_flushes: [],
+      },
     }));
 
     // Initialize state
@@ -299,6 +324,7 @@ export class GameStateManager {
       gameEnded: false,
       winnerId: null,
       roundHistory: [],
+      gameRoundHistory: [], // ALL plays across ALL matches (for stats)
       currentMatch: 1,
       matchScores,
       lastMatchWinnerId: null,
@@ -330,11 +356,17 @@ export class GameStateManager {
       return { success: false, error: 'Invalid card selection' };
     }
 
+    // 🎯 LOG PLAY ATTEMPT
+    gameLogger.info(`🃏 [playCards] ${currentPlayer.name} (${currentPlayer.id}) attempting to play ${cards.length} card(s): ${cards.map(c => `${c.rank}${c.suit}`).join(', ')}`);
+
     // Validate play
     const validation = this.validatePlay(cards, currentPlayer);
     if (!validation.valid) {
+      gameLogger.warn(`❌ [playCards] INVALID: ${validation.error}`);
       return { success: false, error: validation.error };
     }
+
+    gameLogger.info(`✅ [playCards] VALID - Executing play`);
 
     // Execute play
     this.executePlay(currentPlayer, cards);
@@ -409,14 +441,19 @@ export class GameStateManager {
     this.state.consecutivePasses++;
 
     // Add to history
-    this.state.roundHistory.push({
+    const passEntry = {
       playerId: currentPlayer.id,
       playerName: currentPlayer.name,
       cards: [],
       combo_type: 'unknown',
       timestamp: Date.now(),
       passed: true,
-    });
+    };
+    this.state.roundHistory.push(passEntry);
+    this.state.gameRoundHistory.push(passEntry); // Also add to game-wide history
+    
+    // 🎯 LOG ROUNDHISTORY ENTRY FOR PASS
+    gameLogger.info(`📝 [roundHistory] Added entry #${this.state.roundHistory.length} (game total: ${this.state.gameRoundHistory.length}): ${currentPlayer.name}(${currentPlayer.id}) PASSED`);
 
     // Cancel auto-pass timer if active AND it's the same player who triggered it
     if (this.state.auto_pass_timer?.active && 
@@ -492,6 +529,21 @@ export class GameStateManager {
       const stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
       if (stateJson) {
         this.state = JSON.parse(stateJson);
+        
+        // Migration: Ensure arrays added in newer versions exist
+        // This prevents "Cannot read property 'push' of undefined" errors
+        if (!this.state.gameRoundHistory) {
+          gameLogger.warn('[Migration] Adding missing gameRoundHistory array to loaded state');
+          this.state.gameRoundHistory = [];
+        }
+        if (!this.state.played_cards) {
+          gameLogger.warn('[Migration] Adding missing played_cards array to loaded state');
+          this.state.played_cards = [];
+        }
+        
+        // Save migrated state to prevent future migrations
+        await this.saveState();
+        
         this.notifyListeners();
         return this.state;
       }
@@ -720,14 +772,19 @@ export class GameStateManager {
     }
 
     // Add to history
-    this.state!.roundHistory.push({
+    const historyEntry = {
       playerId: player.id,
       playerName: player.name,
       cards,
       combo_type: combo,
       timestamp: Date.now(),
       passed: false,
-    });
+    };
+    this.state!.roundHistory.push(historyEntry);
+    this.state!.gameRoundHistory.push(historyEntry); // Also add to game-wide history
+    
+    // 🎯 LOG ROUNDHISTORY ENTRY
+    gameLogger.info(`📝 [roundHistory] Added entry #${this.state!.roundHistory.length} (game total: ${this.state!.gameRoundHistory.length}): ${player.name}(${player.id}) played ${combo} - ${cards.map(c => `${c.rank}${c.suit}`).join(', ')}`);
   }
 
   /**
@@ -756,6 +813,62 @@ export class GameStateManager {
     if (!this.state) return;
 
     gameLogger.info(`🏆 [Match End] Match ${this.state.currentMatch} won by ${matchWinnerId}`);
+
+    // 🎯 CALCULATE COMBO STATS FOR THIS MATCH (before roundHistory is cleared!)
+    statsLogger.info(`📊 [Match Stats] Calculating combo stats for match ${this.state.currentMatch}...`);
+    for (const player of this.state.players) {
+      const playerPlays = this.state.roundHistory.filter(
+        entry => entry.playerId === player.id && !entry.passed
+      );
+      
+      const matchCombos = {
+        singles: 0,
+        pairs: 0,
+        triples: 0,
+        straights: 0,
+        flushes: 0,
+        full_houses: 0,
+        four_of_a_kinds: 0,
+        straight_flushes: 0,
+        royal_flushes: 0,
+      };
+      
+      const comboMapping: Record<string, keyof typeof matchCombos> = {
+        'single': 'singles',
+        'pair': 'pairs',
+        'triple': 'triples',
+        'straight': 'straights',
+        'flush': 'flushes',
+        'full house': 'full_houses',
+        'four of a kind': 'four_of_a_kinds',
+        'straight flush': 'straight_flushes',
+        'royal flush': 'royal_flushes',
+      };
+      
+      for (const play of playerPlays) {
+        const normalizedCombo = play.combo_type.toLowerCase();
+        const mappedField = comboMapping[normalizedCombo];
+        if (mappedField) {
+          matchCombos[mappedField]++;
+        }
+      }
+      
+      // Store this match's combo stats
+      const matchScore = this.state.matchScores.find(s => s.playerId === player.id);
+      if (matchScore) {
+        matchScore.matchComboStats.singles.push(matchCombos.singles);
+        matchScore.matchComboStats.pairs.push(matchCombos.pairs);
+        matchScore.matchComboStats.triples.push(matchCombos.triples);
+        matchScore.matchComboStats.straights.push(matchCombos.straights);
+        matchScore.matchComboStats.flushes.push(matchCombos.flushes);
+        matchScore.matchComboStats.full_houses.push(matchCombos.full_houses);
+        matchScore.matchComboStats.four_of_a_kinds.push(matchCombos.four_of_a_kinds);
+        matchScore.matchComboStats.straight_flushes.push(matchCombos.straight_flushes);
+        matchScore.matchComboStats.royal_flushes.push(matchCombos.royal_flushes);
+        
+        statsLogger.info(`✅ [Match Stats] ${player.name} match ${this.state.currentMatch}: ${JSON.stringify(matchCombos)}`);
+      }
+    }
 
     // CRITICAL FIX: Cancel auto-pass timer when match ends
     // This prevents infinite loop when bot plays last card + highest play
@@ -867,12 +980,21 @@ export class GameStateManager {
         const sortedScores = [...this.state!.matchScores].sort((a, b) => a.score - b.score);
         const finishPosition = sortedScores.findIndex(s => s.playerId === player.id) + 1;
 
-        // Count combo types for this player
-        const playerPlays = this.state!.roundHistory.filter(
-          entry => entry.playerId === player.id && !entry.passed
-        );
+        // 🎯 SUM COMBO STATS FROM ALL MATCHES (stored in matchComboStats)
+        const matchScore = this.state!.matchScores.find(s => s.playerId === player.id);
         
-        const comboCounts = {
+        // Default to zeros if matchScore not found (shouldn't happen but defensive)
+        const comboCounts = matchScore ? {
+          singles: matchScore.matchComboStats.singles.reduce((sum, val) => sum + val, 0),
+          pairs: matchScore.matchComboStats.pairs.reduce((sum, val) => sum + val, 0),
+          triples: matchScore.matchComboStats.triples.reduce((sum, val) => sum + val, 0),
+          straights: matchScore.matchComboStats.straights.reduce((sum, val) => sum + val, 0),
+          flushes: matchScore.matchComboStats.flushes.reduce((sum, val) => sum + val, 0),
+          full_houses: matchScore.matchComboStats.full_houses.reduce((sum, val) => sum + val, 0),
+          four_of_a_kinds: matchScore.matchComboStats.four_of_a_kinds.reduce((sum, val) => sum + val, 0),
+          straight_flushes: matchScore.matchComboStats.straight_flushes.reduce((sum, val) => sum + val, 0),
+          royal_flushes: matchScore.matchComboStats.royal_flushes.reduce((sum, val) => sum + val, 0),
+        } : {
           singles: 0,
           pairs: 0,
           triples: 0,
@@ -883,30 +1005,22 @@ export class GameStateManager {
           straight_flushes: 0,
           royal_flushes: 0,
         };
-
-        // Explicit mapping from combo display names to database field names
-        const comboMapping: Record<string, keyof typeof comboCounts> = {
-          'single': 'singles',
-          'pair': 'pairs',
-          'triple': 'triples',
-          'straight': 'straights',
-          'flush': 'flushes',
-          'full house': 'full_houses',
-          'four of a kind': 'four_of_a_kinds',
-          'straight flush': 'straight_flushes',
-          'royal flush': 'royal_flushes',
-        };
-
-        playerPlays.forEach(play => {
-          const comboName = play.combo_type.trim().toLowerCase();
-          const dbField = comboMapping[comboName];
-          if (dbField) {
-            comboCounts[dbField]++;
-          } else {
-            // Warn about unexpected combo names for easier debugging if game engine changes
-            statsLogger.warn(`[Stats] Unexpected combo name encountered: "${play.combo_type}" - This combo will not be counted in stats.`);
+        
+        if (matchScore) {
+          statsLogger.debug(`[Stats] Player: ${player.name} (ID: ${player.id})`);
+          statsLogger.debug(`[Stats] Total matches played: ${matchScore.matchComboStats.singles.length}`);
+          
+          // 🎯 LOG MATCH-BY-MATCH BREAKDOWN
+          statsLogger.info(`[Stats] === MATCH-BY-MATCH COMBO BREAKDOWN FOR ${player.name} ===`);
+          for (let i = 0; i < matchScore.matchComboStats.singles.length; i++) {
+            statsLogger.info(`  Match ${i + 1}: Singles=${matchScore.matchComboStats.singles[i]}, Pairs=${matchScore.matchComboStats.pairs[i]}, Triples=${matchScore.matchComboStats.triples[i]}, Straights=${matchScore.matchComboStats.straights[i]}, Flushes=${matchScore.matchComboStats.flushes[i]}, FullHouses=${matchScore.matchComboStats.full_houses[i]}, FourOfAKind=${matchScore.matchComboStats.four_of_a_kinds[i]}, StraightFlush=${matchScore.matchComboStats.straight_flushes[i]}, RoyalFlush=${matchScore.matchComboStats.royal_flushes[i]}`);
           }
-        });
+          statsLogger.info(`[Stats] === TOTALS: ${JSON.stringify(comboCounts)} ===`);
+        } else {
+          statsLogger.error(`❌ [Stats] No matchScore found for ${player.name}!`);
+        }
+        
+        statsLogger.info(`[Stats] Final combo counts for ${player.name}: ${JSON.stringify(comboCounts)}`);
 
         return {
           user_id: player.isBot ? `bot_${player.id}` : user.id, // TODO: Real user IDs in multiplayer
@@ -1012,7 +1126,9 @@ export class GameStateManager {
     this.state.isFirstPlayOfGame = false; // Only first match requires 3D, subsequent matches don't
     this.state.gameEnded = false;
     this.state.winnerId = null;
-    this.state.roundHistory = [];
+    this.state.roundHistory = []; // Clear match history (but gameRoundHistory persists!)
+    // NOTE: gameRoundHistory is NOT cleared - it accumulates across ALL matches
+    gameLogger.info(`🔄 [New Match] roundHistory cleared for match ${this.state.currentMatch}, gameRoundHistory has ${this.state.gameRoundHistory.length} total plays`);
     this.state.auto_pass_timer = null; // Clear timer for new match
     this.state.played_cards = []; // Clear played cards history for new match
 

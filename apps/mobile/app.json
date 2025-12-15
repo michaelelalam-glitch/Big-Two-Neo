@@ -20,7 +20,6 @@
     },
     "android": {
       "package": "com.big2mobile.app",
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#25292e"
@@ -56,7 +55,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-av"
     ],
     "extra": {
       "eas": {
