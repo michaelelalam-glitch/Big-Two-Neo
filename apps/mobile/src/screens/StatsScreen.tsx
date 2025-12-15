@@ -42,6 +42,7 @@ interface PlayerStats {
   pairs_played: number;
   triples_played: number;
   straights_played: number;
+  flushes_played: number;
   full_houses_played: number;
   four_of_a_kinds_played: number;
   straight_flushes_played: number;
@@ -348,6 +349,7 @@ export default function StatsScreen() {
             {renderComboCard('Pairs', stats.pairs_played, '🃏🃏')}
             {renderComboCard('Triples', stats.triples_played, '🃏🃏🃏')}
             {renderComboCard('Straights', stats.straights_played, '➡️')}
+            {renderComboCard('Flushes', stats.flushes_played, '🌊')}
             {renderComboCard('Full Houses', stats.full_houses_played, '🏠')}
             {renderComboCard('Four of a Kind', stats.four_of_a_kinds_played, '🌟')}
             {renderComboCard('Straight Flush', stats.straight_flushes_played, '💫')}

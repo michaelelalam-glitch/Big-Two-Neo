@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
 
@@ -103,6 +104,14 @@ export default function JoinRoomScreen() {
       }
 
       roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
+      
+      // Notify other players in the room (roomData already fetched above)
+      if (roomData?.id) {
+        notifyPlayerJoined(roomData.id, roomCode.toUpperCase(), username, user.id).catch(err =>
+          console.error('Failed to send player joined notification:', err)
+        );
+      }
+      
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
