@@ -221,7 +221,81 @@ Deno.serve(async (req: Request) => {
     console.log('[Complete Game] All player stats updated successfully');
 
     // ============================================================================
-    // STEP 4: REFRESH LEADERBOARD
+    // STEP 4: SEND PUSH NOTIFICATIONS
+    // ============================================================================
+
+    // SECURITY: Validate that the requesting user was a participant in this game
+    // This prevents attackers from spamming notifications for games they weren't part of
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      
+      if (!authError && user) {
+        const isParticipant = gameData.players.some(p => p.user_id === user.id);
+        if (!isParticipant) {
+          console.error('[Complete Game] SECURITY VIOLATION: User not a participant in this game');
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized: user is not a participant in this game' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
+    try {
+      const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
+      const winnerName = winnerPlayer?.username || 'Unknown';
+      
+      // Notify winner
+      if (!gameData.winner_id.startsWith('bot_')) {
+        await supabaseAdmin.functions.invoke('send-push-notification', {
+          body: {
+            user_ids: [gameData.winner_id],
+            title: '🎉 Victory!',
+            body: `Congratulations! You won in room ${gameData.room_code}!`,
+            data: {
+              type: 'game_ended',
+              room_code: gameData.room_code,
+              room_id: gameData.room_id,
+              winner: winnerName,
+              is_winner: true,
+            },
+            sound: 'default',
+            badge: 1,
+          },
+        });
+      }
+      
+      // Notify other players
+      const otherPlayers = realPlayerData.filter(p => p.user_id !== gameData.winner_id);
+      if (otherPlayers.length > 0) {
+        await supabaseAdmin.functions.invoke('send-push-notification', {
+          body: {
+            user_ids: otherPlayers.map(p => p.user_id),
+            title: '🏁 Game Over',
+            body: `${winnerName} won the game in room ${gameData.room_code}`,
+            data: {
+              type: 'game_ended',
+              room_code: gameData.room_code,
+              room_id: gameData.room_id,
+              winner: winnerName,
+              is_winner: false,
+            },
+            sound: 'default',
+            badge: 1,
+          },
+        });
+      }
+      
+      console.log('[Complete Game] Push notifications sent successfully');
+    } catch (notifError) {
+      console.warn('[Complete Game] Failed to send push notifications (non-critical):', notifError);
+      // Don't fail the request - notifications are optional
+    }
+
+    // ============================================================================
+    // STEP 5: REFRESH LEADERBOARD
     // ============================================================================
 
     const { error: leaderboardError } = await supabaseAdmin.rpc('refresh_leaderboard');
@@ -233,7 +307,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
-    // STEP 5: RETURN SUCCESS
+    // STEP 6: RETURN SUCCESS
     // ============================================================================
 
     return new Response(

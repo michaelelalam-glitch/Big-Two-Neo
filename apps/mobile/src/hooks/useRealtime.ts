@@ -17,6 +17,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import {
   Room,
   Player,
@@ -415,12 +416,29 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .eq('id', currentPlayer.id);
       
       await broadcastMessage('player_ready', { user_id: userId, ready });
+      
+      // Check if all players are now ready and notify host
+      if (ready && room) {
+        const updatedPlayers = await supabase
+          .from('room_players')
+          .select('is_ready, user_id')
+          .eq('room_id', room.id);
+        
+        const allReady = updatedPlayers.data?.every(p => p.is_ready) ?? false;
+        const hostPlayer = roomPlayers.find(p => p.is_host);
+        
+        if (allReady && hostPlayer && hostPlayer.user_id) {
+          notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
+            console.error('Failed to send all players ready notification:', err)
+          );
+        }
+      }
     } catch (err) {
       const error = err as Error;
       setError(error);
       onError?.(error);
     }
-  }, [currentPlayer, userId, onError, broadcastMessage]);
+  }, [currentPlayer, userId, onError, broadcastMessage, room, roomPlayers]);
   
   /**
    * Start the game (host only)
@@ -444,6 +462,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .from('rooms')
         .update({ status: 'playing' })
         .eq('id', room.id);
+      
+      // Send push notifications to all players
+      notifyGameStarted(room.id, room.code).catch(err => 
+        roomLogger.error('❌ Failed to send game start notifications:', err)
+      );
       
       // Create initial game state
       const { data: newGameState, error: gameError } = await supabase
@@ -515,6 +538,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // Check if there's an active auto-pass timer to cancel
       const hasActiveTimer = gameState.auto_pass_timer?.active;
       
+      // Calculate next player's turn
+      const nextPlayerIndex = (currentPlayer.player_index + 1) % roomPlayers.length;
+      const nextPlayer = roomPlayers[nextPlayerIndex];
+      
       // Update game state
       const { error: updateError } = await supabase
         .from('game_state')
@@ -525,7 +552,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             combo_type: comboType,
           },
           pass_count: 0,
-          current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
+          current_turn: nextPlayerIndex,
           // Clear auto-pass timer when new play is made
           auto_pass_timer: null,
         })
@@ -538,6 +565,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         cards,
         combo_type: comboType,
       });
+      
+      // Notify next player it's their turn (if not a bot)
+      if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id && room) {
+        notifyPlayerTurn(nextPlayer.user_id, room.code, room.id, nextPlayer.username).catch(err =>
+          console.error('Failed to send turn notification:', err)
+        );
+      }
       
       // If there was an active timer, broadcast cancellation
       if (hasActiveTimer) {
@@ -571,12 +605,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // Check if there's an active auto-pass timer to cancel
       const hasActiveTimer = gameState.auto_pass_timer?.active;
       
+      // Calculate next player's turn
+      const nextPlayerIndex = (currentPlayer.player_index + 1) % roomPlayers.length;
+      const nextPlayer = roomPlayers[nextPlayerIndex];
+      
       await supabase
         .from('game_state')
         .update({
           pass_count: clearTable ? 0 : newPassCount,
           last_play: clearTable ? null : gameState.last_play,
-          current_turn: (currentPlayer.player_index + 1) % roomPlayers.length,
+          current_turn: nextPlayerIndex,
           // Clear auto-pass timer on manual pass
           auto_pass_timer: null,
         })
@@ -591,6 +629,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           player_index: currentPlayer.player_index,
           reason: 'manual_pass' as const,
         });
+      }
+      
+      // Notify next player it's their turn (if not a bot)
+      if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id && room) {
+        notifyPlayerTurn(nextPlayer.user_id, room.code, room.id, nextPlayer.username).catch(err =>
+          console.error('Failed to send turn notification:', err)
+        );
       }
     } catch (err) {
       const error = err as Error;
