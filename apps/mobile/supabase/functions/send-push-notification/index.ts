@@ -42,8 +42,17 @@ const base64url = (input: string): string => {
     .replace(/=/g, '')
 };
 
+// OAuth2 token cache (tokens valid for 1 hour)
+let cachedAccessToken: string | null = null;
+let tokenExpiryTime: number = 0;
+
 // Get OAuth2 access token from service account using Google's library approach
 async function getAccessToken(): Promise<string> {
+  // Return cached token if still valid (with 5 min buffer)
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedAccessToken && tokenExpiryTime > now + 300) {
+    return cachedAccessToken;
+  }
   const serviceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
   if (!serviceAccountJson) {
     throw new Error('FCM_SERVICE_ACCOUNT_JSON environment variable not set')
@@ -122,8 +131,19 @@ async function getAccessToken(): Promise<string> {
     throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`)
   }
   
+  // Cache token for future requests (expires in 1 hour)
+  cachedAccessToken = tokenData.access_token;
+  tokenExpiryTime = now + 3600; // 1 hour from now
+  
   console.log('✅ Got OAuth2 access token successfully')
-  return tokenData.access_token
+  return cachedAccessToken;
+}
+
+// Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
+function isValidFCMToken(token: string): boolean {
+  // FCM tokens are typically 152-163 characters, alphanumeric with colons, hyphens, underscores
+  const fcmTokenPattern = /^[a-zA-Z0-9:_-]{100,200}$/;
+  return fcmTokenPattern.test(token);
 }
 
 Deno.serve(async (req) => {
@@ -240,10 +260,16 @@ Deno.serve(async (req) => {
           token = token.slice(18, -1); // Remove wrapper
         }
         
-        // Validate token: must be non-empty and reasonably well-formed
+        // Validate token: must be non-empty, well-formed, and match FCM token format
         if (!token || typeof token !== 'string' || token.trim() === '') {
-          console.error(`❌ Invalid push token for message:`, message.to);
-          results.push({ status: 'error', message: 'Invalid push token', to: message.to });
+          console.error(`❌ Invalid push token (empty/null) for message:`, message.to);
+          results.push({ status: 'error', message: 'Invalid push token (empty)', to: message.to });
+          continue;
+        }
+        
+        if (!isValidFCMToken(token)) {
+          console.error(`❌ Invalid FCM token format for message:`, message.to, '(length:', token.length, ')');
+          results.push({ status: 'error', message: 'Invalid FCM token format', to: message.to });
           continue;
         }
         

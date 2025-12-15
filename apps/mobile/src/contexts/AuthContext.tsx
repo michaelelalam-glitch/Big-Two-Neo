@@ -180,7 +180,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             .from('profiles')
             .insert({
               id: userId,
-              username: `Player_${typeof userId === 'string' && userId.length > 0 ? userId.slice(0, 8) : 'Unknown'}`,
+              username: `Player_${typeof userId === 'string' && userId.length >= 8 ? userId.slice(0, 8) : Date.now().toString(36)}`,
               updated_at: new Date().toISOString(),
             })
             .select()
@@ -350,7 +350,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // 🔔 PUSH NOTIFICATIONS: Register in background (non-blocking)
             // This ensures users receive game notifications on their device
             authLogger.info('🔔 [AuthContext] Registering for push notifications...');
-            void registerPushNotifications(initialSession.user.id); // Fire-and-forget
+            registerPushNotifications(initialSession.user.id).catch((err) => {
+              authLogger.error('Error registering for push notifications:', err?.message || err?.code || String(err));
+            }); // Fire-and-forget with error logging
           }
 
           setIsLoading(false);
