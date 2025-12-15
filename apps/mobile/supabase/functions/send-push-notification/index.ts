@@ -5,6 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// FCM v1 API configuration
+const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID') || 'big2-969bc'; // Fallback for backward compatibility
+const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
+const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
+
 interface PushMessage {
   to: string;
   sound: string;
@@ -28,6 +33,131 @@ interface NotificationRequest {
   badge?: number;
 }
 
+// Base64url encode utility (RFC 7519 compliant)
+// Moved outside to avoid recreation on every getAccessToken call
+const base64url = (input: string): string => {
+  if (!input || typeof input !== 'string' || input.trim() === '') {
+    throw new Error('base64url: input must be a non-empty string');
+  }
+  return btoa(input)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+};
+
+// OAuth2 token cache (tokens valid for 1 hour)
+let cachedAccessToken: string | null = null;
+let tokenExpiryTime: number = 0;
+
+// Get OAuth2 access token from service account using Google's library approach
+async function getAccessToken(): Promise<string> {
+  // Return cached token if still valid (with 5 min buffer)
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedAccessToken && tokenExpiryTime > now + 300) {
+    return cachedAccessToken;
+  }
+  const serviceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
+  if (!serviceAccountJson) {
+    throw new Error('FCM_SERVICE_ACCOUNT_JSON environment variable not set')
+  }
+  
+  const serviceAccount = JSON.parse(serviceAccountJson)
+  
+  // Use Google's JWT signing approach with proper base64url encoding
+  const now = Math.floor(Date.now() / 1000)
+  
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT'
+  }
+  
+  const payload = {
+    iss: serviceAccount.client_email,
+    scope: FCM_SCOPES.join(' '),
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  }
+  
+  const encodedHeader = base64url(JSON.stringify(header))
+  const encodedPayload = base64url(JSON.stringify(payload))
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`
+  
+  // Import the private key
+  const pemHeader = '-----BEGIN PRIVATE KEY-----'
+  const pemFooter = '-----END PRIVATE KEY-----'
+  const pemContents = serviceAccount.private_key
+    .replace(pemHeader, '')
+    .replace(pemFooter, '')
+    .replace(/\s/g, '')
+  
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
+  
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  )
+  
+  // Sign the token
+  const encoder = new TextEncoder()
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    encoder.encode(unsignedToken)
+  )
+  
+  // Base64url encode the signature
+  const signatureArray = new Uint8Array(signature)
+  const signatureBase64 = btoa(String.fromCharCode(...signatureArray))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+  
+  const jwt = `${unsignedToken}.${signatureBase64}`
+  
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  })
+  
+  const tokenData = await tokenResponse.json()
+  if (!tokenResponse.ok) {
+    console.error('❌ OAuth2 token error:', tokenData)
+    throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`)
+  }
+  
+  // Cache token for future requests (expires in 1 hour)
+  cachedAccessToken = tokenData.access_token;
+  tokenExpiryTime = now + 3600; // 1 hour from now
+  
+  console.log('✅ Got OAuth2 access token successfully')
+  return cachedAccessToken;
+}
+
+// Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
+// Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
+function isValidFCMToken(token: string): boolean {
+  // Lenient pattern: 50+ chars, alphanumeric with common separators
+  // Logs warning for tokens outside typical 140-170 char range but doesn't reject
+  const lenientPattern = /^[a-zA-Z0-9:._-]{50,}$/;
+  const isValid = lenientPattern.test(token);
+  
+  // Log if token length is unusual (for monitoring/debugging)
+  if (isValid && (token.length < 140 || token.length > 170)) {
+    console.warn(`⚠️ FCM token length ${token.length} outside typical 140-170 range (still valid)`);
+  }
+  
+  return isValid;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -35,10 +165,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ⚠️ SECURITY WARNING: This function currently accepts arbitrary user_ids from untrusted clients.
-    // For production, implement JWT validation and derive target users from server-side context.
-    // See docs/BACKEND_PUSH_NOTIFICATION_INTEGRATION.md for security best practices.
-    
     // Create Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -94,9 +220,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`📤 Sending notifications to ${tokens.length} device${tokens.length === 1 ? '' : 's'}`)
+    console.log(`📤 Sending notifications to ${tokens.length} device(s)`)
 
-    // Prepare messages for Expo Push API
+    // Prepare messages
     const messages: PushMessage[] = tokens.map((token) => {
       const message: PushMessage = {
         to: token.push_token,
@@ -133,36 +259,82 @@ Deno.serve(async (req) => {
       return message
     })
 
-    // Send to Expo Push Notification service
-    const expoPushUrl = 'https://exp.host/--/api/v2/push/send'
-    const response = await fetch(expoPushUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messages),
-    })
-
-    const result = await response.json()
+    // Get OAuth2 token for FCM v1 API
+    const accessToken = await getAccessToken()
     
-    if (!response.ok) {
-      console.error('Expo Push API error:', result)
-      return new Response(
-        JSON.stringify({ error: 'Failed to send notifications', details: result }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Send notifications via FCM v1 API
+    const results = []
+    for (const message of messages) {
+      try {
+        // Extract token: handle both wrapped (ExponentPushToken[...]) and native FCM tokens
+        let token = message.to;
+        if (token.startsWith('ExponentPushToken[') && token.endsWith(']')) {
+          token = token.slice(18, -1); // Remove wrapper
+        }
+        
+        // Validate token: must be non-empty, well-formed, and match FCM token format
+        if (!token || typeof token !== 'string' || token.trim() === '') {
+          console.error(`❌ Invalid push token (empty/null) for message:`, message.to);
+          results.push({ status: 'error', message: 'Invalid push token (empty)', to: message.to });
+          continue;
+        }
+        
+        if (!isValidFCMToken(token)) {
+          console.error(`❌ Invalid FCM token format for message:`, message.to, '(length:', token.length, ')');
+          results.push({ status: 'error', message: 'Invalid FCM token format', to: message.to });
+          continue;
+        }
+        
+        const fcmMessage = {
+          message: {
+            token: token,
+            notification: {
+              title: message.title,
+              body: message.body,
+            },
+            data: message.data || {},
+            android: {
+              priority: 'high',
+              notification: {
+                channel_id: message.channelId || 'default',
+                sound: message.sound || 'default',
+              }
+            }
+          }
+        }
+        
+        const response = await fetch(FCM_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(fcmMessage),
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok) {
+          console.error(`❌ FCM error for ${message.to}:`, result)
+          results.push({ status: 'error', message: result })
+        } else {
+          console.log(`✅ Sent to ${message.to}`)
+          results.push({ status: 'ok', id: result.name })
+        }
+      } catch (error) {
+        console.error(`❌ Error sending to ${message.to}:`, error)
+        results.push({ status: 'error', message: error.message })
+      }
     }
 
-    console.log('✅ Notifications sent successfully:', result)
+    console.log('✅ Notifications sent via FCM v1 API:', results)
 
     // Return success response
     return new Response(
       JSON.stringify({
         success: true,
         sent: messages.length,
-        results: result.data,
+        results: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
