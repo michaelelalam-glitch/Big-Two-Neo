@@ -2,30 +2,32 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
-import { authLogger, roomLogger } from '../utils/logger';
+import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
+import { 
+  registerForPushNotificationsAsync, 
+  savePushTokenToDatabase,
+  removePushTokenFromDatabase 
+} from '../services/notificationService';
 
 /**
  * Profile fetch retry configuration
  * 
- * These initial values are based on development testing to balance user experience with reliability.
- * They may require adjustment based on production metrics and user feedback.
+ * NETWORK-RESILIENT: Optimized for poor connectivity with fast retries.
+ * Balances speed (shorter timeouts) with persistence (more attempts).
  * 
  * Rationale:
- * - MAX_RETRIES: 4 attempts (initial + 3 retries) handles transient network/DB issues
- *   without excessive delay. Tuned during OAuth race condition testing.
- * - RETRY_DELAY_MS: 800ms provides quick retries while avoiding rate limiting.
- *   Tested against mobile network latency patterns.
- * - QUERY_TIMEOUT_MS: 8000ms accommodates slower networks and first-time OAuth profile
- *   creation without blocking indefinitely. Based on observed trigger completion times.
+ * - MAX_RETRIES: 5 attempts (total 6 tries) - covers spotty networks
+ * - RETRY_DELAY_MS: 800ms - fast retry cadence
+ * - QUERY_TIMEOUT_MS: 3000ms - 3 seconds per attempt (fail fast, retry more)
+ * - FALLBACK: Manual profile creation if DB trigger failed
  * 
- * TODO: Monitor production metrics and adjust if needed based on:
- *   - Profile fetch success rates
- *   - Average query completion times
- *   - User-reported authentication delays
+ * Strategy: More attempts with shorter timeouts = better for poor networks
+ * Total max wait time: ~23 seconds worst case (6 attempts × 3s + 5 delays × 0.8s)
+ * Most users will succeed in 1-2 attempts (~3-6s)
  */
-const MAX_RETRIES = 4; // Allow up to 4 attempts (0,1,2,3): initial + 3 retries
-const RETRY_DELAY_MS = 800;
-const QUERY_TIMEOUT_MS = 8000;
+const MAX_RETRIES = 5; // 5 retries = 6 total attempts
+const RETRY_DELAY_MS = 800; // 0.8 seconds between retries
+const QUERY_TIMEOUT_MS = 3000; // 3 seconds per query attempt
 
 export interface Profile {
   id: string;
@@ -78,10 +80,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  /**
+   * Register device for push notifications and save token to database
+   * This function is idempotent and safe to call multiple times
+   * Runs completely in background and never blocks authentication
+   */
+  const registerPushNotifications = async (userId: string): Promise<void> => {
+    // Run in background - don't await or block
+    Promise.resolve().then(async () => {
+      try {
+        notificationLogger.info('🔔 [registerPushNotifications] Starting registration process...');
+        
+        // Request permissions and get push token
+        const pushToken = await registerForPushNotificationsAsync();
+        
+        if (!pushToken) {
+          notificationLogger.warn('⚠️ [registerPushNotifications] Failed to get push token (might be simulator or permissions denied)');
+          return;
+        }
+        
+        notificationLogger.info('🎯 [registerPushNotifications] Got push token, now saving to database...');
+        
+        // Save token to database
+        const success = await savePushTokenToDatabase(userId, pushToken);
+        
+        if (success) {
+          notificationLogger.info('✅ [registerPushNotifications] Complete! Token saved to database.');
+        } else {
+          notificationLogger.error('❌ [registerPushNotifications] Failed to save token to database');
+        }
+      } catch (error: any) {
+        // Don't throw - notification registration should not block authentication
+        notificationLogger.error('❌ [registerPushNotifications] Error during registration:', error?.message || String(error));
+      }
+    });
+  };
+
   // Fetch user profile from database with retry logic for race conditions
   const fetchProfile = async (userId: string, retryCount = 0): Promise<Profile | null> => {
     try {
-      authLogger.info('👤 [fetchProfile] Querying profiles table for:', userId, retryCount > 0 ? `(Retry ${retryCount}/${MAX_RETRIES})` : '');
+      const attemptNum = retryCount + 1;
+      const totalAttempts = MAX_RETRIES + 1;
+      authLogger.info(`👤 [fetchProfile] Attempt ${attemptNum}/${totalAttempts} for user: ${userId.substring(0, 8)}...`);
       
       const startTime = Date.now();
       
@@ -126,32 +166,70 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (!profileData) {
         // Profile not found - could be a race condition with trigger
         if (retryCount < MAX_RETRIES) {
-          authLogger.warn(`⚠️ [fetchProfile] Profile NOT FOUND yet (attempt ${retryCount + 1}/${MAX_RETRIES + 1}). Waiting for trigger to complete...`);
+          authLogger.warn(`⏳ [fetchProfile] Profile NOT FOUND yet (attempt ${attemptNum}/${totalAttempts}). Waiting ${RETRY_DELAY_MS}ms for DB trigger...`);
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
           return fetchProfile(userId, retryCount + 1);
         }
         
-        authLogger.error('❌ [fetchProfile] Profile NOT FOUND after all retries! Profile creation may have failed or is still pending.');
-        return null;
+        // All retries exhausted - create profile manually as fallback
+        authLogger.error(`❌ [fetchProfile] Profile NOT FOUND after ${totalAttempts} attempts! Creating manually...`);
+        
+        try {
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              username: `Player_${userId.substring(0, 8)}`,
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            authLogger.error('❌ [fetchProfile] Manual profile creation failed:', insertError.message);
+            return null;
+          }
+          
+          authLogger.info('✅ [fetchProfile] Profile created manually:', newProfile?.username);
+          return newProfile;
+        } catch (createError: any) {
+          authLogger.error('❌ [fetchProfile] Exception during manual creation:', createError?.message);
+          return null;
+        }
       }
 
       authLogger.info('✅ [fetchProfile] Profile found:', { username: profileData?.username, id: userId });
       return profileData;
     } catch (error: any) {
+      const attemptNum = retryCount + 1;
+      const totalAttempts = MAX_RETRIES + 1;
+      
       // Check if it's a timeout
       if (error?.message === 'QUERY_TIMEOUT') {
-        authLogger.error(`❌ [fetchProfile] Query TIMED OUT after ${QUERY_TIMEOUT_MS}ms!`);
+        authLogger.error(`⏱️ [fetchProfile] Query TIMED OUT after ${QUERY_TIMEOUT_MS}ms! (attempt ${attemptNum}/${totalAttempts})`);
+        
         if (retryCount < MAX_RETRIES) {
-          authLogger.warn(`⏳ [fetchProfile] Retrying after timeout (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+          authLogger.warn(`♻️ [fetchProfile] Retrying after timeout... (${RETRY_DELAY_MS}ms delay)`);
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
           return fetchProfile(userId, retryCount + 1);
         } else {
-          authLogger.error('❌ [fetchProfile] GIVING UP after all retries. Network issue or Supabase not responding.');
+          authLogger.error('❌ [fetchProfile] GIVING UP after all timeout retries. Poor network or Supabase not responding.');
+          authLogger.error('💡 [fetchProfile] TIP: User can pull-to-refresh on Profile screen to retry.');
           // Return null to allow app to continue loading without profile
           return null;
         }
       }
-      authLogger.error('❌ [fetchProfile] Unexpected error:', error?.message || error?.code || String(error));
+      
+      // Other errors
+      authLogger.error(`❌ [fetchProfile] Unexpected error (attempt ${attemptNum}/${totalAttempts}):`, error?.message || error?.code || String(error));
+      
+      // Retry on any error if attempts remain
+      if (retryCount < MAX_RETRIES) {
+        authLogger.warn(`♻️ [fetchProfile] Retrying after error... (${RETRY_DELAY_MS}ms delay)`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        return fetchProfile(userId, retryCount + 1);
+      }
+      
       return null;
     }
   };
@@ -267,6 +345,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // CRITICAL FIX: Clean up stale room memberships on login
             // This handles cases where user force-closed app or didn't properly leave
             await cleanupStaleRoomMembership(initialSession.user.id);
+            
+            // 🔔 PUSH NOTIFICATIONS: Register in background (non-blocking)
+            // This ensures users receive game notifications on their device
+            authLogger.info('🔔 [AuthContext] Registering for push notifications...');
+            registerPushNotifications(initialSession.user.id); // NO await - runs in background
           }
 
           setIsLoading(false);
@@ -333,6 +416,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               authLogger.error('❌ [AuthContext] App will continue without profile data. The user may experience limited or degraded functionality until profile information is available.');
             }
             setProfile(profileData);
+            
+            // 🔔 PUSH NOTIFICATIONS: Register in background (non-blocking)
+            // This handles new sign-ins (SIGNED_IN event) and ensures token is registered
+            authLogger.info('🔔 [AuthContext] Registering for push notifications...');
+            registerPushNotifications(newSession.user.id); // NO await - runs in background
           } catch (fetchError: any) {
             authLogger.error('❌ [AuthContext] CRITICAL: Profile fetch threw exception:', fetchError?.message);
             setProfile(null);
@@ -373,6 +461,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // This prevents stale username entries that block future sign-ins
       if (currentUserId) {
         authLogger.info('🧹 [AuthContext] Cleaning up user data before sign-out');
+        
+        // 🔔 PUSH NOTIFICATIONS: Remove push token from database on sign-out
+        authLogger.info('🔔 [AuthContext] Removing push token...');
+        await removePushTokenFromDatabase(currentUserId);
         
         // Remove ALL room_players entries for this user
         const { error: cleanupError } = await supabase
