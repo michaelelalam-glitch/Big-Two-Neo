@@ -49,20 +49,27 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // Get the Expo push token
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    
-    if (!projectId) {
-      notificationLogger.error('Project ID not found in app configuration');
-      return null;
+    // Get the native FCM push token for Android (required for FCM v1 API)
+    if (Platform.OS === 'android') {
+      const deviceToken = await Notifications.getDevicePushTokenAsync();
+      token = deviceToken.data;
+      notificationLogger.info('✅ Native FCM Token (Android):', token);
+    } else {
+      // For iOS, still use Expo push token
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      
+      if (!projectId) {
+        notificationLogger.error('Project ID not found in app configuration');
+        return null;
+      }
+
+      const expoPushToken = await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+
+      token = expoPushToken.data;
+      notificationLogger.info('✅ Expo Push Token (iOS):', token);
     }
-
-    const expoPushToken = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
-
-    token = expoPushToken.data;
-    notificationLogger.info('Expo Push Token:', token);
 
     // Configure Android notification channel
     if (Platform.OS === 'android') {
@@ -117,6 +124,8 @@ export async function savePushTokenToDatabase(
   pushToken: string
 ): Promise<boolean> {
   try {
+    notificationLogger.info('💾 [savePushToken] Starting database save...', { userId: userId.substring(0, 8), platform: Platform.OS });
+    
     const platform = Platform.OS as 'ios' | 'android' | 'web';
 
     const { error } = await supabase
@@ -135,11 +144,11 @@ export async function savePushTokenToDatabase(
 
     if (error) {
       // Only log error message/code to avoid exposing internal error details
-      notificationLogger.error('Error saving push token:', error?.message || error?.code || 'Unknown error');
+      notificationLogger.error('❌ [savePushToken] Database error:', error?.message || error?.code || 'Unknown error');
       return false;
     }
 
-    notificationLogger.info('Push token saved successfully');
+    notificationLogger.info('✅ [savePushToken] Push token saved successfully to database!');
     return true;
   } catch (error: any) {
     // Only log error message/code to avoid exposing internal error details
