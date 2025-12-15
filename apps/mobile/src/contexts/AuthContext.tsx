@@ -171,6 +171,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Retry on any error
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+            // Clear lock before retry to avoid returning same failing promise
+            isFetchingProfile.current = false;
+            fetchProfilePromise.current = null;
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
             return fetchProfile(userId, retryCount + 1);
           }
@@ -185,6 +188,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Profile not found - could be a race condition with trigger
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`⏳ [fetchProfile] Profile NOT FOUND yet (attempt ${attemptNum}/${totalAttempts}). Waiting ${RETRY_DELAY_MS}ms for DB trigger...`);
+            // Clear lock before retry to avoid returning same failing promise
+            isFetchingProfile.current = false;
+            fetchProfilePromise.current = null;
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
             return fetchProfile(userId, retryCount + 1);
           }
@@ -228,6 +234,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`♻️ [fetchProfile] Retrying after timeout... (${RETRY_DELAY_MS}ms delay)`);
+            // Clear lock before retry to avoid returning same failing promise
+            isFetchingProfile.current = false;
+            fetchProfilePromise.current = null;
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
             return fetchProfile(userId, retryCount + 1);
           } else {
@@ -244,6 +253,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Retry on any error if attempts remain
         if (retryCount < MAX_RETRIES) {
           authLogger.warn(`♻️ [fetchProfile] Retrying after error... (${RETRY_DELAY_MS}ms delay)`);
+          // Clear lock before retry to avoid returning same failing promise
+          isFetchingProfile.current = false;
+          fetchProfilePromise.current = null;
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
           return fetchProfile(userId, retryCount + 1);
         }

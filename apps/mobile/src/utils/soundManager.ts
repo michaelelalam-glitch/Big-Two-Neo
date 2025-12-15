@@ -161,7 +161,7 @@ class SoundManager {
   /**
    * Check if audio is enabled
    */
-  async isAudioEnabled(): Promise<boolean> {
+  isAudioEnabled(): boolean {
     return this.audioEnabled;
   }
 

@@ -540,6 +540,27 @@ export class GameStateManager {
           gameLogger.warn('[Migration] Adding missing played_cards array to loaded state');
           this.state.played_cards = [];
         }
+        // CRITICAL: Migrate matchComboStats structure for each player
+        if (this.state.matchScores) {
+          let needsMigration = false;
+          this.state.matchScores.forEach(matchScore => {
+            if (!matchScore.matchComboStats) {
+              gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore.playerId}`);
+              matchScore.matchComboStats = {
+                singles: [],
+                pairs: [],
+                triples: [],
+                straights: [],
+                flushes: [],
+                full_houses: [],
+                four_of_a_kinds: [],
+                straight_flushes: [],
+                royal_flushes: [],
+              };
+              needsMigration = true;
+            }
+          });
+        }
         
         // Save migrated state to prevent future migrations
         await this.saveState();
@@ -1010,12 +1031,15 @@ export class GameStateManager {
           statsLogger.debug(`[Stats] Player: ${player.name} (ID: ${player.id})`);
           statsLogger.debug(`[Stats] Total matches played: ${matchScore.matchComboStats.singles.length}`);
           
-          // 🎯 LOG MATCH-BY-MATCH BREAKDOWN
-          statsLogger.info(`[Stats] === MATCH-BY-MATCH COMBO BREAKDOWN FOR ${player.name} ===`);
-          for (let i = 0; i < matchScore.matchComboStats.singles.length; i++) {
-            statsLogger.info(`  Match ${i + 1}: Singles=${matchScore.matchComboStats.singles[i]}, Pairs=${matchScore.matchComboStats.pairs[i]}, Triples=${matchScore.matchComboStats.triples[i]}, Straights=${matchScore.matchComboStats.straights[i]}, Flushes=${matchScore.matchComboStats.flushes[i]}, FullHouses=${matchScore.matchComboStats.full_houses[i]}, FourOfAKind=${matchScore.matchComboStats.four_of_a_kinds[i]}, StraightFlush=${matchScore.matchComboStats.straight_flushes[i]}, RoyalFlush=${matchScore.matchComboStats.royal_flushes[i]}`);
+          // Match-by-match breakdown only in debug mode to prevent console spam
+          if (matchScore.matchComboStats.singles.length <= 5) {
+            // Only log details for short games (5 matches or less)
+            statsLogger.debug(`[Stats] Match-by-match breakdown for ${player.name}:`);
+            for (let i = 0; i < matchScore.matchComboStats.singles.length; i++) {
+              statsLogger.debug(`  Match ${i + 1}: Singles=${matchScore.matchComboStats.singles[i]}, Pairs=${matchScore.matchComboStats.pairs[i]}, Triples=${matchScore.matchComboStats.triples[i]}, Straights=${matchScore.matchComboStats.straights[i]}, Flushes=${matchScore.matchComboStats.flushes[i]}, FullHouses=${matchScore.matchComboStats.full_houses[i]}, FourOfAKind=${matchScore.matchComboStats.four_of_a_kinds[i]}, StraightFlush=${matchScore.matchComboStats.straight_flushes[i]}, RoyalFlush=${matchScore.matchComboStats.royal_flushes[i]}`);
+            }
           }
-          statsLogger.info(`[Stats] === TOTALS: ${JSON.stringify(comboCounts)} ===`);
+          statsLogger.info(`[Stats] Final totals for ${player.name}: ${JSON.stringify(comboCounts)}`);
         } else {
           statsLogger.error(`❌ [Stats] No matchScore found for ${player.name}!`);
         }

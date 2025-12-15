@@ -96,7 +96,7 @@ class HapticManager {
   /**
    * Check if haptics are enabled
    */
-  async isHapticsEnabled(): Promise<boolean> {
+  isHapticsEnabled(): boolean {
     return this.hapticsEnabled;
   }
 
