@@ -66,9 +66,9 @@ export const showSuccess = (message: string, title: string = 'Success'): void =>
  * @param message Info message to display
  * @param title Optional title (defaults to 'Info')
  */
-export const showInfo = (message: string, title?: string): void => {
+export const showInfo = (message: string, title: string = 'Info'): void => {
   Alert.alert(
-    title || 'Info',
+    title,
     message,
     [{ text: 'OK', style: 'default' }],
     { cancelable: true }
