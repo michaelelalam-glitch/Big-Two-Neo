@@ -171,11 +171,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Retry on any error
         if (retryCount < MAX_RETRIES) {
           authLogger.warn(`⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
-          // Keep lock during retry delay to prevent race condition
+          // Keep lock during retry delay AND recursive call to prevent race condition
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-          // Clear lock after delay, just before retry
-          isFetchingProfile.current = false;
-          fetchProfilePromise.current = null;
+          // Do NOT clear lock here - let the recursive call handle it
+          // This prevents a race window between clearing and starting retry
           return fetchProfile(userId, retryCount + 1);
         }          return null;
         }

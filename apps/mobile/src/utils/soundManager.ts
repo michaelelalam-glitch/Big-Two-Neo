@@ -121,6 +121,7 @@ class SoundManager {
 
   /**
    * Play a sound effect
+   * Creates new sound instances for concurrent playback (e.g., multiple card plays)
    */
   async playSound(type: SoundType): Promise<void> {
     if (!this.audioEnabled) {
@@ -129,37 +130,31 @@ class SoundManager {
     }
 
     try {
-      let sound = this.sounds.get(type);
-
-      // If not preloaded, load it now
-      if (!sound) {
-        const soundFile = SOUND_FILES[type];
-        if (!soundFile) {
-          console.warn(`[SoundManager] No sound file for: ${type}`);
-          return;
-        }
-
-        const { sound: newSound } = await Audio.Sound.createAsync(soundFile, {
-          shouldPlay: false,
-          volume: this.volume,
-        });
-
-        sound = newSound;
-        this.sounds.set(type, sound);
+      const soundFile = SOUND_FILES[type];
+      if (!soundFile) {
+        console.warn(`[SoundManager] No sound file for: ${type}`);
+        return;
       }
 
-      // Stop and reset if already playing
-      const status = await sound.getStatusAsync();
-      if (status.isLoaded && status.isPlaying) {
-        await sound.stopAsync();
-      }
-      
-      // Reset position to start and play
-      if (status.isLoaded) {
-        await sound.setPositionAsync(0);
-      }
+      // Create a new sound instance for concurrent playback
+      // This allows multiple sounds of the same type to overlap (e.g., rapid card plays)
+      const { sound } = await Audio.Sound.createAsync(soundFile, {
+        shouldPlay: false,
+        volume: this.volume,
+      });
+
+      // Play the sound
       await sound.playAsync();
       console.log(`[SoundManager] Played sound: ${type}`);
+
+      // Unload the sound after playback finishes to prevent memory leaks
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync().catch(err => 
+            console.warn(`[SoundManager] Failed to unload sound ${type}:`, err)
+          );
+        }
+      });
     } catch (error) {
       console.error(`[SoundManager] Failed to play sound ${type}:`, error);
     }

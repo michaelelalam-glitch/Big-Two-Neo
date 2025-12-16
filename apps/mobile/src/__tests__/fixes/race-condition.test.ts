@@ -126,7 +126,7 @@ describe('Race Condition Test - fetchProfile Lock', () => {
     const userId = 'test-user-789';
     
     // Batch 1: 3 parallel calls
-    const batch1 = await Promise.all([
+    await Promise.all([
       simulator.fetchProfile(userId, 50),
       simulator.fetchProfile(userId, 50),
       simulator.fetchProfile(userId, 50),
@@ -136,7 +136,7 @@ describe('Race Condition Test - fetchProfile Lock', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // Batch 2: 2 parallel calls
-    const batch2 = await Promise.all([
+    await Promise.all([
       simulator.fetchProfile(userId, 50),
       simulator.fetchProfile(userId, 50),
     ]);
