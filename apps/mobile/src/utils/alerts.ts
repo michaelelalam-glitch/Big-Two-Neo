@@ -13,13 +13,23 @@
 
 import { Alert, AlertButton } from 'react-native';
 
+/**
+ * Options for confirmation dialog
+ */
 export interface ConfirmOptions {
+  /** Title of the dialog */
   title: string;
+  /** Message to display */
   message: string;
+  /** Callback when confirm is pressed */
   onConfirm?: () => void;
+  /** Callback when cancel is pressed */
   onCancel?: () => void;
+  /** Text for the confirm button (defaults to 'Confirm') */
   confirmText?: string;
+  /** Text for the cancel button (defaults to 'Cancel', pass empty string to hide) */
   cancelText?: string;
+  /** If true, confirm button is styled as destructive (red on iOS, defaults to false) */
   destructive?: boolean;
 }
 
@@ -66,8 +76,20 @@ export const showInfo = (message: string, title?: string): void => {
 };
 
 /**
- * Show a confirmation dialog with custom actions
- * @param options Confirmation dialog options
+ * Show a confirmation dialog with custom actions.
+ *
+ * By default, displays two buttons: 'Cancel' (left/bottom) and 'Confirm' (right/top).
+ * To create a single-button dialog, pass an empty string for `cancelText`.
+ * The `destructive` parameter applies red styling to the confirm button on iOS.
+ *
+ * @param options Confirmation dialog options:
+ *   - title: Title of the dialog.
+ *   - message: Message to display.
+ *   - onConfirm: Callback when confirm is pressed.
+ *   - onCancel: Callback when cancel is pressed.
+ *   - confirmText: Text for the confirm button (default: 'Confirm').
+ *   - cancelText: Text for the cancel button (default: 'Cancel'). Pass an empty string to hide.
+ *   - destructive: If true, confirm button is styled as destructive (red on iOS, default: false).
  */
 export const showConfirm = (options: ConfirmOptions): void => {
   const {
