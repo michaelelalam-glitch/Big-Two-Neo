@@ -233,7 +233,7 @@ describe('Alert Utilities', () => {
     });
 
     it('showInfo with undefined title uses default', () => {
-      showInfo('Test message', undefined);
+      showInfo('Test message');
       
       expect(Alert.alert).toHaveBeenCalledWith(
         'Info',

@@ -55,12 +55,13 @@ export default function CreateRoomScreen() {
         roomLogger.warn('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
         
         // Note: Reduced from 3-button (Cancel, Go to Room, Leave & Create) to 2-button dialog.
-        // This is a UX trade-off: showConfirm supports max 2 buttons. Users can still dismiss
-        // the dialog by tapping outside (iOS) or back button (Android), which acts as "Cancel".
+        // "Go to Room" becomes the cancel action, "Leave & Create" is the confirm action.
+        // Users can still dismiss by tapping outside (iOS) or back button (Android).
         const goToRoom = () => {
           setIsCreating(false);
           navigation.replace('Lobby', { roomCode: existingCode });
         };
+        
         const leaveAndCreate = async () => {
                 try {
                   // Leave the existing room
@@ -125,11 +126,11 @@ export default function CreateRoomScreen() {
         showConfirm({
           title: 'Already in Room',
           message: `You're already in room ${existingCode} (${roomStatus}). Leave and create new room?`,
-          confirmText: 'Leave & Create',
-          cancelText: 'Go to Room',
+          confirmText: 'Go to Room',
+          cancelText: 'Leave & Create',
           destructive: true,
-          onConfirm: leaveAndCreate,
-          onCancel: goToRoom
+          onConfirm: goToRoom,
+          onCancel: leaveAndCreate
         });
         return;
       }
