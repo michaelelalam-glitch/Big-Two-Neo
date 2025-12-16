@@ -31,6 +31,8 @@ export interface ConfirmOptions {
   cancelText?: string;
   /** If true, confirm button is styled as destructive (red on iOS, defaults to false) */
   destructive?: boolean;
+  /** If false, prevents dismissal by tapping outside or back button (defaults to true) */
+  cancelable?: boolean;
 }
 
 /**
@@ -90,6 +92,7 @@ export const showInfo = (message: string, title: string = 'Info'): void => {
  *   - confirmText: Text for the confirm button (default: 'Confirm').
  *   - cancelText: Text for the cancel button (default: 'Cancel'). Pass an empty string to hide.
  *   - destructive: If true, confirm button is styled as destructive (red on iOS, default: false).
+ *   - cancelable: If false, prevents dismissal by tapping outside or back button (default: true).
  */
 export const showConfirm = (options: ConfirmOptions): void => {
   const {
@@ -100,6 +103,7 @@ export const showConfirm = (options: ConfirmOptions): void => {
     confirmText = 'Confirm',
     cancelText = 'Cancel',
     destructive = false,
+    cancelable = true,
   } = options;
 
   const buttons: AlertButton[] = [];
@@ -116,7 +120,7 @@ export const showConfirm = (options: ConfirmOptions): void => {
     onPress: onConfirm,
   });
 
-  Alert.alert(title, message, buttons, { cancelable: true });
+  Alert.alert(title, message, buttons, { cancelable });
 };
 
 /**
