@@ -14,6 +14,7 @@ interface GameCompletionRequest {
       pairs: number;
       triples: number;
       straights: number;
+      flushes: number; // ✅ ADDED: Regular flushes (5 cards same suit, not straight)
       full_houses: number;
       four_of_a_kinds: number;
       straight_flushes: number;

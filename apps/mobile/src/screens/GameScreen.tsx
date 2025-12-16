@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Vibration, ToastAndroid, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -16,6 +16,7 @@ import type { ScoreHistory } from '../types/scoreboard';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
+import { soundManager, hapticManager, HapticType, SoundType } from '../utils';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -207,6 +208,14 @@ function GameScreenContent() {
             gameEnded: state.gameEnded,
             gameOver: state.gameOver
           });
+          
+          // Play turn notification when it becomes player's turn
+          const previousState = gameState;
+          if (previousState && state.currentPlayerIndex === 0 && previousState.currentPlayerIndex !== 0) {
+            soundManager.playSound(SoundType.TURN_NOTIFICATION);
+            gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
+          }
+          
           setGameState(state);
           
           // Handle match end (someone ran out of cards)
@@ -214,6 +223,15 @@ function GameScreenContent() {
             // Match ended but game continues
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
+            
+            // Play win/lose sound based on match outcome
+            if (matchWinner && matchWinner.id === state.players[0].id) {
+              soundManager.playSound(SoundType.WIN);
+              gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
+            } else {
+              soundManager.playSound(SoundType.LOSE);
+              gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+            }
             
             // Task #351: Track score history for scoreboard
             // Extract points added this match from matchScores array
@@ -286,9 +304,8 @@ function GameScreenContent() {
           
           // Handle game over (101+ points reached)
           if (state.gameOver) {
-            // Task #352: Auto-expand scoreboard on game end
-            setIsScoreboardExpanded(true);
-            gameLogger.info('📊 [Auto-Expand] Scoreboard expanded - game over detected');
+            // Scoreboard will NOT auto-expand - user controls expansion manually
+            gameLogger.info('📊 [Game Over] Game finished - scoreboard remains in current state');
             
             const finalWinner = state.matchScores.find(s => s.playerId === state.finalWinnerId);
             const scoreSummary = state.matchScores
@@ -319,6 +336,10 @@ function GameScreenContent() {
         setIsInitializing(false);
         gameLogger.info('✅ [GameScreen] Game initialized successfully');
 
+        // Play game start sound (Task #270 - only on game start, not every match)
+        soundManager.playSound(SoundType.GAME_START);
+        gameLogger.info('🎵 [Audio] Game start sound triggered');
+
         // Bot turn will be triggered by subscription callback
 
         return () => {
@@ -327,6 +348,10 @@ function GameScreenContent() {
           if (gameManagerRef.current) {
             gameManagerRef.current.destroy();
           }
+          // Cleanup audio resources to prevent memory leaks
+          soundManager.cleanup().catch(err => {
+            gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
+          });
         };
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
@@ -544,6 +569,44 @@ function GameScreenContent() {
     };
   }, []);
 
+  // Task #270: Auto-pass timer audio/haptic feedback
+  const hasPlayedHighestCardSoundRef = useRef(false);
+
+  useEffect(() => {
+    // DEBUG: Log every timer update
+    gameLogger.debug('[DEBUG] Timer effect fired:', {
+      hasTimer: !!gameState?.auto_pass_timer,
+      remaining_ms: gameState?.auto_pass_timer?.remaining_ms,
+      displaySeconds: gameState?.auto_pass_timer ? Math.ceil(gameState.auto_pass_timer.remaining_ms / 1000) : null
+    });
+
+    if (!gameState?.auto_pass_timer) {
+      // Timer not active - reset flags for next timer activation
+      gameLogger.debug('[DEBUG] Resetting timer flags (timer inactive)');
+      hasPlayedHighestCardSoundRef.current = false;
+      return;
+    }
+
+    // Timer just became active - play highest card sound (once per timer activation)
+    if (!hasPlayedHighestCardSoundRef.current) {
+      soundManager.playSound(SoundType.HIGHEST_CARD);
+      gameLogger.info('🎵 [Audio] Highest card sound triggered - auto-pass timer active');
+      hasPlayedHighestCardSoundRef.current = true;
+    }
+
+    // Progressive intensity vibration from 5 seconds down to 1
+    // CRITICAL: Use Math.ceil to match UI display logic (5000ms = 5 seconds)
+    const remaining_ms = gameState.auto_pass_timer.remaining_ms;
+    const displaySeconds = Math.ceil(remaining_ms / 1000);
+    
+    // Vibrate with increasing frequency from 5→1 (more pulses = more intense)
+    if (displaySeconds <= 5 && displaySeconds >= 1) {
+      gameLogger.warn(`🚨 [VIBRATION] Triggering urgent countdown at ${displaySeconds}s (remaining_ms=${remaining_ms})`);
+      hapticManager.urgentCountdown(displaySeconds);
+      gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
+    }
+  }, [gameState?.auto_pass_timer?.remaining_ms]); // CRITICAL FIX: Watch remaining_ms, not object reference
+
   const handlePlayCards = async (cards: Card[]) => {
     if (!gameManagerRef.current || !gameState) {
       gameLogger.error('❌ [GameScreen] Game not initialized');
@@ -559,6 +622,9 @@ function GameScreenContent() {
     try {
       setIsPlayingCards(true);
       
+      // Task #270: Add haptic feedback for Play button
+      hapticManager.playCard();
+      
       // Task #313: Auto-sort cards for proper display order before submission
       // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
       const sortedCards = sortCardsForDisplay(cards);
@@ -573,6 +639,9 @@ function GameScreenContent() {
       
       if (result.success) {
         gameLogger.info('✅ [GameScreen] Cards played successfully');
+        
+        // Play card sound effect
+        soundManager.playSound(SoundType.CARD_PLAY);
         
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {
@@ -591,6 +660,7 @@ function GameScreenContent() {
         // Bot turns and match/game end will be handled by subscription callback
       } else {
         // Show error from validation
+        soundManager.playSound(SoundType.INVALID_MOVE);
         Alert.alert('Invalid Move', result.error || 'Invalid play');
       }
     } catch (error: any) {
@@ -598,6 +668,7 @@ function GameScreenContent() {
       gameLogger.error('❌ [GameScreen] Failed to play cards:', error?.message || error?.code || String(error));
       
       // Show user-friendly error
+      soundManager.playSound(SoundType.INVALID_MOVE);
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
       Alert.alert('Invalid Move', errorMessage);
     } finally {
@@ -623,12 +694,19 @@ function GameScreenContent() {
 
     try {
       setIsPassing(true);
+      
+      // Task #270: Add haptic feedback for Pass button
+      hapticManager.pass();
+      
       gameLogger.info('⏭️ [GameScreen] Player passing...');
       
       const result = await gameManagerRef.current.pass();
       
       if (result.success) {
         gameLogger.info('✅ [GameScreen] Pass successful');
+        
+        // Play pass sound effect
+        soundManager.playSound(SoundType.PASS);
         
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {
@@ -677,8 +755,8 @@ function GameScreenContent() {
   const handleSort = () => {
     if (!gameState || playerHand.length === 0) return;
     
-    // Haptic feedback (50ms vibration)
-    Vibration.vibrate(50);
+    // Haptic feedback - light for utility action
+    hapticManager.trigger(HapticType.LIGHT);
     
     // Sort hand
     const sorted = sortHandLowestToHighest(playerHand);
@@ -695,8 +773,8 @@ function GameScreenContent() {
   const handleSmartSort = () => {
     if (!gameState || playerHand.length === 0) return;
     
-    // Haptic feedback (double vibration: 30ms, pause 50ms, 30ms)
-    Vibration.vibrate([30, 50, 30]);
+    // Haptic feedback - medium for complex operation
+    hapticManager.trigger(HapticType.MEDIUM);
     
     // Smart sort hand
     const smartSorted = smartSortHand(playerHand);
@@ -729,7 +807,7 @@ function GameScreenContent() {
     
     if (recommended === null) {
       // No valid play - recommend passing
-      Vibration.vibrate([50, 100, 50]); // Double vibration for pass
+      hapticManager.trigger(HapticType.WARNING);
       
       if (Platform.OS === 'android') {
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
@@ -740,7 +818,7 @@ function GameScreenContent() {
       gameLogger.info('[GameScreen] Hint: No valid play, recommend pass');
     } else {
       // Valid play found - auto-select cards
-      Vibration.vibrate([30, 50, 30]); // Success pattern
+      hapticManager.success();
       
       const recommendedSet = new Set(recommended);
       setSelectedCardIds(recommendedSet);
