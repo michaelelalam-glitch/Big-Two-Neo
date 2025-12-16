@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, CENTER_PLAY } from '../constants';
 
+// Opacity for subtitle text (60% opacity = '99' in hex)
+const TEXT_OPACITY = '99';
+
 interface EmptyStateProps {
   /** Primary message displayed to user */
   title: string;
@@ -24,7 +27,9 @@ interface EmptyStateProps {
 
 /**
  * Reusable empty state component for screens with no data.
- * Based on CenterPlayArea empty state design pattern.
+ * Based on the "CenterPlayArea" design pattern, which centers key messaging 
+ * and actions in the main content area when no data is available.
+ * This pattern helps users understand the current state and provides clear next steps.
  * 
  * Usage:
  * ```tsx
@@ -102,8 +107,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   subtitle: {
-    color: `${COLORS.white}99`, // 60% opacity (hex: 99 = 60%)
-    fontSize: FONT_SIZES.md,
+    color: `${COLORS.white}99`,
+    fontSize: FONT_SIZES.lg,
     textAlign: 'center',
     marginBottom: SPACING.xl,
     lineHeight: FONT_SIZES.md * 1.5,
