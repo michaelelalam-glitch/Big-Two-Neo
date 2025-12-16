@@ -390,7 +390,13 @@ function GameScreenContent() {
             // Prepare final scores in display order (Task #415)
             const finalScores: FinalScore[] = state.matchScores
               .sort((a, b) => a.score - b.score) // Sort by ascending score (lowest score wins)
-              .map((s, index) => ({>= 101
+              .map((s, index) => ({
+                player_index: state.players.findIndex(p => p.id === s.playerId),
+                player_name: s.playerName,
+                cumulative_score: s.score,
+                points_added: 0, // Final game over doesn't add points
+                rank: index + 1,
+                is_busted: s.score >= 101
               }));
             
             // Get player names in game order
@@ -843,11 +849,29 @@ function GameScreenContent() {
     }
   };
 
-  const handleLeaveGame = () => {
-    // Navigate to home screen (resets the navigation stack)
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
+  const handleLeaveGame = (skipConfirmation = false) => {
+    if (skipConfirmation) {
+      // Navigate directly without confirmation (called from nested dialog)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+      return;
+    }
+    
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Leave Game?',
+      message: 'Are you sure you want to leave? Your progress will be lost.',
+      confirmText: 'Leave',
+      cancelText: 'Stay',
+      destructive: true,
+      onConfirm: () => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+      }
     });
   };
 

@@ -188,7 +188,7 @@ const FireworkBurst: React.FC<FireworkBurstProps> = ({
   }), [animation, hueOffset, particleCount]); // Task #398: Memoize particle calculations
   
   return (
-    <View style={[styles.burst, { left: left as any, top: top as any }]}>
+    <View style={[styles.burst, { left, top }]}>
       {particles}
     </View>
   );

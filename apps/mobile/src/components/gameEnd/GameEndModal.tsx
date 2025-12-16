@@ -32,6 +32,7 @@ import {
   useWindowDimensions,
   ActivityIndicator, // CRITICAL FIX: Add loading state
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
@@ -338,14 +339,18 @@ export const GameEndModal: React.FC = () => {
                 styles.modalContainer,
                 {
                   width: isLandscape ? windowWidth * 0.7 : windowWidth * 0.9,
-                  height: isLandscape ? windowHeight * 0.8 : windowHeight * 0.7, // CRITICAL FIX: Explicit height
+                  // Give landscape more vertical space (95%) than portrait (85%) for better use of screen real estate
+                  height: isLandscape ? windowHeight * 0.95 : windowHeight * 0.85,
                   maxWidth: 600,
                   maxHeight: isLandscape ? windowHeight * 0.95 : windowHeight * 0.85,
                 }
               ]}
             >
-              {/* LinearGradient temporarily disabled due to linking issues */}
-              <View style={styles.gradient}>
+              {/* Gradient background for visual depth */}
+              <LinearGradient
+                colors={['#1a1a2e', '#16213e', '#0f3460']}
+                style={styles.gradient}
+              >
                 <ScrollView 
                   style={styles.scrollView}
                   contentContainerStyle={styles.scrollContent}
@@ -392,7 +397,7 @@ export const GameEndModal: React.FC = () => {
                     onReturnToMenu={handleReturnToMenu}
                   />
                 </ScrollView>
-              </View>
+              </LinearGradient>
             </View>
           </View>
         </View>
