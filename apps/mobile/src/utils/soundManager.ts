@@ -45,6 +45,8 @@ class SoundManager {
   private audioEnabled: boolean = true;
   private volume: number = 0.7; // Default 70% volume
   private initialized: boolean = false;
+  private activeSounds: Set<any> = new Set(); // Track active sound instances
+  private readonly MAX_CONCURRENT_SOUNDS = 5; // Limit concurrent sounds to prevent memory pressure
 
   /**
    * Initialize the sound manager
@@ -136,6 +138,12 @@ class SoundManager {
         return;
       }
 
+      // Limit concurrent sounds to prevent memory pressure from rapid plays
+      if (this.activeSounds.size >= this.MAX_CONCURRENT_SOUNDS) {
+        console.warn(`[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`);
+        return;
+      }
+
       // Create a new sound instance for concurrent playback
       // This allows multiple sounds of the same type to overlap (e.g., rapid card plays)
       const { sound } = await Audio.Sound.createAsync(soundFile, {
@@ -143,13 +151,18 @@ class SoundManager {
         volume: this.volume,
       });
 
+      // Track this active sound
+      this.activeSounds.add(sound);
+
       // Play the sound
       await sound.playAsync();
-      console.log(`[SoundManager] Played sound: ${type}`);
+      console.log(`[SoundManager] Played sound: ${type} (${this.activeSounds.size}/${this.MAX_CONCURRENT_SOUNDS} active)`);
 
       // Unload the sound after playback finishes to prevent memory leaks
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
+          // Remove from active tracking
+          this.activeSounds.delete(sound);
           sound.unloadAsync().catch(err => 
             console.warn(`[SoundManager] Failed to unload sound ${type}:`, err)
           );

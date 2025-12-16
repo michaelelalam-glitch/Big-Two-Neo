@@ -186,11 +186,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Profile not found - could be a race condition with trigger
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`⏳ [fetchProfile] Profile NOT FOUND yet (attempt ${attemptNum}/${totalAttempts}). Waiting ${RETRY_DELAY_MS}ms for DB trigger...`);
-            // Keep lock during retry delay to prevent race condition
+            // Keep lock during retry delay AND recursive call to prevent race condition
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-            // Clear lock after delay, just before retry
-            isFetchingProfile.current = false;
-            fetchProfilePromise.current = null;
+            // Do NOT clear lock here - let the finally block handle it after retry completes
             return fetchProfile(userId, retryCount + 1);
           }
           

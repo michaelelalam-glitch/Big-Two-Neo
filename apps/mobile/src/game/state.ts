@@ -880,18 +880,20 @@ export class GameStateManager {
         }
       }
       
-      // Store this match's combo stats
+      // Store this match's combo stats (using immutable pattern for React re-rendering safety)
       const matchScore = this.state.matchScores.find(s => s.playerId === player.id);
       if (matchScore) {
-        matchScore.matchComboStats.singles.push(matchCombos.singles);
-        matchScore.matchComboStats.pairs.push(matchCombos.pairs);
-        matchScore.matchComboStats.triples.push(matchCombos.triples);
-        matchScore.matchComboStats.straights.push(matchCombos.straights);
-        matchScore.matchComboStats.flushes.push(matchCombos.flushes);
-        matchScore.matchComboStats.full_houses.push(matchCombos.full_houses);
-        matchScore.matchComboStats.four_of_a_kinds.push(matchCombos.four_of_a_kinds);
-        matchScore.matchComboStats.straight_flushes.push(matchCombos.straight_flushes);
-        matchScore.matchComboStats.royal_flushes.push(matchCombos.royal_flushes);
+        matchScore.matchComboStats = {
+          singles: [...matchScore.matchComboStats.singles, matchCombos.singles],
+          pairs: [...matchScore.matchComboStats.pairs, matchCombos.pairs],
+          triples: [...matchScore.matchComboStats.triples, matchCombos.triples],
+          straights: [...matchScore.matchComboStats.straights, matchCombos.straights],
+          flushes: [...matchScore.matchComboStats.flushes, matchCombos.flushes],
+          full_houses: [...matchScore.matchComboStats.full_houses, matchCombos.full_houses],
+          four_of_a_kinds: [...matchScore.matchComboStats.four_of_a_kinds, matchCombos.four_of_a_kinds],
+          straight_flushes: [...matchScore.matchComboStats.straight_flushes, matchCombos.straight_flushes],
+          royal_flushes: [...matchScore.matchComboStats.royal_flushes, matchCombos.royal_flushes],
+        };
         
         statsLogger.info(`✅ [Match Stats] ${player.name} match ${this.state.currentMatch}: ${JSON.stringify(matchCombos)}`);
       }
