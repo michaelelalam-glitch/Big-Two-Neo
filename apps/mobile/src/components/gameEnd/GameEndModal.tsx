@@ -32,7 +32,8 @@ import {
   useWindowDimensions,
   ActivityIndicator, // CRITICAL FIX: Add loading state
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// LinearGradient commented out - requires native rebuild, using View with gradient-like background
+// import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
@@ -346,11 +347,8 @@ export const GameEndModal: React.FC = () => {
                 }
               ]}
             >
-              {/* Gradient background for visual depth */}
-              <LinearGradient
-                colors={['#1a1a2e', '#16213e', '#0f3460']}
-                style={styles.gradient}
-              >
+              {/* Gradient background using View - LinearGradient requires native rebuild */}
+              <View style={styles.gradient}>
                 <ScrollView 
                   style={styles.scrollView}
                   contentContainerStyle={styles.scrollContent}
@@ -397,7 +395,7 @@ export const GameEndModal: React.FC = () => {
                     onReturnToMenu={handleReturnToMenu}
                   />
                 </ScrollView>
-              </LinearGradient>
+              </View>
             </View>
           </View>
         </View>
@@ -929,6 +927,7 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
+    backgroundColor: '#1a1a2e', // Rich dark blue-purple background (matches intended gradient top color)
   },
   scrollView: {
     flex: 1,

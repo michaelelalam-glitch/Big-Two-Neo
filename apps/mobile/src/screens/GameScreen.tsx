@@ -271,22 +271,24 @@ function GameScreenContent() {
           setGameState(state);
           
           // Handle match end (someone ran out of cards)
-          if (state.gameEnded && !state.gameOver) {
-            // Match ended but game continues
+          if (state.gameEnded) {
+            // CRITICAL FIX: Always add score history when match ends, regardless of gameOver state
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
             
-            // Play win/lose sound based on match outcome
-            if (matchWinner && matchWinner.id === state.players[0].id) {
-              soundManager.playSound(SoundType.WIN);
-              gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
-            } else {
-              soundManager.playSound(SoundType.LOSE);
-              gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+            // Play win/lose sound based on match outcome (only if game continues)
+            if (!state.gameOver) {
+              if (matchWinner && matchWinner.id === state.players[0].id) {
+                soundManager.playSound(SoundType.WIN);
+                gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
+              } else {
+                soundManager.playSound(SoundType.LOSE);
+                gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+              }
             }
             
             // Task #351: Track score history for scoreboard
-            // Extract points added this match from matchScores array
+            // CRITICAL FIX: Extract points BEFORE checking gameOver to ensure final match is recorded
             const pointsAdded: number[] = [];
             const cumulativeScores: number[] = [];
             
@@ -297,33 +299,22 @@ function GameScreenContent() {
               cumulativeScores.push(playerScore.score);
             });
             
-            // CRITICAL FIX: Reorder scores to match scoreboard display order [0,3,1,2]
-            // matchScores is in game state order [0,1,2,3] (player indices)
-            // but scoreboard displays in visual layout order [0,3,1,2] (bottom, top, left, right)
-            // This transformation ensures scores are displayed correctly in the UI
-            // without this fix, player scores would appear in wrong positions on scoreboard
-            const reorderedPointsAdded = [
-              pointsAdded[0],  // Bottom player (index 0) stays at position 0
-              pointsAdded[3],  // Right player (index 3) moves to position 1 
-              pointsAdded[1],  // Top player (index 1) moves to position 2
-              pointsAdded[2]   // Left player (index 2) moves to position 3
-            ];
-            const reorderedScores = [
-              cumulativeScores[0],
-              cumulativeScores[3],
-              cumulativeScores[1],
-              cumulativeScores[2]
-            ];
-            
+            // CRITICAL FIX: DO NOT reorder scores for Game End Modal
+            // Game End Modal displays players in game order [0,1,2,3] (michael, bot1, bot2, bot3)
+            // matchScores is already in correct order - keep it that way!
+            // The old reordering [0,3,1,2] was for in-game scoreboard visual layout only
             const scoreHistory: ScoreHistory = {
               matchNumber: state.currentMatch,
-              pointsAdded: reorderedPointsAdded,
-              scores: reorderedScores,
+              pointsAdded: pointsAdded, // Keep in game order [0,1,2,3]
+              scores: cumulativeScores, // Keep in game order [0,1,2,3]
               timestamp: new Date().toISOString(),
             };
             
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
+            
+            // Only show match complete dialog if game is NOT over
+            if (!state.gameOver) {
             
             // Build score summary
             const scoreSummary = matchScores
@@ -368,9 +359,10 @@ function GameScreenContent() {
               });
             };
             
-            showMatchCompleteDialog();
-            // Note: Don't return here - game continues after dialog dismisses
-          }
+              showMatchCompleteDialog();
+              // Note: Don't return here - game continues after dialog dismisses
+            } // End of if (!state.gameOver) block
+          } // End of if (state.gameEnded) block
           
           // Handle game over (101+ points reached) - Task #415
           // CRITICAL FIX: Only open modal when BOTH gameOver AND gameEnded are true
