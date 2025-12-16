@@ -52,3 +52,4 @@ fix-tests.sh
 google-services.json
 credentials.json
 credentials/
+*.apk

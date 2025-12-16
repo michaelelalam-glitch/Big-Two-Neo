@@ -58,6 +58,18 @@ export interface PlayerMatchScore {
   playerName: string;
   score: number; // Total cumulative score across all matches
   matchScores: number[]; // Score history for each match
+  // Combo stats per match (for reliable stats tracking)
+  matchComboStats: {
+    singles: number[];
+    pairs: number[];
+    triples: number[];
+    straights: number[];
+    flushes: number[];
+    full_houses: number[];
+    four_of_a_kinds: number[];
+    straight_flushes: number[];
+    royal_flushes: number[];
+  };
 }
 
 /**
