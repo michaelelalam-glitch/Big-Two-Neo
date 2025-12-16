@@ -2,9 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, CENTER_PLAY } from '../constants';
 
-// Opacity for subtitle text (60% opacity = '99' in hex)
-const TEXT_OPACITY = '99';
-
 interface EmptyStateProps {
   /** Primary message displayed to user */
   title: string;
@@ -111,7 +108,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     textAlign: 'center',
     marginBottom: SPACING.xl,
-    lineHeight: FONT_SIZES.md * 1.5,
+    lineHeight: FONT_SIZES.lg * 1.5,
   },
   actionButton: {
     backgroundColor: COLORS.accent,
