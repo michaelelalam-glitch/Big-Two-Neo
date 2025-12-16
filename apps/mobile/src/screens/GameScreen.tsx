@@ -281,7 +281,7 @@ function GameScreenContent() {
               title: `Match ${state.currentMatch} Complete!`,
               message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
               confirmText: 'Next Match',
-              cancelText: 'Cancel',
+              cancelText: 'Leave Game',
               onConfirm: async () => {
                 gameLogger.info('🔄 [GameScreen] Starting next match...');
                 const result = await manager.startNewMatch();
@@ -294,7 +294,17 @@ function GameScreenContent() {
                   gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
                 }
               },
-              onCancel: handleLeaveGame // Allow user to leave if they don't want to continue
+              onCancel: () => {
+                // Show confirmation before leaving (prevent accidental exits)
+                showConfirm({
+                  title: 'Leave Game?',
+                  message: 'Are you sure you want to leave? Your progress will be lost.',
+                  confirmText: 'Leave',
+                  cancelText: 'Stay',
+                  destructive: true,
+                  onConfirm: handleLeaveGame,
+                });
+              }
             });
             return; // Don't trigger bot turns while alert is showing
           }
