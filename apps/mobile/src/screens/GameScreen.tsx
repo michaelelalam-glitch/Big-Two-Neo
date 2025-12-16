@@ -302,11 +302,12 @@ function GameScreenContent() {
                   confirmText: 'Leave',
                   cancelText: 'Stay',
                   destructive: true,
-                  onConfirm: handleLeaveGame,
+                  onConfirm: () => handleLeaveGame(true), // Skip nested confirmation
+                  // onCancel: undefined - Stay button dismisses dialog and continues game
                 });
               }
             });
-            return; // Don't trigger bot turns while alert is showing
+            // Note: Don't return here - game continues after dialog dismisses
           }
           
           // Handle game over (101+ points reached)
@@ -325,7 +326,7 @@ function GameScreenContent() {
               message: `${finalWinner?.playerName || 'Someone'} wins the game!\n\n${scoreSummary}`,
               confirmText: 'OK',
               cancelText: '', // Hide cancel button - user must acknowledge game over
-              onConfirm: handleLeaveGame
+              onConfirm: () => handleLeaveGame(true) // Skip confirmation on game over
             });
             return; // Don't trigger bot turns when game is over
           }
@@ -741,7 +742,20 @@ function GameScreenContent() {
     }
   };
 
-  const handleLeaveGame = () => {
+  const handleLeaveGame = (skipConfirmation = false) => {
+    // If called directly (from settings modal), show confirmation first
+    if (!skipConfirmation) {
+      showConfirm({
+        title: 'Leave Game?',
+        message: 'Are you sure you want to leave? Your progress will be lost.',
+        confirmText: 'Leave',
+        cancelText: 'Stay',
+        destructive: true,
+        onConfirm: () => handleLeaveGame(true), // Skip confirmation on recursive call
+      });
+      return;
+    }
+    
     // Navigate to home screen (resets the navigation stack)
     navigation.reset({
       index: 0,
