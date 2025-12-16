@@ -11,6 +11,7 @@ import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { gameLogger, statsLogger } from '../utils/logger';
+import { showError } from '../utils';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -961,7 +962,6 @@ export class GameStateManager {
             // Check if game is still active (user hasn't navigated away)
             // If game state still exists, show the alert
             if (this.state && this.state.gameOver) {
-              const { showError } = require('../utils');
               showError(
                 'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
                 'Stats Not Saved'
