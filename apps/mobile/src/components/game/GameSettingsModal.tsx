@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
+import { soundManager, hapticManager, HapticType } from '../../utils';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -13,6 +14,54 @@ export default function GameSettingsModal({
   onClose,
   onLeaveGame,
 }: GameSettingsModalProps) {
+  // Load initial settings from managers
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+
+  // Load saved settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const savedSoundEnabled = await soundManager.isAudioEnabled();
+      const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
+      setSoundEnabled(savedSoundEnabled);
+      setVibrationEnabled(savedVibrationEnabled);
+      // Music is separate from sound effects in the future
+      setMusicEnabled(true);
+    };
+    loadSettings();
+  }, []);
+
+  const handleToggleSound = async () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    await soundManager.setAudioEnabled(newValue);
+    // Play confirmation haptic
+    if (vibrationEnabled) {
+      hapticManager.trigger(HapticType.SELECTION);
+    }
+  };
+
+  const handleToggleMusic = async () => {
+    const newValue = !musicEnabled;
+    setMusicEnabled(newValue);
+    // TODO: Implement music manager in future update
+    // Play confirmation haptic
+    if (vibrationEnabled) {
+      hapticManager.trigger(HapticType.SELECTION);
+    }
+  };
+
+  const handleToggleVibration = async () => {
+    const newValue = !vibrationEnabled;
+    setVibrationEnabled(newValue);
+    await hapticManager.setHapticsEnabled(newValue);
+    // Play confirmation haptic if enabling (ironic but standard UX)
+    if (newValue) {
+      hapticManager.trigger(HapticType.SELECTION);
+    }
+  };
+
   const handleLeaveGame = () => {
     Alert.alert(
       'Leave Game',
@@ -59,37 +108,37 @@ export default function GameSettingsModal({
             {/* Sound Settings */}
             <Pressable 
               style={styles.menuItem}
-              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              onPress={handleToggleSound}
               accessibilityRole="button"
-              accessibilityLabel="Sound Effects, currently on"
+              accessibilityLabel={`Sound Effects, currently ${soundEnabled ? 'on' : 'off'}`}
               accessibilityHint="Tap to toggle sound effects"
             >
               <Text style={styles.menuItemText}>🔊 Sound Effects</Text>
-              <Text style={styles.menuItemValue}>On</Text>
+              <Text style={styles.menuItemValue}>{soundEnabled ? 'On' : 'Off'}</Text>
             </Pressable>
 
             {/* Music Settings */}
             <Pressable 
               style={styles.menuItem}
-              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              onPress={handleToggleMusic}
               accessibilityRole="button"
-              accessibilityLabel="Music, currently on"
+              accessibilityLabel={`Music, currently ${musicEnabled ? 'on' : 'off'}`}
               accessibilityHint="Tap to toggle music"
             >
               <Text style={styles.menuItemText}>🎵 Music</Text>
-              <Text style={styles.menuItemValue}>On</Text>
+              <Text style={[styles.menuItemValue, !musicEnabled && styles.disabledText]}>{musicEnabled ? 'On' : 'Off'}</Text>
             </Pressable>
 
             {/* Vibration Settings */}
             <Pressable 
               style={styles.menuItem}
-              onPress={() => Alert.alert('Coming soon', 'This setting will be available in a future update.')}
+              onPress={handleToggleVibration}
               accessibilityRole="button"
-              accessibilityLabel="Vibration, currently on"
+              accessibilityLabel={`Vibration, currently ${vibrationEnabled ? 'on' : 'off'}`}
               accessibilityHint="Tap to toggle vibration"
             >
               <Text style={styles.menuItemText}>📳 Vibration</Text>
-              <Text style={styles.menuItemValue}>On</Text>
+              <Text style={styles.menuItemValue}>{vibrationEnabled ? 'On' : 'Off'}</Text>
             </Pressable>
 
             <View style={styles.divider} />
@@ -192,5 +241,8 @@ const styles = StyleSheet.create({
   },
   leaveGameText: {
     color: COLORS.danger,
+  },
+  disabledText: {
+    color: COLORS.gray.medium,
   },
 });
