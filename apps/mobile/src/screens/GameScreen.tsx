@@ -293,7 +293,8 @@ function GameScreenContent() {
                   const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
                   gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
                 }
-              }
+              },
+              onCancel: handleLeaveGame // Allow user to leave if they don't want to continue
             });
             return; // Don't trigger bot turns while alert is showing
           }
