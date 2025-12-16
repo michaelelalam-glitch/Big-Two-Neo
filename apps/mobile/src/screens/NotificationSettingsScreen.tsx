@@ -6,7 +6,6 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Platform,
   Linking,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationLogger } from '../utils/logger';
+import { showError, showSuccess, showConfirm, showInfo } from '../utils';
 
 export default function NotificationSettingsScreen() {
   const { expoPushToken, isRegistered, registerPushNotifications, unregisterPushNotifications } =
@@ -44,51 +44,33 @@ export default function NotificationSettingsScreen() {
       if (status === 'granted') {
         await registerPushNotifications();
         setNotificationsEnabled(true);
-        Alert.alert('Success', 'Push notifications have been enabled!');
+        showSuccess('Push notifications have been enabled!');
       } else {
-        Alert.alert(
-          'Permissions Required',
-          'Please enable notifications in your device settings to receive game updates.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                Linking.openSettings();
-              },
-            },
-          ]
-        );
+        showConfirm({
+          title: 'Permissions Required',
+          message: 'Please enable notifications in your device settings to receive game updates.',
+          confirmText: 'Open Settings',
+          onConfirm: () => Linking.openSettings()
+        });
       }
     } else {
       // Unregister
-      Alert.alert(
-        'Disable Notifications',
-        'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Disable',
-            style: 'destructive',
-            onPress: async () => {
-              await unregisterPushNotifications();
-              setNotificationsEnabled(false);
-            },
-          },
-        ]
-      );
+      showConfirm({
+        title: 'Disable Notifications',
+        message: 'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
+        confirmText: 'Disable',
+        destructive: true,
+        onConfirm: async () => {
+          await unregisterPushNotifications();
+          setNotificationsEnabled(false);
+        }
+      });
     }
   };
 
   const testNotification = async () => {
     if (!notificationsEnabled) {
-      Alert.alert('Notifications Disabled', 'Please enable notifications first.');
+      showError('Please enable notifications first.', 'Notifications Disabled');
       return;
     }
 
@@ -105,11 +87,11 @@ export default function NotificationSettingsScreen() {
         },
       });
 
-      Alert.alert('Test Notification Sent', 'You should receive a notification in 2 seconds!');
+      showInfo('You should receive a notification in 2 seconds!', 'Test Notification Sent');
     } catch (error: any) {
       // Only log error message/code to avoid exposing notification service internals
       notificationLogger.error('Error sending test notification:', error?.message || error?.code || String(error));
-      Alert.alert('Error', 'Failed to send test notification.');
+      showError('Failed to send test notification.');
     }
   };
 

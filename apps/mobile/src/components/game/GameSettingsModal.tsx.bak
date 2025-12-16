@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
-import { soundManager, hapticManager, HapticType, showConfirm } from '../../utils';
+import { soundManager, hapticManager, HapticType } from '../../utils';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -63,16 +63,24 @@ export default function GameSettingsModal({
   };
 
   const handleLeaveGame = () => {
-    showConfirm({
-      title: 'Leave Game',
-      message: 'Are you sure you want to leave this game? Your progress will be lost.',
-      confirmText: 'Leave',
-      destructive: true,
-      onConfirm: () => {
-        onClose();
-        onLeaveGame();
-      },
-    });
+    Alert.alert(
+      'Leave Game',
+      'Are you sure you want to leave this game? Your progress will be lost.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            onClose();
+            onLeaveGame();
+          },
+        },
+      ]
+    );
   };
 
   return (

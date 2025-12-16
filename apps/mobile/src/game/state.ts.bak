@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { type AutoPassTimerState } from '../types/multiplayer';
@@ -961,10 +962,11 @@ export class GameStateManager {
             // Check if game is still active (user hasn't navigated away)
             // If game state still exists, show the alert
             if (this.state && this.state.gameOver) {
-              const { showError } = require('../utils');
-              showError(
+              Alert.alert(
+                'Stats Not Saved',
                 'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
-                'Stats Not Saved'
+                [{ text: 'OK', style: 'cancel' }],
+                { cancelable: true }
               );
             }
           }, 1000); // Delay to avoid interrupting game over UI

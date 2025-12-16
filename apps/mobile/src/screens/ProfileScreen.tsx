@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { COLORS } from '../constants';
 import { statsLogger, authLogger } from '../utils/logger';
+import { showError, showConfirm } from '../utils';
+import EmptyState from '../components/EmptyState';
 
 interface PlayerStats {
   games_played: number;
@@ -74,24 +75,20 @@ const ProfileScreen = () => {
   }, [fetchStats]);
 
   const handleSignOut = async () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-          } catch (error: any) {
-            authLogger.error('Error signing out:', error?.message || String(error));
-            Alert.alert('Error', 'Failed to sign out. Please try again.');
-          }
-        },
-      },
-    ]);
+    showConfirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      confirmText: 'Sign Out',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await signOut();
+        } catch (error: any) {
+          authLogger.error('Error signing out:', error?.message || String(error));
+          showError('Failed to sign out. Please try again.');
+        }
+      }
+    });
   };
 
   if (isLoading) {
@@ -171,10 +168,12 @@ const ProfileScreen = () => {
                 )}
               </>
             ) : (
-              <View style={styles.noStatsContainer}>
-                <Text style={styles.noStatsText}>No game statistics yet</Text>
-                <Text style={styles.noStatsSubtext}>Play your first game to see your stats!</Text>
-              </View>
+              <EmptyState
+                icon="📈"
+                title="No statistics yet"
+                subtitle="Play your first game to see your stats!"
+                variant="minimal"
+              />
             )}
           </View>
 
