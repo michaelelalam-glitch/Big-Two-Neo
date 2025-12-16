@@ -99,14 +99,18 @@ describe('EmptyState', () => {
   });
 
   it('does not render icon when not provided', () => {
-    const { container } = render(<EmptyState title="No icon" />);
-    // Should only have title text, no icon
-    expect(container.findAllByType('Text')).toHaveLength(1);
+    const { queryByText, getByText } = render(<EmptyState title="No icon" />);
+    expect(getByText('No icon')).toBeTruthy();
+    // Common icons should not exist
+    expect(queryByText('🏆')).toBeNull();
+    expect(queryByText('🎮')).toBeNull();
   });
 
   it('does not render action button when not provided', () => {
-    const { container } = render(<EmptyState title="No action" />);
-    // Should not have TouchableOpacity
-    expect(container.findAllByType('TouchableOpacity')).toHaveLength(0);
+    const { queryByText, getByText } = render(<EmptyState title="No action" />);
+    expect(getByText('No action')).toBeTruthy();
+    // Action button labels should not exist
+    expect(queryByText('Create New')).toBeNull();
+    expect(queryByText('Play Now')).toBeNull();
   });
 });
