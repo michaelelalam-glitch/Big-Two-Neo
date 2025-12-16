@@ -2,12 +2,12 @@
  * Alert Utility
  * 
  * Centralized alert system for consistent user feedback across the app.
- * Provides themed alerts with standardized styling and behavior.
+ * Provides standardized alert structure and behavior.
  * 
  * Usage:
- * - showError(message) - For error messages (red theme)
- * - showSuccess(message) - For success messages (green theme)
- * - showInfo(message) - For informational messages (blue theme)
+ * - showError(message) - For error messages
+ * - showSuccess(message) - For success messages
+ * - showInfo(message) - For informational messages
  * - showConfirm(options) - For confirmation dialogs with custom buttons
  */
 
@@ -80,18 +80,19 @@ export const showConfirm = (options: ConfirmOptions): void => {
     destructive = false,
   } = options;
 
-  const buttons: AlertButton[] = [
-    {
+  const buttons: AlertButton[] = [];
+  if (cancelText) {
+    buttons.push({
       text: cancelText,
       style: 'cancel',
       onPress: onCancel,
-    },
-    {
-      text: confirmText,
-      style: destructive ? 'destructive' : 'default',
-      onPress: onConfirm,
-    },
-  ];
+    });
+  }
+  buttons.push({
+    text: confirmText,
+    style: destructive ? 'destructive' : 'default',
+    onPress: onConfirm,
+  });
 
   Alert.alert(title, message, buttons, { cancelable: true });
 };

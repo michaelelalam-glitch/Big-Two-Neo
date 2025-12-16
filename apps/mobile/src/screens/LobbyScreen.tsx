@@ -7,7 +7,8 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { roomLogger } from '../utils/logger';; import { showError, showSuccess, showConfirm, showInfo } from '../utils';
+import { roomLogger } from '../utils/logger';
+import { showError } from '../utils';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -188,7 +189,7 @@ export default function LobbyScreen() {
     } catch (error: any) {
       roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
       showError('Failed to update ready status');
-    } finally{
+    } finally {
       setIsTogglingReady(false);
     }
   };
