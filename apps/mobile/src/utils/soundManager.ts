@@ -3,6 +3,10 @@
  * 
  * Manages all audio playback in the Big Two mobile game.
  * Handles loading, playing, and managing sound effects with settings integration.
+ * 
+ * TODO (SDK 55): Migrate from expo-av (deprecated) to expo-audio
+ * Reference: https://docs.expo.dev/versions/latest/sdk/audio/
+ * expo-av will be removed in Expo SDK 55 (expected March 2026)
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,12 +28,12 @@ export enum SoundType {
 const SOUND_FILES: Record<SoundType, any> = {
   [SoundType.GAME_START]: require('../../assets/sounds/fi_mat3am_hawn.m4a'),
   [SoundType.HIGHEST_CARD]: require('../../assets/sounds/Yeyyeeyy.m4a'),
-  [SoundType.CARD_PLAY]: null, // TODO: Add generic card play sound
-  [SoundType.PASS]: null,
-  [SoundType.WIN]: null,
-  [SoundType.LOSE]: null,
-  [SoundType.TURN_NOTIFICATION]: null,
-  [SoundType.INVALID_MOVE]: null,
+  [SoundType.CARD_PLAY]: require('../../assets/sounds/card_play.m4a'),
+  [SoundType.PASS]: require('../../assets/sounds/pass.m4a'),
+  [SoundType.WIN]: require('../../assets/sounds/win.m4a'),
+  [SoundType.LOSE]: require('../../assets/sounds/lose.m4a'),
+  [SoundType.TURN_NOTIFICATION]: require('../../assets/sounds/turn_notification.m4a'),
+  [SoundType.INVALID_MOVE]: require('../../assets/sounds/invalid_move.m4a'),
 };
 
 // Settings keys
@@ -144,14 +148,17 @@ class SoundManager {
         this.sounds.set(type, sound);
       }
 
-      // Stop if already playing
+      // Stop and reset if already playing
       const status = await sound.getStatusAsync();
       if (status.isLoaded && status.isPlaying) {
         await sound.stopAsync();
       }
-
-      // Replay from start
-      await sound.replayAsync();
+      
+      // Reset position to start and play
+      if (status.isLoaded) {
+        await sound.setPositionAsync(0);
+      }
+      await sound.playAsync();
       console.log(`[SoundManager] Played sound: ${type}`);
     } catch (error) {
       console.error(`[SoundManager] Failed to play sound ${type}:`, error);

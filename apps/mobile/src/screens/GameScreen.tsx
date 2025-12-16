@@ -208,6 +208,14 @@ function GameScreenContent() {
             gameEnded: state.gameEnded,
             gameOver: state.gameOver
           });
+          
+          // Play turn notification when it becomes player's turn
+          const previousState = gameState;
+          if (previousState && state.currentPlayerIndex === 0 && previousState.currentPlayerIndex !== 0) {
+            soundManager.playSound(SoundType.TURN_NOTIFICATION);
+            gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
+          }
+          
           setGameState(state);
           
           // Handle match end (someone ran out of cards)
@@ -215,6 +223,15 @@ function GameScreenContent() {
             // Match ended but game continues
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
+            
+            // Play win/lose sound based on match outcome
+            if (matchWinner && matchWinner.id === state.players[0].id) {
+              soundManager.playSound(SoundType.WIN);
+              gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
+            } else {
+              soundManager.playSound(SoundType.LOSE);
+              gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+            }
             
             // Task #351: Track score history for scoreboard
             // Extract points added this match from matchScores array
@@ -331,6 +348,10 @@ function GameScreenContent() {
           if (gameManagerRef.current) {
             gameManagerRef.current.destroy();
           }
+          // Cleanup audio resources to prevent memory leaks
+          soundManager.cleanup().catch(err => {
+            gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
+          });
         };
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
@@ -550,13 +571,19 @@ function GameScreenContent() {
 
   // Task #270: Auto-pass timer audio/haptic feedback
   const hasPlayedHighestCardSoundRef = useRef(false);
-  const hasVibrated5SecondWarningRef = useRef(false);
 
   useEffect(() => {
+    // DEBUG: Log every timer update
+    gameLogger.debug('[DEBUG] Timer effect fired:', {
+      hasTimer: !!gameState?.auto_pass_timer,
+      remaining_ms: gameState?.auto_pass_timer?.remaining_ms,
+      displaySeconds: gameState?.auto_pass_timer ? Math.ceil(gameState.auto_pass_timer.remaining_ms / 1000) : null
+    });
+
     if (!gameState?.auto_pass_timer) {
       // Timer not active - reset flags for next timer activation
+      gameLogger.debug('[DEBUG] Resetting timer flags (timer inactive)');
       hasPlayedHighestCardSoundRef.current = false;
-      hasVibrated5SecondWarningRef.current = false;
       return;
     }
 
@@ -567,14 +594,18 @@ function GameScreenContent() {
       hasPlayedHighestCardSoundRef.current = true;
     }
 
-    // 5-second urgency warning vibration (once per timer activation)
+    // Progressive intensity vibration from 5 seconds down to 1
+    // CRITICAL: Use Math.ceil to match UI display logic (5000ms = 5 seconds)
     const remaining_ms = gameState.auto_pass_timer.remaining_ms;
-    if (remaining_ms <= 5000 && !hasVibrated5SecondWarningRef.current) {
-      hapticManager.trigger(HapticType.HEAVY);
-      gameLogger.info('📳 [Haptic] 5-second urgency vibration triggered');
-      hasVibrated5SecondWarningRef.current = true;
+    const displaySeconds = Math.ceil(remaining_ms / 1000);
+    
+    // Vibrate with increasing frequency from 5→1 (more pulses = more intense)
+    if (displaySeconds <= 5 && displaySeconds >= 1) {
+      gameLogger.warn(`🚨 [VIBRATION] Triggering urgent countdown at ${displaySeconds}s (remaining_ms=${remaining_ms})`);
+      hapticManager.urgentCountdown(displaySeconds);
+      gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
     }
-  }, [gameState?.auto_pass_timer]);
+  }, [gameState?.auto_pass_timer?.remaining_ms]); // CRITICAL FIX: Watch remaining_ms, not object reference
 
   const handlePlayCards = async (cards: Card[]) => {
     if (!gameManagerRef.current || !gameState) {
@@ -609,6 +640,9 @@ function GameScreenContent() {
       if (result.success) {
         gameLogger.info('✅ [GameScreen] Cards played successfully');
         
+        // Play card sound effect
+        soundManager.playSound(SoundType.CARD_PLAY);
+        
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {
           setSelectedCardIds(new Set());
@@ -626,6 +660,7 @@ function GameScreenContent() {
         // Bot turns and match/game end will be handled by subscription callback
       } else {
         // Show error from validation
+        soundManager.playSound(SoundType.INVALID_MOVE);
         Alert.alert('Invalid Move', result.error || 'Invalid play');
       }
     } catch (error: any) {
@@ -633,6 +668,7 @@ function GameScreenContent() {
       gameLogger.error('❌ [GameScreen] Failed to play cards:', error?.message || error?.code || String(error));
       
       // Show user-friendly error
+      soundManager.playSound(SoundType.INVALID_MOVE);
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
       Alert.alert('Invalid Move', errorMessage);
     } finally {
@@ -668,6 +704,9 @@ function GameScreenContent() {
       
       if (result.success) {
         gameLogger.info('✅ [GameScreen] Pass successful');
+        
+        // Play pass sound effect
+        soundManager.playSound(SoundType.PASS);
         
         // Clear selection only if component is still mounted
         if (isMountedRef.current) {

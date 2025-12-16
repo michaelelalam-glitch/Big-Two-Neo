@@ -49,7 +49,7 @@ build.log
 fix-tests.sh
 
 # CRITICAL: Firebase and EAS credentials (NEVER commit these!)
-google-services.json
+# google-services.json  # TEMPORARILY COMMENTED FOR BUILD - MUST RE-ENABLE AFTER
 credentials.json
 credentials/
 *.apk

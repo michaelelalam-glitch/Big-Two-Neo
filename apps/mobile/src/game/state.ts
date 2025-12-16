@@ -776,14 +776,20 @@ export class GameStateManager {
       // Clear timer if it was active
       // Note: If highest play was made, no one can beat it, so this should never trigger
       if (this.state!.auto_pass_timer?.active) {
-        // This is a critical bug - throw exception to catch it in development/testing
-        throw new Error(
-          `⏹️ [Auto-Pass Timer] Timer cleared unexpectedly! This indicates a bug in highest play detection logic.\n` +
-          `  Player: ${player.name} (ID: ${player.id})\n` +
-          `  Cards played: ${JSON.stringify(cards.map(c => `${c.rank}${c.suit}`))}\n` +
-          `  Current lastPlay: ${JSON.stringify(this.state!.lastPlay)}\n` +
-          `  Triggering play was: ${JSON.stringify(this.state!.auto_pass_timer.triggering_play)}`
+        // Log critical bug but don't crash - clear timer and allow game to continue
+        gameLogger.error(
+          `⏹️ [Auto-Pass Timer] Timer cleared unexpectedly! This indicates a bug in highest play detection logic.`,
+          {
+            player: player.name,
+            playerId: player.id,
+            cardsPlayed: cards.map(c => `${c.rank}${c.suit}`),
+            currentLastPlay: this.state!.lastPlay,
+            triggeringPlay: this.state!.auto_pass_timer.triggering_play
+          }
         );
+        // Clear timer to prevent crash and allow game to continue
+        this.state!.auto_pass_timer = null;
+        gameLogger.warn('⏹️ [Auto-Pass Timer] Timer forcibly cleared to prevent crash');
       }
     }
 

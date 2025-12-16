@@ -151,6 +151,71 @@ class HapticManager {
   async selection(): Promise<void> {
     await this.trigger(HapticType.SELECTION);
   }
+
+  /**
+   * Progressive urgency vibration for auto-pass timer
+   * Uses multiple rapid pulses to create increasing intensity
+   * @param secondsRemaining - Seconds remaining (5, 4, 3, 2, 1)
+   */
+  async urgentCountdown(secondsRemaining: number): Promise<void> {
+    if (!this.hapticsEnabled) return;
+
+    try {
+      // More pulses = more intense feeling
+      let pulseCount: number;
+      let baseIntensity: Haptics.ImpactFeedbackStyle;
+      let delayBetweenPulses: number;
+
+      switch (secondsRemaining) {
+        case 5:
+          pulseCount = 1; // Single light pulse
+          baseIntensity = Haptics.ImpactFeedbackStyle.Light;
+          delayBetweenPulses = 0;
+          break;
+        
+        case 4:
+          pulseCount = 2; // Double medium pulse
+          baseIntensity = Haptics.ImpactFeedbackStyle.Medium;
+          delayBetweenPulses = 50; // 50ms between pulses
+          break;
+        
+        case 3:
+          pulseCount = 3; // Triple heavy pulse
+          baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
+          delayBetweenPulses = 60; // 60ms between pulses
+          break;
+        
+        case 2:
+          pulseCount = 4; // Quad heavy pulse (more intense)
+          baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
+          delayBetweenPulses = 70; // 70ms between pulses
+          break;
+        
+        case 1:
+          pulseCount = 5; // Quintuple heavy pulse (most intense)
+          baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
+          delayBetweenPulses = 80; // 80ms between pulses
+          break;
+        
+        default:
+          return; // Invalid seconds value
+      }
+
+      // Fire multiple pulses with delays
+      for (let i = 0; i < pulseCount; i++) {
+        await Haptics.impactAsync(baseIntensity);
+        
+        // Wait between pulses (except after the last one)
+        if (i < pulseCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayBetweenPulses));
+        }
+      }
+      
+      console.log(`[HapticManager] Urgent countdown: ${secondsRemaining}s (${pulseCount} pulses)`);
+    } catch (error) {
+      console.error(`[HapticManager] Failed to trigger urgent countdown:`, error);
+    }
+  }
 }
 
 // Export singleton instance

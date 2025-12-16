@@ -168,17 +168,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (error) {
           authLogger.error('❌ [fetchProfile] Error:', error?.message || error?.code || 'Unknown error');
           
-          // Retry on any error
-          if (retryCount < MAX_RETRIES) {
-            authLogger.warn(`⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
-            // Clear lock before retry to avoid returning same failing promise
-            isFetchingProfile.current = false;
-            fetchProfilePromise.current = null;
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-            return fetchProfile(userId, retryCount + 1);
-          }
-          
-          return null;
+        // Retry on any error
+        if (retryCount < MAX_RETRIES) {
+          authLogger.warn(`⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+          // Keep lock during retry delay to prevent race condition
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          // Clear lock after delay, just before retry
+          isFetchingProfile.current = false;
+          fetchProfilePromise.current = null;
+          return fetchProfile(userId, retryCount + 1);
+        }          return null;
         }
 
         // Handle array response from .limit(1) instead of .single()
@@ -188,10 +187,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Profile not found - could be a race condition with trigger
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`⏳ [fetchProfile] Profile NOT FOUND yet (attempt ${attemptNum}/${totalAttempts}). Waiting ${RETRY_DELAY_MS}ms for DB trigger...`);
-            // Clear lock before retry to avoid returning same failing promise
+            // Keep lock during retry delay to prevent race condition
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+            // Clear lock after delay, just before retry
             isFetchingProfile.current = false;
             fetchProfilePromise.current = null;
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
             return fetchProfile(userId, retryCount + 1);
           }
           
@@ -234,10 +234,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           if (retryCount < MAX_RETRIES) {
             authLogger.warn(`♻️ [fetchProfile] Retrying after timeout... (${RETRY_DELAY_MS}ms delay)`);
-            // Clear lock before retry to avoid returning same failing promise
+            // Keep lock during retry delay to prevent race condition
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+            // Clear lock after delay, just before retry
             isFetchingProfile.current = false;
             fetchProfilePromise.current = null;
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
             return fetchProfile(userId, retryCount + 1);
           } else {
             authLogger.error('❌ [fetchProfile] GIVING UP after all timeout retries. Poor network or Supabase not responding.');
@@ -253,10 +254,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Retry on any error if attempts remain
         if (retryCount < MAX_RETRIES) {
           authLogger.warn(`♻️ [fetchProfile] Retrying after error... (${RETRY_DELAY_MS}ms delay)`);
-          // Clear lock before retry to avoid returning same failing promise
+          // Keep lock during retry delay to prevent race condition
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          // Clear lock after delay, just before retry
           isFetchingProfile.current = false;
           fetchProfilePromise.current = null;
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
           return fetchProfile(userId, retryCount + 1);
         }
         
@@ -367,11 +369,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         // 🎵 CRITICAL: Initialize audio/haptic managers on app startup
         authLogger.info('🎵 [AuthContext] Initializing audio & haptic managers...');
-        await Promise.all([
-          soundManager.initialize(),
-          hapticManager.initialize()
-        ]);
-        authLogger.info('✅ [AuthContext] Audio & haptic managers initialized');
+        try {
+          await Promise.all([
+            soundManager.initialize(),
+            hapticManager.initialize()
+          ]);
+          authLogger.info('✅ [AuthContext] Audio & haptic managers initialized');
+        } catch (audioError: any) {
+          // Non-blocking error - app continues without audio/haptics
+          authLogger.error('⚠️ [AuthContext] Failed to initialize audio/haptic managers:', audioError?.message || String(audioError));
+          authLogger.warn('⚠️ [AuthContext] App will continue without sound effects and vibration');
+          // User will notice missing audio/haptics naturally during gameplay
+          // No need for intrusive alert on startup
+        }
 
         // Get initial session
         const {
@@ -480,6 +490,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (isSilentRefresh && profile) {
             authLogger.info('⏭️ [AuthContext] Skipping profile fetch on token refresh (already loaded)');
             // Push notifications already registered on sign-in, no need to re-register
+            return; // Exit early, no state changes needed
+          }
+          
+          // 🚨 CRITICAL: Also skip profile fetch for silent refresh even if profile is null
+          // The profile will be loaded by the useEffect below or initializeAuth
+          // This prevents the 6-attempt retry spam on reconnection
+          if (isSilentRefresh) {
+            authLogger.info('⏭️ [AuthContext] Skipping profile fetch on token refresh (will load via useEffect if needed)');
             return; // Exit early, no state changes needed
           }
           
