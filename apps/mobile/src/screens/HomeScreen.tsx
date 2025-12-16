@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
+import { showError, showSuccess, showConfirm } from '../utils';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -55,34 +56,29 @@ export default function HomeScreen() {
   const handleLeaveCurrentRoom = async () => {
     if (!user || !currentRoom) return;
 
-    Alert.alert(
-      'Leave Room',
-      `Leave room ${currentRoom}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('room_players')
-                .delete()
-                .eq('user_id', user.id);
+    showConfirm({
+      title: 'Leave Room',
+      message: `Leave room ${currentRoom}?`,
+      confirmText: 'Leave',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id);
 
-              if (error) throw error;
+          if (error) throw error;
 
-              Alert.alert('Success', 'Left the room');
-              setCurrentRoom(null);
-            } catch (error: any) {
-              // Only log error message/code to avoid exposing DB internals
-              roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
-              Alert.alert('Error', 'Failed to leave room');
-            }
-          }
+          showSuccess('Left the room');
+          setCurrentRoom(null);
+        } catch (error: any) {
+          // Only log error message/code to avoid exposing DB internals
+          roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
+          showError('Failed to leave room');
         }
-      ]
-    );
+      }
+    });
   };
 
   const generateRoomCode = (): string => {
@@ -98,7 +94,7 @@ export default function HomeScreen() {
     const MAX_RETRIES = 3;
     
     if (!user) {
-      Alert.alert('Error', 'You must be signed in to quick play');
+      showError('You must be signed in to quick play');
       return;
     }
 
@@ -190,7 +186,7 @@ export default function HomeScreen() {
               // Fall through to room creation logic
             }
           } else if (joinError.message?.includes('already in another room')) {
-            Alert.alert('Error', 'You are already in another room. Please leave it first.');
+            showError('You are already in another room. Please leave it first.');
             return;
           } else {
             // Unexpected error
@@ -250,7 +246,7 @@ export default function HomeScreen() {
       // Only log error message/code to avoid exposing DB internals, auth tokens, or stack traces
       roomLogger.error('❌ Error with quick play:', error?.message || error?.code || String(error));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to join or create room';
-      Alert.alert('Error', errorMessage);
+      showError(errorMessage);
     } finally {
       roomLogger.info('🏁 Quick Play finished');
       setIsQuickPlaying(false);

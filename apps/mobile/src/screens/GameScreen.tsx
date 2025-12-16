@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -16,7 +16,7 @@ import type { ScoreHistory } from '../types/scoreboard';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
-import { soundManager, hapticManager, HapticType, SoundType } from '../utils';
+import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -166,10 +166,9 @@ function GameScreenContent() {
             gameLogger.debug('🔓 [GameScreen] Bot turn lock released (error)');
             
             // Notify user and attempt recovery
-            Alert.alert(
-              'Bot Turn Error',
+            showError(
               `Bot ${currentPlayer.name} encountered an error. The game will continue with the next player.`,
-              [{ text: 'OK' }]
+              'Bot Turn Error'
             );
             
             // Check for next player after brief delay
@@ -278,27 +277,24 @@ function GameScreenContent() {
               .map(s => `${s.playerName}: ${s.score} pts`)
               .join('\n');
             
-            Alert.alert(
-              `Match ${state.currentMatch} Complete!`,
-              `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
-              [
-                {
-                  text: 'Next Match',
-                  onPress: async () => {
-                    gameLogger.info('🔄 [GameScreen] Starting next match...');
-                    const result = await manager.startNewMatch();
-                    if (result.success) {
-                      gameLogger.info('✅ [GameScreen] New match started');
-                      // Bot turns will be triggered by the subscription callback
-                    } else {
-                      // Only log error message to avoid exposing game state internals
-                      const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
-                      gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
-                    }
-                  }
+            showConfirm({
+              title: `Match ${state.currentMatch} Complete!`,
+              message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
+              confirmText: 'Next Match',
+              cancelText: 'Cancel',
+              onConfirm: async () => {
+                gameLogger.info('🔄 [GameScreen] Starting next match...');
+                const result = await manager.startNewMatch();
+                if (result.success) {
+                  gameLogger.info('✅ [GameScreen] New match started');
+                  // Bot turns will be triggered by the subscription callback
+                } else {
+                  // Only log error message to avoid exposing game state internals
+                  const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
+                  gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
                 }
-              ]
-            );
+              }
+            });
             return; // Don't trigger bot turns while alert is showing
           }
           
@@ -313,11 +309,13 @@ function GameScreenContent() {
               .map(s => `${s.playerName}: ${s.score} pts`)
               .join('\n');
             
-            Alert.alert(
-              'Game Over!',
-              `${finalWinner?.playerName || 'Someone'} wins the game!\n\n${scoreSummary}`,
-              [{ text: 'OK', onPress: handleLeaveGame }]
-            );
+            showConfirm({
+              title: 'Game Over!',
+              message: `${finalWinner?.playerName || 'Someone'} wins the game!\n\n${scoreSummary}`,
+              confirmText: 'OK',
+              cancelText: '',
+              onConfirm: handleLeaveGame
+            });
             return; // Don't trigger bot turns when game is over
           }
           
@@ -356,7 +354,7 @@ function GameScreenContent() {
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
         setIsInitializing(false);
-        Alert.alert('Error', 'Failed to initialize game. Please try again.');
+        showError('Failed to initialize game. Please try again.');
       }
     };
 
@@ -661,7 +659,7 @@ function GameScreenContent() {
       } else {
         // Show error from validation
         soundManager.playSound(SoundType.INVALID_MOVE);
-        Alert.alert('Invalid Move', result.error || 'Invalid play');
+        showError(result.error || 'Invalid play', 'Invalid Move');
       }
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
@@ -670,7 +668,7 @@ function GameScreenContent() {
       // Show user-friendly error
       soundManager.playSound(SoundType.INVALID_MOVE);
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
-      Alert.alert('Invalid Move', errorMessage);
+      showError(errorMessage, 'Invalid Move');
     } finally {
       // Release lock after short delay to prevent rapid double-taps
       setTimeout(() => {
@@ -715,14 +713,14 @@ function GameScreenContent() {
         
         // Bot turns will be triggered automatically by the subscription
       } else {
-        Alert.alert('Cannot Pass', result.error || 'Cannot pass');
+        showError(result.error || 'Cannot pass', 'Cannot Pass');
       }
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
       
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
-      Alert.alert('Cannot Pass', errorMessage);
+      showError(errorMessage, 'Cannot Pass');
     } finally {
       setTimeout(() => {
         if (isMountedRef.current) {
@@ -785,7 +783,7 @@ function GameScreenContent() {
     if (Platform.OS === 'android') {
       ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
     } else if (Platform.OS === 'ios') {
-      Alert.alert('Hand organized by combos');
+      showInfo('Hand organized by combos');
     }
     
     gameLogger.info('[GameScreen] Smart sorted hand by combo type');
@@ -812,7 +810,7 @@ function GameScreenContent() {
       if (Platform.OS === 'android') {
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
       } else if (Platform.OS === 'ios') {
-        Alert.alert('No valid play - recommend passing');
+        showInfo('No valid play - recommend passing');
       }
       
       gameLogger.info('[GameScreen] Hint: No valid play, recommend pass');
@@ -833,7 +831,7 @@ function GameScreenContent() {
       if (Platform.OS === 'android') {
         ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
       } else if (Platform.OS === 'ios') {
-        Alert.alert(`Recommended: ${comboType}`);
+        showInfo(`Recommended: ${comboType}`);
       }
       
       gameLogger.info(`[GameScreen] Hint: Recommended ${cardCount} card(s)`);
