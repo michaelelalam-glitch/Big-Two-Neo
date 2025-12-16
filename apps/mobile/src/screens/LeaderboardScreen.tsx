@@ -17,6 +17,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { statsLogger } from '../utils/logger';
+import EmptyState from '../components/EmptyState';
 
 type LeaderboardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Leaderboard'>;
 
@@ -386,12 +387,11 @@ export default function LeaderboardScreen() {
   };
 
   const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>No leaderboard data yet</Text>
-      <Text style={styles.emptySubtext}>
-        Play some games to appear on the leaderboard!
-      </Text>
-    </View>
+    <EmptyState
+      icon="🏆"
+      title="No rankings yet"
+      subtitle="Play some games to appear on the leaderboard!"
+    />
   );
 
   if (loading && leaderboard.length === 0) {
