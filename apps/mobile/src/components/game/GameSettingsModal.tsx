@@ -117,7 +117,10 @@ export default function GameSettingsModal({
               accessibilityLabel={`Music, currently ${musicEnabled ? 'on' : 'off'}`}
               accessibilityHint="Tap to toggle music"
             >
-              <Text style={styles.menuItemText}>🎵 Music</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.menuItemText}>🎵 Music</Text>
+                <Text style={styles.comingSoonBadge}>Coming soon</Text>
+              </View>
               <Text style={[styles.menuItemValue, !musicEnabled && styles.disabledText]}>{musicEnabled ? 'On' : 'Off'}</Text>
             </Pressable>
 
@@ -236,5 +239,11 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: COLORS.gray.medium,
+  },
+  comingSoonBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray.medium,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
 });
