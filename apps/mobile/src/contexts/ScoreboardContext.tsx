@@ -80,6 +80,7 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // -------------------------------------------------------------------------
 
   const addScoreHistory = useCallback((history: ScoreHistory) => {
+    console.log('🔍 [ScoreboardContext] addScoreHistory called, match:', history.matchNumber);
     setScoreHistory((prev) => {
       // Check if this match already exists
       const existingIndex = prev.findIndex((h) => h.matchNumber === history.matchNumber);
@@ -88,10 +89,13 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
         // Update existing match
         const updated = [...prev];
         updated[existingIndex] = history;
+        console.log('🔍 [ScoreboardContext] Updated match, total count:', updated.length);
         return updated;
       } else {
         // Add new match
-        return [...prev, history];
+        const newHistory = [...prev, history];
+        console.log('🔍 [ScoreboardContext] Added new match, total count:', newHistory.length);
+        return newHistory;
       }
     });
   }, []);

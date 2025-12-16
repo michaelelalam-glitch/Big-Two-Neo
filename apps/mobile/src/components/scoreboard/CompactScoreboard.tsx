@@ -41,7 +41,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
       {/* Header with match number and action buttons */}
       <View style={styles.compactHeader}>
         <Text style={styles.matchTitle}>
-          {isGameFinished ? '🏁 Game Over' : `Match ${matchNumber}`}
+          {isGameFinished ? '🏁 Game Over' : `🃏 Match ${matchNumber}`}
         </Text>
         
         <View style={styles.headerButtons}>
