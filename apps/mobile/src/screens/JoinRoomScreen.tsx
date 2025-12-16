@@ -9,7 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
 import { RoomPlayerWithRoom } from '../types';
-import { roomLogger } from '../utils/logger';; import { showError, showSuccess, showConfirm, showInfo } from '../utils';
+import { roomLogger } from '../utils/logger';
+import { showError, showConfirm } from '../utils';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 

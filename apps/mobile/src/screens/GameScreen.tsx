@@ -313,7 +313,6 @@ function GameScreenContent() {
               title: 'Game Over!',
               message: `${finalWinner?.playerName || 'Someone'} wins the game!\n\n${scoreSummary}`,
               confirmText: 'OK',
-              cancelText: '',
               onConfirm: handleLeaveGame
             });
             return; // Don't trigger bot turns when game is over

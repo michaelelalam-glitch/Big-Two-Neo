@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   subtitle: {
-    color: COLORS.white + '99', // 60% opacity
+    color: `${COLORS.white}99`, // 60% opacity (hex: 99 = 60%)
     fontSize: FONT_SIZES.md,
     textAlign: 'center',
     marginBottom: SPACING.xl,
