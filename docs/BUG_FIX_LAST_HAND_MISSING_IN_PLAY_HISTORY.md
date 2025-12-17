@@ -261,6 +261,6 @@ GameEndModal → PlayHistoryTab
 
 ---
 
-**Fixed by:** GitHub Copilot (BEastmode Unified 1.2-Efficient)  
+**Fixed by:** GitHub Copilot (Beastmode Unified 1.2-Efficient)  
 **Reviewed by:** Project Manager Agent  
 **Date:** December 17, 2025

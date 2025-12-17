@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Card from './Card';
 import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 
 // Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
 // With 13 cards: 60px + (12 × 30px overlap) = 420px total width

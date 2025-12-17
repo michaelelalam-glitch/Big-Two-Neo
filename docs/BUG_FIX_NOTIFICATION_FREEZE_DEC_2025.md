@@ -99,7 +99,7 @@ const botTurnTimeoutId = setTimeout(() => {
     // Retry bot turn check after clearing the stuck state
     setTimeout(checkAndExecuteBotTurn, 500);
   }
-}, 10000); // 10 second timeout
+}, 15000); // 15 second timeout (increased from 10s to reduce false positives)
 
 setTimeout(() => {
   gameManagerRef.current?.executeBotTurn()
@@ -115,8 +115,8 @@ setTimeout(() => {
 ```
 
 **Protection Mechanism:**
-1. **10-second timeout** starts when bot turn begins
-2. If bot turn doesn't complete within 10 seconds:
+1. **15-second timeout** starts when bot turn begins
+2. If bot turn doesn't complete within 15 seconds:
    - Force-release the execution lock
    - Log timeout error for debugging
    - Retry bot turn check after 500ms
@@ -143,7 +143,7 @@ setTimeout(() => {
 ### Test Case 3: Timeout Recovery
 1. Start a game
 2. Artificially block bot turn execution (if possible via debug mode)
-3. **Expected:** After 10 seconds, timeout triggers, lock releases, game recovers
+3. **Expected:** After 15 seconds, timeout triggers, lock releases, game recovers
 
 ### Test Case 4: Normal Gameplay
 1. Play through multiple matches
@@ -169,11 +169,11 @@ setTimeout(() => {
 
 ### Low Risk Changes ✅
 - **Notification handler change:** Removing deprecated property has no negative side effects
-- **Timeout protection:** Only activates if bot turn genuinely stalls (10 seconds is very generous)
+- **Timeout protection:** Only activates if bot turn genuinely stalls (15 seconds is very generous)
 
 ### Potential Edge Cases
-- **Very slow devices:** 10-second timeout might be tight on extremely slow hardware
-  - **Mitigation:** 10 seconds is 10x longer than normal bot turn (1-2 seconds)
+- **Very slow devices:** 15-second timeout should accommodate resource-constrained devices
+  - **Mitigation:** 15 seconds is 10-15x longer than normal bot turn (1-2 seconds)
 - **Network latency:** If bot turn involves network calls (currently it doesn't)
   - **Current state:** Bot logic is all local, no network dependency
 
