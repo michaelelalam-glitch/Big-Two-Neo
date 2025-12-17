@@ -4,3 +4,6 @@ node_modules/.pnpm-workspace-state-v1.json
 # Supabase CLI temporary files
 apps/mobile/supabase/.temp/
 *.apk
+
+# Backup files
+*.bak

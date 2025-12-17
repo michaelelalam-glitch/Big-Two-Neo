@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
-import { soundManager, hapticManager, HapticType } from '../../utils';
+import { soundManager, hapticManager, HapticType, showConfirm } from '../../utils';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -16,7 +16,6 @@ export default function GameSettingsModal({
 }: GameSettingsModalProps) {
   // Load initial settings from managers
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [musicEnabled, setMusicEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
 
   // Load saved settings on mount
@@ -26,8 +25,6 @@ export default function GameSettingsModal({
       const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
       setSoundEnabled(savedSoundEnabled);
       setVibrationEnabled(savedVibrationEnabled);
-      // Music is separate from sound effects in the future
-      setMusicEnabled(true);
     };
     loadSettings();
   }, []);
@@ -36,16 +33,6 @@ export default function GameSettingsModal({
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     await soundManager.setAudioEnabled(newValue);
-    // Play confirmation haptic
-    if (vibrationEnabled) {
-      hapticManager.trigger(HapticType.SELECTION);
-    }
-  };
-
-  const handleToggleMusic = async () => {
-    const newValue = !musicEnabled;
-    setMusicEnabled(newValue);
-    // TODO: Implement music manager in future update
     // Play confirmation haptic
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
@@ -63,24 +50,10 @@ export default function GameSettingsModal({
   };
 
   const handleLeaveGame = () => {
-    Alert.alert(
-      'Leave Game',
-      'Are you sure you want to leave this game? Your progress will be lost.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            onClose();
-            onLeaveGame();
-          },
-        },
-      ]
-    );
+    // Close modal first, then trigger leave game flow
+    // GameScreen will show the confirmation dialog
+    onClose();
+    onLeaveGame();
   };
 
   return (
@@ -117,17 +90,14 @@ export default function GameSettingsModal({
               <Text style={styles.menuItemValue}>{soundEnabled ? 'On' : 'Off'}</Text>
             </Pressable>
 
-            {/* Music Settings */}
-            <Pressable 
-              style={styles.menuItem}
-              onPress={handleToggleMusic}
-              accessibilityRole="button"
-              accessibilityLabel={`Music, currently ${musicEnabled ? 'on' : 'off'}`}
-              accessibilityHint="Tap to toggle music"
-            >
-              <Text style={styles.menuItemText}>🎵 Music</Text>
-              <Text style={[styles.menuItemValue, !musicEnabled && styles.disabledText]}>{musicEnabled ? 'On' : 'Off'}</Text>
-            </Pressable>
+            {/* Music Settings - Coming Soon (non-interactive) */}
+            <View style={[styles.menuItem, styles.disabledItem]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.menuItemText, styles.disabledText]}>🎵 Music</Text>
+                <Text style={styles.comingSoonBadge}>Coming soon</Text>
+              </View>
+              <Text style={styles.disabledText}>Off</Text>
+            </View>
 
             {/* Vibration Settings */}
             <Pressable 
@@ -242,7 +212,16 @@ const styles = StyleSheet.create({
   leaveGameText: {
     color: COLORS.danger,
   },
+  disabledItem: {
+    opacity: 0.5,
+  },
   disabledText: {
     color: COLORS.gray.medium,
+  },
+  comingSoonBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray.medium,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
 });
