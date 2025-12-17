@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Bundle analysis artifacts
+bundle-analysis.json
+
 # debug
 npm-debug.*
 yarn-debug.*
