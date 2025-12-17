@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Verify pnpm-lock.yaml is in sync with package.json
+# Prevents accidental commits with mismatched dependencies
+pnpm install --frozen-lockfile --prefer-offline || {
+  echo "❌ Error: pnpm-lock.yaml is out of sync with package.json"
+  echo "Run 'pnpm install' to update the lockfile, then commit again."
+  exit 1
+}
+
+echo "✅ Lockfile verification passed"
