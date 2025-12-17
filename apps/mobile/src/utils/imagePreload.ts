@@ -3,10 +3,10 @@
  * Preloads critical images for faster initial renders
  * Task #432: Image Optimization
  * 
- * NOTE: FastImage was initially implemented (see Task #432 documentation) but was
- * later removed due to runtime errors in Expo development builds. The standard
- * React Native Image component is used instead. Task #432 documentation reflects
- * the initial implementation before the revert.
+ * NOTE: FastImage was initially implemented as part of Task #432 but was later
+ * reverted due to runtime errors in Expo development builds. The standard
+ * React Native Image component is currently used instead. Any remaining
+ * references to FastImage in external documentation are considered outdated.
  */
 
 import { Image } from 'react-native';

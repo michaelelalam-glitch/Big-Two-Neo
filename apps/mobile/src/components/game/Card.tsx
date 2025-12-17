@@ -241,7 +241,7 @@ const Card = React.memo(function Card({
       shadowOpacity,
       shadowRadius,
     };
-  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY, scale, opacity]);
+  }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
