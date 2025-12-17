@@ -107,6 +107,9 @@ function GameScreenContent() {
   const isExecutingBotTurnRef = useRef(false);
   const lastBotTurnPlayerIndexRef = useRef<number | null>(null);
   
+  // Track auto-start match timeout for cleanup
+  const autoStartMatchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Track card play execution to prevent duplicates (use state for UI updates)
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   
@@ -300,8 +303,13 @@ function GameScreenContent() {
             if (!state.gameOver) {
               gameLogger.info('🔄 [GameScreen] Match ended, auto-starting next match...');
               
+              // Clear any existing timeout before creating a new one
+              if (autoStartMatchTimeoutRef.current) {
+                clearTimeout(autoStartMatchTimeoutRef.current);
+              }
+              
               // Start next match automatically after brief delay
-              setTimeout(async () => {
+              autoStartMatchTimeoutRef.current = setTimeout(async () => {
                 const result = await manager.startNewMatch();
                 if (result.success) {
                   gameLogger.info('✅ [GameScreen] Next match started automatically');
@@ -314,6 +322,7 @@ function GameScreenContent() {
                   // Show error to user
                   showError('Failed to start next match. Please try leaving and rejoining the game.');
                 }
+                autoStartMatchTimeoutRef.current = null;
               }, 1500); // 1.5 second delay to show win animation/sound
             } // End of if (!state.gameOver) block
           } // End of if (state.gameEnded) block
@@ -353,63 +362,78 @@ function GameScreenContent() {
             
             // CRITICAL FIX: Extract play history directly from gameState.roundHistory
             // to avoid race condition where usePlayHistoryTracking hasn't updated context yet
-            const finalPlayHistory: PlayHistoryMatch[] = scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || [];
-            
-            // CRITICAL FIX Task #2: Add the CURRENT match's play history (including winning play)
-            // The context might not have been updated yet, so we manually convert roundHistory
-            if (state.roundHistory.length > 0) {
-              const playerIdToIndex = new Map<string, number>();
-              state.players.forEach((player, index) => {
-                playerIdToIndex.set(player.id, index);
-              });
-              
-              // Convert roundHistory entries to PlayHistoryHand format
-              const hands: PlayHistoryHand[] = state.roundHistory
-                .filter(entry => !entry.passed && entry.cards.length > 0)
-                .map(entry => {
-                  const playerIndex = playerIdToIndex.get(entry.playerId);
-                  
-                  if (playerIndex === undefined) {
-                    gameLogger.warn?.(
-                      'GameScreen: Could not find player index for roundHistory entry',
-                      { playerId: entry.playerId, roundEntry: entry }
-                    );
-                    return null;
-                  }
-                  
-                  return {
-                    by: playerIndex as PlayerPosition,
-                    type: entry.combo_type,
-                    count: entry.cards.length,
-                    cards: entry.cards,
-                    timestamp: new Date(entry.timestamp).toISOString(),
-                  };
-                })
-                .filter((hand): hand is PlayHistoryHand => hand !== null);
-              
-              // Check if this match is already in the history
-              const existingMatchIndex = finalPlayHistory.findIndex(m => m.matchNumber === state.currentMatch);
-              
-              if (existingMatchIndex >= 0) {
-                // Update existing match with all hands (including winning play)
-                finalPlayHistory[existingMatchIndex] = {
-                  matchNumber: state.currentMatch,
-                  hands,
-                  winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
-                  startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
-                  endTime: new Date().toISOString(),
-                };
-              } else {
-                // Add new match
-                finalPlayHistory.push({
-                  matchNumber: state.currentMatch,
-                  hands,
-                  winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
-                  startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
-                  endTime: new Date().toISOString(),
+            // Using shared utility function to avoid code duplication with usePlayHistoryTracking
+            const buildFinalPlayHistoryFromState = (
+              state: GameState,
+              existingPlayHistory: PlayHistoryMatch[]
+            ): PlayHistoryMatch[] => {
+              const finalPlayHistory = [...existingPlayHistory];
+
+              // CRITICAL FIX Task #2: Add the CURRENT match's play history (including winning play)
+              // The context might not have been updated yet, so we manually convert roundHistory
+              if (state.roundHistory.length > 0) {
+                const playerIdToIndex = new Map<string, number>();
+                state.players.forEach((player, index) => {
+                  playerIdToIndex.set(player.id, index);
                 });
+
+                // Convert roundHistory entries to PlayHistoryHand format
+                const hands: PlayHistoryHand[] = state.roundHistory
+                  .filter(entry => !entry.passed && entry.cards.length > 0)
+                  .map(entry => {
+                    const playerIndex = playerIdToIndex.get(entry.playerId);
+
+                    if (playerIndex === undefined) {
+                      gameLogger.warn?.(
+                        'GameScreen: Could not find player index for roundHistory entry',
+                        { playerId: entry.playerId, roundEntry: entry }
+                      );
+                      return null;
+                    }
+
+                    return {
+                      by: playerIndex as PlayerPosition,
+                      type: entry.combo_type,
+                      count: entry.cards.length,
+                      cards: entry.cards,
+                      timestamp: new Date(entry.timestamp).toISOString(),
+                    };
+                  })
+                  .filter((hand): hand is PlayHistoryHand => hand !== null);
+
+                // Check if this match is already in the history
+                const existingMatchIndex = finalPlayHistory.findIndex(
+                  m => m.matchNumber === state.currentMatch
+                );
+
+                if (existingMatchIndex >= 0) {
+                  // Update existing match with all hands (including winning play)
+                  finalPlayHistory[existingMatchIndex] = {
+                    matchNumber: state.currentMatch,
+                    hands,
+                    winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
+                    startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
+                    endTime: new Date().toISOString(),
+                  };
+                } else {
+                  // Add new match
+                  finalPlayHistory.push({
+                    matchNumber: state.currentMatch,
+                    hands,
+                    winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
+                    startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
+                    endTime: new Date().toISOString(),
+                  });
+                }
               }
-            }
+
+              return finalPlayHistory;
+            };
+
+            const finalPlayHistory: PlayHistoryMatch[] = buildFinalPlayHistoryFromState(
+              state,
+              scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || []
+            );
             
             gameLogger.info('📊 [Game Over] Modal data:', {
               scoreHistoryCount: currentScoreHistory.length,
@@ -471,6 +495,11 @@ function GameScreenContent() {
           // Cleanup timer interval to prevent memory leaks
           if (gameManagerRef.current) {
             gameManagerRef.current.destroy();
+          }
+          // Cleanup auto-start match timeout to prevent memory leaks
+          if (autoStartMatchTimeoutRef.current) {
+            clearTimeout(autoStartMatchTimeoutRef.current);
+            autoStartMatchTimeoutRef.current = null;
           }
           // Cleanup audio resources to prevent memory leaks
           soundManager.cleanup().catch(err => {
