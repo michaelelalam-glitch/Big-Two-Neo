@@ -14,6 +14,7 @@ import GameScreen from '../screens/GameScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import StatsScreen from '../screens/StatsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -26,6 +27,7 @@ export type RootStackParamList = {
   Leaderboard: undefined;
   Stats: { userId?: string };
   NotificationSettings: undefined;
+  Settings: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -75,6 +77,7 @@ export default function AppNavigator() {
               <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
               <Stack.Screen name="Stats" component={StatsScreen} />
               <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
             </>
           )}
         </Stack.Navigator>

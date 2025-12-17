@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { soundManager, hapticManager, HapticType, showConfirm } from '../../utils';
+import { i18n } from '../../i18n';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -66,7 +67,7 @@ export default function GameSettingsModal({
       <Pressable style={styles.overlay} onPress={onClose}>
         <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Settings</Text>
+            <Text style={styles.headerTitle}>{i18n.t('game.settings')}</Text>
             <Pressable 
               onPress={onClose} 
               style={styles.closeButton}
@@ -83,20 +84,20 @@ export default function GameSettingsModal({
               style={styles.menuItem}
               onPress={handleToggleSound}
               accessibilityRole="button"
-              accessibilityLabel={`Sound Effects, currently ${soundEnabled ? 'on' : 'off'}`}
+              accessibilityLabel={`${i18n.t('settings.soundEffects')}, currently ${soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
               accessibilityHint="Tap to toggle sound effects"
             >
-              <Text style={styles.menuItemText}>🔊 Sound Effects</Text>
-              <Text style={styles.menuItemValue}>{soundEnabled ? 'On' : 'Off'}</Text>
+              <Text style={styles.menuItemText}>🔊 {i18n.t('settings.soundEffects')}</Text>
+              <Text style={styles.menuItemValue}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
             </Pressable>
 
             {/* Music Settings - Coming Soon (non-interactive) */}
             <View style={[styles.menuItem, styles.disabledItem]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={[styles.menuItemText, styles.disabledText]}>🎵 Music</Text>
+                <Text style={[styles.menuItemText, styles.disabledText]}>🎵 {i18n.t('settings.music')}</Text>
                 <Text style={styles.comingSoonBadge}>Coming soon</Text>
               </View>
-              <Text style={styles.disabledText}>Off</Text>
+              <Text style={styles.disabledText}>{i18n.t('common.off')}</Text>
             </View>
 
             {/* Vibration Settings */}
@@ -104,11 +105,11 @@ export default function GameSettingsModal({
               style={styles.menuItem}
               onPress={handleToggleVibration}
               accessibilityRole="button"
-              accessibilityLabel={`Vibration, currently ${vibrationEnabled ? 'on' : 'off'}`}
+              accessibilityLabel={`${i18n.t('settings.vibration')}, currently ${vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
               accessibilityHint="Tap to toggle vibration"
             >
-              <Text style={styles.menuItemText}>📳 Vibration</Text>
-              <Text style={styles.menuItemValue}>{vibrationEnabled ? 'On' : 'Off'}</Text>
+              <Text style={styles.menuItemText}>📳 {i18n.t('settings.vibration')}</Text>
+              <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
             </Pressable>
 
             <View style={styles.divider} />
@@ -122,7 +123,7 @@ export default function GameSettingsModal({
               accessibilityHint="Leave the current game and return to home"
             >
               <Text style={[styles.menuItemText, styles.leaveGameText]}>
-                Leave Game
+                {i18n.t('game.leaveGame')}
               </Text>
             </Pressable>
           </View>
