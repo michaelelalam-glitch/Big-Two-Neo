@@ -12,7 +12,7 @@
  * - Fireworks celebration animation
  * 
  * Created as part of Tasks #406-414: Phase 2 Core Components
- * Date: December 16, 2024
+ * Date: December 16, 2025
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -30,9 +30,6 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
-// LinearGradient: expo-linear-gradient is installed as a dependency
-// To use gradient backgrounds in this modal, uncomment the import below:
-// import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';

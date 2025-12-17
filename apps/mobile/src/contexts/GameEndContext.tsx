@@ -9,7 +9,7 @@
  * - Play history for display
  * 
  * Created as part of Task #404: Create GameEndContext provider
- * Date: December 16, 2024
+ * Date: December 16, 2025
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
@@ -122,8 +122,8 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
   // STATE - Action Callbacks (Task #416, #417)
   // -------------------------------------------------------------------------
   
-  const [onPlayAgain, setOnPlayAgain] = useState<(() => void) | undefined>(undefined);
-  const [onReturnToMenu, setOnReturnToMenu] = useState<(() => void) | undefined>(undefined);
+  const [onPlayAgain, setOnPlayAgain] = useState<(() => void) | undefined>(() => undefined);
+  const [onReturnToMenu, setOnReturnToMenu] = useState<(() => void) | undefined>(() => undefined);
 
   // -------------------------------------------------------------------------
   // HELPER FUNCTIONS
