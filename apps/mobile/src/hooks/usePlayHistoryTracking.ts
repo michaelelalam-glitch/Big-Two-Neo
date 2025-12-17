@@ -96,7 +96,8 @@ export function usePlayHistoryTracking(
   const lastProcessedRef = useRef<{
     matchNumber: number;
     historyLength: number;
-  }>({ matchNumber: 0, historyLength: 0 });
+    gameEnded: boolean; // Track if we've processed the match end state
+  }>({ matchNumber: 0, historyLength: 0, gameEnded: false });
 
   useEffect(() => {
     // Skip if disabled or no game state
@@ -108,10 +109,13 @@ export function usePlayHistoryTracking(
     const currentHistoryLength = gameState.roundHistory.length;
     const lastProcessed = lastProcessedRef.current;
 
-    // Check if we need to update (new match or new plays in current match)
-    const shouldUpdate = 
-      currentMatch !== lastProcessed.matchNumber ||
-      currentHistoryLength !== lastProcessed.historyLength;
+    // CRITICAL FIX: Check if we need to update (new match, new plays, OR match just ended)
+    // The gameEnded check ensures we capture the final hand with winner info
+    const matchNumberChanged = currentMatch !== lastProcessed.matchNumber;
+    const historyLengthChanged = currentHistoryLength !== lastProcessed.historyLength;
+    const matchJustEnded = gameState.gameEnded && !lastProcessed.gameEnded;
+    
+    const shouldUpdate = matchNumberChanged || historyLengthChanged || matchJustEnded;
 
     if (!shouldUpdate) {
       return;
@@ -145,9 +149,10 @@ export function usePlayHistoryTracking(
     lastProcessedRef.current = {
       matchNumber: currentMatch,
       historyLength: currentHistoryLength,
+      gameEnded: gameState.gameEnded,
     };
 
-    console.log(`[PlayHistory] Updated match ${currentMatch} with ${playHistory.hands.length} hands`);
+    console.log(`[PlayHistory] Updated match ${currentMatch} with ${playHistory.hands.length} hands (matchEnded: ${matchEnded}, winnerId: ${winnerId})`);
   }, [
     gameState,
     enabled,

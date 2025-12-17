@@ -6,13 +6,15 @@ import { supabase } from './supabase';
 import { notificationLogger } from '../utils/logger';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
+// CRITICAL FIX: Removed deprecated shouldShowAlert - use shouldShowBanner and shouldShowList instead
+// This prevents notification dismissal from blocking the game event loop
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
     shouldShowList: true,
+    // REMOVED: shouldShowAlert (deprecated, causes event blocking on Android)
   }),
 });
 
