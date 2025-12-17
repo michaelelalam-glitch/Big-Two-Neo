@@ -28,9 +28,11 @@ import {
   Share,
   Alert,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
-// LinearGradient temporarily disabled - expo-linear-gradient installed but not yet integrated
-// Re-enable after testing: import { LinearGradient } from 'expo-linear-gradient';
+// LinearGradient: expo-linear-gradient is installed as a dependency
+// To use gradient backgrounds in this modal, uncomment the import below:
+// import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
