@@ -10,6 +10,7 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
 import { showError, showSuccess, showConfirm } from '../utils';
+import { i18n } from '../i18n';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -57,9 +58,10 @@ export default function HomeScreen() {
     if (!user || !currentRoom) return;
 
     showConfirm({
-      title: 'Leave Room',
-      message: `Leave room ${currentRoom}?`,
-      confirmText: 'Leave',
+      title: i18n.t('home.leaveRoomConfirm'),
+      message: `${i18n.t('home.leave')} ${currentRoom}?`,
+      confirmText: i18n.t('home.leave'),
+      cancelText: i18n.t('common.cancel'),
       destructive: true,
       onConfirm: async () => {
         try {
@@ -70,12 +72,12 @@ export default function HomeScreen() {
 
           if (error) throw error;
 
-          showSuccess('Left the room');
+          showSuccess(i18n.t('home.leftRoom'));
           setCurrentRoom(null);
         } catch (error: any) {
           // Only log error message/code to avoid exposing DB internals
           roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
-          showError('Failed to leave room');
+          showError(i18n.t('lobby.leaveRoomError'));
         }
       }
     });
@@ -260,28 +262,36 @@ export default function HomeScreen() {
           style={styles.leaderboardButton}
           onPress={() => navigation.navigate('Leaderboard')}
         >
-          <Text style={styles.leaderboardButtonText}>🏆 Leaderboard</Text>
+          <Text style={styles.leaderboardButtonText}>{i18n.t('home.leaderboard')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.profileButtonText}>Profile</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Text style={styles.settingsButtonText}>⚙️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.profileButtonText}>{i18n.t('home.profile')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Big2 Mobile</Text>
-        <Text style={styles.subtitle}>Welcome, {profile?.username || user?.email || 'Player'}!</Text>
+        <Text style={styles.title}>{i18n.t('home.title')}</Text>
+        <Text style={styles.subtitle}>{i18n.t('home.welcome')}, {profile?.username || user?.email || 'Player'}!</Text>
         
         {currentRoom && (
           <View style={styles.currentRoomBanner}>
-            <Text style={styles.currentRoomText}>📍 Currently in room: {currentRoom}</Text>
+            <Text style={styles.currentRoomText}>📍 {i18n.t('home.currentRoom')}: {currentRoom}</Text>
             <TouchableOpacity
               style={styles.leaveRoomButton}
               onPress={handleLeaveCurrentRoom}
             >
-              <Text style={styles.leaveRoomButtonText}>Leave</Text>
+              <Text style={styles.leaveRoomButtonText}>{i18n.t('home.leave')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -295,12 +305,12 @@ export default function HomeScreen() {
             {isQuickPlaying ? (
               <>
                 <ActivityIndicator color={COLORS.white} size="small" />
-                <Text style={styles.mainButtonSubtext}>Finding a game...</Text>
+                <Text style={styles.mainButtonSubtext}>{i18n.t('common.loading')}</Text>
               </>
             ) : (
               <>
-                <Text style={styles.mainButtonText}>⚡ Quick Play</Text>
-                <Text style={styles.mainButtonSubtext}>Join a random game</Text>
+                <Text style={styles.mainButtonText}>{i18n.t('home.quickPlay')}</Text>
+                <Text style={styles.mainButtonSubtext}>{i18n.t('home.quickPlayDescription')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -309,16 +319,16 @@ export default function HomeScreen() {
             style={[styles.mainButton, styles.createButton]}
             onPress={() => navigation.navigate('CreateRoom')}
           >
-            <Text style={styles.mainButtonText}>➕ Create Room</Text>
-            <Text style={styles.mainButtonSubtext}>Host a private game</Text>
+            <Text style={styles.mainButtonText}>{i18n.t('home.createRoom')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.createRoomDescription')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.mainButton, styles.joinButton]}
             onPress={() => navigation.navigate('JoinRoom')}
           >
-            <Text style={styles.mainButtonText}>🔗 Join Room</Text>
-            <Text style={styles.mainButtonSubtext}>Enter a room code</Text>
+            <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -333,9 +343,14 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: SPACING.md,
+  },
+  headerRight: {
+    flexDirection: 'row',
     gap: SPACING.sm,
+    alignItems: 'center',
   },
   leaderboardButton: {
     backgroundColor: COLORS.gold,
@@ -347,6 +362,15 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
+  },
+  settingsButton: {
+    backgroundColor: COLORS.gray.dark,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    fontSize: FONT_SIZES.lg,
   },
   profileButton: {
     backgroundColor: COLORS.secondary,

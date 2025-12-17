@@ -10,6 +10,7 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
 import { showError, showConfirm } from '../utils';
+import { i18n } from '../i18n';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -29,7 +30,7 @@ export default function CreateRoomScreen() {
 
   const handleCreateRoom = async () => {
     if (!user) {
-      showError('You must be signed in to create a room');
+      showError(i18n.t('room.mustBeSignedIn'));
       return;
     }
 
@@ -73,7 +74,7 @@ export default function CreateRoomScreen() {
 
                   if (leaveError) {
                     roomLogger.error('Error leaving room:', leaveError);
-                    showError('Failed to leave existing room');
+                    showError(i18n.t('room.leaveRoomError'));
                     setIsCreating(false);
                     return;
                   }
@@ -106,8 +107,8 @@ export default function CreateRoomScreen() {
                   if (!isDeleted) {
                     roomLogger.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
                     showError(
-                      'Taking longer than expected to leave room. Please try again or wait a moment.',
-                      'Timeout'
+                      i18n.t('room.leaveTimeout'),
+                      i18n.t('common.timeout')
                     );
                     setIsCreating(false);
                     return;
@@ -118,16 +119,16 @@ export default function CreateRoomScreen() {
                 } catch (error: any) {
                   // Only log error message/code to avoid exposing DB internals
                   roomLogger.error('Error in leave & create:', error?.message || error?.code || String(error));
-                  showError('Failed to leave room');
+                  showError(i18n.t('room.leaveRoomError'));
                   setIsCreating(false);
                 }
               };
         
         showConfirm({
-          title: 'Already in Room',
-          message: `You're already in room ${existingCode} (${roomStatus}). Leave and create new room?`,
-          confirmText: 'Go to Room',
-          cancelText: 'Leave & Create',
+          title: i18n.t('room.alreadyInRoom'),
+          message: i18n.t('room.alreadyInRoomMessage', { code: existingCode, status: roomStatus }),
+          confirmText: i18n.t('room.goToRoom'),
+          cancelText: i18n.t('room.leaveAndCreate'),
           destructive: true,
           onConfirm: goToRoom,
           onCancel: leaveAndCreate
@@ -173,7 +174,7 @@ export default function CreateRoomScreen() {
     } catch (error: any) {
       // Only log error message/code to avoid exposing DB internals or auth tokens
       roomLogger.error('Error creating room:', error?.message || error?.code || String(error));
-      const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to create room';
+      const errorMessage = error?.message || error?.error_description || error?.msg || i18n.t('room.createRoomError');
       showError(errorMessage);
     } finally {
       setIsCreating(false);
@@ -187,21 +188,21 @@ export default function CreateRoomScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>← {i18n.t('common.back')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Create Room</Text>
+        <Text style={styles.title}>{i18n.t('room.createTitle')}</Text>
         <Text style={styles.subtitle}>
-          Create a private room and invite your friends
+          {i18n.t('room.createSubtitle')}
         </Text>
 
         <View style={styles.infoBox}>
-          <Text style={styles.infoText}>📋 You'll get a shareable room code</Text>
-          <Text style={styles.infoText}>👥 Up to 4 players can join</Text>
-          <Text style={styles.infoText}>🤖 Fill empty slots with bots</Text>
-          <Text style={styles.infoText}>⚙️ Customize game settings</Text>
+          <Text style={styles.infoText}>📋 {i18n.t('room.shareableCode')}</Text>
+          <Text style={styles.infoText}>👥 {i18n.t('room.upTo4Players')}</Text>
+          <Text style={styles.infoText}>🤖 {i18n.t('room.fillWithBots')}</Text>
+          <Text style={styles.infoText}>⚙️ {i18n.t('room.customizeSettings')}</Text>
         </View>
 
         <TouchableOpacity
@@ -212,7 +213,7 @@ export default function CreateRoomScreen() {
           {isCreating ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
-            <Text style={styles.createButtonText}>Create Room</Text>
+            <Text style={styles.createButtonText}>{i18n.t('room.createButton')}</Text>
           )}
         </TouchableOpacity>
       </View>

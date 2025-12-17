@@ -19,6 +19,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { statsLogger } from '../utils/logger';
 import EmptyState from '../components/EmptyState';
+import { i18n } from '../i18n';
 
 type StatsScreenRouteProp = RouteProp<RootStackParamList, 'Stats'>;
 type StatsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Stats'>;
@@ -296,33 +297,33 @@ export default function StatsScreen() {
 
         {/* Key Stats */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.overview')}</Text>
           <View style={styles.statsGrid}>
-            {renderStatCard('Games Played', stats.games_played, '🎮')}
-            {renderStatCard('Win Rate', `${stats.win_rate.toFixed(1)}%`, '🏆')}
-            {renderStatCard('Games Won', stats.games_won, '✅')}
-            {renderStatCard('Games Lost', stats.games_lost, '❌')}
+            {renderStatCard(i18n.t('profile.gamesPlayed'), stats.games_played, '🎮')}
+            {renderStatCard(i18n.t('profile.winRate'), `${stats.win_rate.toFixed(1)}%`, '🏆')}
+            {renderStatCard(i18n.t('profile.gamesWon'), stats.games_won, '✅')}
+            {renderStatCard(i18n.t('profile.gamesLost'), stats.games_lost, '❌')}
           </View>
         </View>
 
         {/* Streaks */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Streaks</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.streaks')}</Text>
           <View style={styles.streaksContainer}>
             <View style={styles.streakItem}>
-              <Text style={styles.streakLabel}>Current Streak</Text>
+              <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
               <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
                 {stats.current_win_streak > 0 
-                  ? `🔥 ${stats.current_win_streak} Wins` 
+                  ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}` 
                   : stats.current_loss_streak > 0
-                    ? `❄️ ${stats.current_loss_streak} Losses`
+                    ? `❄️ ${stats.current_loss_streak} ${i18n.t('profile.losses')}`
                     : 'None'}
               </Text>
             </View>
             <View style={styles.streakItem}>
-              <Text style={styles.streakLabel}>Best Streak</Text>
+              <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
               <Text style={styles.streakValue}>
-                🏅 {stats.longest_win_streak} Wins
+                🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}
               </Text>
             </View>
           </View>
@@ -330,35 +331,35 @@ export default function StatsScreen() {
 
         {/* Performance */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Performance</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
           <View style={styles.statsGrid}>
-            {renderStatCard('Avg Position', stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
-            {renderStatCard('Total Points', stats.total_points.toLocaleString(), '💎')}
-            {renderStatCard('Highest Score', stats.highest_score, '⭐')}
-            {renderStatCard('Avg Score', stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+            {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
+            {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
+            {renderStatCard(i18n.t('profile.highestScore'), stats.highest_score, '⭐')}
+            {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
           </View>
         </View>
 
         {/* Combo Stats */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Combos Played</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
           <View style={styles.comboGrid}>
-            {renderComboCard('Singles', stats.singles_played, '🃏')}
-            {renderComboCard('Pairs', stats.pairs_played, '🃏🃏')}
-            {renderComboCard('Triples', stats.triples_played, '🃏🃏🃏')}
-            {renderComboCard('Straights', stats.straights_played, '➡️')}
-            {renderComboCard('Flushes', stats.flushes_played, '🌊')}
-            {renderComboCard('Full Houses', stats.full_houses_played, '🏠')}
-            {renderComboCard('Four of a Kind', stats.four_of_a_kinds_played, '🌟')}
-            {renderComboCard('Straight Flush', stats.straight_flushes_played, '💫')}
-            {renderComboCard('Royal Flush', stats.royal_flushes_played, '👑')}
+            {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
+            {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
+            {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
+            {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
+            {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
+            {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
+            {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
+            {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
+            {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
           </View>
         </View>
 
         {/* Game History */}
         {gameHistory.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Games</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
             <FlatList
               data={gameHistory}
               renderItem={renderHistoryItem}

@@ -14,6 +14,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SPACING, FONT_SIZES } from '../../constants';
+import { i18n } from '../../i18n';
 
 interface HelperButtonsProps {
   onSort: () => void;
@@ -45,7 +46,7 @@ export const HelperButtons: React.FC<HelperButtonsProps> = ({
         accessibilityState={{ disabled }}
       >
         <Text style={[styles.buttonText, styles.sortButtonText]}>
-          Sort
+          {i18n.t('game.sort')}
         </Text>
       </Pressable>
 
@@ -64,7 +65,7 @@ export const HelperButtons: React.FC<HelperButtonsProps> = ({
         accessibilityState={{ disabled }}
       >
         <Text style={[styles.buttonText, styles.smartButtonText]}>
-          Smart
+          {i18n.t('game.smart')}
         </Text>
       </Pressable>
 
@@ -83,7 +84,7 @@ export const HelperButtons: React.FC<HelperButtonsProps> = ({
         accessibilityState={{ disabled }}
       >
         <Text style={[styles.buttonText, styles.hintButtonText]}>
-          Hint
+          {i18n.t('game.hint')}
         </Text>
       </Pressable>
     </View>

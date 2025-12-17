@@ -173,7 +173,7 @@ export const POSITIONING = {
   passButtonBorderWidth: 1,
   sidePlayerTop: 0,
   helperButtonsBottom: 240,
-  helperButtonsLeft: 210,
+  helperButtonsLeft: 140,
 };
 
 // Scoreboard detail dimensions

@@ -21,6 +21,7 @@ import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import type { FinalScore } from '../types/gameEnd';
+import { i18n } from '../i18n';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -876,10 +877,10 @@ function GameScreenContent() {
     
     // Show confirmation dialog
     showConfirm({
-      title: 'Leave Game?',
-      message: 'Are you sure you want to leave? Your progress will be lost.',
-      confirmText: 'Leave',
-      cancelText: 'Stay',
+      title: i18n.t('game.leaveGameConfirm'),
+      message: i18n.t('game.leaveGameMessage'),
+      confirmText: i18n.t('game.leaveGame'),
+      cancelText: i18n.t('game.stay'),
       destructive: true,
       onConfirm: () => {
         navigation.reset({
@@ -1004,7 +1005,7 @@ function GameScreenContent() {
   const isPlayDisabled = !players[0].isActive || selectedCardIds.size === 0 || isPlayingCards;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { direction: 'ltr' }]}>
       {isInitializing ? (
         // Loading state
         <View style={styles.loadingContainer}>
