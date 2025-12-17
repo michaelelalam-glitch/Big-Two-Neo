@@ -166,6 +166,8 @@ export function GameControls({
   }, [gameManager, isPassing, isMounted, onPassSuccess]);
 
   // Expose handlePlayCards and handlePass to parent via refs (for drag-to-play from CardHand)
+  // Note: This effect should only run once on mount to set up the refs.
+  // The functions themselves are stable due to useCallback, and refs allow parent to always access latest version.
   React.useEffect(() => {
     if (onPlayCardsRef) {
       onPlayCardsRef.current = handlePlayCards;
@@ -173,7 +175,8 @@ export function GameControls({
     if (onPassRef) {
       onPassRef.current = handlePass;
     }
-  }, [onPlayCardsRef, onPassRef, handlePlayCards, handlePass]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Compute disabled states
   const isPassDisabled = !isPlayerActive || isPassing;
