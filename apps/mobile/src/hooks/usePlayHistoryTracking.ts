@@ -4,6 +4,12 @@
  * Converts GameState.roundHistory into PlayHistoryMatch format
  * for the scoreboard system and automatically updates ScoreboardContext.
  * 
+ * RACE CONDITION FIX:
+ * Tracks gameEnded state to ensure the final match is processed when the game ends.
+ * Without this, the Game End modal may open before this hook processes the gameEnded
+ * state change, resulting in the winning hand being missing from play history.
+ * The lastProcessedRef includes gameEnded tracking to detect match completion reliably.
+ * 
  * Created as part of Task #355: Play history tracking
  * Date: December 12, 2025
  */

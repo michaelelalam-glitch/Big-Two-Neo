@@ -130,6 +130,9 @@ function GameScreenContent() {
     const delays = { easy: 1200, medium: 800, hard: 500 };
     return delays[difficulty];
   };
+  
+  // Bot turn timeout: 15 seconds to accommodate slower/resource-constrained devices
+  const BOT_TURN_TIMEOUT_MS = 15000;
 
   // Bot turn checker function (accessible from everywhere)
   const checkAndExecuteBotTurn = () => {
@@ -166,9 +169,9 @@ function GameScreenContent() {
       
       // Bot turn timing: configurable delay for natural feel, 100ms between subsequent bot turns
       setTimeout(() => {
-        // CRITICAL FIX: Start timeout AFTER bot delay to give full 10s for execution
-        // If bot turn doesn't complete within 10 seconds (e.g., blocked by notification interaction),
-        // forcefully release the lock and retry
+        // CRITICAL FIX: Start timeout AFTER bot delay to give full timeout duration for execution
+        // If bot turn doesn't complete within timeout (e.g., blocked by notification or slow device),
+        // forcefully release the lock and retry. Uses 15s timeout to accommodate resource-constrained devices.
         const botTurnTimeoutId = setTimeout(() => {
           if (isExecutingBotTurnRef.current) {
             gameLogger.error('⚠️ [GameScreen] Bot turn TIMEOUT detected - forcefully releasing lock');
@@ -176,7 +179,7 @@ function GameScreenContent() {
             // Retry bot turn check after clearing the stuck state
             setTimeout(checkAndExecuteBotTurn, 500);
           }
-        }, 10000); // 10 second timeout (applies to actual bot turn execution)
+        }, BOT_TURN_TIMEOUT_MS); // 15 second timeout (applies to actual bot turn execution)
         
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
@@ -362,7 +365,8 @@ function GameScreenContent() {
             const currentScoreHistory = scoreboardRef.current?.scoreHistory || scoreHistory || [];
             
             // CRITICAL FIX: Extract play history directly from gameState.roundHistory
-            // to avoid race condition where usePlayHistoryTracking hasn't updated context yet.
+            // to avoid race condition where the Game End modal opens before usePlayHistoryTracking
+            // processes the gameEnded state change. This ensures the winning hand is captured.
             // Uses shared utility function (playHistoryUtils.ts) to ensure consistency.
             const finalPlayHistory: PlayHistoryMatch[] = buildFinalPlayHistoryFromState(
               state,

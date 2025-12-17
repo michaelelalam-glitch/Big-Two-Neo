@@ -11,9 +11,11 @@ import { gameLogger } from './logger';
  * Builds the final play history from game state, including the current match.
  * This ensures the winning hand is captured even if the context hasn't updated yet.
  * 
- * @param state - Current game state with round history
- * @param existingPlayHistory - Existing play history from context
- * @returns Complete play history including current match
+ * @param state - Current game state with round history and player information
+ * @param existingPlayHistory - Existing play history from context. If a match with the same
+ *                              matchNumber already exists, it will be updated/replaced with
+ *                              the current state's data (including all hands from roundHistory).
+ * @returns Complete play history including current match with all hands
  */
 export function buildFinalPlayHistoryFromState(
   state: GameState,
