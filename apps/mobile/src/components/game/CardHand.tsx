@@ -283,28 +283,47 @@ export default function CardHand({
     <SafeAreaView edges={['bottom']} style={styles.container}>
       {/* Card display area with horizontal scroll for small screens */}
       <View style={styles.cardsWrapper}>
+        {/* Drop zone indicator when dragging upward to play */}
+        {dragState.draggedCardId && dragState.sharedTranslation.y < DRAG_TO_PLAY_THRESHOLD && (
+          <View style={styles.playDropZone}>
+            <Text style={styles.playDropZoneText}>
+              {dragState.isDraggingMultiple 
+                ? `Release to play ${selectedCardIds.size} cards` 
+                : 'Release to play card'}
+            </Text>
+          </View>
+        )}
+        
         {orderedCards.map((card, index) => {
           const isThisCardSelected = selectedCardIds.has(card.id);
           const hasMultipleSelected = selectedCardIds.size > 1;
           const isDraggingThisGroup = dragState.isDraggingMultiple && isThisCardSelected;
+          const isTargetPosition = dragState.targetIndex === index && 
+                                  dragState.draggedCardId !== card.id &&
+                                  !dragState.isDraggingMultiple;
           
           return (
-            <Card
-              key={card.id}
-              card={card}
-              isSelected={isThisCardSelected}
-              onToggleSelect={handleToggleSelect}
-              onDragStart={() => handleDragStart(card.id)}
-              onDragUpdate={(translationX, translationY) => handleDragUpdate(card.id, translationX, translationY)}
-              onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
-              onLongPress={() => handleLongPress(card.id)}
-              disabled={disabled}
-              zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
-              hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
-              isDraggingGroup={isDraggingThisGroup}
-              sharedDragX={dragState.sharedTranslation.x}
-              sharedDragY={dragState.sharedTranslation.y}
-            />
+            <React.Fragment key={card.id}>
+              {/* Drop zone indicator for rearranging cards */}
+              {isTargetPosition && (
+                <View style={styles.dropZoneIndicator} />
+              )}
+              <Card
+                card={card}
+                isSelected={isThisCardSelected}
+                onToggleSelect={handleToggleSelect}
+                onDragStart={() => handleDragStart(card.id)}
+                onDragUpdate={(translationX, translationY) => handleDragUpdate(card.id, translationX, translationY)}
+                onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
+                onLongPress={() => handleLongPress(card.id)}
+                disabled={disabled}
+                zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
+                hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
+                isDraggingGroup={isDraggingThisGroup}
+                sharedDragX={dragState.sharedTranslation.x}
+                sharedDragY={dragState.sharedTranslation.y}
+              />
+            </React.Fragment>
           );
         })}
       </View>
@@ -409,6 +428,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Drop zone visual feedback styles
+  dropZoneIndicator: {
+    width: 4,
+    height: 80,
+    backgroundColor: COLORS.accent,
+    borderRadius: 2,
+    opacity: 0.8,
+    marginHorizontal: SPACING.xs,
+    alignSelf: 'center',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  playDropZone: {
+    position: 'absolute',
+    top: -60,
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: `${COLORS.accent}30`,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  playDropZoneText: {
+    color: COLORS.accent,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   playButton: {
     backgroundColor: COLORS.accent,
