@@ -10,6 +10,7 @@ import { supabase } from '../services/supabase';
 import { roomLogger } from '../utils/logger';
 import { showError } from '../utils';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
+import { i18n } from '../i18n';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -142,7 +143,7 @@ export default function LobbyScreen() {
           navigation.replace('Home');
         }
       } else {
-        showError('Failed to load players');
+        showError(i18n.t('lobby.loadPlayersError'));
       }
     } finally {
       setIsLoading(false);
@@ -188,7 +189,7 @@ export default function LobbyScreen() {
       setIsReady(!isReady);
     } catch (error: any) {
       roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
-      showError('Failed to update ready status');
+      showError(i18n.t('lobby.readyStatusError'));
     } finally {
       setIsTogglingReady(false);
     }
@@ -216,13 +217,13 @@ export default function LobbyScreen() {
 
       if (roomPlayerError || !roomPlayerData) {
         roomLogger.error('Room player lookup error:', roomPlayerError?.message || roomPlayerError?.code || 'Unknown error');
-        showError('Could not find your player data');
+        showError(i18n.t('lobby.playerDataNotFound'));
         return;
       }
 
       // Check if user is host
       if (!roomPlayerData.is_host) {
-        showError('Only the host can start the game with bots');
+        showError(i18n.t('lobby.onlyHostCanStart'));
         return;
       }
 
@@ -257,7 +258,7 @@ export default function LobbyScreen() {
 
         if (createPlayerError || !newPlayer) {
           roomLogger.error('Error creating player:', createPlayerError?.message || createPlayerError?.code || 'Unknown error');
-          showError('Failed to create player entry');
+          showError(i18n.t('lobby.createPlayerError'));
           return;
         }
 
@@ -310,7 +311,7 @@ export default function LobbyScreen() {
       setIsStarting(false);
     } catch (error: any) {
       roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
-      showError(error.message || 'Failed to start game');
+      showError(error.message || i18n.t('lobby.startGameError'));
       // Reset immediately on error
       setIsStarting(false);
     } finally {
@@ -356,7 +357,7 @@ export default function LobbyScreen() {
     } catch (error: any) {
       roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
       isLeavingRef.current = false; // Reset flag on error
-      showError('Failed to leave room');
+      showError(i18n.t('lobby.leaveRoomError'));
     }
   };
 
@@ -364,7 +365,7 @@ export default function LobbyScreen() {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>
-          <Text style={styles.emptyText}>Empty Slot</Text>
+          <Text style={styles.emptyText}>{i18n.t('lobby.emptySlot')}</Text>
         </View>
       );
     }
@@ -378,11 +379,11 @@ export default function LobbyScreen() {
       <View style={[styles.playerCard, isCurrentUser && styles.currentUserCard]}>
         <View style={styles.playerInfo}>
           <Text style={styles.playerName}>{displayName}</Text>
-          {isCurrentUser && <Text style={styles.youLabel}>(You)</Text>}
+          {isCurrentUser && <Text style={styles.youLabel}>({i18n.t('lobby.you')})</Text>}
         </View>
         {item.is_ready && (
           <View style={styles.readyBadge}>
-            <Text style={styles.readyText}>✓ Ready</Text>
+            <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
           </View>
         )}
       </View>
@@ -413,20 +414,20 @@ export default function LobbyScreen() {
           {isLeaving ? (
             <ActivityIndicator color={COLORS.white} size="small" />
           ) : (
-            <Text style={styles.leaveButtonText}>← Leave</Text>
+            <Text style={styles.leaveButtonText}>← {i18n.t('lobby.leaveRoom')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Game Lobby</Text>
+        <Text style={styles.title}>{i18n.t('lobby.title')}</Text>
         <View style={styles.roomCodeContainer}>
-          <Text style={styles.roomCodeLabel}>Room Code:</Text>
+          <Text style={styles.roomCodeLabel}>{i18n.t('lobby.roomCode')}:</Text>
           <Text style={styles.roomCode}>{roomCode}</Text>
         </View>
 
         <Text style={styles.playersLabel}>
-          Players ({players.length}/4)
+          {i18n.t('lobby.players')} ({players.length}/4)
         </Text>
 
         <FlatList
@@ -445,7 +446,7 @@ export default function LobbyScreen() {
             <ActivityIndicator color={COLORS.white} size="small" />
           ) : (
             <Text style={styles.readyButtonText}>
-              {isReady ? '✓ Ready' : 'Ready Up'}
+              {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
             </Text>
           )}
         </TouchableOpacity>
@@ -460,21 +461,21 @@ export default function LobbyScreen() {
               {isStarting ? (
                 <>
                   <ActivityIndicator color={COLORS.white} size="small" />
-                  <Text style={[styles.startButtonText, { marginTop: 4 }]}>Starting...</Text>
+                  <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
                 </>
               ) : (
                 <Text style={styles.startButtonText}>
-                  🤖 Start with AI Bots
+                  🤖 {i18n.t('lobby.startWithBots')}
                 </Text>
               )}
             </TouchableOpacity>
             <Text style={styles.hostInfo}>
-              You're the host. Start with bots or wait for players.
+              {i18n.t('lobby.hostInfo')}
             </Text>
           </>
         ) : (
           <Text style={styles.waitingInfo}>
-            Waiting for host to start the game...
+            {i18n.t('lobby.waitingForHost')}
           </Text>
         )}
       </View>
