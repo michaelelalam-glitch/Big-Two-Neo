@@ -6,3 +6,5 @@ export { default as CenterPlayArea } from './CenterPlayArea';
 export { default as GameSettingsModal } from './GameSettingsModal';
 export { default as AutoPassTimer } from './AutoPassTimer';
 export { HelperButtons } from './HelperButtons';
+export { GameControls } from './GameControls';
+export { GameLayout } from './GameLayout';

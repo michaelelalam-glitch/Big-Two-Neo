@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { COLORS, SPACING } from '../constants';
@@ -235,7 +236,7 @@ const ProfileScreen = () => {
               <Text style={styles.label}>{i18n.t('profile.lastSignIn')}</Text>
               <Text style={styles.valueSmall}>
                 {user?.last_sign_in_at
-                  ? new Date(user.last_sign_in_at).toLocaleDateString()
+                  ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy h:mm a')
                   : 'N/A'}
               </Text>
             </View>
@@ -244,7 +245,7 @@ const ProfileScreen = () => {
               <Text style={styles.label}>{i18n.t('profile.createdAt')}</Text>
               <Text style={styles.valueSmall}>
                 {user?.created_at
-                  ? new Date(user.created_at).toLocaleDateString()
+                  ? format(new Date(user.created_at), 'MMMM d, yyyy')
                   : 'N/A'}
               </Text>
             </View>

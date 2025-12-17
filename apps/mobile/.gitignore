@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Bundle analysis artifacts
+bundle-analysis.json
+
 # debug
 npm-debug.*
 yarn-debug.*
@@ -49,7 +52,8 @@ build.log
 fix-tests.sh
 
 # CRITICAL: Firebase and EAS credentials (NEVER commit these!)
-google-services.json
+# TEMPORARY: Allowing google-services.json for dev builds (remove before production)
+# google-services.json
 credentials.json
 credentials/
 *.apk
