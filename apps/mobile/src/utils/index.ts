@@ -9,3 +9,6 @@ export { hapticManager, HapticType } from './hapticManager';
 export { showError, showSuccess, showInfo, showConfirm, showAlert } from './alerts';
 export type { ConfirmOptions } from './alerts';
 export { buildFinalPlayHistoryFromState } from './playHistoryUtils';
+export { performanceMonitor, useRenderCount } from './performanceMonitor';
+export type { RenderMetrics, PerformanceReport } from './performanceMonitor';
+export { preloadCriticalImages, clearImageCache } from './imagePreload';

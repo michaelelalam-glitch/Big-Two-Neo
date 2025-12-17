@@ -55,7 +55,6 @@
           "enableBackgroundRemoteNotifications": true
         }
       ],
-      "expo-secure-store",
       "expo-web-browser",
       "expo-av",
       "./plugins/withGoogleServicesGradle.js"
