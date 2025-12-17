@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import type { Card } from '../../game/types';
 import type { GameStateManager } from '../../game/state';
-import { COLORS, SPACING, FONT_SIZES, SHADOWS, OPACITIES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, OPACITIES } from '../../constants';
 import { soundManager, hapticManager, SoundType } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
@@ -42,7 +42,7 @@ export function GameControls({
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
 
-  const handlePlayCards = async (cards: Card[]) => {
+  const handlePlayCards = useCallback(async (cards: Card[]) => {
     if (!gameManager) {
       gameLogger.error('❌ [GameControls] Game not initialized');
       return;
@@ -114,9 +114,9 @@ export function GameControls({
         }
       }, 300);
     }
-  };
+  }, [gameManager, isPlayingCards, isMounted, customCardOrder, playerHand, onPlaySuccess, setCustomCardOrder]);
 
-  const handlePass = async () => {
+  const handlePass = useCallback(async () => {
     if (!gameManager) {
       gameLogger.error('❌ [GameControls] Game not initialized');
       return;
@@ -163,7 +163,7 @@ export function GameControls({
         }
       }, 300);
     }
-  };
+  }, [gameManager, isPassing, isMounted, onPassSuccess]);
 
   // Expose handlePlayCards and handlePass to parent via refs (for drag-to-play from CardHand)
   React.useEffect(() => {
