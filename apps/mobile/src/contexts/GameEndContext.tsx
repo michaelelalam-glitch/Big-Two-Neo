@@ -9,7 +9,7 @@
  * - Play history for display
  * 
  * Created as part of Task #404: Create GameEndContext provider
- * Date: December 16, 2025
+ * Date: December 16, 2024
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';

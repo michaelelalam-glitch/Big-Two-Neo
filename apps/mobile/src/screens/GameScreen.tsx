@@ -212,7 +212,7 @@ function GameScreenContent() {
         gameManagerRef.current = manager;
         
         // Task #416: Register Play Again callback
-        setOnPlayAgain(() => async () => {
+        setOnPlayAgain(async () => {
           gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
           try {
             // Reinitialize the game with same settings
@@ -233,7 +233,7 @@ function GameScreenContent() {
         });
         
         // Task #417: Register Return to Menu callback
-        setOnReturnToMenu(() => () => {
+        setOnReturnToMenu(() => {
           gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
           // Navigate to home screen (resets the navigation stack)
           navigation.reset({

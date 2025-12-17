@@ -12,7 +12,7 @@
  * - Fireworks celebration animation
  * 
  * Created as part of Tasks #406-414: Phase 2 Core Components
- * Date: December 16, 2025
+ * Date: December 16, 2024
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -22,18 +22,15 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  FlatList,
   Animated,
   StyleSheet,
-  Dimensions,
   Platform,
   Share,
   Alert,
   useWindowDimensions,
-  ActivityIndicator, // CRITICAL FIX: Add loading state
 } from 'react-native';
-// LinearGradient commented out - requires native rebuild, using View with gradient-like background
-// import { LinearGradient } from 'expo-linear-gradient';
+// LinearGradient temporarily disabled - expo-linear-gradient installed but not yet integrated
+// Re-enable after testing: import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
@@ -65,7 +62,6 @@ export const GameEndModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('score');
   const [showFireworks, setShowFireworks] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // CRITICAL FIX: Add loading state
   
   // Task #421: Responsive dimensions and orientation detection
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();

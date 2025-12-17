@@ -9,8 +9,7 @@
  * - Edge cases (tied scores, all busted)
  */
 
-import React from 'react';
-import { render } from '@testing-library/react-native';
+import '@testing-library/react-native';
 
 // Mock the GameEndModal to extract FinalStandings component
 // Since FinalStandings is not exported, we'll test it through GameEndModal

@@ -10,7 +10,7 @@
  * - Uses native driver for 60fps performance
  * 
  * Created as part of Task #405: Build Fireworks animation component
- * Date: December 16, 2025
+ * Date: December 16, 2024
  */
 
 import React, { useEffect, useRef, useMemo } from 'react';
