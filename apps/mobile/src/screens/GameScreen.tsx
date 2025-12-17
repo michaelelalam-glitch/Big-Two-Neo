@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -105,7 +105,6 @@ function GameScreenContent() {
   // Scoreboard mapping hook (Task #Phase 2B)
   const {
     players,
-    scoreboardPlayers,
     mapPlayersToScoreboardOrder,
     mapGameIndexToScoreboardPosition,
   } = useScoreboardMapping({
