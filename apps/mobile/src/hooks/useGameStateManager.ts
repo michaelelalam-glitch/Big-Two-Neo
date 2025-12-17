@@ -148,6 +148,10 @@ export function useGameStateManager({
               timestamp: new Date().toISOString(),
             };
 
+            // Use ref values to avoid closure issues
+            scoreHistoryRef.current = [...scoreHistoryRef.current, scoreHistory];
+            playHistoryRef.current.set(state.currentMatch, []);
+
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
 
