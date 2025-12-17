@@ -168,6 +168,15 @@ export function GameControls({
   // Expose handlePlayCards and handlePass to parent via refs (for drag-to-play from CardHand)
   // Note: This effect should only run once on mount to set up the refs.
   // The functions themselves are stable due to useCallback, and refs allow parent to always access latest version.
+  //
+  // WHY EMPTY DEPENDENCY ARRAY:
+  // - handlePlayCards and handlePass are intentionally excluded from dependencies
+  // - These are useCallback functions that ARE recreated when their deps change (gameManager, state, etc.)
+  // - However, we WANT the parent to always call the LATEST version via refs
+  // - If we included them as dependencies, this effect would run on every dep change,
+  //   causing unnecessary ref reassignments (the ref pattern already solves staleness)
+  // - The ref mechanism ensures parent always accesses current function version without
+  //   needing to re-run this effect
   React.useEffect(() => {
     if (onPlayCardsRef) {
       onPlayCardsRef.current = handlePlayCards;
