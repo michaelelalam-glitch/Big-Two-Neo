@@ -442,12 +442,14 @@ function GameScreenContent() {
   }, [roomCode, currentPlayerName]);
 
   // CRITICAL FIX: Register Game End callbacks in separate useEffect to avoid setState during render
+  // Dependencies: Only re-register when navigation or currentPlayerName changes (NOT when setters change)
   useEffect(() => {
     const manager = gameManagerRef.current;
     if (!manager) return;
 
     // Task #416: Register Play Again callback
-    setOnPlayAgain(async () => {
+    // CRITICAL: Wrap function in arrow function to prevent immediate execution
+    setOnPlayAgain(() => async () => {
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
       try {
         // Reinitialize the game with same settings
@@ -468,7 +470,8 @@ function GameScreenContent() {
     });
     
     // Task #417: Register Return to Menu callback
-    setOnReturnToMenu(() => {
+    // CRITICAL: Wrap function in arrow function to prevent immediate execution
+    setOnReturnToMenu(() => () => {
       gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
       // Navigate to home screen (resets the navigation stack)
       navigation.reset({
@@ -476,7 +479,8 @@ function GameScreenContent() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [currentPlayerName, navigation, setOnPlayAgain, setOnReturnToMenu]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayerName, navigation]);
 
   // Derived state from game engine
   const playerHand = useMemo(() => {
