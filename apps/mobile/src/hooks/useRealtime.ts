@@ -720,6 +720,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'game_ended' }, (payload) => {
+        networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
+        // Fetch updated game state which will trigger modal in GameScreen
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
