@@ -154,7 +154,7 @@ export const GameEndModal: React.FC = () => {
       });
       
       if (result.action === Share.sharedAction) {
-
+        // Success - no additional action needed. Share API handles the UI feedback.
       }
     } catch (error) {
       console.error('Error sharing results:', error);

@@ -8,7 +8,7 @@
  * - Allows user to retry or dismiss
  * - Logs errors for debugging
  * 
- * Created: December 16, 2024
+ * Created: December 16, 2025
  */
 
 import React, { Component, ReactNode, ErrorInfo } from 'react';

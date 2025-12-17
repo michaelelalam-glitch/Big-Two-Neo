@@ -122,8 +122,8 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
   // STATE - Action Callbacks (Task #416, #417)
   // -------------------------------------------------------------------------
   
-  const [onPlayAgain, setOnPlayAgain] = useState<(() => void) | undefined>(() => undefined);
-  const [onReturnToMenu, setOnReturnToMenu] = useState<(() => void) | undefined>(() => undefined);
+  const [onPlayAgain, setOnPlayAgain] = useState<(() => void) | undefined>(undefined);
+  const [onReturnToMenu, setOnReturnToMenu] = useState<(() => void) | undefined>(undefined);
 
   // -------------------------------------------------------------------------
   // HELPER FUNCTIONS

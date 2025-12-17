@@ -305,7 +305,7 @@ function GameScreenContent() {
                     // Bot turns will be triggered by the subscription callback
                   } else {
                     // Only log error message to avoid exposing game state internals
-                    const errorMsg = (typeof result.error === 'object' && result.error && 'message' in result.error) ? (result.error as { message: string }).message : String(result.error);
+                    const errorMsg = (result.error as any)?.message || String(result.error);
                     gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
                   }
                 },
@@ -374,7 +374,8 @@ function GameScreenContent() {
             });
             
             // CRITICAL FIX: Open modal immediately (no delays that can cause Android issues)
-            // Use requestAnimationFrame to ensure UI thread is ready
+            // Use requestAnimationFrame to defer to next event loop tick, ensuring React state updates are processed
+            // before opening the modal (fixes Android rendering thread timing issue)
             requestAnimationFrame(() => {
               gameLogger.info('🎉 [Game Over] Opening Game End Modal NOW');
               
