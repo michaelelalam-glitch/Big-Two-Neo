@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { COLORS } from '../constants';
+import { COLORS, SPACING } from '../constants';
 import { statsLogger, authLogger } from '../utils/logger';
 import { showError, showConfirm } from '../utils';
 import EmptyState from '../components/EmptyState';
+import { i18n } from '../i18n';
 
 interface PlayerStats {
   games_played: number;
@@ -76,16 +77,16 @@ const ProfileScreen = () => {
 
   const handleSignOut = async () => {
     showConfirm({
-      title: 'Sign Out',
-      message: 'Are you sure you want to sign out?',
-      confirmText: 'Sign Out',
+      title: i18n.t('profile.signOut'),
+      message: i18n.t('profile.signOutConfirm'),
+      confirmText: i18n.t('profile.signOut'),
       destructive: true,
       onConfirm: async () => {
         try {
           await signOut();
         } catch (error: any) {
           authLogger.error('Error signing out:', error?.message || String(error));
-          showError('Failed to sign out. Please try again.');
+          showError(i18n.t('profile.signOutError'));
         }
       }
     });
@@ -111,12 +112,12 @@ const ProfileScreen = () => {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Profile</Text>
+            <Text style={styles.title}>{i18n.t('profile.title')}</Text>
           </View>
 
-          {/* Statistics Section */}
+          {/* Overview Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📊 Statistics</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.overview')}</Text>
             
             {statsLoading ? (
               <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 20 }} />
@@ -125,44 +126,57 @@ const ProfileScreen = () => {
                 <View style={styles.statsGrid}>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue}>{stats.games_played}</Text>
-                    <Text style={styles.statLabel}>Games Played</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.gamesPlayed')}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.games_won}</Text>
-                    <Text style={styles.statLabel}>Wins</Text>
+                    <Text style={styles.statValue}>{stats.win_rate.toFixed(1)}%</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.winRate')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.statsGrid}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.win_rate.toFixed(1)}%</Text>
-                    <Text style={styles.statLabel}>Win Rate</Text>
+                    <Text style={styles.statValue}>{stats.games_won}</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.gamesWon')}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.rank_points}</Text>
-                    <Text style={styles.statLabel}>Rank Points</Text>
+                    <Text style={styles.statValue}>{stats.games_played - stats.games_won}</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.gamesLost')}</Text>
                   </View>
                 </View>
 
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{stats.rank_points}</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.rankPoints')}</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>#{stats.global_rank || 'N/A'}</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.rank')}</Text>
+                  </View>
+                </View>
+
+                {/* Streaks Section */}
+                <Text style={[styles.sectionTitle, { marginTop: SPACING.md }]}>{i18n.t('profile.streaks')}</Text>
                 <View style={styles.statsGrid}>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue}>{stats.current_win_streak}</Text>
-                    <Text style={styles.statLabel}>Current Streak</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.currentStreak')}</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue}>{stats.longest_win_streak}</Text>
-                    <Text style={styles.statLabel}>Best Streak</Text>
+                    <Text style={styles.statLabel}>{i18n.t('profile.bestStreak')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.label}>Total Points</Text>
+                  <Text style={styles.label}>{i18n.t('profile.totalScore')}</Text>
                   <Text style={styles.value}>{stats.total_points.toLocaleString()}</Text>
                 </View>
 
                 {stats.global_rank && (
                   <View style={styles.infoRow}>
-                    <Text style={styles.label}>Global Rank</Text>
+                    <Text style={styles.label}>{i18n.t('profile.rank')}</Text>
                     <Text style={styles.value}>#{stats.global_rank}</Text>
                   </View>
                 )}
@@ -170,23 +184,23 @@ const ProfileScreen = () => {
             ) : (
               <EmptyState
                 icon="📈"
-                title="No statistics yet"
-                subtitle="Play your first game to see your stats!"
+                title={i18n.t('profile.noStatsYet')}
+                subtitle={i18n.t('profile.playFirstGame')}
                 variant="minimal"
               />
             )}
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Information</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.accountInfo')}</Text>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Email</Text>
-              <Text style={styles.value}>{user?.email || 'Not provided'}</Text>
+              <Text style={styles.label}>{i18n.t('profile.email')}</Text>
+              <Text style={styles.value}>{user?.email || i18n.t('profile.notProvided')}</Text>
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>User ID</Text>
+              <Text style={styles.label}>{i18n.t('profile.userId')}</Text>
               <Text style={styles.valueSmall} numberOfLines={1}>
                 {user?.id || 'N/A'}
               </Text>
@@ -194,20 +208,20 @@ const ProfileScreen = () => {
 
             {profile?.username && (
               <View style={styles.infoRow}>
-                <Text style={styles.label}>Username</Text>
+                <Text style={styles.label}>{i18n.t('profile.username')}</Text>
                 <Text style={styles.value}>{profile.username}</Text>
               </View>
             )}
 
             {profile?.full_name && (
               <View style={styles.infoRow}>
-                <Text style={styles.label}>Full Name</Text>
+                <Text style={styles.label}>{i18n.t('profile.fullName')}</Text>
                 <Text style={styles.value}>{profile.full_name}</Text>
               </View>
             )}
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Provider</Text>
+              <Text style={styles.label}>{i18n.t('profile.provider')}</Text>
               <Text style={styles.value}>
                 {user?.app_metadata?.provider || 'email'}
               </Text>
@@ -215,10 +229,10 @@ const ProfileScreen = () => {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Session Details</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.sessionDetails')}</Text>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Last Sign In</Text>
+              <Text style={styles.label}>{i18n.t('profile.lastSignIn')}</Text>
               <Text style={styles.valueSmall}>
                 {user?.last_sign_in_at
                   ? new Date(user.last_sign_in_at).toLocaleDateString()
@@ -227,7 +241,7 @@ const ProfileScreen = () => {
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Created At</Text>
+              <Text style={styles.label}>{i18n.t('profile.createdAt')}</Text>
               <Text style={styles.valueSmall}>
                 {user?.created_at
                   ? new Date(user.created_at).toLocaleDateString()
@@ -236,9 +250,9 @@ const ProfileScreen = () => {
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Email Confirmed</Text>
+              <Text style={styles.label}>{i18n.t('profile.emailConfirmed')}</Text>
               <Text style={styles.value}>
-                {user?.email_confirmed_at ? 'Yes' : 'No'}
+                {user?.email_confirmed_at ? i18n.t('common.yes') : i18n.t('common.no')}
               </Text>
             </View>
           </View>
@@ -248,7 +262,7 @@ const ProfileScreen = () => {
             onPress={handleSignOut}
             activeOpacity={0.7}
           >
-            <Text style={styles.signOutButtonText}>Sign Out</Text>
+            <Text style={styles.signOutButtonText}>{i18n.t('profile.signOut')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
