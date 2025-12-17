@@ -12,6 +12,7 @@
  */
 
 import { Alert, AlertButton } from 'react-native';
+import { i18n } from '../i18n';
 
 /**
  * Options for confirmation dialog
@@ -40,11 +41,11 @@ export interface ConfirmOptions {
  * @param message Error message to display
  * @param title Optional title (defaults to 'Error')
  */
-export const showError = (message: string, title: string = 'Error'): void => {
+export const showError = (message: string, title?: string): void => {
   Alert.alert(
-    title,
+    title || i18n.t('common.error'),
     message,
-    [{ text: 'OK', style: 'default' }],
+    [{ text: i18n.t('common.ok'), style: 'default' }],
     { cancelable: true }
   );
 };
@@ -54,11 +55,11 @@ export const showError = (message: string, title: string = 'Error'): void => {
  * @param message Success message to display
  * @param title Optional title (defaults to 'Success')
  */
-export const showSuccess = (message: string, title: string = 'Success'): void => {
+export const showSuccess = (message: string, title?: string): void => {
   Alert.alert(
-    title,
+    title || i18n.t('common.success'),
     message,
-    [{ text: 'OK', style: 'default' }],
+    [{ text: i18n.t('common.ok'), style: 'default' }],
     { cancelable: true }
   );
 };
@@ -68,11 +69,11 @@ export const showSuccess = (message: string, title: string = 'Success'): void =>
  * @param message Info message to display
  * @param title Optional title (defaults to 'Info')
  */
-export const showInfo = (message: string, title: string = 'Info'): void => {
+export const showInfo = (message: string, title?: string): void => {
   Alert.alert(
-    title,
+    title || i18n.t('common.info'),
     message,
-    [{ text: 'OK', style: 'default' }],
+    [{ text: i18n.t('common.ok'), style: 'default' }],
     { cancelable: true }
   );
 };
@@ -100,8 +101,8 @@ export const showConfirm = (options: ConfirmOptions): void => {
     message,
     onConfirm,
     onCancel,
-    confirmText = 'Confirm',
-    cancelText = 'Cancel',
+    confirmText = i18n.t('common.confirm'),
+    cancelText = i18n.t('common.cancel'),
     destructive = false,
     cancelable = true,
   } = options;
@@ -128,5 +129,5 @@ export const showConfirm = (options: ConfirmOptions): void => {
  * @param message Message to display
  */
 export const showAlert = (message: string): void => {
-  Alert.alert('', message, [{ text: 'OK', style: 'default' }], { cancelable: true });
+  Alert.alert('', message, [{ text: i18n.t('common.ok'), style: 'default' }], { cancelable: true });
 };

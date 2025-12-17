@@ -11,6 +11,7 @@ import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
 import { showError, showConfirm } from '../utils';
+import { i18n } from '../i18n';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 
@@ -22,12 +23,12 @@ export default function JoinRoomScreen() {
 
   const handleJoinRoom = async () => {
     if (!user) {
-      showError('You must be signed in to join a room');
+      showError(i18n.t('room.mustBeSignedIn'));
       return;
     }
 
     if (roomCode.length !== 6) {
-      showError('Room code must be 6 characters', 'Invalid Code');
+      showError(i18n.t('room.invalidCode'), i18n.t('room.invalidCodeTitle'));
       return;
     }
 
@@ -55,9 +56,9 @@ export default function JoinRoomScreen() {
         } else {
           // In a different room
           showConfirm({
-            title: 'Already in Room',
-            message: `You're already in room ${existingCode}. Leave it first to join a different room.`,
-            confirmText: 'Go to Current Room',
+            title: i18n.t('room.alreadyInRoom'),
+            message: i18n.t('room.alreadyInDifferentRoom', { code: existingCode }),
+            confirmText: i18n.t('room.goToCurrentRoom'),
             onConfirm: () => navigation.replace('Lobby', { roomCode: existingCode })
           });
           return;
@@ -72,7 +73,7 @@ export default function JoinRoomScreen() {
         .single();
 
       if (roomError || !roomData) {
-        throw new Error('Room not found');
+        throw new Error(i18n.t('room.roomNotFound'));
       }
 
       // Use atomic join function to prevent race conditions
@@ -89,9 +90,9 @@ export default function JoinRoomScreen() {
         
         // Handle specific error cases
         if (joinError.message?.includes('Room is full')) {
-          throw new Error('Room is full (4/4 players)');
+          throw new Error(i18n.t('room.roomFull'));
         } else if (joinError.message?.includes('already in another room')) {
-          showError('You are already in another room. Please leave it first.');
+          showError(i18n.t('room.alreadyInAnotherRoom'));
           return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
@@ -112,7 +113,7 @@ export default function JoinRoomScreen() {
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
       roomLogger.error('Error joining room:', error?.message || error?.code || String(error));
-      showError(error.message || 'Failed to join room');
+      showError(error.message || i18n.t('room.joinRoomError'));
     } finally {
       setIsJoining(false);
     }
@@ -125,14 +126,14 @@ export default function JoinRoomScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>← {i18n.t('common.back')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Join Room</Text>
+        <Text style={styles.title}>{i18n.t('room.joinTitle')}</Text>
         <Text style={styles.subtitle}>
-          Enter a 6-character room code to join
+          {i18n.t('room.joinSubtitle')}
         </Text>
 
         <View style={styles.inputContainer}>
@@ -157,14 +158,14 @@ export default function JoinRoomScreen() {
           {isJoining ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
-            <Text style={styles.joinButtonText}>Join Room</Text>
+            <Text style={styles.joinButtonText}>{i18n.t('room.joinButton')}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.infoBox}>
-          <Text style={styles.infoText}>💡 Tip:</Text>
+          <Text style={styles.infoText}>💡 {i18n.t('room.tip')}:</Text>
           <Text style={styles.infoText}>
-            Ask your friend for the room code and enter it here to join their game
+            {i18n.t('room.askFriendForCode')}
           </Text>
         </View>
       </View>

@@ -18,6 +18,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { statsLogger } from '../utils/logger';
 import EmptyState from '../components/EmptyState';
+import { i18n } from '../i18n';
 
 type LeaderboardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Leaderboard'>;
 
@@ -255,7 +256,7 @@ export default function LeaderboardScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <Text style={styles.title}>Leaderboard</Text>
+      <Text style={styles.title}>{i18n.t('leaderboard.title')}</Text>
       
       {/* User's Rank Card */}
       {userRank && (
@@ -266,7 +267,7 @@ export default function LeaderboardScreen() {
           <View style={styles.userRankInfo}>
             <Text style={styles.userRankUsername}>{userRank.username}</Text>
             <Text style={styles.userRankStats}>
-              {userRank.rank_points} pts • {userRank.games_won}W / {userRank.games_played}G
+              {userRank.rank_points} {i18n.t('leaderboard.points')} • {userRank.games_won}W / {userRank.games_played}G
             </Text>
           </View>
         </View>
@@ -279,7 +280,7 @@ export default function LeaderboardScreen() {
           onPress={() => setTimeFilter('all_time')}
         >
           <Text style={[styles.filterText, timeFilter === 'all_time' && styles.filterTextActive]}>
-            All Time
+            {i18n.t('leaderboard.allTime')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -287,7 +288,7 @@ export default function LeaderboardScreen() {
           onPress={() => setTimeFilter('weekly')}
         >
           <Text style={[styles.filterText, timeFilter === 'weekly' && styles.filterTextActive]}>
-            Weekly
+            {i18n.t('leaderboard.weekly')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -295,17 +296,17 @@ export default function LeaderboardScreen() {
           onPress={() => setTimeFilter('daily')}
         >
           <Text style={[styles.filterText, timeFilter === 'daily' && styles.filterTextActive]}>
-            Daily
+            {i18n.t('leaderboard.daily')}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Column Headers */}
       <View style={styles.columnHeaders}>
-        <Text style={[styles.columnHeader, styles.rankColumn]}>Rank</Text>
-        <Text style={[styles.columnHeader, styles.playerColumn]}>Player</Text>
-        <Text style={[styles.columnHeader, styles.statsColumn]}>W/L</Text>
-        <Text style={[styles.columnHeader, styles.pointsColumn]}>Points</Text>
+        <Text style={[styles.columnHeader, styles.rankColumn]}>{i18n.t('leaderboard.rank')}</Text>
+        <Text style={[styles.columnHeader, styles.playerColumn]}>{i18n.t('leaderboard.player')}</Text>
+        <Text style={[styles.columnHeader, styles.statsColumn]}>{i18n.t('leaderboard.winLoss')}</Text>
+        <Text style={[styles.columnHeader, styles.pointsColumn]}>{i18n.t('leaderboard.points')}</Text>
       </View>
     </View>
   );
@@ -355,7 +356,7 @@ export default function LeaderboardScreen() {
             </Text>
             {item.current_win_streak > 0 && (
               <Text style={styles.streakText}>
-                🔥 {item.current_win_streak} win streak
+                🔥 {item.current_win_streak} {i18n.t('leaderboard.winStreak')}
               </Text>
             )}
           </View>
@@ -389,8 +390,8 @@ export default function LeaderboardScreen() {
   const renderEmpty = () => (
     <EmptyState
       icon="🏆"
-      title="No rankings yet"
-      subtitle="Play some games to appear on the leaderboard!"
+      title={i18n.t('leaderboard.noRankings')}
+      subtitle={i18n.t('leaderboard.playToRank')}
     />
   );
 
@@ -399,7 +400,7 @@ export default function LeaderboardScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.accent} />
-          <Text style={styles.loadingText}>Loading leaderboard...</Text>
+          <Text style={styles.loadingText}>{i18n.t('common.loading')}...</Text>
         </View>
       </SafeAreaView>
     );

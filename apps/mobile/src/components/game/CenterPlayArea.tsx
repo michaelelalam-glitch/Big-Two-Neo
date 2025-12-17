@@ -4,6 +4,7 @@ import Card from './Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, CENTER_PLAY } from '../../constants';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
+import { i18n } from '../../i18n';
 
 interface CenterPlayAreaProps {
   lastPlayed: CardType[] | null;
@@ -40,7 +41,7 @@ export default function CenterPlayArea({
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No cards played yet</Text>
+          <Text style={styles.emptyText}>{i18n.t('game.noCardsYet')}</Text>
         </View>
       </View>
     );
@@ -72,7 +73,7 @@ export default function CenterPlayArea({
       {/* Last played text - directly on felt, white text */}
       {lastPlayedBy && (
         <Text style={styles.lastPlayedText} numberOfLines={1}>
-          Last played by {lastPlayedBy}: {comboDisplayText || 'Cards'}
+          {i18n.t('game.lastPlayedBy')} {lastPlayedBy}: {comboDisplayText || 'Cards'}
         </Text>
       )}
     </View>
