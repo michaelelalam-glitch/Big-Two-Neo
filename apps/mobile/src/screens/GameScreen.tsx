@@ -211,37 +211,6 @@ function GameScreenContent() {
         const manager = createGameStateManager();
         gameManagerRef.current = manager;
         
-        // Task #416: Register Play Again callback
-        setOnPlayAgain(async () => {
-          gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
-          try {
-            // Reinitialize the game with same settings
-            const newState = await manager.initializeGame({
-              playerName: currentPlayerName,
-              botCount: 3,
-              botDifficulty: 'medium'
-            });
-            setGameState(newState);
-            
-            // Play game start sound
-            soundManager.playSound(SoundType.GAME_START);
-            gameLogger.info('✅ [GameScreen] Game restarted successfully');
-          } catch (error) {
-            gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
-            showError('Failed to restart game. Please try again.');
-          }
-        });
-        
-        // Task #417: Register Return to Menu callback
-        setOnReturnToMenu(() => {
-          gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
-          // Navigate to home screen (resets the navigation stack)
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-          });
-        });
-        
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
           gameLogger.debug('📊 [GameScreen] Game state updated:', {
@@ -471,6 +440,43 @@ function GameScreenContent() {
 
     initGame();
   }, [roomCode, currentPlayerName]);
+
+  // CRITICAL FIX: Register Game End callbacks in separate useEffect to avoid setState during render
+  useEffect(() => {
+    const manager = gameManagerRef.current;
+    if (!manager) return;
+
+    // Task #416: Register Play Again callback
+    setOnPlayAgain(async () => {
+      gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
+      try {
+        // Reinitialize the game with same settings
+        const newState = await manager.initializeGame({
+          playerName: currentPlayerName,
+          botCount: 3,
+          botDifficulty: 'medium'
+        });
+        setGameState(newState);
+        
+        // Play game start sound
+        soundManager.playSound(SoundType.GAME_START);
+        gameLogger.info('✅ [GameScreen] Game restarted successfully');
+      } catch (error) {
+        gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
+        showError('Failed to restart game. Please try again.');
+      }
+    });
+    
+    // Task #417: Register Return to Menu callback
+    setOnReturnToMenu(() => {
+      gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
+      // Navigate to home screen (resets the navigation stack)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    });
+  }, [currentPlayerName, navigation, setOnPlayAgain, setOnReturnToMenu]);
 
   // Derived state from game engine
   const playerHand = useMemo(() => {
