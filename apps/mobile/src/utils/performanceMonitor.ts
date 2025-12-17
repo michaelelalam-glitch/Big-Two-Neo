@@ -5,7 +5,6 @@
  */
 
 import React from 'react';
-import { Platform } from 'react-native';
 
 export interface RenderMetrics {
   componentName: string;
