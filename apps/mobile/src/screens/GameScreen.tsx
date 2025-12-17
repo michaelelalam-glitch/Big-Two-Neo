@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -17,6 +17,9 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
+import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
+import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
+import type { FinalScore } from '../types/gameEnd';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -70,15 +73,23 @@ function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user } = useAuth();
+  const scoreboardContext = useScoreboard(); // Get entire context
   const { 
     addScoreHistory, 
     setIsScoreboardExpanded, 
     scoreHistory, 
     playHistoryByMatch 
-  } = useScoreboard(); // Task #351 & #352 & #355
+  } = scoreboardContext; // Task #351 & #352 & #355
+  const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  
+  // CRITICAL FIX: Store refs to always get latest context values
+  const scoreboardRef = useRef(scoreboardContext);
+  useEffect(() => {
+    scoreboardRef.current = scoreboardContext;
+  }, [scoreboardContext]);
   
   // Game state management
   const gameManagerRef = useRef<GameStateManager | null>(null);
@@ -121,7 +132,8 @@ function GameScreenContent() {
     if (!gameManagerRef.current) return;
     
     const currentState = gameManagerRef.current.getState();
-    if (!currentState || currentState.gameEnded) return;
+    // CRITICAL FIX: Check BOTH gameEnded AND gameOver to stop bot turns when game finishes
+    if (!currentState || currentState.gameEnded || currentState.gameOver) return;
     
     const currentPlayer = currentState.players[currentState.currentPlayerIndex];
     
@@ -166,9 +178,10 @@ function GameScreenContent() {
             gameLogger.debug('🔓 [GameScreen] Bot turn lock released (error)');
             
             // Notify user and attempt recovery
-            showError(
+            Alert.alert(
+              'Bot Turn Error',
               `Bot ${currentPlayer.name} encountered an error. The game will continue with the next player.`,
-              'Bot Turn Error'
+              [{ text: 'OK' }]
             );
             
             // Check for next player after brief delay
@@ -208,6 +221,15 @@ function GameScreenContent() {
             gameOver: state.gameOver
           });
           
+          // CRITICAL DEBUG: Log game over detection
+          if (state.gameOver || state.gameEnded) {
+            gameLogger.info('🚨 [GAME OVER DEBUG] State flags:', {
+              gameOver: state.gameOver,
+              gameEnded: state.gameEnded,
+              matchScores: state.matchScores.map(s => ({ name: s.playerName, score: s.score }))
+            });
+          }
+          
           // Play turn notification when it becomes player's turn
           const previousState = gameState;
           if (previousState && state.currentPlayerIndex === 0 && previousState.currentPlayerIndex !== 0) {
@@ -218,22 +240,24 @@ function GameScreenContent() {
           setGameState(state);
           
           // Handle match end (someone ran out of cards)
-          if (state.gameEnded && !state.gameOver) {
-            // Match ended but game continues
+          if (state.gameEnded) {
+            // CRITICAL FIX: Always add score history when match ends, regardless of gameOver state
             const matchWinner = state.players.find(p => p.id === state.winnerId);
             const matchScores = state.matchScores;
             
-            // Play win/lose sound based on match outcome
-            if (matchWinner && matchWinner.id === state.players[0].id) {
-              soundManager.playSound(SoundType.WIN);
-              gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
-            } else {
-              soundManager.playSound(SoundType.LOSE);
-              gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+            // Play win/lose sound based on match outcome (only if game continues)
+            if (!state.gameOver) {
+              if (matchWinner && matchWinner.id === state.players[0].id) {
+                soundManager.playSound(SoundType.WIN);
+                gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
+              } else {
+                soundManager.playSound(SoundType.LOSE);
+                gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+              }
             }
             
             // Task #351: Track score history for scoreboard
-            // Extract points added this match from matchScores array
+            // CRITICAL FIX: Extract points BEFORE checking gameOver to ensure final match is recorded
             const pointsAdded: number[] = [];
             const cumulativeScores: number[] = [];
             
@@ -244,91 +268,136 @@ function GameScreenContent() {
               cumulativeScores.push(playerScore.score);
             });
             
-            // CRITICAL FIX: Reorder scores to match scoreboard display order [0,3,1,2]
-            // matchScores is in game state order [0,1,2,3] (player indices)
-            // but scoreboard displays in visual layout order [0,3,1,2] (bottom, top, left, right)
-            // This transformation ensures scores are displayed correctly in the UI
-            // without this fix, player scores would appear in wrong positions on scoreboard
-            const reorderedPointsAdded = [
-              pointsAdded[0],  // Bottom player (index 0) stays at position 0
-              pointsAdded[3],  // Right player (index 3) moves to position 1 
-              pointsAdded[1],  // Top player (index 1) moves to position 2
-              pointsAdded[2]   // Left player (index 2) moves to position 3
-            ];
-            const reorderedScores = [
-              cumulativeScores[0],
-              cumulativeScores[3],
-              cumulativeScores[1],
-              cumulativeScores[2]
-            ];
-            
+            // CRITICAL FIX: DO NOT reorder scores for Game End Modal
+            // Game End Modal displays players in game order [0,1,2,3] (michael, bot1, bot2, bot3)
+            // matchScores is already in correct order - keep it that way!
+            // The old reordering [0,3,1,2] was for in-game scoreboard visual layout only
             const scoreHistory: ScoreHistory = {
               matchNumber: state.currentMatch,
-              pointsAdded: reorderedPointsAdded,
-              scores: reorderedScores,
+              pointsAdded: pointsAdded, // Keep in game order [0,1,2,3]
+              scores: cumulativeScores, // Keep in game order [0,1,2,3]
               timestamp: new Date().toISOString(),
             };
             
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
             
+            // Only show match complete dialog if game is NOT over
+            if (!state.gameOver) {
+            
             // Build score summary
             const scoreSummary = matchScores
               .map(s => `${s.playerName}: ${s.score} pts`)
               .join('\n');
             
-            showConfirm({
-              title: `Match ${state.currentMatch} Complete!`,
-              message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
-              confirmText: 'Next Match',
-              cancelText: 'Leave Game',
-              onConfirm: async () => {
-                gameLogger.info('🔄 [GameScreen] Starting next match...');
-                const result = await manager.startNewMatch();
-                if (result.success) {
-                  gameLogger.info('✅ [GameScreen] New match started');
-                  // Bot turns will be triggered by the subscription callback
-                } else {
-                  // Only log error message to avoid exposing game state internals
-                  const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
-                  gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
+            // Store match complete handler for reuse after "Stay" is pressed
+            const showMatchCompleteDialog = () => {
+              showConfirm({
+                title: `Match ${state.currentMatch} Complete!`,
+                message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
+                confirmText: 'Next Match',
+                cancelText: 'Leave Game',
+                onConfirm: async () => {
+                  gameLogger.info('🔄 [GameScreen] Starting next match...');
+                  const result = await manager.startNewMatch();
+                  if (result.success) {
+                    gameLogger.info('✅ [GameScreen] New match started');
+                    // Bot turns will be triggered by the subscription callback
+                  } else {
+                    // Only log error message to avoid exposing game state internals
+                    const errorMsg = (result.error as any)?.message || String(result.error);
+                    gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
+                  }
+                },
+                onCancel: () => {
+                  // Leave Game with confirmation
+                  showConfirm({
+                    title: 'Leave Game?',
+                    message: 'Are you sure you want to leave? Your progress will be lost.',
+                    confirmText: 'Leave',
+                    cancelText: 'Stay',
+                    destructive: true,
+                    onConfirm: () => handleLeaveGame(true), // Skip nested confirmation
+                    onCancel: () => {
+                      // Stay: Re-show match complete dialog so user can choose Next Match
+                      gameLogger.info('📊 [GameScreen] User chose to stay - showing Match Complete dialog again');
+                      showMatchCompleteDialog();
+                    }
+                  });
                 }
-              },
-              onCancel: () => {
-                // Show confirmation before leaving (prevent accidental exits)
-                showConfirm({
-                  title: 'Leave Game?',
-                  message: 'Are you sure you want to leave? Your progress will be lost.',
-                  confirmText: 'Leave',
-                  cancelText: 'Stay',
-                  destructive: true,
-                  onConfirm: () => handleLeaveGame(true), // Skip nested confirmation
-                  // onCancel: undefined - Stay button dismisses dialog and continues game
-                });
-              }
-            });
-            // Note: Don't return here - game continues after dialog dismisses
-          }
+              });
+            };
+            
+              showMatchCompleteDialog();
+              // Note: Don't return here - game continues after dialog dismisses
+            } // End of if (!state.gameOver) block
+          } // End of if (state.gameEnded) block
           
-          // Handle game over (101+ points reached)
-          if (state.gameOver) {
+          // Handle game over (101+ points reached) - Task #415
+          // CRITICAL FIX: Only open modal when BOTH gameOver AND gameEnded are true
+          // This prevents modal from opening while final match is still in progress
+          if (state.gameOver && state.gameEnded) {
+            gameLogger.info('🚨 [GAME OVER] Detected! Opening Game End Modal...', {
+              gameOver: state.gameOver,
+              gameEnded: state.gameEnded,
+              finalWinnerId: state.finalWinnerId
+            });
+            
             // Scoreboard will NOT auto-expand - user controls expansion manually
             gameLogger.info('📊 [Game Over] Game finished - scoreboard remains in current state');
             
             const finalWinner = state.matchScores.find(s => s.playerId === state.finalWinnerId);
-            const scoreSummary = state.matchScores
-              .sort((a, b) => a.score - b.score)
-              .map(s => `${s.playerName}: ${s.score} pts`)
-              .join('\n');
             
-            showConfirm({
-              title: 'Game Over!',
-              message: `${finalWinner?.playerName || 'Someone'} wins the game!\n\n${scoreSummary}`,
-              confirmText: 'OK',
-              cancelText: '', // Hide cancel button - user must acknowledge game over
-              onConfirm: () => handleLeaveGame(true) // Skip confirmation on game over
+            // Prepare final scores in display order (Task #415)
+            const finalScores: FinalScore[] = state.matchScores
+              .sort((a, b) => a.score - b.score) // Sort by ascending score (lowest score wins)
+              .map((s, index) => ({
+                player_index: state.players.findIndex(p => p.id === s.playerId),
+                player_name: s.playerName,
+                cumulative_score: s.score,
+                points_added: 0, // Final game over doesn't add points
+                rank: index + 1,
+                is_busted: s.score >= 101
+              }));
+            
+            // Get player names in game order
+            const playerNames = state.players.map(p => p.name);
+            
+            // Get current scoreboard data (use empty arrays as fallback, modal can handle it)
+            const currentScoreHistory = scoreboardRef.current?.scoreHistory || scoreHistory || [];
+            const currentPlayHistory = scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || [];
+            
+            gameLogger.info('📊 [Game Over] Modal data:', {
+              scoreHistoryCount: currentScoreHistory.length,
+              playHistoryCount: currentPlayHistory.length,
+              finalScoresCount: finalScores.length
             });
-            return; // Don't trigger bot turns when game is over
+            
+            // CRITICAL FIX: Open modal immediately (no delays that can cause Android issues)
+            // Use requestAnimationFrame to defer to next event loop tick, ensuring React state updates are processed
+            // before opening the modal (fixes Android rendering thread timing issue)
+            requestAnimationFrame(() => {
+              gameLogger.info('🎉 [Game Over] Opening Game End Modal NOW');
+              
+              try {
+                openGameEndModal(
+                  finalWinner?.playerName || 'Someone',
+                  state.players.findIndex(p => p.id === state.finalWinnerId),
+                  finalScores,
+                  playerNames,
+                  currentScoreHistory,
+                  currentPlayHistory
+                );
+                
+                gameLogger.info('✅ [Game Over] Game End Modal opened successfully');
+              } catch (error) {
+                gameLogger.error('❌ [Game Over] Failed to open modal:', error);
+                // Fallback: Show simple alert
+                showInfo(`Game Over! ${finalWinner?.playerName || 'Someone'} wins!`);
+              }
+            });
+            
+            return; // Stop processing here to prevent bot turns
           }
           
           // Trigger bot turn check after state update
@@ -366,12 +435,53 @@ function GameScreenContent() {
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
         setIsInitializing(false);
-        showError('Failed to initialize game. Please try again.');
+        Alert.alert('Error', 'Failed to initialize game. Please try again.');
       }
     };
 
     initGame();
   }, [roomCode, currentPlayerName]);
+
+  // CRITICAL FIX: Register Game End callbacks in separate useEffect to avoid setState during render
+  // Dependencies: Only re-register when navigation or currentPlayerName changes (NOT when setters change)
+  useEffect(() => {
+    const manager = gameManagerRef.current;
+    if (!manager) return;
+
+    // Task #416: Register Play Again callback
+    // CRITICAL: Wrap function in arrow function to prevent immediate execution
+    setOnPlayAgain(() => async () => {
+      gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
+      try {
+        // Reinitialize the game with same settings
+        const newState = await manager.initializeGame({
+          playerName: currentPlayerName,
+          botCount: 3,
+          botDifficulty: 'medium'
+        });
+        setGameState(newState);
+        
+        // Play game start sound
+        soundManager.playSound(SoundType.GAME_START);
+        gameLogger.info('✅ [GameScreen] Game restarted successfully');
+      } catch (error) {
+        gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
+        showError('Failed to restart game. Please try again.');
+      }
+    });
+    
+    // Task #417: Register Return to Menu callback
+    // CRITICAL: Wrap function in arrow function to prevent immediate execution
+    setOnReturnToMenu(() => () => {
+      gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
+      // Navigate to home screen (resets the navigation stack)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayerName, navigation]);
 
   // Derived state from game engine
   const playerHand = useMemo(() => {
@@ -671,7 +781,7 @@ function GameScreenContent() {
       } else {
         // Show error from validation
         soundManager.playSound(SoundType.INVALID_MOVE);
-        showError(result.error || 'Invalid play', 'Invalid Move');
+        Alert.alert('Invalid Move', result.error || 'Invalid play');
       }
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
@@ -680,7 +790,7 @@ function GameScreenContent() {
       // Show user-friendly error
       soundManager.playSound(SoundType.INVALID_MOVE);
       const errorMessage = error instanceof Error ? error.message : 'Invalid play';
-      showError(errorMessage, 'Invalid Move');
+      Alert.alert('Invalid Move', errorMessage);
     } finally {
       // Release lock after short delay to prevent rapid double-taps
       setTimeout(() => {
@@ -725,14 +835,14 @@ function GameScreenContent() {
         
         // Bot turns will be triggered automatically by the subscription
       } else {
-        showError(result.error || 'Cannot pass', 'Cannot Pass');
+        Alert.alert('Cannot Pass', result.error || 'Cannot pass');
       }
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
       
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
-      showError(errorMessage, 'Cannot Pass');
+      Alert.alert('Cannot Pass', errorMessage);
     } finally {
       setTimeout(() => {
         if (isMountedRef.current) {
@@ -743,23 +853,28 @@ function GameScreenContent() {
   };
 
   const handleLeaveGame = (skipConfirmation = false) => {
-    // If called directly (from settings modal), show confirmation first
-    if (!skipConfirmation) {
-      showConfirm({
-        title: 'Leave Game?',
-        message: 'Are you sure you want to leave? Your progress will be lost.',
-        confirmText: 'Leave',
-        cancelText: 'Stay',
-        destructive: true,
-        onConfirm: () => handleLeaveGame(true), // Skip confirmation on recursive call
+    if (skipConfirmation) {
+      // Navigate directly without confirmation (called from nested dialog)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
       });
       return;
     }
     
-    // Navigate to home screen (resets the navigation stack)
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Leave Game?',
+      message: 'Are you sure you want to leave? Your progress will be lost.',
+      confirmText: 'Leave',
+      cancelText: 'Stay',
+      destructive: true,
+      onConfirm: () => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+      }
     });
   };
 
@@ -808,7 +923,7 @@ function GameScreenContent() {
     if (Platform.OS === 'android') {
       ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
     } else if (Platform.OS === 'ios') {
-      showInfo('Hand organized by combos');
+      Alert.alert('Hand organized by combos');
     }
     
     gameLogger.info('[GameScreen] Smart sorted hand by combo type');
@@ -835,7 +950,7 @@ function GameScreenContent() {
       if (Platform.OS === 'android') {
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
       } else if (Platform.OS === 'ios') {
-        showInfo('No valid play - recommend passing');
+        Alert.alert('No valid play - recommend passing');
       }
       
       gameLogger.info('[GameScreen] Hint: No valid play, recommend pass');
@@ -856,7 +971,7 @@ function GameScreenContent() {
       if (Platform.OS === 'android') {
         ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
       } else if (Platform.OS === 'ios') {
-        showInfo(`Recommended: ${comboType}`);
+        Alert.alert(`Recommended: ${comboType}`);
       }
       
       gameLogger.info(`[GameScreen] Hint: Recommended ${cardCount} card(s)`);
@@ -888,12 +1003,12 @@ function GameScreenContent() {
         <>
           {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
           <ScoreboardContainer
-            playerNames={mapPlayersToScoreboardOrder(players, p => p.name)}
-            currentScores={mapPlayersToScoreboardOrder(players, p => p.score)}
-            cardCounts={mapPlayersToScoreboardOrder(players, p => p.cardCount)}
+            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
+            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
+            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
             currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
             matchNumber={gameState?.currentMatch || 1}
-            isGameFinished={gameState?.gameEnded || false}
+            isGameFinished={gameState?.gameOver || false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
           />
@@ -1048,18 +1163,25 @@ function GameScreenContent() {
               />
             </View>
           </View>
+          
+          {/* Game End Modal (Task #415) - CRITICAL FIX: Wrapped in error boundary */}
+          <GameEndErrorBoundary onReset={() => {}}>
+            <GameEndModal />
+          </GameEndErrorBoundary>
         </>
       )}
     </View>
   );
 }
 
-// Wrapper component with ScoreboardProvider for Task #351
+// Wrapper component with ScoreboardProvider and GameEndProvider
 export default function GameScreen() {
   return (
-    <ScoreboardProvider>
-      <GameScreenContent />
-    </ScoreboardProvider>
+    <GameEndProvider>
+      <ScoreboardProvider>
+        <GameScreenContent />
+      </ScoreboardProvider>
+    </GameEndProvider>
   );
 }
 

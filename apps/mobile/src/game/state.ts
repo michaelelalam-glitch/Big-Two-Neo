@@ -947,6 +947,10 @@ export class GameStateManager {
       const finalWinner = this.state.matchScores.find(s => s.playerId === this.state!.finalWinnerId);
       gameLogger.info(`🎉 [Game Over] Final winner: ${finalWinner?.playerName} with ${finalWinner?.score} points`);
       
+      // CRITICAL FIX: Notify listeners so GameScreen receives gameOver + gameEnded state
+      // This triggers the Game End Modal to appear (fixes missing modal bug)
+      this.notifyListeners();
+      
       // Save game stats to database (async, don't await to avoid blocking UI)
       statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
       let alertShown = false; // Track if alert was shown to prevent duplicate alerts
@@ -1111,8 +1115,13 @@ export class GameStateManager {
       const result = await response.json();
       statsLogger.info('✅ [Stats] Game completed successfully:', result);
     } catch (error: any) {
-      // Only log error message/code to avoid exposing DB internals
-      statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
+      // Suppress 503 errors (Edge Function not deployed/cold start)
+      // Game still works - this only affects stats tracking
+      if (error?.message?.includes('503')) {
+        statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
+      } else {
+        statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
+      }
     }
   }
 

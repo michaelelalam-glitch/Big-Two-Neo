@@ -48,3 +48,6 @@ export * from './multiplayer';
 
 // Export scoreboard types
 export * from './scoreboard';
+
+// Export game end types
+export * from './gameEnd';

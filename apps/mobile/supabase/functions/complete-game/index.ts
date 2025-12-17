@@ -296,7 +296,65 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
-    // STEP 5: REFRESH LEADERBOARD
+    // STEP 5: BROADCAST game_ended EVENT TO ALL CLIENTS (CORRECTED)
+    // ============================================================================
+    // CRITICAL FIX: Properly broadcasts to subscribed clients
+    
+    if (gameData.room_id) {
+      try {
+        const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
+        const finalScores = gameData.players
+          .sort((a, b) => a.score - b.score) // Lowest score wins
+          .map((p, index) => ({
+            player_index: index,
+            player_name: p.username,
+            cumulative_score: p.score,
+            points_added: 0, // Final game doesn't add points
+            rank: p.finish_position,
+            is_busted: p.score >= 101,
+          }));
+        
+        const broadcastPayload = {
+          game_winner_name: winnerPlayer?.username || 'Unknown',
+          game_winner_index: gameData.players.findIndex(p => p.user_id === gameData.winner_id),
+          final_scores: finalScores,
+          room_code: gameData.room_code,
+        };
+        
+        console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id, broadcastPayload);
+        
+        // CORRECTED: Subscribe to channel, broadcast, then unsubscribe
+        const channel = supabaseAdmin.channel(`room:${gameData.room_id}`);
+        
+        await channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            const { error: broadcastError } = await channel.send({
+              type: 'broadcast',
+              event: 'game_ended',
+              payload: broadcastPayload,
+            });
+            
+            if (broadcastError) {
+              console.error('[Complete Game] Failed to broadcast game_ended:', broadcastError);
+            } else {
+              console.log('[Complete Game] ✅ game_ended broadcast sent successfully');
+            }
+            
+            // Unsubscribe after sending
+            await supabaseAdmin.removeChannel(channel);
+          }
+        });
+        
+      } catch (broadcastError) {
+        console.error('[Complete Game] Error broadcasting game_ended:', broadcastError);
+        // Non-critical - continue
+      }
+    } else {
+      console.log('[Complete Game] No room_id, skipping broadcast (local game)');
+    }
+
+    // ============================================================================
+    // STEP 6: REFRESH LEADERBOARD
     // ============================================================================
 
     const { error: leaderboardError } = await supabaseAdmin.rpc('refresh_leaderboard');
@@ -308,7 +366,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
-    // STEP 6: RETURN SUCCESS
+    // STEP 7: RETURN SUCCESS
     // ============================================================================
 
     return new Response(
