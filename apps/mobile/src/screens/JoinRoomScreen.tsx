@@ -10,6 +10,7 @@ import { supabase } from '../services/supabase';
 import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
+import { showError, showConfirm } from '../utils';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 
@@ -21,12 +22,12 @@ export default function JoinRoomScreen() {
 
   const handleJoinRoom = async () => {
     if (!user) {
-      Alert.alert('Error', 'You must be signed in to join a room');
+      showError('You must be signed in to join a room');
       return;
     }
 
     if (roomCode.length !== 6) {
-      Alert.alert('Invalid Code', 'Room code must be 6 characters');
+      showError('Room code must be 6 characters', 'Invalid Code');
       return;
     }
 
@@ -53,17 +54,12 @@ export default function JoinRoomScreen() {
           return;
         } else {
           // In a different room
-          Alert.alert(
-            'Already in Room',
-            `You're already in room ${existingCode}. Leave it first to join a different room.`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Go to Current Room', 
-                onPress: () => navigation.replace('Lobby', { roomCode: existingCode })
-              }
-            ]
-          );
+          showConfirm({
+            title: 'Already in Room',
+            message: `You're already in room ${existingCode}. Leave it first to join a different room.`,
+            confirmText: 'Go to Current Room',
+            onConfirm: () => navigation.replace('Lobby', { roomCode: existingCode })
+          });
           return;
         }
       }
@@ -95,7 +91,7 @@ export default function JoinRoomScreen() {
         if (joinError.message?.includes('Room is full')) {
           throw new Error('Room is full (4/4 players)');
         } else if (joinError.message?.includes('already in another room')) {
-          Alert.alert('Error', 'You are already in another room. Please leave it first.');
+          showError('You are already in another room. Please leave it first.');
           return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
@@ -116,7 +112,7 @@ export default function JoinRoomScreen() {
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
       roomLogger.error('Error joining room:', error?.message || error?.code || String(error));
-      Alert.alert('Error', error.message || 'Failed to join room');
+      showError(error.message || 'Failed to join room');
     } finally {
       setIsJoining(false);
     }

@@ -18,6 +18,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { statsLogger } from '../utils/logger';
+import EmptyState from '../components/EmptyState';
 
 type StatsScreenRouteProp = RouteProp<RootStackParamList, 'Stats'>;
 type StatsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Stats'>;
@@ -242,18 +243,15 @@ export default function StatsScreen() {
   if (!stats || !profile) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No stats available</Text>
-          <Text style={styles.emptySubtext}>
-            {isOwnProfile ? 'Play some games to see your stats!' : 'This user hasn\'t played any games yet.'}
-          </Text>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="📊"
+          title="No stats available"
+          subtitle={isOwnProfile ? 'Play some games to see your stats!' : 'This user hasn\'t played any games yet.'}
+          action={{
+            label: 'Go Back',
+            onPress: () => navigation.goBack(),
+          }}
+        />
       </SafeAreaView>
     );
   }

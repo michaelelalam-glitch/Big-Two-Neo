@@ -33,15 +33,8 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   // Use responsive styles
   const styles = useCompactScoreboardStyles();
 
-  // Auto-expand when game finishes
-  const onToggleExpandRef = useRef(onToggleExpand);
-  onToggleExpandRef.current = onToggleExpand;
-
-  useEffect(() => {
-    if (isGameFinished && !isExpanded && onToggleExpandRef.current) {
-      onToggleExpandRef.current();
-    }
-  }, [isGameFinished, isExpanded]);
+  // Note: Scoreboard expansion is now MANUAL ONLY per user request.
+  // Auto-expansion on game finish was removed to give user full control.
 
   return (
     <View style={styles.compactContainer}>

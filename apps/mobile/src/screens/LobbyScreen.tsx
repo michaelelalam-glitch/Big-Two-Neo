@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { roomLogger } from '../utils/logger';
+import { showError } from '../utils';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -141,7 +142,7 @@ export default function LobbyScreen() {
           navigation.replace('Home');
         }
       } else {
-        Alert.alert('Error', 'Failed to load players');
+        showError('Failed to load players');
       }
     } finally {
       setIsLoading(false);
@@ -187,7 +188,7 @@ export default function LobbyScreen() {
       setIsReady(!isReady);
     } catch (error: any) {
       roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
-      Alert.alert('Error', 'Failed to update ready status');
+      showError('Failed to update ready status');
     } finally {
       setIsTogglingReady(false);
     }
@@ -215,13 +216,13 @@ export default function LobbyScreen() {
 
       if (roomPlayerError || !roomPlayerData) {
         roomLogger.error('Room player lookup error:', roomPlayerError?.message || roomPlayerError?.code || 'Unknown error');
-        Alert.alert('Error', 'Could not find your player data');
+        showError('Could not find your player data');
         return;
       }
 
       // Check if user is host
       if (!roomPlayerData.is_host) {
-        Alert.alert('Error', 'Only the host can start the game with bots');
+        showError('Only the host can start the game with bots');
         return;
       }
 
@@ -256,7 +257,7 @@ export default function LobbyScreen() {
 
         if (createPlayerError || !newPlayer) {
           roomLogger.error('Error creating player:', createPlayerError?.message || createPlayerError?.code || 'Unknown error');
-          Alert.alert('Error', 'Failed to create player entry');
+          showError('Failed to create player entry');
           return;
         }
 
@@ -309,7 +310,7 @@ export default function LobbyScreen() {
       setIsStarting(false);
     } catch (error: any) {
       roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
-      Alert.alert('Error', error.message || 'Failed to start game');
+      showError(error.message || 'Failed to start game');
       // Reset immediately on error
       setIsStarting(false);
     } finally {
@@ -355,7 +356,7 @@ export default function LobbyScreen() {
     } catch (error: any) {
       roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
       isLeavingRef.current = false; // Reset flag on error
-      Alert.alert('Error', 'Failed to leave room');
+      showError('Failed to leave room');
     }
   };
 

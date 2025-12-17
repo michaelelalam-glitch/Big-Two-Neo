@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
+import { showError, showConfirm } from '../utils';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -28,7 +29,7 @@ export default function CreateRoomScreen() {
 
   const handleCreateRoom = async () => {
     if (!user) {
-      Alert.alert('Error', 'You must be signed in to create a room');
+      showError('You must be signed in to create a room');
       return;
     }
 
@@ -53,22 +54,15 @@ export default function CreateRoomScreen() {
         
         roomLogger.warn('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
         
-        Alert.alert(
-          'Already in Room',
-          `You're already in room ${existingCode} (${roomStatus}). What would you like to do?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Go to Room', 
-              onPress: () => {
-                setIsCreating(false);
-                navigation.replace('Lobby', { roomCode: existingCode });
-              }
-            },
-            {
-              text: 'Leave & Create New',
-              style: 'destructive',
-              onPress: async () => {
+        // Note: Reduced from 3-button (Cancel, Go to Room, Leave & Create) to 2-button dialog.
+        // "Go to Room" becomes the cancel action, "Leave & Create" is the confirm action.
+        // Users can still dismiss by tapping outside (iOS) or back button (Android).
+        const goToRoom = () => {
+          setIsCreating(false);
+          navigation.replace('Lobby', { roomCode: existingCode });
+        };
+        
+        const leaveAndCreate = async () => {
                 try {
                   // Leave the existing room
                   const { error: leaveError } = await supabase
@@ -79,7 +73,7 @@ export default function CreateRoomScreen() {
 
                   if (leaveError) {
                     roomLogger.error('Error leaving room:', leaveError);
-                    Alert.alert('Error', 'Failed to leave existing room');
+                    showError('Failed to leave existing room');
                     setIsCreating(false);
                     return;
                   }
@@ -111,10 +105,9 @@ export default function CreateRoomScreen() {
                   
                   if (!isDeleted) {
                     roomLogger.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
-                    Alert.alert(
-                      'Timeout', 
+                    showError(
                       'Taking longer than expected to leave room. Please try again or wait a moment.',
-                      [{ text: 'OK' }]
+                      'Timeout'
                     );
                     setIsCreating(false);
                     return;
@@ -125,13 +118,20 @@ export default function CreateRoomScreen() {
                 } catch (error: any) {
                   // Only log error message/code to avoid exposing DB internals
                   roomLogger.error('Error in leave & create:', error?.message || error?.code || String(error));
-                  Alert.alert('Error', 'Failed to leave room');
+                  showError('Failed to leave room');
                   setIsCreating(false);
                 }
-              }
-            }
-          ]
-        );
+              };
+        
+        showConfirm({
+          title: 'Already in Room',
+          message: `You're already in room ${existingCode} (${roomStatus}). Leave and create new room?`,
+          confirmText: 'Go to Room',
+          cancelText: 'Leave & Create',
+          destructive: true,
+          onConfirm: goToRoom,
+          onCancel: leaveAndCreate
+        });
         return;
       }
 
@@ -174,7 +174,7 @@ export default function CreateRoomScreen() {
       // Only log error message/code to avoid exposing DB internals or auth tokens
       roomLogger.error('Error creating room:', error?.message || error?.code || String(error));
       const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to create room';
-      Alert.alert('Error', errorMessage);
+      showError(errorMessage);
     } finally {
       setIsCreating(false);
     }
