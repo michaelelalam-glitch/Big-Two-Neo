@@ -12,11 +12,12 @@ import { supabase } from '../services/supabase';
 import { createGameStateManager, type GameState, type GameStateManager, type Player } from '../game/state';
 import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
-import type { ScoreHistory } from '../types/scoreboard';
+import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
+import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import type { FinalScore } from '../types/gameEnd';
@@ -72,7 +73,7 @@ function mapGameIndexToScoreboardPosition(gameIndex: number): number {
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const scoreboardContext = useScoreboard(); // Get entire context
   const { 
     addScoreHistory, 
@@ -107,6 +108,9 @@ function GameScreenContent() {
   const isExecutingBotTurnRef = useRef(false);
   const lastBotTurnPlayerIndexRef = useRef<number | null>(null);
   
+  // Track auto-start match timeout for cleanup
+  const autoStartMatchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Track card play execution to prevent duplicates (use state for UI updates)
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   
@@ -116,8 +120,8 @@ function GameScreenContent() {
   // Track custom card order (user can rearrange cards)
   const [customCardOrder, setCustomCardOrder] = useState<string[]>([]);
 
-  // Get player username from auth context (fallback to email prefix if no username)
-  const currentPlayerName = user?.user_metadata?.username || 
+  // Get player username from profile (consistent with leaderboard and lobby)
+  const currentPlayerName = profile?.username || 
                            user?.email?.split('@')[0] || 
                            'Player';
 
@@ -126,6 +130,9 @@ function GameScreenContent() {
     const delays = { easy: 1200, medium: 800, hard: 500 };
     return delays[difficulty];
   };
+  
+  // Bot turn timeout: 15 seconds to accommodate slower/resource-constrained devices
+  const BOT_TURN_TIMEOUT_MS = 15000;
 
   // Bot turn checker function (accessible from everywhere)
   const checkAndExecuteBotTurn = () => {
@@ -162,8 +169,21 @@ function GameScreenContent() {
       
       // Bot turn timing: configurable delay for natural feel, 100ms between subsequent bot turns
       setTimeout(() => {
+        // CRITICAL FIX: Start timeout AFTER bot delay to give full timeout duration for execution
+        // If bot turn doesn't complete within timeout (e.g., blocked by notification or slow device),
+        // forcefully release the lock and retry. Uses 15s timeout to accommodate resource-constrained devices.
+        const botTurnTimeoutId = setTimeout(() => {
+          if (isExecutingBotTurnRef.current) {
+            gameLogger.error('⚠️ [GameScreen] Bot turn TIMEOUT detected - forcefully releasing lock');
+            isExecutingBotTurnRef.current = false;
+            // Retry bot turn check after clearing the stuck state
+            setTimeout(checkAndExecuteBotTurn, 500);
+          }
+        }, BOT_TURN_TIMEOUT_MS); // 15 second timeout (applies to actual bot turn execution)
+        
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
+            clearTimeout(botTurnTimeoutId); // Clear timeout on success
             gameLogger.info(`✅ [GameScreen] Bot ${currentPlayer.name} turn finished`);
             // Release lock immediately after turn completes
             isExecutingBotTurnRef.current = false;
@@ -172,6 +192,7 @@ function GameScreenContent() {
             setTimeout(checkAndExecuteBotTurn, 100);
           })
           .catch((error: any) => {
+            clearTimeout(botTurnTimeoutId); // Clear timeout on error
             // Only log error message/code to avoid exposing game state internals
             gameLogger.error('❌ [GameScreen] Bot turn failed:', error?.message || error?.code || String(error));
             isExecutingBotTurnRef.current = false;
@@ -282,54 +303,31 @@ function GameScreenContent() {
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
             
-            // Only show match complete dialog if game is NOT over
+            // CRITICAL FIX: Auto-start next match when game is NOT over (no dialog interruption)
             if (!state.gameOver) {
-            
-            // Build score summary
-            const scoreSummary = matchScores
-              .map(s => `${s.playerName}: ${s.score} pts`)
-              .join('\n');
-            
-            // Store match complete handler for reuse after "Stay" is pressed
-            const showMatchCompleteDialog = () => {
-              showConfirm({
-                title: `Match ${state.currentMatch} Complete!`,
-                message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
-                confirmText: 'Next Match',
-                cancelText: 'Leave Game',
-                onConfirm: async () => {
-                  gameLogger.info('🔄 [GameScreen] Starting next match...');
-                  const result = await manager.startNewMatch();
-                  if (result.success) {
-                    gameLogger.info('✅ [GameScreen] New match started');
-                    // Bot turns will be triggered by the subscription callback
-                  } else {
-                    // Only log error message to avoid exposing game state internals
-                    const errorMsg = (result.error as any)?.message || String(result.error);
-                    gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
-                  }
-                },
-                onCancel: () => {
-                  // Leave Game with confirmation
-                  showConfirm({
-                    title: 'Leave Game?',
-                    message: 'Are you sure you want to leave? Your progress will be lost.',
-                    confirmText: 'Leave',
-                    cancelText: 'Stay',
-                    destructive: true,
-                    onConfirm: () => handleLeaveGame(true), // Skip nested confirmation
-                    onCancel: () => {
-                      // Stay: Re-show match complete dialog so user can choose Next Match
-                      gameLogger.info('📊 [GameScreen] User chose to stay - showing Match Complete dialog again');
-                      showMatchCompleteDialog();
-                    }
-                  });
+              gameLogger.info('🔄 [GameScreen] Match ended, auto-starting next match...');
+              
+              // Clear any existing timeout before creating a new one
+              if (autoStartMatchTimeoutRef.current) {
+                clearTimeout(autoStartMatchTimeoutRef.current);
+              }
+              
+              // Start next match automatically after brief delay
+              autoStartMatchTimeoutRef.current = setTimeout(async () => {
+                const result = await manager.startNewMatch();
+                if (result.success) {
+                  gameLogger.info('✅ [GameScreen] Next match started automatically');
+                  // Bot turns will be triggered by the subscription callback
+                } else {
+                  // Only log error message to avoid exposing game state internals
+                  const errorMsg = (result.error as any)?.message || String(result.error);
+                  gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
+                  
+                  // Show error to user
+                  showError('Failed to start next match. Please try leaving and rejoining the game.');
                 }
-              });
-            };
-            
-              showMatchCompleteDialog();
-              // Note: Don't return here - game continues after dialog dismisses
+                autoStartMatchTimeoutRef.current = null;
+              }, 1500); // 1.5 second delay to show win animation/sound
             } // End of if (!state.gameOver) block
           } // End of if (state.gameEnded) block
           
@@ -365,11 +363,20 @@ function GameScreenContent() {
             
             // Get current scoreboard data (use empty arrays as fallback, modal can handle it)
             const currentScoreHistory = scoreboardRef.current?.scoreHistory || scoreHistory || [];
-            const currentPlayHistory = scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || [];
+            
+            // CRITICAL FIX: Extract play history directly from gameState.roundHistory
+            // to avoid race condition where the Game End modal opens before usePlayHistoryTracking
+            // processes the gameEnded state change. This ensures the winning hand is captured.
+            // Uses shared utility function (playHistoryUtils.ts) to ensure consistency.
+            const finalPlayHistory: PlayHistoryMatch[] = buildFinalPlayHistoryFromState(
+              state,
+              scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || []
+            );
             
             gameLogger.info('📊 [Game Over] Modal data:', {
               scoreHistoryCount: currentScoreHistory.length,
-              playHistoryCount: currentPlayHistory.length,
+              playHistoryCount: finalPlayHistory.length,
+              finalMatchHands: state.roundHistory.length,
               finalScoresCount: finalScores.length
             });
             
@@ -386,7 +393,7 @@ function GameScreenContent() {
                   finalScores,
                   playerNames,
                   currentScoreHistory,
-                  currentPlayHistory
+                  finalPlayHistory
                 );
                 
                 gameLogger.info('✅ [Game Over] Game End Modal opened successfully');
@@ -426,6 +433,11 @@ function GameScreenContent() {
           // Cleanup timer interval to prevent memory leaks
           if (gameManagerRef.current) {
             gameManagerRef.current.destroy();
+          }
+          // Cleanup auto-start match timeout to prevent memory leaks
+          if (autoStartMatchTimeoutRef.current) {
+            clearTimeout(autoStartMatchTimeoutRef.current);
+            autoStartMatchTimeoutRef.current = null;
           }
           // Cleanup audio resources to prevent memory leaks
           soundManager.cleanup().catch(err => {
