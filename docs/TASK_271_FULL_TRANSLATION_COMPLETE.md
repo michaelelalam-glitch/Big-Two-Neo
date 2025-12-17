@@ -2,14 +2,14 @@
 
 ## Summary
 
-**ALL screens** in the Big2 Mobile app now support 3 languages: **English, Arabic (RTL), German**
+**ALL screens** in the Big2 Mobile app now support 2 languages: **English, Arabic (RTL)**
 
 ## ✅ Completed Work
 
 ### 1. i18n System Enhancement
 - Added 20+ new translation keys to support all screens
 - Common keys: `you`, `bot`, `current`, `allTime`, `weekly`, `daily`, `timeout`
-- All keys translated in EN, AR, DE
+- All keys translated in EN, AR
 
 ### 2. Screen Translation Integration
 
@@ -153,13 +153,13 @@ common: {
 
 ## 📝 Notes
 
-- All screens except GameScreen are now fully bilingual/trilingual
+- All screens except GameScreen are now fully bilingual
 - Arabic RTL support working via `I18nManager.forceRTL()`
 - Language persistence via AsyncStorage (`@big2_language`)
 - App restart may be required for RTL/LTR layout changes
 
 ---
 
-**Created:** December 17, 2025  
+**Created / Last updated:** December 17, 2025  
 **Task:** #271 App Settings & Preferences - Full Translation Integration  
 **Status:** ✅ COMPLETE (except GameScreen)

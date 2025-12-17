@@ -5,7 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { i18n, Language } from '../../i18n';
+import { i18n } from '../../i18n';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../../utils/settings';
 
 // Mock React Native components that are imported by settings utilities

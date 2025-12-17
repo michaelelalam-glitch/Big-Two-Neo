@@ -46,6 +46,7 @@ export interface Translations {
     allTime: string;
     weekly: string;
     daily: string;
+    comingSoon: string;
   };
   
   // Settings Screen
@@ -102,6 +103,7 @@ export interface Translations {
     languageDescription: string;
     changeLanguageWarning: string;
     restartRequired: string;
+    languageChangedSuccess: string;
     
     // Account
     accountManagement: string;
@@ -113,6 +115,11 @@ export interface Translations {
     deleteAccountDescription: string;
     deleteAccountWarning: string;
     deleteAccountConfirm: string;
+    noUserLoggedIn: string;
+    deleteAccountFailed: string;
+    accountDeletedSuccess: string;
+    profileComingSoonDescription: string;
+    autoPassTimerBanner: string;
     
     // About
     version: string;
@@ -345,6 +352,7 @@ const en: Translations = {
     allTime: 'All Time',
     weekly: 'Weekly',
     daily: 'Daily',
+    comingSoon: 'Coming Soon',
   },
   settings: {
     title: 'Settings',
@@ -394,6 +402,7 @@ const en: Translations = {
     languageDescription: 'Choose your preferred language',
     changeLanguageWarning: 'Changing language will restart the app',
     restartRequired: 'Restart Required',
+    languageChangedSuccess: 'Language changed successfully',
     
     accountManagement: 'Account Management',
     clearCache: 'Clear Cache',
@@ -404,6 +413,11 @@ const en: Translations = {
     deleteAccountDescription: 'Permanently delete your account',
     deleteAccountWarning: 'This action cannot be undone. All your data will be permanently deleted.',
     deleteAccountConfirm: 'Are you sure you want to delete your account?',
+    noUserLoggedIn: 'No user logged in',
+    deleteAccountFailed: 'Failed to delete account. Please contact support.',
+    accountDeletedSuccess: 'Account deleted successfully',
+    profileComingSoonDescription: 'Profile visibility and online status will be available with online multiplayer!',
+    autoPassTimerBanner: 'ℹ️ Note: Game currently uses a fixed 10-second timer. Custom durations coming soon!',
     
     version: 'Version',
     termsOfService: 'Terms of Service',
@@ -621,6 +635,7 @@ const ar: Translations = {
     allTime: 'كل الأوقات',
     weekly: 'أسبوعي',
     daily: 'يومي',
+    comingSoon: 'قريبًا',
   },
   settings: {
     title: 'الإعدادات',
@@ -670,6 +685,7 @@ const ar: Translations = {
     languageDescription: 'اختر لغتك المفضلة',
     changeLanguageWarning: 'تغيير اللغة سيعيد تشغيل التطبيق',
     restartRequired: 'إعادة التشغيل مطلوبة',
+    languageChangedSuccess: 'تم تغيير اللغة بنجاح',
     
     accountManagement: 'إدارة الحساب',
     clearCache: 'مسح ذاكرة التخزين المؤقت',
@@ -680,6 +696,11 @@ const ar: Translations = {
     deleteAccountDescription: 'احذف حسابك نهائيًا',
     deleteAccountWarning: 'لا يمكن التراجع عن هذا الإجراء. سيتم حذف جميع بياناتك نهائيًا.',
     deleteAccountConfirm: 'هل أنت متأكد أنك تريد حذف حسابك؟',
+    noUserLoggedIn: 'لم يتم تسجيل دخول مستخدم',
+    deleteAccountFailed: 'فشل حذف الحساب. يرجى الاتصال بالدعم.',
+    accountDeletedSuccess: 'تم حذف الحساب بنجاح',
+    profileComingSoonDescription: 'ستكون رؤية الملف الشخصي وحالة الاتصال متاحة مع اللعب الجماعي عبر الإنترنت!',
+    autoPassTimerBanner: 'ℹ️ ملاحظة: تستخدم اللعبة حاليًا مؤقتًا ثابتًا مدته 10 ثوانٍ. ستكون المدد المخصصة متاحة قريبًا!',
     
     version: 'الإصدار',
     termsOfService: 'شروط الخدمة',
@@ -820,7 +841,6 @@ const ar: Translations = {
     signOutError: 'فشل تسجيل الخروج. حاول مرة أخرى.',
     overview: 'نظرة عامة',
     streaks: 'السلاسل',
-    gamesLost: 'الألعاب المفقودة',
     losses: 'الخسائر',
     wins: 'الانتصارات',
     performance: 'الأداء',
@@ -898,6 +918,7 @@ const de: Translations = {
     allTime: 'Alle Zeit',
     weekly: 'Wöchentlich',
     daily: 'Täglich',
+    comingSoon: 'Bald verfügbar',
   },
   settings: {
     title: 'Einstellungen',
@@ -947,6 +968,7 @@ const de: Translations = {
     languageDescription: 'Wählen Sie Ihre bevorzugte Sprache',
     changeLanguageWarning: 'Das Ändern der Sprache startet die App neu',
     restartRequired: 'Neustart erforderlich',
+    languageChangedSuccess: 'Sprache erfolgreich geändert',
     
     accountManagement: 'Kontoverwaltung',
     clearCache: 'Cache leeren',
@@ -957,6 +979,11 @@ const de: Translations = {
     deleteAccountDescription: 'Ihr Konto dauerhaft löschen',
     deleteAccountWarning: 'Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.',
     deleteAccountConfirm: 'Sind Sie sicher, dass Sie Ihr Konto löschen möchten?',
+    noUserLoggedIn: 'Kein Benutzer angemeldet',
+    deleteAccountFailed: 'Fehler beim Löschen des Kontos. Bitte wenden Sie sich an den Support.',
+    accountDeletedSuccess: 'Konto erfolgreich gelöscht',
+    profileComingSoonDescription: 'Profilsichtbarkeit und Online-Status werden mit Online-Multiplayer verfügbar sein!',
+    autoPassTimerBanner: 'ℹ️ Hinweis: Das Spiel verwendet derzeit einen festen 10-Sekunden-Timer. Benutzerdefinierte Dauern sind bald verfügbar!',
     
     version: 'Version',
     termsOfService: 'Nutzungsbedingungen',
@@ -1097,7 +1124,6 @@ const de: Translations = {
     signOutError: 'Abmeldung fehlgeschlagen. Bitte versuche es erneut.',
     overview: 'Übersicht',
     streaks: 'Serien',
-    gamesLost: 'Verlorene Spiele',
     losses: 'Niederlagen',
     wins: 'Siege',
     performance: 'Leistung',

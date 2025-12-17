@@ -8,7 +8,6 @@ import {
   Switch,
   Alert,
   Linking,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -179,7 +178,7 @@ export default function SettingsScreen() {
           );
         }
         
-        showSuccess('Language changed successfully');
+        showSuccess(t('settings.languageChangedSuccess'));
       },
     });
   };
@@ -235,19 +234,17 @@ export default function SettingsScreen() {
       onConfirm: async () => {
         try {
           if (!user) {
-            showError('No user logged in');
+            showError(t('settings.noUserLoggedIn'));
             return;
           }
 
           // Call Supabase to delete user data
           // This should trigger database cascades to remove all user-related data
-          const { error } = await supabase.rpc('delete_user_account', {
-            user_id: user.id,
-          });
+          const { error } = await supabase.rpc('delete_user_account');
 
           if (error) {
             console.error('[Settings] Failed to delete account:', error);
-            showError('Failed to delete account. Please contact support.');
+            showError(t('settings.deleteAccountFailed'));
             return;
           }
 
@@ -255,10 +252,10 @@ export default function SettingsScreen() {
           await AsyncStorage.clear();
           await signOut();
           
-          showSuccess('Account deleted successfully');
+          showSuccess(t('settings.accountDeletedSuccess'));
         } catch (error) {
           console.error('[Settings] Error deleting account:', error);
-          showError('Failed to delete account. Please contact support.');
+          showError(t('settings.deleteAccountFailed'));
         }
       },
     });
@@ -294,12 +291,12 @@ export default function SettingsScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('settings.profileSettings')}</Text>
             <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+              <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
             </View>
           </View>
           
           <View style={styles.comingSoonBanner}>
-            <Text style={styles.comingSoonText}>🔮 Profile visibility and online status will be available with online multiplayer!</Text>
+            <Text style={styles.comingSoonText}>🔮 {t('settings.profileComingSoonDescription')}</Text>
           </View>
           
           <View style={[styles.settingRow, { opacity: 0.6 }]}>
@@ -438,7 +435,7 @@ export default function SettingsScreen() {
             <Text style={styles.settingTitle}>{t('settings.autoPassTimer')}</Text>
             <Text style={styles.settingDescription}>{t('settings.autoPassTimerDescription')}</Text>
             <View style={styles.comingSoonBanner}>
-              <Text style={styles.comingSoonText}>ℹ️ Note: Game currently uses a fixed 10-second timer. Custom durations coming soon!</Text>
+              <Text style={styles.comingSoonText}>{t('settings.autoPassTimerBanner')}</Text>
             </View>
             <View style={styles.buttonGroup}>
               <TouchableOpacity
