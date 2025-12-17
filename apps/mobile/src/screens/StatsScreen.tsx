@@ -6,10 +6,11 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Image,
   TouchableOpacity,
   FlatList,
+  Image,
 } from 'react-native';
+import { formatDistanceToNow, format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -221,13 +222,11 @@ export default function StatsScreen() {
   };
 
   const getTimeAgo = (date: Date): string => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+    try {
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch {
+      return format(date, 'MMM d, yyyy');
+    }
   };
 
   if (loading) {
@@ -279,7 +278,11 @@ export default function StatsScreen() {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarText}>

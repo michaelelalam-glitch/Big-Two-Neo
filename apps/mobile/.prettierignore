@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.expo/
+.expo-shared/
+
+# Build outputs
+dist/
+build/
+ios/
+android/
+coverage/
+
+# Generated files
+*.log
+.DS_Store
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation (don't format these)
+docs/
+*.md

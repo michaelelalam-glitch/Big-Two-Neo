@@ -225,6 +225,11 @@ const Card = React.memo(function Card({
     const effectiveTranslateX = isDraggingGroup ? sharedDragX : translateX.value;
     const effectiveTranslateY = isDraggingGroup ? sharedDragY : translateY.value;
     
+    // Visual feedback: add shadow/glow when actively dragging
+    const isDragging = Math.abs(effectiveTranslateX) > 5 || Math.abs(effectiveTranslateY) > 5;
+    const shadowOpacity = isDragging ? 0.5 : 0.2;
+    const shadowRadius = isDragging ? 12 : 4;
+    
     return {
       transform: [
         { translateX: effectiveTranslateX },
@@ -233,6 +238,8 @@ const Card = React.memo(function Card({
       ],
       opacity: isDraggingGroup ? 1 : opacity.value,
       zIndex: zIndex, // Use z-index from parent for proper layering during drag
+      shadowOpacity,
+      shadowRadius,
     };
   }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
@@ -336,10 +343,9 @@ const styles = StyleSheet.create({
     // Explicitly set overflow: 'visible' to avoid clipping on Android during transform animations.
     // NOTE: This may cause visual artifacts with rounded corners when scaling/transforms are applied.
     overflow: 'visible',
+    // Shadow values are animated dynamically in animatedStyle for drag feedback
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
     elevation: 3,
     // FIX: Task #378 - Force consistent elevation to prevent Android layer switching
     // Keep elevation constant regardless of selection state
