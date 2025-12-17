@@ -148,16 +148,17 @@ export function useGameStateManager({
               timestamp: new Date().toISOString(),
             };
 
-            // Update refs directly for immediate access in subsequent code paths
-            // Note: These ref updates do NOT trigger React re-renders (intentional for performance)
-            // The addScoreHistory() call below handles the actual state update and re-render
-            // Refs are updated first to prevent closure issues if addScoreHistory accesses stale values
-            scoreHistoryRef.current = [...scoreHistoryRef.current, scoreHistory];
-            playHistoryRef.current.set(state.currentMatch, []);
-
-            // This triggers the React state update and re-render
+            // Use state updater callback to avoid race conditions with ref mutations
+            // The refs will be automatically synchronized via the scoreHistory/playHistoryByMatch state updates
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
+            
+            // Clear play history for the current match
+            setPlayHistoryByMatch((prev) => {
+              const updated = new Map(prev);
+              updated.set(state.currentMatch, []);
+              return updated;
+            });
 
             // Auto-start next match when game is NOT over
             if (!state.gameOver) {
