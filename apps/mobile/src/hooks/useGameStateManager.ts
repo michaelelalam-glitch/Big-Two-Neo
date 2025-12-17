@@ -153,12 +153,8 @@ export function useGameStateManager({
             addScoreHistory(scoreHistory);
             gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
             
-            // Clear play history for the current match
-            setPlayHistoryByMatch((prev) => {
-              const updated = new Map(prev);
-              updated.set(state.currentMatch, []);
-              return updated;
-            });
+            // Note: Play history is automatically cleared for the next match via addPlayHistory
+            // mechanism when new plays are added. No manual clearing needed here.
 
             // Auto-start next match when game is NOT over
             if (!state.gameOver) {
