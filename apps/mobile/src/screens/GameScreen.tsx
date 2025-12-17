@@ -160,20 +160,20 @@ function GameScreenContent() {
       
       gameLogger.info(`🤖 [GameScreen] Bot ${currentPlayer.name} is thinking...`);
       
-      // CRITICAL FIX: Add timeout protection to prevent permanent freeze
-      // If bot turn doesn't complete within 10 seconds (e.g., blocked by notification interaction),
-      // forcefully release the lock and retry
-      const botTurnTimeoutId = setTimeout(() => {
-        if (isExecutingBotTurnRef.current) {
-          gameLogger.error('⚠️ [GameScreen] Bot turn TIMEOUT detected - forcefully releasing lock');
-          isExecutingBotTurnRef.current = false;
-          // Retry bot turn check after clearing the stuck state
-          setTimeout(checkAndExecuteBotTurn, 500);
-        }
-      }, 10000); // 10 second timeout
-      
       // Bot turn timing: configurable delay for natural feel, 100ms between subsequent bot turns
       setTimeout(() => {
+        // CRITICAL FIX: Start timeout AFTER bot delay to give full 10s for execution
+        // If bot turn doesn't complete within 10 seconds (e.g., blocked by notification interaction),
+        // forcefully release the lock and retry
+        const botTurnTimeoutId = setTimeout(() => {
+          if (isExecutingBotTurnRef.current) {
+            gameLogger.error('⚠️ [GameScreen] Bot turn TIMEOUT detected - forcefully releasing lock');
+            isExecutingBotTurnRef.current = false;
+            // Retry bot turn check after clearing the stuck state
+            setTimeout(checkAndExecuteBotTurn, 500);
+          }
+        }, 10000); // 10 second timeout (applies to actual bot turn execution)
+        
         gameManagerRef.current?.executeBotTurn()
           .then(() => {
             clearTimeout(botTurnTimeoutId); // Clear timeout on success
@@ -368,14 +368,24 @@ function GameScreenContent() {
                 .filter(entry => !entry.passed && entry.cards.length > 0)
                 .map(entry => {
                   const playerIndex = playerIdToIndex.get(entry.playerId);
+                  
+                  if (playerIndex === undefined) {
+                    gameLogger.warn?.(
+                      'GameScreen: Could not find player index for roundHistory entry',
+                      { playerId: entry.playerId, roundEntry: entry }
+                    );
+                    return null;
+                  }
+                  
                   return {
-                    by: (playerIndex ?? 0) as PlayerPosition,
+                    by: playerIndex as PlayerPosition,
                     type: entry.combo_type,
                     count: entry.cards.length,
                     cards: entry.cards,
                     timestamp: new Date(entry.timestamp).toISOString(),
                   };
-                });
+                })
+                .filter((hand): hand is PlayHistoryHand => hand !== null);
               
               // Check if this match is already in the history
               const existingMatchIndex = finalPlayHistory.findIndex(m => m.matchNumber === state.currentMatch);
