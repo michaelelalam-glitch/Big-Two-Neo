@@ -15,7 +15,7 @@ type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateR
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<CreateRoomNavigationProp>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
 
   const generateRoomCode = (): string => {
@@ -153,7 +153,7 @@ export default function CreateRoomScreen() {
       if (roomError) throw roomError;
 
       // Use atomic join to add creator as host
-      const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+      const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
       const { data: joinResult, error: playerError } = await supabase
         .rpc('join_room_atomic', {
           p_room_code: roomCode,

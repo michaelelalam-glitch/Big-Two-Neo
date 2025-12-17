@@ -68,6 +68,7 @@ const createMockGameState = (overrides?: Partial<GameState>): GameState => ({
   gameEnded: false,
   winnerId: null,
   roundHistory: mockRoundHistory,
+  gameRoundHistory: mockRoundHistory, // ADDED: Game-wide history (required field)
   currentMatch: 1,
   matchScores: [],
   lastMatchWinnerId: null,

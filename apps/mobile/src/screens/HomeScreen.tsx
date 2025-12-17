@@ -15,7 +15,7 @@ type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
 
@@ -160,7 +160,7 @@ export default function HomeScreen() {
       if (roomWithSpace) {
         roomLogger.info('✅ Joining existing public room via atomic join:', roomWithSpace.code);
         
-        const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+        const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
         
         // Use atomic join function to prevent race conditions
         const { data: joinResult, error: joinError } = await supabase
@@ -224,7 +224,7 @@ export default function HomeScreen() {
       roomLogger.info('✅ Public room created:', roomCode);
 
       // Use atomic join to add host as first player
-      const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+      const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
       const { data: joinResult, error: playerError } = await supabase
         .rpc('join_room_atomic', {
           p_room_code: roomCode,
@@ -272,7 +272,7 @@ export default function HomeScreen() {
 
       <View style={styles.content}>
         <Text style={styles.title}>Big2 Mobile</Text>
-        <Text style={styles.subtitle}>Welcome, {user?.email || 'Player'}!</Text>
+        <Text style={styles.subtitle}>Welcome, {profile?.username || user?.email || 'Player'}!</Text>
         
         {currentRoom && (
           <View style={styles.currentRoomBanner}>

@@ -16,7 +16,7 @@ type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'
 
 export default function JoinRoomScreen() {
   const navigation = useNavigation<JoinRoomNavigationProp>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [roomCode, setRoomCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
@@ -76,7 +76,7 @@ export default function JoinRoomScreen() {
       }
 
       // Use atomic join function to prevent race conditions
-      const username = user.user_metadata?.username || `Player_${user.id.substring(0, 8)}`;
+      const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
       const { data: joinResult, error: joinError } = await supabase
         .rpc('join_room_atomic', {
           p_room_code: roomCode.toUpperCase(),

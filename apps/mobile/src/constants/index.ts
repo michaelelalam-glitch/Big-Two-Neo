@@ -102,6 +102,9 @@ export const LAYOUT = {
   
   // Center play area
   centerPlayHeightTable: 80,
+  
+  // Card hand positioning
+  handAlignmentOffset: 68, // Horizontal offset for centering player's hand (user-requested: 52px or 68px)
 };
 
 // Card font sizes (used with scaling)

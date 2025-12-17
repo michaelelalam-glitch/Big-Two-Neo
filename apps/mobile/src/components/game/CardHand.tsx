@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Card from './Card';
 import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 
 // Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
 // With 13 cards: 60px + (12 × 30px overlap) = 420px total width
@@ -15,6 +15,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 // FIX: Corrected card spacing calculation to match actual layout
 // Formula: HAND_CARD_WIDTH (60) + CARD_OVERLAP_MARGIN (-40) + TOUCH_TARGET_PADDING per side × 2 sides (5×2=10)
 // = 60 - 40 + 10 = 30px effective spacing per card
+// Note: marginLeft positioning is either 52px or 68px for hand alignment
 // Previous value of 20px caused cards to land in wrong positions (33% error)
 const CARD_SPACING = 30;
 
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center', // Center the cards horizontally
-    marginLeft: 60, // Move all cards 60px to the right (requested by user for better hand alignment)
+    marginLeft: LAYOUT.handAlignmentOffset, // Horizontal offset for better hand alignment (user-requested: 52px or 68px)
     // Note: Fixed offset works for standard phone screens (375px-428px width).
     // WARNING: May cause layout issues on smaller devices (screen width < 375px).
     // Future: make responsive based on screen width to prevent cards being pushed off-screen.
