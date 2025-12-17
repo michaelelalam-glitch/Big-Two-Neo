@@ -17,6 +17,7 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
+import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import type { FinalScore } from '../types/gameEnd';
@@ -361,75 +362,8 @@ function GameScreenContent() {
             const currentScoreHistory = scoreboardRef.current?.scoreHistory || scoreHistory || [];
             
             // CRITICAL FIX: Extract play history directly from gameState.roundHistory
-            // to avoid race condition where usePlayHistoryTracking hasn't updated context yet
-            // Using shared utility function to avoid code duplication with usePlayHistoryTracking
-            const buildFinalPlayHistoryFromState = (
-              state: GameState,
-              existingPlayHistory: PlayHistoryMatch[]
-            ): PlayHistoryMatch[] => {
-              const finalPlayHistory = [...existingPlayHistory];
-
-              // CRITICAL FIX Task #2: Add the CURRENT match's play history (including winning play)
-              // The context might not have been updated yet, so we manually convert roundHistory
-              if (state.roundHistory.length > 0) {
-                const playerIdToIndex = new Map<string, number>();
-                state.players.forEach((player, index) => {
-                  playerIdToIndex.set(player.id, index);
-                });
-
-                // Convert roundHistory entries to PlayHistoryHand format
-                const hands: PlayHistoryHand[] = state.roundHistory
-                  .filter(entry => !entry.passed && entry.cards.length > 0)
-                  .map(entry => {
-                    const playerIndex = playerIdToIndex.get(entry.playerId);
-
-                    if (playerIndex === undefined) {
-                      gameLogger.warn?.(
-                        'GameScreen: Could not find player index for roundHistory entry',
-                        { playerId: entry.playerId, roundEntry: entry }
-                      );
-                      return null;
-                    }
-
-                    return {
-                      by: playerIndex as PlayerPosition,
-                      type: entry.combo_type,
-                      count: entry.cards.length,
-                      cards: entry.cards,
-                      timestamp: new Date(entry.timestamp).toISOString(),
-                    };
-                  })
-                  .filter((hand): hand is PlayHistoryHand => hand !== null);
-
-                // Check if this match is already in the history
-                const existingMatchIndex = finalPlayHistory.findIndex(
-                  m => m.matchNumber === state.currentMatch
-                );
-
-                if (existingMatchIndex >= 0) {
-                  // Update existing match with all hands (including winning play)
-                  finalPlayHistory[existingMatchIndex] = {
-                    matchNumber: state.currentMatch,
-                    hands,
-                    winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
-                    startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
-                    endTime: new Date().toISOString(),
-                  };
-                } else {
-                  // Add new match
-                  finalPlayHistory.push({
-                    matchNumber: state.currentMatch,
-                    hands,
-                    winner: state.winnerId ? playerIdToIndex.get(state.winnerId) : undefined,
-                    startTime: state.startedAt ? new Date(state.startedAt).toISOString() : undefined,
-                    endTime: new Date().toISOString(),
-                  });
-                }
-              }
-
-              return finalPlayHistory;
-            };
-
+            // to avoid race condition where usePlayHistoryTracking hasn't updated context yet.
+            // Uses shared utility function (playHistoryUtils.ts) to ensure consistency.
             const finalPlayHistory: PlayHistoryMatch[] = buildFinalPlayHistoryFromState(
               state,
               scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || []
