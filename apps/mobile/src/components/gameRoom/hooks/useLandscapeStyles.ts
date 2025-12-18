@@ -30,9 +30,9 @@ export const useLandscapeScoreboardStyles = () => {
   
   return useMemo(() => {
     // Base dimensions (from migration plan)
-    const COLLAPSED_HEIGHT = 120;
+    const COLLAPSED_HEIGHT = 140;
     const EXPANDED_MAX_HEIGHT = 344;
-    const MAX_WIDTH = 280;
+    const MAX_WIDTH = isLandscape ? 340 : 280; // Expanded in landscape to 16px from table
     const TOP_POSITION = 8; // Closer to top
     const LEFT_POSITION = 0; // EXTREME LEFT as requested
     

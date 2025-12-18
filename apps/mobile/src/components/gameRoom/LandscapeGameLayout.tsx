@@ -255,32 +255,50 @@ export function LandscapeGameLayout({
           />
         </View>
         
-        {/* Play/Pass buttons - RIGHT SIDE (between cards and helper buttons) */}
-        <View style={styles.playPassContainer}>
-          <Pressable 
-            style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]} 
-            onPress={onPlay}
-            disabled={!canPlay || disabled}
-          >
-            <Text style={styles.buttonText}>Play</Text>
-          </Pressable>
-          <Pressable 
-            style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]} 
-            onPress={onPass}
-            disabled={!canPass || disabled}
-          >
-            <Text style={styles.buttonText}>Pass</Text>
-          </Pressable>
-        </View>
-        
-        {/* Helper buttons - FAR RIGHT (Portrait-style) */}
-        <View style={styles.helperButtonsContainer}>
-          <HelperButtons
-            onSort={onSort || (() => {})}
-            onSmartSort={onSmartSort || (() => {})}
-            onHint={onHint || (() => {})}
-            disabled={disabled}
-          />
+        {/* Action buttons - RIGHT SIDE (2-row layout) */}
+        <View style={styles.actionButtonsContainer}>
+          {/* Top row: Play + Smart */}
+          <View style={styles.buttonRow}>
+            <Pressable 
+              style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]} 
+              onPress={onPlay}
+              disabled={!canPlay || disabled}
+            >
+              <Text style={styles.playButtonText}>Play</Text>
+            </Pressable>
+            <Pressable 
+              style={[styles.smartButton, disabled && { opacity: 0.5 }]} 
+              onPress={onSmartSort}
+              disabled={disabled}
+            >
+              <Text style={styles.smartButtonText}>Smart</Text>
+            </Pressable>
+          </View>
+          
+          {/* Bottom row: Pass + Sort + Hint */}
+          <View style={styles.buttonRow}>
+            <Pressable 
+              style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]} 
+              onPress={onPass}
+              disabled={!canPass || disabled}
+            >
+              <Text style={styles.passButtonText}>Pass</Text>
+            </Pressable>
+            <Pressable 
+              style={[styles.sortButton, disabled && { opacity: 0.5 }]} 
+              onPress={onSort}
+              disabled={disabled}
+            >
+              <Text style={styles.sortButtonText}>Sort</Text>
+            </Pressable>
+            <Pressable 
+              style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
+              onPress={onHint}
+              disabled={disabled}
+            >
+              <Text style={styles.hintButtonText}>Hint</Text>
+            </Pressable>
+          </View>
         </View>
         
         {/* Your position - BOTTOM OF SCREEN */}
@@ -414,43 +432,101 @@ const styles = StyleSheet.create({
     zIndex: 60,
   },
   
-  playPassContainer: {
+  actionButtonsContainer: {
     position: 'absolute',
-    bottom: 12, // Right side, between cards and helper buttons
-    right: 112, // 96 (helper buttons width) + 8 (gap) + 8 (padding)
+    bottom: 12,
+    right: 8,
     flexDirection: 'column',
     gap: 6,
     zIndex: 60,
   },
   
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  
+  // Play button (Green)
   playButton: {
-    width: 56,  // Smaller to fit between cards and helper buttons
+    width: 60,
     height: 40,
-    borderRadius: 6,
+    borderRadius: 12,
     backgroundColor: '#10b981',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
-  passButton: {
-    width: 56,  // Smaller to fit between cards and helper buttons
+  playButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  
+  // Smart button (Teal/Cyan)
+  smartButton: {
+    width: 70,
     height: 40,
-    borderRadius: 6,
-    backgroundColor: '#6b7280',
+    borderRadius: 12,
+    backgroundColor: '#0891b2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
-  helperButtonsContainer: {
-    position: 'absolute',
-    bottom: 12, // FAR RIGHT (Portrait-style horizontal buttons)
-    right: 8,
-    zIndex: 60,
+  smartButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   
-  buttonText: {
+  // Pass button (Gray)
+  passButton: {
+    width: 60,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#374151',
+    borderWidth: 1,
+    borderColor: '#6b7280',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  passButtonText: {
+    color: '#D1D5DB',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  
+  // Sort button (Gray)
+  sortButton: {
+    width: 55,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#374151',
+    borderWidth: 1,
+    borderColor: '#6b7280',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  sortButtonText: {
+    color: '#D1D5DB',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  
+  // Hint button (Orange)
+  hintButton: {
+    width: 55,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  hintButtonText: {
     color: '#ffffff',
-    fontSize: 12,  // Smaller font for smaller buttons
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });
