@@ -146,6 +146,11 @@ export const LANDSCAPE_DIMENSIONS = {
       height: 98,
       borderRadius: 10,
     },
+    hand: {
+      width: 60,
+      height: 84,
+      borderRadius: 8,
+    },
   },
 } as const;
 

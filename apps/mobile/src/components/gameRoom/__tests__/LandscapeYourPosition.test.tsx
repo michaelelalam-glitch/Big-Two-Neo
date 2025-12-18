@@ -67,7 +67,7 @@ describe('LandscapeYourPosition - Rendering', () => {
         playerName="Alice"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -81,7 +81,7 @@ describe('LandscapeYourPosition - Rendering', () => {
         playerName="Bob"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={true}
       />
     );
@@ -99,7 +99,7 @@ describe('LandscapeYourPosition - Rendering', () => {
         playerName="Carol"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -113,7 +113,7 @@ describe('LandscapeYourPosition - Rendering', () => {
         playerName="Dave"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -129,7 +129,7 @@ describe('LandscapeYourPosition - Rendering', () => {
         playerName="Eve"
         cards={[]}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -143,20 +143,20 @@ describe('LandscapeYourPosition - Rendering', () => {
 // ============================================================================
 
 describe('LandscapeYourPosition - Card Selection', () => {
-  it('calls onCardSelect when card pressed', () => {
-    const onCardSelect = jest.fn();
+  it('calls onSelectionChange with toggled selection when card pressed (Task #457)', () => {
+    const onSelectionChange = jest.fn();
     const { getByTestId } = render(
       <LandscapeYourPosition
         playerName="Alice"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={onCardSelect}
+        onSelectionChange={onSelectionChange}
         isActive={true}
       />
     );
 
     fireEvent.press(getByTestId('card-1'));
-    expect(onCardSelect).toHaveBeenCalledWith('1');
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(['1']));
   });
 
   it('does not call onCardSelect when disabled', () => {
@@ -166,7 +166,7 @@ describe('LandscapeYourPosition - Card Selection', () => {
         playerName="Bob"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={onCardSelect}
+        onSelectionChange={onCardSelect}
         isActive={false}
         disabled={true}
       />
@@ -182,7 +182,7 @@ describe('LandscapeYourPosition - Card Selection', () => {
         playerName="Carol"
         cards={mockCards}
         selectedCardIds={mockSelectedCardIds}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={true}
       />
     );
@@ -207,7 +207,7 @@ describe('LandscapeYourPosition - Card Selection', () => {
         playerName="Dave"
         cards={mockCards}
         selectedCardIds={mockSelectedCardIds}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={true}
       />
     );
@@ -240,9 +240,8 @@ describe('LandscapeYourPosition - Adaptive Overlap', () => {
         playerName="Alice"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
-        containerWidth={800}
       />
     );
 
@@ -268,9 +267,8 @@ describe('LandscapeYourPosition - Adaptive Overlap', () => {
         playerName="Bob"
         cards={mockCards.slice(0, 3)} // 3 cards
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
-        containerWidth={600}
       />
     );
 
@@ -293,7 +291,7 @@ describe('LandscapeYourPosition - Adaptive Overlap', () => {
         playerName="Carol"
         cards={mockCards.slice(0, 4)}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -314,7 +312,7 @@ describe('LandscapeYourPosition - Edge Cases', () => {
         playerName="Alice"
         cards={[mockCards[0]]}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -335,7 +333,7 @@ describe('LandscapeYourPosition - Edge Cases', () => {
         playerName="Bob"
         cards={fullHand}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -349,7 +347,7 @@ describe('LandscapeYourPosition - Edge Cases', () => {
         playerName="Carol"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
         // containerWidth not provided (uses default 932)
       />
@@ -370,7 +368,7 @@ describe('LandscapeYourPosition - Accessibility', () => {
         playerName="Dave"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -384,7 +382,7 @@ describe('LandscapeYourPosition - Accessibility', () => {
         playerName="Eve"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );
@@ -400,7 +398,7 @@ describe('LandscapeYourPosition - Accessibility', () => {
         playerName="Frank"
         cards={mockCards}
         selectedCardIds={new Set()}
-        onCardSelect={jest.fn()}
+        onSelectionChange={jest.fn()}
         isActive={false}
       />
     );

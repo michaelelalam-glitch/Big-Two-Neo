@@ -16,7 +16,7 @@ import { LANDSCAPE_DIMENSIONS } from '../../constants/landscape';
 
 interface LandscapeCardProps {
   card: CardType;
-  size?: 'base' | 'compact' | 'center'; // Size variants from landscape.ts
+  size?: 'base' | 'compact' | 'center' | 'hand'; // Size variants from landscape.ts
   style?: ViewStyle;
 }
 
@@ -62,6 +62,8 @@ const LandscapeCard: React.FC<LandscapeCardProps> = ({
         return 0.44; // 32/72 ≈ 0.44
       case 'center':
         return 0.97; // 70/72 ≈ 0.97
+      case 'hand':
+        return 0.83; // 60/72 ≈ 0.83 (matches portrait hand cards)
       case 'base':
       default:
         return 1.0;

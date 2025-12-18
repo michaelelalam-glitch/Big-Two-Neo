@@ -16,11 +16,11 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { Card as CardType } from '../../game/types';
 import LandscapeCard from './LandscapeCard';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { i18n } from '../../i18n';
+import { COLORS } from '../../constants';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -92,7 +92,7 @@ export function LandscapeOvalTable({
           >
             <LandscapeCard 
               card={card}
-              size="center" // 70×98pt for table display (closest to 48×67pt)
+              size="hand" // 60×84pt - matches portrait hand card size
             />
           </View>
         ))}
@@ -108,20 +108,14 @@ export function LandscapeOvalTable({
   );
 
   return (
-    <LinearGradient
-      colors={[
-        'rgba(16, 185, 129, 0.12)', // Poker green (lighter)
-        'rgba(59, 130, 246, 0.08)',  // Blue tint (subtle)
-      ]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
+    <View
       style={styles.container}
       testID="oval-table-container"
     >
       <View style={styles.innerContent}>
         {displayCards.length === 0 ? renderEmptyState() : renderPlayedCards()}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -130,22 +124,23 @@ export function LandscapeOvalTable({
 // ============================================================================
 
 const styles = StyleSheet.create({
-  // Oval poker table container
+  // Oval poker table container (matches portrait table color)
   container: {
     width: 420,
     height: 240,
     borderRadius: 120, // Half of height for oval ends
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.15)', // Subtle border
+    borderWidth: 5,
+    borderColor: COLORS.table.border, // #7A7A7A - matches portrait
+    backgroundColor: COLORS.table.background, // #4A7C59 - green felt (matches portrait)
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    // Shadow for depth
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
+    // Shadow for depth (matches portrait)
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 40,
-    elevation: 15, // Android shadow
+    shadowRadius: 8,
+    elevation: 8, // Android shadow
   },
 
   // Inner content wrapper
@@ -176,8 +171,9 @@ const styles = StyleSheet.create({
 
   // Last play info
   lastPlayInfo: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 15, // Bigger (was 12)
+    fontWeight: '700', // Bolder
+    color: 'rgba(255, 255, 255, 0.95)', // Less faint (was 0.7)
     marginBottom: 8,
     textAlign: 'center',
   },

@@ -33,8 +33,8 @@ export const useLandscapeScoreboardStyles = () => {
     const COLLAPSED_HEIGHT = 120;
     const EXPANDED_MAX_HEIGHT = 344;
     const MAX_WIDTH = 280;
-    const TOP_POSITION = 60; // Scoreboard top bar height
-    const LEFT_POSITION = 20;
+    const TOP_POSITION = 8; // Closer to top
+    const LEFT_POSITION = 0; // EXTREME LEFT as requested
     
     // Player row dimensions
     const PLAYER_ROW_HEIGHT = 22;
@@ -176,9 +176,10 @@ export const useLandscapeScoreboardStyles = () => {
         backgroundColor: ScoreboardColors.background.expanded,
         borderRadius: 8,
         padding: 8,
-        maxWidth: MAX_WIDTH,
+        width: MAX_WIDTH, // Use fixed width instead of maxWidth for visibility
         maxHeight: EXPANDED_MAX_HEIGHT,
         pointerEvents: 'auto' as const,
+        overflow: 'hidden' as const, // Ensure content is clipped properly
       },
 
       expandedHeader: {

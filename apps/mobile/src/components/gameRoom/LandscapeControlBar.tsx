@@ -70,11 +70,11 @@ export function LandscapeControlBar({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // Render button
+  // Render button with portrait-matching styles
   const renderButton = (
     label: string,
     onPress?: () => void,
-    variant: 'default' | 'primary' | 'secondary' | 'ghost' = 'default',
+    variant: 'default' | 'primary' | 'secondary' | 'ghost' | 'sort' | 'smart' | 'hint' = 'default',
     isDisabled: boolean = false,
     testID?: string
   ) => {
@@ -89,6 +89,9 @@ export function LandscapeControlBar({
       variant === 'primary' && styles.buttonPrimary,
       variant === 'secondary' && styles.buttonSecondary,
       variant === 'ghost' && styles.buttonGhost,
+      variant === 'sort' && styles.buttonSort,  // MATCH PORTRAIT
+      variant === 'smart' && styles.buttonSmart,  // MATCH PORTRAIT
+      variant === 'hint' && styles.buttonHint,  // MATCH PORTRAIT
       isDisabled && styles.buttonDisabled,
     ];
 
@@ -97,6 +100,9 @@ export function LandscapeControlBar({
       variant === 'primary' && styles.buttonTextPrimary,
       variant === 'secondary' && styles.buttonTextSecondary,
       variant === 'ghost' && styles.buttonTextGhost,
+      variant === 'sort' && styles.buttonTextSort,  // MATCH PORTRAIT
+      variant === 'smart' && styles.buttonTextSmart,  // MATCH PORTRAIT
+      variant === 'hint' && styles.buttonTextHint,  // MATCH PORTRAIT
       isDisabled && styles.buttonTextDisabled,
     ];
 
@@ -149,34 +155,29 @@ export function LandscapeControlBar({
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
       <View style={styles.innerContainer}>
-        {/* Group 1: Help */}
-        <View style={styles.buttonGroup}>
-          {renderIconButton('❓', onHelp, disabled, 'help-button')}
-        </View>
-
-        {/* Group 2: Orientation Toggle */}
+        {/* Group 1: Orientation Toggle (Help button REMOVED in landscape) */}
         <View style={styles.buttonGroup}>
           {renderIconButton('🔄', onOrientationToggle, false, 'orientation-toggle-button')}
         </View>
 
-        {/* Group 3: Sort Buttons */}
+        {/* Group 2: Sort Buttons (Match portrait styling) */}
         <View style={styles.buttonGroup}>
-          {renderButton('Sort', onSort, 'ghost', disabled, 'sort-button')}
-          {renderButton('Smart', onSmartSort, 'ghost', disabled, 'smart-sort-button')}
+          {renderButton('Sort', onSort, 'sort', disabled, 'sort-button')}
+          {renderButton('Smart', onSmartSort, 'smart', disabled, 'smart-sort-button')}
         </View>
 
-        {/* Group 4: Action Buttons (Play & Pass) */}
+        {/* Group 3: Action Buttons (Play & Pass) */}
         <View style={styles.buttonGroup}>
           {renderButton('Play', onPlay, 'primary', !canPlay || disabled, 'play-button')}
           {renderButton('Pass', onPass, 'secondary', !canPass || disabled, 'pass-button')}
         </View>
 
-        {/* Group 5: Hint */}
+        {/* Group 4: Hint Button (Match portrait styling) */}
         <View style={styles.buttonGroup}>
-          {renderIconButton('💡', onHint, disabled, 'hint-button')}
+          {renderButton('Hint', onHint, 'hint', disabled, 'hint-button')}
         </View>
 
-        {/* Group 6: Settings */}
+        {/* Group 5: Settings */}
         <View style={styles.buttonGroup}>
           {renderIconButton('⚙️', onSettings, false, 'settings-button')}
         </View>
@@ -191,10 +192,6 @@ export function LandscapeControlBar({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: 'rgba(17, 24, 39, 0.95)', // Dark background with transparency
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
@@ -204,9 +201,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minHeight: 68,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minHeight: 48,
   },
 
   // Button group
@@ -218,10 +215,10 @@ const styles = StyleSheet.create({
 
   // Standard button (text)
   button: {
-    minWidth: 64,
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    minWidth: 50,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 12,  // MATCH PORTRAIT: 12pt radius (was 6)
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -230,12 +227,13 @@ const styles = StyleSheet.create({
   },
 
   buttonPrimary: {
-    backgroundColor: '#10b981', // Green
+    backgroundColor: '#10b981', // Green (matches portrait Play button)
     borderColor: '#10b981',
+    borderWidth: 0,  // MATCH PORTRAIT: No border
   },
 
   buttonSecondary: {
-    backgroundColor: '#6b7280', // Gray
+    backgroundColor: '#374151', // MATCH PORTRAIT: Dark gray (was #6b7280)
     borderColor: '#6b7280',
   },
 
@@ -268,6 +266,37 @@ const styles = StyleSheet.create({
 
   buttonTextGhost: {
     color: '#d1d5db',
+  },
+
+  // MATCH PORTRAIT: Sort button (Gray - like Pass button)
+  buttonSort: {
+    backgroundColor: '#374151', // Dark gray
+    borderWidth: 1,
+    borderColor: '#6b7280',
+  },
+
+  buttonTextSort: {
+    color: '#D1D5DB', // Light gray text
+  },
+
+  // MATCH PORTRAIT: Smart button (Blue/Teal accent)
+  buttonSmart: {
+    backgroundColor: '#0891b2', // Teal/cyan accent
+    borderWidth: 0,
+  },
+
+  buttonTextSmart: {
+    color: '#FFFFFF', // White text
+  },
+
+  // MATCH PORTRAIT: Hint button (Orange/Amber accent)
+  buttonHint: {
+    backgroundColor: '#f59e0b', // Amber/orange accent
+    borderWidth: 0,
+  },
+
+  buttonTextHint: {
+    color: '#FFFFFF', // White text
   },
 
   buttonTextDisabled: {
