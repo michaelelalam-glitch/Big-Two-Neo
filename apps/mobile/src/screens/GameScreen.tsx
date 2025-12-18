@@ -22,6 +22,8 @@ import { useHelperButtons } from '../hooks/useHelperButtons';
 import { useDerivedGameState } from '../hooks/useDerivedGameState';
 import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { useCardSelection } from '../hooks/useCardSelection';
+import { useOrientationManager } from '../hooks/useOrientationManager';
+import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -40,6 +42,9 @@ function GameScreenContent() {
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Orientation manager (Task #450) - gracefully handles missing native module
+  const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
   
   // CRITICAL FIX: Store refs to always get latest context values
   const scoreboardRef = useRef(scoreboardContext);
@@ -330,7 +335,71 @@ function GameScreenContent() {
             <Text style={styles.loadingText}>Initializing game...</Text>
             <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
           </View>
+        ) : (currentOrientation === 'landscape') ? (
+          // LANDSCAPE MODE (Task #450) - works in both native and fallback mode
+          <LandscapeGameLayout
+            // Scoreboard data - MUST USE SAME MAPPING AS PORTRAIT!
+            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
+            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
+            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
+            matchNumber={gameState?.currentMatch || 1}
+            isGameFinished={gameState?.gameOver || false}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+            autoPassTimerState={gameState?.auto_pass_timer}
+            
+            // Table data
+            lastPlayedCards={lastPlayedCards}
+            lastPlayedBy={lastPlayedBy ?? undefined}
+            lastPlayComboType={lastPlayComboType ?? undefined}
+            lastPlayCombo={lastPlayCombo ?? undefined}
+            
+            // Player data
+            playerName={players[0].name}
+            playerCardCount={players[0].cardCount}
+            playerCards={playerHand}
+            isPlayerActive={players[0].isActive}
+            selectedCardIds={selectedCardIds}
+            onSelectionChange={setSelectedCardIds}
+            onCardsReorder={handleCardsReorder}
+            
+            // Drag-to-play callback
+            onPlayCards={(cards: Card[]) => {
+              // Handle drag-to-play in landscape mode
+              gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
+              if (onPlayCardsRef.current) {
+                onPlayCardsRef.current(cards);
+              }
+            }}
+            
+            // Control callbacks
+            onOrientationToggle={toggleOrientation}
+            onHelp={() => gameLogger.info('Help requested')}
+            onSort={handleSort}
+            onSmartSort={handleSmartSort}
+            onPlay={() => {
+              gameLogger.info('🎴 [Landscape] Play button pressed with selected cards:', selectedCards.length);
+              if (onPlayCardsRef.current) {
+                onPlayCardsRef.current(selectedCards);
+              }
+            }}
+            onPass={() => {
+              gameLogger.info('🎴 [Landscape] Pass button pressed');
+              if (onPassRef.current) {
+                onPassRef.current();
+              }
+            }}
+            onHint={handleHint}
+            onSettings={() => setShowSettings(true)}
+            
+            // Control states
+            disabled={!players[0].isActive}
+            canPlay={players[0].isActive && selectedCards.length > 0}
+            canPass={players[0].isActive}
+          />
         ) : (
+          // PORTRAIT MODE (existing layout)
           <>
             {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
             <ScoreboardContainer
@@ -359,12 +428,21 @@ function GameScreenContent() {
             </View>
           </Pressable>
 
-          {/* Game Settings Modal */}
-          <GameSettingsModal
-            visible={showSettings}
-            onClose={() => setShowSettings(false)}
-            onLeaveGame={handleLeaveGame}
-          />
+          {/* Orientation Toggle Button (Task #450) */}
+          <Pressable 
+            style={styles.orientationToggleContainer} 
+            onPress={() => {
+              gameLogger.info('🔄 [UI] Orientation toggle button pressed');
+              toggleOrientation();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle orientation"
+            accessibilityHint="Switch between portrait and landscape mode"
+          >
+            <Text style={styles.orientationToggleIcon}>
+              {currentOrientation === 'landscape' ? '📱' : '🔄'}
+            </Text>
+          </Pressable>
 
           {/* Game table layout - extracted to GameLayout component (Task #426) */}
           <GameLayout
@@ -433,6 +511,13 @@ function GameScreenContent() {
           </GameEndErrorBoundary>
         </>
       )}
+      
+      {/* Game Settings Modal - WORKS IN BOTH PORTRAIT AND LANDSCAPE */}
+      <GameSettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        onLeaveGame={handleLeaveGame}
+      />
       </View>
     </Profiler>
   );
@@ -474,6 +559,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: LAYOUT.menuLineGap,
+  },
+  orientationToggleContainer: {
+    position: 'absolute',
+    top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
+    right: SPACING.md,
+    zIndex: 100,
+    width: LAYOUT.menuIconSize,
+    height: LAYOUT.menuIconSize,
+    backgroundColor: OVERLAYS.menuBackground,
+    borderRadius: LAYOUT.menuBorderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orientationToggleIcon: {
+    fontSize: 20,
+    textAlign: 'center',
   },
   menuLine: {
     width: LAYOUT.menuLineWidth,

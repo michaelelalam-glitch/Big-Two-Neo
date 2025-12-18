@@ -3,14 +3,18 @@ import type { GameState, Player } from '../game/state';
 
 /**
  * Maps players array to scoreboard display order [0, 3, 1, 2]
- * This order places the user at top-left, then arranges bots clockwise
+ * Matches counter-clockwise physical positions: You → Bot1(right) → Bot2(top) → Bot3(left)
  * @param players - Array of 4 players in game state order
  * @param mapper - Function to extract desired property from each player
  * @returns Array of values in scoreboard display order
  */
 function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Player) => T): T[] {
   // Scoreboard display order: [player 0, player 3, player 1, player 2]
-  // This creates a clockwise arrangement: user (top-left), bot3 (top-right), bot1 (bottom-left), bot2 (bottom-right)
+  // Physical layout (both portrait & landscape):
+  //   - Player 0: You (bottom)
+  //   - Player 3: Bot 1 (right - next in counter-clockwise turn order)
+  //   - Player 1: Bot 2 (top)
+  //   - Player 2: Bot 3 (left)
   return [mapper(players[0]), mapper(players[3]), mapper(players[1]), mapper(players[2])];
 }
 
@@ -21,10 +25,10 @@ function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Play
  */
 function mapGameIndexToScoreboardPosition(gameIndex: number): number {
   // Mapping: game index -> scoreboard position
-  // 0 -> 0 (user stays at position 0)
-  // 3 -> 1 (bot3 to position 1)
-  // 1 -> 2 (bot1 to position 2)
-  // 2 -> 3 (bot2 to position 3)
+  // 0 -> 0 (You)
+  // 3 -> 1 (Bot 1, right position)
+  // 1 -> 2 (Bot 2, top position)
+  // 2 -> 3 (Bot 3, left position)
   const mapping: Record<number, number> = { 0: 0, 3: 1, 1: 2, 2: 3 };
   return mapping[gameIndex] ?? 0;
 }

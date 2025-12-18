@@ -24,8 +24,8 @@ export default function PlayerInfo({
       {/* Avatar with turn indicator */}
       <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
         <View style={styles.avatar}>
-          {/* Default avatar icon - using user silhouette placeholder */}
-          <View style={styles.avatarIcon} />
+          {/* Default avatar icon - matches landscape opponent emoji */}
+          <Text style={styles.avatarIcon}>👤</Text>
         </View>
       </View>
 
@@ -71,11 +71,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarIcon: {
-    width: LAYOUT.avatarIconSize,
-    height: LAYOUT.avatarIconSize,
-    borderRadius: LAYOUT.avatarIconRadius,
-    backgroundColor: COLORS.gray.light,
-    opacity: OPACITIES.avatarIcon,
+    fontSize: LAYOUT.avatarIconSize,
+    textAlign: 'center',
   },
   nameBadge: {
     backgroundColor: OVERLAYS.nameBadgeBackground,
