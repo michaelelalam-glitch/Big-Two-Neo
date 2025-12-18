@@ -274,10 +274,15 @@ export class GameStateManager {
       },
     ];
 
+    // Bot names match physical positions (counter-clockwise from player):
+    // Player 1 (top) = Bot 2
+    // Player 2 (left) = Bot 3  
+    // Player 3 (right, next in turn order) = Bot 1
+    const botNames = ['Bot 2', 'Bot 3', 'Bot 1'];
     for (let i = 0; i < botCount; i++) {
       players.push({
         id: `bot_${i + 1}`,
-        name: `Bot ${i + 1}`,
+        name: botNames[i] || `Bot ${i + 1}`,
         hand: [],
         isBot: true,
         botDifficulty,
