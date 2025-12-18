@@ -237,22 +237,22 @@ export const useExpandedScoreboardStyles = () => {
   return useMemo(() => ({
     expandedContainer: {
       backgroundColor: ScoreboardColors.background.expanded,
-      borderRadius: dims.moderateScale(8),
+      borderRadius: dims.moderateScale(12),
       padding: dims.moderateScale(8),
       minWidth: dims.isLandscape 
-        ? dims.screenWidth * 0.45  // Landscape: cover more horizontal space
+        ? dims.screenWidth * 0.65  // Match play history width
         : dims.isSmallDevice ? dims.moderateScale(140) : dims.moderateScale(150),
       maxWidth: dims.isLandscape 
-        ? dims.screenWidth * 0.65  // Landscape: INCREASED to cover player profile, cards, and name
+        ? dims.screenWidth * 0.65  // Match play history width
         : dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
       maxHeight: dims.isLandscape 
-        ? dims.screenHeight * 0.92  // Landscape: INCREASED to cover bottom player area completely
+        ? dims.screenHeight * 0.92  // Match play history height
         : dims.screenHeight * 0.85,
-      // LANDSCAPE FIX: Position to cover bottom-left player area
+      // LANDSCAPE FIX: Position at top-left (same as play history modal)
       ...(dims.isLandscape && {
         position: 'absolute' as const,
-        bottom: 0,  // Anchor to bottom to cover player's cards/name
-        left: dims.moderateScale(20),
+        top: dims.moderateScale(20),  // Match play history top position
+        left: dims.moderateScale(20),  // Match play history left position
       }),
       pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },

@@ -126,7 +126,7 @@ const CollapsedScoreboard: React.FC<CollapsedScoreboardProps> = ({
       {/* Header (24pt height) */}
       <View style={styles.collapsedHeader}>
         <Text style={styles.matchTitle}>
-          {isGameFinished ? '🏁 Game Over' : `🃏 Match ${matchNumber}`}
+          {isGameFinished ? '🏁 Game Over' : `Match ${matchNumber}`}
         </Text>
         
         <View style={styles.headerButtons}>

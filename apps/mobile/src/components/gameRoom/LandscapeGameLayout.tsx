@@ -21,6 +21,7 @@ import { LandscapeYourPosition } from './LandscapeYourPosition';
 import { LandscapeControlBar } from './LandscapeControlBar';
 import { LandscapeOpponent } from './LandscapeOpponent';
 import { AutoPassTimer } from '../game';
+import { HelperButtons } from '../game/HelperButtons';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { gameLogger } from '../../utils/logger';
@@ -272,20 +273,14 @@ export function LandscapeGameLayout({
           </Pressable>
         </View>
         
-        {/* Helper buttons - FAR RIGHT (2x2 grid) */}
+        {/* Helper buttons - FAR RIGHT (Portrait-style) */}
         <View style={styles.helperButtonsContainer}>
-          <Pressable style={styles.helperButton} onPress={onHelp} disabled={disabled}>
-            <Text style={styles.helperButtonText}>❓</Text>
-          </Pressable>
-          <Pressable style={styles.helperButton} onPress={onSort} disabled={disabled}>
-            <Text style={styles.helperButtonText}>🔢</Text>
-          </Pressable>
-          <Pressable style={styles.helperButton} onPress={onSmartSort} disabled={disabled}>
-            <Text style={styles.helperButtonText}>✨</Text>
-          </Pressable>
-          <Pressable style={styles.helperButton} onPress={onHint} disabled={disabled}>
-            <Text style={styles.helperButtonText}>💡</Text>
-          </Pressable>
+          <HelperButtons
+            onSort={onSort || (() => {})}
+            onSmartSort={onSmartSort || (() => {})}
+            onHint={onHint || (() => {})}
+            disabled={disabled}
+          />
         </View>
         
         {/* Your position - BOTTOM OF SCREEN */}
@@ -448,12 +443,8 @@ const styles = StyleSheet.create({
   
   helperButtonsContainer: {
     position: 'absolute',
-    bottom: 12, // FAR RIGHT (2x2 grid)
+    bottom: 12, // FAR RIGHT (Portrait-style horizontal buttons)
     right: 8,
-    flexDirection: 'row', // 2x2 grid layout
-    flexWrap: 'wrap',
-    width: 96, // 2 buttons × 44pt + gap
-    gap: 8,
     zIndex: 60,
   },
   
@@ -461,20 +452,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,  // Smaller font for smaller buttons
     fontWeight: '600',
-  },
-  
-  helperButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  helperButtonText: {
-    fontSize: 16,
   },
 });
