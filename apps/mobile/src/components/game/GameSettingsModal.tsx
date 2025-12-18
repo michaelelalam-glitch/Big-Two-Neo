@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { soundManager, hapticManager, HapticType, showConfirm } from '../../utils';
 import { i18n } from '../../i18n';
@@ -15,6 +15,10 @@ export default function GameSettingsModal({
   onClose,
   onLeaveGame,
 }: GameSettingsModalProps) {
+  // Detect orientation
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
   // Load initial settings from managers
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
@@ -63,11 +67,12 @@ export default function GameSettingsModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      supportedOrientations={['portrait', 'landscape']}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{i18n.t('game.settings')}</Text>
+        <View style={[styles.modalContainer, isLandscape && styles.modalContainerLandscape]} onStartShouldSetResponder={() => true}>
+          <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+            <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>{i18n.t('game.settings')}</Text>
             <Pressable 
               onPress={onClose} 
               style={styles.closeButton}
@@ -78,55 +83,102 @@ export default function GameSettingsModal({
             </Pressable>
           </View>
 
-          <View style={styles.content}>
-            {/* Sound Settings */}
-            <Pressable 
-              style={styles.menuItem}
-              onPress={handleToggleSound}
-              accessibilityRole="button"
-              accessibilityLabel={`${i18n.t('settings.soundEffects')}, currently ${soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
-              accessibilityHint="Tap to toggle sound effects"
-            >
-              <Text style={styles.menuItemText}>🔊 {i18n.t('settings.soundEffects')}</Text>
-              <Text style={styles.menuItemValue}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
-            </Pressable>
+          {/* LANDSCAPE MODE: Single row layout */}
+          {isLandscape ? (
+            <View style={styles.contentLandscape}>
+              <Pressable 
+                style={styles.menuItemLandscape}
+                onPress={handleToggleSound}
+                accessibilityRole="button"
+                accessibilityLabel={`${i18n.t('settings.soundEffects')}, currently ${soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
+              >
+                <Text style={styles.menuItemTextLandscape}>🔊</Text>
+                <Text style={styles.menuItemLabelLandscape}>{i18n.t('settings.soundEffects')}</Text>
+                <Text style={styles.menuItemValueLandscape}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+              </Pressable>
 
-            {/* Music Settings - Coming Soon (non-interactive) */}
-            <View style={[styles.menuItem, styles.disabledItem]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={[styles.menuItemText, styles.disabledText]}>🎵 {i18n.t('settings.music')}</Text>
-                <Text style={styles.comingSoonBadge}>Coming soon</Text>
+              <View style={styles.menuItemLandscape}>
+                <Text style={[styles.menuItemTextLandscape, styles.disabledText]}>🎵</Text>
+                <Text style={[styles.menuItemLabelLandscape, styles.disabledText]}>{i18n.t('settings.music')}</Text>
+                <Text style={[styles.menuItemValueLandscape, styles.disabledText]}>{i18n.t('common.off')}</Text>
               </View>
-              <Text style={styles.disabledText}>{i18n.t('common.off')}</Text>
+
+              <Pressable 
+                style={styles.menuItemLandscape}
+                onPress={handleToggleVibration}
+                accessibilityRole="button"
+                accessibilityLabel={`${i18n.t('settings.vibration')}, currently ${vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
+              >
+                <Text style={styles.menuItemTextLandscape}>📳</Text>
+                <Text style={styles.menuItemLabelLandscape}>{i18n.t('settings.vibration')}</Text>
+                <Text style={styles.menuItemValueLandscape}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+              </Pressable>
+
+              <View style={styles.dividerLandscape} />
+
+              <Pressable
+                style={[styles.menuItemLandscape, styles.leaveGameItemLandscape]}
+                onPress={handleLeaveGame}
+                accessibilityRole="button"
+                accessibilityLabel="Leave game"
+              >
+                <Text style={styles.leaveGameTextLandscape}>
+                  {i18n.t('game.leaveGame')}
+                </Text>
+              </Pressable>
             </View>
+          ) : (
+            /* PORTRAIT MODE: Original vertical layout */
+            <View style={styles.content}>
+              {/* Sound Settings */}
+              <Pressable 
+                style={styles.menuItem}
+                onPress={handleToggleSound}
+                accessibilityRole="button"
+                accessibilityLabel={`${i18n.t('settings.soundEffects')}, currently ${soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
+                accessibilityHint="Tap to toggle sound effects"
+              >
+                <Text style={styles.menuItemText}>🔊 {i18n.t('settings.soundEffects')}</Text>
+                <Text style={styles.menuItemValue}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+              </Pressable>
 
-            {/* Vibration Settings */}
-            <Pressable 
-              style={styles.menuItem}
-              onPress={handleToggleVibration}
-              accessibilityRole="button"
-              accessibilityLabel={`${i18n.t('settings.vibration')}, currently ${vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
-              accessibilityHint="Tap to toggle vibration"
-            >
-              <Text style={styles.menuItemText}>📳 {i18n.t('settings.vibration')}</Text>
-              <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
-            </Pressable>
+              {/* Music Settings - Coming Soon (non-interactive) */}
+              <View style={[styles.menuItem, styles.disabledItem]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={[styles.menuItemText, styles.disabledText]}>🎵 {i18n.t('settings.music')}</Text>
+                  <Text style={styles.comingSoonBadge}>Coming soon</Text>
+                </View>
+                <Text style={styles.disabledText}>{i18n.t('common.off')}</Text>
+              </View>
 
-            <View style={styles.divider} />
+              {/* Vibration Settings */}
+              <Pressable 
+                style={styles.menuItem}
+                onPress={handleToggleVibration}
+                accessibilityRole="button"
+                accessibilityLabel={`${i18n.t('settings.vibration')}, currently ${vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}`}
+                accessibilityHint="Tap to toggle vibration"
+              >
+                <Text style={styles.menuItemText}>📳 {i18n.t('settings.vibration')}</Text>
+                <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+              </Pressable>
 
-            {/* Leave Game - Only shown in game */}
-            <Pressable
-              style={[styles.menuItem, styles.leaveGameItem]}
-              onPress={handleLeaveGame}
-              accessibilityRole="button"
-              accessibilityLabel="Leave game"
-              accessibilityHint="Leave the current game and return to home"
-            >
-              <Text style={[styles.menuItemText, styles.leaveGameText]}>
-                {i18n.t('game.leaveGame')}
-              </Text>
-            </Pressable>
-          </View>
+              <View style={styles.divider} />
+
+              {/* Leave Game - Only shown in game */}
+              <Pressable
+                style={[styles.menuItem, styles.leaveGameItem]}
+                onPress={handleLeaveGame}
+                accessibilityRole="button"
+                accessibilityLabel="Leave game"
+                accessibilityHint="Leave the current game and return to home"
+              >
+                <Text style={[styles.menuItemText, styles.leaveGameText]}>
+                  {i18n.t('game.leaveGame')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </Pressable>
     </Modal>
@@ -224,5 +276,67 @@ const styles = StyleSheet.create({
     color: COLORS.gray.medium,
     fontStyle: 'italic',
     opacity: 0.8,
+  },
+  // LANDSCAPE MODE STYLES - Compact horizontal layout
+  modalContainerLandscape: {
+    width: '90%',
+    maxWidth: 700,
+  },
+  headerLandscape: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  headerTitleLandscape: {
+    fontSize: FONT_SIZES.lg,
+  },
+  contentLandscape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+  },
+  menuItemLandscape: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.gray.dark,
+    borderRadius: MODAL.menuItemBorderRadius,
+    minWidth: 80,
+    gap: 4,
+  },
+  menuItemTextLandscape: {
+    fontSize: FONT_SIZES.xl,
+  },
+  menuItemLabelLandscape: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.white,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  menuItemValueLandscape: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray.light,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  dividerLandscape: {
+    width: 1,
+    height: 50,
+    backgroundColor: COLORS.gray.medium,
+  },
+  leaveGameItemLandscape: {
+    backgroundColor: OVERLAYS.leaveGameBackground,
+    borderWidth: MODAL.leaveGameBorderWidth,
+    borderColor: OVERLAYS.leaveGameBorder,
+  },
+  leaveGameTextLandscape: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.danger,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
