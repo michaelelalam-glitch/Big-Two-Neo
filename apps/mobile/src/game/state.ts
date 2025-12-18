@@ -11,7 +11,7 @@ import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { gameLogger, statsLogger } from '../utils/logger';
-import { showError } from '../utils';
+import { showError, soundManager, SoundType } from '../utils';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -1185,6 +1185,10 @@ export class GameStateManager {
     this.notifyListeners();
 
     gameLogger.info(`✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`);
+    
+    // Play match start sound (fi mat3am hawn - "here we go again")
+    soundManager.playSound(SoundType.GAME_START);
+    gameLogger.info('🎵 [Audio] Match start sound triggered');
 
     return { success: true };
   }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -32,6 +32,10 @@ export default function LobbyScreen() {
   const route = useRoute<LobbyScreenRouteProp>();
   const { roomCode } = route.params;
   const { user } = useAuth();
+  
+  // Orientation detection
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -436,7 +440,11 @@ export default function LobbyScreen() {
         </Text>
 
         <View style={styles.playerList}>
-          {playerSlots.map((item, index) => renderPlayer({ item, index }))}
+          {playerSlots.map((item, index) => (
+            <View key={`player-slot-${index}`}>
+              {renderPlayer({ item, index })}
+            </View>
+          ))}
         </View>
 
         <TouchableOpacity

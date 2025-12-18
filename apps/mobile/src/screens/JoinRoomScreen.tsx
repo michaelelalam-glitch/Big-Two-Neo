@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, useWindowDimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,6 +18,11 @@ type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'
 export default function JoinRoomScreen() {
   const navigation = useNavigation<JoinRoomNavigationProp>();
   const { user, profile } = useAuth();
+  
+  // Orientation detection
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
   const [roomCode, setRoomCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
@@ -189,6 +194,9 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,

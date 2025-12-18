@@ -190,15 +190,8 @@ const CollapsedScoreboard: React.FC<CollapsedScoreboardProps> = ({
                 {name}
               </Text>
 
-              {/* Stats: card count + score */}
+              {/* Stats: score only */}
               <View style={styles.playerStats}>
-                {/* Card count (only during active game) */}
-                {!isGameFinished && (
-                  <Text style={styles.cardCount}>
-                    🃏 {cardCount}
-                  </Text>
-                )}
-
                 {/* Score */}
                 <Text
                   style={[

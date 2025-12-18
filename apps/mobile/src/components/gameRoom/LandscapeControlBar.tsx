@@ -18,6 +18,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -160,21 +161,21 @@ export function LandscapeControlBar({
           {renderIconButton('🔄', onOrientationToggle, false, 'orientation-toggle-button')}
         </View>
 
-        {/* Group 2: Sort Buttons (Match portrait styling) */}
+        {/* Group 2: Sort Buttons (Match portrait styling + TRANSLATIONS) */}
         <View style={styles.buttonGroup}>
-          {renderButton('Sort', onSort, 'sort', disabled, 'sort-button')}
-          {renderButton('Smart', onSmartSort, 'smart', disabled, 'smart-sort-button')}
+          {renderButton(i18n.t('common.sort'), onSort, 'sort', disabled, 'sort-button')}
+          {renderButton(i18n.t('common.smart'), onSmartSort, 'smart', disabled, 'smart-sort-button')}
         </View>
 
-        {/* Group 3: Action Buttons (Play & Pass) */}
+        {/* Group 3: Action Buttons (Play & Pass + TRANSLATIONS) */}
         <View style={styles.buttonGroup}>
-          {renderButton('Play', onPlay, 'primary', !canPlay || disabled, 'play-button')}
-          {renderButton('Pass', onPass, 'secondary', !canPass || disabled, 'pass-button')}
+          {renderButton(i18n.t('common.play'), onPlay, 'primary', !canPlay || disabled, 'play-button')}
+          {renderButton(i18n.t('common.pass'), onPass, 'secondary', !canPass || disabled, 'pass-button')}
         </View>
 
-        {/* Group 4: Hint Button (Match portrait styling) */}
+        {/* Group 4: Hint Button (Match portrait styling + TRANSLATIONS) */}
         <View style={styles.buttonGroup}>
-          {renderButton('Hint', onHint, 'hint', disabled, 'hint-button')}
+          {renderButton(i18n.t('common.hint'), onHint, 'hint', disabled, 'hint-button')}
         </View>
 
         {/* Group 5: Settings */}

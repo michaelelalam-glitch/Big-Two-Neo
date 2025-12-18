@@ -25,6 +25,7 @@ import { HelperButtons } from '../game/HelperButtons';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { gameLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -189,6 +190,7 @@ export function LandscapeGameLayout({
         <View style={styles.topOpponent}>
           <LandscapeOpponent
             name={playerNames[2] || 'Bot 2'}
+            cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
             layout="horizontal"
           />
@@ -198,6 +200,7 @@ export function LandscapeGameLayout({
         <View style={styles.leftOpponent}>
           <LandscapeOpponent
             name={playerNames[3] || 'Bot 3'}
+            cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
           />
         </View>
@@ -206,6 +209,7 @@ export function LandscapeGameLayout({
         <View style={styles.rightOpponent}>
           <LandscapeOpponent
             name={playerNames[1] || 'Bot 1'}
+            cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
           />
         </View>
@@ -250,6 +254,7 @@ export function LandscapeGameLayout({
         <View style={styles.bottomPlayerContainer}>
           <LandscapeOpponent
             name={playerName}
+            cardCount={playerCardCount}
             isActive={isPlayerActive}
             layout="vertical"
           />
@@ -264,14 +269,14 @@ export function LandscapeGameLayout({
               onPress={onPlay}
               disabled={!canPlay || disabled}
             >
-              <Text style={styles.playButtonText}>Play</Text>
+              <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.smartButton, disabled && { opacity: 0.5 }]} 
               onPress={onSmartSort}
               disabled={disabled}
             >
-              <Text style={styles.smartButtonText}>Smart</Text>
+              <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
           </View>
           
@@ -282,21 +287,21 @@ export function LandscapeGameLayout({
               onPress={onPass}
               disabled={!canPass || disabled}
             >
-              <Text style={styles.passButtonText}>Pass</Text>
+              <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.sortButton, disabled && { opacity: 0.5 }]} 
               onPress={onSort}
               disabled={disabled}
             >
-              <Text style={styles.sortButtonText}>Sort</Text>
+              <Text style={styles.sortButtonText}>{i18n.t('game.sort')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
               onPress={onHint}
               disabled={disabled}
             >
-              <Text style={styles.hintButtonText}>Hint</Text>
+              <Text style={styles.hintButtonText}>{i18n.t('game.hint')}</Text>
             </Pressable>
           </View>
         </View>

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -41,6 +42,10 @@ type LeaderboardType = 'global' | 'friends';
 export default function LeaderboardScreen() {
   const navigation = useNavigation<LeaderboardScreenNavigationProp>();
   const { user } = useAuth();
+  
+  // Orientation detection
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);

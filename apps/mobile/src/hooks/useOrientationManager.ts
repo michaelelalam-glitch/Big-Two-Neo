@@ -72,7 +72,7 @@ export function useOrientationManager(): OrientationManagerState {
   const [isChanging, setIsChanging] = useState(false);
   const [isLocked, setIsLocked] = useState(true);
 
-  // Load saved orientation preference on mount
+  // Load saved orientation preference on mount AND unlock on unmount
   useEffect(() => {
     // Skip if native module not available
     if (!ScreenOrientation) {
@@ -92,8 +92,15 @@ export function useOrientationManager(): OrientationManagerState {
       gameLogger.info(`📱 [Orientation] Device orientation changed: ${isLandscape ? 'landscape' : 'portrait'}`);
     });
 
+    // CRITICAL FIX: Unlock orientation when leaving GameScreen (Issue #2)
     return () => {
       ScreenOrientation.removeOrientationChangeListener(subscription);
+      // Unlock to allow auto-rotation on other screens
+      ScreenOrientation.unlockAsync().then(() => {
+        gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
+      }).catch((error: any) => {
+        gameLogger.error('❌ [Orientation] Failed to unlock:', error);
+      });
     };
   }, []);
 

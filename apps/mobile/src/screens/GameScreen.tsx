@@ -338,11 +338,11 @@ function GameScreenContent() {
         ) : (currentOrientation === 'landscape') ? (
           // LANDSCAPE MODE (Task #450) - works in both native and fallback mode
           <LandscapeGameLayout
-            // Scoreboard data - MUST USE SAME MAPPING AS PORTRAIT!
-            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
+            // Scoreboard data - FIXED: Use direct player order [0,1,2,3] for correct history mapping
+            playerNames={gameState ? gameState.players.map(p => p.name) : []}
             currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
-            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
+            cardCounts={gameState ? gameState.players.map(p => p.hand.length) : []}
+            currentPlayerIndex={gameState?.currentPlayerIndex || 0}
             matchNumber={gameState?.currentMatch || 1}
             isGameFinished={gameState?.gameOver || false}
             scoreHistory={scoreHistory}
