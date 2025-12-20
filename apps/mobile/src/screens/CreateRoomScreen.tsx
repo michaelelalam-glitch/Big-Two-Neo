@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,10 +17,6 @@ type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateR
 export default function CreateRoomScreen() {
   const navigation = useNavigation<CreateRoomNavigationProp>();
   const { user, profile } = useAuth();
-  
-  // Orientation detection
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
   
   const [isCreating, setIsCreating] = useState(false);
 

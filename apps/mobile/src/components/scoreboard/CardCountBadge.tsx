@@ -1,7 +1,7 @@
 /**
  * CardCountBadge Component
  * 
- * Color-coded badge showing player's card count
+ * Displays a player's remaining card count with risk-based colors and a glow effect when they are close to winning.
  * 
  * Features:
  * - Green: 13-10 cards (safe zone)
@@ -9,12 +9,11 @@
  * - Red: 5-2 cards (danger zone)
  * - Glowing Red: 1 card (critical - about to win)
  * 
- * Created as part of Task #4: Card count badge with dynamic styling
  * Date: December 18, 2025
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 
 export interface CardCountBadgeProps {
   /** Number of cards in player's hand */

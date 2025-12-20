@@ -41,6 +41,7 @@ export interface LandscapeGameLayoutProps {
   isGameFinished: boolean;
   scoreHistory?: any[];
   playHistory?: any[];
+  originalPlayerNames?: string[]; // Original player names for play history (game state order)
   autoPassTimerState?: AutoPassTimerState;
   
   /** Table data */
@@ -91,6 +92,7 @@ export function LandscapeGameLayout({
   isGameFinished,
   scoreHistory = [],
   playHistory = [],
+  originalPlayerNames,
   autoPassTimerState,
   
   // Table
@@ -178,7 +180,7 @@ export function LandscapeGameLayout({
           <PlayHistoryModal
             visible={showPlayHistory}
             onClose={() => setShowPlayHistory(false)}
-            playerNames={playerNames}
+            playerNames={originalPlayerNames || playerNames}
             playHistory={playHistory}
             currentMatch={matchNumber}
             collapsedMatches={collapsedMatches}

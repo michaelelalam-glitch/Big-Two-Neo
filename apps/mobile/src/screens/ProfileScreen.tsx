@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  useWindowDimensions,
 } from 'react-native';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,10 +32,6 @@ interface PlayerStats {
 
 const ProfileScreen = () => {
   const { user, profile, isLoading, signOut } = useAuth();
-  
-  // Orientation detection
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
   
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);

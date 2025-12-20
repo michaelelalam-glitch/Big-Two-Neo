@@ -92,7 +92,7 @@ export function useOrientationManager(): OrientationManagerState {
       gameLogger.info(`📱 [Orientation] Device orientation changed: ${isLandscape ? 'landscape' : 'portrait'}`);
     });
 
-    // CRITICAL FIX: Unlock orientation when leaving GameScreen (Issue #2)
+    // Ensure orientation is unlocked when leaving GameScreen to restore auto-rotation on other screens
     return () => {
       ScreenOrientation.removeOrientationChangeListener(subscription);
       // Unlock to allow auto-rotation on other screens

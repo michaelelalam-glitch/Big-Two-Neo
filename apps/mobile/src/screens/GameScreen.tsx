@@ -336,26 +336,27 @@ function GameScreenContent() {
             <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
           </View>
         ) : (currentOrientation === 'landscape') ? (
-          // LANDSCAPE MODE (Task #450) - works in both native and fallback mode
+          // LANDSCAPE MODE (Task #450) - now uses mapped player order for all props
           <LandscapeGameLayout
-            // Scoreboard data - FIXED: Use direct player order [0,1,2,3] for correct history mapping
-            playerNames={gameState ? gameState.players.map(p => p.name) : []}
-            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
-            cardCounts={gameState ? gameState.players.map(p => p.hand.length) : []}
-            currentPlayerIndex={gameState?.currentPlayerIndex || 0}
+            // Scoreboard and player order: [user, Bot 1, Bot 2, Bot 3] = [0,3,1,2]
+            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
+            currentScores={gameState ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
+            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
             matchNumber={gameState?.currentMatch || 1}
             isGameFinished={gameState?.gameOver || false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
+            originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
             autoPassTimerState={gameState?.auto_pass_timer}
-            
+
             // Table data
             lastPlayedCards={lastPlayedCards}
             lastPlayedBy={lastPlayedBy ?? undefined}
             lastPlayComboType={lastPlayComboType ?? undefined}
             lastPlayCombo={lastPlayCombo ?? undefined}
-            
-            // Player data
+
+            // Player data (bottom center is always index 0 after mapping)
             playerName={players[0].name}
             playerCardCount={players[0].cardCount}
             playerCards={playerHand}
@@ -363,16 +364,15 @@ function GameScreenContent() {
             selectedCardIds={selectedCardIds}
             onSelectionChange={setSelectedCardIds}
             onCardsReorder={handleCardsReorder}
-            
+
             // Drag-to-play callback
             onPlayCards={(cards: Card[]) => {
-              // Handle drag-to-play in landscape mode
               gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
               if (onPlayCardsRef.current) {
                 onPlayCardsRef.current(cards);
               }
             }}
-            
+
             // Control callbacks
             onOrientationToggle={toggleOrientation}
             onHelp={() => gameLogger.info('Help requested')}
@@ -392,7 +392,7 @@ function GameScreenContent() {
             }}
             onHint={handleHint}
             onSettings={() => setShowSettings(true)}
-            
+
             // Control states
             disabled={!players[0].isActive}
             canPlay={players[0].isActive && selectedCards.length > 0}
@@ -411,6 +411,7 @@ function GameScreenContent() {
             isGameFinished={gameState?.gameOver || false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
+            originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
           />
 
           {/* Hamburger menu (top-right, outside table) */}

@@ -28,6 +28,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   isGameFinished,
   scoreHistory,
   playHistory,
+  originalPlayerNames,
 }) => {
   // Use responsive container styles
   const styles = useScoreboardContainerStyles();
@@ -96,7 +97,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
       {/* Play History Modal */}
       <PlayHistoryModal
         visible={isPlayHistoryOpen}
-        playerNames={playerNames}
+        playerNames={originalPlayerNames || playerNames}
         playHistory={playHistory}
         currentMatch={matchNumber}
         collapsedMatches={collapsedMatches}

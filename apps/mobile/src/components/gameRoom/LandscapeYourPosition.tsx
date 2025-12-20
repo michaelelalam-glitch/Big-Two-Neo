@@ -23,7 +23,6 @@ import Card from '../game/Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
-import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 // ============================================================================
 // CONSTANTS
