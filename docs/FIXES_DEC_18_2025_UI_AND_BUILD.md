@@ -33,9 +33,11 @@ Fixed multiple UI issues and successfully built iOS development build for simula
 
 **Solution:** Increased scoreboard width from 280pt → 380pt in landscape mode
 
+**Solution:** Adjusted scoreboard width to 240pt in landscape mode to improve name visibility
+
 **Files Modified:**
 - `apps/mobile/src/components/gameRoom/hooks/useLandscapeStyles.ts`
-  - Changed `MAX_WIDTH` from `isLandscape ? 340 : 280` to `isLandscape ? 380 : 280`
+  - Changed `MAX_WIDTH` from `isLandscape ? 340 : 280` to `isLandscape ? 240 : 280`
 
 **Result:** Players can now see full names in landscape scoreboard
 

@@ -163,13 +163,14 @@ function GameScreenContent() {
 
 
   // Cleanup: Remove player from room when deliberately leaving (NOT on every unmount)
+  // CRITICAL FIX: Also unlock orientation when navigating away to prevent orientation lock from persisting
   useEffect(() => {
     // Track if component is being unmounted due to navigation away
     let isDeliberateLeave = false;
     
     // Listen for navigation events to detect deliberate exits
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
       // Only set as deliberate leave for certain navigation actions (e.g., back, pop, custom leave)
       const actionType = e?.data?.action?.type;
       if (
@@ -177,6 +178,18 @@ function GameScreenContent() {
         allowedActionTypes.includes(actionType)
       ) {
         isDeliberateLeave = true;
+        
+        // CRITICAL FIX: Unlock orientation immediately when leaving GameScreen
+        // This ensures other screens can auto-rotate properly
+        if (orientationAvailable) {
+          try {
+            const ScreenOrientation = require('expo-screen-orientation');
+            await ScreenOrientation.unlockAsync();
+            gameLogger.info('🔓 [Orientation] Unlocked on navigation away from GameScreen');
+          } catch (error) {
+            gameLogger.error('❌ [Orientation] Failed to unlock on navigation:', error);
+          }
+        }
       }
     });
 
@@ -201,7 +214,7 @@ function GameScreenContent() {
           });
       }
     };
-  }, [user, roomCode, navigation]);
+  }, [user, roomCode, navigation, orientationAvailable]);
 
   // Track component mount status for async operations
   const isMountedRef = useRef(true);
@@ -393,10 +406,10 @@ function GameScreenContent() {
             onHint={handleHint}
             onSettings={() => setShowSettings(true)}
 
-            // Control states
-            disabled={!players[0].isActive}
-            canPlay={players[0].isActive && selectedCards.length > 0}
-            canPass={players[0].isActive}
+            // Control states - CRITICAL FIX: Ensure game state is initialized before enabling controls
+            disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
+            canPlay={players[0].isActive && selectedCards.length > 0 && !!gameState && !!gameManagerRef.current}
+            canPass={players[0].isActive && !!gameState && !!gameManagerRef.current}
           />
         ) : (
           // PORTRAIT MODE (existing layout)
@@ -497,7 +510,8 @@ function GameScreenContent() {
                 cards={playerHand}
                 onPlayCards={handleCardHandPlayCards} // FIXED: Wire to GameControls for drag-to-play
                 onPass={handleCardHandPass} // FIXED: Wire to GameControls for drag-to-pass
-                canPlay={players[0].isActive}
+                canPlay={players[0].isActive && !!gameState && !!gameManagerRef.current}
+                disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
                 hideButtons={true} // Hide internal buttons since we display them externally
                 selectedCardIds={selectedCardIds}
                 onSelectionChange={setSelectedCardIds}
