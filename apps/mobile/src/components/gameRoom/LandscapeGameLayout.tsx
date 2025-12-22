@@ -156,6 +156,7 @@ export function LandscapeGameLayout({
         <View style={styles.scoreboardContainer}>
           <LandscapeScoreboard
             playerNames={playerNames}
+            originalPlayerNames={originalPlayerNames}
             currentScores={currentScores}
             cardCounts={cardCounts}
             currentPlayerIndex={currentPlayerIndex}
