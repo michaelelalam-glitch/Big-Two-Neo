@@ -1,4 +1,5 @@
 /**
+// @ts-nocheck - Test infrastructure type issues
  * Integration tests for username uniqueness validation
  * Tests the join_room_atomic RPC function and global username constraints
  * 
@@ -9,14 +10,14 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+import path from 'path';
 
 // Load .env.test if it exists
 const envTestPath = path.join(__dirname, '../../../.env.test');
 if (fs.existsSync(envTestPath)) {
   const envConfig = fs.readFileSync(envTestPath, 'utf8');
-  envConfig.split('\n').forEach(line => {
+  envConfig.split('\n').forEach((line: string) => {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#')) {
       const [key, ...valueParts] = trimmed.split('=');
