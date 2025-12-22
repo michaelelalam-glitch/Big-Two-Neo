@@ -13,6 +13,22 @@
 // Mock supabase before imports
 jest.mock('../../services/supabase');
 
+// Mock soundManager to prevent .m4a file parse errors
+jest.mock('../../utils/soundManager', () => ({
+  soundManager: {
+    playSound: jest.fn(),
+    stopSound: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(undefined),
+  },
+  SoundType: {
+    GAME_START: 'GAME_START',
+    HIGHEST_CARD: 'HIGHEST_CARD',
+    CARD_PLAY: 'CARD_PLAY',
+    PASS: 'PASS',
+    WINNER: 'WINNER',
+  },
+}));
+
 import { GameStateManager, type GameConfig } from '../state';
 
 describe('Auto-Pass Timer Cancellation on Game End', () => {

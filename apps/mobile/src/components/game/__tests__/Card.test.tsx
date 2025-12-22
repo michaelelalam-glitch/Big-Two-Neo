@@ -1,8 +1,49 @@
 // Mock reanimated before imports
 jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
+  const View = require('react-native').View;
+  return {
+    default: {
+      View: View,
+      Text: require('react-native').Text,
+      Image: require('react-native').Image,
+      ScrollView: require('react-native').ScrollView,
+      createAnimatedComponent: (component: any) => component,
+    },
+    useSharedValue: jest.fn((value) => ({ value })),
+    useAnimatedStyle: jest.fn((callback) => callback()),
+    withSpring: jest.fn((value) => value),
+    withTiming: jest.fn((value) => value),
+    runOnJS: jest.fn((fn) => fn),
+    Easing: { bezier: jest.fn() },
+  };
+});
+
+// Mock gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const View = require('react-native').View;
+  return {
+    Gesture: {
+      Pan: jest.fn(() => ({
+        onStart: jest.fn().mockReturnThis(),
+        onUpdate: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+        onFinalize: jest.fn().mockReturnThis(),
+        enabled: jest.fn().mockReturnThis(),
+      })),
+      Tap: jest.fn(() => ({
+        onStart: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+        enabled: jest.fn().mockReturnThis(),
+      })),
+      LongPress: jest.fn(() => ({
+        onStart: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+        enabled: jest.fn().mockReturnThis(),
+      })),
+      Race: jest.fn((...gestures) => gestures[0]),
+    },
+    GestureDetector: ({ children }: any) => children,
+  };
 });
 
 import React from 'react';
