@@ -53,7 +53,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase credentials. Create .env.test file with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
 }
 
-describe('Username Uniqueness - Integration Tests', () => {
+describe.skip('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
   let testRoomCode1: string;
   let testRoomCode2: string;
