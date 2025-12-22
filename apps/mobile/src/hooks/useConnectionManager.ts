@@ -12,6 +12,7 @@ interface UseConnectionManagerOptions {
 interface UseConnectionManagerReturn {
   connectionStatus: ConnectionStatus;
   isReconnecting: boolean;
+  isSpectator: boolean;
   reconnect: () => Promise<void>;
   disconnect: () => Promise<void>;
 }
@@ -42,6 +43,7 @@ export function useConnectionManager({
 }: UseConnectionManagerOptions): UseConnectionManagerReturn {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isSpectator, setIsSpectator] = useState(false);
   
   const heartbeatIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,9 +104,16 @@ export function useConnectionManager({
         p_user_id: userId,
       });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
+        const result = data[0]; // RPC returns array of rows
         setConnectionStatus('connected');
-        console.log('✅ Reconnected successfully');
+        setIsSpectator(result.is_spectator || false);
+        
+        if (result.is_spectator) {
+          console.log('👁️ Reconnected as spectator (bot replaced you)');
+        } else {
+          console.log('✅ Reconnected successfully');
+        }
         
         // Resume heartbeat
         if (heartbeatIntervalRef.current) {
@@ -245,6 +254,7 @@ export function useConnectionManager({
   return {
     connectionStatus,
     isReconnecting,
+    isSpectator,
     reconnect,
     disconnect,
   };

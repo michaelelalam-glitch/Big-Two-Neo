@@ -259,6 +259,8 @@ export interface Translations {
     leaveGameConfirm: string;
     leaveGameMessage: string;
     stay: string;
+    spectatorMode: string;
+    spectatorDescription: string;
   };
   
   // Game End Modal
@@ -687,6 +689,8 @@ const en: Translations = {
     leaveGameConfirm: 'Leave Game?',
     leaveGameMessage: 'Are you sure you want to leave? Your progress will be lost.',
     stay: 'Stay',
+    spectatorMode: 'Spectator Mode',
+    spectatorDescription: 'You are watching this match. A bot replaced you after disconnection.',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1049,6 +1053,8 @@ const ar: Translations = {
     leaveGameConfirm: 'مغادرة اللعبة؟',
     leaveGameMessage: 'هل أنت متأكد أنك تريد المغادرة؟ سيتم فقدان تقدمك.',
     stay: 'البقاء',
+    spectatorMode: 'وضع المشاهدة',
+    spectatorDescription: 'أنت تشاهد هذه المباراة. حل بوت محلك بعد الانقطاع.',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -1487,6 +1493,8 @@ const de: Translations = {
     leaveGameConfirm: 'Spiel verlassen?',
     leaveGameMessage: 'Bist du sicher, dass du gehen möchtest? Dein Fortschritt geht verloren.',
     stay: 'Bleiben',
+    spectatorMode: 'Zuschauermodus',
+    spectatorDescription: 'Du schaust bei diesem Spiel zu. Ein Bot hat dich nach der Trennung ersetzt.',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
