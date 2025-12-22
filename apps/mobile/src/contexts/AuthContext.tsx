@@ -9,6 +9,7 @@ import {
   removePushTokenFromDatabase 
 } from '../services/notificationService';
 import { soundManager, hapticManager } from '../utils';
+import { detectRegion } from '../utils/regionDetector';
 
 /**
  * Profile fetch retry configuration
@@ -196,11 +197,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           authLogger.error(`❌ [fetchProfile] Profile NOT FOUND after ${totalAttempts} attempts! Creating manually...`);
           
           try {
+            // Detect user's region based on IP
+            const detectedRegion = await detectRegion();
+            authLogger.info(`🌍 [fetchProfile] Detected region: ${detectedRegion}`);
+            
             const { data: newProfile, error: insertError } = await supabase
               .from('profiles')
               .insert({
                 id: userId,
                 username: `Player_${typeof userId === 'string' && userId.length >= 8 ? userId.slice(0, 8) : Date.now().toString(36)}`,
+                region: detectedRegion,
                 updated_at: new Date().toISOString(),
               })
               .select()
