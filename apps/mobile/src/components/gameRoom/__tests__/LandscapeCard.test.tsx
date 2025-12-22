@@ -5,8 +5,9 @@
  * Part of Task #449: Card rendering system
  */
 
+// @ts-nocheck - Test infrastructure types incomplete
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import LandscapeCard from '../LandscapeCard';
 import type { Card } from '../../../game/types';
 import { LANDSCAPE_DIMENSIONS } from '../../../constants/landscape';
