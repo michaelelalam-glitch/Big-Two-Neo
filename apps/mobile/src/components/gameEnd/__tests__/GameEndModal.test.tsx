@@ -73,7 +73,9 @@ describe('GameEndModal Component', () => {
           <GameEndModal />
         </GameEndProvider>
       );
-      expect(toJSON()).toBeTruthy();
+      // Modal is closed by default, so it returns null (not rendered)
+      // This is correct behavior - no error means success
+      expect(toJSON()).toBeNull();
     });
   });
 });
