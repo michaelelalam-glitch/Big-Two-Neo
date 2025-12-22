@@ -488,6 +488,18 @@ function GameScreenContent() {
   return (
     <Profiler id="GameScreen" onRender={onRenderCallback as any}>
       <View style={[styles.container, { direction: 'ltr' }]}>
+        {/* Spectator Mode Banner - Show if player is spectating */}
+        {/* TODO: Integrate with useConnectionManager to detect spectator status */}
+        {false && ( // Placeholder - will be enabled when useConnectionManager is integrated
+          <View style={styles.spectatorBanner}>
+            <Text style={styles.spectatorEmoji}>👁️</Text>
+            <View style={styles.spectatorTextContainer}>
+              <Text style={styles.spectatorTitle}>{i18n.t('game.spectatorMode')}</Text>
+              <Text style={styles.spectatorDescription}>{i18n.t('game.spectatorDescription')}</Text>
+            </View>
+          </View>
+        )}
+        
         {isInitializing ? (
           // Loading state
           <View style={styles.loadingContainer}>
@@ -786,5 +798,41 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     color: COLORS.gray.light,
     fontSize: FONT_SIZES.md,
+  },
+  // Spectator Mode Banner Styles
+  spectatorBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(33, 150, 243, 0.95)', // Blue with transparency
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000, // Above everything
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  spectatorEmoji: {
+    fontSize: 32,
+    marginRight: SPACING.md,
+  },
+  spectatorTextContainer: {
+    flex: 1,
+  },
+  spectatorTitle: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  spectatorDescription: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: FONT_SIZES.sm,
+    lineHeight: 18,
   },
 });
