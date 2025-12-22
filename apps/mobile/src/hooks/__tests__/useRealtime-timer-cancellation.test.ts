@@ -51,6 +51,7 @@ describe('useRealtime - Timer Cancellation', () => {
       cards: [{ id: '2S', suit: 'S', rank: '2' }],
       combo_type: 'Single',
     },
+    player_id: 'test-player',
   };
 
   const mockGameState: GameState = {

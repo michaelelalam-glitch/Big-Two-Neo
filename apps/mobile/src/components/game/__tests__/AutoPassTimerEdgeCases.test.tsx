@@ -44,6 +44,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { getByText } = render(
@@ -65,6 +66,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 3000, // Server calculated remaining time
         triggering_play: createMockLastPlay('Pair'),
+        player_id: 'test-player',
       };
 
       const { getByText } = render(
@@ -86,6 +88,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 0,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { queryByText } = render(
@@ -106,6 +109,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 5000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { unmount } = render(
@@ -131,6 +135,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'player1',
       };
 
       const { rerender, getByText } = render(
@@ -156,6 +161,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Pair'),
+        player_id: 'player2',
       };
 
       rerender(<AutoPassTimer timerState={timerState2} currentPlayerIndex={currentPlayerIndex} />);
@@ -175,6 +181,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { rerender } = render(
@@ -192,6 +199,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Triple'),
+        player_id: 'test-player',
       };
 
       rerender(<AutoPassTimer timerState={newTimerState} currentPlayerIndex={currentPlayerIndex} />);
@@ -210,6 +218,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 5000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { rerender, queryByText } = render(
@@ -235,6 +244,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 5000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { unmount } = render(
@@ -267,6 +277,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: -1000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       render(
@@ -285,6 +296,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 5000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       render(
@@ -304,6 +316,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 5000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { queryByText } = render(
@@ -324,6 +337,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { getByText } = render(
@@ -345,6 +359,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'player1',
       };
 
       const { rerender, getByText } = render(
@@ -363,6 +378,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 6000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'player1',
       };
 
       rerender(<AutoPassTimer timerState={timerState2} currentPlayerIndex={currentPlayerIndex} />);
@@ -381,6 +397,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 8000,
         triggering_play: createMockLastPlay('Pair'),
+        player_id: 'test-player',
       };
 
       const { unmount } = render(
@@ -412,6 +429,7 @@ describe('AutoPassTimer - Edge Cases', () => {
         duration_ms: 10000,
         remaining_ms: 10000,
         triggering_play: createMockLastPlay('Single'),
+        player_id: 'test-player',
       };
 
       const { rerender, unmount } = render(
@@ -444,6 +462,7 @@ describe('AutoPassTimer - Edge Cases', () => {
           duration_ms: 10000,
           remaining_ms: 10000 - i * 100,
           triggering_play: createMockLastPlay('Single'),
+          player_id: 'test-player',
         };
         rerender(<AutoPassTimer timerState={timerState} currentPlayerIndex={currentPlayerIndex} />);
         rerender(<AutoPassTimer timerState={null} currentPlayerIndex={currentPlayerIndex} />);

@@ -21,6 +21,7 @@ describe('AutoPassTimer Component', () => {
       cards: [{ id: '2S', rank: '2', suit: 'S' }],
       combo_type: 'Single',
     },
+    player_id: 'test-player',
     ...overrides,
   });
 

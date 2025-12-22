@@ -83,12 +83,13 @@ describe('Auto-Pass Timer Manager', () => {
         combo_type: 'Single',
       };
 
-      const timerState = createAutoPassTimerState(triggeringPlay);
+      const timerState = createAutoPassTimerState(triggeringPlay, 'player1');
 
       expect(timerState.active).toBe(true);
       expect(timerState.duration_ms).toBe(AUTO_PASS_TIMER_DURATION_MS);
       expect(timerState.remaining_ms).toBe(AUTO_PASS_TIMER_DURATION_MS);
       expect(timerState.triggering_play).toEqual(triggeringPlay);
+      expect(timerState.player_id).toBe('player1');
       expect(new Date(timerState.started_at).getTime()).toBeLessThanOrEqual(Date.now());
     });
   });
@@ -101,7 +102,7 @@ describe('Auto-Pass Timer Manager', () => {
         combo_type: 'Single',
       };
 
-      const timerState = createAutoPassTimerState(triggeringPlay);
+      const timerState = createAutoPassTimerState(triggeringPlay, 'player1');
       
       // Wait 100ms
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -121,7 +122,7 @@ describe('Auto-Pass Timer Manager', () => {
       };
 
       // Create timer that already expired
-      const timerState = createAutoPassTimerState(triggeringPlay);
+      const timerState = createAutoPassTimerState(triggeringPlay, 'player1');
       const expiredState = {
         ...timerState,
         started_at: new Date(Date.now() - AUTO_PASS_TIMER_DURATION_MS - 1000).toISOString(),
