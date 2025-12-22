@@ -47,7 +47,7 @@ export function buildFinalPlayHistoryFromState(
 
         return {
           by: playerIndex as PlayerPosition,
-          type: entry.combo_type,
+          type: entry.combo_type as string,
           count: entry.cards.length,
           cards: entry.cards,
           timestamp: new Date(entry.timestamp).toISOString(),
