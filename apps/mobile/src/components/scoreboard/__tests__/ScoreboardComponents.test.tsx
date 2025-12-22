@@ -106,27 +106,10 @@ describe('CompactScoreboard', () => {
       expect(getByText('+9')).toBeTruthy();
     });
 
-    it('should render card counts when game is not finished', () => {
-      const { getByText } = render(
-        <CompactScoreboard playHistory={[]}
-          playerNames={mockPlayerNames}
-          currentScores={mockCurrentScores}
-          cardCounts={mockCardCounts}
-          currentPlayerIndex={0}
-          matchNumber={1}
-          isGameFinished={false}
-          scoreHistory={mockScoreHistory}
-          isExpanded={false}
-        />
-      );
-
-      expect(getByText('🃏 7')).toBeTruthy();
-      expect(getByText('🃏 5')).toBeTruthy();
-      expect(getByText('🃏 3')).toBeTruthy();
-      expect(getByText('🃏 8')).toBeTruthy();
-    });
+    // Card counts were removed in commit 4d5813f - tests removed
 
     it('should not render card counts when game is finished', () => {
+      // Card counts were removed entirely - this test verifies the absence
       const { queryByText } = render(
         <CompactScoreboard playHistory={[]}
           playerNames={mockPlayerNames}
@@ -289,11 +272,11 @@ describe('CompactScoreboard', () => {
   });
 
   // --------------------------------------------------------------------------
-  // Auto-Expand Tests
+  // Auto-Expand Tests (REMOVED - feature disabled per user request)
   // --------------------------------------------------------------------------
 
   describe('Auto-Expand Behavior', () => {
-    it('should auto-expand when game finishes', () => {
+    it('should NOT auto-expand when game finishes (feature disabled)', () => {
       const onToggleExpandMock = jest.fn();
       
       const { rerender } = render(
@@ -325,7 +308,8 @@ describe('CompactScoreboard', () => {
         />
       );
 
-      expect(onToggleExpandMock).toHaveBeenCalled();
+      // Auto-expand was removed - should NOT be called
+      expect(onToggleExpandMock).not.toHaveBeenCalled();
     });
 
     it('should not auto-expand if already expanded', () => {
@@ -394,23 +378,7 @@ describe('CompactScoreboard', () => {
       expect(getByText('Diana')).toBeTruthy();
     });
 
-    it('should handle zero card counts', () => {
-      const zeroCardCounts = [0, 0, 0, 0];
-      const { getByText } = render(
-        <CompactScoreboard playHistory={[]}
-          playerNames={mockPlayerNames}
-          currentScores={mockCurrentScores}
-          cardCounts={zeroCardCounts}
-          currentPlayerIndex={0}
-          matchNumber={1}
-          isGameFinished={false}
-          scoreHistory={mockScoreHistory}
-          isExpanded={false}
-        />
-      );
-
-      expect(getByText('🃏 0')).toBeTruthy();
-    });
+    // Card count tests removed - feature was removed in commit 4d5813f
   });
 });
 
@@ -435,8 +403,8 @@ describe('ExpandedScoreboard', () => {
         />
       );
 
-      expect(getByText('Match 1')).toBeTruthy();
-      expect(getByText('Match 2')).toBeTruthy();
+      expect(getByText('#1')).toBeTruthy();
+      expect(getByText('#2')).toBeTruthy();
     });
 
     it('should render all player names in table rows', () => {
@@ -457,7 +425,7 @@ describe('ExpandedScoreboard', () => {
     });
 
     it('should render score history for all players', () => {
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <ExpandedScoreboard playHistory={[]} isExpanded={false} cardCounts={mockCardCounts} currentPlayerIndex={0}
           playerNames={mockPlayerNames}
           currentScores={mockCurrentScores}
@@ -468,9 +436,12 @@ describe('ExpandedScoreboard', () => {
       );
 
       // Check some scores from history
-      expect(getByText('+5')).toBeTruthy();
-      expect(getByText('+10')).toBeTruthy();
-      expect(getByText('+15')).toBeTruthy();
+      const fivesElements = getAllByText('+5');
+      expect(fivesElements.length).toBeGreaterThan(0);
+      const tensElements = getAllByText('+10');
+      expect(tensElements.length).toBeGreaterThan(0);
+      const fifteenElements = getAllByText('+15');
+      expect(fifteenElements.length).toBeGreaterThan(0);
     });
 
     it('should render cumulative total column', () => {
@@ -496,7 +467,7 @@ describe('ExpandedScoreboard', () => {
 
   describe('Score Calculations', () => {
     it('should show cumulative scores correctly', () => {
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <ExpandedScoreboard playHistory={[]} isExpanded={false} cardCounts={mockCardCounts} currentPlayerIndex={0}
           playerNames={mockPlayerNames}
           currentScores={mockCurrentScores}
@@ -507,10 +478,14 @@ describe('ExpandedScoreboard', () => {
       );
 
       // Final cumulative scores
-      expect(getByText('+15')).toBeTruthy();
-      expect(getByText('+28')).toBeTruthy();
-      expect(getByText('+42')).toBeTruthy();
-      expect(getByText('+9')).toBeTruthy();
+      const fifteenElements = getAllByText('+15');
+      expect(fifteenElements.length).toBeGreaterThan(0);
+      const twentyEightElements = getAllByText('+28');
+      expect(twentyEightElements.length).toBeGreaterThan(0);
+      const fortyTwoElements = getAllByText('+42');
+      expect(fortyTwoElements.length).toBeGreaterThan(0);
+      const nineElements = getAllByText('+9');
+      expect(nineElements.length).toBeGreaterThan(0);
     });
 
     it('should handle matches with no score history', () => {
@@ -583,7 +558,7 @@ describe('ExpandedScoreboard', () => {
         />
       );
 
-      const collapseButton = getByLabelText('Collapse scoreboard');
+      const collapseButton = getByLabelText('Minimize scoreboard');
       fireEvent.press(collapseButton);
 
       expect(onToggleExpandMock).toHaveBeenCalledTimes(1);
@@ -619,7 +594,7 @@ describe('ExpandedScoreboard', () => {
         />
       );
 
-      expect(queryByLabelText('Collapse scoreboard')).toBeNull();
+      expect(queryByLabelText('Minimize scoreboard')).toBeNull();
     });
   });
 
