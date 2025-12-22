@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -130,45 +130,50 @@ export default function JoinRoomScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{i18n.t('room.joinTitle')}</Text>
-        <Text style={styles.subtitle}>
-          {i18n.t('room.joinSubtitle')}
-        </Text>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={roomCode}
-            onChangeText={(text) => setRoomCode(text.toUpperCase())}
-            placeholder="ABC123"
-            placeholderTextColor={COLORS.gray.medium}
-            maxLength={6}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            editable={!isJoining}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.joinButton, (isJoining || roomCode.length !== 6) && styles.buttonDisabled]}
-          onPress={handleJoinRoom}
-          disabled={isJoining || roomCode.length !== 6}
-        >
-          {isJoining ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.joinButtonText}>{i18n.t('room.joinButton')}</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>💡 {i18n.t('room.tip')}:</Text>
-          <Text style={styles.infoText}>
-            {i18n.t('room.askFriendForCode')}
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1, padding: SPACING.lg }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>{i18n.t('room.joinTitle')}</Text>
+          <Text style={styles.subtitle}>
+            {i18n.t('room.joinSubtitle')}
           </Text>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={roomCode}
+              onChangeText={(text) => setRoomCode(text.toUpperCase())}
+              placeholder="ABC123"
+              placeholderTextColor={COLORS.gray.medium}
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!isJoining}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.joinButton, (isJoining || roomCode.length !== 6) && styles.buttonDisabled]}
+            onPress={handleJoinRoom}
+            disabled={isJoining || roomCode.length !== 6}
+          >
+            {isJoining ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.joinButtonText}>{i18n.t('room.joinButton')}</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>💡 {i18n.t('room.tip')}:</Text>
+            <Text style={styles.infoText}>
+              {i18n.t('room.askFriendForCode')}
+            </Text>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

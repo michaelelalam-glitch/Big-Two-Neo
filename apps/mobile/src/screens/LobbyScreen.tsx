@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -361,7 +361,7 @@ export default function LobbyScreen() {
     }
   };
 
-  const renderPlayer = ({ item }: { item: Player | null }) => {
+  const renderPlayer = ({ item, index }: { item: Player | null; index: number }) => {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>
@@ -436,7 +436,11 @@ export default function LobbyScreen() {
         </Text>
 
         <View style={styles.playerList}>
-          {playerSlots.map((item, index) => renderPlayer({ item, index }))}
+          {playerSlots.map((item, index) => (
+            <View key={`player-slot-${index}`}>
+              {renderPlayer({ item, index })}
+            </View>
+          ))}
         </View>
 
         <TouchableOpacity

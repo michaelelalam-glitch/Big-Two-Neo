@@ -138,12 +138,53 @@ export interface Translations {
     createRoomDescription: string;
     joinRoom: string;
     joinRoomDescription: string;
+    howToPlay: string;
+    howToPlayDescription: string;
     leaderboard: string;
     profile: string;
     currentRoom: string;
     leave: string;
     leftRoom: string;
     leaveRoomConfirm: string;
+  };
+
+  // How to Play Screen
+  howToPlay: {
+    title: string;
+    objectiveTitle: string;
+    objectiveText: string;
+    cardRankingsTitle: string;
+    rankOrderLabel: string;
+    rankOrder: string;
+    suitOrderLabel: string;
+    suitOrder: string;
+    cardNote: string;
+    validCombinationsTitle: string;
+    single: string;
+    pair: string;
+    triple: string;
+    straight: string;
+    flush: string;
+    fullHouse: string;
+    fourOfAKind: string;
+    straightFlush: string;
+    gameplayTitle: string;
+    startingGame: string;
+    playingCards: string;
+    passing: string;
+    leading: string;
+    winning: string;
+    specialRulesTitle: string;
+    autoPassTimer: string;
+    oneCardLeft: string;
+    fiveCardCombos: string;
+    scoringTitle: string;
+    scoringIntro: string;
+    scoring1to4: string;
+    scoring5to9: string;
+    scoring10to13: string;
+    scoringWarning: string;
+    letsPlay: string;
   };
   
   // Game Screen
@@ -174,6 +215,44 @@ export interface Translations {
     leaveGameConfirm: string;
     leaveGameMessage: string;
     stay: string;
+  };
+  
+  // Game End Modal
+  gameEnd: {
+    gameWinner: string;
+    finalStandings: string;
+    scoreHistory: string;
+    playHistory: string;
+    shareResults: string;
+    playAgain: string;
+    returnToMenu: string;
+    loadingResults: string;
+    noScoreHistory: string;
+    scoresWillAppear: string;
+    noPlayHistory: string;
+    playsWillAppear: string;
+    match: string;
+    hand: string;
+    hands: string;
+    points: string;
+    latest: string;
+    matchByMatch: string;
+    cardPlayHistory: string;
+    tapToExpand: string;
+    playAgainTitle: string;
+    playAgainMessage: string;
+    newGame: string;
+    returnToMenuTitle: string;
+    returnToMenuMessage: string;
+    leaveGame: string;
+    shareError: string;
+    shareErrorMessage: string;
+    restartError: string;
+    restartErrorMessage: string;
+    leaveError: string;
+    leaveErrorMessage: string;
+    matchesPlayed: string;
+    oneMatch: string;
   };
   
   // Lobby Screen
@@ -433,12 +512,51 @@ const en: Translations = {
     createRoomDescription: 'Host a private game',
     joinRoom: '🔗 Join Room',
     joinRoomDescription: 'Enter a room code',
+    howToPlay: '📖 How to Play',
+    howToPlayDescription: 'Learn the rules',
     leaderboard: '🏆 Leaderboard',
     profile: 'Profile',
     currentRoom: 'Currently in room',
     leave: 'Leave',
     leftRoom: 'Left the room',
     leaveRoomConfirm: 'Leave room?',
+  },
+  howToPlay: {
+    title: '📖 How to Play Big Two',
+    objectiveTitle: 'Objective',
+    objectiveText: 'Be the first player to play all your cards.',
+    cardRankingsTitle: 'Card Rankings',
+    rankOrderLabel: 'Rank Order (lowest to highest):',
+    rankOrder: '3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2',
+    suitOrderLabel: 'Suit Order (lowest to highest):',
+    suitOrder: '♦ Diamonds, ♣ Clubs, ♥ Hearts, ♠ Spades',
+    cardNote: 'Note: The 3 of Diamonds (3♦) is the lowest card & the 2 of Spades (2♠) is the highest!',
+    validCombinationsTitle: 'Valid Combinations',
+    single: 'Single: Any single card',
+    pair: 'Pair: Two cards of the same rank',
+    triple: 'Triple: Three cards of the same rank',
+    straight: 'Straight: 5 consecutive cards from (A-2-3-4-5 to 10-J-Q-K-A)',
+    flush: 'Flush: 5 cards of the same suit',
+    fullHouse: 'Full House: 3 of a kind + a pair',
+    fourOfAKind: 'Four of a Kind: 4 cards of the same rank + 1 card',
+    straightFlush: 'Straight Flush: 5 consecutive cards of the same suit',
+    gameplayTitle: 'Gameplay',
+    startingGame: 'Starting the Game: The player with 3♦ must play it (either alone or in a combination).',
+    playingCards: 'Playing Cards: Each player must play a higher combination of the same type (e.g., pair beats pair).',
+    passing: 'Passing: If you can\'t or don\'t want to play, click "Pass".',
+    leading: 'Leading: When everyone passes, the last player to play cards starts a new round with any valid combination.',
+    winning: 'Winning: First player to empty their hand wins the match and starts the next match!',
+    specialRulesTitle: 'Special Rules',
+    autoPassTimer: 'Auto-Pass Timer: When the highest possible card/combo is played, other players have 10 seconds to respond or will auto-pass.',
+    oneCardLeft: 'One Card Left: When a player has 1 card remaining, the player who plays immediately before them (in turn order) MUST play their highest single card if they are playing a single. Pairs, triples, and 5-card combos are not restricted.',
+    fiveCardCombos: '5-Card Combos: Straights, flushes, full houses, four of a kind, and straight flushes can only be beaten by higher combinations of the same type.',
+    scoringTitle: 'Scoring',
+    scoringIntro: 'Points are awarded based on how many cards opponents have left when you win:',
+    scoring1to4: '1-4 cards left: 1 point per card',
+    scoring5to9: '5-9 cards left: 2 points per card',
+    scoring10to13: '10-13 cards left: 3 points per card',
+    scoringWarning: 'Warning: First player to reach over 100 points loses the game! The player with the lowest score wins.',
+    letsPlay: "Let's Play!",
   },
   game: {
     yourTurn: 'Your Turn',
@@ -467,6 +585,42 @@ const en: Translations = {
     leaveGameConfirm: 'Leave Game?',
     leaveGameMessage: 'Are you sure you want to leave? Your progress will be lost.',
     stay: 'Stay',
+  },
+  gameEnd: {
+    gameWinner: 'Game Winner',
+    finalStandings: 'Final Standings',
+    scoreHistory: 'Score History',
+    playHistory: 'Play History',
+    shareResults: 'Share Results',
+    playAgain: 'Play Again',
+    returnToMenu: 'Return to Menu',
+    loadingResults: 'Loading results...',
+    noScoreHistory: 'No score history available',
+    scoresWillAppear: 'Scores will appear here as matches are played',
+    noPlayHistory: 'No play history available',
+    playsWillAppear: 'Card plays will appear here as hands are played',
+    match: 'Match',
+    hand: 'hand',
+    hands: 'hands',
+    points: 'pts',
+    latest: 'Latest',
+    matchByMatch: 'Match-by-Match Scores',
+    cardPlayHistory: 'Card Play History',
+    tapToExpand: 'Tap matches to expand/collapse',
+    playAgainTitle: 'Play Again',
+    playAgainMessage: 'Start a new game with the same players?',
+    newGame: 'New Game',
+    returnToMenuTitle: 'Return to Menu',
+    returnToMenuMessage: 'Leave the current game and return to the main menu?',
+    leaveGame: 'Leave Game',
+    shareError: 'Share Error',
+    shareErrorMessage: 'Failed to share results. Please try again.',
+    restartError: 'Error',
+    restartErrorMessage: 'Failed to restart game. Please try again.',
+    leaveError: 'Error',
+    leaveErrorMessage: 'Failed to leave game. Please try again.',
+    matchesPlayed: 'matches played',
+    oneMatch: 'match',
   },
   lobby: {
     title: 'Game Lobby',
@@ -722,6 +876,8 @@ const ar: Translations = {
     leave: 'غادر',
     leftRoom: 'غادرت الغرفة',
     leaveRoomConfirm: 'غادر الغرفة؟',
+    howToPlay: '📖 كيف تلعب',
+    howToPlayDescription: 'تعلم قواعد اللعبة',
   },
   game: {
     yourTurn: 'دورك',
@@ -750,6 +906,42 @@ const ar: Translations = {
     leaveGameConfirm: 'مغادرة اللعبة؟',
     leaveGameMessage: 'هل أنت متأكد أنك تريد المغادرة؟ سيتم فقدان تقدمك.',
     stay: 'البقاء',
+  },
+  gameEnd: {
+    gameWinner: 'فائز اللعبة',
+    finalStandings: 'التصنيف النهائي',
+    scoreHistory: 'سجل النقاط',
+    playHistory: 'سجل اللعب',
+    shareResults: 'مشاركة النتائج',
+    playAgain: 'العب مرة أخرى',
+    returnToMenu: 'العودة إلى القائمة',
+    loadingResults: 'جارٍ تحميل النتائج...',
+    noScoreHistory: 'لا يوجد سجل نقاط متاح',
+    scoresWillAppear: 'ستظهر النقاط هنا عند لعب المباريات',
+    noPlayHistory: 'لا يوجد سجل لعب متاح',
+    playsWillAppear: 'ستظهر اللعبات هنا عند لعب الأيدي',
+    match: 'مباراة',
+    hand: 'يد',
+    hands: 'أيدي',
+    points: 'نقاط',
+    latest: 'الأحدث',
+    matchByMatch: 'النقاط مباراة تلو الأخرى',
+    cardPlayHistory: 'سجل لعب البطاقات',
+    tapToExpand: 'اضغط على المباريات للتوسيع/الطي',
+    playAgainTitle: 'العب مرة أخرى',
+    playAgainMessage: 'بدء لعبة جديدة مع نفس اللاعبين؟',
+    newGame: 'لعبة جديدة',
+    returnToMenuTitle: 'العودة إلى القائمة',
+    returnToMenuMessage: 'غادر اللعبة الحالية والعودة إلى القائمة الرئيسية؟',
+    leaveGame: 'مغادرة اللعبة',
+    shareError: 'خطأ في المشاركة',
+    shareErrorMessage: 'فشلت مشاركة النتائج. حاول مرة أخرى.',
+    restartError: 'خطأ',
+    restartErrorMessage: 'فشل إعادة تشغيل اللعبة. حاول مرة أخرى.',
+    leaveError: 'خطأ',
+    leaveErrorMessage: 'فشلت مغادرة اللعبة. حاول مرة أخرى.',
+    matchesPlayed: 'مباريات ملعوبة',
+    oneMatch: 'مباراة',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -891,6 +1083,51 @@ const ar: Translations = {
     orContinueWith: 'أو تابع باستخدام',
     agreeToTerms: 'من خلال التسجيل، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
   },
+  howToPlay: {
+    title: 'كيفية اللعب',
+    objectiveTitle: '🎯 الهدف',
+    objectiveText: 'كن أول لاعب يتخلص من جميع بطاقاته. آخر لاعب لديه بطاقات يخسر.',
+    rankOrderLabel: '🃏 ترتيب القيم (من الأدنى إلى الأعلى):',
+    rankOrder: '3، 4، 5، 6، 7، 8، 9، 10، J، Q، K، A، 2',
+    suitOrderLabel: '🎴 ترتيب الأنواع (عند التساوي في القيمة):',
+    suitOrder: '♦ الماس، ♣ السباتي، ♥ القلوب، ♠ البستوني',
+    noteText: 'ملاحظة: 3 الماس (3♦) هو أضعف ورقة و 2 البستوني (2♠) هو أقوى ورقة!',
+    combinationsTitle: '🎮 التشكيلات الصحيحة',
+    singleLabel: '1️⃣ مفرد:',
+    singleText: 'أي ورقة واحدة',
+    pairLabel: '2️⃣ زوج:',
+    pairText: 'ورقتان بنفس القيمة (مثال: 7♦ و 7♥)',
+    tripleLabel: '3️⃣ ثلاثية:',
+    tripleText: 'ثلاث أوراق بنفس القيمة (مثال: Q♣، Q♦، Q♠)',
+    fiveCardCombosLabel: '5️⃣ تشكيلات الخمس أوراق:',
+    straightLabel: '▪ متتالية:',
+    straightText: '5 أوراق متتالية (مثال: 5، 6، 7، 8، 9)',
+    flushLabel: '▪ فلاش:',
+    flushText: '5 أوراق من نفس النوع',
+    fullHouseLabel: '▪ فل هاوس:',
+    fullHouseText: 'ثلاثية + زوج (مثال: 8، 8، 8 + K، K)',
+    fourOfAKindLabel: '▪ أربعة متشابهة:',
+    fourOfAKindText: '4 أوراق بنفس القيمة + أي ورقة خامسة (مثال: A، A، A، A + 5)',
+    straightFlushLabel: '▪ فلاش متتالي:',
+    straightFlushText: '5 أوراق متتالية من نفس النوع (أقوى تشكيلة!)',
+    gameplayTitle: '⚡ طريقة اللعب',
+    gameplayPoint1: '• اللاعب الذي لديه 3 الماس (3♦) يبدأ الجولة الأولى',
+    gameplayPoint2: '• يجب أن تلعب نفس نوع التشكيلة (مفرد، زوج، إلخ) لكن بقيمة أعلى',
+    gameplayPoint3: '• إذا لم تستطع أو لا تريد اللعب، اضغط "تمرير"',
+    gameplayPoint4: '• عندما يمرر جميع اللاعبين، يبدأ اللاعب الأخير الذي لعب جولة جديدة',
+    gameplayPoint5: '• استمر باللعب حتى يتخلص لاعب واحد من كل أوراقه!',
+    specialRulesTitle: '💡 قواعد خاصة',
+    specialRule1: '• لا يمكن للتشكيلات الأضعف أن تتفوق على الأقوى',
+    specialRule2: '• فلاش متتالي > أربعة متشابهة > فل هاوس > فلاش > متتالية',
+    specialRule3: '• يمكنك استخدام الأزرار المساعدة (فرز، ذكي، تلميح) لترتيب أوراقك',
+    scoringTitle: '🏆 نظام النقاط',
+    scoringIntro: 'في نهاية كل جولة، اللاعبون الذين لم يتخلصوا من أوراقهم يحصلون على نقاط بناءً على عدد الأوراق المتبقية:',
+    scoring1to7: '• 1-7 أوراق متبقية = 1 نقطة',
+    scoring8to10: '• 8-10 أوراق متبقية = 2 نقطة',
+    scoring11to12: '• 11-12 ورقة متبقية = 3 نقاط',
+    scoringWarning: 'تحذير: أول لاعب يصل إلى أكثر من 100 نقطة يخسر اللعبة! اللاعب صاحب أقل نقاط يفوز.',
+    letsPlay: 'هيا نلعب!',
+  },
 };
 
 // German translations
@@ -1005,6 +1242,8 @@ const de: Translations = {
     leave: 'Verlassen',
     leftRoom: 'Raum verlassen',
     leaveRoomConfirm: 'Raum verlassen?',
+    howToPlay: '📖 Wie man spielt',
+    howToPlayDescription: 'Spielregeln lernen',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -1033,6 +1272,42 @@ const de: Translations = {
     leaveGameConfirm: 'Spiel verlassen?',
     leaveGameMessage: 'Bist du sicher, dass du gehen möchtest? Dein Fortschritt geht verloren.',
     stay: 'Bleiben',
+  },
+  gameEnd: {
+    gameWinner: 'Spielgewinner',
+    finalStandings: 'Endstand',
+    scoreHistory: 'Punkteverlauf',
+    playHistory: 'Spielverlauf',
+    shareResults: 'Ergebnisse teilen',
+    playAgain: 'Nochmal spielen',
+    returnToMenu: 'Zurück zum Menü',
+    loadingResults: 'Ergebnisse werden geladen...',
+    noScoreHistory: 'Kein Punkteverlauf verfügbar',
+    scoresWillAppear: 'Punkte erscheinen hier, wenn Matches gespielt werden',
+    noPlayHistory: 'Kein Spielverlauf verfügbar',
+    playsWillAppear: 'Kartenspiele erscheinen hier, wenn Hände gespielt werden',
+    match: 'Match',
+    hand: 'Hand',
+    hands: 'Hände',
+    points: 'Pkte',
+    latest: 'Neueste',
+    matchByMatch: 'Punktestand Match für Match',
+    cardPlayHistory: 'Kartenspiel-Verlauf',
+    tapToExpand: 'Tippen Sie auf Matches zum Erweitern/Zuklappen',
+    playAgainTitle: 'Nochmal spielen',
+    playAgainMessage: 'Ein neues Spiel mit denselben Spielern starten?',
+    newGame: 'Neues Spiel',
+    returnToMenuTitle: 'Zurück zum Menü',
+    returnToMenuMessage: 'Das aktuelle Spiel verlassen und zum Hauptmenü zurückkehren?',
+    leaveGame: 'Spiel verlassen',
+    shareError: 'Fehler beim Teilen',
+    shareErrorMessage: 'Ergebnisse konnten nicht geteilt werden. Bitte erneut versuchen.',
+    restartError: 'Fehler',
+    restartErrorMessage: 'Spiel konnte nicht neu gestartet werden. Bitte erneut versuchen.',
+    leaveError: 'Fehler',
+    leaveErrorMessage: 'Spiel konnte nicht verlassen werden. Bitte erneut versuchen.',
+    matchesPlayed: 'gespielte Matches',
+    oneMatch: 'Match',
   },
   lobby: {
     title: 'Spiellobby',
@@ -1173,6 +1448,51 @@ const de: Translations = {
     signInWithApple: 'Mit Apple anmelden',
     orContinueWith: 'Oder fortfahren mit',
     agreeToTerms: 'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
+  },
+  howToPlay: {
+    title: 'Spielanleitung',
+    objectiveTitle: '🎯 Ziel',
+    objectiveText: 'Sei der erste Spieler, der alle seine Karten loswird. Der letzte Spieler mit Karten verliert.',
+    rankOrderLabel: '🃏 Rangfolge (vom niedrigsten zum höchsten):',
+    rankOrder: '3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2',
+    suitOrderLabel: '🎴 Farbenrangfolge (bei gleichem Rang):',
+    suitOrder: '♦ Karo, ♣ Kreuz, ♥ Herz, ♠ Pik',
+    noteText: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
+    combinationsTitle: '🎮 Gültige Kombinationen',
+    singleLabel: '1️⃣ Einzelkarte:',
+    singleText: 'Eine beliebige einzelne Karte',
+    pairLabel: '2️⃣ Paar:',
+    pairText: 'Zwei Karten mit demselben Rang (Beispiel: 7♦ & 7♥)',
+    tripleLabel: '3️⃣ Drilling:',
+    tripleText: 'Drei Karten mit demselben Rang (Beispiel: Q♣, Q♦, Q♠)',
+    fiveCardCombosLabel: '5️⃣ 5-Karten-Kombinationen:',
+    straightLabel: '▪ Straße:',
+    straightText: '5 aufeinanderfolgende Karten (Beispiel: 5, 6, 7, 8, 9)',
+    flushLabel: '▪ Flush:',
+    flushText: '5 Karten derselben Farbe',
+    fullHouseLabel: '▪ Full House:',
+    fullHouseText: 'Drilling + Paar (Beispiel: 8, 8, 8 + K, K)',
+    fourOfAKindLabel: '▪ Vierling:',
+    fourOfAKindText: '4 Karten mit demselben Rang + beliebige 5. Karte (Beispiel: A, A, A, A + 5)',
+    straightFlushLabel: '▪ Straight Flush:',
+    straightFlushText: '5 aufeinanderfolgende Karten derselben Farbe (stärkste Kombination!)',
+    gameplayTitle: '⚡ Spielablauf',
+    gameplayPoint1: '• Der Spieler mit der Karo 3 (3♦) startet die erste Runde',
+    gameplayPoint2: '• Du musst denselben Kombinationstyp (Einzelkarte, Paar usw.) spielen, aber höher',
+    gameplayPoint3: '• Wenn du nicht kannst oder willst, drücke "Passen"',
+    gameplayPoint4: '• Wenn alle Spieler passen, startet der letzte Spieler eine neue Runde',
+    gameplayPoint5: '• Spiele weiter, bis ein Spieler alle seine Karten losgeworden ist!',
+    specialRulesTitle: '💡 Spezielle Regeln',
+    specialRule1: '• Schwächere 5-Karten-Kombinationen können stärkere nicht schlagen',
+    specialRule2: '• Straight Flush > Vierling > Full House > Flush > Straße',
+    specialRule3: '• Du kannst die Hilfsschaltflächen (Sortieren, Smart, Hinweis) verwenden, um deine Karten zu ordnen',
+    scoringTitle: '🏆 Punktesystem',
+    scoringIntro: 'Am Ende jeder Runde erhalten Spieler, die ihre Karten nicht losgeworden sind, Punkte basierend auf ihren verbleibenden Karten:',
+    scoring1to7: '• 1-7 verbleibende Karten = 1 Punkt',
+    scoring8to10: '• 8-10 verbleibende Karten = 2 Punkte',
+    scoring11to12: '• 11-12 verbleibende Karten = 3 Punkte',
+    scoringWarning: 'Warnung: Der erste Spieler, der über 100 Punkte erreicht, verliert das Spiel! Der Spieler mit der niedrigsten Punktzahl gewinnt.',
+    letsPlay: 'Los geht\'s!',
   },
 };
 
