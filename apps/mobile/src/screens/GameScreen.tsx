@@ -648,13 +648,13 @@ function GameScreenContent() {
               onCardsReorder={handleCardsReorder}
             />
           </View>
-          
-          {/* Game End Modal (Task #415) - CRITICAL FIX: Wrapped in error boundary */}
-          <GameEndErrorBoundary onReset={() => {}}>
-            <GameEndModal />
-          </GameEndErrorBoundary>
         </>
       )}
+      
+      {/* Game End Modal (Task #415) - CRITICAL FIX: Render OUTSIDE orientation conditional so it works in BOTH portrait AND landscape */}
+      <GameEndErrorBoundary onReset={() => {}}>
+        <GameEndModal />
+      </GameEndErrorBoundary>
       
       {/* Game Settings Modal - WORKS IN BOTH PORTRAIT AND LANDSCAPE */}
       <GameSettingsModal

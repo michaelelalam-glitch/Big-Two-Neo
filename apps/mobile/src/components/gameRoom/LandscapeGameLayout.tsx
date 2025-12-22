@@ -180,7 +180,7 @@ export function LandscapeGameLayout({
           <PlayHistoryModal
             visible={showPlayHistory}
             onClose={() => setShowPlayHistory(false)}
-            playerNames={originalPlayerNames || playerNames}
+            playerNames={originalPlayerNames}
             playHistory={playHistory}
             currentMatch={matchNumber}
             collapsedMatches={collapsedMatches}

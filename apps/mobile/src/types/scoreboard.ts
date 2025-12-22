@@ -96,9 +96,9 @@ export interface ScoreboardProps {
   isGameFinished: boolean;        // Whether the entire game session is finished
   scoreHistory: ScoreHistory[];   // All completed matches' score history
   playHistory: PlayHistoryMatch[]; // All matches' play history
-  /** Original player names in game engine order (not reordered)
+  /** Original player names in game engine order (not reordered) - REQUIRED
    * Use this for mapping play history actions to correct players in game state order */
-  originalPlayerNames?: string[];
+  originalPlayerNames: string[];
   onToggleExpand?: () => void;    // Callback for expand/collapse button
   onTogglePlayHistory?: () => void; // Callback for play history button
 }
