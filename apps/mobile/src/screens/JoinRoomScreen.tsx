@@ -131,7 +131,7 @@ export default function JoinRoomScreen() {
       </View>
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ flexGrow: 1, padding: SPACING.lg }}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>

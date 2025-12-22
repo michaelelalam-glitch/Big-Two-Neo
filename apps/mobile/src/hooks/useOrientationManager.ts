@@ -95,14 +95,12 @@ export function useOrientationManager(): OrientationManagerState {
     // Ensure orientation is unlocked when leaving GameScreen to restore auto-rotation on other screens
     return () => {
       ScreenOrientation.removeOrientationChangeListener(subscription);
-      // Unlock to allow auto-rotation on other screens - check for pending operations to avoid race conditions
-      if (!pendingOrientationChange.current) {
-        ScreenOrientation.unlockAsync().then(() => {
-          gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
-        }).catch((error: any) => {
-          gameLogger.error('❌ [Orientation] Failed to unlock:', error);
-        });
-      }
+      // Unlock to allow auto-rotation on other screens
+      ScreenOrientation.unlockAsync().then(() => {
+        gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
+      }).catch((error: any) => {
+        gameLogger.error('❌ [Orientation] Failed to unlock:', error);
+      });
     };
   }, []);
 

@@ -361,7 +361,7 @@ export default function LobbyScreen() {
     }
   };
 
-  const renderPlayer = ({ item }: { item: Player | null }) => {
+  const renderPlayer = ({ item, index }: { item: Player | null; index: number }) => {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>
@@ -438,7 +438,7 @@ export default function LobbyScreen() {
         <View style={styles.playerList}>
           {playerSlots.map((item, index) => (
             <View key={`player-slot-${index}`}>
-              {renderPlayer({ item })}
+              {renderPlayer({ item, index })}
             </View>
           ))}
         </View>

@@ -14,8 +14,8 @@ import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
-// Action cooldown to prevent rapid double-taps (milliseconds)
-const ACTION_COOLDOWN_MS = 300;
+// Delay between user actions to prevent rapid repeated presses (milliseconds)
+const ACTION_DEBOUNCE_MS = 300;
 import { soundManager, hapticManager, SoundType, showError, showConfirm, performanceMonitor } from '../utils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -345,7 +345,7 @@ function GameScreenContent() {
         if (isMountedRef.current) {
           setIsPlayingCards(false);
         }
-      }, ACTION_COOLDOWN_MS);
+      }, ACTION_DEBOUNCE_MS);
     }
   }, [gameManagerRef, isPlayingCards, isMountedRef, customCardOrder, playerHand]);
 
@@ -396,7 +396,7 @@ function GameScreenContent() {
         if (isMountedRef.current) {
           setIsPassing(false);
         }
-      }, ACTION_COOLDOWN_MS);
+      }, ACTION_DEBOUNCE_MS);
     }
   }, [gameManagerRef, isPassing, isMountedRef]);
 
@@ -412,11 +412,17 @@ function GameScreenContent() {
 
   // Callback handlers for GameControls component (for portrait mode)
   const handlePlaySuccess = () => {
-    // Already handled in handlePlayCards above
+    // Clear selection after successful play (for portrait mode)
+    if (isMountedRef.current) {
+      setSelectedCardIds(new Set());
+    }
   };
 
   const handlePassSuccess = () => {
-    // Already handled in handlePass above
+    // Clear selection after successful pass (for portrait mode)
+    if (isMountedRef.current) {
+      setSelectedCardIds(new Set());
+    }
   };
 
   // Wrapper for CardHand drag-to-play: calls GameControls' handlePlayCards
