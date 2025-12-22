@@ -34,6 +34,7 @@ import * as Haptics from 'expo-haptics';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
 import { CardImage } from '../scoreboard/components/CardImage';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -158,7 +159,7 @@ export const GameEndModal: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sharing results:', error);
-      Alert.alert('Share Error', 'Failed to share results. Please try again.');
+      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
     }
   };
 
@@ -198,15 +199,15 @@ export const GameEndModal: React.FC = () => {
     }
     
     Alert.alert(
-      'Play Again',
-      'Start a new game with the same players?',
+      i18n.t('gameEnd.playAgainTitle'),
+      i18n.t('gameEnd.playAgainMessage'),
       [
         {
-          text: 'Cancel',
+          text: i18n.t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'New Game',
+          text: i18n.t('gameEnd.newGame'),
           onPress: async () => {
             try {
               // Close the modal first
@@ -218,7 +219,7 @@ export const GameEndModal: React.FC = () => {
               }
             } catch (error) {
               console.error('Error restarting game:', error);
-              Alert.alert('Error', 'Failed to restart game. Please try again.');
+              Alert.alert(i18n.t('gameEnd.restartError'), i18n.t('gameEnd.restartErrorMessage'));
             }
           },
         },
@@ -236,15 +237,15 @@ export const GameEndModal: React.FC = () => {
     }
     
     Alert.alert(
-      'Return to Menu',
-      'Leave the current game and return to the main menu?',
+      i18n.t('gameEnd.returnToMenuTitle'),
+      i18n.t('gameEnd.returnToMenuMessage'),
       [
         {
-          text: 'Stay',
+          text: i18n.t('game.stay'),
           style: 'cancel',
         },
         {
-          text: 'Leave Game',
+          text: i18n.t('gameEnd.leaveGame'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -257,7 +258,7 @@ export const GameEndModal: React.FC = () => {
               }
             } catch (error) {
               console.error('Error leaving game:', error);
-              Alert.alert('Error', 'Failed to leave game. Please try again.');
+              Alert.alert(i18n.t('gameEnd.leaveError'), i18n.t('gameEnd.leaveErrorMessage'));
             }
           },
         },
@@ -295,7 +296,7 @@ export const GameEndModal: React.FC = () => {
         <View style={[styles.backdrop, { justifyContent: 'center', alignItems: 'center' }]}>
           <View style={[styles.modalContainer, { justifyContent: 'center', alignItems: 'center', padding: 40 }]}>
             <ActivityIndicator size="large" color="#60a5fa" />
-            <Text style={{ color: '#f3f4f6', marginTop: 16, fontSize: 16 }}>Loading results...</Text>
+            <Text style={{ color: '#f3f4f6', marginTop: 16, fontSize: 16 }}>{i18n.t('gameEnd.loadingResults')}</Text>
           </View>
         </View>
       </Modal>
@@ -414,7 +415,7 @@ const WinnerAnnouncement: React.FC<WinnerAnnouncementProps> = ({
 }) => {
   return (
     <View style={styles.winnerSection}>
-      <Text style={styles.winnerLabel}>Game Winner</Text>
+      <Text style={styles.winnerLabel}>{i18n.t('gameEnd.gameWinner')}</Text>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <Text style={styles.winnerName}>
           🏆 {winnerName} 🏆
@@ -460,7 +461,7 @@ const FinalStandings: React.FC<FinalStandingsProps> = ({
 
   return (
     <View style={styles.standingsSection}>
-      <Text style={styles.standingsTitle}>Final Standings</Text>
+      <Text style={styles.standingsTitle}>{i18n.t('gameEnd.finalStandings')}</Text>
       <View style={styles.standingsList}>
         {sortedScores.map((player, index) => {
           const isWinner = player.player_index === winnerIndex;
@@ -478,7 +479,7 @@ const FinalStandings: React.FC<FinalStandingsProps> = ({
               </Text>
               
               <Text style={[styles.playerScore, { color: scoreColor }]}>
-                {player.cumulative_score} pts
+                {player.cumulative_score} {i18n.t('gameEnd.points')}
               </Text>
             </View>
           );
@@ -526,7 +527,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
           activeOpacity={0.7}
         >
           <Text style={[styles.tabButtonText, activeTab === 'score' && styles.tabButtonTextActive]}>
-            Score History
+            {i18n.t('gameEnd.scoreHistory')}
           </Text>
         </TouchableOpacity>
         
@@ -536,7 +537,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
           activeOpacity={0.7}
         >
           <Text style={[styles.tabButtonText, activeTab === 'play' && styles.tabButtonTextActive]}>
-            Play History
+            {i18n.t('gameEnd.playHistory')}
           </Text>
         </TouchableOpacity>
         
@@ -579,8 +580,8 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       <View style={styles.tabContent}>
         <View style={styles.emptyStateContainer}>
           <Text style={styles.emptyStateIcon}>📊</Text>
-          <Text style={styles.emptyText}>No score history available</Text>
-          <Text style={styles.emptySubtext}>Scores will appear here as matches are played</Text>
+          <Text style={styles.emptyText}>{i18n.t('gameEnd.noScoreHistory')}</Text>
+          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.scoresWillAppear')}</Text>
         </View>
       </View>
     );
@@ -592,7 +593,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.tabScrollContent}
     >
-      <Text style={styles.historyTitle}>Match-by-Match Scores</Text>
+      <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
       
       {scoreHistory.map((match, matchIndex) => {
         // Calculate if any player busted (>100) in this match
@@ -609,11 +610,11 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
           >
             <View style={styles.scoreHistoryHeader}>
               <Text style={styles.matchNumber}>
-                Match {match.matchNumber}
+                {i18n.t('gameEnd.match')} {match.matchNumber}
               </Text>
               {matchIndex === scoreHistory.length - 1 && (
                 <View style={styles.latestBadge}>
-                  <Text style={styles.latestBadgeText}>Latest</Text>
+                  <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
                 </View>
               )}
             </View>
@@ -635,7 +636,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                             isBusted && styles.scoreHistoryBustedText
                           ]}
                         >
-                          {score} pts
+                          {score} {i18n.t('gameEnd.points')}
                         </Text>
                         <Text 
                           style={[
@@ -657,7 +658,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       
       <View style={styles.tabContentFooter}>
         <Text style={styles.tabContentFooterText}>
-          {scoreHistory.length} {scoreHistory.length === 1 ? 'match' : 'matches'} played
+          {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
         </Text>
       </View>
     </ScrollView>
@@ -706,8 +707,8 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       <View style={styles.tabContent}>
         <View style={styles.emptyStateContainer}>
           <Text style={styles.emptyStateIcon}>🃏</Text>
-          <Text style={styles.emptyText}>No play history available</Text>
-          <Text style={styles.emptySubtext}>Card plays will appear here as hands are played</Text>
+          <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
+          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
         </View>
       </View>
     );
@@ -762,17 +763,17 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         >
           <View style={styles.playHistoryMatchHeaderLeft}>
             <Text style={styles.matchNumber}>
-              Match {item.data.matchNumber}
+              {i18n.t('gameEnd.match')} {item.data.matchNumber}
             </Text>
             <Text style={styles.playHistoryHandCount}>
-              {item.data.handCount} {item.data.handCount === 1 ? 'hand' : 'hands'}
+              {item.data.handCount} {item.data.handCount === 1 ? i18n.t('gameEnd.hand') : i18n.t('gameEnd.hands')}
             </Text>
           </View>
           
           <View style={styles.playHistoryMatchHeaderRight}>
             {item.data.isLatestMatch && (
               <View style={styles.latestBadge}>
-                <Text style={styles.latestBadgeText}>Latest</Text>
+                <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
               </View>
             )}
             <Text style={styles.expandIcon}>
@@ -837,7 +838,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       
       <View style={styles.tabContentFooter}>
         <Text style={styles.tabContentFooterText}>
-          Tap matches to expand/collapse
+          {i18n.t('gameEnd.tapToExpand')}
         </Text>
       </View>
     </ScrollView>
@@ -866,7 +867,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         onPress={onShare}
         activeOpacity={0.8}
       >
-        <Text style={styles.actionButtonText}>📤 Share Results</Text>
+        <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -874,7 +875,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         onPress={onPlayAgain}
         activeOpacity={0.8}
       >
-        <Text style={styles.actionButtonText}>🔄 Play Again</Text>
+        <Text style={styles.actionButtonText}>🔄 {i18n.t('gameEnd.playAgain')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -882,7 +883,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         onPress={onReturnToMenu}
         activeOpacity={0.8}
       >
-        <Text style={styles.actionButtonText}>🏠 Return to Menu</Text>
+        <Text style={styles.actionButtonText}>🏠 {i18n.t('gameEnd.returnToMenu')}</Text>
       </TouchableOpacity>
     </View>
   );

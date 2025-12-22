@@ -217,6 +217,44 @@ export interface Translations {
     stay: string;
   };
   
+  // Game End Modal
+  gameEnd: {
+    gameWinner: string;
+    finalStandings: string;
+    scoreHistory: string;
+    playHistory: string;
+    shareResults: string;
+    playAgain: string;
+    returnToMenu: string;
+    loadingResults: string;
+    noScoreHistory: string;
+    scoresWillAppear: string;
+    noPlayHistory: string;
+    playsWillAppear: string;
+    match: string;
+    hand: string;
+    hands: string;
+    points: string;
+    latest: string;
+    matchByMatch: string;
+    cardPlayHistory: string;
+    tapToExpand: string;
+    playAgainTitle: string;
+    playAgainMessage: string;
+    newGame: string;
+    returnToMenuTitle: string;
+    returnToMenuMessage: string;
+    leaveGame: string;
+    shareError: string;
+    shareErrorMessage: string;
+    restartError: string;
+    restartErrorMessage: string;
+    leaveError: string;
+    leaveErrorMessage: string;
+    matchesPlayed: string;
+    oneMatch: string;
+  };
+  
   // Lobby Screen
   lobby: {
     title: string;
@@ -548,6 +586,42 @@ const en: Translations = {
     leaveGameMessage: 'Are you sure you want to leave? Your progress will be lost.',
     stay: 'Stay',
   },
+  gameEnd: {
+    gameWinner: 'Game Winner',
+    finalStandings: 'Final Standings',
+    scoreHistory: 'Score History',
+    playHistory: 'Play History',
+    shareResults: 'Share Results',
+    playAgain: 'Play Again',
+    returnToMenu: 'Return to Menu',
+    loadingResults: 'Loading results...',
+    noScoreHistory: 'No score history available',
+    scoresWillAppear: 'Scores will appear here as matches are played',
+    noPlayHistory: 'No play history available',
+    playsWillAppear: 'Card plays will appear here as hands are played',
+    match: 'Match',
+    hand: 'hand',
+    hands: 'hands',
+    points: 'pts',
+    latest: 'Latest',
+    matchByMatch: 'Match-by-Match Scores',
+    cardPlayHistory: 'Card Play History',
+    tapToExpand: 'Tap matches to expand/collapse',
+    playAgainTitle: 'Play Again',
+    playAgainMessage: 'Start a new game with the same players?',
+    newGame: 'New Game',
+    returnToMenuTitle: 'Return to Menu',
+    returnToMenuMessage: 'Leave the current game and return to the main menu?',
+    leaveGame: 'Leave Game',
+    shareError: 'Share Error',
+    shareErrorMessage: 'Failed to share results. Please try again.',
+    restartError: 'Error',
+    restartErrorMessage: 'Failed to restart game. Please try again.',
+    leaveError: 'Error',
+    leaveErrorMessage: 'Failed to leave game. Please try again.',
+    matchesPlayed: 'matches played',
+    oneMatch: 'match',
+  },
   lobby: {
     title: 'Game Lobby',
     roomCode: 'Room Code',
@@ -832,6 +906,42 @@ const ar: Translations = {
     leaveGameConfirm: 'مغادرة اللعبة؟',
     leaveGameMessage: 'هل أنت متأكد أنك تريد المغادرة؟ سيتم فقدان تقدمك.',
     stay: 'البقاء',
+  },
+  gameEnd: {
+    gameWinner: 'فائز اللعبة',
+    finalStandings: 'التصنيف النهائي',
+    scoreHistory: 'سجل النقاط',
+    playHistory: 'سجل اللعب',
+    shareResults: 'مشاركة النتائج',
+    playAgain: 'العب مرة أخرى',
+    returnToMenu: 'العودة إلى القائمة',
+    loadingResults: 'جارٍ تحميل النتائج...',
+    noScoreHistory: 'لا يوجد سجل نقاط متاح',
+    scoresWillAppear: 'ستظهر النقاط هنا عند لعب المباريات',
+    noPlayHistory: 'لا يوجد سجل لعب متاح',
+    playsWillAppear: 'ستظهر اللعبات هنا عند لعب الأيدي',
+    match: 'مباراة',
+    hand: 'يد',
+    hands: 'أيدي',
+    points: 'نقاط',
+    latest: 'الأحدث',
+    matchByMatch: 'النقاط مباراة تلو الأخرى',
+    cardPlayHistory: 'سجل لعب البطاقات',
+    tapToExpand: 'اضغط على المباريات للتوسيع/الطي',
+    playAgainTitle: 'العب مرة أخرى',
+    playAgainMessage: 'بدء لعبة جديدة مع نفس اللاعبين؟',
+    newGame: 'لعبة جديدة',
+    returnToMenuTitle: 'العودة إلى القائمة',
+    returnToMenuMessage: 'غادر اللعبة الحالية والعودة إلى القائمة الرئيسية؟',
+    leaveGame: 'مغادرة اللعبة',
+    shareError: 'خطأ في المشاركة',
+    shareErrorMessage: 'فشلت مشاركة النتائج. حاول مرة أخرى.',
+    restartError: 'خطأ',
+    restartErrorMessage: 'فشل إعادة تشغيل اللعبة. حاول مرة أخرى.',
+    leaveError: 'خطأ',
+    leaveErrorMessage: 'فشلت مغادرة اللعبة. حاول مرة أخرى.',
+    matchesPlayed: 'مباريات ملعوبة',
+    oneMatch: 'مباراة',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -1162,6 +1272,42 @@ const de: Translations = {
     leaveGameConfirm: 'Spiel verlassen?',
     leaveGameMessage: 'Bist du sicher, dass du gehen möchtest? Dein Fortschritt geht verloren.',
     stay: 'Bleiben',
+  },
+  gameEnd: {
+    gameWinner: 'Spielgewinner',
+    finalStandings: 'Endstand',
+    scoreHistory: 'Punkteverlauf',
+    playHistory: 'Spielverlauf',
+    shareResults: 'Ergebnisse teilen',
+    playAgain: 'Nochmal spielen',
+    returnToMenu: 'Zurück zum Menü',
+    loadingResults: 'Ergebnisse werden geladen...',
+    noScoreHistory: 'Kein Punkteverlauf verfügbar',
+    scoresWillAppear: 'Punkte erscheinen hier, wenn Matches gespielt werden',
+    noPlayHistory: 'Kein Spielverlauf verfügbar',
+    playsWillAppear: 'Kartenspiele erscheinen hier, wenn Hände gespielt werden',
+    match: 'Match',
+    hand: 'Hand',
+    hands: 'Hände',
+    points: 'Pkte',
+    latest: 'Neueste',
+    matchByMatch: 'Punktestand Match für Match',
+    cardPlayHistory: 'Kartenspiel-Verlauf',
+    tapToExpand: 'Tippen Sie auf Matches zum Erweitern/Zuklappen',
+    playAgainTitle: 'Nochmal spielen',
+    playAgainMessage: 'Ein neues Spiel mit denselben Spielern starten?',
+    newGame: 'Neues Spiel',
+    returnToMenuTitle: 'Zurück zum Menü',
+    returnToMenuMessage: 'Das aktuelle Spiel verlassen und zum Hauptmenü zurückkehren?',
+    leaveGame: 'Spiel verlassen',
+    shareError: 'Fehler beim Teilen',
+    shareErrorMessage: 'Ergebnisse konnten nicht geteilt werden. Bitte erneut versuchen.',
+    restartError: 'Fehler',
+    restartErrorMessage: 'Spiel konnte nicht neu gestartet werden. Bitte erneut versuchen.',
+    leaveError: 'Fehler',
+    leaveErrorMessage: 'Spiel konnte nicht verlassen werden. Bitte erneut versuchen.',
+    matchesPlayed: 'gespielte Matches',
+    oneMatch: 'Match',
   },
   lobby: {
     title: 'Spiellobby',
