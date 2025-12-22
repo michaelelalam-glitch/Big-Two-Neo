@@ -9,13 +9,15 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
+import type { Rank, Suit } from '../../../game/types';
 
 interface CardImageProps {
-  rank: string; // A, 2-10, J, Q, K
-  suit: string; // H, D, C, S
+  rank: Rank | string; // Allow both typed and string for flexibility
+  suit: Suit | string; // Allow both typed and string for flexibility
   width?: number;
   height?: number;
+  style?: ViewStyle;
 }
 
 // Suit colors matching game cards

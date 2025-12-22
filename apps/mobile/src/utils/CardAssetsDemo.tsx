@@ -6,13 +6,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { CardImage } from '../components/scoreboard/components/CardImage';
+import type { Rank, Suit } from '../game/types';
 
 /**
  * Example: Display some sample cards
  */
 export function CardAssetsDemo() {
   // Example cards from a Big Two game
-  const sampleHand = [
+  const sampleHand: Array<{ rank: Rank; suit: Suit }> = [
     { rank: '3', suit: 'D' },  // 3 of Diamonds (starting card)
     { rank: '5', suit: 'H' },  // 5 of Hearts
     { rank: '10', suit: 'S' }, // 10 of Spades

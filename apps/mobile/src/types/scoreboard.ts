@@ -10,8 +10,8 @@
  * Date: December 12, 2025
  */
 
-// Import Card from multiplayer types
-export type { Card } from './multiplayer';
+// Import Card from game types
+import type { Card } from '../game/types';
 
 // ============================================================================
 // SCORE HISTORY TYPES
