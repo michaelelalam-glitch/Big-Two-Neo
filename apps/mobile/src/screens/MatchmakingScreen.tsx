@@ -314,7 +314,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-    fontSize: FONT_SIZES.sm,
-    textAlign: 'center',
-  },
-});
