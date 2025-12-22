@@ -304,6 +304,14 @@ export default function HomeScreen() {
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity
+            style={[styles.mainButton, styles.findMatchButton]}
+            onPress={() => navigation.navigate('Matchmaking')}
+          >
+            <Text style={styles.mainButtonText}>🎯 Find Match (NEW!)</Text>
+            <Text style={styles.mainButtonSubtext}>Quick 4-player match with skill-based pairing</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.mainButton, styles.quickPlayButton, isQuickPlaying && styles.buttonDisabled]}
             onPress={() => void handleQuickPlay()}
             disabled={isQuickPlaying}
@@ -463,6 +471,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  findMatchButton: {
+    backgroundColor: '#EC4899', // Pink - Highlighted for NEW feature
+    borderWidth: 2,
+    borderColor: '#F472B6',
   },
   quickPlayButton: {
     backgroundColor: '#10B981', // Green
