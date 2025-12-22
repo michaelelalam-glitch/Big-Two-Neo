@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/services/supabase';
+import { supabase } from '../services/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface WaitingRoomEntry {
