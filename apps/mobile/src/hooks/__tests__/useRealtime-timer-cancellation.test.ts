@@ -4,29 +4,13 @@
  * Tests ensure timers are properly canceled when players pass or play cards
  */
 
+// Mock Supabase BEFORE imports
+jest.mock('../../services/supabase');
+
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import { supabase } from '../../services/supabase';
 import type { Card, GameState, Player, AutoPassTimerState } from '../../types/multiplayer';
-
-// Mock Supabase client
-jest.mock('../../services/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn(),
-      update: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-    })),
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-      send: jest.fn(),
-      unsubscribe: jest.fn(),
-    })),
-  },
-}));
 
 // Mock network logger
 jest.mock('../../utils/logger', () => ({

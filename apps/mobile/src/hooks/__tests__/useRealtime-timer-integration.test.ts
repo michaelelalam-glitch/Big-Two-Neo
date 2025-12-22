@@ -5,29 +5,12 @@
  * verifying that timer state updates propagate correctly through the system.
  */
 
+// Mock Supabase BEFORE imports
+jest.mock('../../services/supabase');
+
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import type { AutoPassTimerState, BroadcastEvent } from '../../types/multiplayer';
-
-// Mock Supabase
-jest.mock('../../services/supabase', () => ({
-  supabase: {
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn((callback: any) => {
-        callback('SUBSCRIBED');
-        return Promise.resolve();
-      }),
-      unsubscribe: jest.fn(),
-      track: jest.fn(),
-    })),
-    removeChannel: jest.fn(),
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn(() => Promise.resolve({ data: null, error: null })),
-      order: jest.fn().mockReturnThis(),
-    })),
   },
 }));
 

@@ -2,19 +2,13 @@
  * Tests for useRealtime hook and multiplayer functionality
  */
 
+// Mock Supabase BEFORE imports to prevent initialization error
+jest.mock('../../services/supabase');
+
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import { supabase } from '../../services/supabase';
 import type { Card } from '../../game/types';
-
-// Mock Supabase
-jest.mock('../../services/supabase', () => ({
-  supabase: {
-    channel: jest.fn(),
-    removeChannel: jest.fn(),
-    from: jest.fn(),
-  },
-}));
 
 // Helper to create test cards with proper typing
 const createCard = (rank: Card['rank'], suit: Card['suit']): Card => ({

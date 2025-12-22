@@ -42,5 +42,7 @@ module.exports = {
     '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',
     '^../../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
     '^../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
+    '^../../services/pushNotificationTriggers$': '<rootDir>/src/__tests__/__mocks__/pushNotificationTriggers.ts',
+    '^../services/pushNotificationTriggers$': '<rootDir>/src/__tests__/__mocks__/pushNotificationTriggers.ts',
   },
 };
