@@ -465,7 +465,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       // Send push notifications to all players
       notifyGameStarted(room.id, room.code).catch(err => 
-        roomLogger.error('❌ Failed to send game start notifications:', err)
+        networkLogger.error('❌ Failed to send game start notifications:', err)
       );
       
       // Create initial game state

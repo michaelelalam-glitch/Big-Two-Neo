@@ -112,15 +112,15 @@ export default function HowToPlayScreen() {
             </>
           ) : (
             <>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.single)}</Text> {t(keys.singleText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.pair)}</Text> {t(keys.pairText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.triple)}</Text> {t(keys.tripleText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fiveCardCombos)}</Text></Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.straight)}</Text> {t(keys.straightText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.flush)}</Text> {t(keys.flushText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fullHouse)}</Text> {t(keys.fullHouseText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fourOfAKind)}</Text> {t(keys.fourOfAKindText)}</Text>
-              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.straightFlush)}</Text> {t(keys.straightFlushText)}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.single) || ''}</Text> {t(keys.singleText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.pair) || ''}</Text> {t(keys.pairText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.triple) || ''}</Text> {t(keys.tripleText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fiveCardCombos || '') || ''}</Text></Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.straight) || ''}</Text> {t(keys.straightText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.flush) || ''}</Text> {t(keys.flushText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fullHouse) || ''}</Text> {t(keys.fullHouseText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.fourOfAKind) || ''}</Text> {t(keys.fourOfAKindText || '') || ''}</Text>
+              <Text style={styles.body}><Text style={{fontWeight:'bold'}}>{t(keys.straightFlush) || ''}</Text> {t(keys.straightFlushText || '') || ''}</Text>
             </>
           )}
         </View>

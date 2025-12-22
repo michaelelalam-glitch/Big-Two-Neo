@@ -46,8 +46,9 @@ export interface RoomPlayerWithRoom {
 // Export multiplayer types
 export * from './multiplayer';
 
-// Export scoreboard types
-export * from './scoreboard';
+// Export scoreboard types explicitly to avoid conflicts
+export type { PlayHistoryHand, PlayHistoryMatch, ScoreHistory, HandCardProps } from './scoreboard';
+export type { Scoreboard } from './scoreboard';
 
 // Export game end types
 export * from './gameEnd';

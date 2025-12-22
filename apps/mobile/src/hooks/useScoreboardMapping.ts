@@ -4,11 +4,11 @@ import type { GameState, Player } from '../game/state';
 /**
  * Maps players array to scoreboard display order [0, 3, 1, 2]
  * Matches counter-clockwise physical positions: You → Bot1(right) → Bot2(top) → Bot3(left)
- * @param players - Array of 4 players in game state order
- * @param mapper - Function to extract desired property from each player
+ * @param players - Array of 4 items in game state order
+ * @param mapper - Function to extract desired property from each item
  * @returns Array of values in scoreboard display order
  */
-function mapPlayersToScoreboardOrder<T>(players: Player[], mapper: (player: Player) => T): T[] {
+function mapPlayersToScoreboardOrder<T, U>(players: T[], mapper: (player: T) => U): U[] {
   // Scoreboard display order: [player 0, player 3, player 1, player 2]
   // Physical layout (both portrait & landscape):
   //   - Player 0: You (bottom)

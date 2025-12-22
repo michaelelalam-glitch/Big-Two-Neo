@@ -305,7 +305,7 @@ export default function HomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.mainButton, styles.quickPlayButton, isQuickPlaying && styles.buttonDisabled]}
-            onPress={handleQuickPlay}
+            onPress={() => void handleQuickPlay()}
             disabled={isQuickPlaying}
           >
             {isQuickPlaying ? (
