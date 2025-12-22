@@ -10,6 +10,24 @@
 // Mock expo-av before imports
 jest.mock('expo-av');
 
+// Mock soundManager to prevent .m4a file parse errors
+jest.mock('../../utils/soundManager', () => ({
+  soundManager: {
+    playSound: jest.fn(),
+    stopSound: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
+    getState: jest.fn().mockReturnValue({ enabled: true, volume: 1.0 }),
+  },
+  SoundType: {
+    GAME_START: 'GAME_START',
+    HIGHEST_CARD: 'HIGHEST_CARD',
+    CARD_PLAY: 'CARD_PLAY',
+    PASS: 'PASS',
+    WINNER: 'WINNER',
+  },
+}));
+
 import { soundManager, SoundType } from '../../utils/soundManager';
 
 describe('Memory Leak Test - soundManager', () => {
