@@ -18,6 +18,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import HowToPlayScreen from '../screens/HowToPlayScreen';
 import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
 import MatchmakingScreen from '../screens/MatchmakingScreen';
+import MatchHistoryScreen from '../screens/MatchHistoryScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   Lobby: { roomCode: string };
   Game: { roomCode: string };
   Leaderboard: undefined;
+  MatchHistory: undefined;
   Stats: { userId?: string };
   NotificationSettings: undefined;
   Settings: undefined;
@@ -83,6 +85,7 @@ export default function AppNavigator() {
               <Stack.Screen name="Lobby" component={LobbyScreen} />
               <Stack.Screen name="Game" component={GameScreen} />
               <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+              <Stack.Screen name="MatchHistory" component={MatchHistoryScreen} />
               <Stack.Screen name="Stats" component={StatsScreen} />
               <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
