@@ -61,12 +61,12 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          pnpm run test:unit -- --passWithNoTests
+          pnpm run test:unit --passWithNoTests
       
       - name: 🧪 Run integration tests
         run: |
           cd apps/mobile
-          pnpm run test:integration -- --passWithNoTests
+          pnpm run test:integration --passWithNoTests
         env:
           # Add test environment variables if needed
           CI: true
