@@ -274,10 +274,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151', // Dark gray
     borderWidth: 1,
     borderColor: '#6b7280',
+    minWidth: 110,
+    width: 150, // Increased from 140 to 150 for German 'Sortieren'
+    maxWidth: 170,
+    flexShrink: 0,
+    alignSelf: 'center',
   },
 
   buttonTextSort: {
     color: '#D1D5DB', // Light gray text
+    fontSize: 13, // Slightly smaller to fit 'Sortieren'
   },
 
   // MATCH PORTRAIT: Smart button (Blue/Teal accent)

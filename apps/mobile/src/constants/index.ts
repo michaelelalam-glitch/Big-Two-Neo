@@ -172,8 +172,14 @@ export const POSITIONING = {
   actionButtonMinWidth: 70,
   passButtonBorderWidth: 1,
   sidePlayerTop: 0,
-  helperButtonsBottom: 240,
-  helperButtonsLeft: 140,
+  // INDEPENDENT CONTROLS - Change these to move components:
+  cardsBottom: -45,               // Cards bottom position (0 = at very bottom)
+  playerInfoBottom: 100,        // Profile photo + name button (higher = up, lower = down)
+  helperButtonsBottom: 180,     // Sort/Smart/Hint buttons (higher = up, lower = down)
+  actionButtonsBottom: 120,     // Pass/Play buttons (higher = up, lower = down)
+  playerInfoLeft: 16,           // Profile photo + name button left position
+  helperButtonsLeft: 180,        // Sort/Smart/Hint buttons left position  
+  actionButtonsRight: 0,       // Pass/Play buttons right position
 };
 
 // Scoreboard detail dimensions

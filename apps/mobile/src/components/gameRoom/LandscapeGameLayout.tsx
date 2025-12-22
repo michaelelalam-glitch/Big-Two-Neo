@@ -296,7 +296,12 @@ export function LandscapeGameLayout({
               onPress={onSort}
               disabled={disabled}
             >
-              <Text style={styles.sortButtonText}>{i18n.t('game.sort')}</Text>
+              <Text style={[
+                styles.sortButtonText,
+                i18n.locale === 'de' && styles.sortButtonTextGerman
+              ]}>
+                {i18n.t('game.sort')}
+              </Text>
             </Pressable>
             <Pressable 
               style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
@@ -391,7 +396,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     left: 130, // Leave space for Steve Peterson in FAR LEFT
     right: 150, // Leave space for Play/Pass + helper buttons on right
-    zIndex: 50,
+    zIndex: 100, // CRITICAL: Must be higher than buttons (60) to allow drag/drop
   },
   
   topRightButtons: {
@@ -442,15 +447,17 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     position: 'absolute',
     bottom: 12,
-    right: 8,
+    right: -24,
     flexDirection: 'column',
     gap: 6,
     zIndex: 60,
+    pointerEvents: 'box-none', // CRITICAL: Allow touches to pass through container but buttons receive touches
   },
   
   buttonRow: {
     flexDirection: 'row',
     gap: 6,
+    pointerEvents: 'box-none', // CRITICAL: Allow button touches
   },
   
   // Play button (Green)
@@ -503,9 +510,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   
-  // Sort button (Gray)
+  // Sort button (Gray) - WIDER for German 'Sortieren'
   sortButton: {
-    width: 55,
+    width: 85, // Increased from 55 to fit 'Sortieren'
     height: 40,
     borderRadius: 12,
     backgroundColor: '#374151',
@@ -517,8 +524,12 @@ const styles = StyleSheet.create({
   
   sortButtonText: {
     color: '#D1D5DB',
-    fontSize: 13,
+    fontSize: 13, // Default size for English/Arabic
     fontWeight: 'bold',
+  },
+  
+  sortButtonTextGerman: {
+    fontSize: 11, // Smaller size for German 'Sortieren'
   },
   
   // Hint button (Orange)

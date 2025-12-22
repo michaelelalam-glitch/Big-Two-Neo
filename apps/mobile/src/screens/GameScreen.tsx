@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -264,23 +264,156 @@ function GameScreenContent() {
     }
   }, [gameState?.auto_pass_timer?.remaining_ms]); // CRITICAL FIX: Watch remaining_ms, not object reference
 
-  // Refs to access GameControls' handlePlayCards/handlePass for drag-to-play from CardHand
+  // CRITICAL FIX: Play/Pass action handlers - defined in GameScreen to work in BOTH orientations
+  // Previously these were only set by GameControls which is only mounted in portrait mode
+  const [isPlayingCards, setIsPlayingCards] = useState(false);
+  const [isPassing, setIsPassing] = useState(false);
+
+  const handlePlayCards = useCallback(async (cards: Card[]) => {
+    if (!gameManagerRef.current) {
+      gameLogger.error('❌ [GameScreen] Game not initialized');
+      return;
+    }
+
+    // Prevent duplicate card plays
+    if (isPlayingCards) {
+      gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
+      return;
+    }
+
+    try {
+      setIsPlayingCards(true);
+
+      // Task #270: Add haptic feedback for Play button
+      hapticManager.playCard();
+
+      // Task #313: Auto-sort cards for proper display order before submission
+      // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
+      const { sortCardsForDisplay } = await import('../utils/cardSorting');
+      const sortedCards = sortCardsForDisplay(cards);
+
+      gameLogger.info('🎴 [GameScreen] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
+
+      // Get card IDs to play (using sorted order)
+      const cardIds = sortedCards.map(c => c.id);
+
+      // Attempt to play cards through game engine
+      const result = await gameManagerRef.current.playCards(cardIds);
+
+      if (result.success) {
+        gameLogger.info('✅ [GameScreen] Cards played successfully');
+
+        // Play card sound effect
+        soundManager.playSound(SoundType.CARD_PLAY);
+
+        // Preserve custom card order by removing only the played cards
+        if (customCardOrder.length > 0) {
+          const playedCardIds = new Set(cardIds);
+          // Also filter out any IDs not present in the current hand
+          const currentHandCardIds = new Set(playerHand.map(card => card.id));
+          const updatedOrder = customCardOrder.filter(
+            id => !playedCardIds.has(id) && currentHandCardIds.has(id)
+          );
+          setCustomCardOrder(updatedOrder);
+        }
+
+        // Clear selection after successful play
+        if (isMountedRef.current) {
+          setSelectedCardIds(new Set());
+        }
+
+        // Bot turns and match/game end will be handled by subscription callback
+      } else {
+        // Show error from validation
+        soundManager.playSound(SoundType.INVALID_MOVE);
+        Alert.alert('Invalid Move', result.error || 'Invalid play');
+      }
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing game state internals
+      gameLogger.error('❌ [GameScreen] Failed to play cards:', error?.message || error?.code || String(error));
+
+      // Show user-friendly error
+      soundManager.playSound(SoundType.INVALID_MOVE);
+      const errorMessage = error instanceof Error ? error.message : 'Invalid play';
+      Alert.alert('Invalid Move', errorMessage);
+    } finally {
+      // Release lock after short delay to prevent rapid double-taps
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsPlayingCards(false);
+        }
+      }, 300);
+    }
+  }, [gameManagerRef, isPlayingCards, isMountedRef, customCardOrder, playerHand, setCustomCardOrder, setSelectedCardIds]);
+
+  const handlePass = useCallback(async () => {
+    if (!gameManagerRef.current) {
+      gameLogger.error('❌ [GameScreen] Game not initialized');
+      return;
+    }
+
+    if (isPassing) {
+      gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
+      return;
+    }
+
+    try {
+      setIsPassing(true);
+
+      // Task #270: Add haptic feedback for Pass button
+      hapticManager.pass();
+
+      gameLogger.info('⏭️ [GameScreen] Player passing...');
+
+      const result = await gameManagerRef.current.pass();
+
+      if (result.success) {
+        gameLogger.info('✅ [GameScreen] Pass successful');
+
+        // Play pass sound effect
+        soundManager.playSound(SoundType.PASS);
+
+        // Clear selection after successful pass
+        if (isMountedRef.current) {
+          setSelectedCardIds(new Set());
+        }
+
+        // Bot turns will be triggered automatically by the subscription
+      } else {
+        Alert.alert('Cannot Pass', result.error || 'Cannot pass');
+      }
+    } catch (error: any) {
+      // Only log error message/code to avoid exposing game state internals
+      gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
+
+      const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
+      Alert.alert('Cannot Pass', errorMessage);
+    } finally {
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsPassing(false);
+        }
+      }, 300);
+    }
+  }, [gameManagerRef, isPassing, isMountedRef, setSelectedCardIds]);
+
+  // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);
   const onPassRef = useRef<(() => Promise<void>) | null>(null);
 
-  // Callback handlers for GameControls component
+  // Set refs on mount and whenever handlers change
+  useEffect(() => {
+    onPlayCardsRef.current = handlePlayCards;
+    onPassRef.current = handlePass;
+  }, [handlePlayCards, handlePass]);
+
+  // Callback handlers for GameControls component (for portrait mode)
   const handlePlaySuccess = () => {
-    // Clear selection after successful play
-    if (isMountedRef.current) {
-      setSelectedCardIds(new Set());
-    }
+    // Already handled in handlePlayCards above
   };
 
   const handlePassSuccess = () => {
-    // Clear selection after successful pass
-    if (isMountedRef.current) {
-      setSelectedCardIds(new Set());
-    }
+    // Already handled in handlePass above
   };
 
   // Wrapper for CardHand drag-to-play: calls GameControls' handlePlayCards
@@ -381,9 +514,7 @@ function GameScreenContent() {
             // Drag-to-play callback
             onPlayCards={(cards: Card[]) => {
               gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
-              if (onPlayCardsRef.current) {
-                onPlayCardsRef.current(cards);
-              }
+              handlePlayCards(cards);
             }}
 
             // Control callbacks
@@ -393,15 +524,11 @@ function GameScreenContent() {
             onSmartSort={handleSmartSort}
             onPlay={() => {
               gameLogger.info('🎴 [Landscape] Play button pressed with selected cards:', selectedCards.length);
-              if (onPlayCardsRef.current) {
-                onPlayCardsRef.current(selectedCards);
-              }
+              handlePlayCards(selectedCards);
             }}
             onPass={() => {
               gameLogger.info('🎴 [Landscape] Pass button pressed');
-              if (onPassRef.current) {
-                onPassRef.current();
-              }
+              handlePass();
             }}
             onHint={handleHint}
             onSettings={() => setShowSettings(true)}
@@ -417,7 +544,7 @@ function GameScreenContent() {
             {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
             <ScoreboardContainer
             playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
+            currentScores={gameState ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
             cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
             currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
             matchNumber={gameState?.currentMatch || 1}
@@ -468,56 +595,55 @@ function GameScreenContent() {
             autoPassTimerState={gameState?.auto_pass_timer || undefined}
           />
 
-          {/* Bottom section: Player info, action buttons, and hand */}
-          <View style={styles.bottomSection}>
-            {/* Helper Buttons Row - positioned above Pass/Play buttons */}
-            <View style={styles.helperButtonsRow}>
-              <HelperButtons
-                onSort={handleSort}
-                onSmartSort={handleSmartSort}
-                onHint={handleHint}
-                disabled={!players[0].isActive || playerHand.length === 0}
-              />
-            </View>
-            
-            {/* Player info with action buttons next to it */}
-            <View style={styles.bottomPlayerWithActions}>
-              <PlayerInfo
-                name={players[0].name}
-                cardCount={players[0].cardCount}
-                isActive={players[0].isActive}
-              />
-              
-              {/* Action buttons - extracted to GameControls component (Task #425) */}
-              <GameControls
-                gameManager={gameManagerRef.current}
-                isPlayerActive={players[0].isActive}
-                selectedCards={selectedCards}
-                onPlaySuccess={handlePlaySuccess}
-                onPassSuccess={handlePassSuccess}
-                isMounted={isMountedRef}
-                customCardOrder={customCardOrder}
-                setCustomCardOrder={setCustomCardOrder}
-                playerHand={playerHand}
-                onPlayCardsRef={onPlayCardsRef}
-                onPassRef={onPassRef}
-              />
-            </View>
+          {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
+          <View style={styles.playerInfoContainer}>
+            <PlayerInfo
+              name={players[0].name}
+              cardCount={players[0].cardCount}
+              isActive={players[0].isActive}
+            />
+          </View>
+          
+          {/* Action buttons (Play/Pass) - INDEPENDENT ABSOLUTE POSITIONING */}
+          <View style={styles.actionButtonsRow}>
+            <GameControls
+              gameManager={gameManagerRef.current}
+              isPlayerActive={players[0].isActive}
+              selectedCards={selectedCards}
+              onPlaySuccess={handlePlaySuccess}
+              onPassSuccess={handlePassSuccess}
+              isMounted={isMountedRef}
+              customCardOrder={customCardOrder}
+              setCustomCardOrder={setCustomCardOrder}
+              playerHand={playerHand}
+              onPlayCardsRef={onPlayCardsRef}
+              onPassRef={onPassRef}
+            />
+          </View>
+          
+          {/* Helper Buttons Row (Sort/Smart/Hint) - INDEPENDENT ABSOLUTE POSITIONING */}
+          <View style={styles.helperButtonsRow}>
+            <HelperButtons
+              onSort={handleSort}
+              onSmartSort={handleSmartSort}
+              onHint={handleHint}
+              disabled={!players[0].isActive || playerHand.length === 0}
+            />
+          </View>
 
-            {/* Player's hand */}
-            <View style={styles.cardHandContainer}>
-              <CardHand
-                cards={playerHand}
-                onPlayCards={handleCardHandPlayCards} // FIXED: Wire to GameControls for drag-to-play
-                onPass={handleCardHandPass} // FIXED: Wire to GameControls for drag-to-pass
-                canPlay={players[0].isActive && !!gameState && !!gameManagerRef.current}
-                disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
-                hideButtons={true} // Hide internal buttons since we display them externally
-                selectedCardIds={selectedCardIds}
-                onSelectionChange={setSelectedCardIds}
-                onCardsReorder={handleCardsReorder}
-              />
-            </View>
+          {/* Player's hand - INDEPENDENT - NOT AFFECTED BY BUTTONS */}
+          <View style={styles.cardHandContainer}>
+            <CardHand
+              cards={playerHand}
+              onPlayCards={handleCardHandPlayCards} // FIXED: Wire to GameControls for drag-to-play
+              onPass={handleCardHandPass} // FIXED: Wire to GameControls for drag-to-pass
+              canPlay={players[0].isActive && !!gameState && !!gameManagerRef.current}
+              disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
+              hideButtons={true} // Hide internal buttons since we display them externally
+              selectedCardIds={selectedCardIds}
+              onSelectionChange={setSelectedCardIds}
+              onCardsReorder={handleCardsReorder}
+            />
           </View>
           
           {/* Game End Modal (Task #415) - CRITICAL FIX: Wrapped in error boundary */}
@@ -597,31 +723,40 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: POSITIONING.menuLineBorderRadius,
   },
-  // Layout styles moved to GameLayout component (Task #426)
-  bottomSection: {
-    marginTop: POSITIONING.bottomSectionMarginTop,
-    zIndex: 50,
+  // PlayerInfo - FULLY INDEPENDENT positioning
+  playerInfoContainer: {
+    position: 'absolute',
+    bottom: POSITIONING.playerInfoBottom,
+    left: POSITIONING.playerInfoLeft,
+    zIndex: 250,
   },
+  // Action buttons (Play/Pass) - FULLY INDEPENDENT positioning
+  actionButtonsRow: {
+    position: 'absolute',
+    bottom: POSITIONING.actionButtonsBottom,
+    right: POSITIONING.actionButtonsRight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    zIndex: 180,
+  },
+  // Helper Buttons (Sort/Smart/Hint) - FULLY INDEPENDENT positioning
   helperButtonsRow: {
     position: 'absolute',
     bottom: POSITIONING.helperButtonsBottom,
     left: POSITIONING.helperButtonsLeft,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 100,
+    gap: SPACING.sm,
+    zIndex: 170,
   },
-  bottomPlayerWithActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.xs,
-    zIndex: 150, // Task #380: Above scoreboard (zIndex: 100) to allow interaction when expanded
-  },
-  // Action button styles moved to GameControls component (Task #425)
+  // CARDS - FULLY INDEPENDENT positioning
   cardHandContainer: {
-    // Cards display below player and buttons
+    position: 'absolute',
+    bottom: POSITIONING.cardsBottom,
+    left: 0,
+    right: 0,
+    zIndex: 50,
   },
   loadingContainer: {
     flex: 1,

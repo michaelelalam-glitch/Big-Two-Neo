@@ -23,6 +23,7 @@ import Card from '../game/Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
+import { gameLogger } from '../../utils/logger';
 
 // ============================================================================
 // CONSTANTS
@@ -115,8 +116,18 @@ export function LandscapeYourPosition({
     else if (displayCards.length === 0) {
       setDisplayCards(cards);
     }
-    // REMOVED: Auto-sync on reorder - this was causing unwanted rearrangement
-  }, [cards, displayCards]);
+    // CRITICAL FIX (Issue #2): If same card set but different order, AND user didn't manually rearrange,
+    // update to match parent's order (this allows helper buttons to work)
+    else if (sameCardSet && displayCards.length > 0) {
+      // Check if order actually changed
+      const orderChanged = !displayCards.every((card, idx) => card.id === cards[idx]?.id);
+      // Only update if NOT currently dragging (preserve user's manual rearrangement)
+      if (orderChanged && !dragState.draggedCardId) {
+        gameLogger.info('🔄 [LandscapeYourPosition] Parent reordered cards (helper button), updating display');
+        setDisplayCards(cards);
+      }
+    }
+  }, [cards, displayCards, dragState.draggedCardId]);
 
   const orderedCards = displayCards;
 
@@ -310,7 +321,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
-    zIndex: 50, // Below control bar but above table
+    zIndex: 150, // CRITICAL: Higher than buttons to enable drag/drop
   },
 
   dropZoneIndicator: {
