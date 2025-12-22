@@ -27,6 +27,7 @@ import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
+import { sortCardsForDisplay } from '../utils/cardSorting';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -292,7 +293,6 @@ function GameScreenContent() {
 
       // Task #313: Auto-sort cards for proper display order before submission
       // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
-      const { sortCardsForDisplay } = await import('../utils/cardSorting');
       const sortedCards = sortCardsForDisplay(cards);
 
       gameLogger.info('🎴 [GameScreen] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
