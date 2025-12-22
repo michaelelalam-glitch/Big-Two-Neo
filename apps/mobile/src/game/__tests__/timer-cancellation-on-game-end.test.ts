@@ -10,6 +10,9 @@
  * Fix: Timer countdown checks gameEnded/gameOver and cancels timer state.
  */
 
+// Mock supabase before imports
+jest.mock('../../services/supabase');
+
 import { GameStateManager, type GameConfig } from '../state';
 
 describe('Auto-Pass Timer Cancellation on Game End', () => {

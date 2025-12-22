@@ -7,6 +7,9 @@
  * Run with: pnpm test memory-leak-test
  */
 
+// Mock expo-av before imports
+jest.mock('expo-av');
+
 import { soundManager, SoundType } from '../../utils/soundManager';
 
 describe('Memory Leak Test - soundManager', () => {
