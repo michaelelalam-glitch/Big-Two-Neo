@@ -305,7 +305,7 @@ export default function HomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.mainButton, styles.findMatchButton]}
-            onPress={() => navigation.navigate('Matchmaking')}
+            onPress={() => navigation.navigate('MatchTypeSelection')}
           >
             <Text style={styles.mainButtonText}>🎯 Find Match (NEW!)</Text>
             <Text style={styles.mainButtonSubtext}>Quick 4-player match with skill-based pairing</Text>

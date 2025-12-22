@@ -47,6 +47,7 @@ export interface Translations {
     weekly: string;
     daily: string;
     comingSoon: string;
+    continue: string;
   };
   
   // Settings Screen
@@ -466,6 +467,12 @@ export interface Translations {
     playersNeeded: string;
     howItWorks: string;
     description: string;
+    // Match Type Preferences (Phase 4b)
+    selectMatchType: string;
+    casual: string;
+    ranked: string;
+    casualDesc: string;
+    rankedDesc: string;
   };
 }
 
@@ -495,6 +502,7 @@ const en: Translations = {
     weekly: 'Weekly',
     daily: 'Daily',
     comingSoon: 'Coming Soon',
+    continue: 'Continue',
   },
   settings: {
     title: 'Settings',
@@ -853,6 +861,12 @@ const en: Translations = {
     playersNeeded: 'players needed',
     howItWorks: 'How It Works',
     description: 'We\'ll match you with players of similar skill level. The game starts automatically when 4 players are ready!',
+    // Match Type Preferences (Phase 4b)
+    selectMatchType: 'Select Match Type',
+    casual: 'Casual',
+    ranked: 'Ranked',
+    casualDesc: 'Play for fun, no ELO changes',
+    rankedDesc: 'Competitive play with ELO rating changes',
   },
 };
 
@@ -882,6 +896,7 @@ const ar: Translations = {
     weekly: 'أسبوعي',
     daily: 'يومي',
     comingSoon: 'قريبًا',
+    continue: 'متابعة',
   },
   settings: {
     title: 'الإعدادات',
@@ -1192,6 +1207,12 @@ const ar: Translations = {
     playersNeeded: 'لاعبين مطلوبين',
     howItWorks: 'كيف يعمل',
     description: 'سنطابقك مع لاعبين لديهم مستوى مهارة مماثل. تبدأ اللعبة تلقائيًا عندما يكون 4 لاعبين جاهزين!',
+    // Match Type Preferences (Phase 4b)
+    selectMatchType: 'اختر نوع المباراة',
+    casual: 'عادي',
+    ranked: 'تصنيفي',
+    casualDesc: 'العب من أجل المتعة، لا تغييرات في تصنيف ELO',
+    rankedDesc: 'لعب تنافسي مع تغييرات تصنيف ELO',
   },
   howToPlay: {
     title: 'كيفية اللعب',
@@ -1297,6 +1318,7 @@ const de: Translations = {
     weekly: 'Wöchentlich',
     daily: 'Täglich',
     comingSoon: 'Bald verfügbar',
+    continue: 'Weiter',
   },
   settings: {
     title: 'Einstellungen',
@@ -1607,6 +1629,12 @@ const de: Translations = {
     playersNeeded: 'Spieler benötigt',
     howItWorks: 'So funktioniert es',
     description: 'Wir matchen dich mit Spielern ähnlichen Niveaus. Das Spiel startet automatisch, wenn 4 Spieler bereit sind!',
+    // Match Type Preferences (Phase 4b)
+    selectMatchType: 'Spieltyp wählen',
+    casual: 'Gelegenheitsspiel',
+    ranked: 'Rangliste',
+    casualDesc: 'Zum Spaß spielen, keine ELO-Änderungen',
+    rankedDesc: 'Wettbewerbsspiel mit ELO-Bewertungsänderungen',
   },
   howToPlay: {
     title: 'Spielanleitung',

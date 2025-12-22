@@ -28,7 +28,7 @@ interface UseMatchmakingReturn {
   roomCode: string | null;
   roomId: string | null;
   error: string | null;
-  startMatchmaking: (username: string, skillRating?: number, region?: string) => Promise<void>;
+  startMatchmaking: (username: string, skillRating?: number, region?: string, matchType?: 'casual' | 'ranked') => Promise<void>;
   cancelMatchmaking: () => Promise<void>;
   resetMatch: () => void;
 }
@@ -74,7 +74,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
   const startMatchmaking = useCallback(async (
     username: string,
     skillRating: number = 1000,
-    region: string = 'global'
+    region: string = 'global',
+    matchType: 'casual' | 'ranked' = 'casual'
   ) => {
     try {
       setError(null);
@@ -91,12 +92,13 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       userIdRef.current = user.id;
 
-      // Call find_match function
+      // Call find_match function with match_type
       const { data, error: matchError } = await supabase.rpc('find_match', {
         p_user_id: user.id,
         p_username: username,
         p_skill_rating: skillRating,
         p_region: region,
+        p_match_type: matchType,
       });
 
       if (matchError) {
