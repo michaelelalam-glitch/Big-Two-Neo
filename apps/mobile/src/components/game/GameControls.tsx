@@ -6,6 +6,7 @@ import { COLORS, SPACING, FONT_SIZES, OPACITIES } from '../../constants';
 import { soundManager, hapticManager, SoundType } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 interface GameControlsProps {
   gameManager: GameStateManager | null;
@@ -204,7 +205,7 @@ export function GameControls({
         {isPassing ? (
           <ActivityIndicator color={COLORS.gray.light} size="small" accessibilityLabel="Passing turn" />
         ) : (
-          <Text style={[styles.actionButtonText, styles.passButtonText]}>Pass</Text>
+          <Text style={[styles.actionButtonText, styles.passButtonText]}>{i18n.t('game.pass')}</Text>
         )}
       </Pressable>
 
@@ -226,7 +227,7 @@ export function GameControls({
         {isPlayingCards ? (
           <ActivityIndicator color={COLORS.white} size="small" accessibilityLabel="Playing cards" />
         ) : (
-          <Text style={styles.actionButtonText}>Play</Text>
+          <Text style={styles.actionButtonText}>{i18n.t('game.play')}</Text>
         )}
       </Pressable>
     </View>
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
   actionButton: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
-    borderRadius: 8,
+    borderRadius: 12, // MATCH LANDSCAPE: 12pt radius (was 8)
     minWidth: 100,
     alignItems: 'center',
     justifyContent: 'center',
@@ -253,10 +254,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   passButton: {
-    backgroundColor: COLORS.gray.medium,
+    backgroundColor: '#374151', // MATCH LANDSCAPE: Dark gray (was COLORS.gray.medium)
+    borderWidth: 1,
+    borderColor: '#6b7280',
   },
   playButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#10b981', // MATCH LANDSCAPE: Green (was COLORS.primary - blue)
+    borderWidth: 0, // MATCH LANDSCAPE: No border
   },
   buttonDisabled: {
     opacity: OPACITIES.disabled,
@@ -267,6 +271,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   passButtonText: {
-    color: COLORS.gray.light,
+    color: '#D1D5DB', // MATCH LANDSCAPE: Light gray text (was COLORS.gray.light)
   },
 });

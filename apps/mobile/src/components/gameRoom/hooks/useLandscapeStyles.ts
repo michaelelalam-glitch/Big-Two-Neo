@@ -32,7 +32,7 @@ export const useLandscapeScoreboardStyles = () => {
     // Base dimensions (from migration plan)
     const COLLAPSED_HEIGHT = 140;
     const EXPANDED_MAX_HEIGHT = 344;
-    const MAX_WIDTH = isLandscape ? 340 : 280; // Expanded in landscape to 16px from table
+    const MAX_WIDTH = isLandscape ? 240 : 280; // 240pt: 16px away from 420pt table (table left edge at 256pt)
     const TOP_POSITION = 8; // Closer to top
     const LEFT_POSITION = 0; // EXTREME LEFT as requested
     
@@ -74,6 +74,7 @@ export const useLandscapeScoreboardStyles = () => {
         borderRadius: 8,
         padding: 8,
         minHeight: COLLAPSED_HEIGHT,
+        width: MAX_WIDTH, // FORCE width to MAX_WIDTH (240pt in landscape - 16px from table edge)
         maxWidth: MAX_WIDTH,
         pointerEvents: 'auto' as const,
       },
@@ -153,7 +154,7 @@ export const useLandscapeScoreboardStyles = () => {
       playerStats: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
-        gap: 8,
+        gap: 12, // Increased from 8 to 12 for better spacing
       },
 
       cardCount: {

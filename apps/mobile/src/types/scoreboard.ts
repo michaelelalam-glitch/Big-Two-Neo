@@ -86,7 +86,9 @@ export interface GamePlayHistory {
  * Used by both CompactScoreboard and ExpandedScoreboard
  */
 export interface ScoreboardProps {
-  playerNames: string[];          // Array of player names (length: 2-4)
+  /** Array of player names for UI display in scoreboard order (reordered from game state)
+   * Use this for rendering scoreboard rows, player labels, and visual components */
+  playerNames: string[];
   currentScores: number[];        // Current cumulative scores for each player
   cardCounts: number[];           // Current card count for each player
   currentPlayerIndex: number;     // Index of player whose turn it is (0-3)
@@ -94,6 +96,9 @@ export interface ScoreboardProps {
   isGameFinished: boolean;        // Whether the entire game session is finished
   scoreHistory: ScoreHistory[];   // All completed matches' score history
   playHistory: PlayHistoryMatch[]; // All matches' play history
+  /** Original player names in game engine order (not reordered) - REQUIRED
+   * Use this for mapping play history actions to correct players in game state order */
+  originalPlayerNames: string[];
   onToggleExpand?: () => void;    // Callback for expand/collapse button
   onTogglePlayHistory?: () => void; // Callback for play history button
 }

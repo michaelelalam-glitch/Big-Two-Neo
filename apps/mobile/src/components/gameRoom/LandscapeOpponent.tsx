@@ -18,6 +18,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
+import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -26,6 +27,8 @@ import { COLORS, LAYOUT } from '../../constants';
 interface LandscapeOpponentProps {
   /** Player name */
   name: string;
+  /** Number of cards in hand */
+  cardCount: number;
   /** Is player's turn (shows green indicator) */
   isActive: boolean;
   /** Profile photo URL (optional) */
@@ -40,6 +43,7 @@ interface LandscapeOpponentProps {
 
 export function LandscapeOpponent({
   name,
+  cardCount,
   isActive,
   photoUrl,
   layout = 'vertical',
@@ -59,6 +63,10 @@ export function LandscapeOpponent({
           ) : (
             <Text style={styles.avatarIcon}>👤</Text>
           )}
+        </View>
+        {/* Card count badge positioned on avatar */}
+        <View style={styles.badgePosition}>
+          <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
       </View>
 
@@ -148,6 +156,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.white,
     textAlign: 'center',
+  },
+
+  badgePosition: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
   },
 });
 

@@ -25,6 +25,7 @@ import { HelperButtons } from '../game/HelperButtons';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { gameLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -40,6 +41,7 @@ export interface LandscapeGameLayoutProps {
   isGameFinished: boolean;
   scoreHistory?: any[];
   playHistory?: any[];
+  originalPlayerNames?: string[]; // Original player names for play history (game state order)
   autoPassTimerState?: AutoPassTimerState;
   
   /** Table data */
@@ -90,6 +92,7 @@ export function LandscapeGameLayout({
   isGameFinished,
   scoreHistory = [],
   playHistory = [],
+  originalPlayerNames,
   autoPassTimerState,
   
   // Table
@@ -177,7 +180,7 @@ export function LandscapeGameLayout({
           <PlayHistoryModal
             visible={showPlayHistory}
             onClose={() => setShowPlayHistory(false)}
-            playerNames={playerNames}
+            playerNames={originalPlayerNames}
             playHistory={playHistory}
             currentMatch={matchNumber}
             collapsedMatches={collapsedMatches}
@@ -189,6 +192,7 @@ export function LandscapeGameLayout({
         <View style={styles.topOpponent}>
           <LandscapeOpponent
             name={playerNames[2] || 'Bot 2'}
+            cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
             layout="horizontal"
           />
@@ -198,6 +202,7 @@ export function LandscapeGameLayout({
         <View style={styles.leftOpponent}>
           <LandscapeOpponent
             name={playerNames[3] || 'Bot 3'}
+            cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
           />
         </View>
@@ -206,6 +211,7 @@ export function LandscapeGameLayout({
         <View style={styles.rightOpponent}>
           <LandscapeOpponent
             name={playerNames[1] || 'Bot 1'}
+            cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
           />
         </View>
@@ -250,6 +256,7 @@ export function LandscapeGameLayout({
         <View style={styles.bottomPlayerContainer}>
           <LandscapeOpponent
             name={playerName}
+            cardCount={playerCardCount}
             isActive={isPlayerActive}
             layout="vertical"
           />
@@ -264,14 +271,14 @@ export function LandscapeGameLayout({
               onPress={onPlay}
               disabled={!canPlay || disabled}
             >
-              <Text style={styles.playButtonText}>Play</Text>
+              <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.smartButton, disabled && { opacity: 0.5 }]} 
               onPress={onSmartSort}
               disabled={disabled}
             >
-              <Text style={styles.smartButtonText}>Smart</Text>
+              <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
           </View>
           
@@ -282,21 +289,26 @@ export function LandscapeGameLayout({
               onPress={onPass}
               disabled={!canPass || disabled}
             >
-              <Text style={styles.passButtonText}>Pass</Text>
+              <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.sortButton, disabled && { opacity: 0.5 }]} 
               onPress={onSort}
               disabled={disabled}
             >
-              <Text style={styles.sortButtonText}>Sort</Text>
+              <Text style={[
+                styles.sortButtonText,
+                i18n.locale === 'de' && styles.sortButtonTextGerman
+              ]}>
+                {i18n.t('game.sort')}
+              </Text>
             </Pressable>
             <Pressable 
               style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
               onPress={onHint}
               disabled={disabled}
             >
-              <Text style={styles.hintButtonText}>Hint</Text>
+              <Text style={styles.hintButtonText}>{i18n.t('game.hint')}</Text>
             </Pressable>
           </View>
         </View>
@@ -384,7 +396,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     left: 130, // Leave space for Steve Peterson in FAR LEFT
     right: 150, // Leave space for Play/Pass + helper buttons on right
-    zIndex: 50,
+    zIndex: 100, // CRITICAL: Must be higher than buttons (60) to allow drag/drop
   },
   
   topRightButtons: {
@@ -435,15 +447,17 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     position: 'absolute',
     bottom: 12,
-    right: 8,
+    right: -24,
     flexDirection: 'column',
     gap: 6,
     zIndex: 60,
+    pointerEvents: 'box-none', // CRITICAL: Allow touches to pass through container but buttons receive touches
   },
   
   buttonRow: {
     flexDirection: 'row',
     gap: 6,
+    pointerEvents: 'box-none', // IMPORTANT: Allow button touches while maintaining gesture handling
   },
   
   // Play button (Green)
@@ -496,9 +510,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   
-  // Sort button (Gray)
+  // Sort button (Gray) - WIDER for German 'Sortieren'
   sortButton: {
-    width: 55,
+    width: 85, // Increased from 55 to fit 'Sortieren'
     height: 40,
     borderRadius: 12,
     backgroundColor: '#374151',
@@ -510,8 +524,12 @@ const styles = StyleSheet.create({
   
   sortButtonText: {
     color: '#D1D5DB',
-    fontSize: 13,
+    fontSize: 13, // Default size for English/Arabic
     fontWeight: 'bold',
+  },
+  
+  sortButtonTextGerman: {
+    fontSize: 11, // Smaller size for German 'Sortieren'
   },
   
   // Hint button (Orange)

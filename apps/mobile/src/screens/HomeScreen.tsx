@@ -336,6 +336,14 @@ export default function HomeScreen() {
             <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.mainButton, styles.howToPlayButton]}
+            onPress={() => navigation.navigate('HowToPlay')}
+          >
+            <Text style={styles.mainButtonText}>{i18n.t('home.howToPlay')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.howToPlayDescription')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
       </ScrollView>
@@ -464,6 +472,9 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     backgroundColor: '#8B5CF6', // Purple
+  },
+  howToPlayButton: {
+    backgroundColor: '#F59E0B', // Amber/Orange
   },
   mainButtonText: {
     fontSize: FONT_SIZES.xl,

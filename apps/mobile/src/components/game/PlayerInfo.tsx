@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
+import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 interface PlayerInfoProps {
   name: string;
@@ -26,6 +27,10 @@ export default function PlayerInfo({
         <View style={styles.avatar}>
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={styles.avatarIcon}>👤</Text>
+        </View>
+        {/* Card count badge positioned on avatar */}
+        <View style={styles.badgePosition}>
+          <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
       </View>
 
@@ -88,5 +93,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: 'bold',
+  },
+  badgePosition: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
   },
 });

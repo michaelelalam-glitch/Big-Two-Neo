@@ -23,6 +23,7 @@ import Card from '../game/Card';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
+import { gameLogger } from '../../utils/logger';
 
 // ============================================================================
 // CONSTANTS
@@ -90,34 +91,45 @@ export function LandscapeYourPosition({
   const [dragState, setDragState] = useState<DragState>(initialDragState);
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
   
-  // Update display cards when prop changes
+  // Update display cards ONLY when cards are added/removed OR parent explicitly reorders
+  // CRITICAL: Do NOT auto-reorder during play/pass/button presses
   React.useEffect(() => {
-    // CRITICAL FIX: Match CardHand logic for proper Sort/SmartSort support
     const currentIds = new Set(displayCards.map(c => c.id));
     const newIds = new Set(cards.map(c => c.id));
     
-    // Check if it's the same set of cards (just potentially reordered)
+    // Check if cards actually changed (not just reordered)
     const sameCardSet = currentIds.size === newIds.size && 
                         [...currentIds].every(id => newIds.has(id));
     
     if (!sameCardSet) {
-      // Cards actually changed (added/removed) - reset drag state and update display
-      setDragState(initialDragState);
-      setDisplayCards(cards);
-    } else {
-      // Same cards, potentially reordered by parent (via Sort/SmartSort buttons)
-      // Check if the parent order is different from current display order
-      const orderChanged = cards.some((card, index) => {
-        return displayCards[index]?.id !== card.id;
-      });
+      // Cards were added or removed (play/pass action) - update display
+      // But preserve the relative order of remaining cards
+      const remainingCards = displayCards.filter(c => newIds.has(c.id));
+      const newCards = cards.filter(c => !currentIds.has(c.id));
       
-      if (orderChanged || displayCards.length === 0) {
-        // Parent changed the order (via customCardOrder) OR initial load
-        // Update displayCards to match parent's order
+      // Combine: keep user's custom order for existing cards, append new cards
+      setDisplayCards([...remainingCards, ...newCards]);
+      setDragState(initialDragState);
+    }
+    // CRITICAL FIX (Issue #1): ALWAYS initialize displayCards if empty OR if cards exist but displayCards doesn't match
+    // This fixes drag-drop not working on first game load in landscape mode
+    else if (displayCards.length === 0) {
+      setDisplayCards(cards);
+    }
+    // CRITICAL FIX (Issue #2): If same card set but different order, AND user didn't manually rearrange,
+    // update to match parent's order (this allows helper buttons to work)
+    // Note: Edge case - if cards are reordered AND removed simultaneously, newCards.length may not equal cards.length
+    // Current implementation handles this by appending newCards to remainingCards (line 111)
+    else if (sameCardSet && displayCards.length > 0) {
+      // Check if order actually changed
+      const orderChanged = !displayCards.every((card, idx) => card.id === cards[idx]?.id);
+      // Only update if NOT currently dragging (preserve user's manual rearrangement)
+      if (orderChanged && !dragState.draggedCardId) {
+        gameLogger.info('🔄 [LandscapeYourPosition] Parent reordered cards (helper button), updating display');
         setDisplayCards(cards);
       }
     }
-  }, [cards, displayCards]);
+  }, [cards, displayCards, dragState.draggedCardId]);
 
   const orderedCards = displayCards;
 
@@ -311,7 +323,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
-    zIndex: 50, // Below control bar but above table
+    zIndex: 100, // CRITICAL: Higher than buttons to enable drag/drop (standardized with LandscapeGameLayout)
   },
 
   dropZoneIndicator: {
