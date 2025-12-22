@@ -12,10 +12,22 @@ jest.mock('expo-av');
 // Mock soundManager to prevent .m4a file parse errors
 jest.mock('../../utils/soundManager', () => ({
   soundManager: {
-    playSound: jest.fn(),
+    playSound: jest.fn().mockResolvedValue(undefined),
     stopSound: jest.fn(),
     initialize: jest.fn().mockResolvedValue(undefined),
     cleanup: jest.fn().mockResolvedValue(undefined),
+    getState: jest.fn().mockReturnValue({ enabled: true, volume: 1.0 }),
+    setVolume: jest.fn((vol) => {
+      const mockGetState = jest.requireMock('../../utils/soundManager').soundManager.getState;
+      mockGetState.mockReturnValue({ enabled: true, volume: vol });
+      return Promise.resolve();
+    }),
+    setAudioEnabled: jest.fn((enabled) => {
+      const mockGetState = jest.requireMock('../../utils/soundManager').soundManager.getState;
+      const currentState = mockGetState();
+      mockGetState.mockReturnValue({ ...currentState, enabled });
+      return Promise.resolve();
+    }),
   },
   SoundType: {
     GAME_START: 'GAME_START',
