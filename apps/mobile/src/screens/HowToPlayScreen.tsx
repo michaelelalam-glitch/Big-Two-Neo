@@ -179,6 +179,28 @@ export default function HowToPlayScreen() {
           <Text style={styles.warningText}>{i18n.t('howToPlay.scoringWarning')}</Text>
         </View>
 
+        {/* ELO Rating System */}
+        <View style={styles.section}>
+          <Text style={styles.heading}>{i18n.t('howToPlay.eloSystemTitle')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.eloSystemDesc')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.eloFormula')}</Text>
+          <Text style={styles.subheading}>{i18n.t('howToPlay.rankTiersTitle')}</Text>
+          <Text style={styles.body}>🥉 Bronze (0-999)</Text>
+          <Text style={styles.body}>🥈 Silver (1000-1399)</Text>
+          <Text style={styles.body}>🥇 Gold (1400-1799)</Text>
+          <Text style={styles.body}>💎 Diamond (1800-2199)</Text>
+          <Text style={styles.body}>👑 Master (2200+)</Text>
+        </View>
+
+        {/* Reconnection & Disconnection */}
+        <View style={styles.section}>
+          <Text style={styles.heading}>{i18n.t('howToPlay.reconnectionTitle')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.reconnectionDesc')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.disconnectGrace')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.botReplacement')}</Text>
+          <Text style={styles.body}>{i18n.t('howToPlay.spectatorMode')}</Text>
+        </View>
+
         {/* Let's Play Button */}
         <TouchableOpacity
           style={styles.playButton}
