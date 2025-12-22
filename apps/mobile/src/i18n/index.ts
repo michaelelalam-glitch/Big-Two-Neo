@@ -217,6 +217,17 @@ export interface Translations {
     scoring11to12?: string;
     scoringWarning: string;
     letsPlay: string;
+    // ELO Rating System (Phase 4b)
+    eloSystemTitle: string;
+    eloSystemDesc: string;
+    eloFormula: string;
+    rankTiersTitle: string;
+    // Reconnection & Disconnection (Phase 4b)
+    reconnectionTitle: string;
+    reconnectionDesc: string;
+    disconnectGrace: string;
+    botReplacement: string;
+    spectatorMode: string;
   };
   
   // Game Screen
@@ -609,6 +620,17 @@ const en: Translations = {
     scoring10to13: '10-13 cards left: 3 points per card',
     scoringWarning: 'Warning: First player to reach over 100 points loses the game! The player with the lowest score wins.',
     letsPlay: "Let's Play!",
+    // ELO Rating System
+    eloSystemTitle: '🏆 ELO Rating System',
+    eloSystemDesc: 'Your ELO rating measures your skill level. It increases when you win and decreases when you lose in ranked matches. Casual matches do not affect your ELO.',
+    eloFormula: 'ELO changes are calculated using the chess rating formula with K-factor=32. Winning against higher-rated opponents gives more points.',
+    rankTiersTitle: 'Rank Tiers:',
+    // Reconnection & Disconnection
+    reconnectionTitle: '🔄 Reconnection & Disconnection',
+    reconnectionDesc: 'If you lose connection during a match, you have 15 seconds to reconnect before a bot replaces you.',
+    disconnectGrace: '⏱️ Grace Period: 15 seconds to resume your app and restore your position.',
+    botReplacement: '🤖 Bot Replacement: After 15 seconds, a bot with your current hand will play for you.',
+    spectatorMode: '👁️ Spectator Mode: If you reconnect after bot replacement, you can watch the match but cannot play.',
   },
   game: {
     yourTurn: 'Your Turn',
@@ -1235,6 +1257,17 @@ const ar: Translations = {
     scoring11to12: '• 11-12 ورقة متبقية = 3 نقاط',
     scoringWarning: 'تحذير: أول لاعب يصل إلى أكثر من 100 نقطة يخسر اللعبة! اللاعب صاحب أقل نقاط يفوز.',
     letsPlay: 'هيا نلعب!',
+    // ELO Rating System
+    eloSystemTitle: '🏆 نظام تصنيف ELO',
+    eloSystemDesc: 'تصنيف ELO الخاص بك يقيس مستوى مهارتك. يزداد عندما تفوز ويقل عندما تخسر في المباريات المصنفة. المباريات العادية لا تؤثر على ELO الخاص بك.',
+    eloFormula: 'يتم حساب تغييرات ELO باستخدام صيغة تصنيف الشطرنج مع عامل K = 32. الفوز ضد خصوم ذوي تصنيف أعلى يمنح المزيد من النقاط.',
+    rankTiersTitle: 'مستويات الرتب:',
+    // Reconnection & Disconnection
+    reconnectionTitle: '🔄 إعادة الاتصال والانقطاع',
+    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 15 ثانية لإعادة الاتصال قبل أن يحل بوت محلك.',
+    disconnectGrace: '⏱️ فترة السماح: 15 ثانية لاستئناف التطبيق واستعادة موضعك.',
+    botReplacement: '🤖 استبدال البوت: بعد 15 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
+    spectatorMode: '👁️ وضع المشاهدة: إذا أعدت الاتصال بعد استبدال البوت، يمكنك مشاهدة المباراة ولكن لا يمكنك اللعب.',
   },
 };
 
@@ -1639,6 +1672,17 @@ const de: Translations = {
     scoring11to12: '• 11-12 verbleibende Karten = 3 Punkte',
     scoringWarning: 'Warnung: Der erste Spieler, der über 100 Punkte erreicht, verliert das Spiel! Der Spieler mit der niedrigsten Punktzahl gewinnt.',
     letsPlay: 'Los geht\'s!',
+    // ELO Rating System
+    eloSystemTitle: '🏆 ELO-Bewertungssystem',
+    eloSystemDesc: 'Ihre ELO-Bewertung misst Ihr Fähigkeitsniveau. Sie steigt, wenn Sie gewinnen, und sinkt, wenn Sie in gewerteten Spielen verlieren. Casual-Spiele beeinflussen Ihre ELO nicht.',
+    eloFormula: 'ELO-Änderungen werden mit der Schachbewertungsformel mit K-Faktor=32 berechnet. Gewinnen gegen höher bewertete Gegner gibt mehr Punkte.',
+    rankTiersTitle: 'Rangstufen:',
+    // Reconnection & Disconnection
+    reconnectionTitle: '🔄 Wiederverbindung & Trennung',
+    reconnectionDesc: 'Wenn Sie während eines Spiels die Verbindung verlieren, haben Sie 15 Sekunden Zeit, um sich wieder zu verbinden, bevor ein Bot Sie ersetzt.',
+    disconnectGrace: '⏱️ Kulanzfrist: 15 Sekunden, um Ihre App fortzusetzen und Ihre Position wiederherzustellen.',
+    botReplacement: '🤖 Bot-Ersatz: Nach 15 Sekunden spielt ein Bot mit Ihren aktuellen Karten für Sie.',
+    spectatorMode: '👁️ Zuschauermodus: Wenn Sie sich nach dem Bot-Ersatz wieder verbinden, können Sie das Spiel ansehen, aber nicht spielen.',
   },
 };
 
