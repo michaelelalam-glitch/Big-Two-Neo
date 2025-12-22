@@ -14,6 +14,53 @@
  * Date: December 18, 2025
  */
 
+// Mock reanimated before imports
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  return {
+    useSharedValue: jest.fn((initial) => ({ value: initial })),
+    useAnimatedStyle: jest.fn((fn) => fn()),
+    withTiming: jest.fn((value) => value),
+    withSpring: jest.fn((value) => value),
+    runOnJS: jest.fn((fn) => fn),
+    Easing: { bezier: jest.fn() },
+  };
+});
+
+// Mock gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  return {
+    Gesture: {
+      Tap: jest.fn(() => ({
+        onStart: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+      })),
+      Pan: jest.fn(() => ({
+        onChange: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+      })),
+    },
+    GestureDetector: ({ children }: any) => children,
+    GestureHandlerRootView: ({ children }: any) => children,
+  };
+});
+
+// Mock soundManager to prevent .m4a require errors
+jest.mock('../../../utils/soundManager', () => ({
+  SoundManager: {
+    preloadAllSounds: jest.fn(() => Promise.resolve()),
+    playSound: jest.fn(() => Promise.resolve()),
+    cleanup: jest.fn(() => Promise.resolve()),
+  },
+  SoundType: {
+    GAME_START: 'GAME_START',
+    HIGHEST_CARD: 'HIGHEST_CARD',
+    CARD_PLAY: 'CARD_PLAY',
+    PASS: 'PASS',
+  },
+}));
+
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { LandscapeGameLayout } from '../LandscapeGameLayout';
