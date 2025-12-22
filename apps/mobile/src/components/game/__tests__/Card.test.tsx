@@ -1,20 +1,32 @@
 // Mock reanimated before imports
 jest.mock('react-native-reanimated', () => {
-  const View = require('react-native').View;
+  const React = require('react');
+  const RN = require('react-native');
+  
+  // Create Animated object as default export
+  const Animated = {
+    View: RN.View,
+    Text: RN.Text,
+    ScrollView: RN.ScrollView,
+    Image: RN.Image,
+  };
+  
   return {
-    default: {
-      View: View,
-      Text: require('react-native').Text,
-      Image: require('react-native').Image,
-      ScrollView: require('react-native').ScrollView,
-      createAnimatedComponent: (component: any) => component,
-    },
+    __esModule: true,
+    default: Animated,
     useSharedValue: jest.fn((value) => ({ value })),
-    useAnimatedStyle: jest.fn((callback) => callback()),
+    useAnimatedStyle: jest.fn((fn) => {
+      try {
+        return fn();
+      } catch (e) {
+        return {};
+      }
+    }),
     withSpring: jest.fn((value) => value),
     withTiming: jest.fn((value) => value),
     runOnJS: jest.fn((fn) => fn),
-    Easing: { bezier: jest.fn() },
+    useDerivedValue: jest.fn((fn) => ({ value: fn() })),
+    useAnimatedReaction: jest.fn(),
   };
 });
 

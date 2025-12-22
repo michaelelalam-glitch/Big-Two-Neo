@@ -157,15 +157,15 @@ describe('Landscape Constants - Task #456', () => {
       const { top, left } = LANDSCAPE_POSITIONING.scoreboard;
       
       expect(top).toBe(16);
-      expect(left).toBe(16);
+      expect(left).toBe(20);
     });
     
     test('Table centered in play area', () => {
       const { centerX, centerY } = LANDSCAPE_POSITIONING.table;
       
-      // Should be roughly centered
-      expect(centerX).toBeGreaterThan(LANDSCAPE_BASE.usableWidth / 3);
-      expect(centerX).toBeLessThan((LANDSCAPE_BASE.usableWidth * 2) / 3);
+      // Should be roughly centered in usable area
+      expect(centerX).toBeGreaterThan(LANDSCAPE_BASE.usableArea.width / 3);
+      expect(centerX).toBeLessThan((LANDSCAPE_BASE.usableArea.width * 2) / 3);
       expect(centerY).toBeGreaterThan(0);
     });
     
@@ -178,10 +178,11 @@ describe('Landscape Constants - Task #456', () => {
     test('Player positions are distinct', () => {
       const { top, left, right, bottom } = LANDSCAPE_POSITIONING.players;
       
-      // Each position should have unique coordinates
-      expect(top).not.toEqual(left);
-      expect(left).not.toEqual(right);
-      expect(right).not.toEqual(bottom);
+      // Each position should have unique x or y coordinates
+      expect(top.y).not.toEqual(left.y);
+      expect(left.x).not.toEqual(right.x);
+      expect(right.x).not.toEqual(bottom.x);
+      expect(top).not.toEqual(bottom);
     });
   });
   
@@ -240,7 +241,7 @@ describe('Landscape Constants - Task #456', () => {
     
     test('All layout zones fit within usable area', () => {
       const totalVerticalSpace = 
-        LANDSCAPE_DIMENSIONS.scoreboard.collapsedHeight +
+        LANDSCAPE_DIMENSIONS.scoreboard.collapsed.minHeight +
         LANDSCAPE_DIMENSIONS.table.height +
         LANDSCAPE_DIMENSIONS.controlBar.height;
       

@@ -2,6 +2,21 @@
  * Extended state manager tests for error handling and edge cases
  */
 
+// Mock soundManager FIRST to prevent .m4a require errors
+jest.mock('../../utils/soundManager', () => ({
+  SoundManager: {
+    preloadAllSounds: jest.fn(() => Promise.resolve()),
+    playSound: jest.fn(() => Promise.resolve()),
+    cleanup: jest.fn(() => Promise.resolve()),
+  },
+  SoundType: {
+    GAME_START: 'GAME_START',
+    HIGHEST_CARD: 'HIGHEST_CARD',
+    CARD_PLAY: 'CARD_PLAY',
+    PASS: 'PASS',
+  },
+}));
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameStateManager, type GameState } from '../state';
 import type { Card } from '../types';

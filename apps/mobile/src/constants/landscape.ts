@@ -160,8 +160,32 @@ export const LANDSCAPE_DIMENSIONS = {
 
 export const LANDSCAPE_POSITIONING = {
   scoreboard: {
-    top: 12,
+    top: 16,
     left: 20,
+  },
+  
+  table: {
+    centerX: 407, // Center of usable area (814 / 2)
+    centerY: 165, // Center of game area (302 / 2 + 60 topBar)
+  },
+  
+  players: {
+    top: {
+      x: 407, // Center
+      y: 60,  // Below top bar
+    },
+    left: {
+      x: 140,  // 80 (safe) + 60 (offset)
+      y: 215,  // Vertical center
+    },
+    right: {
+      x: 674,  // Mirror of left
+      y: 215,
+    },
+    bottom: {
+      x: 407,  // Center
+      y: 320,  // Above your position
+    },
   },
   
   playerCards: {

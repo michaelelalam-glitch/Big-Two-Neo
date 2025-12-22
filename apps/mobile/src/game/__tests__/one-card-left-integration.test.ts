@@ -16,7 +16,12 @@ jest.mock('../../utils/soundManager', () => ({
     WINNER: 'WINNER',
   },
 }));
-
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined),
+}));
 import { GameStateManager } from '../state';
 import type { Card } from '../types';
 
