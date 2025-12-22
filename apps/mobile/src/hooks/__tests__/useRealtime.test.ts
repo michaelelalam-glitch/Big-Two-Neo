@@ -5,6 +5,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import { supabase } from '../../services/supabase';
+import type { Card } from '../../game/types';
 
 // Mock Supabase
 jest.mock('../../services/supabase', () => ({
@@ -14,6 +15,13 @@ jest.mock('../../services/supabase', () => ({
     from: jest.fn(),
   },
 }));
+
+// Helper to create test cards with proper typing
+const createCard = (rank: Card['rank'], suit: Card['suit']): Card => ({
+  id: `${rank}-${suit}`,
+  rank,
+  suit,
+});
 
 describe('useRealtime', () => {
   const mockUserId = 'user-123';
@@ -294,8 +302,8 @@ describe('useRealtime', () => {
 
     it('should play cards on player turn', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
       ];
 
       const mockGameState = {
@@ -342,7 +350,7 @@ describe('useRealtime', () => {
 
     it('should determine combo type for single card', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
+        createCard('3', 'S'),
       ];
 
       const mockGameState = {
@@ -391,8 +399,8 @@ describe('useRealtime', () => {
 
     it('should determine combo type for pair', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
       ];
 
       const mockGameState = {
@@ -441,9 +449,9 @@ describe('useRealtime', () => {
 
     it('should determine combo type for triple', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
-        { suit: 'clubs' as const, rank: '3' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
+        createCard('3', 'C'),
       ];
 
       const mockGameState = {
@@ -492,11 +500,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for straight', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '4' as const },
-        { suit: 'clubs' as const, rank: '5' as const },
-        { suit: 'diamonds' as const, rank: '6' as const },
-        { suit: 'spades' as const, rank: '7' as const },
+        createCard('3', 'S'),
+        createCard('4', 'H'),
+        createCard('5', 'C'),
+        createCard('6', 'D'),
+        createCard('7', 'S'),
       ];
 
       const mockGameState = {
@@ -545,11 +553,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for A-2-3-4-5 wraparound straight', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: 'A' as const },
-        { suit: 'hearts' as const, rank: '2' as const },
-        { suit: 'clubs' as const, rank: '3' as const },
-        { suit: 'diamonds' as const, rank: '4' as const },
-        { suit: 'spades' as const, rank: '5' as const },
+        createCard('A', 'S'),
+        createCard('2', 'H'),
+        createCard('3', 'C'),
+        createCard('4', 'D'),
+        createCard('5', 'S'),
       ];
 
       const mockGameState = {
@@ -598,11 +606,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for 2-3-4-5-6 wraparound straight', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '2' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
-        { suit: 'clubs' as const, rank: '4' as const },
-        { suit: 'diamonds' as const, rank: '5' as const },
-        { suit: 'spades' as const, rank: '6' as const },
+        createCard('2', 'S'),
+        createCard('3', 'H'),
+        createCard('4', 'C'),
+        createCard('5', 'D'),
+        createCard('6', 'S'),
       ];
 
       const mockGameState = {
@@ -651,11 +659,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for flush', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'spades' as const, rank: '5' as const },
-        { suit: 'spades' as const, rank: '7' as const },
-        { suit: 'spades' as const, rank: '9' as const },
-        { suit: 'spades' as const, rank: 'J' as const },
+        createCard('3', 'S'),
+        createCard('5', 'S'),
+        createCard('7', 'S'),
+        createCard('9', 'S'),
+        createCard('J', 'S'),
       ];
 
       const mockGameState = {
@@ -704,11 +712,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for full house', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
-        { suit: 'clubs' as const, rank: '3' as const },
-        { suit: 'diamonds' as const, rank: '4' as const },
-        { suit: 'spades' as const, rank: '4' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
+        createCard('3', 'C'),
+        createCard('4', 'D'),
+        createCard('4', 'S'),
       ];
 
       const mockGameState = {
@@ -757,11 +765,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for four of a kind', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
-        { suit: 'clubs' as const, rank: '3' as const },
-        { suit: 'diamonds' as const, rank: '3' as const },
-        { suit: 'spades' as const, rank: '4' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
+        createCard('3', 'C'),
+        createCard('3', 'D'),
+        createCard('4', 'S'),
       ];
 
       const mockGameState = {
@@ -810,11 +818,11 @@ describe('useRealtime', () => {
 
     it('should determine combo type for straight flush', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'spades' as const, rank: '4' as const },
-        { suit: 'spades' as const, rank: '5' as const },
-        { suit: 'spades' as const, rank: '6' as const },
-        { suit: 'spades' as const, rank: '7' as const },
+        createCard('3', 'S'),
+        createCard('4', 'S'),
+        createCard('5', 'S'),
+        createCard('6', 'S'),
+        createCard('7', 'S'),
       ];
 
       const mockGameState = {
@@ -898,10 +906,10 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid card count (4 cards)', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '4' as const },
-        { suit: 'clubs' as const, rank: '5' as const },
-        { suit: 'diamonds' as const, rank: '6' as const },
+        createCard('3', 'S'),
+        createCard('4', 'H'),
+        createCard('5', 'C'),
+        createCard('6', 'D'),
       ];
 
       const mockGameState = {
@@ -938,12 +946,12 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid card count (6 cards)', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '4' as const },
-        { suit: 'clubs' as const, rank: '5' as const },
-        { suit: 'diamonds' as const, rank: '6' as const },
-        { suit: 'spades' as const, rank: '7' as const },
-        { suit: 'hearts' as const, rank: '8' as const },
+        createCard('3', 'S'),
+        createCard('4', 'H'),
+        createCard('5', 'C'),
+        createCard('6', 'D'),
+        createCard('7', 'S'),
+        createCard('8', 'H'),
       ];
 
       const mockGameState = {
@@ -980,11 +988,11 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid 5-card combination', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '5' as const },
-        { suit: 'clubs' as const, rank: '7' as const },
-        { suit: 'diamonds' as const, rank: '9' as const },
-        { suit: 'spades' as const, rank: 'K' as const },
+        createCard('3', 'S'),
+        createCard('5', 'H'),
+        createCard('7', 'C'),
+        createCard('9', 'D'),
+        createCard('K', 'S'),
       ];
 
       const mockGameState = {
@@ -1021,8 +1029,8 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid pair with mismatched ranks', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '4' as const },
+        createCard('3', 'S'),
+        createCard('4', 'H'),
       ];
 
       const mockGameState = {
@@ -1059,9 +1067,9 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid triple with two matching and one different', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '3' as const },
-        { suit: 'clubs' as const, rank: '4' as const },
+        createCard('3', 'S'),
+        createCard('3', 'H'),
+        createCard('4', 'C'),
       ];
 
       const mockGameState = {
@@ -1098,9 +1106,9 @@ describe('useRealtime', () => {
 
     it('should throw error for invalid triple with all different ranks', async () => {
       const mockCards = [
-        { suit: 'spades' as const, rank: '3' as const },
-        { suit: 'hearts' as const, rank: '4' as const },
-        { suit: 'clubs' as const, rank: '5' as const },
+        createCard('3', 'S'),
+        createCard('4', 'H'),
+        createCard('5', 'C'),
       ];
 
       const mockGameState = {
@@ -1204,7 +1212,7 @@ describe('useRealtime', () => {
 
       await expect(async () => {
         await act(async () => {
-          await result.current.playCards([{ suit: 'spades' as const, rank: '3' as const }]);
+          await result.current.playCards([createCard('3', 'S')]);
         });
       }).rejects.toThrow('Not your turn');
     });

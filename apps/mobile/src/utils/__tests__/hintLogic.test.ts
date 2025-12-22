@@ -20,10 +20,10 @@ const createCard = (rank: string, suit: string): Card => ({
 });
 
 // Helper to create LastPlay
-const createLastPlay = (cards: Card[], combo: string): LastPlay => ({
+const createLastPlay = (cards: Card[], comboType: string): LastPlay => ({
   cards,
-  combo: combo as any,
-  playedBy: 1,
+  combo_type: comboType as any,
+  position: 0,
 });
 
 describe('findHintPlay - Hint Button Logic', () => {
