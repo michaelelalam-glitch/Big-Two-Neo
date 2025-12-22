@@ -37,7 +37,6 @@ describe('LandscapeControlBar - Rendering', () => {
   it('renders all button groups', () => {
     const { getByTestId } = render(
       <LandscapeControlBar
-        onHelp={jest.fn()}
         onOrientationToggle={jest.fn()}
         onSort={jest.fn()}
         onSmartSort={jest.fn()}
@@ -48,11 +47,11 @@ describe('LandscapeControlBar - Rendering', () => {
       />
     );
 
-    // Group 1: Help
-    expect(getByTestId('help-button')).toBeTruthy();
-    
-    // Group 2: Orientation Toggle
+    // Group 1: Orientation Toggle (Help button removed in landscape)
     expect(getByTestId('orientation-toggle-button')).toBeTruthy();
+    
+    // Group 2: Sort Buttons
+    expect(getByTestId('sort-button')).toBeTruthy();
     
     // Group 3: Sort Buttons
     expect(getByTestId('sort-button')).toBeTruthy();
@@ -88,17 +87,14 @@ describe('LandscapeControlBar - Rendering', () => {
   it('renders icon buttons correctly', () => {
     const { getByText } = render(
       <LandscapeControlBar
-        onHelp={jest.fn()}
         onOrientationToggle={jest.fn()}
-        onHint={jest.fn()}
         onSettings={jest.fn()}
       />
     );
 
-    expect(getByText('❓')).toBeTruthy(); // Help
     expect(getByText('🔄')).toBeTruthy(); // Orientation
-    expect(getByText('💡')).toBeTruthy(); // Hint
     expect(getByText('⚙️')).toBeTruthy(); // Settings
+    // Note: Hint is a text button, not icon button
   });
 });
 
@@ -107,16 +103,6 @@ describe('LandscapeControlBar - Rendering', () => {
 // ============================================================================
 
 describe('LandscapeControlBar - Button Interactions', () => {
-  it('calls onHelp when help button pressed', () => {
-    const onHelp = jest.fn();
-    const { getByTestId } = render(
-      <LandscapeControlBar onHelp={onHelp} />
-    );
-
-    fireEvent.press(getByTestId('help-button'));
-    expect(onHelp).toHaveBeenCalledTimes(1);
-  });
-
   it('calls onOrientationToggle when orientation button pressed', () => {
     const onOrientationToggle = jest.fn();
     const { getByTestId } = render(
@@ -193,17 +179,6 @@ describe('LandscapeControlBar - Button Interactions', () => {
 // ============================================================================
 
 describe('LandscapeControlBar - Disabled State', () => {
-  it('disables help button when disabled prop is true', () => {
-    const onHelp = jest.fn();
-    const { getByTestId } = render(
-      <LandscapeControlBar onHelp={onHelp} disabled={true} />
-    );
-
-    const button = getByTestId('help-button');
-    fireEvent.press(button);
-    expect(onHelp).not.toHaveBeenCalled();
-  });
-
   it('disables sort buttons when disabled prop is true', () => {
     const onSort = jest.fn();
     const onSmartSort = jest.fn();
@@ -284,10 +259,10 @@ describe('LandscapeControlBar - Haptic Feedback', () => {
   it('triggers haptic feedback when button pressed', async () => {
     const Haptics = require('expo-haptics');
     const { getByTestId } = render(
-      <LandscapeControlBar onHelp={jest.fn()} />
+      <LandscapeControlBar onOrientationToggle={jest.fn()} />
     );
 
-    fireEvent.press(getByTestId('help-button'));
+    fireEvent.press(getByTestId('orientation-toggle-button'));
     expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
   });
 
@@ -296,10 +271,10 @@ describe('LandscapeControlBar - Haptic Feedback', () => {
     Haptics.impactAsync.mockClear();
 
     const { getByTestId } = render(
-      <LandscapeControlBar onHelp={jest.fn()} disabled={true} />
+      <LandscapeControlBar onSort={jest.fn()} disabled={true} />
     );
 
-    fireEvent.press(getByTestId('help-button'));
+    fireEvent.press(getByTestId('sort-button'));
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
   });
 });
@@ -360,7 +335,6 @@ describe('LandscapeControlBar - Accessibility', () => {
       />
     );
 
-    expect(getByTestId('help-button')).toBeTruthy();
     expect(getByTestId('orientation-toggle-button')).toBeTruthy();
     expect(getByTestId('sort-button')).toBeTruthy();
     expect(getByTestId('smart-sort-button')).toBeTruthy();
@@ -393,8 +367,7 @@ describe('LandscapeControlBar - Edge Cases', () => {
   it('renders without any handlers', () => {
     const { getByTestId } = render(<LandscapeControlBar />);
     
-    // Should still render all buttons
-    expect(getByTestId('help-button')).toBeTruthy();
+    // Should still render orientation button
     expect(getByTestId('orientation-toggle-button')).toBeTruthy();
   });
 
@@ -405,7 +378,7 @@ describe('LandscapeControlBar - Edge Cases', () => {
 
     // Should not crash when pressed
     expect(() => {
-      fireEvent.press(getByTestId('help-button'));
+      fireEvent.press(getByTestId('orientation-toggle-button'));
     }).not.toThrow();
   });
 
