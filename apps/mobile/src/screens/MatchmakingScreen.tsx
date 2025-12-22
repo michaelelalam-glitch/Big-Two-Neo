@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
@@ -11,6 +11,7 @@ import { i18n } from '../i18n';
 import { showError } from '../utils';
 
 type MatchmakingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Matchmaking'>;
+type MatchmakingScreenRouteProp = RouteProp<RootStackParamList, 'Matchmaking'>;
 
 /**
  * Matchmaking Screen - Quick Match Queue
@@ -21,10 +22,15 @@ type MatchmakingScreenNavigationProp = StackNavigationProp<RootStackParamList, '
  * - Real-time updates via Supabase
  * - Auto-navigates to lobby when match found
  * - Skill-based matchmaking (±200 ELO)
+ * - Supports Casual and Ranked match types
  */
 export default function MatchmakingScreen() {
   const navigation = useNavigation<MatchmakingScreenNavigationProp>();
+  const route = useRoute<MatchmakingScreenRouteProp>();
   const { user, profile } = useAuth();
+  
+  // Get match type from route params (default: 'casual')
+  const matchType = route.params?.matchType || 'casual';
   
   const {
     isSearching,
@@ -49,8 +55,8 @@ export default function MatchmakingScreen() {
     const skillRating = profile.elo_rating || 1000; // Default to 1000 if no rating
     const region = profile.region || 'global'; // Default to global
 
-    // Start searching for match
-    void startMatchmaking(username, skillRating, region);
+    // Start searching for match with specified match type
+    void startMatchmaking(username, skillRating, region, matchType);
 
     // Cleanup on unmount
     return () => {
@@ -113,6 +119,17 @@ export default function MatchmakingScreen() {
       <View style={styles.content}>
         {/* Header */}
         <Text style={styles.title}>{i18n.t('matchmaking.title')}</Text>
+        
+        {/* Match Type Badge */}
+        <View style={[
+          styles.matchTypeBadge,
+          matchType === 'ranked' && styles.matchTypeBadgeRanked
+        ]}>
+          <Text style={styles.matchTypeBadgeText}>
+            {matchType === 'casual' ? '😊 ' : '🏆 '}
+            {i18n.t(`matchmaking.${matchType}`)}
+          </Text>
+        </View>
         
         {/* Searching Animation */}
         <View style={styles.animationContainer}>
@@ -275,6 +292,28 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
+    fontSize: FONT_SIZES.sm,
+    textAlign: 'center',
+  },
+  matchTypeBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: COLORS.success,
+    borderRadius: 20,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  matchTypeBadgeRanked: {
+    backgroundColor: 'rgba(250, 204, 21, 0.15)',
+    borderColor: '#FCD34D',
+  },
+  matchTypeBadgeText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
+});
     fontSize: FONT_SIZES.sm,
     textAlign: 'center',
   },
