@@ -25,7 +25,72 @@ global.console = {
 
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
+  const React = require('react');
+  const ReactNative = require('react-native');
+  
+  const AnimatedView = React.forwardRef((props: any, ref: any) => {
+    return React.createElement(ReactNative.View, { ...props, ref });
+  });
+  const AnimatedText = React.forwardRef((props: any, ref: any) => {
+    return React.createElement(ReactNative.Text, { ...props, ref });
+  });
+  const AnimatedScrollView = React.forwardRef((props: any, ref: any) => {
+    return React.createElement(ReactNative.ScrollView, { ...props, ref });
+  });
+  
+  return {
+    __esModule: true,
+    default: {
+      View: AnimatedView,
+      Text: AnimatedText,
+      ScrollView: AnimatedScrollView,
+      createAnimatedComponent: (Component: any) => Component,
+    },
+    useSharedValue: jest.fn((initial) => ({ value: initial })),
+    useAnimatedStyle: jest.fn((fn) => fn()),
+    withTiming: jest.fn((value) => value),
+    withSpring: jest.fn((value) => value),
+    runOnJS: jest.fn((fn) => fn),
+    Easing: { bezier: jest.fn() },
+  };
+});
+
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  return {
+    Gesture: {
+      Tap: jest.fn(() => ({
+        enabled: jest.fn().mockReturnThis(),
+        maxDuration: jest.fn().mockReturnThis(),
+        onStart: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+      })),
+      Pan: jest.fn(() => ({
+        enabled: jest.fn().mockReturnThis(),
+        minDistance: jest.fn().mockReturnThis(),
+        onStart: jest.fn().mockReturnThis(),
+        onUpdate: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+        onChange: jest.fn().mockReturnThis(),
+      })),
+      LongPress: jest.fn(() => ({
+        enabled: jest.fn().mockReturnThis(),
+        minDuration: jest.fn().mockReturnThis(),
+        onStart: jest.fn().mockReturnThis(),
+        onEnd: jest.fn().mockReturnThis(),
+        onFinalize: jest.fn().mockReturnThis(),
+      })),
+      Simultaneous: jest.fn((...gestures) => ({
+        gestures,
+        type: 'simultaneous',
+      })),
+      Exclusive: jest.fn((...gestures) => ({
+        gestures,
+        type: 'exclusive',
+      })),
+    },
+    GestureDetector: ({ children }: any) => children,
+    GestureHandlerRootView: ({ children }: any) => children,
+  };
 });
