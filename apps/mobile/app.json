@@ -4,6 +4,7 @@
     "slug": "big2-mobile",
     "version": "1.0.0",
     "orientation": "default",
+    "_comment_orientation": "Set to 'default' to enable landscape mode for GameScreen. Portrait-only screens (e.g., Auth, Settings) handle orientation locking via useOrientationManager hook with ScreenOrientation.lockAsync()",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
