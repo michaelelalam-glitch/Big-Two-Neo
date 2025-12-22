@@ -237,6 +237,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent={true}
+      supportedOrientations={['portrait', 'landscape']}
     >
       {/* Overlay */}
       <View style={styles.modalOverlay}>

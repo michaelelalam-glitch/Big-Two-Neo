@@ -41,7 +41,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
       {/* Header with match number and action buttons */}
       <View style={styles.compactHeader}>
         <Text style={styles.matchTitle}>
-          {isGameFinished ? '🏁 Game Over' : `🃏 Match ${matchNumber}`}
+          {isGameFinished ? '🏁 Game Over' : `Match ${matchNumber}`}
         </Text>
         
         <View style={styles.headerButtons}>
@@ -105,15 +105,8 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
                 {name}
               </Text>
 
-              {/* Stats: card count + score */}
+              {/* Stats: score only */}
               <View style={styles.playerStats}>
-                {/* Card count (only show during active game) */}
-                {!isGameFinished && (
-                  <Text style={styles.cardCount}>
-                    🃏 {cardCount}
-                  </Text>
-                )}
-
                 {/* Score */}
                 <Text
                   style={[

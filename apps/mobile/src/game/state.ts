@@ -11,7 +11,7 @@ import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { gameLogger, statsLogger } from '../utils/logger';
-import { showError } from '../utils';
+import { showError, soundManager, SoundType } from '../utils';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -274,10 +274,15 @@ export class GameStateManager {
       },
     ];
 
+    // Bot names match physical positions (counter-clockwise from player):
+    // Player 1 (top) = Bot 2
+    // Player 2 (left) = Bot 3  
+    // Player 3 (right, next in turn order) = Bot 1
+    const botNames = ['Bot 2', 'Bot 3', 'Bot 1'];
     for (let i = 0; i < botCount; i++) {
       players.push({
         id: `bot_${i + 1}`,
-        name: `Bot ${i + 1}`,
+        name: botNames[i] || `Bot ${i + 1}`,
         hand: [],
         isBot: true,
         botDifficulty,
@@ -1180,6 +1185,10 @@ export class GameStateManager {
     this.notifyListeners();
 
     gameLogger.info(`✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`);
+    
+    // Play match start sound ("here we go again")
+    soundManager.playSound(SoundType.GAME_START);
+    gameLogger.info('🎵 [Audio] Match start sound triggered');
 
     return { success: true };
   }
