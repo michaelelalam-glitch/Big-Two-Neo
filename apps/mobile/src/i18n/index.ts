@@ -436,6 +436,26 @@ export interface Translations {
     orContinueWith: string;
     agreeToTerms: string;
   };
+  
+  // Matchmaking Screen
+  matchmaking: {
+    title: string;
+    searching: string;
+    initializing: string;
+    waiting1: string;
+    waiting2: string;
+    waiting3: string;
+    matched: string;
+    beFirst: string;
+    1playerWaiting: string;
+    2playersWaiting: string;
+    3playersWaiting: string;
+    startingGame: string;
+    playersInQueue: string;
+    playersNeeded: string;
+    howItWorks: string;
+    description: string;
+  };
 }
 
 // English translations (default)
@@ -794,6 +814,24 @@ const en: Translations = {
     orContinueWith: 'Or continue with',
     agreeToTerms: 'By signing up, you agree to our Terms of Service and Privacy Policy',
   },
+  matchmaking: {
+    title: 'Find Match',
+    searching: 'Searching for players...',
+    initializing: 'Initializing matchmaking...',
+    waiting1: 'Found 1 player, waiting for 3 more...',
+    waiting2: 'Found 2 players, waiting for 2 more...',
+    waiting3: 'Found 3 players, waiting for 1 more...',
+    matched: 'Match found! Starting game...',
+    beFirst: 'Be the first to join!',
+    1playerWaiting: '1 player is waiting. Join now!',
+    2playersWaiting: '2 players are waiting. Almost there!',
+    3playersWaiting: '3 players are waiting. One more needed!',
+    startingGame: 'Starting game now! 🎮',
+    playersInQueue: 'players in queue',
+    playersNeeded: 'players needed',
+    howItWorks: 'How It Works',
+    description: 'We\'ll match you with players of similar skill level. The game starts automatically when 4 players are ready!',
+  },
 };
 
 // Arabic translations
@@ -1114,6 +1152,24 @@ const ar: Translations = {
     signInWithApple: 'تسجيل الدخول باستخدام Apple',
     orContinueWith: 'أو تابع باستخدام',
     agreeToTerms: 'من خلال التسجيل، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
+  },
+  matchmaking: {
+    title: 'البحث عن مباراة',
+    searching: 'البحث عن لاعبين...',
+    initializing: 'جارٍ التهيئة...',
+    waiting1: 'تم العثور على لاعب واحد، في انتظار 3 لاعبين آخرين...',
+    waiting2: 'تم العثور على لاعبين، في انتظار لاعبين آخرين...',
+    waiting3: 'تم العثور على 3 لاعبين، في انتظار لاعب واحد...',
+    matched: 'تم العثور على مباراة! جارٍ بدء اللعبة...',
+    beFirst: 'كن أول من ينضم!',
+    1playerWaiting: 'لاعب واحد في الانتظار. انضم الآن!',
+    2playersWaiting: 'لاعبان في الانتظار. نحن قريبون!',
+    3playersWaiting: '3 لاعبين في الانتظار. نحتاج واحد فقط!',
+    startingGame: 'بدء اللعبة الآن! 🎮',
+    playersInQueue: 'لاعبين في قائمة الانتظار',
+    playersNeeded: 'لاعبين مطلوبين',
+    howItWorks: 'كيف يعمل',
+    description: 'سنطابقك مع لاعبين لديهم مستوى مهارة مماثل. تبدأ اللعبة تلقائيًا عندما يكون 4 لاعبين جاهزين!',
   },
   howToPlay: {
     title: 'كيفية اللعب',
@@ -1500,6 +1556,24 @@ const de: Translations = {
     signInWithApple: 'Mit Apple anmelden',
     orContinueWith: 'Oder fortfahren mit',
     agreeToTerms: 'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
+  },
+  matchmaking: {
+    title: 'Spiel finden',
+    searching: 'Suche nach Spielern...',
+    initializing: 'Matchmaking wird initialisiert...',
+    waiting1: '1 Spieler gefunden, warte auf 3 weitere...',
+    waiting2: '2 Spieler gefunden, warte auf 2 weitere...',
+    waiting3: '3 Spieler gefunden, warte auf 1 weiteren...',
+    matched: 'Spiel gefunden! Starte...',
+    beFirst: 'Sei der Erste, der beitritt!',
+    1playerWaiting: '1 Spieler wartet. Jetzt beitreten!',
+    2playersWaiting: '2 Spieler warten. Fast geschafft!',
+    3playersWaiting: '3 Spieler warten. Einer fehlt noch!',
+    startingGame: 'Starte jetzt! 🎮',
+    playersInQueue: 'Spieler in der Warteschlange',
+    playersNeeded: 'Spieler benötigt',
+    howItWorks: 'So funktioniert es',
+    description: 'Wir matchen dich mit Spielern ähnlichen Niveaus. Das Spiel startet automatisch, wenn 4 Spieler bereit sind!',
   },
   howToPlay: {
     title: 'Spielanleitung',
