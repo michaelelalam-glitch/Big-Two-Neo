@@ -173,13 +173,15 @@ export const POSITIONING = {
   passButtonBorderWidth: 1,
   sidePlayerTop: 0,
   // INDEPENDENT CONTROLS - Change these to move components:
-  cardsBottom: -45,               // Cards bottom position (0 = at very bottom)
+  // Note: Negative values extend components beyond the visible viewport edge for optimal card fan display
+  // Values determined through iterative testing to balance aesthetics and usability across device sizes
+  cardsBottom: -45,               // Cards bottom position (-45 = extend below viewport for better fan visibility)
   playerInfoBottom: 100,        // Profile photo + name button (higher = up, lower = down)
   helperButtonsBottom: 180,     // Sort/Smart/Hint buttons (higher = up, lower = down)
   actionButtonsBottom: 120,     // Pass/Play buttons (higher = up, lower = down)
   playerInfoLeft: 16,           // Profile photo + name button left position
-  helperButtonsLeft: 180,        // Sort/Smart/Hint buttons left position  
-  actionButtonsRight: 0,       // Pass/Play buttons right position
+  helperButtonsLeft: 160,        // Sort/Smart/Hint buttons left position  
+  actionButtonsRight: 0,       // Pass/Play buttons right position (0 = flush with right edge)
 };
 
 // Scoreboard detail dimensions

@@ -118,6 +118,8 @@ export function LandscapeYourPosition({
     }
     // CRITICAL FIX (Issue #2): If same card set but different order, AND user didn't manually rearrange,
     // update to match parent's order (this allows helper buttons to work)
+    // Note: Edge case - if cards are reordered AND removed simultaneously, newCards.length may not equal cards.length
+    // Current implementation handles this by appending newCards to remainingCards (line 111)
     else if (sameCardSet && displayCards.length > 0) {
       // Check if order actually changed
       const orderChanged = !displayCards.every((card, idx) => card.id === cards[idx]?.id);

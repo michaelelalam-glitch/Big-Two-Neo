@@ -67,7 +67,7 @@ export default function HowToPlayScreen() {
           styles.scrollContent,
           isLandscape && styles.scrollContentLandscape
         ]}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={!isLandscape}
       >
         {/* Logo */}
         <View style={[styles.logoContainer, isLandscape && styles.logoContainerLandscape]}>

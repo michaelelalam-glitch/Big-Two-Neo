@@ -13,6 +13,9 @@ import { useGameStateManager } from '../hooks/useGameStateManager';
 import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
+
+// Action cooldown to prevent rapid double-taps (milliseconds)
+const ACTION_COOLDOWN_MS = 300;
 import { soundManager, hapticManager, SoundType, showError, showConfirm, performanceMonitor } from '../utils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -342,9 +345,9 @@ function GameScreenContent() {
         if (isMountedRef.current) {
           setIsPlayingCards(false);
         }
-      }, 300);
+      }, ACTION_COOLDOWN_MS);
     }
-  }, [gameManagerRef, isPlayingCards, isMountedRef, customCardOrder, playerHand, setCustomCardOrder, setSelectedCardIds]);
+  }, [gameManagerRef, isPlayingCards, isMountedRef, customCardOrder, playerHand]);
 
   const handlePass = useCallback(async () => {
     if (!gameManagerRef.current) {
@@ -393,9 +396,9 @@ function GameScreenContent() {
         if (isMountedRef.current) {
           setIsPassing(false);
         }
-      }, 300);
+      }, ACTION_COOLDOWN_MS);
     }
-  }, [gameManagerRef, isPassing, isMountedRef, setSelectedCardIds]);
+  }, [gameManagerRef, isPassing, isMountedRef]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);

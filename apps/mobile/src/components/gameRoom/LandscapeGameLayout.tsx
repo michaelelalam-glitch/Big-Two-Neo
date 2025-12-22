@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 6,
-    pointerEvents: 'box-none', // CRITICAL: Allow button touches
+    pointerEvents: 'box-none', // IMPORTANT: Allow button touches while maintaining gesture handling
   },
   
   // Play button (Green)
