@@ -15,10 +15,10 @@ import { COLORS } from '../../../constants';
 describe('LandscapeCard Component - Task #449', () => {
   
   const mockCards: Card[] = [
-    { id: '3H', rank: '3', suit: 'H' }, // Hearts (red)
-    { id: 'AS', rank: 'A', suit: 'S' }, // Spades (black)
-    { id: 'KD', rank: 'K', suit: 'D' }, // Diamonds (red)
-    { id: '10C', rank: '10', suit: 'C' }, // Clubs (black)
+    { id: '3H', rank: '3' as const, suit: 'H' as const }, // Hearts (red)
+    { id: 'AS', rank: 'A' as const, suit: 'S' as const }, // Spades (black)
+    { id: 'KD', rank: 'K' as const, suit: 'D' as const }, // Diamonds (red)
+    { id: '10C', rank: '10' as const, suit: 'C' as const }, // Clubs (black)
   ];
   
   // ============================================================================
@@ -39,7 +39,7 @@ describe('LandscapeCard Component - Task #449', () => {
       const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
       
       ranks.forEach(rank => {
-        const card: Card = { id: `${rank}H`, rank, suit: 'H' };
+        const card: Card = { id: `${rank}H`, rank: rank as any, suit: 'H' as const };
         const { getByText } = render(<LandscapeCard card={card} />);
         
         expect(getByText(rank)).toBeTruthy();
@@ -48,14 +48,14 @@ describe('LandscapeCard Component - Task #449', () => {
     
     test('renders all suit symbols correctly', () => {
       const suits = [
-        { suit: 'H', symbol: '♥' },
-        { suit: 'D', symbol: '♦' },
-        { suit: 'C', symbol: '♣' },
-        { suit: 'S', symbol: '♠' },
+        { suit: 'H' as const, symbol: '♥' },
+        { suit: 'D' as const, symbol: '♦' },
+        { suit: 'C' as const, symbol: '♣' },
+        { suit: 'S' as const, symbol: '♠' },
       ];
       
       suits.forEach(({ suit, symbol }) => {
-        const card: Card = { id: `A${suit}`, rank: 'A', suit };
+        const card: Card = { id: `A${suit}`, rank: 'A' as const, suit };
         const { getAllByText } = render(<LandscapeCard card={card} />);
         
         // Should render suit symbol 3 times (top-left, center, bottom-right)
@@ -135,7 +135,7 @@ describe('LandscapeCard Component - Task #449', () => {
   describe('Suit Colors', () => {
     
     test('hearts are red', () => {
-      const card: Card = { id: 'AH', rank: 'A', suit: 'H' };
+      const card: Card = { id: 'AH', rank: 'A' as const, suit: 'H' as const };
       const { getByText } = render(<LandscapeCard card={card} />);
       
       const rankElement = getByText('A');
@@ -143,7 +143,7 @@ describe('LandscapeCard Component - Task #449', () => {
     });
     
     test('diamonds are red', () => {
-      const card: Card = { id: 'AD', rank: 'A', suit: 'D' };
+      const card: Card = { id: 'AD', rank: 'A' as const, suit: 'D' as const };
       const { getByText } = render(<LandscapeCard card={card} />);
       
       const rankElement = getByText('A');
@@ -151,7 +151,7 @@ describe('LandscapeCard Component - Task #449', () => {
     });
     
     test('clubs are black', () => {
-      const card: Card = { id: 'AC', rank: 'A', suit: 'C' };
+      const card: Card = { id: 'AC', rank: 'A' as const, suit: 'C' as const };
       const { getByText } = render(<LandscapeCard card={card} />);
       
       const rankElement = getByText('A');
@@ -159,7 +159,7 @@ describe('LandscapeCard Component - Task #449', () => {
     });
     
     test('spades are black', () => {
-      const card: Card = { id: 'AS', rank: 'A', suit: 'S' };
+      const card: Card = { id: 'AS', rank: 'A' as const, suit: 'S' as const };
       const { getByText } = render(<LandscapeCard card={card} />);
       
       const rankElement = getByText('A');
@@ -291,7 +291,7 @@ describe('LandscapeCard Component - Task #449', () => {
     test('uses same suit symbols', () => {
       const symbols = ['♥', '♦', '♣', '♠'];
       
-      const card: Card = { id: 'AH', rank: 'A', suit: 'H' };
+      const card: Card = { id: 'AH', rank: 'A' as const, suit: 'H' as const };
       const { getByText } = render(<LandscapeCard card={card} />);
       
       // Should render heart symbol

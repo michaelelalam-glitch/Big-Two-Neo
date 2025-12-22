@@ -36,7 +36,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
         remaining_ms: 10000,
         triggering_play: {
           position: 0,
-          cards: [{ id: '2S', rank: '2', suit: 'S' }],
+          cards: [{ id: '2S', rank: '2' as const, suit: 'S' as const }],
           combo_type: 'Single',
         },
         player_id: 'player-0',
@@ -57,8 +57,8 @@ describe('Auto-Pass Timer WebSocket Events', () => {
         triggering_play: {
           position: 2,
           cards: [
-            { id: '2S', rank: '2', suit: 'S' },
-            { id: '2H', rank: '2', suit: 'H' },
+            { id: '2S', rank: '2' as const, suit: 'S' as const },
+            { id: '2H', rank: '2' as const, suit: 'H' as const },
           ],
           combo_type: 'Pair',
         },
@@ -151,7 +151,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
         remaining_ms: 10000,
         triggering_play: {
           position: 0,
-          cards: [{ id: '2S', rank: '2', suit: 'S' }],
+          cards: [{ id: '2S', rank: '2' as const, suit: 'S' as const }],
           combo_type: 'Single',
         },
         player_id: 'player-0',
@@ -177,7 +177,7 @@ describe('Auto-Pass Timer WebSocket Events', () => {
         remaining_ms: 5000,
         triggering_play: {
           position: 1,
-          cards: [{ id: 'AS', rank: 'A', suit: 'S' }],
+          cards: [{ id: 'AS', rank: 'A' as const, suit: 'S' as const }],
           combo_type: 'Single',
         },
         player_id: 'player-1',

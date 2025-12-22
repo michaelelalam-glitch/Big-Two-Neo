@@ -10,14 +10,14 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('easy bot passes approximately 40% of the time (statistical test)', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '7C', rank: '7', suit: 'C' },
-        { id: '9H', rank: '9', suit: 'H' },
-        { id: 'JD', rank: 'J', suit: 'D' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '7C', rank: '7' as const, suit: 'C' as const },
+        { id: '9H', rank: '9' as const, suit: 'H' as const },
+        { id: 'JD', rank: 'J' as const, suit: 'D' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -36,10 +36,10 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('easy bot makes first play with low card', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '7C', rank: '7', suit: 'C' },
-        { id: '9H', rank: '9', suit: 'H' },
-        { id: 'JD', rank: 'J', suit: 'D' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '7C', rank: '7' as const, suit: 'C' as const },
+        { id: '9H', rank: '9' as const, suit: 'H' as const },
+        { id: 'JD', rank: 'J' as const, suit: 'D' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -50,10 +50,10 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('easy bot plays with 3D when required', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '4C', rank: '4', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
-        { id: '9S', rank: '9', suit: 'S' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '4C', rank: '4' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
+        { id: '9S', rank: '9' as const, suit: 'S' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -66,14 +66,14 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('medium bot passes strategically (approximately 15% with valid plays)', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '6C', rank: '6', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
-        { id: '8S', rank: '8', suit: 'S' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6C', rank: '6' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
+        { id: '8S', rank: '8' as const, suit: 'S' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -92,10 +92,10 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('medium bot makes first play with low card', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '7C', rank: '7', suit: 'C' },
-        { id: 'JH', rank: 'J', suit: 'H' },
-        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '7C', rank: '7' as const, suit: 'C' as const },
+        { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+        { id: 'AS', rank: 'A' as const, suit: 'S' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -106,13 +106,13 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('medium bot follows with valid play when possible', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '6C', rank: '6', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6C', rank: '6' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -126,13 +126,13 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('hard bot considers opponent card count when passing', () => {
       const bot = new BotAI('hard');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '6C', rank: '6', suit: 'C' },
-        { id: 'AD', rank: 'A', suit: 'D' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6C', rank: '6' as const, suit: 'C' as const },
+        { id: 'AD', rank: 'A' as const, suit: 'D' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -150,10 +150,10 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('hard bot makes first play with lowest card', () => {
       const bot = new BotAI('hard');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '7C', rank: '7', suit: 'C' },
-        { id: 'KH', rank: 'K', suit: 'H' },
-        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '7C', rank: '7' as const, suit: 'C' as const },
+        { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+        { id: 'AS', rank: 'A' as const, suit: 'S' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -164,14 +164,14 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('hard bot plays strategically when following', () => {
       const bot = new BotAI('hard');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '6C', rank: '6', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
-        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6C', rank: '6' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
+        { id: 'KS', rank: 'K' as const, suit: 'S' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -185,14 +185,14 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot returns valid result for single card beat attempt', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '5C', rank: '5', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
-        { id: '9S', rank: '9', suit: 'S' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '5C', rank: '5' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
+        { id: '9S', rank: '9' as const, suit: 'S' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: '4D', rank: '4', suit: 'D' }],
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 
@@ -203,10 +203,10 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot plays 3D in first play scenarios', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '3C', rank: '3', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
-        { id: '9S', rank: '9', suit: 'S' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '3C', rank: '3' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
+        { id: '9S', rank: '9' as const, suit: 'S' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
@@ -217,9 +217,9 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot can handle leading (no lastPlay)', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '6C', rank: '6', suit: 'C' },
-        { id: '7H', rank: '7', suit: 'H' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6C', rank: '6' as const, suit: 'C' as const },
+        { id: '7H', rank: '7' as const, suit: 'H' as const },
       ];
 
       const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: false, playerCardCounts: [3, 3], currentPlayerIndex: 0 });
@@ -229,16 +229,16 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot handles pair following correctly', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '5C', rank: '5', suit: 'C' },
-        { id: '6H', rank: '6', suit: 'H' },
-        { id: '6S', rank: '6', suit: 'S' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '5C', rank: '5' as const, suit: 'C' as const },
+        { id: '6H', rank: '6' as const, suit: 'H' as const },
+        { id: '6S', rank: '6' as const, suit: 'S' as const },
       ];
       const lastPlay = {
         position: 0,
         cards: [
-          { id: '4D', rank: '4', suit: 'D' },
-          { id: '4C', rank: '4', suit: 'C' },
+          { id: '4D', rank: '4' as const, suit: 'D' as const },
+          { id: '4C', rank: '4' as const, suit: 'C' as const },
         ],
         combo_type: 'Pair' as const,
       };
@@ -251,17 +251,17 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot handles triple following correctly', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [
-        { id: '5D', rank: '5', suit: 'D' },
-        { id: '5C', rank: '5', suit: 'C' },
-        { id: '5H', rank: '5', suit: 'H' },
-        { id: '6S', rank: '6', suit: 'S' },
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '5C', rank: '5' as const, suit: 'C' as const },
+        { id: '5H', rank: '5' as const, suit: 'H' as const },
+        { id: '6S', rank: '6' as const, suit: 'S' as const },
       ];
       const lastPlay = {
         position: 0,
         cards: [
-          { id: '4D', rank: '4', suit: 'D' },
-          { id: '4C', rank: '4', suit: 'C' },
-          { id: '4H', rank: '4', suit: 'H' },
+          { id: '4D', rank: '4' as const, suit: 'D' as const },
+          { id: '4C', rank: '4' as const, suit: 'C' as const },
+          { id: '4H', rank: '4' as const, suit: 'H' as const },
         ],
         combo_type: 'Triple' as const,
       };
@@ -273,12 +273,12 @@ describe('BotAI - Extended Coverage Tests', () => {
     test('bot returns null when no valid plays exist', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
-        { id: '3D', rank: '3', suit: 'D' },
-        { id: '4C', rank: '4', suit: 'C' },
+        { id: '3D', rank: '3' as const, suit: 'D' as const },
+        { id: '4C', rank: '4' as const, suit: 'C' as const },
       ];
       const lastPlay = {
         position: 0,
-        cards: [{ id: 'AD', rank: 'A', suit: 'D' }],
+        cards: [{ id: 'AD', rank: 'A' as const, suit: 'D' as const }],
         combo_type: 'Single' as const,
       };
 

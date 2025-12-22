@@ -8,14 +8,14 @@ describe('One Card Left Rule - Debug User Issue', () => {
     // Next player has 1 card
     
     const currentPlayerHand: Card[] = [
-      { id: '3H', rank: '3', suit: 'H' },
-      { id: '5H', rank: '5', suit: 'H' },
-      { id: '7D', rank: '7', suit: 'D' },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: '5H', rank: '5' as const, suit: 'H' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
     ];
     
     const lastPlay: LastPlay = {
         position: 0,
-      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      cards: [{ id: '4S', rank: '4' as const, suit: 'S' as const }],
       combo_type: 'Single',
     };
     
@@ -36,14 +36,14 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should find the highest beating single correctly', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: 'H' },
-      { id: '5H', rank: '5', suit: 'H' },
-      { id: '7D', rank: '7', suit: 'D' },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: '5H', rank: '5' as const, suit: 'H' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
     ];
     
     const lastPlay: LastPlay = {
         position: 0,
-      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      cards: [{ id: '4S', rank: '4' as const, suit: 'S' as const }],
       combo_type: 'Single',
     };
     
@@ -56,16 +56,16 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should allow passing when last play was a pair (not a single)', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: 'H' },
-      { id: '5H', rank: '5', suit: 'H' },
-      { id: '7D', rank: '7', suit: 'D' },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: '5H', rank: '5' as const, suit: 'H' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
     ];
     
     const lastPlay: LastPlay = {
         position: 0,
       cards: [
-        { id: '4S', rank: '4', suit: 'S' },
-        { id: '4H', rank: '4', suit: 'H' },
+        { id: '4S', rank: '4' as const, suit: 'S' as const },
+        { id: '4H', rank: '4' as const, suit: 'H' as const },
       ],
       combo_type: 'Pair',
     };
@@ -84,14 +84,14 @@ describe('One Card Left Rule - Debug User Issue', () => {
   
   it('should allow passing when next player does NOT have 1 card', () => {
     const hand: Card[] = [
-      { id: '3H', rank: '3', suit: 'H' },
-      { id: '5H', rank: '5', suit: 'H' },
-      { id: '7D', rank: '7', suit: 'D' },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: '5H', rank: '5' as const, suit: 'H' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
     ];
     
     const lastPlay: LastPlay = {
         position: 0,
-      cards: [{ id: '4S', rank: '4', suit: 'S' }],
+      cards: [{ id: '4S', rank: '4' as const, suit: 'S' as const }],
       combo_type: 'Single',
     };
     

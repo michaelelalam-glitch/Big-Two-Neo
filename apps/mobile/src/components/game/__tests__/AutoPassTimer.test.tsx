@@ -18,7 +18,7 @@ describe('AutoPassTimer Component', () => {
     remaining_ms: 10000,
     triggering_play: {
       position: 0,
-      cards: [{ id: '2S', rank: '2', suit: 'S' }],
+      cards: [{ id: '2S', rank: '2' as const, suit: 'S' as const }],
       combo_type: 'Single',
     },
     player_id: 'test-player',
@@ -123,8 +123,8 @@ describe('AutoPassTimer Component', () => {
         triggering_play: {
           position: 0,
           cards: [
-            { id: '2S', rank: '2', suit: 'S' },
-            { id: '2H', rank: '2', suit: 'H' },
+            { id: '2S', rank: '2' as const, suit: 'S' as const },
+            { id: '2H', rank: '2' as const, suit: 'H' as const },
           ],
           combo_type: 'Pair',
         },
@@ -141,11 +141,11 @@ describe('AutoPassTimer Component', () => {
         triggering_play: {
           position: 0,
           cards: [
-            { id: '10S', rank: '10', suit: 'S' },
-            { id: 'JS', rank: 'J', suit: 'S' },
-            { id: 'QS', rank: 'Q', suit: 'S' },
-            { id: 'KS', rank: 'K', suit: 'S' },
-            { id: 'AS', rank: 'A', suit: 'S' },
+            { id: '10S', rank: '10' as const, suit: 'S' as const },
+            { id: 'JS', rank: 'J' as const, suit: 'S' as const },
+            { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+            { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+            { id: 'AS', rank: 'A' as const, suit: 'S' as const },
           ],
           combo_type: 'Straight Flush',
         },
