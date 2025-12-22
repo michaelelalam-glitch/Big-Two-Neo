@@ -174,5 +174,5 @@ export const useRenderCount = (componentName: string): void => {
 
 // Export for development console access
 if (__DEV__) {
-  (global as any).performanceMonitor = performanceMonitor;
+  (globalThis as any).performanceMonitor = performanceMonitor;
 }

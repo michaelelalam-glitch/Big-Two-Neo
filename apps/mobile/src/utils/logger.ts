@@ -20,9 +20,9 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
 // Dynamically import expo-file-system if available (graceful degradation)
 // Using require() with try-catch allows optional peer dependencies without build failures
 // This is standard practice for React Native optional dependencies (static bundlers handle this)
-// @ts-expect-error - expo-file-system is optional, so type declaration may not exist
 let FileSystem: typeof import('expo-file-system') | undefined;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   FileSystem = require('expo-file-system');
 } catch (e) {
   // FileSystem not available - will use console transport even in production

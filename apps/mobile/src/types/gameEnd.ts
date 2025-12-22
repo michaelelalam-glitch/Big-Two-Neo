@@ -5,6 +5,12 @@
  * including score history, play history, and modal props.
  */
 
+// Import shared types from scoreboard
+import type { PlayHistoryMatch, PlayHistoryHand, ScoreHistory } from './scoreboard';
+
+// Re-export shared types for convenience
+export type { PlayHistoryMatch, PlayHistoryHand, ScoreHistory } from './scoreboard';
+
 // Re-export Card from main types (shared interface)
 export interface Card {
   id: string;
@@ -12,36 +18,6 @@ export interface Card {
   suit: 'diamonds' | 'clubs' | 'hearts' | 'spades';
   r: string; // Short rank notation (for display)
   s: string; // Short suit notation (for display)
-}
-
-/**
- * Score history for a single match
- * Tracks cumulative scores and points added per player
- */
-export interface ScoreHistory {
-  matchNumber: number;
-  pointsAdded: number[]; // Points added this match per player
-  scores: number[];      // Cumulative scores after this match
-}
-
-/**
- * A single hand/play in the card play history
- * Represents one player's card play action
- */
-export interface PlayHistoryHand {
-  by: number;           // Player index who played
-  type: string;         // Combo type (e.g., "Single", "Pair", "Straight")
-  count: number;        // Number of cards in this play
-  cards: Card[];        // The actual cards played
-}
-
-/**
- * Play history for a single match
- * Contains all hands played during one match
- */
-export interface PlayHistoryMatch {
-  matchNumber: number;
-  hands: PlayHistoryHand[];
 }
 
 /**

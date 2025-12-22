@@ -53,7 +53,7 @@ export function buildFinalPlayHistoryFromState(
           timestamp: new Date(entry.timestamp).toISOString(),
         };
       })
-      .filter((hand): hand is PlayHistoryHand => hand !== null);
+      .filter((hand): hand is NonNullable<typeof hand> => hand !== null) as PlayHistoryHand[];
 
     // Check if this match is already in the history
     const existingMatchIndex = finalPlayHistory.findIndex(

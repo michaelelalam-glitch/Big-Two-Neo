@@ -6,6 +6,8 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
 import { ScoreboardContainer } from '../components/scoreboard';
 import type { Card } from '../game/types';
+import type { FinalScore } from '../types/gameEnd';
+import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -82,7 +84,9 @@ function GameScreenContent() {
     roomCode,
     currentPlayerName,
     addScoreHistory,
-    openGameEndModal,
+    openGameEndModal: (winnerName: string, winnerPosition: number, finalScores: FinalScore[], playerNames: string[], scoreHistory: ScoreHistory[], playHistory: PlayHistoryMatch[]) => {
+      openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, scoreHistory, playHistory);
+    },
     scoreHistory,
     playHistoryByMatch,
     checkAndExecuteBotTurn,
