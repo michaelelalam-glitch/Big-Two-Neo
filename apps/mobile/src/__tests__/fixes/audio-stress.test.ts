@@ -156,5 +156,5 @@ describe('Audio Stress Test - soundManager', () => {
     expect(duration).toBeLessThan(30000); // Should complete within 30 seconds
     
     console.log('[Extended Test] ✅ Extended gameplay stable');
-  });
+  }, 35000); // Timeout: 35 seconds
 });
