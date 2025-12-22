@@ -495,15 +495,15 @@ function GameScreenContent() {
           <LandscapeGameLayout
             // Scoreboard and player order: [user, Bot 1, Bot 2, Bot 3] = [0,3,1,2]
             playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
+            currentScores={gameState && gameState.matchScores ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
             cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
-            matchNumber={gameState?.currentMatch || 1}
-            isGameFinished={gameState?.gameOver || false}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex ?? 0)}
+            matchNumber={gameState?.currentMatch ?? 1}
+            isGameFinished={gameState?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
-            autoPassTimerState={gameState?.auto_pass_timer}
+            autoPassTimerState={gameState?.auto_pass_timer ?? undefined}
 
             // Table data
             lastPlayedCards={lastPlayedCards}
@@ -553,11 +553,11 @@ function GameScreenContent() {
             {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
             <ScoreboardContainer
             playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
+            currentScores={gameState && gameState.matchScores ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
             cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
-            matchNumber={gameState?.currentMatch || 1}
-            isGameFinished={gameState?.gameOver || false}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex ?? 0)}
+            matchNumber={gameState?.currentMatch ?? 1}
+            isGameFinished={gameState?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
@@ -590,7 +590,7 @@ function GameScreenContent() {
             accessibilityHint="Switch between portrait and landscape mode"
           >
             <Text style={styles.orientationToggleIcon}>
-              {currentOrientation === 'landscape' ? '📱' : '🔄'}
+              🔄
             </Text>
           </Pressable>
 

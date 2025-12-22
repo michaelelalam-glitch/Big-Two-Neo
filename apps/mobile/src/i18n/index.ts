@@ -168,21 +168,53 @@ export interface Translations {
     fullHouse: string;
     fourOfAKind: string;
     straightFlush: string;
+    // Optional separate label/text properties for non-English languages
+    singleLabel?: string;
+    singleText?: string;
+    pairLabel?: string;
+    pairText?: string;
+    tripleLabel?: string;
+    tripleText?: string;
+    fiveCardCombosLabel?: string;
+    straightLabel?: string;
+    straightText?: string;
+    flushLabel?: string;
+    flushText?: string;
+    fullHouseLabel?: string;
+    fullHouseText?: string;
+    fourOfAKindLabel?: string;
+    fourOfAKindText?: string;
+    straightFlushLabel?: string;
+    straightFlushText?: string;
     gameplayTitle: string;
     startingGame: string;
     playingCards: string;
     passing: string;
     leading: string;
     winning: string;
+    // Optional gameplay points for non-English languages
+    gameplayPoint1?: string;
+    gameplayPoint2?: string;
+    gameplayPoint3?: string;
+    gameplayPoint4?: string;
+    gameplayPoint5?: string;
     specialRulesTitle: string;
     autoPassTimer: string;
     oneCardLeft: string;
     fiveCardCombos: string;
+    // Optional special rules for non-English languages
+    specialRule1?: string;
+    specialRule2?: string;
+    specialRule3?: string;
     scoringTitle: string;
     scoringIntro: string;
     scoring1to4: string;
     scoring5to9: string;
     scoring10to13: string;
+    // Optional scoring variants for non-English languages
+    scoring1to7?: string;
+    scoring8to10?: string;
+    scoring11to12?: string;
     scoringWarning: string;
     letsPlay: string;
   };
@@ -1091,8 +1123,17 @@ const ar: Translations = {
     rankOrder: '3، 4، 5، 6، 7، 8، 9، 10، J، Q، K، A، 2',
     suitOrderLabel: '🎴 ترتيب الأنواع (عند التساوي في القيمة):',
     suitOrder: '♦ الماس، ♣ السباتي، ♥ القلوب، ♠ البستوني',
-    noteText: 'ملاحظة: 3 الماس (3♦) هو أضعف ورقة و 2 البستوني (2♠) هو أقوى ورقة!',
-    combinationsTitle: '🎮 التشكيلات الصحيحة',
+    cardNote: 'ملاحظة: 3 الماس (3♦) هو أضعف ورقة و 2 البستوني (2♠) هو أقوى ورقة!',
+    validCombinationsTitle: '🎮 التشكيلات الصحيحة',
+    cardRankingsTitle: '🎴 ترتيب البطاقات',
+    single: 'مفرد: أي ورقة واحدة',
+    pair: 'زوج: ورقتان بنفس القيمة',
+    triple: 'ثلاثية: ثلاث أوراق بنفس القيمة',
+    straight: 'متتالية: 5 أوراق متتالية',
+    flush: 'فلاش: 5 أوراق من نفس النوع',
+    fullHouse: 'فل هاوس: ثلاثية + زوج',
+    fourOfAKind: 'أربعة متشابهة: 4 أوراق بنفس القيمة',
+    straightFlush: 'فلاش متتالي: 5 أوراق متتالية من نفس النوع',
     singleLabel: '1️⃣ مفرد:',
     singleText: 'أي ورقة واحدة',
     pairLabel: '2️⃣ زوج:',
@@ -1116,12 +1157,23 @@ const ar: Translations = {
     gameplayPoint3: '• إذا لم تستطع أو لا تريد اللعب، اضغط "تمرير"',
     gameplayPoint4: '• عندما يمرر جميع اللاعبين، يبدأ اللاعب الأخير الذي لعب جولة جديدة',
     gameplayPoint5: '• استمر باللعب حتى يتخلص لاعب واحد من كل أوراقه!',
+    startingGame: 'بدء اللعبة: اللاعب الذي لديه 3 الماس (3♦) يبدأ الجولة الأولى',
+    playingCards: 'لعب البطاقات: يجب أن تلعب نفس نوع التشكيلة لكن بقيمة أعلى',
+    passing: 'التمرير: إذا لم تستطع أو لا تريد اللعب، اضغط "تمرير"',
+    leading: 'القيادة: عندما يمرر جميع اللاعبين، يبدأ اللاعب الأخير جولة جديدة',
+    winning: 'الفوز: أول لاعب يتخلص من جميع بطاقاته يفوز!',
     specialRulesTitle: '💡 قواعد خاصة',
     specialRule1: '• لا يمكن للتشكيلات الأضعف أن تتفوق على الأقوى',
     specialRule2: '• فلاش متتالي > أربعة متشابهة > فل هاوس > فلاش > متتالية',
     specialRule3: '• يمكنك استخدام الأزرار المساعدة (فرز، ذكي، تلميح) لترتيب أوراقك',
+    autoPassTimer: 'مؤقت التمرير التلقائي: عندما يتم لعب أعلى بطاقة، لدى اللاعبين الآخرين 10 ثواني للرد',
+    oneCardLeft: 'بطاقة واحدة متبقية: عندما يكون لدى اللاعب بطاقة واحدة، يجب على اللاعب السابق لعب أعلى بطاقة مفردة',
+    fiveCardCombos: 'تشكيلات 5 بطاقات: المتتاليات والفلاش لا يمكن هزيمتها إلا بتشكيلة أعلى من نفس النوع',
     scoringTitle: '🏆 نظام النقاط',
     scoringIntro: 'في نهاية كل جولة، اللاعبون الذين لم يتخلصوا من أوراقهم يحصلون على نقاط بناءً على عدد الأوراق المتبقية:',
+    scoring1to4: '1-4 أوراق متبقية: 1 نقطة',
+    scoring5to9: '5-9 أوراق متبقية: 2 نقطة',
+    scoring10to13: '10-13 ورقة متبقية: 3 نقاط',
     scoring1to7: '• 1-7 أوراق متبقية = 1 نقطة',
     scoring8to10: '• 8-10 أوراق متبقية = 2 نقطة',
     scoring11to12: '• 11-12 ورقة متبقية = 3 نقاط',
@@ -1457,8 +1509,17 @@ const de: Translations = {
     rankOrder: '3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2',
     suitOrderLabel: '🎴 Farbenrangfolge (bei gleichem Rang):',
     suitOrder: '♦ Karo, ♣ Kreuz, ♥ Herz, ♠ Pik',
-    noteText: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
-    combinationsTitle: '🎮 Gültige Kombinationen',
+    cardNote: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
+    validCombinationsTitle: '🎮 Gültige Kombinationen',
+    cardRankingsTitle: '🎴 Kartenrangfolge',
+    single: 'Einzelkarte: Eine beliebige einzelne Karte',
+    pair: 'Paar: Zwei Karten mit demselben Rang',
+    triple: 'Drilling: Drei Karten mit demselben Rang',
+    straight: 'Straße: 5 aufeinanderfolgende Karten',
+    flush: 'Flush: 5 Karten derselben Farbe',
+    fullHouse: 'Full House: Drilling + Paar',
+    fourOfAKind: 'Vierling: 4 Karten mit demselben Rang',
+    straightFlush: 'Straight Flush: 5 aufeinanderfolgende Karten derselben Farbe',
     singleLabel: '1️⃣ Einzelkarte:',
     singleText: 'Eine beliebige einzelne Karte',
     pairLabel: '2️⃣ Paar:',
@@ -1482,12 +1543,23 @@ const de: Translations = {
     gameplayPoint3: '• Wenn du nicht kannst oder willst, drücke "Passen"',
     gameplayPoint4: '• Wenn alle Spieler passen, startet der letzte Spieler eine neue Runde',
     gameplayPoint5: '• Spiele weiter, bis ein Spieler alle seine Karten losgeworden ist!',
+    startingGame: 'Spielstart: Der Spieler mit der Karo 3 (3♦) startet die erste Runde',
+    playingCards: 'Karten spielen: Du musst denselben Kombinationstyp spielen, aber höher',
+    passing: 'Passen: Wenn du nicht kannst oder willst, drücke "Passen"',
+    leading: 'Führen: Wenn alle Spieler passen, startet der letzte Spieler eine neue Runde',
+    winning: 'Gewinnen: Der erste Spieler, der alle Karten loswird, gewinnt!',
     specialRulesTitle: '💡 Spezielle Regeln',
     specialRule1: '• Schwächere 5-Karten-Kombinationen können stärkere nicht schlagen',
     specialRule2: '• Straight Flush > Vierling > Full House > Flush > Straße',
     specialRule3: '• Du kannst die Hilfsschaltflächen (Sortieren, Smart, Hinweis) verwenden, um deine Karten zu ordnen',
+    autoPassTimer: 'Auto-Pass-Timer: Bei der höchstmöglichen Karte haben andere Spieler 10 Sekunden zum Reagieren',
+    oneCardLeft: 'Eine Karte übrig: Bei 1 verbleibender Karte muss der vorherige Spieler seine höchste Einzelkarte spielen',
+    fiveCardCombos: '5-Karten-Kombinationen: Straßen und Flushs können nur von höheren Kombinationen des gleichen Typs geschlagen werden',
     scoringTitle: '🏆 Punktesystem',
     scoringIntro: 'Am Ende jeder Runde erhalten Spieler, die ihre Karten nicht losgeworden sind, Punkte basierend auf ihren verbleibenden Karten:',
+    scoring1to4: '1-4 verbleibende Karten: 1 Punkt',
+    scoring5to9: '5-9 verbleibende Karten: 2 Punkte',
+    scoring10to13: '10-13 verbleibende Karten: 3 Punkte',
     scoring1to7: '• 1-7 verbleibende Karten = 1 Punkt',
     scoring8to10: '• 8-10 verbleibende Karten = 2 Punkte',
     scoring11to12: '• 11-12 verbleibende Karten = 3 Punkte',

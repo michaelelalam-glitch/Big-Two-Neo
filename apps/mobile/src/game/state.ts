@@ -446,7 +446,7 @@ export class GameStateManager {
     this.state.consecutivePasses++;
 
     // Add to history
-    const passEntry = {
+    const passEntry: RoundHistoryEntry = {
       playerId: currentPlayer.id,
       playerName: currentPlayer.name,
       cards: [],
@@ -537,32 +537,34 @@ export class GameStateManager {
         
         // Migration: Ensure arrays added in newer versions exist
         // This prevents "Cannot read property 'push' of undefined" errors
-        if (!this.state.gameRoundHistory) {
+        if (this.state && !this.state.gameRoundHistory) {
           gameLogger.warn('[Migration] Adding missing gameRoundHistory array to loaded state');
           this.state.gameRoundHistory = [];
         }
-        if (!this.state.played_cards) {
+        if (this.state && !this.state.played_cards) {
           gameLogger.warn('[Migration] Adding missing played_cards array to loaded state');
           this.state.played_cards = [];
         }
         // CRITICAL: Migrate matchComboStats structure for each player
-        if (this.state.matchScores) {
+        if (this.state && this.state.matchScores) {
           let needsMigration = false;
           this.state.matchScores.forEach(matchScore => {
-            if (!matchScore.matchComboStats) {
-              gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore.playerId}`);
-              matchScore.matchComboStats = {
-                singles: [],
-                pairs: [],
-                triples: [],
-                straights: [],
-                flushes: [],
-                full_houses: [],
-                four_of_a_kinds: [],
-                straight_flushes: [],
-                royal_flushes: [],
-              };
-              needsMigration = true;
+            if (!matchScore?.matchComboStats) {
+              gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore?.playerId}`);
+              if (matchScore) {
+                matchScore.matchComboStats = {
+                  singles: [],
+                  pairs: [],
+                  triples: [],
+                  straights: [],
+                  flushes: [],
+                  full_houses: [],
+                  four_of_a_kinds: [],
+                  straight_flushes: [],
+                  royal_flushes: [],
+                };
+                needsMigration = true;
+              }
             }
           });
         }
@@ -628,7 +630,7 @@ export class GameStateManager {
    * Create a standard 52-card deck
    */
   private createDeck(): Card[] {
-    const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+    const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'] as const;
     const suits: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
     const deck: Card[] = [];
 
@@ -636,7 +638,7 @@ export class GameStateManager {
       for (const suit of suits) {
         deck.push({
           id: `${rank}${suit}`,
-          rank: rank,
+          rank: rank as Card['rank'],
           suit: suit,
         });
       }
@@ -849,7 +851,7 @@ export class GameStateManager {
     // 🎯 CALCULATE COMBO STATS FOR THIS MATCH (before roundHistory is cleared!)
     statsLogger.info(`📊 [Match Stats] Calculating combo stats for match ${this.state.currentMatch}...`);
     for (const player of this.state.players) {
-      const playerPlays = this.state.roundHistory.filter(
+      const playerPlays: typeof this.state.roundHistory = this.state.roundHistory.filter(
         entry => entry.playerId === player.id && !entry.passed
       );
       
@@ -865,7 +867,7 @@ export class GameStateManager {
         royal_flushes: 0,
       };
       
-      const comboMapping: Record<string, keyof typeof matchCombos> = {
+      const comboMapping: { [key: string]: keyof typeof matchCombos } = {
         'single': 'singles',
         'pair': 'pairs',
         'triple': 'triples',
@@ -878,9 +880,9 @@ export class GameStateManager {
       };
       
       for (const play of playerPlays) {
-        const normalizedCombo = play.combo_type.toLowerCase();
-        const mappedField = comboMapping[normalizedCombo];
-        if (mappedField) {
+        const normalizedCombo: string = play.combo_type.toLowerCase();
+        const mappedField: keyof typeof matchCombos | undefined = comboMapping[normalizedCombo];
+        if (mappedField && mappedField in matchCombos) {
           matchCombos[mappedField]++;
         }
       }

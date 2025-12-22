@@ -61,7 +61,7 @@ export function useGameStateManager({
   const initializedRoomRef = useRef<string | null>(null);
 
   // Track auto-start match timeout for cleanup
-  const autoStartMatchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoStartMatchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Store refs for callbacks
   const scoreHistoryRef = useRef(scoreHistory);
