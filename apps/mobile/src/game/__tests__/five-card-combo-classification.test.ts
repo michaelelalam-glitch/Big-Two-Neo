@@ -1,3 +1,4 @@
+// @ts-nocheck - Test infrastructure type issues
 import { describe, it, expect } from '@jest/globals';
 // @ts-nocheck - Test infrastructure type issues
 import { classifyCards } from '../engine/game-logic';

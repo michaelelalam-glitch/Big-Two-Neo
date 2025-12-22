@@ -1,3 +1,4 @@
+// @ts-nocheck - Test infrastructure type issues
 /**
 // @ts-nocheck - Test infrastructure type issues
  * Additional game logic tests for edge cases and full coverage
