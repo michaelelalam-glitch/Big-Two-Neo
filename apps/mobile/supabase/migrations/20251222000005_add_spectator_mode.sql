@@ -12,13 +12,13 @@ COMMENT ON COLUMN public.room_players.is_spectator IS
 'Indicates if the player is in spectator mode (can watch but not play). Set to TRUE when a bot has replaced a disconnected player after the 15-second grace period.';
 
 -- Step 2: Update reconnect_player function to set spectator mode
--- Drop existing function
-DROP FUNCTION IF EXISTS public.reconnect_player(UUID, TEXT);
+-- Drop existing function (keep same signature for backward compatibility)
+DROP FUNCTION IF EXISTS public.reconnect_player(UUID, UUID);
 
 -- Recreate function with spectator logic
 CREATE OR REPLACE FUNCTION public.reconnect_player(
-  p_user_id UUID,
-  p_room_code TEXT
+  p_room_id UUID,
+  p_user_id UUID
 )
 RETURNS TABLE(
   success BOOLEAN,
@@ -27,15 +27,15 @@ RETURNS TABLE(
   room_state JSONB
 ) AS $$
 DECLARE
-  v_room_id UUID;
   v_player_record RECORD;
   v_bot_replaced BOOLEAN;
   v_room_state JSONB;
+  v_room_status TEXT;
 BEGIN
-  -- Step 1: Get room ID and check if room exists
-  SELECT id INTO v_room_id
+  -- Step 1: Check if room exists and is active
+  SELECT status INTO v_room_status
   FROM public.rooms
-  WHERE code = p_room_code AND status IN ('waiting', 'playing');
+  WHERE id = p_room_id AND status IN ('waiting', 'playing');
   
   IF NOT FOUND THEN
     RETURN QUERY SELECT FALSE, 'Room not found or game ended', FALSE, NULL::JSONB;
@@ -45,29 +45,25 @@ BEGIN
   -- Step 2: Find player in room_players
   SELECT * INTO v_player_record
   FROM public.room_players
-  WHERE user_id = p_user_id AND room_id = v_room_id;
+  WHERE user_id = p_user_id AND room_id = p_room_id;
   
   IF NOT FOUND THEN
     RETURN QUERY SELECT FALSE, 'Player not in this room', FALSE, NULL::JSONB;
     RETURN;
   END IF;
   
-  -- Step 3: Check if bot has replaced this player
-  -- A bot replacement is indicated by is_bot = TRUE for a player that was originally a human
-  SELECT EXISTS(
-    SELECT 1
-    FROM public.room_players
-    WHERE room_id = v_room_id
-      AND position = v_player_record.position
-      AND is_bot = TRUE
-  ) INTO v_bot_replaced;
+  -- Step 3: Check if bot has replaced this player (connection_status = 'replaced_by_bot')
+  v_bot_replaced := v_player_record.connection_status = 'replaced_by_bot';
   
   -- Step 4: Set spectator mode if bot has replaced player
   IF v_bot_replaced THEN
-    -- Update player to spectator mode
+    -- Update player to spectator mode (can watch but not play)
     UPDATE public.room_players
-    SET is_spectator = TRUE
-    WHERE user_id = p_user_id AND room_id = v_room_id;
+    SET 
+      is_spectator = TRUE,
+      connection_status = 'connected', -- Allow them to watch
+      last_seen_at = NOW()
+    WHERE user_id = p_user_id AND room_id = p_room_id;
     
     -- Get current room state
     SELECT jsonb_build_object(
@@ -78,17 +74,22 @@ BEGIN
       'spectator_position', v_player_record.position
     ) INTO v_room_state
     FROM public.rooms r
-    WHERE r.id = v_room_id;
+    WHERE r.id = p_room_id;
     
     RETURN QUERY SELECT TRUE, 'Reconnected as spectator (bot replaced you)', TRUE, v_room_state;
     RETURN;
   END IF;
   
   -- Step 5: Normal reconnection (no bot replacement)
-  -- Update player status to active
+  -- Restore player from bot if was disconnected
   UPDATE public.room_players
-  SET is_spectator = FALSE
-  WHERE user_id = p_user_id AND room_id = v_room_id;
+  SET 
+    is_spectator = FALSE,
+    connection_status = 'connected',
+    last_seen_at = NOW(),
+    disconnected_at = NULL,
+    is_bot = FALSE
+  WHERE user_id = p_user_id AND room_id = p_room_id;
   
   -- Get current room state
   SELECT jsonb_build_object(
@@ -98,14 +99,17 @@ BEGIN
     'current_player_position', r.current_player_position
   ) INTO v_room_state
   FROM public.rooms r
-  WHERE r.id = v_room_id;
+  WHERE r.id = p_room_id;
   
   RETURN QUERY SELECT TRUE, 'Reconnected successfully', FALSE, v_room_state;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION public.reconnect_player(UUID, UUID) TO authenticated;
+
 -- Add comment explaining the function
-COMMENT ON FUNCTION public.reconnect_player(UUID, TEXT) IS
+COMMENT ON FUNCTION public.reconnect_player(UUID, UUID) IS
 'Handles player reconnection to a room. Sets is_spectator=TRUE if a bot has replaced the player after disconnection grace period. Returns success status, message, spectator flag, and room state.';
 
 -- Step 3: Create index on is_spectator for efficient queries
