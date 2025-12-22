@@ -447,9 +447,9 @@ export interface Translations {
     waiting3: string;
     matched: string;
     beFirst: string;
-    1playerWaiting: string;
-    2playersWaiting: string;
-    3playersWaiting: string;
+    onePlayerWaiting: string;
+    twoPlayersWaiting: string;
+    threePlayersWaiting: string;
     startingGame: string;
     playersInQueue: string;
     playersNeeded: string;
@@ -823,9 +823,9 @@ const en: Translations = {
     waiting3: 'Found 3 players, waiting for 1 more...',
     matched: 'Match found! Starting game...',
     beFirst: 'Be the first to join!',
-    1playerWaiting: '1 player is waiting. Join now!',
-    2playersWaiting: '2 players are waiting. Almost there!',
-    3playersWaiting: '3 players are waiting. One more needed!',
+    onePlayerWaiting: '1 player is waiting. Join now!',
+    twoPlayersWaiting: '2 players are waiting. Almost there!',
+    threePlayersWaiting: '3 players are waiting. One more needed!',
     startingGame: 'Starting game now! 🎮',
     playersInQueue: 'players in queue',
     playersNeeded: 'players needed',
@@ -1162,9 +1162,9 @@ const ar: Translations = {
     waiting3: 'تم العثور على 3 لاعبين، في انتظار لاعب واحد...',
     matched: 'تم العثور على مباراة! جارٍ بدء اللعبة...',
     beFirst: 'كن أول من ينضم!',
-    1playerWaiting: 'لاعب واحد في الانتظار. انضم الآن!',
-    2playersWaiting: 'لاعبان في الانتظار. نحن قريبون!',
-    3playersWaiting: '3 لاعبين في الانتظار. نحتاج واحد فقط!',
+    onePlayerWaiting: 'لاعب واحد في الانتظار. انضم الآن!',
+    twoPlayersWaiting: 'لاعبان في الانتظار. نحن قريبون!',
+    threePlayersWaiting: '3 لاعبين في الانتظار. نحتاج واحد فقط!',
     startingGame: 'بدء اللعبة الآن! 🎮',
     playersInQueue: 'لاعبين في قائمة الانتظار',
     playersNeeded: 'لاعبين مطلوبين',
@@ -1566,9 +1566,9 @@ const de: Translations = {
     waiting3: '3 Spieler gefunden, warte auf 1 weiteren...',
     matched: 'Spiel gefunden! Starte...',
     beFirst: 'Sei der Erste, der beitritt!',
-    1playerWaiting: '1 Spieler wartet. Jetzt beitreten!',
-    2playersWaiting: '2 Spieler warten. Fast geschafft!',
-    3playersWaiting: '3 Spieler warten. Einer fehlt noch!',
+    onePlayerWaiting: '1 Spieler wartet. Jetzt beitreten!',
+    twoPlayersWaiting: '2 Spieler warten. Fast geschafft!',
+    threePlayersWaiting: '3 Spieler warten. Einer fehlt noch!',
     startingGame: 'Starte jetzt! 🎮',
     playersInQueue: 'Spieler in der Warteschlange',
     playersNeeded: 'Spieler benötigt',

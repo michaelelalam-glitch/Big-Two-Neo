@@ -16,6 +16,7 @@ import { COLORS, SPACING } from '../constants';
 import { statsLogger, authLogger } from '../utils/logger';
 import { showError, showConfirm } from '../utils';
 import EmptyState from '../components/EmptyState';
+import { RankBadge, Rank } from '../components/RankBadge';
 import { i18n } from '../i18n';
 
 interface PlayerStats {
@@ -114,6 +115,16 @@ const ProfileScreen = () => {
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>{i18n.t('profile.title')}</Text>
+            {profile?.rank && profile?.elo_rating && (
+              <View style={styles.rankBadgeContainer}>
+                <RankBadge 
+                  rank={profile.rank as Rank} 
+                  elo={profile.elo_rating} 
+                  size="large" 
+                  showElo={true}
+                />
+              </View>
+            )}
           </View>
 
           {/* Overview Section */}
@@ -289,6 +300,10 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 30,
+  },
+  rankBadgeContainer: {
+    marginTop: 16,
+    alignSelf: 'flex-start',
   },
   title: {
     fontSize: 32,
