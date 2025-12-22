@@ -18,7 +18,6 @@ type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'
 export default function JoinRoomScreen() {
   const navigation = useNavigation<JoinRoomNavigationProp>();
   const { user, profile } = useAuth();
-  
   const [roomCode, setRoomCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
@@ -195,9 +194,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   content: {
     flex: 1,

@@ -1186,7 +1186,7 @@ export class GameStateManager {
 
     gameLogger.info(`✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`);
     
-    // Play match start sound (fi mat3am hawn - "here we go again")
+    // Play match start sound ("here we go again")
     soundManager.playSound(SoundType.GAME_START);
     gameLogger.info('🎵 [Audio] Match start sound triggered');
 

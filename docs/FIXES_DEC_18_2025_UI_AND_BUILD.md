@@ -31,8 +31,6 @@ Fixed multiple UI issues and successfully built iOS development build for simula
 ### 2. ✅ Landscape Scoreboard Width - Full Player Names
 **Problem:** Player names were truncated in landscape scoreboard
 
-**Solution:** Increased scoreboard width from 280pt → 380pt in landscape mode
-
 **Solution:** Adjusted scoreboard width to 240pt in landscape mode to improve name visibility
 
 **Files Modified:**
@@ -181,7 +179,7 @@ eas build --profile development --platform ios --local
 ✅ **All tasks completed successfully!**
 
 1. ✅ Fixed React key prop warning
-2. ✅ Widened landscape scoreboard to show full player names (280pt → 380pt)
+2. ✅ Adjusted landscape scoreboard width to show full player names (changed to 240pt)
 3. ✅ Added translations for all buttons (Pass, Play, Smart, Hint, Sort) in Arabic, English, and German
 4. ✅ Standardized Pass/Play button styling (portrait now matches landscape)
 5. ✅ Built iOS development build for simulator (203 MB)

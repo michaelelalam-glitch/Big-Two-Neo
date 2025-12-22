@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
-    zIndex: 150, // CRITICAL: Higher than buttons to enable drag/drop
+    zIndex: 100, // CRITICAL: Higher than buttons to enable drag/drop (standardized with LandscapeGameLayout)
   },
 
   dropZoneIndicator: {

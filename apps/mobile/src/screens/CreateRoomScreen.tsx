@@ -17,7 +17,6 @@ type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateR
 export default function CreateRoomScreen() {
   const navigation = useNavigation<CreateRoomNavigationProp>();
   const { user, profile } = useAuth();
-  
   const [isCreating, setIsCreating] = useState(false);
 
   const generateRoomCode = (): string => {

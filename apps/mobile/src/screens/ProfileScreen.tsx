@@ -32,7 +32,6 @@ interface PlayerStats {
 
 const ProfileScreen = () => {
   const { user, profile, isLoading, signOut } = useAuth();
-  
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

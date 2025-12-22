@@ -22,7 +22,7 @@ collapsedContainer: {
 },
 ```
 
-**Result:** Scoreboard now explicitly uses 380pt width in landscape mode (was 280pt), showing full player names.
+**Result:** Scoreboard now explicitly uses 240pt width in landscape mode (was 280pt), showing full player names.
 
 ---
 
@@ -124,7 +124,7 @@ i18n.t('game.hint')   // Hint button
 
 **All code fixes are complete and correct.** The issue was that the user was testing with an OLD build that didn't include the translation changes. New builds are being created now with all fixes included:
 
-1. ✅ Scoreboard width: 380pt in landscape (forced with explicit `width` property)
+1. ✅ Scoreboard width: 240pt in landscape (forced with explicit `width` property)
 2. ✅ Translations: All buttons use `i18n.t()` correctly
 3. ✅ Styling: Pass/Play buttons match landscape style
 4. ✅ Key props: Lobby screen React warning fixed
