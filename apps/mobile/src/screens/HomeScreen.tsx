@@ -346,6 +346,14 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.mainButton, styles.rankedLeaderboardButton]}
+            onPress={() => navigation.navigate('RankedLeaderboard')}
+          >
+            <Text style={styles.mainButtonText}>🏆 Ranked Leaderboard</Text>
+            <Text style={styles.mainButtonSubtext}>See top players by ELO rating</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.mainButton, styles.howToPlayButton]}
             onPress={() => navigation.navigate('HowToPlay')}
           >
@@ -485,6 +493,9 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     backgroundColor: '#8B5CF6', // Purple
+  },
+  rankedLeaderboardButton: {
+    backgroundColor: '#A855F7', // Purple/Violet - Ranked theme
   },
   howToPlayButton: {
     backgroundColor: '#F59E0B', // Amber/Orange

@@ -431,6 +431,11 @@ export interface Translations {
     winStreak: string;
     noRankings: string;
     playToRank: string;
+    rankedTitle: string;
+    filter: string;
+    matches: string;
+    noRankedPlayers: string;
+    playRankedMatches: string;
   };
   
   // Auth Screens
@@ -487,6 +492,8 @@ export interface Translations {
     hoursAgo: string;
     daysAgo: string;
   };
+  
+  // Ranked Leaderboard
 }
 
 // English translations (default)
@@ -842,6 +849,11 @@ const en: Translations = {
     winStreak: 'win streak',
     noRankings: 'No rankings yet',
     playToRank: 'Play some games to appear on the leaderboard!',
+    rankedTitle: 'Ranked Leaderboard',
+    filter: 'Time Period',
+    matches: 'matches',
+    noRankedPlayers: 'No Ranked Players',
+    playRankedMatches: 'Play 10+ ranked matches to appear here',
   },
   auth: {
     signIn: 'Sign In',
@@ -1199,6 +1211,11 @@ const ar: Translations = {
     winStreak: 'سلسلة الفوز',
     noRankings: 'لا توجد تصنيفات بعد',
     playToRank: 'العب بعض الألعاب للظهور على لوحة المتصدرين!',
+    rankedTitle: 'لوحة الصدارة التصنيفية',
+    filter: 'الفترة الزمنية',
+    matches: 'مباريات',
+    noRankedPlayers: 'لا يوجد لاعبون مصنفون',
+    playRankedMatches: 'العب 10+ مباريات تصنيفية للظهور هنا',
   },
   auth: {
     signIn: 'تسجيل الدخول',
@@ -1632,6 +1649,11 @@ const de: Translations = {
     winStreak: 'Siegesserie',
     noRankings: 'Noch keine Rankings',
     playToRank: 'Spiele ein paar Spiele, um auf der Bestenliste zu erscheinen!',
+    rankedTitle: 'Ranglisten-Bestenliste',
+    filter: 'Zeitraum',
+    matches: 'Spiele',
+    noRankedPlayers: 'Keine Ranglisten-Spieler',
+    playRankedMatches: 'Spiele 10+ Ranglistenspiele, um hier zu erscheinen',
   },
   auth: {
     signIn: 'Anmelden',
