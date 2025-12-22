@@ -97,7 +97,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
       {/* Play History Modal */}
       <PlayHistoryModal
         visible={isPlayHistoryOpen}
-        playerNames={originalPlayerNames}
+        playerNames={originalPlayerNames || []}
         playHistory={playHistory}
         currentMatch={matchNumber}
         collapsedMatches={collapsedMatches}

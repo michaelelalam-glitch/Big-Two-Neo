@@ -21,11 +21,11 @@ jest.mock('expo-haptics', () => ({
 
 describe('CardHand Component', () => {
   const mockCards: Card[] = [
-    { id: '3H', rank: '3', suit: 'H' },
-    { id: '4D', rank: '4', suit: 'D' },
-    { id: '5C', rank: '5', suit: 'C' },
-    { id: '6S', rank: '6', suit: 'S' },
-    { id: '7H', rank: '7', suit: 'H' },
+    { id: '3H', rank: '3' as const, suit: 'H' as const },
+    { id: '4D', rank: '4' as const, suit: 'D' as const },
+    { id: '5C', rank: '5' as const, suit: 'C' as const },
+    { id: '6S', rank: '6' as const, suit: 'S' as const },
+    { id: '7H', rank: '7' as const, suit: 'H' as const },
   ];
 
   const mockOnPlayCards = jest.fn();
@@ -109,10 +109,10 @@ describe('CardHand Component', () => {
 
   it('sorts cards correctly', () => {
     const unsortedCards: Card[] = [
-      { id: 'KS', rank: 'K', suit: 'S' },
-      { id: '3H', rank: '3', suit: 'H' },
-      { id: 'AD', rank: 'A', suit: 'D' },
-      { id: '5C', rank: '5', suit: 'C' },
+      { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: 'AD', rank: 'A' as const, suit: 'D' as const },
+      { id: '5C', rank: '5' as const, suit: 'C' as const },
     ];
 
     const { getByText } = render(
