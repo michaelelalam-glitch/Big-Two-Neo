@@ -219,10 +219,20 @@ export function LandscapeGameLayout({
 
         {/* Top-right buttons: Rotation & Settings (SWITCHED ORDER) */}
         <View style={styles.topRightButtons}>
-          <Pressable style={styles.actionButton} onPress={onOrientationToggle}>
+          <Pressable 
+            style={styles.actionButton} 
+            onPress={onOrientationToggle}
+            accessibilityLabel="Toggle orientation"
+            accessibilityRole="button"
+          >
             <Text style={styles.actionButtonText}>🔄</Text>
           </Pressable>
-          <Pressable style={styles.actionButton} onPress={onSettings}>
+          <Pressable 
+            style={styles.actionButton} 
+            onPress={onSettings}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
             {/* Hamburger menu (3 lines like portrait) */}
             <View style={styles.hamburgerMenu}>
               <View style={styles.hamburgerLine} />
@@ -271,6 +281,8 @@ export function LandscapeGameLayout({
               style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]} 
               onPress={onPlay}
               disabled={!canPlay || disabled}
+              accessibilityLabel="Play cards"
+              accessibilityRole="button"
             >
               <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
             </Pressable>
@@ -278,6 +290,8 @@ export function LandscapeGameLayout({
               style={[styles.smartButton, disabled && { opacity: 0.5 }]} 
               onPress={onSmartSort}
               disabled={disabled}
+              accessibilityLabel="Smart sort"
+              accessibilityRole="button"
             >
               <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
@@ -289,6 +303,8 @@ export function LandscapeGameLayout({
               style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]} 
               onPress={onPass}
               disabled={!canPass || disabled}
+              accessibilityLabel="Pass turn"
+              accessibilityRole="button"
             >
               <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
             </Pressable>
@@ -296,6 +312,8 @@ export function LandscapeGameLayout({
               style={[styles.sortButton, disabled && { opacity: 0.5 }]} 
               onPress={onSort}
               disabled={disabled}
+              accessibilityLabel="Sort cards"
+              accessibilityRole="button"
             >
               <Text style={[
                 styles.sortButtonText,
@@ -308,6 +326,8 @@ export function LandscapeGameLayout({
               style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
               onPress={onHint}
               disabled={disabled}
+              accessibilityLabel="Get hint"
+              accessibilityRole="button"
             >
               <Text style={styles.hintButtonText}>{i18n.t('game.hint')}</Text>
             </Pressable>

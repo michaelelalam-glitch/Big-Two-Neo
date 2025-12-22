@@ -22,7 +22,12 @@ jest.mock('../../utils/soundManager', () => ({
     WINNER: 'WINNER',
   },
 }));
-
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined),
+}));
 import { createGameStateManager, type GameState } from '../../game/state';
 
 describe('Task #288: Duplicate Bot Turn Execution Fix', () => {

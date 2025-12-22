@@ -61,6 +61,48 @@ describe('useRealtime - Timer Cancellation', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Setup comprehensive Supabase mocks for joinRoom
+    const mockRoom = {
+      id: mockRoomId,
+      name: 'Test Room',
+      max_players: 4,
+    };
+    
+    const mockPlayers: any[] = [];
+    
+    // Mock for different table queries
+    (supabase.from as jest.Mock).mockImplementation((table: string) => {
+      const mockChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        single: jest.fn().mockImplementation(() => {
+          if (table === 'rooms') {
+            return Promise.resolve({ data: mockRoom, error: null });
+          }
+          if (table === 'game_state') {
+            return Promise.resolve({ data: mockGameState, error: null });
+          }
+          return Promise.resolve({ data: null, error: null });
+        }),
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      
+      // For players query (returns array)
+      if (table === 'players') {
+        mockChain.select = jest.fn().mockReturnValue({
+          ...mockChain,
+          eq: jest.fn().mockReturnValue({
+            ...mockChain,
+            order: jest.fn().mockResolvedValue({ data: mockPlayers, error: null }),
+          }),
+        });
+      }
+      
+      return mockChain;
+    });
   });
 
   describe('Manual Pass Cancellation', () => {
@@ -73,6 +115,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: mockUpdateFn,
       });
@@ -90,6 +133,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       // Wait for initial state
       await waitFor(() => {
@@ -132,6 +180,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: gameStateNoTimer, error: null }),
         update: mockUpdateFn,
       });
@@ -149,6 +198,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -179,6 +233,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: mockUpdateFn,
       });
@@ -196,6 +251,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -232,6 +292,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: mockUpdateFn,
       });
@@ -249,6 +310,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -282,6 +348,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: gameStateNoTimer, error: null }),
         update: mockUpdateFn,
       });
@@ -299,6 +366,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -326,6 +398,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: jest.fn().mockReturnValue({
           eq: jest.fn().mockResolvedValue({ error: null }),
@@ -345,6 +418,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -367,6 +445,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: jest.fn().mockReturnValue({
           eq: jest.fn().mockResolvedValue({ error: null }),
@@ -386,6 +465,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -412,6 +496,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: mockUpdateFn,
       });
@@ -429,6 +514,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
@@ -453,6 +543,7 @@ describe('useRealtime - Timer Cancellation', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
         update: mockUpdateFn,
       });
@@ -470,6 +561,11 @@ describe('useRealtime - Timer Cancellation', () => {
           username: mockUsername,
         })
       );
+
+      // Join room first
+      await act(async () => {
+        await result.current.joinRoom(mockRoomId);
+      });
 
       await waitFor(() => {
         expect(result.current.gameState).toBeTruthy();
