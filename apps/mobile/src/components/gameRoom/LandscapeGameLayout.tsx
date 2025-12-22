@@ -181,7 +181,7 @@ export function LandscapeGameLayout({
           <PlayHistoryModal
             visible={showPlayHistory}
             onClose={() => setShowPlayHistory(false)}
-            playerNames={originalPlayerNames}
+            playerNames={originalPlayerNames || []}
             playHistory={playHistory}
             currentMatch={matchNumber}
             collapsedMatches={collapsedMatches}
@@ -299,7 +299,7 @@ export function LandscapeGameLayout({
             >
               <Text style={[
                 styles.sortButtonText,
-                i18n.locale === 'de' && styles.sortButtonTextGerman
+                i18n.getLanguage() === 'de' && styles.sortButtonTextGerman
               ]}>
                 {i18n.t('game.sort')}
               </Text>

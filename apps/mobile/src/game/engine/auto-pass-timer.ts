@@ -46,7 +46,8 @@ export function shouldTriggerAutoPassTimer(
  * @returns AutoPassTimerState object
  */
 export function createAutoPassTimerState(
-  triggeringPlay: LastPlay
+  triggeringPlay: LastPlay,
+  playerId: string
 ): AutoPassTimerState {
   return {
     active: true,
@@ -54,6 +55,7 @@ export function createAutoPassTimerState(
     duration_ms: AUTO_PASS_TIMER_DURATION_MS,
     remaining_ms: AUTO_PASS_TIMER_DURATION_MS,
     triggering_play: triggeringPlay,
+    player_id: playerId,
   };
 }
 

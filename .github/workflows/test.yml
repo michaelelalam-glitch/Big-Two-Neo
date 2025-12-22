@@ -56,8 +56,7 @@ jobs:
       - name: 🔧 Run TypeScript type-check
         run: |
           cd apps/mobile
-          npx tsc --noEmit || echo "::warning::TypeScript found type errors"
-        continue-on-error: true
+          npx tsc --noEmit
       
       - name: 🧪 Run unit tests
         run: |

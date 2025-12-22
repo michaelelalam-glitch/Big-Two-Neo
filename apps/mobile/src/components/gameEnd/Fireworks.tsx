@@ -100,16 +100,16 @@ export const Fireworks: React.FC<FireworksProps> = ({
   return (
     <View style={styles.container} pointerEvents="none">
       {animations.current.map((anim, i) => {
-        // Distribute burst locations across screen
-        const left = 20 + (i * 8) % 60;
-        const top = 10 + (i * 12) % 50;
+        // Distribute burst locations across screen (as percentages converted to numbers)
+        const leftPercent = 20 + (i * 8) % 60;
+        const topPercent = 10 + (i * 12) % 50;
         
         return (
           <FireworkBurst
             key={i}
             animation={anim}
-            left={`${left}%`}
-            top={`${top}%`}
+            left={leftPercent}
+            top={topPercent}
             hueOffset={i * 30}
             particleCount={config.particlesPerBurst} // Task #398: Dynamic particle count
           />
@@ -125,8 +125,8 @@ export const Fireworks: React.FC<FireworksProps> = ({
 
 interface FireworkBurstProps {
   animation: Animated.Value;
-  left: string;
-  top: string;
+  left: number;
+  top: number;
   hueOffset: number;
   particleCount: number; // Task #398: Configurable particle count
 }
@@ -188,7 +188,7 @@ const FireworkBurst: React.FC<FireworkBurstProps> = ({
   }), [animation, hueOffset, particleCount]); // Task #398: Memoize particle calculations
   
   return (
-    <View style={[styles.burst, { left, top }]}>
+    <View style={[styles.burst, { left: `${left}%`, top: `${top}%` }]}>
       {particles}
     </View>
   );
