@@ -27,6 +27,7 @@ interface CardProps {
   isDraggingGroup?: boolean; // True if this card is part of a group being dragged
   sharedDragX?: number; // Shared X translation for synchronized multi-card dragging
   sharedDragY?: number; // Shared Y translation for synchronized multi-card dragging
+  cardOverlap?: number; // Dynamic card overlap margin based on orientation (portrait: -35, landscape: -30)
 }
 
 // Hand card dimensions (default)
@@ -39,7 +40,7 @@ const TABLE_CARD_HEIGHT = 72;
 
 const SELECTED_OFFSET = -20; // Offset for selected card elevation
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
-const CARD_OVERLAP_MARGIN = -40; // Negative margin for card overlap effect (13 cards fit in ~300px)
+const DEFAULT_CARD_OVERLAP_MARGIN = -40; // Default overlap (original portrait value)
 
 // Touch target improvements (30px touch target - balanced for fitting 13 cards while improving UX)
 const TOUCH_TARGET_PADDING = 5; // Invisible padding to expand hit area (5px left/right = 10px total + 20px visible = 30px touch target)
@@ -75,6 +76,7 @@ const Card = React.memo(function Card({
   isDraggingGroup = false,
   sharedDragX = 0,
   sharedDragY = 0,
+  cardOverlap = DEFAULT_CARD_OVERLAP_MARGIN,
 }: CardProps) {
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
@@ -225,6 +227,11 @@ const Card = React.memo(function Card({
     const effectiveTranslateX = isDraggingGroup ? sharedDragX : translateX.value;
     const effectiveTranslateY = isDraggingGroup ? sharedDragY : translateY.value;
     
+    // Visual feedback: add shadow/glow when actively dragging
+    const isDragging = Math.abs(effectiveTranslateX) > 5 || Math.abs(effectiveTranslateY) > 5;
+    const shadowOpacity = isDragging ? 0.5 : 0.2;
+    const shadowRadius = isDragging ? 12 : 4;
+    
     return {
       transform: [
         { translateX: effectiveTranslateX },
@@ -233,6 +240,8 @@ const Card = React.memo(function Card({
       ],
       opacity: isDraggingGroup ? 1 : opacity.value,
       zIndex: zIndex, // Use z-index from parent for proper layering during drag
+      shadowOpacity,
+      shadowRadius,
     };
   }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
@@ -265,7 +274,8 @@ const Card = React.memo(function Card({
     <GestureDetector gesture={composedGesture}>
       <Animated.View 
         style={[
-          styles.container, 
+          styles.container,
+          { marginLeft: cardOverlap }, // Dynamic overlap based on orientation
           animatedStyle, 
           style,
           styles.touchTargetExpansion, // Add invisible padding for larger touch area
@@ -317,7 +327,7 @@ const Card = React.memo(function Card({
 
 const styles = StyleSheet.create({
   container: {
-    marginLeft: CARD_OVERLAP_MARGIN, // Overlap cards: right cards overlap left cards
+    // marginLeft is now dynamic - applied inline based on cardOverlap prop
   },
   touchTargetExpansion: {
     // Add invisible padding to expand touch target area
@@ -336,10 +346,9 @@ const styles = StyleSheet.create({
     // Explicitly set overflow: 'visible' to avoid clipping on Android during transform animations.
     // NOTE: This may cause visual artifacts with rounded corners when scaling/transforms are applied.
     overflow: 'visible',
+    // Shadow values are animated dynamically in animatedStyle for drag feedback
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
     elevation: 3,
     // FIX: Task #378 - Force consistent elevation to prevent Android layer switching
     // Keep elevation constant regardless of selection state
