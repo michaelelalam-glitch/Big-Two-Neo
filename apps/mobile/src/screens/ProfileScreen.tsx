@@ -10,6 +10,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { format } from 'date-fns';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { COLORS, SPACING } from '../constants';
@@ -32,6 +34,7 @@ interface PlayerStats {
 }
 
 const ProfileScreen = () => {
+  const navigation = useNavigation<StackNavigationProp<any>>();
   const { user, profile, isLoading, signOut } = useAuth();
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);

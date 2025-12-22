@@ -42,6 +42,9 @@ export interface Profile {
   full_name?: string;
   avatar_url?: string;
   updated_at?: string;
+  elo_rating?: number;
+  region?: string;
+  rank?: string;
 }
 
 export type AuthContextData = {

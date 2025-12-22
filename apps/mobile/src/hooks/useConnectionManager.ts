@@ -43,8 +43,8 @@ export function useConnectionManager({
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
   const [isReconnecting, setIsReconnecting] = useState(false);
   
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>('active');
 
   /**
