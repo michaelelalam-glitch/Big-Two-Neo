@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -257,6 +257,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+      >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.leaderboardButton}
@@ -330,8 +336,17 @@ export default function HomeScreen() {
             <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.mainButton, styles.howToPlayButton]}
+            onPress={() => navigation.navigate('HowToPlay')}
+          >
+            <Text style={styles.mainButtonText}>{i18n.t('home.howToPlay')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.howToPlayDescription')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -340,6 +355,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -451,6 +472,9 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     backgroundColor: '#8B5CF6', // Purple
+  },
+  howToPlayButton: {
+    backgroundColor: '#F59E0B', // Amber/Orange
   },
   mainButtonText: {
     fontSize: FONT_SIZES.xl,

@@ -237,11 +237,23 @@ export const useExpandedScoreboardStyles = () => {
   return useMemo(() => ({
     expandedContainer: {
       backgroundColor: ScoreboardColors.background.expanded,
-      borderRadius: dims.moderateScale(8),
+      borderRadius: dims.moderateScale(12),
       padding: dims.moderateScale(8),
-      minWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(300),
-      maxWidth: dims.screenWidth - dims.moderateScale(24),
-      maxHeight: dims.screenHeight * 0.85,
+      minWidth: dims.isLandscape 
+        ? dims.screenWidth * 0.65  // Match play history width
+        : dims.isSmallDevice ? dims.moderateScale(140) : dims.moderateScale(150),
+      maxWidth: dims.isLandscape 
+        ? dims.screenWidth * 0.65  // Match play history width
+        : dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
+      maxHeight: dims.isLandscape 
+        ? dims.screenHeight * 0.92  // Match play history height
+        : dims.screenHeight * 0.85,
+      // LANDSCAPE FIX: Position at top-left (same as play history modal)
+      ...(dims.isLandscape && {
+        position: 'absolute' as const,
+        top: dims.moderateScale(20),  // Match play history top position
+        left: dims.moderateScale(20),  // Match play history left position
+      }),
       pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },
 
@@ -249,14 +261,16 @@ export const useExpandedScoreboardStyles = () => {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      marginBottom: dims.moderateScale(12),
-      paddingBottom: dims.moderateScale(12),
+      marginBottom: dims.moderateScale(12), // SAME in both orientations
+      paddingBottom: dims.moderateScale(12), // SAME in both orientations
       borderBottomWidth: 1,
       borderBottomColor: ScoreboardColors.border.primary,
     },
 
     expandedTitle: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(14) : dims.moderateScale(16),
+      fontSize: dims.isLandscape 
+        ? dims.moderateScale(13)  // Landscape: slightly smaller
+        : dims.isSmallDevice ? dims.moderateScale(14) : dims.moderateScale(16),
       fontWeight: '700' as const,
       color: ScoreboardColors.text.highlight,
     },
@@ -306,7 +320,7 @@ export const useExpandedScoreboardStyles = () => {
     },
 
     tableScrollView: {
-      maxHeight: dims.screenHeight * 0.7,
+      maxHeight: dims.screenHeight * 0.7, // SAME in both orientations
     },
 
     tableHeaderRow: {
@@ -318,20 +332,22 @@ export const useExpandedScoreboardStyles = () => {
 
     tableHeaderCell: {
       flex: 1,
-      paddingVertical: dims.moderateScale(10),
+      paddingVertical: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(10),
       paddingHorizontal: dims.moderateScale(4),
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
-      width: dims.screenWidth * 0.18,
+      width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
     },
 
     tableHeaderCellFirst: {
-      width: dims.screenWidth * 0.15,
+      width: dims.isLandscape ? dims.screenWidth * 0.10 : dims.screenWidth * 0.15,
       alignItems: 'flex-start' as const,
     },
 
     tableHeaderText: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
+      fontSize: dims.isLandscape 
+        ? dims.moderateScale(11)  // Landscape: larger, readable text
+        : dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
       fontWeight: '700' as const,
       color: ScoreboardColors.text.primary,
       textAlign: 'center' as const,
@@ -358,26 +374,28 @@ export const useExpandedScoreboardStyles = () => {
 
     tableCell: {
       flex: 1,
-      paddingVertical: dims.moderateScale(8),
+      paddingVertical: dims.isLandscape ? dims.moderateScale(5) : dims.moderateScale(8),
       paddingHorizontal: dims.moderateScale(4),
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
-      width: dims.screenWidth * 0.18,
+      width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
     },
 
     tableCellFirst: {
-      width: dims.screenWidth * 0.15,
+      width: dims.isLandscape ? dims.screenWidth * 0.10 : dims.screenWidth * 0.15,
       alignItems: 'flex-start' as const,
     },
 
     tableCellText: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(11) : dims.moderateScale(13),
+      fontSize: dims.isLandscape 
+        ? dims.moderateScale(12)  // Landscape: larger, readable text
+        : dims.isSmallDevice ? dims.moderateScale(11) : dims.moderateScale(13),
       color: ScoreboardColors.text.primary,
       textAlign: 'center' as const,
     },
 
     tableCellLabel: {
-      fontSize: dims.moderateScale(11),
+      fontSize: dims.isLandscape ? dims.moderateScale(10) : dims.moderateScale(11),
       color: ScoreboardColors.text.secondary,
       fontWeight: '600' as const,
     },
@@ -427,9 +445,10 @@ export const usePlayHistoryModalStyles = () => {
     modalOverlay: {
       flex: 1,
       backgroundColor: ScoreboardColors.background.overlay,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: dims.moderateScale(20),
+      // LANDSCAPE FIX: Position at top-left, not centered
+      justifyContent: dims.isLandscape ? 'flex-start' as const : 'center' as const,
+      alignItems: dims.isLandscape ? 'flex-start' as const : 'center' as const,
+      padding: dims.isLandscape ? 0 : dims.moderateScale(20), // No padding in landscape
     },
 
     modalBackdrop: {
@@ -443,12 +462,20 @@ export const usePlayHistoryModalStyles = () => {
     modalContainer: {
       backgroundColor: ScoreboardColors.background.modal,
       borderRadius: dims.moderateScale(12),
-      width: dims.isPortrait 
-        ? dims.screenWidth * 0.9 
-        : dims.isLargeDevice 
-          ? dims.moderateScale(700) 
-          : dims.moderateScale(600),
-      height: dims.screenHeight * 0.75, // Fixed height to extend almost to bottom
+      // LANDSCAPE FIX: Match expanded scoreboard width (65% of screen width)
+      width: dims.isLandscape 
+        ? dims.screenWidth * 0.65  // Match expanded scoreboard width
+        : dims.screenWidth * 0.9,
+      // LANDSCAPE FIX: Fill full screen height (92% to match expanded scoreboard)
+      height: dims.isLandscape 
+        ? dims.screenHeight * 0.92  // Full height like expanded scoreboard
+        : dims.screenHeight * 0.75,
+      // LANDSCAPE FIX: Position at top-left corner (absolute positioning)
+      ...(dims.isLandscape && {
+        position: 'absolute' as const,
+        top: dims.moderateScale(20),  // Match expanded scoreboard top position
+        left: dims.moderateScale(20),  // Match expanded scoreboard left position
+      }),
       ...Platform.select({
         ios: {
           shadowColor: ScoreboardColors.shadow.heavy,
@@ -472,7 +499,9 @@ export const usePlayHistoryModalStyles = () => {
     },
 
     modalTitle: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(16) : dims.moderateScale(18),
+      fontSize: dims.isLandscape 
+        ? dims.moderateScale(14)  // Landscape: smaller title
+        : dims.isSmallDevice ? dims.moderateScale(16) : dims.moderateScale(18),
       fontWeight: '700' as const,
       color: ScoreboardColors.text.highlight,
     },
@@ -505,7 +534,7 @@ export const usePlayHistoryModalStyles = () => {
     matchCard: {
       backgroundColor: ScoreboardColors.matchCard.background,
       borderRadius: dims.moderateScale(8),
-      marginBottom: dims.moderateScale(12),
+      marginBottom: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(12),  // Landscape: tighter spacing
       borderWidth: 1,
       borderColor: ScoreboardColors.matchCard.border,
       overflow: 'hidden' as const,
@@ -521,7 +550,7 @@ export const usePlayHistoryModalStyles = () => {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      padding: dims.moderateScale(12),
+      padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12),  // Landscape: more compact
       backgroundColor: ScoreboardColors.matchCard.headerBg,
       minHeight: dims.minTouchTarget,
     },
@@ -534,7 +563,7 @@ export const usePlayHistoryModalStyles = () => {
     },
 
     matchCardTitle: {
-      fontSize: dims.moderateScale(14),
+      fontSize: dims.isLandscape ? dims.moderateScale(12) : dims.moderateScale(14),  // Landscape: smaller text
       fontWeight: '700' as const,
       color: ScoreboardColors.matchCard.headerText,
     },
@@ -545,17 +574,17 @@ export const usePlayHistoryModalStyles = () => {
     },
 
     matchCardContent: {
-      padding: dims.moderateScale(12),
-      gap: dims.moderateScale(8),
+      padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12),  // Landscape: more compact
+      gap: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(8),  // Landscape: tighter spacing
     },
 
     handCard: {
       backgroundColor: ScoreboardColors.handCard.background,
       borderRadius: dims.moderateScale(6),
-      padding: dims.moderateScale(10),
+      padding: dims.moderateScale(10), // SAME in both orientations
       borderWidth: 1,
       borderColor: ScoreboardColors.handCard.border,
-      marginBottom: dims.moderateScale(8),
+      marginBottom: dims.moderateScale(8), // SAME in both orientations
     },
 
     handCardLatest: {
@@ -568,17 +597,17 @@ export const usePlayHistoryModalStyles = () => {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      marginBottom: dims.moderateScale(8),
+      marginBottom: dims.moderateScale(8), // SAME in both orientations
     },
 
     handPlayerName: {
-      fontSize: dims.moderateScale(13),
+      fontSize: dims.moderateScale(13), // SAME in both orientations
       fontWeight: '600' as const,
       color: ScoreboardColors.handCard.playerName,
     },
 
     handComboType: {
-      fontSize: dims.moderateScale(11),
+      fontSize: dims.moderateScale(11), // SAME in both orientations
       color: ScoreboardColors.handCard.comboType,
       fontStyle: 'italic' as const,
     },

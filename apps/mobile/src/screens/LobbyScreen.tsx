@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -361,7 +361,7 @@ export default function LobbyScreen() {
     }
   };
 
-  const renderPlayer = ({ item }: { item: Player | null }) => {
+  const renderPlayer = ({ item, index }: { item: Player | null; index: number }) => {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>
@@ -419,6 +419,11 @@ export default function LobbyScreen() {
         </TouchableOpacity>
       </View>
 
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
       <View style={styles.content}>
         <Text style={styles.title}>{i18n.t('lobby.title')}</Text>
         <View style={styles.roomCodeContainer}>
@@ -430,12 +435,13 @@ export default function LobbyScreen() {
           {i18n.t('lobby.players')} ({players.length}/4)
         </Text>
 
-        <FlatList
-          data={playerSlots}
-          renderItem={renderPlayer}
-          keyExtractor={(_, index) => index.toString()}
-          contentContainerStyle={styles.playerList}
-        />
+        <View style={styles.playerList}>
+          {playerSlots.map((item, index) => (
+            <View key={`player-slot-${index}`}>
+              {renderPlayer({ item, index })}
+            </View>
+          ))}
+        </View>
 
         <TouchableOpacity
           style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
@@ -479,6 +485,7 @@ export default function LobbyScreen() {
           </Text>
         )}
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -491,6 +498,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     padding: SPACING.md,
+    backgroundColor: COLORS.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xl,
   },
   leaveButton: {
     paddingHorizontal: 16,

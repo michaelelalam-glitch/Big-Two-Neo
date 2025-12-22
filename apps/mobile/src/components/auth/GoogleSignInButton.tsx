@@ -121,6 +121,7 @@ const GoogleSignInButton = () => {
             uri: 'https://developers.google.com/identity/images/g-logo.png',
           }}
           style={styles.logo}
+          resizeMode="contain"
         />
         <Text style={styles.buttonText}>Sign in with Google</Text>
       </View>

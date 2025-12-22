@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
+import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 interface PlayerInfoProps {
   name: string;
@@ -24,8 +25,12 @@ export default function PlayerInfo({
       {/* Avatar with turn indicator */}
       <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
         <View style={styles.avatar}>
-          {/* Default avatar icon - using user silhouette placeholder */}
-          <View style={styles.avatarIcon} />
+          {/* Default avatar icon - matches landscape opponent emoji */}
+          <Text style={styles.avatarIcon}>👤</Text>
+        </View>
+        {/* Card count badge positioned on avatar */}
+        <View style={styles.badgePosition}>
+          <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
       </View>
 
@@ -71,11 +76,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarIcon: {
-    width: LAYOUT.avatarIconSize,
-    height: LAYOUT.avatarIconSize,
-    borderRadius: LAYOUT.avatarIconRadius,
-    backgroundColor: COLORS.gray.light,
-    opacity: OPACITIES.avatarIcon,
+    fontSize: LAYOUT.avatarIconSize,
+    textAlign: 'center',
   },
   nameBadge: {
     backgroundColor: OVERLAYS.nameBadgeBackground,
@@ -91,5 +93,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: 'bold',
+  },
+  badgePosition: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
   },
 });

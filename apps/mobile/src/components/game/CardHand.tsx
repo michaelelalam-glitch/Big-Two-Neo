@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Text } from 'react-native';
+import { View, StyleSheet, Pressable, Text, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Card from './Card';
@@ -7,17 +7,22 @@ import { sortHand } from '../../game/engine/game-logic';
 import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 
-// Removed CARD_HAND_MAX_HEIGHT - cards fit without scrolling on most devices
-// With 13 cards: 60px + (12 × 30px overlap) = 420px total width
-// If needed for very small screens, could add conditional ScrollView
+// PORTRAIT vs LANDSCAPE CARD SPACING (separate constants for each orientation)
+// PORTRAIT: EXACT ORIGINAL VALUES FROM BEFORE LANDSCAPE MODE
+// LANDSCAPE: Separate values that don't affect portrait
 
-// Card spacing for drag rearrangement calculation
-// FIX: Corrected card spacing calculation to match actual layout
-// Formula: HAND_CARD_WIDTH (60) + CARD_OVERLAP_MARGIN (-40) + TOUCH_TARGET_PADDING per side × 2 sides (5×2=10)
-// = 60 - 40 + 10 = 30px effective spacing per card
-// Note: marginLeft positioning is either 52px or 68px for hand alignment
-// Previous value of 20px caused cards to land in wrong positions (33% error)
-const CARD_SPACING = 30;
+// Portrait mode: ORIGINAL VALUES - DO NOT CHANGE
+// 13 cards with -40px overlap: 60px + (12 × 20px visible) = 300px + 48px padding + 68px marginLeft = fits perfectly
+const PORTRAIT_CARD_OVERLAP = -40; // ORIGINAL overlap from main branch
+const PORTRAIT_CARD_SPACING = 30; // Original spacing for drag calculations  
+const PORTRAIT_PADDING = SPACING.lg; // ORIGINAL 24px padding
+const PORTRAIT_MARGIN_LEFT = LAYOUT.handAlignmentOffset; // ORIGINAL 68px offset
+
+// Landscape mode: Separate values
+const LANDSCAPE_CARD_OVERLAP = -30;
+const LANDSCAPE_CARD_SPACING = 30;
+const LANDSCAPE_PADDING = SPACING.md;
+const LANDSCAPE_MARGIN_LEFT = 0; // No offset in landscape
 
 // Drag threshold for playing cards (matches Card.tsx DRAG_TO_PLAY_THRESHOLD)
 const DRAG_TO_PLAY_THRESHOLD = -80;
@@ -63,6 +68,13 @@ export default function CardHand({
   onSelectionChange,
   onCardsReorder,
 }: CardHandProps) {
+  // Detect orientation for responsive card spacing
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
+  // Select spacing based on orientation
+  const CARD_SPACING = isLandscape ? LANDSCAPE_CARD_SPACING : PORTRAIT_CARD_SPACING;
+  
   // Consolidated state: selection
   const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
   
@@ -83,11 +95,33 @@ export default function CardHand({
   
   // Update display cards when prop cards change
   React.useEffect(() => {
-    // Reset all drag state when cards change
-    setDragState(initialDragState);
-    // Always update displayCards to match cards prop
-    setDisplayCards(cards);
-  }, [cards]);
+    // CRITICAL FIX: Only update if cards actually changed (not just reordered)
+    // Compare card IDs to detect if it's the same set of cards
+    const currentIds = new Set(displayCards.map(c => c.id));
+    const newIds = new Set(cards.map(c => c.id));
+    
+    // Check if it's the same set of cards (just potentially reordered)
+    const sameCardSet = currentIds.size === newIds.size && 
+                        [...currentIds].every(id => newIds.has(id));
+    
+    if (!sameCardSet) {
+      // Cards actually changed (added/removed) - reset drag state and update display
+      setDragState(initialDragState);
+      setDisplayCards(cards);
+    } else {
+      // Same cards, potentially reordered by parent (via customCardOrder)
+      // Check if the parent order is different from current display order
+      const orderChanged = cards.some((card, index) => {
+        return displayCards[index]?.id !== card.id;
+      });
+      
+      if (orderChanged || displayCards.length === 0) {
+        // Parent changed the order (via customCardOrder) OR initial load
+        // Update displayCards to match parent's order
+        setDisplayCards(cards);
+      }
+    }
+  }, [cards, displayCards]);
 
   // Use displayCards directly. The parent manages the order via the cards prop (e.g., customCardOrder),
   // but CardHand also manages displayCards locally during drag-and-drop operations.
@@ -281,30 +315,56 @@ export default function CardHand({
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
-      {/* Card display area with horizontal scroll for small screens */}
-      <View style={styles.cardsWrapper}>
+      {/* Card display area with orientation-aware spacing */}
+      <View style={[
+        styles.cardsWrapper, 
+        { 
+          paddingHorizontal: isLandscape ? LANDSCAPE_PADDING : PORTRAIT_PADDING,
+          marginLeft: isLandscape ? LANDSCAPE_MARGIN_LEFT : PORTRAIT_MARGIN_LEFT,
+        }
+      ]}>
+        {/* Drop zone indicator when dragging upward to play */}
+        {dragState.draggedCardId && dragState.sharedTranslation.y < DRAG_TO_PLAY_THRESHOLD && (
+          <View style={styles.playDropZone}>
+            <Text style={styles.playDropZoneText}>
+              {dragState.isDraggingMultiple 
+                ? `Release to play ${selectedCardIds.size} cards` 
+                : 'Release to play card'}
+            </Text>
+          </View>
+        )}
+        
         {orderedCards.map((card, index) => {
           const isThisCardSelected = selectedCardIds.has(card.id);
           const hasMultipleSelected = selectedCardIds.size > 1;
           const isDraggingThisGroup = dragState.isDraggingMultiple && isThisCardSelected;
+          const isTargetPosition = dragState.targetIndex === index && 
+                                  dragState.draggedCardId !== card.id &&
+                                  !dragState.isDraggingMultiple;
           
           return (
-            <Card
-              key={card.id}
-              card={card}
-              isSelected={isThisCardSelected}
-              onToggleSelect={handleToggleSelect}
-              onDragStart={() => handleDragStart(card.id)}
-              onDragUpdate={(translationX, translationY) => handleDragUpdate(card.id, translationX, translationY)}
-              onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
-              onLongPress={() => handleLongPress(card.id)}
-              disabled={disabled}
-              zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
-              hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
-              isDraggingGroup={isDraggingThisGroup}
-              sharedDragX={dragState.sharedTranslation.x}
-              sharedDragY={dragState.sharedTranslation.y}
-            />
+            <React.Fragment key={card.id}>
+              {/* Drop zone indicator for rearranging cards */}
+              {isTargetPosition && (
+                <View style={styles.dropZoneIndicator} />
+              )}
+              <Card
+                card={card}
+                isSelected={isThisCardSelected}
+                onToggleSelect={handleToggleSelect}
+                onDragStart={() => handleDragStart(card.id)}
+                onDragUpdate={(translationX, translationY) => handleDragUpdate(card.id, translationX, translationY)}
+                onDragEnd={(translationX, translationY) => handleDragEnd(card.id, translationX, translationY)}
+                onLongPress={() => handleLongPress(card.id)}
+                disabled={disabled}
+                zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
+                hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
+                isDraggingGroup={isDraggingThisGroup}
+                sharedDragX={dragState.sharedTranslation.x}
+                sharedDragY={dragState.sharedTranslation.y}
+                cardOverlap={isLandscape ? LANDSCAPE_CARD_OVERLAP : PORTRAIT_CARD_OVERLAP}
+              />
+            </React.Fragment>
           );
         })}
       </View>
@@ -372,14 +432,10 @@ const styles = StyleSheet.create({
   },
   cardsWrapper: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.lg,
+    // Padding and marginLeft are dynamic - set via inline style based on orientation
     paddingVertical: SPACING.md,
     alignItems: 'center',
-    justifyContent: 'center', // Center the cards horizontally
-    marginLeft: LAYOUT.handAlignmentOffset, // Horizontal offset for better hand alignment (user-requested: 52px or 68px)
-    // Note: Fixed offset works for standard phone screens (375px-428px width).
-    // WARNING: May cause layout issues on smaller devices (screen width < 375px).
-    // Future: make responsive based on screen width to prevent cards being pushed off-screen.
+    justifyContent: 'center',
   },
   actionsContainer: {
     paddingHorizontal: SPACING.lg,
@@ -409,6 +465,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Drop zone visual feedback styles
+  dropZoneIndicator: {
+    width: 4,
+    height: 80,
+    backgroundColor: COLORS.accent,
+    borderRadius: 2,
+    opacity: 0.8,
+    marginHorizontal: SPACING.xs,
+    alignSelf: 'center',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  playDropZone: {
+    position: 'absolute',
+    top: -60,
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: `${COLORS.accent}30`,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  playDropZoneText: {
+    color: COLORS.accent,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   playButton: {
     backgroundColor: COLORS.accent,

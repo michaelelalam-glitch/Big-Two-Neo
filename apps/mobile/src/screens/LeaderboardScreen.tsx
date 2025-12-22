@@ -343,7 +343,11 @@ export default function LeaderboardScreen() {
         <View style={styles.playerColumn}>
           <View style={styles.playerAvatar}>
             {item.avatar_url ? (
-              <Image source={{ uri: item.avatar_url }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: item.avatar_url }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
             ) : (
               <Text style={styles.avatarPlaceholder}>
                 {item.username.charAt(0).toUpperCase()}
