@@ -1,5 +1,5 @@
-/**
 // @ts-nocheck - Test infrastructure type issues
+/**
  * Integration tests for username uniqueness validation
  * Tests the join_room_atomic RPC function and global username constraints
  * 
