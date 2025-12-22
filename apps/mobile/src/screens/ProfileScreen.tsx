@@ -270,6 +270,14 @@ const ProfileScreen = () => {
           </View>
 
           <TouchableOpacity
+            style={styles.matchHistoryButton}
+            onPress={() => navigation.navigate('MatchHistory')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.matchHistoryButtonText}>📜 {i18n.t('matchHistory.title')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.signOutButton}
             onPress={handleSignOut}
             activeOpacity={0.7}
@@ -397,6 +405,18 @@ const styles = StyleSheet.create({
   noStatsSubtext: {
     fontSize: 14,
     color: COLORS.gray.textDark,
+  },
+  matchHistoryButton: {
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  matchHistoryButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

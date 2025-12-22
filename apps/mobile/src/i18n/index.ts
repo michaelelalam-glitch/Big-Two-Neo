@@ -474,6 +474,19 @@ export interface Translations {
     casualDesc: string;
     rankedDesc: string;
   };
+  
+  // Match History Screen
+  matchHistory: {
+    title: string;
+    noMatches: string;
+    playFirstMatch: string;
+    position: string;
+    elo: string;
+    justNow: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+  };
 }
 
 // English translations (default)
@@ -868,6 +881,17 @@ const en: Translations = {
     casualDesc: 'Play for fun, no ELO changes',
     rankedDesc: 'Competitive play with ELO rating changes',
   },
+  matchHistory: {
+    title: 'Match History',
+    noMatches: 'No Matches Yet',
+    playFirstMatch: 'Play your first match to see your history here',
+    position: '{position}th Place',
+    elo: 'ELO',
+    justNow: 'Just now',
+    minutesAgo: '{count}m ago',
+    hoursAgo: '{count}h ago',
+    daysAgo: '{count}d ago',
+  },
 };
 
 // Arabic translations
@@ -1213,6 +1237,17 @@ const ar: Translations = {
     ranked: 'تصنيفي',
     casualDesc: 'العب من أجل المتعة، لا تغييرات في تصنيف ELO',
     rankedDesc: 'لعب تنافسي مع تغييرات تصنيف ELO',
+  },
+  matchHistory: {
+    title: 'سجل المباريات',
+    noMatches: 'لا توجد مباريات بعد',
+    playFirstMatch: 'العب مباراتك الأولى لرؤية سجلك هنا',
+    position: 'المركز {position}',
+    elo: 'ELO',
+    justNow: 'الآن',
+    minutesAgo: 'منذ {count} د',
+    hoursAgo: 'منذ {count} س',
+    daysAgo: 'منذ {count} ي',
   },
   howToPlay: {
     title: 'كيفية اللعب',
@@ -1635,6 +1670,17 @@ const de: Translations = {
     ranked: 'Rangliste',
     casualDesc: 'Zum Spaß spielen, keine ELO-Änderungen',
     rankedDesc: 'Wettbewerbsspiel mit ELO-Bewertungsänderungen',
+  },
+  matchHistory: {
+    title: 'Spielverlauf',
+    noMatches: 'Noch keine Spiele',
+    playFirstMatch: 'Spiele dein erstes Spiel, um deinen Verlauf hier zu sehen',
+    position: '{position}. Platz',
+    elo: 'ELO',
+    justNow: 'Gerade eben',
+    minutesAgo: 'vor {count} Min.',
+    hoursAgo: 'vor {count} Std.',
+    daysAgo: 'vor {count} T.',
   },
   howToPlay: {
     title: 'Spielanleitung',
