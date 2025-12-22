@@ -321,6 +321,7 @@ export const GameEndModal: React.FC = () => {
         presentationStyle="overFullScreen"
         onRequestClose={handleClose}
         statusBarTranslucent={true}
+        supportedOrientations={['portrait', 'landscape']}
       >
         {/* CRITICAL FIX: Use regular View instead of SafeAreaView to prevent layout collapse */}
         <View style={styles.safeArea}>
