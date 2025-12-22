@@ -3,8 +3,11 @@
  * Sets up global mocks and test environment
  */
 
+// Declare global namespace for Node.js global object
+declare const global: typeof globalThis;
+
 // Mock console methods to reduce noise in test output
-(global as any).console = {
+global.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),
@@ -19,6 +22,3 @@ jest.mock('react-native-reanimated', () => {
   Reanimated.default.call = () => {};
   return Reanimated;
 });
-
-// Mock Animated from react-native for compatibility
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
