@@ -12,9 +12,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock dependencies
 jest.mock('expo-screen-orientation', () => ({
-  lockAsync: jest.fn(),
-  unlockAsync: jest.fn(),
-  addOrientationChangeListener: jest.fn(),
+  lockAsync: jest.fn(() => Promise.resolve()),
+  unlockAsync: jest.fn(() => Promise.resolve()),
+  addOrientationChangeListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
   removeOrientationChangeListener: jest.fn(),
   OrientationLock: {
     PORTRAIT_UP: 3,

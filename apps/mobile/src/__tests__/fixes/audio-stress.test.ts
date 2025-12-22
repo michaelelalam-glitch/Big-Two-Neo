@@ -6,6 +6,9 @@
  * Run with: pnpm test audio-stress-test
  */
 
+// Mock expo-av before imports
+jest.mock('expo-av');
+
 import { soundManager, SoundType } from '../../utils/soundManager';
 
 describe('Audio Stress Test - soundManager', () => {

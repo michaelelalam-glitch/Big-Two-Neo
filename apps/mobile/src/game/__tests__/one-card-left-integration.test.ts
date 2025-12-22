@@ -1,3 +1,6 @@
+// Mock supabase before imports
+jest.mock('../../services/supabase');
+
 import { GameStateManager } from '../state';
 import type { Card } from '../types';
 

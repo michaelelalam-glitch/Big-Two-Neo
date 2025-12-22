@@ -1,3 +1,10 @@
+// Mock reanimated before imports
+jest.mock('react-native-reanimated', () => {
+  const Reanimated = require('react-native-reanimated/mock');
+  Reanimated.default.call = () => {};
+  return Reanimated;
+});
+
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import CardHand from '../CardHand';

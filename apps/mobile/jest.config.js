@@ -30,12 +30,17 @@ module.exports = {
     },
   },
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo(-.*)?|@expo(-.*)?)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-screen-orientation|@expo|@react-navigation)/)',
   ],
+  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$': '<rootDir>/src/game/__tests__/__mocks__/async-storage.ts',
     '^react-native$': '<rootDir>/src/game/__tests__/__mocks__/react-native.ts',
     '^react-native-safe-area-context$': '<rootDir>/src/game/__tests__/__mocks__/safe-area-context.ts',
     '^expo-haptics$': '<rootDir>/src/game/__tests__/__mocks__/expo-haptics.ts',
+    '^expo-av$': '<rootDir>/src/__tests__/__mocks__/expo-av.ts',
+    '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',
+    '^../../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
+    '^../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
   },
 };
