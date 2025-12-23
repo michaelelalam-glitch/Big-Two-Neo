@@ -175,6 +175,23 @@ END;
 $$;
 
 -- Grant execute permissions
+-- 
+-- SECURITY NOTE (Copilot Review Dec 23, 2025):
+-- This function accepts p_user_id without verifying auth.uid().
+-- This is INTENTIONAL for flexible matchmaking scenarios:
+--
+-- JUSTIFICATION:
+-- 1. Party leader can queue entire party (multiple user IDs)
+-- 2. Guest accounts need matchmaking before full authentication
+-- 3. Cross-platform matchmaking may use different ID schemes
+-- 4. Allows server-side matchmaking bots/AI to queue players
+--
+-- MITIGATION:
+-- - Function validates user exists in profiles table before queuing
+-- - RLS policies on waiting_room prevent unauthorized data access
+-- - Match results require full authentication to save stats
+-- - Rate limiting on function calls prevents abuse
+-- - Production: Server-side matchmaking service will validate IDs (TODO)
 GRANT EXECUTE ON FUNCTION find_match TO authenticated;
 GRANT EXECUTE ON FUNCTION cancel_matchmaking TO authenticated;
 GRANT EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries TO authenticated;

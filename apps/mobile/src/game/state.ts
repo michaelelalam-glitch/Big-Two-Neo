@@ -1095,40 +1095,65 @@ export class GameStateManager {
 
       statsLogger.info(`📊 [Stats] Calling complete-game edge function`);
 
-      // Call server-side edge function to process game completion
-      // This uses service_role credentials on the server to update stats securely
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch(
-        `${API.SUPABASE_URL}/functions/v1/complete-game`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(gameCompletionData),
+      // Try Edge Function first (preferred for production)
+      let edgeFunctionSuccess = false;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('No active session');
         }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server returned ${response.status}`);
+        const response = await fetch(
+          `${API.SUPABASE_URL}/functions/v1/complete-game`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(gameCompletionData),
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          statsLogger.info('✅ [Stats] Game completed via Edge Function:', result);
+          edgeFunctionSuccess = true;
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Server returned ${response.status}`);
+        }
+      } catch (edgeError: any) {
+        // Edge Function failed - try fallback RPC
+        if (edgeError?.message?.includes('503') || edgeError?.message?.includes('404')) {
+          statsLogger.warn('⚠️ [Stats] Edge Function unavailable, using fallback RPC');
+        } else {
+          statsLogger.warn('⚠️ [Stats] Edge Function error, using fallback RPC:', edgeError?.message);
+        }
       }
 
-      const result = await response.json();
-      statsLogger.info('✅ [Stats] Game completed successfully:', result);
+      // Fallback: Use client-accessible RPC function
+      if (!edgeFunctionSuccess) {
+        statsLogger.info('📊 [Stats] Calling fallback RPC: complete_game_from_client');
+        
+        const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_game_from_client', {
+          p_room_id: gameCompletionData.room_id,
+          p_room_code: gameCompletionData.room_code,
+          p_players: gameCompletionData.players,
+          p_winner_id: gameCompletionData.winner_id,
+          p_game_duration_seconds: gameCompletionData.game_duration_seconds,
+          p_started_at: gameCompletionData.started_at,
+          p_finished_at: gameCompletionData.finished_at,
+        });
+
+        if (rpcError) {
+          throw rpcError;
+        }
+
+        statsLogger.info('✅ [Stats] Game completed via RPC fallback:', rpcResult);
+      }
     } catch (error: any) {
-      // Suppress 503 errors (Edge Function not deployed/cold start)
-      // Game still works - this only affects stats tracking
-      if (error?.message?.includes('503')) {
-        statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
-      } else {
-        statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
-      }
+      statsLogger.error('❌ [Stats] Failed to save game stats:', error?.message || error?.code || String(error));
     }
   }
 

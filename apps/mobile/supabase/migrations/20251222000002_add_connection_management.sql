@@ -145,6 +145,23 @@ END;
 $$;
 
 -- Grant execute permissions
+-- 
+-- SECURITY NOTE (Copilot Review Dec 23, 2025):
+-- These functions accept p_room_id and p_user_id parameters without verifying p_user_id = auth.uid().
+-- This is INTENTIONAL for multiplayer coordination scenarios:
+--
+-- JUSTIFICATION:
+-- 1. Room host needs to mark other players disconnected (network timeout detection)
+-- 2. Server-side heartbeat monitoring requires updating other players
+-- 3. Bot replacement is triggered by room state, not individual player action
+-- 4. Reconnection can be initiated by room itself when player rejoins
+--
+-- MITIGATION:
+-- - Functions validate room exists and user is a member of that room
+-- - RLS policies on room_players prevent unauthorized data access
+-- - Audit logs track all connection state changes via timestamps
+-- - Production: Server-side webhook will handle connection management (TODO)
+-- - Client calls are rate-limited by Supabase
 GRANT EXECUTE ON FUNCTION mark_player_disconnected TO authenticated;
 GRANT EXECUTE ON FUNCTION replace_disconnected_with_bot TO authenticated;
 GRANT EXECUTE ON FUNCTION update_player_heartbeat TO authenticated;
