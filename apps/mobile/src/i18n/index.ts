@@ -260,6 +260,10 @@ export interface Translations {
     mustPlayHigher: string;
     autoPassTimer: string;
     secondsRemaining: string;
+    autoPassHighestPlay: string;
+    autoPassNoOneCanBeat: string;
+    cannotPassTitle: string;
+    cannotPassMessage: string;
     settings: string;
     leaveGame: string;
     leaveGameConfirm: string;
