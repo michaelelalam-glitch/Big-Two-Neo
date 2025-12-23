@@ -307,8 +307,8 @@ export default function HomeScreen() {
             style={[styles.mainButton, styles.findMatchButton]}
             onPress={() => navigation.navigate('MatchTypeSelection')}
           >
-            <Text style={styles.mainButtonText}>🎯 Find Match (NEW!)</Text>
-            <Text style={styles.mainButtonSubtext}>Quick 4-player match with skill-based pairing</Text>
+            <Text style={styles.mainButtonText}>{i18n.t('home.findMatch')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.findMatchDescription')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -343,14 +343,6 @@ export default function HomeScreen() {
           >
             <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.mainButton, styles.rankedLeaderboardButton]}
-            onPress={() => navigation.navigate('RankedLeaderboard')}
-          >
-            <Text style={styles.mainButtonText}>🏆 Ranked Leaderboard</Text>
-            <Text style={styles.mainButtonSubtext}>See top players by ELO rating</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

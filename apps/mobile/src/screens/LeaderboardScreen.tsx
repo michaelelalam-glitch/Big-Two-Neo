@@ -36,7 +36,7 @@ interface LeaderboardEntry {
 }
 
 type TimeFilter = 'all_time' | 'weekly' | 'daily';
-type LeaderboardType = 'global' | 'friends';
+type LeaderboardType = 'global' | 'ranked';
 
 export default function LeaderboardScreen() {
   const navigation = useNavigation<LeaderboardScreenNavigationProp>();
@@ -46,6 +46,7 @@ export default function LeaderboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all_time');
+  const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('global');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
@@ -257,6 +258,26 @@ export default function LeaderboardScreen() {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <Text style={styles.title}>{i18n.t('leaderboard.title')}</Text>
+      
+      {/* Leaderboard Type Toggle */}
+      <View style={[styles.filterContainer, { marginBottom: SPACING.sm }]}>
+        <TouchableOpacity
+          style={[styles.filterButton, leaderboardType === 'global' && styles.filterButtonActive]}
+          onPress={() => setLeaderboardType('global')}
+        >
+          <Text style={[styles.filterText, leaderboardType === 'global' && styles.filterTextActive]}>
+            {i18n.t('common.allTime')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, leaderboardType === 'ranked' && styles.filterButtonActive]}
+          onPress={() => setLeaderboardType('ranked')}
+        >
+          <Text style={[styles.filterText, leaderboardType === 'ranked' && styles.filterTextActive]}>
+            🏆 {i18n.t('leaderboard.rankedTitle')}
+          </Text>
+        </TouchableOpacity>
+      </View>
       
       {/* User's Rank Card */}
       {userRank && (
