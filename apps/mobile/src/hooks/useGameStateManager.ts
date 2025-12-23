@@ -4,6 +4,7 @@ import { createGameStateManager, type GameState, type GameStateManager } from '.
 import { soundManager, SoundType, showError, showInfo } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
+import { i18n } from '../i18n';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { FinalScore } from '../types/gameEnd';
 
@@ -91,6 +92,20 @@ export function useGameStateManager({
         // Create game manager
         const manager = createGameStateManager();
         gameManagerRef.current = manager;
+
+        // CRITICAL FIX: Try to load saved game state first (for rejoin)
+        gameLogger.info('🔄 [useGameStateManager] Checking for saved game state...');
+        const savedState = await manager.loadState();
+        
+        if (savedState) {
+          gameLogger.info('✅ [useGameStateManager] Loaded saved game state - continuing from where you left off');
+          setGameState(savedState);
+          setIsInitializing(false);
+          
+          // Play notification sound
+          soundManager.playSound(SoundType.TURN_NOTIFICATION);
+          gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
+        }
 
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
@@ -244,20 +259,24 @@ export function useGameStateManager({
           setTimeout(() => checkAndExecuteBotTurn(), 100);
         });
 
-        // Initialize game with 3 bots
-        const initialState = await manager.initializeGame({
-          playerName: currentPlayerName,
-          botCount: 3,
-          botDifficulty: 'medium',
-        });
+        // Only initialize NEW game if no saved state was loaded
+        if (!savedState) {
+          gameLogger.info('🆕 [useGameStateManager] No saved game found - starting new game');
+          // Initialize game with 3 bots
+          const initialState = await manager.initializeGame({
+            playerName: currentPlayerName,
+            botCount: 3,
+            botDifficulty: 'medium',
+          });
 
-        setGameState(initialState);
-        setIsInitializing(false);
-        gameLogger.info('✅ [useGameStateManager] Game initialized successfully');
+          setGameState(initialState);
+          setIsInitializing(false);
+          gameLogger.info('✅ [useGameStateManager] New game initialized successfully');
 
-        // Play game start sound
-        soundManager.playSound(SoundType.GAME_START);
-        gameLogger.info('🎵 [Audio] Game start sound triggered');
+          // Play game start sound
+          soundManager.playSound(SoundType.GAME_START);
+          gameLogger.info('🎵 [Audio] Game start sound triggered');
+        }
 
         return () => {
           unsubscribe();
@@ -278,7 +297,7 @@ export function useGameStateManager({
           error?.message || error?.code || String(error)
         );
         setIsInitializing(false);
-        Alert.alert('Error', 'Failed to initialize game. Please try again.');
+        Alert.alert(i18n.t('common.error'), 'Failed to initialize game. Please try again.');
       }
     };
 

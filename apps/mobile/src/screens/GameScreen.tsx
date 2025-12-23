@@ -12,13 +12,15 @@ import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../c
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { useGameStateManager } from '../hooks/useGameStateManager';
+import { useBotCoordinator } from '../hooks/useBotCoordinator';
+import { useRealtime } from '../hooks/useRealtime';
 import { gameLogger } from '../utils/logger';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 // Delay between user actions to prevent rapid repeated presses (milliseconds)
 const ACTION_DEBOUNCE_MS = 300;
-import { soundManager, hapticManager, SoundType, showError, showConfirm, performanceMonitor } from '../utils';
+import { soundManager, hapticManager, SoundType, showError, showInfo, showConfirm, performanceMonitor } from '../utils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { i18n } from '../i18n';
@@ -32,7 +34,7 @@ import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout'
 import { sortCardsForDisplay } from '../utils/cardSorting';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
-type GameScreenNavigationProp = NavigationProp<RootStackParamList>;
+type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
@@ -48,6 +50,16 @@ function GameScreenContent() {
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
+  
+  // PHASE 6: Detect game mode
+  const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
+  const isMultiplayerGame = !isLocalAIGame;
+  
+  gameLogger.info(`🎮 [GameScreen] Game mode: ${isLocalAIGame ? 'LOCAL AI (client-side)' : 'MULTIPLAYER (server-side)'}`);
+  
+  // PHASE 6: State for multiplayer room data
+  const [multiplayerRoomId, setMultiplayerRoomId] = useState<string | null>(null);
+  const [multiplayerPlayers, setMultiplayerPlayers] = useState<any[]>([]);
   
   // Orientation manager (Task #450) - gracefully handles missing native module
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
@@ -73,14 +85,57 @@ function GameScreenContent() {
     getSelectedCards,
   } = useCardSelection();
 
-  // Bot turn management hook (Task #Phase 2B) - must be created BEFORE gameStateManager
+  // PHASE 6: Initialize multiplayer room data if needed
+  useEffect(() => {
+    if (!isMultiplayerGame) return;
+    
+    const loadMultiplayerRoom = async () => {
+      try {
+        const { data: roomData, error: roomError } = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('code', roomCode)
+          .single();
+        
+        if (roomError || !roomData) {
+          gameLogger.error('[GameScreen] Multiplayer room not found:', roomError);
+          showError('Room not found');
+          navigation.replace('Home');
+          return;
+        }
+        
+        setMultiplayerRoomId(roomData.id);
+        
+        // Load players
+        const { data: playersData, error: playersError } = await supabase
+          .from('room_players')
+          .select('*')
+          .eq('room_id', roomData.id)
+          .order('player_index');
+        
+        if (playersError) throw playersError;
+        
+        setMultiplayerPlayers(playersData || []);
+        gameLogger.info(`[GameScreen] Loaded ${playersData?.length || 0} players from room`);
+      } catch (error: any) {
+        gameLogger.error('[GameScreen] Error loading multiplayer room:', error?.message || String(error));
+      }
+    };
+    
+    loadMultiplayerRoom();
+  }, [isMultiplayerGame, roomCode, navigation]);
+  
+  // PHASE 6: Determine if current user is host (bot coordinator)
+  const isHostPlayer = multiplayerPlayers.find(p => p.user_id === user?.id)?.is_host || false;
+  
+  // Bot turn management hook (Task #Phase 2B) - only for LOCAL games
   const gameManagerRefPlaceholder = useRef<any>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
     gameManagerRef: gameManagerRefPlaceholder,
   });
 
-  // Game state management - extracted to useGameStateManager hook (Task #427)
-  const { gameManagerRef, gameState, isInitializing } = useGameStateManager({
+  // PHASE 6: Client-side game state (LOCAL AI games only)
+  const { gameManagerRef, gameState: localGameState, isInitializing } = useGameStateManager({
     roomCode,
     currentPlayerName,
     addScoreHistory,
@@ -98,11 +153,46 @@ function GameScreenContent() {
       gameManagerRefPlaceholder.current = gameManagerRef.current;
     }
   }, [gameManagerRef]);
+  
+  // PHASE 6: Server-side multiplayer game state (MULTIPLAYER games only)
+  const { 
+    gameState: multiplayerGameState, 
+    playerHands: multiplayerPlayerHands,
+    isConnected: isMultiplayerConnected,
+    playCards: multiplayerPlayCards,
+    passTurn: multiplayerPassTurn,
+  } = useRealtime({
+    userId: user?.id || '',
+    username: currentPlayerName,
+    onError: (error) => {
+      gameLogger.error('[GameScreen] Multiplayer error:', error.message);
+      showError(error.message);
+    },
+    onDisconnect: () => {
+      gameLogger.warn('[GameScreen] Multiplayer disconnected');
+      showInfo('Connection lost. Reconnecting...');
+    },
+    onReconnect: () => {
+      gameLogger.info('[GameScreen] Multiplayer reconnected');
+      showInfo('Reconnected!');
+    },
+  });
+  
+  // PHASE 6: Bot coordinator hook (MULTIPLAYER games with bots, HOST only)
+  useBotCoordinator({
+    roomId: multiplayerRoomId,
+    isCoordinator: isMultiplayerGame && isHostPlayer,
+    gameState: multiplayerGameState,
+    players: multiplayerPlayers,
+  });
+  
+  // PHASE 6: Unified game state (switch based on mode)
+  const gameState = isLocalAIGame ? localGameState : (multiplayerGameState as any); // Cast to avoid type conflicts
 
   // Task #355: Play history tracking - automatically sync game plays to scoreboard
-  usePlayHistoryTracking(gameState);
+  usePlayHistoryTracking(localGameState); // Only track local game (multiplayer uses different system)
 
-  // Derived game state hook (Task #Phase 2B)
+  // Derived game state hook (Task #Phase 2B) - only for local games
   const {
     playerHand,
     lastPlayedCards,
@@ -110,27 +200,27 @@ function GameScreenContent() {
     lastPlayComboType,
     lastPlayCombo,
   } = useDerivedGameState({
-    gameState,
+    gameState: localGameState,
     customCardOrder,
     setCustomCardOrder,
   });
 
-  // Scoreboard mapping hook (Task #Phase 2B)
+  // Scoreboard mapping hook (Task #Phase 2B) - only for local games
   const {
     players,
     mapPlayersToScoreboardOrder,
     mapGameIndexToScoreboardPosition,
   } = useScoreboardMapping({
-    gameState,
+    gameState: localGameState,
     currentPlayerName,
   });
 
-  // Helper buttons hook (Task #Phase 2B)
+  // Helper buttons hook (Task #Phase 2B) - only for local games
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
     playerHand,
-    lastPlay: gameState?.lastPlay || null,
+    lastPlay: localGameState?.lastPlay || null,
     isFirstPlay:
-      gameState?.lastPlay === null && gameState?.players.every((p) => p.hand.length === 13),
+      localGameState?.lastPlay === null && localGameState?.players.every((p) => p.hand.length === 13),
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
@@ -178,7 +268,7 @@ function GameScreenContent() {
     
     // Listen for navigation events to detect deliberate exits
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
+    const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
       // Only set as deliberate leave for certain navigation actions (e.g., back, pop, custom leave)
       const actionType = e?.data?.action?.type;
       if (
@@ -274,135 +364,131 @@ function GameScreenContent() {
 
   // CRITICAL FIX: Play/Pass action handlers - defined in GameScreen to work in BOTH orientations
   // Previously these were only set by GameControls which is only mounted in portrait mode
+  // PHASE 6: Updated to support both local and multiplayer modes
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
-    if (!gameManagerRef.current) {
-      gameLogger.error('❌ [GameScreen] Game not initialized');
-      return;
-    }
-
-    // Prevent duplicate card plays
-    if (isPlayingCards) {
-      gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
-      return;
-    }
-
-    try {
-      setIsPlayingCards(true);
-
-      // Task #270: Add haptic feedback for Play button
-      hapticManager.playCard();
-
-      // Task #313: Auto-sort cards for proper display order before submission
-      // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
-      const sortedCards = sortCardsForDisplay(cards);
-
-      gameLogger.info('🎴 [GameScreen] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
-
-      // Get card IDs to play (using sorted order)
-      const cardIds = sortedCards.map(c => c.id);
-
-      // Attempt to play cards through game engine
-      const result = await gameManagerRef.current.playCards(cardIds);
-
-      if (result.success) {
-        gameLogger.info('✅ [GameScreen] Cards played successfully');
-
-        // Play card sound effect
-        soundManager.playSound(SoundType.CARD_PLAY);
-
-        // Preserve custom card order by removing only the played cards
-        if (customCardOrder.length > 0) {
-          const playedCardIds = new Set(cardIds);
-          // Also filter out any IDs not present in the current hand
-          const currentHandCardIds = new Set(playerHand.map(card => card.id));
-          const updatedOrder = customCardOrder.filter(
-            id => !playedCardIds.has(id) && currentHandCardIds.has(id)
-          );
-          setCustomCardOrder(updatedOrder);
-        }
-
-        // Clear selection after successful play
-        if (isMountedRef.current) {
-          setSelectedCardIds(new Set());
-        }
-
-        // Bot turns and match/game end will be handled by subscription callback
-      } else {
-        // Show error from validation
-        soundManager.playSound(SoundType.INVALID_MOVE);
-        Alert.alert('Invalid Move', result.error || 'Invalid play');
+    // PHASE 6: Route to appropriate game engine
+    if (isLocalAIGame) {
+      // Local AI game - use GameStateManager
+      if (!gameManagerRef.current) {
+        gameLogger.error('❌ [GameScreen] Game not initialized');
+        return;
       }
-    } catch (error: any) {
-      // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameScreen] Failed to play cards:', error?.message || error?.code || String(error));
 
-      // Show user-friendly error
-      soundManager.playSound(SoundType.INVALID_MOVE);
-      const errorMessage = error instanceof Error ? error.message : 'Invalid play';
-      Alert.alert('Invalid Move', errorMessage);
-    } finally {
-      // Release lock after short delay to prevent rapid double-taps
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          setIsPlayingCards(false);
-        }
-      }, ACTION_DEBOUNCE_MS);
+      // Prevent duplicate card plays
+      if (isPlayingCards) {
+        gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
+        return;
+      }
+
+      try {
+        setIsPlayingCards(true);
+
+        // Task #270: Add haptic feedback for Play button
+        hapticManager.playCard();
+
+        // Task #313: Auto-sort cards for proper display order before submission
+        // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
+        const sortedCards = sortCardsForDisplay(cards);
+        
+        await gameManagerRef.current.playCards(sortedCards);
+        setSelectedCardIds(new Set());
+        soundManager.playSound(SoundType.CARD_PLAY);
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
+        showError(error.message || 'Failed to play cards');
+      } finally {
+        setIsPlayingCards(false);
+      }
+    } else {
+      // Multiplayer game - use Realtime hook
+      if (!multiplayerPlayCards) {
+        gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
+        return;
+      }
+
+      if (isPlayingCards) {
+        gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
+        return;
+      }
+
+      try {
+        setIsPlayingCards(true);
+        hapticManager.playCard();
+        
+        const sortedCards = sortCardsForDisplay(cards);
+        // Convert Card[] to string[] (card IDs) for multiplayer API
+        const cardIds = sortedCards.map(c => c.id);
+        await multiplayerPlayCards(cardIds as any);
+        setSelectedCardIds(new Set());
+        soundManager.playSound(SoundType.CARD_PLAY);
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Error playing cards (multiplayer):', error?.message || String(error));
+        showError(error.message || 'Failed to play cards');
+      } finally {
+        setIsPlayingCards(false);
+      }
     }
-  }, [gameManagerRef, isPlayingCards, isMountedRef, customCardOrder, playerHand]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, isPlayingCards, setSelectedCardIds]);
 
   const handlePass = useCallback(async () => {
-    if (!gameManagerRef.current) {
-      gameLogger.error('❌ [GameScreen] Game not initialized');
-      return;
-    }
-
-    if (isPassing) {
-      gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
-      return;
-    }
-
-    try {
-      setIsPassing(true);
-
-      // Task #270: Add haptic feedback for Pass button
-      hapticManager.pass();
-
-      gameLogger.info('⏭️ [GameScreen] Player passing...');
-
-      const result = await gameManagerRef.current.pass();
-
-      if (result.success) {
-        gameLogger.info('✅ [GameScreen] Pass successful');
-
-        // Play pass sound effect
-        soundManager.playSound(SoundType.PASS);
-
-        // Clear selection after successful pass
-        if (isMountedRef.current) {
-          setSelectedCardIds(new Set());
-        }
-
-        // Bot turns will be triggered automatically by the subscription
-      } else {
-        Alert.alert(i18n.t('game.cannotPassTitle'), result.error || i18n.t('game.cannotPassMessage'));
+    // PHASE 6: Route to appropriate game engine
+    if (isLocalAIGame) {
+      // Local AI game
+      if (!gameManagerRef.current) {
+        gameLogger.error('❌ [GameScreen] Game not initialized');
+        return;
       }
-    } catch (error: any) {
-      // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
 
-      const errorMessage = error instanceof Error ? error.message : i18n.t('game.cannotPassMessage');
-      Alert.alert(i18n.t('game.cannotPassTitle'), errorMessage);
-    } finally {
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          setIsPassing(false);
-        }
-      }, ACTION_DEBOUNCE_MS);
+      if (isPassing) {
+        gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
+        return;
+      }
+
+      try {
+        setIsPassing(true);
+
+        // Task #270: Add haptic feedback for Pass button
+        hapticManager.pass();
+
+        await gameManagerRef.current.pass();
+        setSelectedCardIds(new Set());
+        soundManager.playSound(SoundType.PASS);
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Error passing:', error?.message || String(error));
+        showError(error.message || 'Failed to pass');
+      } finally {
+        setIsPassing(false);
+      }
+    } else {
+      // Multiplayer game
+      if (!multiplayerPassTurn) {
+        gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
+        return;
+      }
+
+      if (isPassing) {
+        gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
+        return;
+      }
+
+      try {
+        setIsPassing(true);
+        hapticManager.pass();
+        
+        await multiplayerPassTurn();
+        setSelectedCardIds(new Set());
+        soundManager.playSound(SoundType.PASS);
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', error?.message || String(error));
+        showError(error.message || 'Failed to pass');
+      } finally {
+        setIsPassing(false);
+      }
     }
-  }, [gameManagerRef, isPassing, isMountedRef]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPassTurn, isPassing, setSelectedCardIds]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);
@@ -510,16 +596,16 @@ function GameScreenContent() {
           // LANDSCAPE MODE (Task #450) - now uses mapped player order for all props
           <LandscapeGameLayout
             // Scoreboard and player order: [user, Bot 1, Bot 2, Bot 3] = [0,3,1,2]
-            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState && gameState.matchScores ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
-            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex ?? 0)}
-            matchNumber={gameState?.currentMatch ?? 1}
-            isGameFinished={gameState?.gameOver ?? false}
+            playerNames={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.name) : []}
+            currentScores={localGameState && localGameState.matchScores ? mapPlayersToScoreboardOrder(localGameState.matchScores, (s: any) => s.score) : []}
+            cardCounts={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.hand.length) : []}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(localGameState?.currentPlayerIndex ?? 0)}
+            matchNumber={localGameState?.currentMatch ?? 1}
+            isGameFinished={localGameState?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
-            originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
-            autoPassTimerState={gameState?.auto_pass_timer ?? undefined}
+            originalPlayerNames={localGameState ? localGameState.players.map((p: any) => p.name) : []}
+            autoPassTimerState={localGameState?.auto_pass_timer ?? undefined}
 
             // Table data
             lastPlayedCards={lastPlayedCards}
@@ -559,7 +645,7 @@ function GameScreenContent() {
             onSettings={() => setShowSettings(true)}
 
             // Control states - CRITICAL FIX: Ensure game state is initialized before enabling controls
-            disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
+            disabled={false}
             canPlay={players[0].isActive && selectedCards.length > 0 && !!gameState && !!gameManagerRef.current}
             canPass={players[0].isActive && !!gameState && !!gameManagerRef.current}
           />
@@ -568,15 +654,15 @@ function GameScreenContent() {
           <>
             {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
             <ScoreboardContainer
-            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState && gameState.matchScores ? mapPlayersToScoreboardOrder(gameState.matchScores, s => s.score) : []}
-            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex ?? 0)}
-            matchNumber={gameState?.currentMatch ?? 1}
-            isGameFinished={gameState?.gameOver ?? false}
+            playerNames={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.name) : []}
+            currentScores={localGameState && localGameState.matchScores ? mapPlayersToScoreboardOrder(localGameState.matchScores, (s: any) => s.score) : []}
+            cardCounts={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.hand.length) : []}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(localGameState?.currentPlayerIndex ?? 0)}
+            matchNumber={localGameState?.currentMatch ?? 1}
+            isGameFinished={localGameState?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
-            originalPlayerNames={gameState ? gameState.players.map(p => p.name) : []}
+            originalPlayerNames={localGameState ? localGameState.players.map((p: any) => p.name) : []}
           />
 
           {/* Hamburger menu (top-right, outside table) */}
@@ -652,7 +738,7 @@ function GameScreenContent() {
               onSort={handleSort}
               onSmartSort={handleSmartSort}
               onHint={handleHint}
-              disabled={!players[0].isActive || playerHand.length === 0}
+              disabled={playerHand.length === 0}
             />
           </View>
 
@@ -663,7 +749,7 @@ function GameScreenContent() {
               onPlayCards={handleCardHandPlayCards} // FIXED: Wire to GameControls for drag-to-play
               onPass={handleCardHandPass} // FIXED: Wire to GameControls for drag-to-pass
               canPlay={players[0].isActive && !!gameState && !!gameManagerRef.current}
-              disabled={!players[0].isActive || !gameState || !gameManagerRef.current}
+              disabled={false}
               hideButtons={true} // Hide internal buttons since we display them externally
               selectedCardIds={selectedCardIds}
               onSelectionChange={setSelectedCardIds}

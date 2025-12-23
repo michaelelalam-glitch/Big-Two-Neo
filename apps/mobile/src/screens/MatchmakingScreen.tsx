@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -37,6 +37,7 @@ export default function MatchmakingScreen() {
     waitingCount,
     matchFound,
     roomCode,
+    autoStarted,
     error,
     startMatchmaking,
     cancelMatchmaking,
@@ -64,13 +65,17 @@ export default function MatchmakingScreen() {
     };
   }, [user, profile]);
 
-  // Navigate to lobby when match found
+  // Navigate to lobby or game when match found
   useEffect(() => {
     if (matchFound && roomCode) {
       resetMatch();
-      navigation.replace('Lobby', { roomCode });
+      
+      // CRITICAL FIX: Route to CasualWaitingRoom for matchmaking (not Lobby)
+      // CasualWaitingRoom is designed for public/matchmaking rooms
+      // Lobby is for private rooms with invited friends
+      navigation.replace('CasualWaitingRoom', { roomCode });
     }
-  }, [matchFound, roomCode, navigation, resetMatch]);
+  }, [matchFound, roomCode, autoStarted, navigation, resetMatch]);
 
   // Show error if matchmaking fails
   useEffect(() => {
@@ -82,6 +87,15 @@ export default function MatchmakingScreen() {
   const handleCancel = async () => {
     await cancelMatchmaking();
     navigation.goBack();
+  };
+
+  const handleStartWithAI = async () => {
+    // Cancel matchmaking first
+    await cancelMatchmaking();
+    
+    // Navigate directly to Game screen with a special flag for AI game
+    // GameScreen will detect no roomCode and start a local game
+    navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME' });
   };
 
   const getSearchingText = () => {
@@ -116,9 +130,15 @@ export default function MatchmakingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <Text style={styles.title}>{i18n.t('matchmaking.title')}</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <Text style={styles.title}>{i18n.t('matchmaking.title')}</Text>
         
         {/* Match Type Badge */}
         <View style={[
@@ -146,6 +166,21 @@ export default function MatchmakingScreen() {
         {/* Status Message */}
         <Text style={styles.statusMessage}>{getWaitingMessage()}</Text>
 
+        {/* Room Code Display (for sharing) */}
+        {roomCode && waitingCount < 4 && (
+          <View style={styles.roomCodeContainer}>
+            <Text style={styles.roomCodeLabel}>
+              🔗 {i18n.t('matchmaking.shareWithFriends')}
+            </Text>
+            <View style={styles.roomCodeBox}>
+              <Text style={styles.roomCodeText}>{roomCode}</Text>
+            </View>
+            <Text style={styles.roomCodeHint}>
+              {i18n.t('matchmaking.friendsCanJoin')}
+            </Text>
+          </View>
+        )}
+
         {/* Progress Bar */}
         <View style={styles.progressBarContainer}>
           <View style={[styles.progressBar, { width: `${(waitingCount / 4) * 100}%` }]} />
@@ -162,6 +197,14 @@ export default function MatchmakingScreen() {
           </Text>
         </View>
 
+        {/* Start with AI Button */}
+        <TouchableOpacity
+          style={styles.startWithAIButton}
+          onPress={handleStartWithAI}
+        >
+          <Text style={styles.startWithAIButtonText}>🤖 {i18n.t('lobby.startWithBots')}</Text>
+        </TouchableOpacity>
+
         {/* Cancel Button */}
         <TouchableOpacity
           style={styles.cancelButton}
@@ -176,7 +219,8 @@ export default function MatchmakingScreen() {
             <Text style={styles.errorText}>❌ {error}</Text>
           </View>
         )}
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -185,6 +229,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
@@ -228,6 +278,41 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
     paddingHorizontal: SPACING.lg,
   },
+  roomCodeContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 12,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    alignItems: 'center',
+  },
+  roomCodeLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.info,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
+  roomCodeBox: {
+    backgroundColor: COLORS.gray.dark,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    marginBottom: SPACING.xs,
+  },
+  roomCodeText: {
+    fontSize: FONT_SIZES.xl,
+    color: COLORS.white,
+    fontWeight: '700',
+    letterSpacing: 4,
+    fontFamily: 'monospace',
+  },
+  roomCodeHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray.medium,
+    textAlign: 'center',
+  },
   progressBarContainer: {
     width: '100%',
     height: 8,
@@ -265,6 +350,23 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray.light,
     lineHeight: 20,
+  },
+  startWithAIButton: {
+    backgroundColor: COLORS.info,
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: SPACING.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  startWithAIButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
   },
   cancelButton: {
     backgroundColor: COLORS.error,

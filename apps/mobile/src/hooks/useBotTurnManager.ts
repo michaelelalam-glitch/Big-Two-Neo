@@ -97,9 +97,9 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
 
             // Notify user and attempt recovery
             Alert.alert(
-              'Bot Turn Error',
-              `Bot ${currentPlayer.name} encountered an error. The game will continue with the next player.`,
-              [{ text: 'OK' }]
+              i18n.t('game.botTurnErrorTitle'),
+              i18n.t('game.botTurnErrorMessage', { botName: currentPlayer.name }),
+              [{ text: i18n.t('common.ok') }]
             );
 
             // Check for next player after brief delay

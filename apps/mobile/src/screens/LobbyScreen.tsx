@@ -38,6 +38,7 @@ export default function LobbyScreen() {
   const [isReady, setIsReady] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const [isMatchmakingRoom, setIsMatchmakingRoom] = useState(false);
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
@@ -52,7 +53,7 @@ export default function LobbyScreen() {
   const getRoomId = async () => {
     const { data, error } = await supabase
       .from('rooms')
-      .select('id')
+      .select('id, is_matchmaking')
       .eq('code', roomCode)
       .single();
     
@@ -66,6 +67,9 @@ export default function LobbyScreen() {
       }
       return null;
     }
+    
+    // Set matchmaking status
+    setIsMatchmakingRoom(data.is_matchmaking || false);
     
     return data.id;
   };
@@ -227,86 +231,69 @@ export default function LobbyScreen() {
         return;
       }
 
-      // Check if player already exists in players table
-      const { data: existingPlayer } = await supabase
-        .from('players')
-        .select('id')
-        .eq('room_id', currentRoomId)
-        .eq('player_index', roomPlayerData.player_index)
-        .single();
+      // CRITICAL: Count human players to determine bot count
+      const humanCount = players.filter(p => !p.is_bot).length;
+      const botsNeeded = 4 - humanCount;
 
-      let playerIdToUse = existingPlayer?.id;
+      roomLogger.info(`🎮 [LobbyScreen] Starting game: ${humanCount} humans, ${botsNeeded} bots needed`);
 
-      // If no player entry exists, create one
-      if (!playerIdToUse) {
-        roomLogger.info('Creating player entry for host...');
-        const { data: newPlayer, error: createPlayerError } = await supabase
-          .from('players')
-          .insert({
-            room_id: currentRoomId,
-            player_name: roomPlayerData.username || 'Player',
-            player_index: roomPlayerData.player_index,
-            is_bot: false,
-            status: 'online',
-            cards: [],
-            card_order: [],
-            score: 0,
-            tricks_won: 0,
-          })
-          .select('id')
-          .single();
+      if (botsNeeded < 0) {
+        showError('Too many players! Maximum 4 players allowed.');
+        return;
+      }
 
-        if (createPlayerError || !newPlayer) {
-          roomLogger.error('Error creating player:', createPlayerError?.message || createPlayerError?.code || 'Unknown error');
-          showError(i18n.t('lobby.createPlayerError'));
-          return;
-        }
+      if (humanCount === 0) {
+        showError('Cannot start game without any players!');
+        return;
+      }
 
-        playerIdToUse = newPlayer.id;
-
-        // Update room's host_player_id
-        await supabase
+      // ARCHITECTURE DECISION: 
+      // - Solo game (1 human + 3 bots): Use CLIENT-SIDE game engine
+      // - Multiplayer (2-4 humans + bots): Use SERVER-SIDE game engine with bot support
+      
+      if (humanCount === 1 && botsNeeded === 3) {
+        // SOLO GAME: Navigate to GameScreen with LOCAL_AI_GAME flag
+        // GameScreen will use GameStateManager (client-side engine)
+        roomLogger.info('📱 [LobbyScreen] Solo game - using client-side engine');
+        
+        // Update room status
+        const { error: updateError } = await supabase
           .from('rooms')
-          .update({ host_player_id: playerIdToUse })
+          .update({ status: 'playing' })
           .eq('id', currentRoomId);
 
-        roomLogger.info('Player entry created:', playerIdToUse);
+        if (updateError) throw updateError;
+
+        // Navigate with special flag
+        navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME' });
+        setIsStarting(false);
+        return;
       }
 
-      roomLogger.info('Starting game for room:', currentRoomId);
+      // MULTIPLAYER GAME: Use server-side engine with bot support
+      roomLogger.info(`🌐 [LobbyScreen] Multiplayer game - using server-side engine with ${botsNeeded} bots`);
 
-      // ARCHITECTURE: Single-player bot games use CLIENT-SIDE game initialization
-      // 
-      // Why no RPC call here:
-      // - Bots are local AI created by GameStateManager.initializeGame() in GameScreen
-      // - No start_game RPC exists (nor is it needed for client-side bots)
-      // - GameScreen auto-initializes when mounting: creates 3 bot players, deals cards, starts game
-      //
-      // Server role: Only tracks room status for lobby UI
-      // Bot creation: Happens in apps/mobile/src/game/state.ts:157-180
-      // Game state: Stored in client memory (not database) for single-player
-      //
-      // Note: Multiplayer (4 humans) uses DIFFERENT code path in useRealtime.ts:383-429
-      const { error: updateError } = await supabase
-        .from('rooms')
-        .update({ status: 'playing' })
-        .eq('id', currentRoomId);
+      // Call start_game_with_bots RPC function
+      const { data: startResult, error: startError } = await supabase
+        .rpc('start_game_with_bots', {
+          p_room_id: currentRoomId,
+          p_bot_count: botsNeeded,
+          p_bot_difficulty: 'medium',
+        });
 
-      if (updateError) {
-        throw new Error(`Failed to start game: ${updateError.message}`);
+      if (startError) {
+        throw new Error(`Failed to start game: ${startError.message}`);
       }
 
-      // 🔔 Send push notification to player when game starts
+      roomLogger.info('✅ [LobbyScreen] Game started successfully:', startResult);
+
+      // 🔔 Send push notification
       roomLogger.info('📤 Sending game start notification...');
       notifyGameStarted(currentRoomId, roomCode).catch(err => 
         roomLogger.error('❌ Failed to send game start notification:', err)
       );
 
-      // Navigate to GameScreen which will:
-      // 1. Call createGameStateManager()
-      // 2. Run manager.initializeGame({ playerName, botCount: 3, botDifficulty: 'medium' })
-      // 3. Create bot players (Bot 1, Bot 2, Bot 3)
-      // 4. Deal cards and start game
+      // Navigate to GameScreen (will use useRealtime for multiplayer)
       navigation.replace('Game', { roomCode });
       setIsStarting(false);
     } catch (error: any) {
@@ -457,7 +444,7 @@ export default function LobbyScreen() {
           )}
         </TouchableOpacity>
 
-        {isHost ? (
+        {(isHost || isMatchmakingRoom) ? (
           <>
             <TouchableOpacity
               style={[styles.startButton, isStarting && styles.buttonDisabled]}
@@ -476,7 +463,10 @@ export default function LobbyScreen() {
               )}
             </TouchableOpacity>
             <Text style={styles.hostInfo}>
-              {i18n.t('lobby.hostInfo')}
+              {isMatchmakingRoom 
+                ? i18n.t('lobby.matchmakingRoomInfo') || 'Anyone can start this matchmaking game'
+                : i18n.t('lobby.hostInfo')
+              }
             </Text>
           </>
         ) : (
