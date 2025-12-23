@@ -92,13 +92,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       userIdRef.current = user.id;
 
-      // Call find_match function with match_type
+      // Call find_match function (TODO: Add match_type support after migration applied)
       const { data, error: matchError } = await supabase.rpc('find_match', {
         p_user_id: user.id,
         p_username: username,
         p_skill_rating: skillRating,
         p_region: region,
-        p_match_type: matchType,
       });
 
       if (matchError) {
