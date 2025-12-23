@@ -387,14 +387,14 @@ function GameScreenContent() {
 
         // Bot turns will be triggered automatically by the subscription
       } else {
-        Alert.alert('Cannot Pass', result.error || 'Cannot pass');
+        Alert.alert(i18n.t('game.cannotPassTitle'), result.error || i18n.t('game.cannotPassMessage'));
       }
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameScreen] Failed to pass:', error?.message || error?.code || String(error));
 
-      const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
-      Alert.alert('Cannot Pass', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : i18n.t('game.cannotPassMessage');
+      Alert.alert(i18n.t('game.cannotPassTitle'), errorMessage);
     } finally {
       setTimeout(() => {
         if (isMountedRef.current) {
