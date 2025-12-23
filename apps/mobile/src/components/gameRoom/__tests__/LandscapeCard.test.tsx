@@ -7,7 +7,7 @@
 
 // @ts-nocheck - Test infrastructure types incomplete
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import LandscapeCard from '../LandscapeCard';
 import type { Card } from '../../../game/types';
 import { LANDSCAPE_DIMENSIONS } from '../../../constants/landscape';
