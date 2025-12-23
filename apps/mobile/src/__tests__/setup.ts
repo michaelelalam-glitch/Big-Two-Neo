@@ -57,7 +57,6 @@ jest.mock('react-native-reanimated', () => {
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
-  const React = require('react');
   return {
     Gesture: {
       Tap: jest.fn(() => ({

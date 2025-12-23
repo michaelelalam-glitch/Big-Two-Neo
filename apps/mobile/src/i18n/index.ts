@@ -133,6 +133,8 @@ export interface Translations {
   home: {
     title: string;
     welcome: string;
+    findMatch: string;
+    findMatchDescription: string;
     quickPlay: string;
     quickPlayDescription: string;
     createRoom: string;
@@ -142,6 +144,8 @@ export interface Translations {
     howToPlay: string;
     howToPlayDescription: string;
     leaderboard: string;
+    rankedLeaderboard: string;
+    rankedLeaderboardDescription: string;
     profile: string;
     currentRoom: string;
     leave: string;
@@ -160,7 +164,9 @@ export interface Translations {
     suitOrderLabel: string;
     suitOrder: string;
     cardNote: string;
+    noteText?: string; // For non-English
     validCombinationsTitle: string;
+    combinationsTitle?: string; // For non-English
     single: string;
     pair: string;
     triple: string;
@@ -1289,7 +1295,9 @@ const ar: Translations = {
     suitOrderLabel: '🎴 ترتيب الأنواع (عند التساوي في القيمة):',
     suitOrder: '♦ الماس، ♣ السباتي، ♥ القلوب، ♠ البستوني',
     cardNote: 'ملاحظة: 3 الماس (3♦) هو أضعف ورقة و 2 البستوني (2♠) هو أقوى ورقة!',
+    noteText: 'ملاحظة: 3 الماس (3♦) هو أضعف ورقة و 2 البستوني (2♠) هو أقوى ورقة!',
     validCombinationsTitle: '🎮 التشكيلات الصحيحة',
+    combinationsTitle: '🎮 التشكيلات الصحيحة',
     cardRankingsTitle: '🎴 ترتيب البطاقات',
     single: 'مفرد: أي ورقة واحدة',
     pair: 'زوج: ورقتان بنفس القيمة',
@@ -1733,7 +1741,9 @@ const de: Translations = {
     suitOrderLabel: '🎴 Farbenrangfolge (bei gleichem Rang):',
     suitOrder: '♦ Karo, ♣ Kreuz, ♥ Herz, ♠ Pik',
     cardNote: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
+    noteText: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
     validCombinationsTitle: '🎮 Gültige Kombinationen',
+    combinationsTitle: '🎮 Gültige Kombinationen',
     cardRankingsTitle: '🎴 Kartenrangfolge',
     single: 'Einzelkarte: Eine beliebige einzelne Karte',
     pair: 'Paar: Zwei Karten mit demselben Rang',

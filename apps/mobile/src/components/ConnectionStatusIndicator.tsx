@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../constants';
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
