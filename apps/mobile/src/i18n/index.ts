@@ -599,6 +599,8 @@ const en: Translations = {
   home: {
     title: 'Big2 Mobile',
     welcome: 'Welcome',
+    findMatch: '🎯 Find Match (NEW!)',
+    findMatchDescription: 'Quick 4-player match with skill-based pairing',
     quickPlay: '⚡ Quick Play',
     quickPlayDescription: 'Join a random game',
     createRoom: '➕ Create Room',
@@ -608,6 +610,8 @@ const en: Translations = {
     howToPlay: '📖 How to Play',
     howToPlayDescription: 'Learn the rules',
     leaderboard: '🏆 Leaderboard',
+    rankedLeaderboard: '🏆 Ranked Leaderboard',
+    rankedLeaderboardDescription: 'See top players by ELO rating',
     profile: 'Profile',
     currentRoom: 'Currently in room',
     leave: 'Leave',
@@ -657,9 +661,9 @@ const en: Translations = {
     rankTiersTitle: 'Rank Tiers:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Reconnection & Disconnection',
-    reconnectionDesc: 'If you lose connection during a match, you have 15 seconds to reconnect before a bot replaces you.',
-    disconnectGrace: '⏱️ Grace Period: 15 seconds to resume your app and restore your position.',
-    botReplacement: '🤖 Bot Replacement: After 15 seconds, a bot with your current hand will play for you.',
+    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect before a bot replaces you.',
+    disconnectGrace: '⏱️ Grace Period: 60 seconds to resume your app and restore your position.',
+    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will play for you.',
     spectatorMode: '👁️ Spectator Mode: If you reconnect after bot replacement, you can watch the match but cannot play.',
   },
   game: {
@@ -1011,6 +1015,8 @@ const ar: Translations = {
   home: {
     title: 'Big2 Mobile',
     welcome: 'مرحبًا',
+    findMatch: '🎯 البحث عن مباراة (جديد!)',
+    findMatchDescription: 'مباراة سريعة لـ 4 لاعبين مع مطابقة المهارات',
     quickPlay: '⚡ لعب سريع',
     quickPlayDescription: 'انضم إلى لعبة عشوائية',
     createRoom: '➕ إنشاء غرفة',
@@ -1018,6 +1024,8 @@ const ar: Translations = {
     joinRoom: '🔗 الانضمام إلى غرفة',
     joinRoomDescription: 'أدخل رمز الغرفة',
     leaderboard: '🏆 لوحة المتصدرين',
+    rankedLeaderboard: '🏆 لوحة الصدارة التصنيفية',
+    rankedLeaderboardDescription: 'شاهد أفضل اللاعبين حسب تصنيف ELO',
     profile: 'الملف الشخصي',
     currentRoom: 'حاليًا في الغرفة',
     leave: 'غادر',
@@ -1343,9 +1351,9 @@ const ar: Translations = {
     rankTiersTitle: 'مستويات الرتب:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 إعادة الاتصال والانقطاع',
-    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 15 ثانية لإعادة الاتصال قبل أن يحل بوت محلك.',
-    disconnectGrace: '⏱️ فترة السماح: 15 ثانية لاستئناف التطبيق واستعادة موضعك.',
-    botReplacement: '🤖 استبدال البوت: بعد 15 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
+    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال قبل أن يحل بوت محلك.',
+    disconnectGrace: '⏱️ فترة السماح: 60 ثانية لاستئناف التطبيق واستعادة موضعك.',
+    botReplacement: '🤖 استبدال البوت: بعد 60 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
     spectatorMode: '👁️ وضع المشاهدة: إذا أعدت الاتصال بعد استبدال البوت، يمكنك مشاهدة المباراة ولكن لا يمكنك اللعب.',
   },
 };
@@ -1451,6 +1459,8 @@ const de: Translations = {
   home: {
     title: 'Big2 Mobile',
     welcome: 'Willkommen',
+    findMatch: '🎯 Spiel finden (NEU!)',
+    findMatchDescription: 'Schnelles 4-Spieler-Spiel mit fähigkeitsbasierter Paarung',
     quickPlay: '⚡ Schnellspiel',
     quickPlayDescription: 'Zufälligem Spiel beitreten',
     createRoom: '➕ Raum erstellen',
@@ -1458,6 +1468,8 @@ const de: Translations = {
     joinRoom: '🔗 Raum beitreten',
     joinRoomDescription: 'Raumcode eingeben',
     leaderboard: '🏆 Bestenliste',
+    rankedLeaderboard: '🏆 Ranglisten-Bestenliste',
+    rankedLeaderboardDescription: 'Die besten Spieler nach ELO-Bewertung sehen',
     profile: 'Profil',
     currentRoom: 'Derzeit im Raum',
     leave: 'Verlassen',
@@ -1783,9 +1795,9 @@ const de: Translations = {
     rankTiersTitle: 'Rangstufen:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Wiederverbindung & Trennung',
-    reconnectionDesc: 'Wenn Sie während eines Spiels die Verbindung verlieren, haben Sie 15 Sekunden Zeit, um sich wieder zu verbinden, bevor ein Bot Sie ersetzt.',
-    disconnectGrace: '⏱️ Kulanzfrist: 15 Sekunden, um Ihre App fortzusetzen und Ihre Position wiederherzustellen.',
-    botReplacement: '🤖 Bot-Ersatz: Nach 15 Sekunden spielt ein Bot mit Ihren aktuellen Karten für Sie.',
+    reconnectionDesc: 'Wenn Sie während eines Spiels die Verbindung verlieren, haben Sie 60 Sekunden Zeit, um sich wieder zu verbinden, bevor ein Bot Sie ersetzt.',
+    disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um Ihre App fortzusetzen und Ihre Position wiederherzustellen.',
+    botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit Ihren aktuellen Karten für Sie.',
     spectatorMode: '👁️ Zuschauermodus: Wenn Sie sich nach dem Bot-Ersatz wieder verbinden, können Sie das Spiel ansehen, aber nicht spielen.',
   },
 };
