@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import i18n from '../../i18n';
 
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
