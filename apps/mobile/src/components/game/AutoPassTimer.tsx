@@ -112,10 +112,10 @@ export default function AutoPassTimer({
       {/* Message text */}
       <View style={styles.messageContainer}>
         <Text style={styles.messageTitle}>
-          Highest Play: {comboText}
+          {i18n.t('game.autoPassHighestPlay')} {comboText}
         </Text>
         <Text style={styles.messageText}>
-          No one can beat this play - {currentSeconds}s to pass
+          {i18n.t('game.autoPassNoOneCanBeat').replace('{seconds}', currentSeconds.toString())}
         </Text>
       </View>
     </Animated.View>
