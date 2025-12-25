@@ -333,9 +333,9 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: COLORS.gray.text,
     fontStyle: 'italic',
-    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   legend: {
     flexDirection: 'row',
@@ -356,11 +356,11 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: COLORS.background,
+    borderColor: COLORS.background.dark,
   },
   legendText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: COLORS.gray.text,
   },
   statsRow: {
     flexDirection: 'row',
@@ -375,13 +375,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: COLORS.gray.text,
     marginBottom: 4,
   },
   statValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
-    color: COLORS.text,
+    color: COLORS.white,
   },
 });
 
