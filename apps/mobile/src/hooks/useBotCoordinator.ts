@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { BotAI, type BotDifficulty } from '../game/bot';
 import type { Card } from '../game/types';
+import { classifyCards } from '../game';
 import { gameLogger } from '../utils/logger';
 
 interface UseBotCoordinatorProps {
@@ -136,11 +137,37 @@ export function useBotCoordinator({
         // Bot plays cards (botDecision.cards is string[] of card IDs)
         gameLogger.info(`[BotCoordinator] Bot playing ${botDecision.cards.length} cards: ${botDecision.cards.join(', ')}`);
         
+        // Convert card IDs to Card objects to classify combo type
+        const cardsToPlay: Card[] = botDecision.cards
+          .map((cardId: string) => botHand.find((c: Card) => c.id === cardId))
+          .filter((c: Card | undefined): c is Card => c !== undefined);
+        
+        // Validate that all cards were found
+        if (cardsToPlay.length !== botDecision.cards.length) {
+          gameLogger.error(`[BotCoordinator] Card mismatch: Expected ${botDecision.cards.length} cards, found ${cardsToPlay.length}`, {
+            requested: botDecision.cards,
+            found: cardsToPlay.map(c => c.id),
+          });
+          throw new Error('Bot tried to play cards not in hand');
+        }
+        
+        // Calculate combo type from cards
+        const comboType = classifyCards(cardsToPlay);
+        
+        if (comboType === 'unknown') {
+          gameLogger.error('[BotCoordinator] Invalid combo type detected', {
+            cards: cardsToPlay.map(c => c.id),
+          });
+          throw new Error('Bot tried to play invalid combo');
+        }
+        
+        gameLogger.debug(`[BotCoordinator] Calculated combo type: ${comboType}`);
+        
         const { error } = await supabase.rpc('play_cards', {
           p_room_id: roomId,
           p_player_index: currentPlayerIndex,
           p_card_ids: botDecision.cards,
-          p_combo_type: 'Single', // TODO: Calculate combo type from cards
+          p_combo_type: comboType,
         });
         
         if (error) {
