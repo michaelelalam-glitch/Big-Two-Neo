@@ -475,31 +475,57 @@ export default function LobbyScreen() {
           )}
         </TouchableOpacity>
 
-        {(isHost || isMatchmakingRoom) ? (
+        {/* Bot Filling Controls - Only for Casual/Private (NOT Ranked) */}
+        {(isHost || isMatchmakingRoom) && !roomType.isRanked ? (
           <>
-            <TouchableOpacity
-              style={[styles.startButton, isStarting && styles.buttonDisabled]}
-              onPress={handleStartWithBots}
-              disabled={isStarting}
-            >
-              {isStarting ? (
-                <>
-                  <ActivityIndicator color={COLORS.white} size="small" />
-                  <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
-                </>
-              ) : (
-                <Text style={styles.startButtonText}>
-                  🤖 {i18n.t('lobby.startWithBots')}
+            {/* Show bot count and start button if less than 4 humans */}
+            {players.length < 4 && (
+              <View style={styles.botFillingContainer}>
+                <Text style={styles.botFillingLabel}>
+                  {i18n.t('lobby.players')}: {players.filter(p => !p.is_bot).length}/4
                 </Text>
-              )}
-            </TouchableOpacity>
+                <Text style={styles.botFillingLabel}>
+                  Bots needed: {4 - players.filter(p => !p.is_bot).length}
+                </Text>
+              </View>
+            )}
+            
+            {players.length < 4 && (
+              <TouchableOpacity
+                style={[styles.startButton, isStarting && styles.buttonDisabled]}
+                onPress={handleStartWithBots}
+                disabled={isStarting}
+              >
+                {isStarting ? (
+                  <>
+                    <ActivityIndicator color={COLORS.white} size="small" />
+                    <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
+                  </>
+                ) : (
+                  <Text style={styles.startButtonText}>
+                    🤖 Start with {4 - players.filter(p => !p.is_bot).length} AI Bot(s)
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+            
             <Text style={styles.hostInfo}>
-              {isMatchmakingRoom 
-                ? i18n.t('lobby.matchmakingRoomInfo') || 'Anyone can start this matchmaking game'
+              {roomType.isCasual 
+                ? i18n.t('lobby.matchmakingRoomInfo') || 'Anyone can start this casual game'
                 : i18n.t('lobby.hostInfo')
               }
             </Text>
           </>
+        ) : roomType.isRanked ? (
+          // Ranked mode - require 4 human players
+          <View style={styles.rankedInfo}>
+            <Text style={styles.rankedInfoText}>
+              🏆 Ranked matches require 4 human players
+            </Text>
+            <Text style={styles.rankedInfoText}>
+              {players.length < 4 ? 'Waiting for more players...' : 'All ready to start!'}
+            </Text>
+          </View>
         ) : (
           <Text style={styles.waitingInfo}>
             {i18n.t('lobby.waitingForHost')}
@@ -653,6 +679,18 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  botFillingContainer: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    padding: SPACING.md,
+    borderRadius: 8,
+    marginTop: SPACING.md,
+  },
+  botFillingLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginVertical: 2,
+  },
   startButton: {
     backgroundColor: '#8B5CF6',
     padding: SPACING.lg,
@@ -664,6 +702,18 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
+  },
+  rankedInfo: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    padding: SPACING.lg,
+    borderRadius: 8,
+    marginTop: SPACING.md,
+  },
+  rankedInfoText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginVertical: 4,
   },
   hostInfo: {
     fontSize: FONT_SIZES.sm,
