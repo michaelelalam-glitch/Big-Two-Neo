@@ -32,7 +32,7 @@ export type RootStackParamList = {
   Matchmaking: { matchType?: 'casual' | 'ranked' };
   Lobby: { roomCode: string };
   CasualWaitingRoom: { roomCode: string };
-  Game: { roomCode: string };
+  Game: { roomCode: string; forceNewGame?: boolean };
   Leaderboard: undefined;
   RankedLeaderboard: undefined;
   MatchHistory: undefined;
