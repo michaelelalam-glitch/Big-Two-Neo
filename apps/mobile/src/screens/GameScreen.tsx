@@ -49,7 +49,7 @@ function GameScreenContent() {
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
-  const { roomCode } = route.params;
+  const { roomCode, forceNewGame = false } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
   // PHASE 6: Detect game mode
@@ -139,6 +139,7 @@ function GameScreenContent() {
   const { gameManagerRef, gameState: localGameState, isInitializing } = useGameStateManager({
     roomCode,
     currentPlayerName,
+    forceNewGame,
     addScoreHistory,
     openGameEndModal: (winnerName: string, winnerPosition: number, finalScores: FinalScore[], playerNames: string[], scoreHistory: ScoreHistory[], playHistory: PlayHistoryMatch[]) => {
       openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, scoreHistory, playHistory);

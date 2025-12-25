@@ -11,6 +11,7 @@ import type { FinalScore } from '../types/gameEnd';
 interface UseGameStateManagerProps {
   roomCode: string;
   currentPlayerName: string;
+  forceNewGame?: boolean;
   addScoreHistory: (history: ScoreHistory) => void;
   openGameEndModal: (
     winnerName: string,
@@ -47,6 +48,7 @@ interface UseGameStateManagerReturn {
 export function useGameStateManager({
   roomCode,
   currentPlayerName,
+  forceNewGame = false,
   addScoreHistory,
   openGameEndModal,
   scoreHistory,
@@ -93,9 +95,16 @@ export function useGameStateManager({
         const manager = createGameStateManager();
         gameManagerRef.current = manager;
 
+        // 🔥 CRITICAL FIX: Clear saved state if starting a new game explicitly
+        if (forceNewGame) {
+          gameLogger.info('🧹 [useGameStateManager] Clearing saved game state (forceNewGame=true)...');
+          await manager.clearState();
+          gameLogger.info('✅ [useGameStateManager] Saved state cleared - starting fresh game');
+        }
+
         // CRITICAL FIX: Try to load saved game state first (for rejoin)
         gameLogger.info('🔄 [useGameStateManager] Checking for saved game state...');
-        const savedState = await manager.loadState();
+        const savedState = forceNewGame ? null : await manager.loadState();
         
         if (savedState) {
           gameLogger.info('✅ [useGameStateManager] Loaded saved game state - continuing from where you left off');

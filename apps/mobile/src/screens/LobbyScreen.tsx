@@ -264,8 +264,8 @@ export default function LobbyScreen() {
 
         if (updateError) throw updateError;
 
-        // Navigate with special flag
-        navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME' });
+        // Navigate with forceNewGame flag to clear cached state
+        navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME', forceNewGame: true });
         setIsStarting(false);
         return;
       }
