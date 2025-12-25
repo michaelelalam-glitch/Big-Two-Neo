@@ -37,7 +37,6 @@ export default function MatchmakingScreen() {
     waitingCount,
     matchFound,
     roomCode,
-    autoStarted,
     error,
     startMatchmaking,
     cancelMatchmaking,

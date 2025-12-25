@@ -84,9 +84,9 @@ export function useBotCoordinator({
       const playerCardCounts = players.map((p: any) => p.cards?.length || 0);
       
       const lastPlay = gameState.last_play ? {
+        position: gameState.last_play.position,
         cards: gameState.last_play.cards,
-        comboType: gameState.last_play.combo_type,
-        playerIndex: gameState.last_play.player_index,
+        combo_type: gameState.last_play.combo_type,
       } : null;
       
       const isFirstPlayOfGame = gameState.game_phase === 'first_play' || 
@@ -95,7 +95,7 @@ export function useBotCoordinator({
       
       gameLogger.debug('[BotCoordinator] Bot decision inputs:', {
         hand_size: botHand.length,
-        last_play: lastPlay ? lastPlay.comboType : 'none',
+        last_play: lastPlay ? lastPlay.combo_type : 'none',
         is_first_play: isFirstPlayOfGame,
       });
       
