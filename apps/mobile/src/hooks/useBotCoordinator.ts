@@ -142,8 +142,24 @@ export function useBotCoordinator({
           .map((cardId: string) => botHand.find((c: Card) => c.id === cardId))
           .filter((c: Card | undefined): c is Card => c !== undefined);
         
+        // Validate that all cards were found
+        if (cardsToPlay.length !== botDecision.cards.length) {
+          gameLogger.error(`[BotCoordinator] Card mismatch: Expected ${botDecision.cards.length} cards, found ${cardsToPlay.length}`, {
+            requested: botDecision.cards,
+            found: cardsToPlay.map(c => c.id),
+          });
+          throw new Error('Bot tried to play cards not in hand');
+        }
+        
         // Calculate combo type from cards
         const comboType = classifyCards(cardsToPlay);
+        
+        if (comboType === 'unknown') {
+          gameLogger.error('[BotCoordinator] Invalid combo type detected', {
+            cards: cardsToPlay.map(c => c.id),
+          });
+          throw new Error('Bot tried to play invalid combo');
+        }
         
         gameLogger.debug(`[BotCoordinator] Calculated combo type: ${comboType}`);
         
