@@ -334,7 +334,7 @@ export default function StatsScreen() {
         </View>
 
         {/* Rank Progression Graph */}
-        {gameHistory.length > 0 && (
+        {gameHistory.length > 0 && userId && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Rank Progression</Text>
             <StreakGraph gameHistory={gameHistory} userId={userId} />

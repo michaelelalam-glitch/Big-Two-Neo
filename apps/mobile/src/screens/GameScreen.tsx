@@ -466,7 +466,7 @@ function GameScreenContent() {
       }
     } else {
       // Multiplayer game
-      if (!multiplayerPassTurn) {
+      if (!multiplayerPass) {
         gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
         return;
       }
@@ -480,7 +480,7 @@ function GameScreenContent() {
         setIsPassing(true);
         hapticManager.pass();
         
-        await multiplayerPassTurn();
+        await multiplayerPass();
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
       } catch (error: any) {
@@ -490,7 +490,7 @@ function GameScreenContent() {
         setIsPassing(false);
       }
     }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPassTurn, isPassing, setSelectedCardIds]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPass, isPassing, setSelectedCardIds]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);

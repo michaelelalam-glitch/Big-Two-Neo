@@ -74,7 +74,7 @@ export default function MatchmakingScreen() {
       // Lobby is for private rooms with invited friends
       navigation.replace('CasualWaitingRoom', { roomCode });
     }
-  }, [matchFound, roomCode, autoStarted, navigation, resetMatch]);
+  }, [matchFound, roomCode, navigation, resetMatch]);
 
   // Show error if matchmaking fails
   useEffect(() => {
