@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, useWindowDimensions, Clipboard, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Clipboard, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -83,13 +83,24 @@ export default function LobbyScreen() {
     setIsMatchmakingRoom(data.is_matchmaking || false);
     
     // Determine room type
-    const newRoomType: RoomType = {
+    let newRoomType: RoomType = {
       isPrivate: !data.is_matchmaking && !data.is_public,
       isCasual: !!data.is_matchmaking && !data.ranked_mode,
       isRanked: !!data.is_matchmaking && !!data.ranked_mode,
     };
-    setRoomType(newRoomType);
+
+    // Fallback: handle cases where no room type is detected (e.g. public non-matchmaking rooms)
+    if (!newRoomType.isPrivate && !newRoomType.isCasual && !newRoomType.isRanked) {
+      roomLogger.warn('[LobbyScreen] Room type fallback applied - treating as casual', {
+        code: roomCode,
+        is_matchmaking: data.is_matchmaking,
+        is_public: data.is_public,
+        ranked_mode: data.ranked_mode,
+      });
+      newRoomType = { isPrivate: false, isCasual: true, isRanked: false };
+    }
     
+    setRoomType(newRoomType);
     roomLogger.info('[LobbyScreen] Room type detected:', newRoomType);
     
     return data.id;
@@ -189,6 +200,22 @@ export default function LobbyScreen() {
           loadPlayers();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `code=eq.${roomCode}`,
+        },
+        (payload: any) => {
+          // CRITICAL: Auto-navigate non-host players when game starts
+          if (payload.new?.status === 'playing' && !isStartingRef.current && !isLeavingRef.current) {
+            roomLogger.info('[LobbyScreen] Room status changed to playing, navigating to game...');
+            navigation.replace('Game', { roomCode });
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -222,17 +249,34 @@ export default function LobbyScreen() {
 
   const handleCopyCode = () => {
     Clipboard.setString(roomCode);
-    Alert.alert('Copied!', `Room code ${roomCode} copied to clipboard`);
+    Alert.alert(
+      i18n.t('lobby.copiedTitle') || 'Copied!',
+      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
+    );
   };
 
   const handleShareCode = async () => {
     try {
+      // Check if Share API is available (may not be on web)
+      if (!Share || typeof Share.share !== 'function') {
+        handleCopyCode();
+        Alert.alert(
+          i18n.t('lobby.shareNotAvailable') || 'Sharing not available',
+          i18n.t('lobby.shareNotAvailableMessage') || 'Sharing is not supported on this device. The room code has been copied to your clipboard.'
+        );
+        return;
+      }
+
       await Share.share({
-        message: `Join my Big Two game! Room code: ${roomCode}`,
-        title: 'Join Big Two Game',
+        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
+        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
-    } catch (error) {
-      roomLogger.error('Error sharing room code:', error);
+    } catch (error: any) {
+      roomLogger.error('Error sharing room code:', error?.message || error);
+      Alert.alert(
+        i18n.t('lobby.shareError') || 'Unable to share',
+        i18n.t('lobby.shareErrorMessage') || 'There was a problem sharing the room code. You can copy and share it manually.'
+      );
     }
   };
 
@@ -459,9 +503,10 @@ export default function LobbyScreen() {
         {/* Room Type Badge */}
         <View style={styles.roomTypeBadge}>
           <Text style={styles.roomTypeBadgeText}>
-            {roomType.isRanked && '🏆 Ranked Match'}
-            {roomType.isCasual && '🎮 Casual Match'}
-            {roomType.isPrivate && '🔒 Private Room'}
+            {(roomType.isRanked && `🏆 ${i18n.t('lobby.rankedMatch') || 'Ranked Match'}`) ||
+             (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch') || 'Casual Match'}`) ||
+             (roomType.isPrivate && `🔒 ${i18n.t('lobby.privateRoom') || 'Private Room'}`) ||
+             (i18n.t('lobby.roomLoading') || 'Loading...')}
           </Text>
         </View>
         
@@ -476,13 +521,13 @@ export default function LobbyScreen() {
               style={styles.roomCodeButton}
               onPress={handleCopyCode}
             >
-              <Text style={styles.roomCodeButtonText}>📋 Copy</Text>
+              <Text style={styles.roomCodeButtonText}>{i18n.t('lobby.copy') || '📋 Copy'}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.roomCodeButton}
               onPress={handleShareCode}
             >
-              <Text style={styles.roomCodeButtonText}>📤 Share</Text>
+              <Text style={styles.roomCodeButtonText}>{i18n.t('lobby.share') || '📤 Share'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -517,13 +562,13 @@ export default function LobbyScreen() {
         {(isHost || isMatchmakingRoom) && !roomType.isRanked ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
-            {players.length < 4 && (
+            {players.filter(p => !p.is_bot).length < 4 && (
               <View style={styles.botFillingContainer}>
                 <Text style={styles.botFillingLabel}>
-                  {i18n.t('lobby.players')}: {players.filter(p => !p.is_bot).length}/4
+                  {i18n.t('lobby.humanPlayers') || 'Human Players'}: {players.filter(p => !p.is_bot).length}/4
                 </Text>
                 <Text style={styles.botFillingLabel}>
-                  Bots needed: {4 - players.filter(p => !p.is_bot).length}
+                  {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {4 - players.filter(p => !p.is_bot).length}
                 </Text>
               </View>
             )}
@@ -541,7 +586,9 @@ export default function LobbyScreen() {
                   </>
                 ) : (
                   <Text style={styles.startButtonText}>
-                    🤖 Start with {4 - players.filter(p => !p.is_bot).length} AI Bot(s)
+                    {i18n.t('lobby.startWithBotsCount', {
+                      count: 4 - players.filter(p => !p.is_bot).length,
+                    }) || `🤖 Start with ${4 - players.filter(p => !p.is_bot).length} AI Bot(s)`}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -549,7 +596,7 @@ export default function LobbyScreen() {
             
             <Text style={styles.hostInfo}>
               {roomType.isCasual 
-                ? i18n.t('lobby.matchmakingRoomInfo') || 'Anyone can start this casual game'
+                ? i18n.t('lobby.casualRoomInfo') || 'Anyone can start this casual game'
                 : i18n.t('lobby.hostInfo')
               }
             </Text>
@@ -558,10 +605,12 @@ export default function LobbyScreen() {
           // Ranked mode - require 4 human players
           <View style={styles.rankedInfo}>
             <Text style={styles.rankedInfoText}>
-              🏆 Ranked matches require 4 human players
+              🏆 {i18n.t('lobby.rankedRequirement') || 'Ranked matches require 4 human players'}
             </Text>
             <Text style={styles.rankedInfoText}>
-              {players.length < 4 ? 'Waiting for more players...' : 'All ready to start!'}
+              {players.length < 4
+                ? i18n.t('lobby.waitingForMorePlayers') || 'Waiting for more players...'
+                : i18n.t('lobby.allReadyToStart') || 'All ready to start!'}
             </Text>
           </View>
         ) : (
@@ -641,7 +690,6 @@ const styles = StyleSheet.create({
   roomCodeActions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: SPACING.md,
   },
   roomCodeButton: {
     backgroundColor: 'rgba(59, 130, 246, 0.3)',
@@ -649,6 +697,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: 8,
     minWidth: 100,
+    marginHorizontal: SPACING.sm,
   },
   roomCodeButtonText: {
     color: COLORS.white,
@@ -704,9 +753,9 @@ const styles = StyleSheet.create({
   playerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
   },
   hostBadge: {
+    marginRight: SPACING.sm,
     backgroundColor: '#F59E0B',
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -721,10 +770,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.white,
     fontWeight: '600',
+    marginRight: SPACING.sm,
   },
   youLabel: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray.medium,
+    marginRight: SPACING.sm,
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
