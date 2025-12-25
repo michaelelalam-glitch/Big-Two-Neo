@@ -402,6 +402,11 @@ export default function LobbyScreen() {
     return (
       <View style={[styles.playerCard, isCurrentUser && styles.currentUserCard]}>
         <View style={styles.playerInfo}>
+          {item.is_host && (
+            <View style={styles.hostBadge}>
+              <Text style={styles.hostText}>👑 HOST</Text>
+            </View>
+          )}
           <Text style={styles.playerName}>{displayName}</Text>
           {isCurrentUser && <Text style={styles.youLabel}>({i18n.t('lobby.you')})</Text>}
         </View>
@@ -700,6 +705,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+  },
+  hostBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hostText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
   },
   playerName: {
     fontSize: FONT_SIZES.md,
