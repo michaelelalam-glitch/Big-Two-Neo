@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
 import { ScoreboardContainer } from '../components/scoreboard';
@@ -160,7 +161,7 @@ function GameScreenContent() {
     playerHands: multiplayerPlayerHands,
     isConnected: isMultiplayerConnected,
     playCards: multiplayerPlayCards,
-    passTurn: multiplayerPassTurn,
+    pass: multiplayerPass,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
@@ -392,8 +393,9 @@ function GameScreenContent() {
         // Task #313: Auto-sort cards for proper display order before submission
         // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
         const sortedCards = sortCardsForDisplay(cards);
+        const cardIds = sortedCards.map(card => card.id);
         
-        await gameManagerRef.current.playCards(sortedCards);
+        await gameManagerRef.current.playCards(cardIds);
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.CARD_PLAY);
       } catch (error: any) {

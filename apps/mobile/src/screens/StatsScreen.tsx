@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { statsLogger } from '../utils/logger';
 import EmptyState from '../components/EmptyState';
 import { i18n } from '../i18n';
+import StreakGraph from '../components/stats/StreakGraph';
 
 type StatsScreenRouteProp = RouteProp<RootStackParamList, 'Stats'>;
 type StatsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Stats'>;
@@ -130,13 +131,13 @@ export default function StatsScreen() {
 
       setProfile(profileData);
 
-      // Fetch game history (last 10 games)
+      // Fetch game history (last 100 games for graph)
       const { data: historyData, error: historyError } = await supabase
         .from('game_history')
         .select('*')
         .or(`player_1_id.eq.${userId},player_2_id.eq.${userId},player_3_id.eq.${userId},player_4_id.eq.${userId}`)
         .order('finished_at', { ascending: false })
-        .limit(10);
+        .limit(100);
 
       if (historyError) {
         statsLogger.error('[Stats] History query error:', historyError);
@@ -331,6 +332,14 @@ export default function StatsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Rank Progression Graph */}
+        {gameHistory.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rank Progression</Text>
+            <StreakGraph gameHistory={gameHistory} userId={userId} />
+          </View>
+        )}
 
         {/* Performance */}
         <View style={styles.section}>

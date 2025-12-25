@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Alert } from 'react-native';
 import { GameStateManager } from '../game/state';
 import { gameLogger } from '../utils/logger';
+import { i18n } from '../i18n';
 
 interface UseBotTurnManagerParams {
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
