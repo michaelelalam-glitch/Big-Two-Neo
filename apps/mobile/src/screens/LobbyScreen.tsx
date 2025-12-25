@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, useWindowDimensions, Clipboard, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -217,6 +217,22 @@ export default function LobbyScreen() {
       showError(i18n.t('lobby.readyStatusError'));
     } finally {
       setIsTogglingReady(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    Clipboard.setString(roomCode);
+    Alert.alert('Copied!', `Room code ${roomCode} copied to clipboard`);
+  };
+
+  const handleShareCode = async () => {
+    try {
+      await Share.share({
+        message: `Join my Big Two game! Room code: ${roomCode}`,
+        title: 'Join Big Two Game',
+      });
+    } catch (error) {
+      roomLogger.error('Error sharing room code:', error);
     }
   };
 
@@ -444,9 +460,26 @@ export default function LobbyScreen() {
           </Text>
         </View>
         
-        <View style={styles.roomCodeContainer}>
-          <Text style={styles.roomCodeLabel}>{i18n.t('lobby.roomCode')}:</Text>
-          <Text style={styles.roomCode}>{roomCode}</Text>
+        {/* Room Code Card with Copy/Share */}
+        <View style={styles.roomCodeCard}>
+          <View style={styles.roomCodeHeader}>
+            <Text style={styles.roomCodeLabel}>{i18n.t('lobby.roomCode')}:</Text>
+            <Text style={styles.roomCode}>{roomCode}</Text>
+          </View>
+          <View style={styles.roomCodeActions}>
+            <TouchableOpacity 
+              style={styles.roomCodeButton}
+              onPress={handleCopyCode}
+            >
+              <Text style={styles.roomCodeButtonText}>📋 Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.roomCodeButton}
+              onPress={handleShareCode}
+            >
+              <Text style={styles.roomCodeButtonText}>📤 Share</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.playersLabel}>
@@ -585,6 +618,38 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.white,
+  },
+  roomCodeCard: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderRadius: 12,
+    padding: SPACING.lg,
+    marginBottom: SPACING.xl,
+    borderWidth: 2,
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+  },
+  roomCodeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  roomCodeActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  roomCodeButton: {
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  roomCodeButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   roomCodeContainer: {
     flexDirection: 'row',
