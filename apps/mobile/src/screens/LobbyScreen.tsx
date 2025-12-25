@@ -27,6 +27,12 @@ interface Player {
   };
 }
 
+interface RoomType {
+  isPrivate: boolean;   // Private room (not matchmaking, not public)
+  isCasual: boolean;    // Casual matchmaking (matchmaking + not ranked)
+  isRanked: boolean;    // Ranked matchmaking (matchmaking + ranked)
+}
+
 export default function LobbyScreen() {
   const navigation = useNavigation<LobbyScreenNavigationProp>();
   const route = useRoute<LobbyScreenRouteProp>();
@@ -38,7 +44,12 @@ export default function LobbyScreen() {
   const [isReady, setIsReady] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
-  const [isMatchmakingRoom, setIsMatchmakingRoom] = useState(false);
+  const [roomType, setRoomType] = useState<RoomType>({
+    isPrivate: false,
+    isCasual: false,
+    isRanked: false,
+  });
+  const [isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
@@ -53,7 +64,7 @@ export default function LobbyScreen() {
   const getRoomId = async () => {
     const { data, error } = await supabase
       .from('rooms')
-      .select('id, is_matchmaking')
+      .select('id, is_matchmaking, is_public, ranked_mode')
       .eq('code', roomCode)
       .single();
     
@@ -68,8 +79,18 @@ export default function LobbyScreen() {
       return null;
     }
     
-    // Set matchmaking status
+    // Set matchmaking status (backward compatibility)
     setIsMatchmakingRoom(data.is_matchmaking || false);
+    
+    // Determine room type
+    const newRoomType: RoomType = {
+      isPrivate: !data.is_matchmaking && !data.is_public,
+      isCasual: !!data.is_matchmaking && !data.ranked_mode,
+      isRanked: !!data.is_matchmaking && !!data.ranked_mode,
+    };
+    setRoomType(newRoomType);
+    
+    roomLogger.info('[LobbyScreen] Room type detected:', newRoomType);
     
     return data.id;
   };
@@ -413,6 +434,16 @@ export default function LobbyScreen() {
       >
       <View style={styles.content}>
         <Text style={styles.title}>{i18n.t('lobby.title')}</Text>
+        
+        {/* Room Type Badge */}
+        <View style={styles.roomTypeBadge}>
+          <Text style={styles.roomTypeBadgeText}>
+            {roomType.isRanked && '🏆 Ranked Match'}
+            {roomType.isCasual && '🎮 Casual Match'}
+            {roomType.isPrivate && '🔒 Private Room'}
+          </Text>
+        </View>
+        
         <View style={styles.roomCodeContainer}>
           <Text style={styles.roomCodeLabel}>{i18n.t('lobby.roomCode')}:</Text>
           <Text style={styles.roomCode}>{roomCode}</Text>
@@ -515,6 +546,19 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     textAlign: 'center',
     marginBottom: SPACING.md,
+  },
+  roomTypeBadge: {
+    alignSelf: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 12,
+    marginBottom: SPACING.md,
+  },
+  roomTypeBadgeText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.white,
   },
   roomCodeContainer: {
     flexDirection: 'row',
