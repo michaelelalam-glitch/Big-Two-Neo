@@ -158,7 +158,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
                   y1={y}
                   x2={graphWidth - padding.right}
                   y2={y}
-                  stroke={COLORS.border}
+                  stroke={COLORS.gray.medium}
                   strokeWidth="1"
                   strokeDasharray="4,4"
                   opacity="0.3"
@@ -167,7 +167,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
                   x={padding.left - 10}
                   y={y + 4}
                   fontSize="10"
-                  fill={COLORS.textSecondary}
+                  fill={COLORS.gray.text}
                   textAnchor="end"
                 >
                   {Math.round(value)}
@@ -220,8 +220,8 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
                 cx={point.x}
                 cy={point.y}
                 r={isSpecial ? 6 : 3}
-                fill={isHighest ? COLORS.success : isLowest ? COLORS.error : point.isWin ? COLORS.primary : COLORS.textSecondary}
-                stroke={COLORS.background}
+                fill={isHighest ? COLORS.success : isLowest ? COLORS.error : point.isWin ? COLORS.primary : COLORS.gray.text}
+                stroke={COLORS.background.dark}
                 strokeWidth="2"
               />
             );
@@ -246,7 +246,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             x={graphWidth / 2}
             y={graphHeight - 10}
             fontSize="12"
-            fill={COLORS.text}
+            fill={COLORS.white}
             textAnchor="middle"
             fontWeight="600"
           >
@@ -257,7 +257,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             x={20}
             y={graphHeight / 2}
             fontSize="12"
-            fill={COLORS.text}
+            fill={COLORS.white}
             textAnchor="middle"
             fontWeight="600"
             transform={`rotate(-90, 20, ${graphHeight / 2})`}
@@ -306,10 +306,10 @@ const styles = StyleSheet.create({
   container: {
     marginTop: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background.dark,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.gray.medium,
   },
   title: {
     fontSize: FONT_SIZES.md,
