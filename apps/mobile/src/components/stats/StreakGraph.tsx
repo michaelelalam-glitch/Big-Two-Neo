@@ -182,7 +182,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             y1={graphHeight - padding.bottom}
             x2={graphWidth - padding.right}
             y2={graphHeight - padding.bottom}
-            stroke={COLORS.border}
+            stroke={COLORS.gray.medium}
             strokeWidth="2"
           />
 
@@ -192,7 +192,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             y1={padding.top}
             x2={padding.left}
             y2={graphHeight - padding.bottom}
-            stroke={COLORS.border}
+            stroke={COLORS.gray.medium}
             strokeWidth="2"
           />
 
@@ -234,7 +234,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
               x={point.x}
               y={graphHeight - padding.bottom + 20}
               fontSize="10"
-              fill={COLORS.textSecondary}
+              fill={COLORS.gray.text}
               textAnchor="middle"
             >
               {point.gameNumber}
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.white,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: COLORS.gray.text,
     fontWeight: '600',
   },
   emptySubtext: {
