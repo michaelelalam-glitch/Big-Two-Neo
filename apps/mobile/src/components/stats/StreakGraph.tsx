@@ -30,8 +30,6 @@ interface GameHistory {
 interface StreakGraphProps {
   gameHistory: GameHistory[];
   userId: string;
-  currentWinStreak: number;
-  longestWinStreak: number;
 }
 
 export const StreakGraph: React.FC<StreakGraphProps> = ({
@@ -344,7 +342,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.gray.medium,
   },
   legendItem: {
     flexDirection: 'row',
@@ -368,7 +366,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.gray.medium,
   },
   statItem: {
     alignItems: 'center',
