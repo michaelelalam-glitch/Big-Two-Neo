@@ -7,10 +7,11 @@
 DELETE FROM rooms WHERE status IN ('waiting', 'starting', 'playing', 'active');
 
 -- STEP 2: Apply the fixed find_match (creates rooms with 'waiting' not 'starting')
+-- Security fixed: Removed p_user_id parameter, now uses auth.uid()
 DROP FUNCTION IF EXISTS find_match(UUID, VARCHAR, INTEGER, VARCHAR);
+DROP FUNCTION IF EXISTS find_match(VARCHAR, INTEGER, VARCHAR);
 
 CREATE OR REPLACE FUNCTION find_match(
-  p_user_id UUID,
   p_username VARCHAR(50),
   p_skill_rating INTEGER DEFAULT 1000,
   p_region VARCHAR(10) DEFAULT 'global'
@@ -25,17 +26,25 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
+  v_user_id UUID;
   v_waiting_players waiting_room[];
   v_new_room_id UUID;
   v_new_room_code VARCHAR(10);
   v_waiting_count INTEGER;
   v_player_index INTEGER;
 BEGIN
-  PERFORM cleanup_abandoned_rooms();
+  -- SECURITY FIX: Use auth.uid() instead of trusting client-supplied user_id
+  v_user_id := auth.uid();
+  
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  
+  -- Note: cleanup_abandoned_rooms() removed - must be called by service_role separately
   PERFORM cleanup_stale_waiting_room_entries();
   
   INSERT INTO waiting_room (user_id, username, skill_rating, region, status)
-  VALUES (p_user_id, p_username, p_skill_rating, p_region, 'waiting')
+  VALUES (v_user_id, p_username, p_skill_rating, p_region, 'waiting')
   ON CONFLICT (user_id) 
   DO UPDATE SET joined_at = NOW(), status = 'waiting';
   
@@ -114,7 +123,7 @@ BEGIN
   WITH deleted_waiting AS (
     DELETE FROM rooms 
     WHERE status = 'waiting' 
-    AND updated_at < NOW() - INTERVAL '2 hours'
+    AND created_at < NOW() - INTERVAL '2 hours'
     AND (SELECT COUNT(*) FROM room_players WHERE room_id = rooms.id) = 0
     RETURNING id
   )
@@ -132,7 +141,7 @@ BEGIN
   WITH deleted_old AS (
     DELETE FROM rooms
     WHERE status IN ('completed', 'cancelled')
-    AND updated_at < NOW() - INTERVAL '30 days'
+    AND created_at < NOW() - INTERVAL '30 days'
     RETURNING id
   )
   SELECT COUNT(*) INTO v_deleted_old FROM deleted_old;
@@ -147,7 +156,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION cleanup_abandoned_rooms() TO authenticated;
+-- SECURITY FIX: Only service_role should cleanup rooms, not all authenticated users
+GRANT EXECUTE ON FUNCTION cleanup_abandoned_rooms() TO service_role;
 
 -- STEP 4: Verify cleanup
 SELECT COUNT(*) as remaining_stuck_rooms FROM rooms WHERE status IN ('waiting', 'starting', 'playing', 'active');
