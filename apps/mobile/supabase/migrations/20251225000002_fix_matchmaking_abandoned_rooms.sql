@@ -59,6 +59,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- UPDATE FIND_MATCH: Call cleanup BEFORE matching
 -- ============================================================================
 
+-- Drop existing function first (Postgres requires this for return type changes)
+DROP FUNCTION IF EXISTS find_match(UUID, VARCHAR, INTEGER, VARCHAR);
+
 CREATE OR REPLACE FUNCTION find_match(
   p_user_id UUID,
   p_username VARCHAR(50),
@@ -110,9 +113,9 @@ BEGIN
     -- Generate unique room code (use v2 function with improved charset)
     v_new_room_code := generate_room_code_v2();
     
-    -- Create room
+    -- Create room with 'waiting' status so start_game_with_bots can be called
     INSERT INTO rooms (code, host_id, status, max_players, fill_with_bots)
-    VALUES (v_new_room_code, (v_waiting_players[1]).user_id, 'starting', 4, FALSE)
+    VALUES (v_new_room_code, (v_waiting_players[1]).user_id, 'waiting', 4, FALSE)
     RETURNING id INTO v_new_room_id;
     
     -- Add all 4 players to the room
