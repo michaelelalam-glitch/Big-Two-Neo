@@ -225,7 +225,9 @@ export default function LobbyScreen() {
           // Do NOT check isStartingRef - let subscription handle navigation for everyone
           if (payload.new?.status === 'playing' && !isLeavingRef.current) {
             roomLogger.info('[LobbyScreen] Room status changed to playing, navigating ALL players to game...');
-            navigation.replace('Game', { roomCode });
+            // CRITICAL FIX: Pass forceNewGame: true to prevent loading stale cached game state
+            // This ensures all players start with fresh state from server, not AsyncStorage
+            navigation.replace('Game', { roomCode, forceNewGame: true });
           }
         }
       )
