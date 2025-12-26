@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { RoomPlayerWithRoom } from '../types';
 import { roomLogger } from '../utils/logger';
 import { showError, showSuccess, showConfirm } from '../utils';
 import { i18n } from '../i18n';
+import { useMatchmaking } from '../hooks/useMatchmaking';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -19,6 +20,19 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  
+  // Ranked matchmaking hook
+  const { matchFound, roomCode: rankedRoomCode, startMatchmaking, cancelMatchmaking, resetMatch } = useMatchmaking();
+  const [isRankedSearching, setIsRankedSearching] = useState(false);
+  
+  // Auto-navigate when ranked match found
+  useEffect(() => {
+    if (matchFound && rankedRoomCode) {
+      resetMatch();
+      setIsRankedSearching(false);
+      navigation.replace('Lobby', { roomCode: rankedRoomCode });
+    }
+  }, [matchFound, rankedRoomCode, navigation, resetMatch]);
 
   const checkCurrentRoom = React.useCallback(async () => {
     if (!user) return;
@@ -90,6 +104,23 @@ export default function HomeScreen() {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
+  };
+  
+  const handleRankedMatch = async () => {
+    if (!user || !profile) {
+      showError('You must be signed in for ranked matches');
+      return;
+    }
+    
+    try {
+      setIsRankedSearching(true);
+      const username = profile.username || `Player_${user.id.substring(0, 8)}`;
+      await startMatchmaking(username, profile.elo || 1000, 'global', 'ranked');
+    } catch (error: any) {
+      roomLogger.error('Error starting ranked match:', error?.message || String(error));
+      showError('Failed to start ranked match');
+      setIsRankedSearching(false);
+    }
   };
 
   const handleQuickPlay = async (retryCount = 0) => {
@@ -324,11 +355,21 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.mainButton, styles.rankedMatchButton]}
-            onPress={() => navigation.navigate('Matchmaking', { matchType: 'ranked' })}
+            style={[styles.mainButton, styles.rankedMatchButton, isRankedSearching && styles.buttonDisabled]}
+            onPress={handleRankedMatch}
+            disabled={isRankedSearching}
           >
-            <Text style={styles.mainButtonText}>🏆 Ranked Match</Text>
-            <Text style={styles.mainButtonSubtext}>Competitive matchmaking</Text>
+            {isRankedSearching ? (
+              <>
+                <ActivityIndicator color={COLORS.white} size="small" />
+                <Text style={styles.mainButtonSubtext}>Finding match...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.mainButtonText}>🏆 Ranked Match</Text>
+                <Text style={styles.mainButtonSubtext}>Competitive matchmaking</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -474,22 +515,21 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  findMatchButton: {
-    backgroundColor: '#EC4899', // Pink - Highlighted for NEW feature
+  casualMatchButton: {
+    backgroundColor: '#10B981', // Vibrant Green for Casual
     borderWidth: 2,
-    borderColor: '#F472B6',
+    borderColor: '#34D399',
   },
-  quickPlayButton: {
-    backgroundColor: '#10B981', // Green
+  rankedMatchButton: {
+    backgroundColor: '#F59E0B', // Gold for Ranked/Competitive
+    borderWidth: 2,
+    borderColor: '#FBBF24',
   },
   createButton: {
     backgroundColor: '#3B82F6', // Blue
   },
   joinButton: {
     backgroundColor: '#8B5CF6', // Purple
-  },
-  rankedLeaderboardButton: {
-    backgroundColor: '#A855F7', // Purple/Violet - Ranked theme
   },
   howToPlayButton: {
     backgroundColor: '#F59E0B', // Amber/Orange
