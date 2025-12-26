@@ -20,7 +20,6 @@ import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
 import MatchmakingScreen from '../screens/MatchmakingScreen';
 import MatchHistoryScreen from '../screens/MatchHistoryScreen';
 import RankedLeaderboardScreen from '../screens/RankedLeaderboardScreen';
-import CasualWaitingRoomScreen from '../screens/CasualWaitingRoomScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -31,7 +30,6 @@ export type RootStackParamList = {
   MatchTypeSelection: undefined;
   Matchmaking: { matchType?: 'casual' | 'ranked' };
   Lobby: { roomCode: string };
-  CasualWaitingRoom: { roomCode: string };
   Game: { roomCode: string; forceNewGame?: boolean };
   Leaderboard: undefined;
   RankedLeaderboard: undefined;
@@ -87,7 +85,6 @@ export default function AppNavigator() {
               <Stack.Screen name="MatchTypeSelection" component={MatchTypeSelectionScreen} />
               <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
               <Stack.Screen name="Lobby" component={LobbyScreen} />
-              <Stack.Screen name="CasualWaitingRoom" component={CasualWaitingRoomScreen} />
               <Stack.Screen name="Game" component={GameScreen} />
               <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
               <Stack.Screen name="RankedLeaderboard" component={RankedLeaderboardScreen} />

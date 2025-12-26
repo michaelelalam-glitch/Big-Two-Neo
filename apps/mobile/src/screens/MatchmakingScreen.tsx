@@ -64,15 +64,13 @@ export default function MatchmakingScreen() {
     };
   }, [user, profile]);
 
-  // Navigate to lobby or game when match found
+  // Navigate to lobby when match found
   useEffect(() => {
     if (matchFound && roomCode) {
       resetMatch();
       
-      // CRITICAL FIX: Route to CasualWaitingRoom for matchmaking (not Lobby)
-      // CasualWaitingRoom is designed for public/matchmaking rooms
-      // Lobby is for private rooms with invited friends
-      navigation.replace('CasualWaitingRoom', { roomCode });
+      // Route to Lobby for all game types (consistent routing)
+      navigation.replace('Lobby', { roomCode });
     }
   }, [matchFound, roomCode, navigation, resetMatch]);
 
