@@ -306,15 +306,7 @@ export default function HomeScreen() {
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.mainButton, styles.findMatchButton]}
-            onPress={() => navigation.navigate('MatchTypeSelection')}
-          >
-            <Text style={styles.mainButtonText}>{i18n.t('home.findMatch')}</Text>
-            <Text style={styles.mainButtonSubtext}>{i18n.t('home.findMatchDescription')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.mainButton, styles.quickPlayButton, isQuickPlaying && styles.buttonDisabled]}
+            style={[styles.mainButton, styles.casualMatchButton, isQuickPlaying && styles.buttonDisabled]}
             onPress={() => void handleQuickPlay()}
             disabled={isQuickPlaying}
           >
@@ -325,10 +317,18 @@ export default function HomeScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.mainButtonText}>{i18n.t('home.quickPlay')}</Text>
-                <Text style={styles.mainButtonSubtext}>{i18n.t('home.quickPlayDescription')}</Text>
+                <Text style={styles.mainButtonText}>🎮 Casual Match</Text>
+                <Text style={styles.mainButtonSubtext}>Join casual game</Text>
               </>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.mainButton, styles.rankedMatchButton]}
+            onPress={() => navigation.navigate('Matchmaking', { matchType: 'ranked' })}
+          >
+            <Text style={styles.mainButtonText}>🏆 Ranked Match</Text>
+            <Text style={styles.mainButtonSubtext}>Competitive matchmaking</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

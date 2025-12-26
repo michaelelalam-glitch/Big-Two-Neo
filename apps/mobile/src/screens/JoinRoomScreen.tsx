@@ -109,13 +109,9 @@ export default function JoinRoomScreen() {
         );
       }
       
-      // Route based on room type: private → Lobby, casual → CasualWaitingRoom
-      // For now, check match_type column (casual rooms have match_type set)
-      const isCasualRoom = roomData?.match_type === 'casual' || roomData?.match_type === 'ranked';
-      const targetScreen = isCasualRoom ? 'CasualWaitingRoom' : 'Lobby';
-      
-      roomLogger.info(`[JoinRoom] Routing to ${targetScreen} (isCasual: ${isCasualRoom}, match_type: ${roomData?.match_type})`);
-      navigation.replace(targetScreen as any, { roomCode: roomCode.toUpperCase() });
+      // Always route to Lobby (consistent routing for all game types)
+      roomLogger.info(`[JoinRoom] Routing to Lobby (match_type: ${roomData?.match_type})`);
+      navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: any) {
       roomLogger.error('Error joining room:', error?.message || error?.code || String(error));
       showError(error.message || i18n.t('room.joinRoomError'));
