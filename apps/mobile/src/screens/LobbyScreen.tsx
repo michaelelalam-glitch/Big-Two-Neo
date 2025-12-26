@@ -190,6 +190,7 @@ export default function LobbyScreen() {
   };
 
   const subscribeToPlayers = () => {
+    roomLogger.info(`[LobbyScreen] Setting up subscriptions for room: ${roomCode}`);
     const channel = supabase
       .channel(`lobby:${roomCode}`)
       .on(
@@ -200,6 +201,7 @@ export default function LobbyScreen() {
           table: 'room_players',
         },
         () => {
+          roomLogger.info('[LobbyScreen] room_players changed, reloading players...');
           loadPlayers();
         }
       )
@@ -212,6 +214,13 @@ export default function LobbyScreen() {
           filter: `code=eq.${roomCode}`,
         },
         (payload: any) => {
+          roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
+            oldStatus: payload.old?.status,
+            newStatus: payload.new?.status,
+            roomCode: payload.new?.code,
+            isLeaving: isLeavingRef.current
+          });
+          
           // CRITICAL: Auto-navigate ALL players (including host) when game starts
           // Do NOT check isStartingRef - let subscription handle navigation for everyone
           if (payload.new?.status === 'playing' && !isLeavingRef.current) {
@@ -220,9 +229,12 @@ export default function LobbyScreen() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        roomLogger.info(`[LobbyScreen] Subscription status: ${status}`, err ? { error: err } : {});
+      });
 
     return () => {
+      roomLogger.info(`[LobbyScreen] Unsubscribing from room: ${roomCode}`);
       supabase.removeChannel(channel);
     };
   };

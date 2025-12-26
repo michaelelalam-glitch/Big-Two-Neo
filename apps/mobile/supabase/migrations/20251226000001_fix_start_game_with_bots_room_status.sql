@@ -99,8 +99,7 @@ BEGIN
   UPDATE rooms
   SET 
     bot_coordinator_id = v_coordinator_id,
-    status = 'playing',
-    updated_at = NOW()
+    status = 'playing'
   WHERE id = p_room_id;
   
   -- 9. Success
