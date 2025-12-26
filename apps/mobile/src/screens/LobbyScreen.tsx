@@ -89,9 +89,12 @@ export default function LobbyScreen() {
       isRanked: !!data.is_matchmaking && !!data.ranked_mode,
     };
 
-    // Fallback: handle cases where no room type is detected (e.g. public non-matchmaking rooms)
+    // Fallback: handle edge case where no room type is detected.
+    // This occurs for public non-matchmaking rooms (is_public=true, is_matchmaking=false).
+    // These are treated as "casual" rooms since they allow bot filling and aren't ranked.
+    // Note: This is intentional - public rooms without matchmaking should behave like casual games.
     if (!newRoomType.isPrivate && !newRoomType.isCasual && !newRoomType.isRanked) {
-      roomLogger.warn('[LobbyScreen] Room type fallback applied - treating as casual', {
+      roomLogger.warn('[LobbyScreen] Room type fallback applied - treating public non-matchmaking as casual', {
         code: roomCode,
         is_matchmaking: data.is_matchmaking,
         is_public: data.is_public,
@@ -257,7 +260,8 @@ export default function LobbyScreen() {
 
   const handleShareCode = async () => {
     try {
-      // Check if Share API is available (may not be on web)
+      // Note: Share object is always truthy when imported from react-native, even if unsupported.
+      // We rely on try-catch to detect platform limitations (e.g., ERR_UNSUPPORTED_ACTIVITY on web).
       if (!Share || typeof Share.share !== 'function') {
         handleCopyCode();
         Alert.alert(
@@ -272,6 +276,14 @@ export default function LobbyScreen() {
         title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
     } catch (error: any) {
+      // User dismissed the share dialog - this is normal behavior, don't show error
+      const errorMsg = error?.message?.toLowerCase() || '';
+      if (errorMsg.includes('cancel') || errorMsg.includes('dismiss') || error?.code === 'ABORT') {
+        roomLogger.info('[LobbyScreen] User dismissed share dialog');
+        return;
+      }
+      
+      // Actual error occurred
       roomLogger.error('Error sharing room code:', error?.message || error);
       Alert.alert(
         i18n.t('lobby.shareError') || 'Unable to share',
@@ -500,8 +512,14 @@ export default function LobbyScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>{i18n.t('lobby.title')}</Text>
         
-        {/* Room Type Badge */}
-        <View style={styles.roomTypeBadge}>
+        {/* Room Type Badge - Color-coded by room type for visual distinction */}
+        {/* Uses chained OR for clean fallback: evaluates left-to-right, stops at first truthy value */}
+        <View style={[
+          styles.roomTypeBadge,
+          roomType.isRanked && styles.roomTypeBadgeRanked,
+          roomType.isCasual && styles.roomTypeBadgeCasual,
+          roomType.isPrivate && styles.roomTypeBadgePrivate,
+        ]}>
           <Text style={styles.roomTypeBadgeText}>
             {(roomType.isRanked && `🏆 ${i18n.t('lobby.rankedMatch') || 'Ranked Match'}`) ||
              (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch') || 'Casual Match'}`) ||
@@ -559,60 +577,80 @@ export default function LobbyScreen() {
         </TouchableOpacity>
 
         {/* Bot Filling Controls - Only for Casual/Private (NOT Ranked) */}
-        {(isHost || isMatchmakingRoom) && !roomType.isRanked ? (
-          <>
-            {/* Show bot count and start button if less than 4 humans */}
-            {players.filter(p => !p.is_bot).length < 4 && (
-              <View style={styles.botFillingContainer}>
-                <Text style={styles.botFillingLabel}>
-                  {i18n.t('lobby.humanPlayers') || 'Human Players'}: {players.filter(p => !p.is_bot).length}/4
-                </Text>
-                <Text style={styles.botFillingLabel}>
-                  {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {4 - players.filter(p => !p.is_bot).length}
-                </Text>
-              </View>
-            )}
-            
-            {players.length < 4 && (
-              <TouchableOpacity
-                style={[styles.startButton, isStarting && styles.buttonDisabled]}
-                onPress={handleStartWithBots}
-                disabled={isStarting}
-              >
-                {isStarting ? (
-                  <>
-                    <ActivityIndicator color={COLORS.white} size="small" />
-                    <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
-                  </>
-                ) : (
-                  <Text style={styles.startButtonText}>
-                    {i18n.t('lobby.startWithBotsCount', {
-                      count: 4 - players.filter(p => !p.is_bot).length,
-                    }) || `🤖 Start with ${4 - players.filter(p => !p.is_bot).length} AI Bot(s)`}
+        {/* Calculate once for performance and consistency */}
+        {(() => {
+          const humanPlayerCount = players.filter(p => !p.is_bot).length;
+          const botsNeeded = 4 - humanPlayerCount;
+          
+          return (isHost || isMatchmakingRoom) && !roomType.isRanked ? (
+            <>
+              {/* Show bot count and start button if less than 4 humans */}
+              {humanPlayerCount < 4 && (
+                <View style={styles.botFillingContainer}>
+                  <Text style={styles.botFillingLabel}>
+                    {i18n.t('lobby.humanPlayers') || 'Human Players'}: {humanPlayerCount}/4
                   </Text>
-                )}
-              </TouchableOpacity>
-            )}
-            
-            <Text style={styles.hostInfo}>
-              {roomType.isCasual 
-                ? i18n.t('lobby.casualRoomInfo') || 'Anyone can start this casual game'
-                : i18n.t('lobby.hostInfo')
-              }
-            </Text>
-          </>
-        ) : roomType.isRanked ? (
-          // Ranked mode - require 4 human players
-          <View style={styles.rankedInfo}>
-            <Text style={styles.rankedInfoText}>
-              🏆 {i18n.t('lobby.rankedRequirement') || 'Ranked matches require 4 human players'}
-            </Text>
-            <Text style={styles.rankedInfoText}>
-              {players.length < 4
-                ? i18n.t('lobby.waitingForMorePlayers') || 'Waiting for more players...'
-                : i18n.t('lobby.allReadyToStart') || 'All ready to start!'}
-            </Text>
-          </View>
+                  <Text style={styles.botFillingLabel}>
+                    {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {botsNeeded}
+                  </Text>
+                </View>
+              )}
+              
+              {/* Start button shows when less than 4 humans (consistent with bot count display) */}
+              {humanPlayerCount < 4 && (
+                <TouchableOpacity
+                  style={[styles.startButton, isStarting && styles.buttonDisabled]}
+                  onPress={handleStartWithBots}
+                  disabled={isStarting}
+                >
+                  {isStarting ? (
+                    <>
+                      <ActivityIndicator color={COLORS.white} size="small" />
+                      <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.startButtonText}>
+                      {i18n.t('lobby.startWithBotsCount', {
+                        count: botsNeeded,
+                      }) || `🤖 Start with ${botsNeeded} AI Bot(s)`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+              
+              <Text style={styles.hostInfo}>
+                {roomType.isCasual 
+                  ? i18n.t('lobby.casualRoomInfo') || 'Anyone can start this casual game'
+                  : i18n.t('lobby.hostInfo')
+                }
+              </Text>
+            </>
+          ) : null;
+        })()}
+        
+        {/* Ranked mode - require 4 human players (no bots) */}
+        {roomType.isRanked && (() => {
+          const humanPlayerCount = players.filter(p => !p.is_bot).length;
+          return (
+            <View style={styles.rankedInfo}>
+              <Text style={styles.rankedInfoText}>
+                🏆 {i18n.t('lobby.rankedRequirement') || 'Ranked matches require 4 human players'}
+              </Text>
+              <Text style={styles.rankedInfoText}>
+                {humanPlayerCount < 4
+                  ? i18n.t('lobby.waitingForMorePlayers') || 'Waiting for more players...'
+                  : i18n.t('lobby.allReadyToStart') || 'All ready to start!'}
+              </Text>
+            </View>
+          );
+        })()}
+        
+        {/* Non-host in private room */}
+        {!roomType.isRanked && !isHost && !isMatchmakingRoom && (
+          <Text style={styles.waitingInfo}>
+            {i18n.t('lobby.waitingForHost')}
+          </Text>
+        )}
         ) : (
           <Text style={styles.waitingInfo}>
             {i18n.t('lobby.waitingForHost')}
@@ -772,10 +810,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: SPACING.sm,
   },
+  // Note: youLabel gets marginRight even as last element for visual balance
+  // Alternative would be conditional styling based on badge presence
   youLabel: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.gray.medium,
-    marginRight: SPACING.sm,
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
