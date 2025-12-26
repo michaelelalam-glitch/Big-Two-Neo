@@ -212,9 +212,10 @@ export default function LobbyScreen() {
           filter: `code=eq.${roomCode}`,
         },
         (payload: any) => {
-          // CRITICAL: Auto-navigate non-host players when game starts
-          if (payload.new?.status === 'playing' && !isStartingRef.current && !isLeavingRef.current) {
-            roomLogger.info('[LobbyScreen] Room status changed to playing, navigating to game...');
+          // CRITICAL: Auto-navigate ALL players (including host) when game starts
+          // Do NOT check isStartingRef - let subscription handle navigation for everyone
+          if (payload.new?.status === 'playing' && !isLeavingRef.current) {
+            roomLogger.info('[LobbyScreen] Room status changed to playing, navigating ALL players to game...');
             navigation.replace('Game', { roomCode });
           }
         }
@@ -386,8 +387,9 @@ export default function LobbyScreen() {
         roomLogger.error('❌ Failed to send game start notification:', err)
       );
 
-      // Navigate to GameScreen (will use useRealtime for multiplayer)
-      navigation.replace('Game', { roomCode });
+      // DO NOT manually navigate - let Realtime subscription handle navigation for ALL players
+      // The subscription will fire when room status changes to 'playing'
+      roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
       setIsStarting(false);
     } catch (error: any) {
       roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
