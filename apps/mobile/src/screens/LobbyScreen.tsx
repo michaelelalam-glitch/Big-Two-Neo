@@ -653,11 +653,6 @@ export default function LobbyScreen() {
             {i18n.t('lobby.waitingForHost')}
           </Text>
         )}
-        ) : (
-          <Text style={styles.waitingInfo}>
-            {i18n.t('lobby.waitingForHost')}
-          </Text>
-        )}
       </View>
       </ScrollView>
     </SafeAreaView>
