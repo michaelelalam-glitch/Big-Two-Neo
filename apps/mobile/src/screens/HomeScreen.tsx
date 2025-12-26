@@ -204,7 +204,7 @@ export default function HomeScreen() {
       }
 
       // Create a new PUBLIC room if no valid room found
-      roomLogger.info('🆕 Creating new PUBLIC room...');
+      roomLogger.info('🆕 Creating new PUBLIC Quick Play room...');
       const roomCode = generateRoomCode();
       
       const { error: roomError } = await supabase
@@ -214,6 +214,8 @@ export default function HomeScreen() {
           host_id: null, // Let join_room_atomic set the host
           status: 'waiting',
           is_public: true, // PUBLIC room for Quick Play
+          is_matchmaking: true, // CRITICAL: Mark as matchmaking room
+          ranked_mode: false, // Quick Play is always casual (non-ranked)
           created_at: new Date().toISOString(),
         })
         .select()
