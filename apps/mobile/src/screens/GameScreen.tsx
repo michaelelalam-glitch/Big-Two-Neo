@@ -391,7 +391,7 @@ function GameScreenContent() {
         oneCardLeftDetectedRef.current.delete(key);
       }
     });
-  }, [isLocalAIGame, gameState?.hands, (multiplayerGameState as any)?.hands, multiplayerPlayers, roomCode]);
+  }, [isLocalAIGame, (gameState as any)?.hands, (multiplayerGameState as any)?.hands, multiplayerPlayers, roomCode]);
   
   // CRITICAL FIX: Detect multiplayer game end and open modal with proper data
   useEffect(() => {
