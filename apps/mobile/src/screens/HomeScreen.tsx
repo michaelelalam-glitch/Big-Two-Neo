@@ -469,8 +469,7 @@ export default function HomeScreen() {
           {isRankedSearching && (
             <TouchableOpacity
               style={[styles.mainButton, styles.cancelButton]}
-              onPress={async () => {
-                await cancelMatchmaking();
+              onPress={() => {
                 setIsRankedSearching(false);
               }}
             >
@@ -531,7 +530,7 @@ export default function HomeScreen() {
               
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalRankedButton]}
-                onPress={handleRankedMatch}
+                onPress={() => handleRankedMatch(0)}
                 disabled={isRankedSearching}
               >
                 <Text style={styles.modalButtonIcon}>🏆</Text>

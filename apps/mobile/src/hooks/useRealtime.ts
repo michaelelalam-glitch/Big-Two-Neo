@@ -298,7 +298,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const reconnectAttemptsRef = useRef(0);
   
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
-  const activeTimerInterval = useRef<NodeJS.Timeout | null>(null);
+  const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -638,7 +638,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // Get current hands to check for match end locally (for UI responsiveness)
       const currentHands = gameState.hands || {};
       const myHandKey = String(effectivePlayerIndex);
-      const myHand = currentHands[myHandKey] || [];
+      const myHand = currentHands[myHandKey as unknown as number] || [];
       const cardIdsToRemove = new Set(cards.map(c => c.id));
       const cardsRemainingAfterPlay = myHand.filter((c: Card) => !cardIdsToRemove.has(c.id)).length;
       // matchWillEnd is now determined by server response (result.match_ended)
