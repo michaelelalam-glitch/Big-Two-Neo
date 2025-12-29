@@ -41,7 +41,10 @@ export interface GameState {
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
   game_phase: 'dealing' | 'playing' | 'finished';
-  winner_position: number | null;
+  winner: number | null; // FIXED: Use 'winner' to match database column
+  match_number: number; // Current match number (starts at 1, increments when match ends)
+  hands: Record<number, Card[]>; // Player hands indexed by player_index
+  play_history: any[]; // Array of all plays made in the game
   
   // Auto-pass timer state (for highest play detection)
   auto_pass_timer: AutoPassTimerState | null;
@@ -52,17 +55,25 @@ export interface GameState {
 }
 
 /**
- * Auto-pass timer state
+ * Auto-pass timer state (SERVER-AUTHORITATIVE ARCHITECTURE)
  * Triggered when the highest possible card/combo is played
  * Gives players 10 seconds to manually pass before auto-passing
+ * 
+ * CRITICAL: All devices calculate remaining time from end_timestamp using clock-sync
+ * This ensures tight realtime sync (within 100ms) across 4 devices
  */
 export interface AutoPassTimerState {
   active: boolean;
-  started_at: string; // ISO timestamp when timer started
+  started_at: string; // ISO timestamp when timer started (server UTC)
   duration_ms: number; // Total duration in milliseconds (default: 10000)
-  remaining_ms: number; // Milliseconds remaining
+  remaining_ms: number; // DEPRECATED: Clients should calculate from end_timestamp
   triggering_play: LastPlay; // The play that triggered the timer
   player_id: string; // ID of player who triggered the timer
+  
+  // ⏰ NEW: Server-authoritative fields for tight sync
+  end_timestamp?: number; // Server epoch ms when timer expires (CRITICAL for sync)
+  sequence_id?: number; // Monotonic sequence for conflict resolution
+  server_time_at_creation?: number; // Server epoch ms when created (for clock sync)
 }
 
 export interface LastPlay {
@@ -130,6 +141,9 @@ export type BroadcastEvent =
   | 'cards_played'
   | 'player_passed'
   | 'game_ended'
+  | 'match_ended'  // New: Match ended, broadcast scores
+  | 'game_over'  // New: Game completely over (someone >= 101 points)
+  | 'new_match_started'  // New: New match started after previous match ended
   | 'reconnected'
   | 'auto_pass_timer_started'  // New: Timer started for highest play
   | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
@@ -143,7 +157,7 @@ export type BroadcastData =
   | { player_index: number; timer: number }  // turn_changed
   | { player_index: number; cards: Card[]; combo_type: ComboType }  // cards_played
   | { player_index: number }  // player_passed
-  | { winner_position: number }  // game_ended
+  | { winner: number }  // game_ended - FIXED: Use 'winner' column
   | { user_id: string }  // reconnected
   | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
@@ -163,17 +177,19 @@ export interface UseRealtimeReturn {
   playerHands: Map<string, PlayerHand>;
   isConnected: boolean;
   isHost: boolean;
+  isDataReady: boolean; // BULLETPROOF: Indicates game state is fully loaded and ready
   currentPlayer: Player | null;
   
   // Room management
   createRoom: () => Promise<Room>;
   joinRoom: (code: string) => Promise<void>;
+  connectToRoom: (code: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   
   // Game actions
   setReady: (ready: boolean) => Promise<void>;
   startGame: () => Promise<void>;
-  playCards: (cards: Card[]) => Promise<void>;
+  playCards: (cards: Card[], playerIndex?: number) => Promise<void>; // Optional playerIndex for bot coordinator
   pass: () => Promise<void>;
   
   // Connection management
@@ -195,5 +211,5 @@ export interface RealtimeChannelEvents {
   'turn:changed': (payload: { player_index: number; timer: number }) => void;
   'cards:played': (payload: { player_index: number; cards: Card[]; combo_type: ComboType }) => void;
   'player:passed': (payload: { player_index: number }) => void;
-  'game:ended': (payload: { winner_position: number }) => void;
+  'game:ended': (payload: { winner: number }) => void; // FIXED: Use 'winner' column
 }

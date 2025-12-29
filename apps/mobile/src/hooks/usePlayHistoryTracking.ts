@@ -158,7 +158,6 @@ export function usePlayHistoryTracking(
       gameEnded: gameState.gameEnded,
     };
 
-    console.log(`[PlayHistory] Updated match ${currentMatch} with ${playHistory.hands.length} hands (matchEnded: ${matchEnded}, winnerId: ${winnerId})`);
   }, [
     gameState,
     enabled,

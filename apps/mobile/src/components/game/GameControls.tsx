@@ -18,8 +18,8 @@ interface GameControlsProps {
   customCardOrder: string[];
   setCustomCardOrder: (order: string[]) => void;
   playerHand: Card[];
-  onPlayCardsRef?: React.MutableRefObject<((cards: Card[]) => Promise<void>) | null>; // Expose handlePlayCards to parent
-  onPassRef?: React.MutableRefObject<(() => Promise<void>) | null>; // Expose handlePass to parent
+  onPlayCards: (cards: Card[]) => Promise<void>;
+  onPass: () => Promise<void>;
 }
 
 /**
@@ -37,21 +37,15 @@ export function GameControls({
   customCardOrder,
   setCustomCardOrder,
   playerHand,
-  onPlayCardsRef,
-  onPassRef,
+  onPlayCards,
+  onPass,
 }: GameControlsProps) {
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
-    if (!gameManager) {
-      gameLogger.error('❌ [GameControls] Game not initialized');
-      return;
-    }
-
     // Prevent duplicate card plays
     if (isPlayingCards) {
-      gameLogger.debug('⏭️ [GameControls] Card play already in progress, ignoring...');
       return;
     }
 
@@ -67,38 +61,23 @@ export function GameControls({
 
       gameLogger.info('🎴 [GameControls] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
 
-      // Get card IDs to play (using sorted order)
-      const cardIds = sortedCards.map(c => c.id);
+      // Delegate to GameScreen (local or multiplayer)
+      await onPlayCards(sortedCards);
 
-      // Attempt to play cards through game engine
-      const result = await gameManager.playCards(cardIds);
+      gameLogger.info('✅ [GameControls] Cards played successfully');
+      soundManager.playSound(SoundType.CARD_PLAY);
 
-      if (result.success) {
-        gameLogger.info('✅ [GameControls] Cards played successfully');
-
-        // Play card sound effect
-        soundManager.playSound(SoundType.CARD_PLAY);
-
-        // Preserve custom card order by removing only the played cards
-        if (customCardOrder.length > 0) {
-          const playedCardIds = new Set(cardIds);
-          // Also filter out any IDs not present in the current hand
-          const currentHandCardIds = new Set(playerHand.map(card => card.id));
-          const updatedOrder = customCardOrder.filter(
-            id => !playedCardIds.has(id) && currentHandCardIds.has(id)
-          );
-          setCustomCardOrder(updatedOrder);
-        }
-
-        // Notify parent of successful play
-        onPlaySuccess();
-
-        // Bot turns and match/game end will be handled by subscription callback
-      } else {
-        // Show error from validation
-        soundManager.playSound(SoundType.INVALID_MOVE);
-        Alert.alert('Invalid Move', result.error || 'Invalid play');
+      // Preserve custom card order by removing only the played cards
+      if (customCardOrder.length > 0) {
+        const playedCardIds = new Set(sortedCards.map(c => c.id));
+        const currentHandCardIds = new Set(playerHand.map(card => card.id));
+        const updatedOrder = customCardOrder.filter(
+          id => !playedCardIds.has(id) && currentHandCardIds.has(id)
+        );
+        setCustomCardOrder(updatedOrder);
       }
+
+      onPlaySuccess();
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameControls] Failed to play cards:', error?.message || error?.code || String(error));
@@ -115,16 +94,10 @@ export function GameControls({
         }
       }, 300);
     }
-  }, [gameManager, isPlayingCards, isMounted, customCardOrder, playerHand, onPlaySuccess, setCustomCardOrder]);
+  }, [isPlayingCards, isMounted, customCardOrder, playerHand, onPlaySuccess, setCustomCardOrder, onPlayCards]);
 
   const handlePass = useCallback(async () => {
-    if (!gameManager) {
-      gameLogger.error('❌ [GameControls] Game not initialized');
-      return;
-    }
-
     if (isPassing) {
-      gameLogger.debug('⏭️ [GameControls] Pass already in progress, ignoring...');
       return;
     }
 
@@ -136,21 +109,11 @@ export function GameControls({
 
       gameLogger.info('⏭️ [GameControls] Player passing...');
 
-      const result = await gameManager.pass();
+      await onPass();
 
-      if (result.success) {
-        gameLogger.info('✅ [GameControls] Pass successful');
-
-        // Play pass sound effect
-        soundManager.playSound(SoundType.PASS);
-
-        // Notify parent of successful pass
-        onPassSuccess();
-
-        // Bot turns will be triggered automatically by the subscription
-      } else {
-        Alert.alert('Cannot Pass', result.error || 'Cannot pass');
-      }
+      gameLogger.info('✅ [GameControls] Pass successful');
+      soundManager.playSound(SoundType.PASS);
+      onPassSuccess();
     } catch (error: any) {
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameControls] Failed to pass:', error?.message || error?.code || String(error));
@@ -164,29 +127,7 @@ export function GameControls({
         }
       }, 300);
     }
-  }, [gameManager, isPassing, isMounted, onPassSuccess]);
-
-  // Expose handlePlayCards and handlePass to parent via refs (for drag-to-play from CardHand)
-  // Note: This effect should only run once on mount to set up the refs.
-  // The functions themselves are stable due to useCallback, and refs allow parent to always access latest version.
-  //
-  // WHY EMPTY DEPENDENCY ARRAY:
-  // - handlePlayCards and handlePass are intentionally excluded from dependencies
-  // - These are useCallback functions that ARE recreated when their deps change (gameManager, state, etc.)
-  // - However, we WANT the parent to always call the LATEST version via refs
-  // - If we included them as dependencies, this effect would run on every dep change,
-  //   causing unnecessary ref reassignments (the ref pattern already solves staleness)
-  // - The ref mechanism ensures parent always accesses current function version without
-  //   needing to re-run this effect
-  React.useEffect(() => {
-    if (onPlayCardsRef) {
-      onPlayCardsRef.current = handlePlayCards;
-    }
-    if (onPassRef) {
-      onPassRef.current = handlePass;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPassing, isMounted, onPassSuccess, onPass]);
 
   // Compute disabled states
   const isPassDisabled = !isPlayerActive || isPassing;

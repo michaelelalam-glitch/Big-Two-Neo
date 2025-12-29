@@ -40,17 +40,6 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
     const isNewTrickLeader = !currentState.lastPlay && currentState.consecutivePasses === 0;
     const turnChanged = lastBotTurnPlayerIndexRef.current !== currentState.currentPlayerIndex;
 
-    gameLogger.debug('🔍 [useBotTurnManager] Bot turn check:', {
-      currentPlayer: currentPlayer.name,
-      isBot: currentPlayer.isBot,
-      gameEnded: currentState.gameEnded,
-      isExecuting: isExecutingBotTurnRef.current,
-      turnChanged,
-      isNewTrickLeader,
-      lastPlayerIndex: lastBotTurnPlayerIndexRef.current,
-      currentPlayerIndex: currentState.currentPlayerIndex,
-    });
-
     // Execute bot turn if: it's a bot, not already executing, AND (turn changed OR leading new trick)
     if (currentPlayer.isBot && !isExecutingBotTurnRef.current && (turnChanged || isNewTrickLeader)) {
       // Mark as executing and track player index
@@ -82,7 +71,6 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
             gameLogger.info(`✅ [useBotTurnManager] Bot ${currentPlayer.name} turn finished`);
             // Release lock immediately after turn completes
             isExecutingBotTurnRef.current = false;
-            gameLogger.debug('🔓 [useBotTurnManager] Bot turn lock released');
             // Check for next bot turn
             setTimeout(checkAndExecuteBotTurn, 100);
           })
@@ -94,7 +82,6 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
               error?.message || error?.code || String(error)
             );
             isExecutingBotTurnRef.current = false;
-            gameLogger.debug('🔓 [useBotTurnManager] Bot turn lock released (error)');
 
             // Notify user and attempt recovery
             Alert.alert(

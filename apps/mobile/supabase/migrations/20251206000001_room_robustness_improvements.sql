@@ -308,7 +308,20 @@ BEGIN
   END IF;
   
   -- Step 8: Determine player_index and host status
-  v_player_index := v_player_count;  -- 0, 1, 2, or 3
+  -- CRITICAL FIX: Find first available position (handles mid-game joins when players leave)
+  SELECT COALESCE(
+    (
+      SELECT s.i
+      FROM generate_series(0, 3) AS s(i)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM room_players
+        WHERE room_id = v_room_id AND player_index = s.i
+      )
+      LIMIT 1
+    ),
+    v_player_count  -- Fallback to sequential (should never happen if capacity check works)
+  ) INTO v_player_index;
+  
   v_is_host := (v_host_id IS NULL OR v_player_count = 0);  -- First player or abandoned room
   
   -- Step 9: Insert player

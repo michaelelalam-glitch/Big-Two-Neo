@@ -127,7 +127,11 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                 
                 {/* Player scores for this match */}
                 {match.pointsAdded.map((points, playerIndex) => {
-                  const score = match.scores[playerIndex];
+                  // CRITICAL FIX: Calculate true cumulative total UP TO this match
+                  // Sum all pointsAdded from match 0 to current match (index)
+                  const cumulativeScore = scoreHistory
+                    .slice(0, index + 1)
+                    .reduce((sum, m) => sum + (m.pointsAdded[playerIndex] || 0), 0);
                   const pointsColor = getPointsColor(points);
                   
                   return (
@@ -136,7 +140,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                         {points > 0 ? `+${points}` : points}
                       </Text>
                       <Text style={[styles.tableCellLabel, { color: ScoreboardColors.text.muted }]}>
-                        ({score})
+                        ({cumulativeScore})
                       </Text>
                     </View>
                   );
@@ -173,11 +177,14 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               </Text>
             </View>
             
-            {/* Final scores - calculated from last scoreHistory entry */}
+            {/* Final scores - calculated by summing all pointsAdded from all matches */}
             {React.useMemo(() => {
-              // Use cumulative scores from last completed match, or currentScores if no history
-              const totalScores = scoreHistory.length > 0 
-                ? scoreHistory[scoreHistory.length - 1].scores 
+              // CRITICAL FIX: Backend's cumulativeScore is broken - calculate true cumulative on frontend
+              // Sum all pointsAdded from all matches to get real cumulative totals
+              const totalScores = scoreHistory.length > 0
+                ? Array.from({ length: 4 }, (_, playerIndex) => 
+                    scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[playerIndex] || 0), 0)
+                  )
                 : currentScores;
               
               return totalScores.map((score, playerIndex) => {

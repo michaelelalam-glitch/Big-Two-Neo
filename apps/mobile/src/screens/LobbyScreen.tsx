@@ -53,6 +53,7 @@ export default function LobbyScreen() {
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
+  const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
 
@@ -225,9 +226,16 @@ export default function LobbyScreen() {
           // Do NOT check isStartingRef - let subscription handle navigation for everyone
           if (payload.new?.status === 'playing' && !isLeavingRef.current) {
             roomLogger.info('[LobbyScreen] Room status changed to playing, navigating ALL players to game...');
-            // CRITICAL FIX: Pass forceNewGame: true to prevent loading stale cached game state
-            // This ensures all players start with fresh state from server, not AsyncStorage
-            navigation.replace('Game', { roomCode, forceNewGame: true });
+            
+            // CRITICAL FIX: Add a small delay to ensure game_state INSERT has propagated
+            // The backend creates game_state BEFORE updating room status, but Realtime
+            // subscriptions may receive events out of order. This 100ms delay ensures
+            // the frontend's game_state subscription has time to receive the INSERT event.
+            setTimeout(() => {
+              // CRITICAL FIX: Pass forceNewGame: true to prevent loading stale cached game state
+              // This ensures all players start with fresh state from server, not AsyncStorage
+              navigation.replace('Game', { roomCode, forceNewGame: true });
+            }, 100);
           }
         }
       )
@@ -333,19 +341,39 @@ export default function LobbyScreen() {
         return;
       }
 
-      // Check if user is host
-      if (!roomPlayerData.is_host) {
+      // If the room already started, don't try to start again
+      const { data: roomStatusData, error: roomStatusError } = await supabase
+        .from('rooms')
+        .select('status')
+        .eq('id', currentRoomId)
+        .single();
+      if (!roomStatusError && roomStatusData?.status === 'playing') {
+        roomLogger.info('[LobbyScreen] Room already playing; navigating to game');
+        navigation.replace('Game', { roomCode, forceNewGame: true });
+        setIsStarting(false);
+        return;
+      }
+
+      // Host check:
+      // - Casual games: anyone can start (RPC picks coordinator as first human)
+      // - Private/Ranked: host-only
+      if (!roomType.isCasual && !roomPlayerData.is_host) {
         showError(i18n.t('lobby.onlyHostCanStart'));
         return;
       }
 
-      // CRITICAL: Count human players to determine bot count
-      const humanCount = players.filter(p => !p.is_bot).length;
-      const botsNeeded = 4 - humanCount;
+      // CRITICAL: Determine bot count using humans (desired) AND current occupancy (safety)
+      const humanCount = players.filter((p) => !p.is_bot).length;
+      const totalCount = players.length;
+      const openSeats = Math.max(0, 4 - totalCount);
 
-      roomLogger.info(`🎮 [LobbyScreen] Starting game: ${humanCount} humans, ${botsNeeded} bots needed`);
+      // The RPC historically expects "bot_count based on humans" (human + bot = 4)
+      // but we must also handle rooms that already contain bots.
+      const desiredBotCount = Math.max(0, 4 - humanCount);
 
-      if (botsNeeded < 0) {
+      roomLogger.info(`🎮 [LobbyScreen] Starting game: ${humanCount} humans, ${totalCount}/4 filled, ${openSeats} open seats, desired bots=${desiredBotCount}`);
+
+      if (totalCount > 4) {
         showError('Too many players! Maximum 4 players allowed.');
         return;
       }
@@ -355,42 +383,21 @@ export default function LobbyScreen() {
         return;
       }
 
-      // ARCHITECTURE DECISION: 
-      // - Solo game (1 human + 3 bots): Use CLIENT-SIDE game engine
-      // - Multiplayer (2-4 humans + bots): Use SERVER-SIDE game engine with bot support
-      
-      if (humanCount === 1 && botsNeeded === 3) {
-        // SOLO GAME: Navigate to GameScreen with LOCAL_AI_GAME flag
-        // GameScreen will use GameStateManager (client-side engine)
-        roomLogger.info('📱 [LobbyScreen] Solo game - using client-side engine');
-        
-        // Update room status
-        const { error: updateError } = await supabase
-          .from('rooms')
-          .update({ status: 'playing' })
-          .eq('id', currentRoomId);
-
-        if (updateError) throw updateError;
-
-        // Navigate with forceNewGame flag to clear cached state
-        navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME', forceNewGame: true });
-        setIsStarting(false);
-        return;
-      }
-
-      // MULTIPLAYER GAME: Use server-side engine with bot support
-      roomLogger.info(`🌐 [LobbyScreen] Multiplayer game - using server-side engine with ${botsNeeded} bots`);
-
-      // Call start_game_with_bots RPC function
-      const { data: startResult, error: startError } = await supabase
-        .rpc('start_game_with_bots', {
-          p_room_id: currentRoomId,
-          p_bot_count: botsNeeded,
-          p_bot_difficulty: 'medium',
-        });
+      // Call start_game_with_bots RPC function.
+      // Navigation is handled by the rooms UPDATE realtime subscription when status becomes 'playing'.
+      const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
+        p_room_id: currentRoomId,
+        p_bot_count: desiredBotCount,
+        p_bot_difficulty: botDifficulty,
+      });
 
       if (startError) {
         throw new Error(`Failed to start game: ${startError.message}`);
+      }
+
+      if (!startResult || startResult.success !== true) {
+        const errMsg = startResult?.error || 'Failed to start game';
+        throw new Error(errMsg);
       }
 
       roomLogger.info('✅ [LobbyScreen] Game started successfully:', startResult);
@@ -532,15 +539,12 @@ export default function LobbyScreen() {
         {/* Uses chained OR for clean fallback: evaluates left-to-right, stops at first truthy value */}
         <View style={[
           styles.roomTypeBadge,
-          roomType.isRanked && styles.roomTypeBadgeRanked,
-          roomType.isCasual && styles.roomTypeBadgeCasual,
-          roomType.isPrivate && styles.roomTypeBadgePrivate,
         ]}>
           <Text style={styles.roomTypeBadgeText}>
-            {(roomType.isRanked && `🏆 ${i18n.t('lobby.rankedMatch') || 'Ranked Match'}`) ||
-             (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch') || 'Casual Match'}`) ||
-             (roomType.isPrivate && `🔒 ${i18n.t('lobby.privateRoom') || 'Private Room'}`) ||
-             (i18n.t('lobby.roomLoading') || 'Loading...')}
+            {(roomType.isRanked && '🏆 Ranked Match') ||
+             (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch')}`) ||
+             (roomType.isPrivate && '🔒 Private Room') ||
+             i18n.t('lobby.title')}
           </Text>
         </View>
         
@@ -602,14 +606,42 @@ export default function LobbyScreen() {
             <>
               {/* Show bot count and start button if less than 4 humans */}
               {humanPlayerCount < 4 && (
-                <View style={styles.botFillingContainer}>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.humanPlayers') || 'Human Players'}: {humanPlayerCount}/4
-                  </Text>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {botsNeeded}
-                  </Text>
-                </View>
+                <>
+                  <View style={styles.botFillingContainer}>
+                    <Text style={styles.botFillingLabel}>
+                      {i18n.t('lobby.humanPlayers') || 'Human Players'}: {humanPlayerCount}/4
+                    </Text>
+                    <Text style={styles.botFillingLabel}>
+                      {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {botsNeeded}
+                    </Text>
+                  </View>
+
+                  {/* Bot Difficulty Selector */}
+                  <View style={styles.difficultyContainer}>
+                    <Text style={styles.difficultyLabel}>🤖 Bot Difficulty:</Text>
+                    <View style={styles.difficultyButtons}>
+                      {(['easy', 'medium', 'hard'] as const).map((level) => (
+                        <TouchableOpacity
+                          key={level}
+                          style={[
+                            styles.difficultyButton,
+                            botDifficulty === level && styles.difficultyButtonActive,
+                          ]}
+                          onPress={() => setBotDifficulty(level)}
+                        >
+                          <Text
+                            style={[
+                              styles.difficultyButtonText,
+                              botDifficulty === level && styles.difficultyButtonTextActive,
+                            ]}
+                          >
+                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </>
               )}
               
               {/* Start button shows when less than 4 humans (consistent with bot count display) */}
@@ -872,6 +904,46 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     textAlign: 'center',
     marginVertical: 2,
+  },
+  difficultyContainer: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    padding: SPACING.md,
+    borderRadius: 8,
+    marginTop: SPACING.sm,
+    alignItems: 'center',
+  },
+  difficultyLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.white,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
+  difficultyButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  difficultyButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  difficultyButtonActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#A78BFA',
+  },
+  difficultyButtonText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  difficultyButtonTextActive: {
+    color: COLORS.white,
+    fontWeight: '700',
   },
   startButton: {
     backgroundColor: '#8B5CF6',

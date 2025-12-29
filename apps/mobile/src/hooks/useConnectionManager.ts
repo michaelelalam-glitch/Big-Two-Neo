@@ -110,9 +110,7 @@ export function useConnectionManager({
         setIsSpectator(result.is_spectator || false);
         
         if (result.is_spectator) {
-          console.log('👁️ Reconnected as spectator (bot replaced you)');
         } else {
-          console.log('✅ Reconnected successfully');
         }
         
         // Resume heartbeat
@@ -171,11 +169,9 @@ export function useConnectionManager({
       if (enabled && roomId && userId) {
         if (nextAppState === 'active' && previousAppState !== 'active') {
           // App came to foreground - reconnect
-          console.log('📱 App resumed - reconnecting...');
           reconnect();
         } else if (nextAppState === 'background' || nextAppState === 'inactive') {
           // App went to background - pause heartbeat (but don't disconnect immediately)
-          console.log('📱 App backgrounded - pausing heartbeat');
           stopHeartbeat();
         }
       }
@@ -221,11 +217,9 @@ export function useConnectionManager({
           const newRecord = payload.new as { connection_status: string };
           
           if (newRecord.connection_status === 'replaced_by_bot') {
-            console.log('🤖 Replaced by bot');
             setConnectionStatus('disconnected');
             stopHeartbeat();
           } else if (newRecord.connection_status === 'disconnected') {
-            console.log('🔌 Marked as disconnected');
             setConnectionStatus('disconnected');
           } else if (newRecord.connection_status === 'connected') {
             setConnectionStatus('connected');

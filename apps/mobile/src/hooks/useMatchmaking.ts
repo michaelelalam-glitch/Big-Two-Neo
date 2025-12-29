@@ -201,7 +201,6 @@ export function useMatchmaking(): UseMatchmakingReturn {
           table: 'waiting_room',
         },
         (payload) => {
-          console.log('Waiting room update:', payload);
           
           // If this user was matched, stop searching
           if (

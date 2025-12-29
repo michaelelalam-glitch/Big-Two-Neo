@@ -8,7 +8,7 @@ import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, G
 import { ScoreboardContainer } from '../components/scoreboard';
 import type { Card } from '../game/types';
 import type { FinalScore } from '../types/gameEnd';
-import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
+import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -44,6 +44,7 @@ function GameScreenContent() {
   const scoreboardContext = useScoreboard(); // Get entire context
   const { 
     addScoreHistory, 
+    addPlayHistory,
     setIsScoreboardExpanded, 
     scoreHistory, 
     playHistoryByMatch 
@@ -118,6 +119,9 @@ function GameScreenContent() {
         
         setMultiplayerPlayers(playersData || []);
         gameLogger.info(`[GameScreen] Loaded ${playersData?.length || 0} players from room`);
+        
+        // NOTE: Game state is loaded via useRealtime.connectToRoom()
+        // No need to manually load it here
       } catch (error: any) {
         gameLogger.error('[GameScreen] Error loading multiplayer room:', error?.message || String(error));
       }
@@ -125,10 +129,7 @@ function GameScreenContent() {
     
     loadMultiplayerRoom();
   }, [isMultiplayerGame, roomCode, navigation]);
-  
-  // PHASE 6: Determine if current user is host (bot coordinator)
-  const isHostPlayer = multiplayerPlayers.find(p => p.user_id === user?.id)?.is_host || false;
-  
+
   // Bot turn management hook (Task #Phase 2B) - only for LOCAL games
   const gameManagerRefPlaceholder = useRef<any>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
@@ -140,6 +141,7 @@ function GameScreenContent() {
     roomCode,
     currentPlayerName,
     forceNewGame,
+    isLocalGame: isLocalAIGame, // CRITICAL: Only init for local games, not multiplayer!
     addScoreHistory,
     openGameEndModal: (winnerName: string, winnerPosition: number, finalScores: FinalScore[], playerNames: string[], scoreHistory: ScoreHistory[], playHistory: PlayHistoryMatch[]) => {
       openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, scoreHistory, playHistory);
@@ -161,72 +163,452 @@ function GameScreenContent() {
     gameState: multiplayerGameState, 
     playerHands: multiplayerPlayerHands,
     isConnected: isMultiplayerConnected,
+    isHost: isMultiplayerHost,
+    isDataReady: isMultiplayerDataReady, // BULLETPROOF: Game state fully loaded
+    players: realtimePlayers,
     playCards: multiplayerPlayCards,
     pass: multiplayerPass,
+    connectToRoom: multiplayerConnectToRoom,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
     onError: (error) => {
       gameLogger.error('[GameScreen] Multiplayer error:', error.message);
-      showError(error.message);
+      // Only show critical errors, not connection issues
+      if (!error.message.includes('connection') && !error.message.includes('reconnect')) {
+        showError(error.message);
+      }
     },
     onDisconnect: () => {
       gameLogger.warn('[GameScreen] Multiplayer disconnected');
-      showInfo('Connection lost. Reconnecting...');
+      // NOTE: Auto-reconnection is handled internally by useRealtime
+      // Do NOT call reconnect() here to avoid infinite loop
     },
     onReconnect: () => {
-      gameLogger.info('[GameScreen] Multiplayer reconnected');
-      showInfo('Reconnected!');
+      gameLogger.info('[GameScreen] Multiplayer reconnected successfully');
+      // Silent reconnection - no alert spam
+    },
+    onMatchEnded: (matchNumber, matchScores) => {
+      gameLogger.info(`[GameScreen] 🏆 Match ${matchNumber} ended! Adding scores to scoreboard...`, matchScores);
+      
+      // Convert match scores to ScoreHistory format
+      const pointsAdded: number[] = [];
+      const cumulativeScores: number[] = [];
+      
+      // Sort by player_index to ensure correct order
+      const sortedScores = [...matchScores].sort((a, b) => a.player_index - b.player_index);
+      
+      sortedScores.forEach(score => {
+        pointsAdded.push(score.matchScore);
+        cumulativeScores.push(score.cumulativeScore);
+      });
+      
+      const scoreHistoryEntry: ScoreHistory = {
+        matchNumber,
+        pointsAdded,
+        scores: cumulativeScores,
+        timestamp: new Date().toISOString(),
+      };
+      
+      gameLogger.info('[GameScreen] 📊 Adding score history entry:', scoreHistoryEntry);
+      addScoreHistory(scoreHistoryEntry);
     },
   });
+
+  // PHASE 6: Ensure multiplayer realtime channel is joined when entering the Game screen.
+  // Lobby -> Game happens AFTER room status becomes 'playing', so joinRoom() cannot be used here.
+  useEffect(() => {
+    if (!isMultiplayerGame) return;
+    if (!user?.id) return;
+
+    multiplayerConnectToRoom(roomCode).catch((error: any) => {
+      console.error('[GameScreen] ❌ Failed to connect:', error);
+      gameLogger.error('[GameScreen] Failed to connect:', error?.message || String(error));
+      showError(error?.message || 'Failed to connect to room');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMultiplayerGame, roomCode, user?.id]); // Removed multiplayerConnectToRoom to prevent infinite reconnect loop
+  
+  // MULTIPLAYER HANDS MEMO - MUST BE DEFINED BEFORE playersWithCards!!!
+  const multiplayerHandsByIndex = React.useMemo(() => {
+    const hands = (multiplayerGameState as any)?.hands as
+      | Record<string, Array<{ id: string; rank: string; suit: string }>>
+      | undefined;
+    
+    return hands;
+  }, [multiplayerGameState]);
+  
+  // PHASE 6: Merge player hands into players for bot coordinator
+  // Bot coordinator needs cards, but multiplayerPlayers only has metadata from room_players table
+  // Hands are fetched separately via useRealtime's playerHands Map
+  // CRITICAL FIX: Use player_index as key for hands (bots have null user_id!)
+  const playersWithCards = React.useMemo(() => {
+    if (!multiplayerPlayers) {
+      return [];
+    }
+    
+    // CRITICAL FIX: Always return players with cards property (even if empty)
+    // Don't return early when hands are missing - just use empty arrays
+    // This ensures useBotCoordinator always receives consistent player structure
+    const hasHands = !!multiplayerHandsByIndex;
+    
+    const result = multiplayerPlayers.map((player) => {
+      // Get hand for this player using their player_index (works for both humans and bots)
+      const playerHandKey = String(player.player_index);
+      const playerHand = hasHands ? multiplayerHandsByIndex[playerHandKey] : undefined;
+      
+      const withCards = {
+        ...player,
+        player_id: player.id, // Expose room_players.id as player_id for RPC calls
+        cards: Array.isArray(playerHand) ? playerHand : [],
+      };
+      
+      return withCards;
+    });
+    
+    return result;
+  }, [multiplayerHandsByIndex, multiplayerPlayers]);
+  
+  // DIAGNOSTIC: Track coordinator status
+  useEffect(() => {
+    if (!isMultiplayerGame) return;
+    
+    const coordinatorStatus = isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0;
+    gameLogger.info('[GameScreen] 🎯 Coordinator Status:', {
+      isCoordinator: coordinatorStatus,
+      breakdown: {
+        isMultiplayerGame,
+        isMultiplayerDataReady,
+        isMultiplayerHost,
+        playersWithCardsCount: playersWithCards.length,
+      },
+      will_trigger_bots: coordinatorStatus,
+    });
+  }, [isMultiplayerGame, isMultiplayerDataReady, isMultiplayerHost, realtimePlayers, multiplayerGameState, playersWithCards]);
   
   // PHASE 6: Bot coordinator hook (MULTIPLAYER games with bots, HOST only)
+  // BULLETPROOF: Only enable when:
+  // 1. Game state is fully loaded with hands (isMultiplayerDataReady)
+  // 2. Current user is the host (isMultiplayerHost)
+  // 3. Players array is populated (playersWithCards.length > 0)
   useBotCoordinator({
-    roomId: multiplayerRoomId,
-    isCoordinator: isMultiplayerGame && isHostPlayer,
+    roomCode: roomCode, // Pass room code (string) not room ID (UUID)
+    isCoordinator: isMultiplayerGame && isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0,
     gameState: multiplayerGameState,
-    players: multiplayerPlayers,
+    players: playersWithCards,
+    playCards: multiplayerPlayCards,
+    passMove: multiplayerPass,
   });
   
-  // PHASE 6: Unified game state (switch based on mode)
-  const gameState = isLocalAIGame ? localGameState : (multiplayerGameState as any); // Cast to avoid type conflicts
+  // PHASE 6: Unified game state (LOCAL only). Multiplayer uses server state shape.
+  const gameState = isLocalAIGame ? localGameState : null;
 
   // Task #355: Play history tracking - automatically sync game plays to scoreboard
   usePlayHistoryTracking(localGameState); // Only track local game (multiplayer uses different system)
+  
+  // CRITICAL FIX: Multiplayer play history tracking
+  // Track play_history from multiplayer game state and sync to scoreboard
+  useEffect(() => {
+    if (!isMultiplayerGame || !multiplayerGameState) return;
+    
+    const playHistoryArray = (multiplayerGameState as any)?.play_history;
+    
+    if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) {
+      return;
+    }
+    
+    gameLogger.info(`[GameScreen] 📊 Syncing ${playHistoryArray.length} plays from multiplayer game state to scoreboard`);
+    
+    // CRITICAL FIX: Group plays by match_number stored in each play
+    // Database format: [{ match_number, position, cards, combo_type, passed }, ...]
+    // Scoreboard format: [{ matchNumber, hands: [{ by, type, count, cards }] }, ...]
+    
+    const playsByMatch: Record<number, PlayHistoryHand[]> = {};
+    
+    // Group all plays by their match_number
+    playHistoryArray.forEach((play: any) => {
+      if (play.passed || !play.cards || play.cards.length === 0) return;
+      
+      const matchNum = play.match_number || 1; // Default to match 1 for legacy plays
+      
+      if (!playsByMatch[matchNum]) {
+        playsByMatch[matchNum] = [];
+      }
+      
+      playsByMatch[matchNum].push({
+        by: play.position as PlayerPosition,
+        type: play.combo_type || 'single',
+        count: play.cards.length,
+        cards: play.cards,
+      });
+    });
+    
+    // Add each match's plays to scoreboard
+    Object.entries(playsByMatch).forEach(([matchNumStr, hands]) => {
+      const matchNum = parseInt(matchNumStr, 10);
+      const matchData: PlayHistoryMatch = {
+        matchNumber: matchNum,
+        hands,
+      };
+      gameLogger.info(`[GameScreen] 📊 Adding ${hands.length} hands for Match ${matchNum} to scoreboard`);
+      addPlayHistory(matchData);
+    });
+    
+  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, roomCode, addPlayHistory]);
+  
+  // CRITICAL FIX: One card left detection for ALL players (local + multiplayer)
+  const oneCardLeftDetectedRef = useRef(new Set<string>()); // Track which players we've alerted for
+  useEffect(() => {
+    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
+    const hands = effectiveGameState?.hands;
+    
+    if (!hands || typeof hands !== 'object') return;
+    
+    // Check each player's hand
+    Object.entries(hands).forEach(([playerIndex, cards]) => {
+      if (!Array.isArray(cards)) return;
+      
+      const key = `${roomCode}-${playerIndex}`;
+      
+      if (cards.length === 1 && !oneCardLeftDetectedRef.current.has(key)) {
+        // Player has one card left - first time detection
+        const player = isLocalAIGame 
+          ? (gameState as any)?.players?.[parseInt(playerIndex)]
+          : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
+        
+        const playerName = player?.username || player?.name || `Player ${parseInt(playerIndex) + 1}`;
+        
+        gameLogger.info(`🚨 [One Card Left] ${playerName} has ONE CARD LEFT!`);
+        
+        // DISABLED: Alert causes crashes on physical devices
+        // soundManager.playSound(SoundType.HIGHEST_CARD);
+        // showInfo(`${playerName} has ONE CARD LEFT! 🃏`, { duration: 3000 });
+        
+        // Mark as detected
+        oneCardLeftDetectedRef.current.add(key);
+      } else if (cards.length > 1 && oneCardLeftDetectedRef.current.has(key)) {
+        // Player picked up cards again - remove from detected set
+        oneCardLeftDetectedRef.current.delete(key);
+      }
+    });
+  }, [isLocalAIGame, gameState?.hands, multiplayerGameState?.hands, multiplayerPlayers, roomCode]);
+  
+  // CRITICAL FIX: Detect multiplayer game end and open modal with proper data
+  useEffect(() => {
+    if (!isMultiplayerGame || !multiplayerGameState) return;
+    
+    const gamePhase = (multiplayerGameState as any)?.game_phase;
+    const winner = (multiplayerGameState as any)?.winner;
+    const finalScores = (multiplayerGameState as any)?.final_scores;
+    
+    if (gamePhase !== 'finished' || !winner || !finalScores) {
+      return;
+    }
+    
+    gameLogger.info('[GameScreen] 🏁 Multiplayer game finished! Opening end modal...');
+    
+    // Find winner name
+    const winnerPlayer = multiplayerPlayers.find(p => p.player_index === winner);
+    const winnerName = winnerPlayer?.username || `Player ${winner + 1}`;
+    
+    // Convert final_scores to FinalScore format
+    const formattedScores: FinalScore[] = Object.entries(finalScores as Record<string, number>).map(([position, score]) => {
+      const player = multiplayerPlayers.find(p => p.player_index === parseInt(position));
+      return {
+        playerName: player?.username || `Player ${parseInt(position) + 1}`,
+        score: score as number,
+        position: parseInt(position),
+      };
+    });
+    
+    // Get player names in order
+    const playerNames = multiplayerPlayers.map(p => p.username).filter(Boolean);
+    
+    // Get scoreboard data
+    const currentScoreHistory = scoreHistory || [];
+    const currentPlayHistory = playHistoryByMatch || [];
+    
+    gameLogger.info('[GameScreen] 📊 Opening game end modal with data:', {
+      winnerName,
+      winnerPosition: winner,
+      scoresCount: formattedScores.length,
+      playerNamesCount: playerNames.length,
+      scoreHistoryCount: currentScoreHistory.length,
+      playHistoryCount: currentPlayHistory.length,
+    });
+    
+    // Open game end modal
+    openGameEndModal(
+      winnerName,
+      winner,
+      formattedScores,
+      playerNames,
+      currentScoreHistory,
+      currentPlayHistory
+    );
+    
+  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, scoreHistory, playHistoryByMatch, openGameEndModal]);
 
-  // Derived game state hook (Task #Phase 2B) - only for local games
+  // Derived game state hook (Task #Phase 2B)
   const {
-    playerHand,
-    lastPlayedCards,
-    lastPlayedBy,
-    lastPlayComboType,
-    lastPlayCombo,
+    playerHand: localPlayerHand,
+    lastPlayedCards: localLastPlayedCards,
+    lastPlayedBy: localLastPlayedBy,
+    lastPlayComboType: localLastPlayComboType,
+    lastPlayCombo: localLastPlayCombo,
   } = useDerivedGameState({
-    gameState: localGameState,
+    gameState,
     customCardOrder,
     setCustomCardOrder,
   });
 
-  // Scoreboard mapping hook (Task #Phase 2B) - only for local games
+  // Scoreboard mapping hook (Task #Phase 2B)
   const {
     players,
     mapPlayersToScoreboardOrder,
     mapGameIndexToScoreboardPosition,
   } = useScoreboardMapping({
-    gameState: localGameState,
+    gameState,
     currentPlayerName,
   });
 
-  // Helper buttons hook (Task #Phase 2B) - only for local games
+  // -------------------------------
+  // MULTIPLAYER UI DERIVED STATE
+  // -------------------------------
+  const multiplayerSeatIndex = React.useMemo(() => {
+    const me = multiplayerPlayers.find((p) => p.user_id === user?.id);
+    const myIndex = typeof me?.player_index === 'number' ? me.player_index : 0;
+    return myIndex;
+  }, [multiplayerPlayers, user?.id]);
+
+  // multiplayerHandsByIndex moved above playersWithCards to fix bot card loading
+
+  const multiplayerPlayerHand = React.useMemo(() => {
+    const raw = multiplayerHandsByIndex?.[String(multiplayerSeatIndex)];
+    const result = Array.isArray(raw) ? (raw as any[]) : [];
+    return result;
+  }, [multiplayerHandsByIndex, multiplayerSeatIndex, multiplayerGameState]);
+
+  // Compute effective values BEFORE helper buttons hook (CRITICAL BUG FIX Dec 27 2025)
+  // Helper buttons need the ACTUAL hand being displayed, not just localPlayerHand
+  // SAFETY: Ensure we always have an array (never undefined) to prevent filter crashes
+  // CRITICAL FIX Dec 27: Use React.useMemo with proper deps to recompute when multiplayer hand changes!
+  // CRITICAL FIX Dec 27 #2: Apply customCardOrder to multiplayer hands as well!
+  const effectivePlayerHand: Card[] = React.useMemo(() => {
+    const hand = isLocalAIGame ? localPlayerHand : multiplayerPlayerHand;
+    let result = (hand as any) || [];
+    
+    // Apply customCardOrder for BOTH local and multiplayer games
+    if (customCardOrder.length > 0 && result.length > 0) {
+      const orderMap = new Map(customCardOrder.map((id, index) => [id, index]));
+      result = [...result].sort((a, b) => {
+        const aIndex = orderMap.get(a.id) ?? 999;
+        const bIndex = orderMap.get(b.id) ?? 999;
+        return aIndex - bIndex;
+      });
+    }
+    
+    return result;
+  }, [isLocalAIGame, localPlayerHand, multiplayerPlayerHand, multiplayerHandsByIndex, customCardOrder]);
+  
+  // CRITICAL: Define multiplayerLastPlay BEFORE using it in useHelperButtons!
+  const multiplayerLastPlay = (multiplayerGameState as any)?.last_play ?? null;
+  
+  // Helper buttons hook (Task #Phase 2B)
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
-    playerHand,
-    lastPlay: localGameState?.lastPlay || null,
-    isFirstPlay:
-      localGameState?.lastPlay === null && localGameState?.players.every((p) => p.hand.length === 13),
+    playerHand: effectivePlayerHand, // FIXED: Use effective hand (local OR multiplayer)
+    lastPlay: isLocalAIGame ? (gameState?.lastPlay || null) : (multiplayerLastPlay || null),
+    isFirstPlay: isLocalAIGame 
+      ? (gameState?.lastPlay === null && gameState?.players.every((p: any) => p.hand.length === 13))
+      : (multiplayerLastPlay === null),
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
   });
+
+  const multiplayerLastPlayedCards = React.useMemo(() => {
+    const cards = multiplayerLastPlay?.cards;
+    return Array.isArray(cards) ? cards : [];
+  }, [multiplayerLastPlay]);
+
+  const multiplayerLastPlayedBy = React.useMemo(() => {
+    const pos = multiplayerLastPlay?.position;
+    if (typeof pos !== 'number') return null;
+    const p = multiplayerPlayers.find((pl) => pl.player_index === pos);
+    return p?.username ?? null;
+  }, [multiplayerLastPlay, multiplayerPlayers]);
+
+  const multiplayerLastPlayComboType = (multiplayerLastPlay?.combo_type as string | null) ?? null;
+
+  const multiplayerLastPlayCombo = React.useMemo(() => {
+    if (!multiplayerLastPlayComboType) return null;
+    const cards = multiplayerLastPlayedCards;
+    if (!Array.isArray(cards) || cards.length === 0) return multiplayerLastPlayComboType;
+
+    if (multiplayerLastPlayComboType === 'Single') return `Single ${cards[0].rank}`;
+    if (multiplayerLastPlayComboType === 'Pair') return `Pair of ${cards[0].rank}s`;
+    if (multiplayerLastPlayComboType === 'Triple') return `Triple ${cards[0].rank}s`;
+    if (multiplayerLastPlayComboType === 'Straight') {
+      const sorted = sortCardsForDisplay(cards as any, 'Straight');
+      const high = sorted[0];
+      return high ? `Straight to ${high.rank}` : 'Straight';
+    }
+    if (multiplayerLastPlayComboType === 'Flush') {
+      const sorted = sortCardsForDisplay(cards as any, 'Flush');
+      const high = sorted[0];
+      return high ? `Flush (${high.rank} high)` : 'Flush';
+    }
+    if (multiplayerLastPlayComboType === 'Straight Flush') {
+      const sorted = sortCardsForDisplay(cards as any, 'Straight Flush');
+      const high = sorted[0];
+      return high ? `Straight Flush to ${high.rank}` : 'Straight Flush';
+    }
+
+    return multiplayerLastPlayComboType;
+  }, [multiplayerLastPlayComboType, multiplayerLastPlayedCards]);
+
+  const multiplayerLayoutPlayers = React.useMemo(() => {
+    const getName = (idx: number): string => {
+      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      return p?.username ?? `Player ${idx + 1}`;
+    };
+
+    const getCount = (idx: number): number => {
+      const hand = multiplayerHandsByIndex?.[String(idx)];
+      return Array.isArray(hand) ? hand.length : 13;
+    };
+    
+    const getScore = (idx: number): number => {
+      const scores = (multiplayerGameState as any)?.scores;
+      // FIXED Task #539: Database stores scores as ARRAY [0,0,0,0], not object
+      if (!Array.isArray(scores)) return 0;
+      return scores[idx] || 0;
+    };
+
+    const currentTurn = (multiplayerGameState as any)?.current_turn;
+    const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
+
+    // CRITICAL: RELATIVE positioning - each player sees THEMSELVES at bottom
+    // This is standard card game UX: you're always at bottom, others positioned clockwise
+    // Layout array: [0]=bottom (you), [1]=top (opposite), [2]=left, [3]=right
+    const bottom = multiplayerSeatIndex;           // Current player (YOU)
+    const top = (multiplayerSeatIndex + 2) % 4;    // Opposite player (2 seats away)
+    const left = (multiplayerSeatIndex + 3) % 4;   // Left player (3 seats counterclockwise)
+    const right = (multiplayerSeatIndex + 1) % 4;  // Right player (1 seat clockwise)
+
+    return [
+      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom },
+      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top },
+      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left },
+      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right },
+    ];
+  }, [multiplayerPlayers, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
+
+  // Effective values moved ABOVE helper buttons hook (line ~307) to fix helper button bugs
+  const effectiveLastPlayedCards = isLocalAIGame ? localLastPlayedCards : (multiplayerLastPlayedCards as any);
+  const effectiveLastPlayedBy = isLocalAIGame ? localLastPlayedBy : multiplayerLastPlayedBy;
+  const effectiveLastPlayComboType = isLocalAIGame ? localLastPlayComboType : multiplayerLastPlayComboType;
+  const effectiveLastPlayCombo = isLocalAIGame ? localLastPlayCombo : multiplayerLastPlayCombo;
 
   // Register Game End callbacks (Task #416, #417)
   useEffect(() => {
@@ -327,19 +709,16 @@ function GameScreenContent() {
   }, []);
 
   // Task #270: Auto-pass timer audio/haptic feedback
+  // NOTE: Only for LOCAL games - multiplayer uses auto_pass_deadline instead
   const hasPlayedHighestCardSoundRef = useRef(false);
 
   useEffect(() => {
-    // DEBUG: Log every timer update
-    gameLogger.debug('[DEBUG] Timer effect fired:', {
-      hasTimer: !!gameState?.auto_pass_timer,
-      remaining_ms: gameState?.auto_pass_timer?.remaining_ms,
-      displaySeconds: gameState?.auto_pass_timer ? Math.ceil(gameState.auto_pass_timer.remaining_ms / 1000) : null
-    });
+    // CRITICAL FIX: Support BOTH local and multiplayer auto-pass timers
+    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
+    const timerState = effectiveGameState?.auto_pass_timer;
 
-    if (!gameState?.auto_pass_timer) {
+    if (!timerState || !timerState.active) {
       // Timer not active - reset flags for next timer activation
-      gameLogger.debug('[DEBUG] Resetting timer flags (timer inactive)');
       hasPlayedHighestCardSoundRef.current = false;
       return;
     }
@@ -353,7 +732,7 @@ function GameScreenContent() {
 
     // Progressive intensity vibration from 5 seconds down to 1
     // CRITICAL: Use Math.ceil to match UI display logic (5000ms = 5 seconds)
-    const remaining_ms = gameState.auto_pass_timer.remaining_ms;
+    const remaining_ms = timerState.remaining_ms;
     const displaySeconds = Math.ceil(remaining_ms / 1000);
     
     // Vibrate with increasing frequency from 5→1 (more pulses = more intense)
@@ -362,7 +741,7 @@ function GameScreenContent() {
       hapticManager.urgentCountdown(displaySeconds);
       gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
     }
-  }, [gameState?.auto_pass_timer?.remaining_ms]); // CRITICAL FIX: Watch remaining_ms, not object reference
+  }, [isMultiplayerGame, isLocalAIGame, gameState?.auto_pass_timer?.remaining_ms, multiplayerGameState?.auto_pass_timer?.remaining_ms]);
 
   // CRITICAL FIX: Play/Pass action handlers - defined in GameScreen to work in BOTH orientations
   // Previously these were only set by GameControls which is only mounted in portrait mode
@@ -381,7 +760,6 @@ function GameScreenContent() {
 
       // Prevent duplicate card plays
       if (isPlayingCards) {
-        gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
         return;
       }
 
@@ -413,7 +791,6 @@ function GameScreenContent() {
       }
 
       if (isPlayingCards) {
-        gameLogger.debug('⏭️ [GameScreen] Card play already in progress, ignoring...');
         return;
       }
 
@@ -422,13 +799,11 @@ function GameScreenContent() {
         hapticManager.playCard();
         
         const sortedCards = sortCardsForDisplay(cards);
-        // Convert Card[] to string[] (card IDs) for multiplayer API
-        const cardIds = sortedCards.map(c => c.id);
-        await multiplayerPlayCards(cardIds as any);
+        await multiplayerPlayCards(sortedCards as any);
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.CARD_PLAY);
       } catch (error: any) {
-        gameLogger.error('❌ [GameScreen] Error playing cards (multiplayer):', error?.message || String(error));
+        gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
         showError(error.message || 'Failed to play cards');
       } finally {
         setIsPlayingCards(false);
@@ -446,7 +821,6 @@ function GameScreenContent() {
       }
 
       if (isPassing) {
-        gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
         return;
       }
 
@@ -473,7 +847,6 @@ function GameScreenContent() {
       }
 
       if (isPassing) {
-        gameLogger.debug('⏭️ [GameScreen] Pass already in progress, ignoring...');
         return;
       }
 
@@ -559,7 +932,63 @@ function GameScreenContent() {
   };
 
   // Get selected cards array for GameControls
-  const selectedCards = getSelectedCards(playerHand);
+  // SAFETY: effectivePlayerHand now guaranteed to be array (never undefined)
+  const selectedCards = getSelectedCards(effectivePlayerHand);
+
+  const layoutPlayers = isLocalAIGame ? players : (multiplayerLayoutPlayers as any);
+
+  // 🎯 PERFORMANCE: Memoize expensive props to reduce re-renders
+  const memoizedPlayerNames = React.useMemo(() => {
+    return layoutPlayers.length === 4 
+      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.name) 
+      : [];
+  }, [layoutPlayers]);
+
+  const memoizedCurrentScores = React.useMemo(() => {
+    if (layoutPlayers.length !== 4) return [];
+    
+    // Calculate true cumulative scores from scoreHistory
+    if (scoreHistory.length > 0) {
+      return mapPlayersToScoreboardOrder(
+        layoutPlayers.map((p: any) => ({
+          ...p,
+          score: scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[p.player_index] || 0), 0)
+        })),
+        (p: any) => p.score
+      );
+    }
+    
+    return mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.score);
+  }, [layoutPlayers, scoreHistory]);
+
+  const memoizedCardCounts = React.useMemo(() => {
+    return layoutPlayers.length === 4 
+      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.cardCount) 
+      : [];
+  }, [layoutPlayers]);
+
+  const memoizedOriginalPlayerNames = React.useMemo(() => {
+    if (isLocalAIGame) {
+      return (gameState as any)?.players ? (gameState as any).players.map((p: any) => p.name) : [];
+    }
+    return multiplayerPlayers.map(p => p.username || p.player_name || `Player ${p.player_index + 1}`);
+  }, [isLocalAIGame, gameState, multiplayerPlayers]);
+  const hasEffectiveGameState = isLocalAIGame ? !!gameState : !!multiplayerGameState;
+  // 🔥 FIXED Task #540: Auto-pass timer now works in BOTH local AND multiplayer!
+  // The game_state table has auto_pass_timer column for multiplayer (added Dec 28, 2025)
+  const effectiveAutoPassTimerState = isLocalAIGame
+    ? ((gameState as any)?.auto_pass_timer ?? undefined)
+    : ((multiplayerGameState as any)?.auto_pass_timer ?? undefined); // ✅ Now reads from multiplayer game_state!
+
+  // CRITICAL FIX Task #539: Map ABSOLUTE turn index to scoreboard position
+  // current_turn from database is absolute (0=Steve, 1=Bot1, 2=Bot2, 3=Bot3)
+  // We need to convert to RELATIVE position FIRST, THEN map to scoreboard
+  const multiplayerCurrentTurn = (multiplayerGameState as any)?.current_turn;
+  const effectiveScoreboardCurrentPlayerIndex = isLocalAIGame
+    ? mapGameIndexToScoreboardPosition((gameState as any)?.currentPlayerIndex ?? 0)
+    : (typeof multiplayerCurrentTurn === 'number' 
+        ? (multiplayerCurrentTurn - multiplayerSeatIndex + 4) % 4  // Convert absolute to relative: 0→0(me), 1→1(right), 2→2(opposite), 3→3(left)
+        : 0);
 
   // Performance profiling callback (Task #430)
   // React 19 Profiler signature: (id, phase, actualDuration, baseDuration, startTime, commitTime)
@@ -599,28 +1028,28 @@ function GameScreenContent() {
           // LANDSCAPE MODE (Task #450) - now uses mapped player order for all props
           <LandscapeGameLayout
             // Scoreboard and player order: [user, Bot 1, Bot 2, Bot 3] = [0,3,1,2]
-            playerNames={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.name) : []}
-            currentScores={localGameState && localGameState.matchScores ? mapPlayersToScoreboardOrder(localGameState.matchScores, (s: any) => s.score) : []}
-            cardCounts={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(localGameState?.currentPlayerIndex ?? 0)}
-            matchNumber={localGameState?.currentMatch ?? 1}
-            isGameFinished={localGameState?.gameOver ?? false}
+            playerNames={memoizedPlayerNames}
+            currentScores={memoizedCurrentScores}
+            cardCounts={memoizedCardCounts}
+            currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+            matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
+            isGameFinished={(gameState as any)?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
-            originalPlayerNames={localGameState ? localGameState.players.map((p: any) => p.name) : []}
-            autoPassTimerState={localGameState?.auto_pass_timer ?? undefined}
+            originalPlayerNames={memoizedOriginalPlayerNames}
+            autoPassTimerState={effectiveAutoPassTimerState}
 
             // Table data
-            lastPlayedCards={lastPlayedCards}
-            lastPlayedBy={lastPlayedBy ?? undefined}
-            lastPlayComboType={lastPlayComboType ?? undefined}
-            lastPlayCombo={lastPlayCombo ?? undefined}
+            lastPlayedCards={effectiveLastPlayedCards}
+            lastPlayedBy={effectiveLastPlayedBy ?? undefined}
+            lastPlayComboType={effectiveLastPlayComboType ?? undefined}
+            lastPlayCombo={effectiveLastPlayCombo ?? undefined}
 
             // Player data (bottom center is always index 0 after mapping)
-            playerName={players[0].name}
-            playerCardCount={players[0].cardCount}
-            playerCards={playerHand}
-            isPlayerActive={players[0].isActive}
+            playerName={layoutPlayers[0]?.name ?? currentPlayerName}
+            playerCardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
+            playerCards={effectivePlayerHand}
+            isPlayerActive={layoutPlayers[0]?.isActive ?? false}
             selectedCardIds={selectedCardIds}
             onSelectionChange={setSelectedCardIds}
             onCardsReorder={handleCardsReorder}
@@ -649,23 +1078,23 @@ function GameScreenContent() {
 
             // Control states - CRITICAL FIX: Ensure game state is initialized before enabling controls
             disabled={false}
-            canPlay={players[0].isActive && selectedCards.length > 0 && !!gameState && !!gameManagerRef.current}
-            canPass={players[0].isActive && !!gameState && !!gameManagerRef.current}
+            canPlay={(layoutPlayers[0]?.isActive ?? false) && selectedCards.length > 0 && hasEffectiveGameState && (isLocalAIGame ? !!gameManagerRef.current : true)}
+            canPass={(layoutPlayers[0]?.isActive ?? false) && hasEffectiveGameState && (isLocalAIGame ? !!gameManagerRef.current : true)}
           />
         ) : (
           // PORTRAIT MODE (existing layout)
           <>
             {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
             <ScoreboardContainer
-            playerNames={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.name) : []}
-            currentScores={localGameState && localGameState.matchScores ? mapPlayersToScoreboardOrder(localGameState.matchScores, (s: any) => s.score) : []}
-            cardCounts={localGameState ? mapPlayersToScoreboardOrder(localGameState.players, (p: any) => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(localGameState?.currentPlayerIndex ?? 0)}
-            matchNumber={localGameState?.currentMatch ?? 1}
-            isGameFinished={localGameState?.gameOver ?? false}
+            playerNames={memoizedPlayerNames}
+            currentScores={memoizedCurrentScores}
+            cardCounts={memoizedCardCounts}
+            currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+            matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
+            isGameFinished={(gameState as any)?.gameOver ?? false}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
-            originalPlayerNames={localGameState ? localGameState.players.map((p: any) => p.name) : []}
+            originalPlayerNames={memoizedOriginalPlayerNames}
           />
 
           {/* Hamburger menu (top-right, outside table) */}
@@ -701,20 +1130,20 @@ function GameScreenContent() {
 
           {/* Game table layout - extracted to GameLayout component (Task #426) */}
           <GameLayout
-            players={players}
-            lastPlayedCards={lastPlayedCards}
-            lastPlayedBy={lastPlayedBy}
-            lastPlayComboType={lastPlayComboType}
-            lastPlayCombo={lastPlayCombo}
-            autoPassTimerState={gameState?.auto_pass_timer || undefined}
+            players={layoutPlayers as any}
+            lastPlayedCards={effectiveLastPlayedCards as any}
+            lastPlayedBy={effectiveLastPlayedBy as any}
+            lastPlayComboType={effectiveLastPlayComboType as any}
+            lastPlayCombo={effectiveLastPlayCombo as any}
+            autoPassTimerState={effectiveAutoPassTimerState}
           />
 
           {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
           <View style={styles.playerInfoContainer}>
             <PlayerInfo
-              name={players[0].name}
-              cardCount={players[0].cardCount}
-              isActive={players[0].isActive}
+              name={layoutPlayers[0]?.name ?? currentPlayerName}
+              cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
+              isActive={layoutPlayers[0]?.isActive ?? false}
             />
           </View>
           
@@ -722,16 +1151,16 @@ function GameScreenContent() {
           <View style={styles.actionButtonsRow}>
             <GameControls
               gameManager={gameManagerRef.current}
-              isPlayerActive={players[0].isActive}
+              isPlayerActive={layoutPlayers[0]?.isActive ?? false}
               selectedCards={selectedCards}
               onPlaySuccess={handlePlaySuccess}
               onPassSuccess={handlePassSuccess}
               isMounted={isMountedRef}
               customCardOrder={customCardOrder}
               setCustomCardOrder={setCustomCardOrder}
-              playerHand={playerHand}
-              onPlayCardsRef={onPlayCardsRef}
-              onPassRef={onPassRef}
+              playerHand={effectivePlayerHand}
+              onPlayCards={handlePlayCards}
+              onPass={handlePass}
             />
           </View>
           
@@ -741,17 +1170,17 @@ function GameScreenContent() {
               onSort={handleSort}
               onSmartSort={handleSmartSort}
               onHint={handleHint}
-              disabled={playerHand.length === 0}
+              disabled={effectivePlayerHand.length === 0}
             />
           </View>
 
           {/* Player's hand - INDEPENDENT - NOT AFFECTED BY BUTTONS */}
           <View style={styles.cardHandContainer}>
             <CardHand
-              cards={playerHand}
+              cards={effectivePlayerHand}
               onPlayCards={handleCardHandPlayCards} // FIXED: Wire to GameControls for drag-to-play
               onPass={handleCardHandPass} // FIXED: Wire to GameControls for drag-to-pass
-              canPlay={players[0].isActive && !!gameState && !!gameManagerRef.current}
+              canPlay={(layoutPlayers[0]?.isActive ?? false) && hasEffectiveGameState && (isLocalAIGame ? !!gameManagerRef.current : true)}
               disabled={false}
               hideButtons={true} // Hide internal buttons since we display them externally
               selectedCardIds={selectedCardIds}

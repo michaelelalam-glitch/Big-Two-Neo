@@ -322,6 +322,8 @@ export interface Translations {
     startGame: string;
     leaveRoom: string;
     copyCode: string;
+    copy: string;
+    share: string;
     codeCopied: string;
     minPlayers: string;
     inviteFriends: string;
@@ -330,6 +332,11 @@ export interface Translations {
     readyUp: string;
     starting: string;
     startWithBots: string;
+    startWithBotsCount: string;
+    humanPlayers: string;
+    botsNeeded: string;
+    casualMatch: string;
+    casualRoomInfo: string;
     hostInfo: string;
     waitingForHost: string;
     onlyHostCanStart: string;
@@ -339,6 +346,8 @@ export interface Translations {
     readyStatusError: string;
     leaveRoomError: string;
     startGameError: string;
+    shareError: string;
+    shareErrorMessage: string;
   };
   
   // Create/Join Room Screens
@@ -756,6 +765,8 @@ const en: Translations = {
     startGame: 'Start Game',
     leaveRoom: 'Leave Room',
     copyCode: 'Copy Code',
+    copy: 'Copy',
+    share: 'Share',
     codeCopied: 'Room code copied!',
     minPlayers: 'Need at least 2 players to start',
     inviteFriends: 'Share this code with friends',
@@ -764,6 +775,11 @@ const en: Translations = {
     readyUp: 'Ready Up',
     starting: 'Starting',
     startWithBots: 'Start with AI Bots',
+    startWithBotsCount: 'Start with {{count}} AI Bot(s)',
+    humanPlayers: 'Human Players',
+    botsNeeded: 'Bots Needed',
+    casualMatch: 'Casual Match',
+    casualRoomInfo: 'Anyone can start this casual game',
     hostInfo: "You're the host. Start with bots or wait for players.",
     waitingForHost: 'Waiting for host to start the game...',
     onlyHostCanStart: 'Only the host can start the game with bots',
@@ -773,6 +789,8 @@ const en: Translations = {
     readyStatusError: 'Failed to update ready status',
     leaveRoomError: 'Failed to leave room',
     startGameError: 'Failed to start game',
+    shareError: 'Share Error',
+    shareErrorMessage: 'Unable to share room code',
   },
   room: {
     createTitle: 'Create Room',
@@ -1128,6 +1146,8 @@ const ar: Translations = {
     startGame: 'ابدأ اللعبة',
     leaveRoom: 'غادر الغرفة',
     copyCode: 'نسخ الرمز',
+    copy: '📋 نسخ',
+    share: '📤 مشاركة',
     codeCopied: 'تم نسخ رمز الغرفة!',
     minPlayers: 'تحتاج إلى لاعبين على الأقل للبدء',
     inviteFriends: 'شارك هذا الرمز مع الأصدقاء',
@@ -1136,6 +1156,11 @@ const ar: Translations = {
     readyUp: 'جاهز',
     starting: 'البدء',
     startWithBots: 'ابدأ مع روبوتات الذكاء الاصطناعي',
+    startWithBotsCount: 'ابدأ مع {count} روبوت(ات)',
+    humanPlayers: 'لاعبون بشر',
+    botsNeeded: 'الروبوتات المطلوبة',
+    casualMatch: 'مباراة عادية',
+    casualRoomInfo: 'يمكن لأي لاعب بدء اللعبة في الوضع العادي',
     hostInfo: 'أنت المضيف. ابدأ مع الروبوتات أو انتظر اللاعبين.',
     waitingForHost: 'في انتظار المضيف لبدء اللعبة...',
     onlyHostCanStart: 'فقط المضيف يمكنه بدء اللعبة مع الروبوتات',
@@ -1145,6 +1170,8 @@ const ar: Translations = {
     readyStatusError: 'فشل تحديث حالة الجاهزية',
     leaveRoomError: 'فشل مغادرة الغرفة',
     startGameError: 'فشل بدء اللعبة',
+    shareError: 'خطأ في المشاركة',
+    shareErrorMessage: 'فشلت مشاركة رمز الغرفة. حاول مرة أخرى.',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1578,6 +1605,8 @@ const de: Translations = {
     startGame: 'Spiel starten',
     leaveRoom: 'Raum verlassen',
     copyCode: 'Code kopieren',
+    copy: '📋 Kopieren',
+    share: '📤 Teilen',
     codeCopied: 'Raumcode kopiert!',
     minPlayers: 'Mindestens 2 Spieler erforderlich',
     inviteFriends: 'Teile diesen Code mit Freunden',
@@ -1586,6 +1615,11 @@ const de: Translations = {
     readyUp: 'Bereit machen',
     starting: 'Startet',
     startWithBots: 'Mit KI-Bots starten',
+    startWithBotsCount: 'Mit {count} Bot(s) starten',
+    humanPlayers: 'Menschliche Spieler',
+    botsNeeded: 'Benötigte Bots',
+    casualMatch: 'Freundschaftsspiel',
+    casualRoomInfo: 'Jeder kann dieses Casual-Spiel starten',
     hostInfo: 'Du bist der Host. Starte mit Bots oder warte auf Spieler.',
     waitingForHost: 'Warte darauf, dass der Host das Spiel startet...',
     onlyHostCanStart: 'Nur der Host kann das Spiel mit Bots starten',
@@ -1595,6 +1629,8 @@ const de: Translations = {
     readyStatusError: 'Fehler beim Aktualisieren des Bereitschaftsstatus',
     leaveRoomError: 'Fehler beim Verlassen des Raums',
     startGameError: 'Fehler beim Starten des Spiels',
+    shareError: 'Fehler beim Teilen',
+    shareErrorMessage: 'Raumcode konnte nicht geteilt werden. Bitte erneut versuchen.',
   },
   room: {
     createTitle: 'Raum erstellen',

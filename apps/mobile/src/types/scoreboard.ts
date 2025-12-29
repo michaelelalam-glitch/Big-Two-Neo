@@ -238,7 +238,8 @@ export type GamePhase =
   | 'waiting'       // Waiting for players
   | 'dealing'       // Cards being dealt
   | 'playing'       // Active gameplay
-  | 'finished';     // Game completed
+  | 'finished'      // Match completed (not game over yet)
+  | 'game_over';    // Game completely over (someone >= 101 points)
 
 /**
  * Match result for a single player

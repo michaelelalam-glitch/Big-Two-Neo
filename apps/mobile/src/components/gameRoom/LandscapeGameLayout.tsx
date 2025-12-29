@@ -164,11 +164,9 @@ export function LandscapeGameLayout({
             isGameFinished={isGameFinished}
             isExpanded={isScoreboardExpanded}
             onToggleExpand={() => {
-              console.log('[LandscapeGameLayout] Toggle expand clicked, current:', isScoreboardExpanded);
               setIsScoreboardExpanded(!isScoreboardExpanded);
             }}
             onTogglePlayHistory={() => {
-              console.log('[LandscapeGameLayout] Toggle play history clicked, current:', showPlayHistory);
               setShowPlayHistory(!showPlayHistory);
             }}
             scoreHistory={scoreHistory}
@@ -189,29 +187,29 @@ export function LandscapeGameLayout({
           />
         )}
 
-        {/* Top opponent - Player 1 (Bot 2) (horizontal layout with name to right) */}
+        {/* Top opponent - Player 1 (position 2 in scoreboard order) */}
         <View style={styles.topOpponent}>
           <LandscapeOpponent
-            name={playerNames[2] || 'Bot 2'}
+            name={playerNames[2] || 'Opponent 2'}
             cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
             layout="horizontal"
           />
         </View>
 
-        {/* Left opponent - Player 2 (Bot 3) (same as portrait) */}
+        {/* Left opponent - Player 2 (position 3 in scoreboard order) */}
         <View style={styles.leftOpponent}>
           <LandscapeOpponent
-            name={playerNames[3] || 'Bot 3'}
+            name={playerNames[3] || 'Opponent 3'}
             cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
           />
         </View>
 
-        {/* Right opponent - Player 3 (Bot 1) (same as portrait) */}
+        {/* Right opponent - Player 3 (position 1 in scoreboard order) */}
         <View style={styles.rightOpponent}>
           <LandscapeOpponent
-            name={playerNames[1] || 'Bot 1'}
+            name={playerNames[1] || 'Opponent 1'}
             cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
           />
