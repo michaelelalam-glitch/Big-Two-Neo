@@ -770,11 +770,6 @@ function GameScreenContent() {
         return;
       }
 
-      // Prevent duplicate card plays
-      if (isPlayingCards) {
-        return;
-      }
-
       try {
         isPlayingCardsRef.current = true; // Set synchronous guard
         setIsPlayingCards(true);
@@ -801,10 +796,6 @@ function GameScreenContent() {
       // Multiplayer game - use Realtime hook
       if (!multiplayerPlayCards) {
         gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
-        return;
-      }
-
-      if (isPlayingCards) {
         return;
       }
 
@@ -843,10 +834,6 @@ function GameScreenContent() {
         return;
       }
 
-      if (isPassing) {
-        return;
-      }
-
       try {
         isPassingRef.current = true; // Set synchronous guard
         setIsPassing(true);
@@ -868,10 +855,6 @@ function GameScreenContent() {
       // Multiplayer game
       if (!multiplayerPass) {
         gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
-        return;
-      }
-
-      if (isPassing) {
         return;
       }
 
