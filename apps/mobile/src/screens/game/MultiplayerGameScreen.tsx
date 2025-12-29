@@ -263,8 +263,20 @@ export function MultiplayerGameScreen() {
       handSize: hand?.length || 0,
     });
     
-    return Array.isArray(hand) ? hand : [];
-  }, [multiplayerGameState, currentPlayerIndex]);
+    let result = Array.isArray(hand) ? hand : [];
+    
+    // CRITICAL: Apply custom card order from drag/drop and helper buttons
+    if (customCardOrder.length > 0 && result.length > 0) {
+      const orderMap = new Map(customCardOrder.map((id, index) => [id, index]));
+      result = [...result].sort((a, b) => {
+        const aIndex = orderMap.get(a.id) ?? 999;
+        const bIndex = orderMap.get(b.id) ?? 999;
+        return aIndex - bIndex;
+      });
+    }
+    
+    return result;
+  }, [multiplayerGameState, currentPlayerIndex, customCardOrder]);
 
   const effectiveLastPlayedCards: Card[] = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
