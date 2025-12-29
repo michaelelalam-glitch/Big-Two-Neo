@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,17 +20,22 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  const [showFindGameModal, setShowFindGameModal] = useState(false);
   
   // Ranked matchmaking hook
-  const { matchFound, roomCode: rankedRoomCode, startMatchmaking, cancelMatchmaking, resetMatch } = useMatchmaking();
+  const { matchFound, roomCode: rankedRoomCode, startMatchmaking, resetMatch } = useMatchmaking();
   const [isRankedSearching, setIsRankedSearching] = useState(false);
   
   // Auto-navigate when ranked match found
   useEffect(() => {
     if (matchFound && rankedRoomCode) {
-      resetMatch();
+      roomLogger.info(`[HomeScreen] 🎉 Ranked match found! Navigating to: ${rankedRoomCode}`);
       setIsRankedSearching(false);
-      navigation.replace('Lobby', { roomCode: rankedRoomCode });
+      resetMatch();
+      // Small delay to ensure UI updates
+      setTimeout(() => {
+        navigation.replace('Lobby', { roomCode: rankedRoomCode });
+      }, 100);
     }
   }, [matchFound, rankedRoomCode, navigation, resetMatch]);
 
@@ -40,13 +45,23 @@ export default function HomeScreen() {
     try {
       const { data, error } = await supabase
         .from('room_players')
-        .select('room_id, rooms!inner(code)')
+        .select('room_id, rooms!inner(code, status)')
         .eq('user_id', user.id)
+        .in('rooms.status', ['waiting', 'playing']) // CRITICAL: Only show banner for active rooms
         .single();
 
       if (error && error.code !== 'PGRST116') {
         // Only log error message/code to avoid exposing DB internals
         roomLogger.error('Error checking current room:', error?.message || error?.code || 'Unknown error');
+        
+        // CRITICAL: Clean up zombie entries if room doesn't exist
+        if (error.code === 'PGRST116') {
+          await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id);
+          roomLogger.info('🧹 Cleaned up zombie room_player entry');
+        }
         return;
       }
 
@@ -79,6 +94,9 @@ export default function HomeScreen() {
       destructive: true,
       onConfirm: async () => {
         try {
+          roomLogger.info(`🚪 Leaving room ${currentRoom}...`);
+          
+          // Delete from room_players (trigger will auto-delete room if empty)
           const { error } = await supabase
             .from('room_players')
             .delete()
@@ -86,8 +104,12 @@ export default function HomeScreen() {
 
           if (error) throw error;
 
+          roomLogger.info('✅ Successfully left room - auto-cleanup triggered');
           showSuccess(i18n.t('home.leftRoom'));
           setCurrentRoom(null);
+          
+          // Force refresh to ensure banner is cleared
+          await checkCurrentRoom();
         } catch (error: any) {
           // Only log error message/code to avoid exposing DB internals
           roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
@@ -97,84 +119,206 @@ export default function HomeScreen() {
     });
   };
 
-  const generateRoomCode = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude O, I, 0, 1 to avoid confusion
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  };
-  
-  const handleRankedMatch = async () => {
+  // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
+  // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
+  const handleRankedMatch = async (retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    
     if (!user || !profile) {
       showError('You must be signed in for ranked matches');
       return;
     }
+
+    roomLogger.info(`🏆 Ranked Match started for user: ${user.id} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+    setShowFindGameModal(false);
+    setIsRankedSearching(true);
     
     try {
-      setIsRankedSearching(true);
+      // Clean up any zombie entries first (same as casual)
+      roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
+      await supabase.from('room_players').delete().eq('user_id', user.id);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // STEP 1: Try to find existing RANKED room with space (same as casual)
+      roomLogger.info('📡 Searching for joinable ranked rooms...');
+      const { data: availableRooms, error: searchError } = await supabase
+        .from('rooms')
+        .select('id, code, status')
+        .eq('status', 'waiting')
+        .eq('is_public', true)
+        .eq('is_matchmaking', true)
+        .eq('ranked_mode', true) // 🔥 RANKED rooms only
+        .order('created_at', { ascending: true })
+        .limit(5);
+
+      if (searchError) throw searchError;
+
+      roomLogger.info(`📊 Found ${availableRooms?.length || 0} potential ranked rooms`);
+
+      // STEP 2: Try to join first available ranked room with space
+      if (availableRooms && availableRooms.length > 0) {
+        for (const room of availableRooms) {
+          const { count } = await supabase
+            .from('room_players')
+            .select('*', { count: 'exact', head: true })
+            .eq('room_id', room.id);
+          
+          roomLogger.info(`  Ranked Room ${room.code}: ${count}/4 players`);
+          
+          if (count !== null && count < 4) {
+            roomLogger.info(`✅ Joining ranked room ${room.code}...`);
+            
+            const username = profile.username || `Player_${user.id.substring(0, 8)}`;
+            const { error: joinError } = await supabase.rpc('join_room_atomic', {
+              p_room_code: room.code,
+              p_user_id: user.id,
+              p_username: username
+            });
+
+            if (joinError) {
+              roomLogger.error(`❌ Failed to join ${room.code}:`, joinError.message);
+              continue;
+            }
+
+            // Success!
+            roomLogger.info(`🎉 Successfully joined existing ranked room: ${room.code}`);
+            setCurrentRoom(room.code);
+            setIsRankedSearching(false);
+            navigation.replace('Lobby', { roomCode: room.code });
+            return;
+          }
+        }
+      }
+
+      // STEP 3: No joinable ranked room found - create new one
+      roomLogger.info('🆕 Creating new ranked room...');
       const username = profile.username || `Player_${user.id.substring(0, 8)}`;
-      await startMatchmaking(username, profile.elo || 1000, 'global', 'ranked');
+      
+      const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
+        p_user_id: user.id,
+        p_username: username,
+        p_is_public: true,
+        p_is_matchmaking: true,
+        p_ranked_mode: true // 🔥 RANKED flag
+      });
+
+      if (createError) {
+        roomLogger.error('❌ Ranked room creation failed:', createError.message);
+        
+        if (createError.message?.includes('collision') && retryCount < MAX_RETRIES) {
+          roomLogger.info(`🔄 Collision detected, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+          setIsRankedSearching(false);
+          return handleRankedMatch(retryCount + 1);
+        }
+        
+        throw createError;
+      }
+
+      const result = roomResult as { success: boolean; room_code: string; attempts: number };
+      
+      if (!result || !result.success || !result.room_code) {
+        throw new Error('Failed to create ranked room');
+      }
+
+      roomLogger.info(`🎉 Ranked room created: ${result.room_code}`);
+      setCurrentRoom(result.room_code);
+      setIsRankedSearching(false);
+      navigation.replace('Lobby', { roomCode: result.room_code });
     } catch (error: any) {
-      roomLogger.error('Error starting ranked match:', error?.message || String(error));
-      showError('Failed to start ranked match');
+      roomLogger.error('❌ Error with ranked match:', error?.message || String(error));
+      showError(error?.message || 'Failed to start ranked match');
       setIsRankedSearching(false);
     }
+  };
+  
+  const handleCasualMatch = () => {
+    setShowFindGameModal(false);
+    handleQuickPlay();
   };
 
   const handleQuickPlay = async (retryCount = 0) => {
     const MAX_RETRIES = 3;
     
-    if (!user) {
-      showError('You must be signed in to quick play');
+    if (!user || !profile) {
+      showError('You must be signed in to play');
       return;
     }
 
-    roomLogger.info(`🎮 Quick Play started for user: ${user.id} (retry ${retryCount}/${MAX_RETRIES})`);
+    roomLogger.info(`🎮 Casual Match started for user: ${user.id} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
     setIsQuickPlaying(true);
+    
     try {
-      // STEP 1: Check if user is already in a room
-      roomLogger.info('🔍 Checking if user is already in a room...');
+      // STEP 1: Check if user is ALREADY in an active room
+      roomLogger.info('🔍 Checking for existing active room...');
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
         .select('room_id, rooms!inner(code, status)')
         .eq('user_id', user.id)
+        .in('rooms.status', ['waiting', 'playing'])
         .single();
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (checkError && checkError.code !== 'PGRST116') {
         roomLogger.error('❌ Error checking existing room:', checkError);
         throw checkError;
       }
 
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
-        roomLogger.info('✅ User already in room:', roomPlayer.rooms.code);
-        // User is already in a room, navigate there
+        roomLogger.info('✅ User already in active room:', roomPlayer.rooms.code);
         setCurrentRoom(roomPlayer.rooms.code);
         navigation.replace('Lobby', { roomCode: roomPlayer.rooms.code });
         return;
       }
 
-      // STEP 2: Try to find PUBLIC waiting rooms with space
-      roomLogger.info('📡 Fetching public waiting rooms...');
+      // STEP 2: Clean up any zombie entries from old sessions
+      roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
+      const { error: cleanupError } = await supabase
+        .from('room_players')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (cleanupError) {
+        roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        // Don't throw - continue anyway
+      }
+      
+      // CRITICAL FIX: Wait for cleanup to propagate through Postgres
+      // Without this, join_room_atomic may still see user in old room
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify cleanup succeeded
+      const { data: stillInRoom, error: verifyError } = await supabase
+        .from('room_players')
+        .select('room_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (stillInRoom) {
+        roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+        throw new Error('Failed to leave previous room. Please try again.');
+      }
+
+      // STEP 3: Try to find existing PUBLIC casual room with space
+      roomLogger.info('📡 Searching for joinable casual rooms...');
       const { data: availableRooms, error: searchError } = await supabase
         .from('rooms')
-        .select('id, code, status, created_at, is_public')
+        .select('id, code, status')
         .eq('status', 'waiting')
         .eq('is_public', true)
-        .order('created_at', { ascending: true });
+        .eq('is_matchmaking', true)
+        .eq('ranked_mode', false) // Casual rooms only
+        .order('created_at', { ascending: true })
+        .limit(5);
 
-      roomLogger.info('📊 Public rooms found:', availableRooms?.length || 0);
       if (searchError) {
         roomLogger.error('❌ Search error:', searchError);
         throw searchError;
       }
 
-      // STEP 3: Check each room for space
-      let roomWithSpace = null;
+      roomLogger.info(`📊 Found ${availableRooms?.length || 0} potential rooms`);
+
+      // STEP 4: Try to join first available room with space
       if (availableRooms && availableRooms.length > 0) {
-        roomLogger.info('🔍 Checking rooms for space...');
         for (const room of availableRooms) {
           const { count } = await supabase
             .from('room_players')
@@ -182,101 +326,67 @@ export default function HomeScreen() {
             .eq('room_id', room.id);
           
           roomLogger.info(`  Room ${room.code}: ${count}/4 players`);
-          if (count !== null && count < 4) {
-            roomWithSpace = { ...room, playerCount: count };
-            break;
-          }
-        }
-      }
-
-      // STEP 4: Join existing room OR create new public room
-      if (roomWithSpace) {
-        roomLogger.info('✅ Joining existing public room via atomic join:', roomWithSpace.code);
-        
-        const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
-        
-        // Use atomic join function to prevent race conditions
-        const { data: joinResult, error: joinError } = await supabase
-          .rpc('join_room_atomic', {
-            p_room_code: roomWithSpace.code,
-            p_user_id: user.id,
-            p_username: username
-          });
-
-        if (joinError) {
-          roomLogger.error('❌ Atomic join error:', joinError?.message || joinError?.code || 'Unknown error');
           
-          // Handle specific error cases
-          if (joinError.message?.includes('Room is full') || joinError.message?.includes('Room not found')) {
-            roomLogger.info('⚠️ Room unavailable (full or deleted), retrying...');
-            // Retry with a different room (early return to prevent loading state issues)
-            if (retryCount < MAX_RETRIES) {
-              roomLogger.info(`🔄 Retrying Quick Play (${retryCount + 1}/${MAX_RETRIES})...`);
-              setIsQuickPlaying(false); // Reset before retry
-              return handleQuickPlay(retryCount + 1);
-            } else {
-              roomLogger.info('⚠️ Max retries reached, creating new room instead...');
-              // Fall through to room creation logic
+          if (count !== null && count < 4) {
+            roomLogger.info(`✅ Joining room ${room.code} via atomic join...`);
+            
+            const username = profile.username || `Player_${user.id.substring(0, 8)}`;
+            const { error: joinError } = await supabase
+              .rpc('join_room_atomic', {
+                p_room_code: room.code,
+                p_user_id: user.id,
+                p_username: username
+              });
+
+            if (joinError) {
+              roomLogger.error(`❌ Failed to join ${room.code}:`, joinError.message);
+              continue; // Try next room
             }
-          } else if (joinError.message?.includes('already in another room')) {
-            showError('You are already in another room. Please leave it first.');
+
+            // Success!
+            roomLogger.info(`🎉 Successfully joined existing room: ${room.code}`);
+            setCurrentRoom(room.code);
+            navigation.replace('Lobby', { roomCode: room.code });
             return;
-          } else {
-            // Unexpected error
-            throw joinError;
           }
-        } else {
-          // Success - joined the room
-          roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
-          setCurrentRoom(roomWithSpace.code);
-          navigation.replace('Lobby', { roomCode: roomWithSpace.code });
-          return;
         }
       }
 
-      // Create a new PUBLIC room if no valid room found
-      roomLogger.info('🆕 Creating new PUBLIC Quick Play room...');
-      const roomCode = generateRoomCode();
+      // STEP 5: No joinable room found - create new one using RPC (guaranteed unique)
+      roomLogger.info('🆕 Creating new casual room using get_or_create_room RPC...');
+      const username = profile.username || `Player_${user.id.substring(0, 8)}`;
       
-      const { error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          code: roomCode,
-          host_id: null, // Let join_room_atomic set the host
-          status: 'waiting',
-          is_public: true, // PUBLIC room for Quick Play
-          is_matchmaking: true, // CRITICAL: Mark as matchmaking room
-          ranked_mode: false, // Quick Play is always casual (non-ranked)
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (roomError) {
-        roomLogger.error('❌ Room creation error:', roomError?.message || roomError?.code || 'Unknown error');
-        throw roomError;
-      }
-      roomLogger.info('✅ Public room created:', roomCode);
-
-      // Use atomic join to add host as first player
-      const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
-      const { data: joinResult, error: playerError } = await supabase
-        .rpc('join_room_atomic', {
-          p_room_code: roomCode,
+      const { data: roomResult, error: createError } = await supabase
+        .rpc('get_or_create_room', {
           p_user_id: user.id,
-          p_username: username
+          p_username: username,
+          p_is_public: true,
+          p_is_matchmaking: true,
+          p_ranked_mode: false
         });
 
-      if (playerError) {
-        roomLogger.error('❌ Player insertion error (atomic):', playerError?.message || playerError?.code || 'Unknown error');
-        throw playerError;
+      if (createError) {
+        roomLogger.error('❌ Room creation failed:', createError.message);
+        
+        // Check if it's a collision error - retry
+        if (createError.message?.includes('collision') && retryCount < MAX_RETRIES) {
+          roomLogger.info(`🔄 Collision detected, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+          setIsQuickPlaying(false);
+          return handleQuickPlay(retryCount + 1);
+        }
+        
+        throw createError;
       }
-      roomLogger.info('✅ Host added to public room (atomic):', joinResult);
 
-      // Navigate to lobby
-      roomLogger.info('🚀 Navigating to lobby...');
-      setCurrentRoom(roomCode);
-      navigation.replace('Lobby', { roomCode });
+      const result = roomResult as { success: boolean; room_code: string; attempts: number };
+      
+      if (!result || !result.success || !result.room_code) {
+        throw new Error('Failed to create room: Invalid response from server');
+      }
+
+      roomLogger.info(`🎉 Room created successfully: ${result.room_code} (${result.attempts} attempts)`);
+      setCurrentRoom(result.room_code);
+      navigation.replace('Lobby', { roomCode: result.room_code });
     } catch (error: any) {
       // Only log error message/code to avoid exposing DB internals, auth tokens, or stack traces
       roomLogger.error('❌ Error with quick play:', error?.message || error?.code || String(error));
@@ -337,40 +447,37 @@ export default function HomeScreen() {
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.mainButton, styles.casualMatchButton, isQuickPlaying && styles.buttonDisabled]}
-            onPress={() => void handleQuickPlay()}
-            disabled={isQuickPlaying}
+            style={[styles.mainButton, styles.findGameButton, (isQuickPlaying || isRankedSearching) && styles.buttonDisabled]}
+            onPress={() => setShowFindGameModal(true)}
+            disabled={isQuickPlaying || isRankedSearching}
           >
-            {isQuickPlaying ? (
+            {(isQuickPlaying || isRankedSearching) ? (
               <>
                 <ActivityIndicator color={COLORS.white} size="small" />
-                <Text style={styles.mainButtonSubtext}>{i18n.t('common.loading')}</Text>
+                <Text style={styles.mainButtonSubtext}>
+                  {isRankedSearching ? i18n.t('home.findingRankedMatch') : i18n.t('common.loading')}
+                </Text>
               </>
             ) : (
               <>
-                <Text style={styles.mainButtonText}>🎮 Casual Match</Text>
-                <Text style={styles.mainButtonSubtext}>Join casual game</Text>
+                <Text style={styles.mainButtonText}>🎮 Find a Game</Text>
+                <Text style={styles.mainButtonSubtext}>Play online matches</Text>
               </>
             )}
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.mainButton, styles.rankedMatchButton, isRankedSearching && styles.buttonDisabled]}
-            onPress={handleRankedMatch}
-            disabled={isRankedSearching}
-          >
-            {isRankedSearching ? (
-              <>
-                <ActivityIndicator color={COLORS.white} size="small" />
-                <Text style={styles.mainButtonSubtext}>Finding match...</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.mainButtonText}>🏆 Ranked Match</Text>
-                <Text style={styles.mainButtonSubtext}>Competitive matchmaking</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          
+          {isRankedSearching && (
+            <TouchableOpacity
+              style={[styles.mainButton, styles.cancelButton]}
+              onPress={async () => {
+                await cancelMatchmaking();
+                setIsRankedSearching(false);
+              }}
+            >
+              <Text style={styles.mainButtonText}>❌ Cancel Search</Text>
+              <Text style={styles.mainButtonSubtext}>Stop looking for ranked match</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.mainButton, styles.createButton]}
@@ -398,6 +505,50 @@ export default function HomeScreen() {
         </View>
       </View>
       </ScrollView>
+      
+      {/* Find a Game Modal */}
+      <Modal
+        visible={showFindGameModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFindGameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>🎮 Find a Game</Text>
+            <Text style={styles.modalSubtitle}>Choose your game mode</Text>
+            
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCasualButton]}
+                onPress={handleCasualMatch}
+                disabled={isQuickPlaying}
+              >
+                <Text style={styles.modalButtonIcon}>🎮</Text>
+                <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
+                <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalRankedButton]}
+                onPress={handleRankedMatch}
+                disabled={isRankedSearching}
+              >
+                <Text style={styles.modalButtonIcon}>🏆</Text>
+                <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
+                <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowFindGameModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -515,15 +666,15 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  casualMatchButton: {
-    backgroundColor: '#10B981', // Vibrant Green for Casual
+  findGameButton: {
+    backgroundColor: '#10B981', // Vibrant Green
     borderWidth: 2,
     borderColor: '#34D399',
   },
-  rankedMatchButton: {
-    backgroundColor: '#F59E0B', // Gold for Ranked/Competitive
+  cancelButton: {
+    backgroundColor: '#EF4444', // Red
     borderWidth: 2,
-    borderColor: '#FBBF24',
+    borderColor: '#F87171',
   },
   createButton: {
     backgroundColor: '#3B82F6', // Blue
@@ -547,5 +698,88 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalContainer: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    padding: SPACING.xl,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 2,
+    borderColor: COLORS.secondary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
+  modalSubtitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray.medium,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  modalButtonContainer: {
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  modalButton: {
+    padding: SPACING.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalCasualButton: {
+    backgroundColor: '#10B981',
+    borderColor: '#34D399',
+  },
+  modalRankedButton: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#FBBF24',
+  },
+  modalButtonIcon: {
+    fontSize: 32,
+    marginBottom: SPACING.xs,
+  },
+  modalButtonText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    marginBottom: SPACING.xs,
+  },
+  modalButtonSubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.white,
+    opacity: 0.9,
+    textAlign: 'center',
+  },
+  modalCancelButton: {
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray.medium,
+    fontWeight: '600',
   },
 });
