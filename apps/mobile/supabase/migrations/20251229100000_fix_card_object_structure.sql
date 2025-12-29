@@ -15,7 +15,6 @@ RETURNS JSONB AS $$
 DECLARE
   v_suit CHAR(1);
   v_rank TEXT;
-  v_suit_name TEXT;
 BEGIN
   -- Extract suit (first character)
   v_suit := substring(card_code from 1 for 1);
@@ -23,19 +22,11 @@ BEGIN
   -- Extract rank (remaining characters)
   v_rank := substring(card_code from 2);
   
-  -- Convert suit code to name
-  v_suit_name := CASE v_suit
-    WHEN 'C' THEN 'CLUBS'
-    WHEN 'D' THEN 'DIAMONDS'
-    WHEN 'H' THEN 'HEARTS'
-    WHEN 'S' THEN 'SPADES'
-  END;
-  
-  -- Build proper card object
+  -- Build proper card object with SINGLE-LETTER SUIT (matches Edge Function)
   RETURN jsonb_build_object(
     'id', card_code,
     'rank', v_rank,
-    'suit', v_suit_name
+    'suit', v_suit  -- Returns 'D' not 'DIAMONDS'
   );
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
