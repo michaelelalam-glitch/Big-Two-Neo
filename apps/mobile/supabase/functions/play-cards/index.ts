@@ -555,7 +555,7 @@ Deno.serve(async (req) => {
     const is_first_play = played_cards.length === 0;
 
     if (is_first_play && match_number === 1) {
-      const has_three_diamond = cards.some((c: Card) => c.id === '3D');
+      const has_three_diamond = cards.some((c: Card) => c.id === '3D' || c.id === 'D3');
       if (!has_three_diamond) {
         return new Response(
           JSON.stringify({
