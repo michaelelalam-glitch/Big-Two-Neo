@@ -92,12 +92,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       userIdRef.current = user.id;
 
-      // Call find_match function (TODO: Add match_type support after migration applied)
+      // Call find_match function with match_type parameter
       const { data, error: matchError } = await supabase.rpc('find_match', {
-        p_user_id: user.id,
         p_username: username,
         p_skill_rating: skillRating,
         p_region: region,
+        p_match_type: matchType, // Pass match type to DB function
       });
 
       if (matchError) {
@@ -122,7 +122,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
         
         // Poll every 2 seconds for matches
         pollIntervalRef.current = setInterval(async () => {
-          await checkForMatch(user.id, username, skillRating, region);
+          await checkForMatch(user.id, username, skillRating, region, matchType);
         }, 2000);
       }
     } catch (err) {
@@ -139,14 +139,15 @@ export function useMatchmaking(): UseMatchmakingReturn {
     userId: string,
     username: string,
     skillRating: number,
-    region: string
+    region: string,
+    matchType: 'casual' | 'ranked' = 'casual' // Add matchType parameter
   ) => {
     try {
       const { data, error: matchError } = await supabase.rpc('find_match', {
-        p_user_id: userId,
         p_username: username,
         p_skill_rating: skillRating,
         p_region: region,
+        p_match_type: matchType, // Pass match type to DB function
       });
 
       if (matchError) throw matchError;
@@ -200,7 +201,6 @@ export function useMatchmaking(): UseMatchmakingReturn {
           table: 'waiting_room',
         },
         (payload) => {
-          console.log('Waiting room update:', payload);
           
           // If this user was matched, stop searching
           if (

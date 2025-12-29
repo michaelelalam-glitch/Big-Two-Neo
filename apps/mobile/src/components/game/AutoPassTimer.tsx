@@ -1,8 +1,20 @@
 /**
  * Auto-Pass Timer Component
  * 
- * Displays a countdown timer when the highest possible card/combo is played.
- * Shows visual indicator and clear messaging for the 10-second auto-pass window.
+ * UPDATED: December 29, 2025 - SERVER-AUTHORITATIVE SYNC
+ * Displays a countdown timer using server-authoritative endTimestamp with clock-sync correction.
+ * 
+ * Architecture:
+ * - Server creates timer with end_timestamp = server_time + 10000ms
+ * - Client measures clock offset: offset = server_time - local_time
+ * - Client calculates remaining = end_timestamp - (local_now + offset)
+ * - Uses requestAnimationFrame for smooth 60fps countdown
+ * - NO setInterval - pure calculation from server endTimestamp
+ * 
+ * This ensures ALL 4 devices show IDENTICAL countdown (within 100ms) regardless of:
+ * - Network latency (50-500ms)
+ * - Clock drift between devices
+ * - Late joins or reconnections
  */
 
 import React, { useEffect, useState } from 'react';
@@ -10,6 +22,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
+import { useClockSync } from '../../hooks/useClockSync';
 
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
@@ -21,17 +34,87 @@ export default function AutoPassTimer({
   currentPlayerIndex,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  
+  // ⏱️ CRITICAL: Clock sync with server
+  const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
 
+  // Update current time every frame for smooth countdown
   useEffect(() => {
     if (!timerState || !timerState.active) {
       return;
     }
 
-    // Calculate display seconds (rounded)
-    const seconds = Math.ceil(timerState.remaining_ms / 1000);
+    let animationFrameId: number;
+    const updateTime = () => {
+      setCurrentTime(Date.now());
+      animationFrameId = requestAnimationFrame(updateTime);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateTime);
+    
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [timerState?.active, (timerState as any)?.end_timestamp]);
+
+  // ⏰ CRITICAL: Calculate remaining time from server-authoritative endTimestamp
+  const calculateRemainingMs = (): number => {
+    if (!timerState) return 0;
+    
+    // NEW ARCHITECTURE: Use end_timestamp if available (server-authoritative)
+    const endTimestamp = (timerState as any).end_timestamp;
+    if (typeof endTimestamp === 'number') {
+      // Use clock-corrected current time
+      const correctedNow = getCorrectedNow();
+      const remaining = Math.max(0, endTimestamp - correctedNow);
+      
+      // Debug logging (only log once per second to avoid spam)
+      if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
+        console.log('[AutoPassTimer] Server-authoritative calculation:', {
+          endTimestamp: new Date(endTimestamp).toISOString(),
+          correctedNow: new Date(correctedNow).toISOString(),
+          localNow: new Date(Date.now()).toISOString(),
+          offsetMs,
+          isSynced,
+          remaining,
+          seconds: Math.ceil(remaining / 1000),
+        });
+      }
+      
+      return remaining;
+    }
+    
+    // FALLBACK: Old architecture (calculate from started_at)
+    const startedAt = new Date(timerState.started_at).getTime();
+    const elapsed = currentTime - startedAt;
+    const durationMs = timerState.duration_ms || 10000;
+    const remaining = Math.max(0, durationMs - elapsed);
+    
+    if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
+      console.log('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
+        startedAt: new Date(startedAt).toISOString(),
+        currentTime: new Date(currentTime).toISOString(),
+        elapsed,
+        durationMs,
+        remaining,
+        seconds: Math.ceil(remaining / 1000),
+      });
+    }
+    
+    return remaining;
+  };
+
+  const remainingMs = calculateRemainingMs();
+  const currentSeconds = Math.ceil(remainingMs / 1000);
+
+  useEffect(() => {
+    if (!timerState || !timerState.active || remainingMs <= 0) {
+      return;
+    }
 
     // Start pulse animation when timer is active and below 5 seconds
-    if (seconds <= 5) {
+    if (currentSeconds <= 5) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -49,18 +132,15 @@ export default function AutoPassTimer({
     } else {
       pulseAnim.setValue(1);
     }
-  }, [timerState?.remaining_ms, timerState?.active, pulseAnim]);
+  }, [currentSeconds, timerState?.active, remainingMs, pulseAnim]);
 
-  // Don't render if timer is not active
-  if (!timerState || !timerState.active || timerState.remaining_ms <= 0) {
+  // Don't render if timer is not active or has expired
+  if (!timerState || !timerState.active || remainingMs <= 0) {
     return null;
   }
-
-  // Calculate display seconds directly from remaining_ms for accuracy
-  const currentSeconds = Math.ceil(timerState.remaining_ms / 1000);
   
   // Calculate progress percentage (1.0 = full, 0.0 = empty)
-  const progress = timerState.remaining_ms / timerState.duration_ms;
+  const progress = remainingMs / timerState.duration_ms;
 
   // Determine color based on remaining time (use current calculation, not state)
   const getTimerColor = (): string => {

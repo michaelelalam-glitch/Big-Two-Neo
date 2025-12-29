@@ -266,18 +266,6 @@ export const GameEndModal: React.FC = () => {
     );
   };
 
-  // CRITICAL DEBUG: Log modal state whenever it changes
-  useEffect(() => {
-    console.log('🔍 [GameEndModal] Render state:', {
-      showGameEndModal,
-      gameWinnerName,
-      finalScoresCount: finalScores.length,
-      playerNamesCount: playerNames.length,
-      scoreHistoryCount: scoreHistory.length,
-      playHistoryCount: playHistory.length,
-    });
-  }, [showGameEndModal, gameWinnerName, finalScores, playerNames, scoreHistory, playHistory]);
-  
   // CRITICAL FIX: Show loading state while waiting for data
   if (showGameEndModal && (finalScores.length === 0 || !gameWinnerName)) {
     console.warn('⚠️ [GameEndModal] Showing loading state - missing data:', {
@@ -305,11 +293,9 @@ export const GameEndModal: React.FC = () => {
   
   // CRITICAL FIX: Don't render if modal should not be visible
   if (!showGameEndModal) {
-    console.log('✅ [GameEndModal] Modal hidden - not rendering');
     return null;
   }
   
-  console.log('✅ [GameEndModal] Rendering full modal with data');
   
   return (
     <>

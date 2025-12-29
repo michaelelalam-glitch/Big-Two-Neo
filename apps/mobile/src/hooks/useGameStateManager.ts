@@ -12,6 +12,7 @@ interface UseGameStateManagerProps {
   roomCode: string;
   currentPlayerName: string;
   forceNewGame?: boolean;
+  isLocalGame?: boolean; // NEW: Only initialize game engine for local games
   addScoreHistory: (history: ScoreHistory) => void;
   openGameEndModal: (
     winnerName: string,
@@ -49,6 +50,7 @@ export function useGameStateManager({
   roomCode,
   currentPlayerName,
   forceNewGame = false,
+  isLocalGame = true, // Default true for backwards compatibility
   addScoreHistory,
   openGameEndModal,
   scoreHistory,
@@ -77,9 +79,15 @@ export function useGameStateManager({
 
   // Initialize game engine
   useEffect(() => {
+    // CRITICAL: Skip initialization for multiplayer games (handled by useRealtime)
+    if (!isLocalGame) {
+      gameLogger.info('⏭️ [useGameStateManager] Skipping local game init - multiplayer mode');
+      setIsInitializing(false);
+      return;
+    }
+
     // Prevent multiple initializations for the same room
     if (isInitializedRef.current && initializedRoomRef.current === roomCode) {
-      gameLogger.debug('⏭️ [useGameStateManager] Game already initialized for room:', roomCode);
       return;
     }
 
@@ -118,14 +126,6 @@ export function useGameStateManager({
 
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
-          gameLogger.debug('📊 [useGameStateManager] Game state updated:', {
-            currentPlayer: state.players[state.currentPlayerIndex].name,
-            handSize: state.players[0].hand.length,
-            lastPlay: state.lastPlay?.combo_type || 'none',
-            gameEnded: state.gameEnded,
-            gameOver: state.gameOver,
-          });
-
           // Play turn notification when it becomes player's turn
           const previousState = gameState;
           if (
@@ -312,7 +312,7 @@ export function useGameStateManager({
 
     initGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode, currentPlayerName]);
+  }, [roomCode, currentPlayerName, isLocalGame]);
 
   return {
     gameManagerRef,

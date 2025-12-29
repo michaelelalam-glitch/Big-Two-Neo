@@ -136,41 +136,34 @@ export default function CreateRoomScreen() {
         return;
       }
 
-      const roomCode = generateRoomCode();
-      
-      // Create PRIVATE room in Supabase
-      const { data: roomData, error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          code: roomCode,
-          host_id: null, // Let join_room_atomic set the host
-          status: 'waiting',
-          is_public: false, // PRIVATE room for Create Room
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (roomError) throw roomError;
-
-      // Use atomic join to add creator as host
+      // CRITICAL FIX: Use get_or_create_room RPC instead of manual INSERT + join_room_atomic
+      // This ensures atomic room creation and user join in a single transaction
       const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
-      const { data: joinResult, error: playerError } = await supabase
-        .rpc('join_room_atomic', {
-          p_room_code: roomCode,
+      
+      const { data: roomResult, error: createError } = await supabase
+        .rpc('get_or_create_room', {
           p_user_id: user.id,
-          p_username: username
+          p_username: username,
+          p_is_public: false, // PRIVATE room for Create Room
+          p_is_matchmaking: false,
+          p_ranked_mode: false
         });
 
-      if (playerError) {
-        roomLogger.error('❌ Atomic join error in CreateRoom:', playerError);
-        throw playerError;
+      if (createError) {
+        roomLogger.error('❌ Room creation failed:', createError);
+        throw createError;
       }
 
-      roomLogger.info('✅ Host added to room (atomic):', joinResult);
+      const result = roomResult as { success: boolean; room_code: string; room_id: string };
+      
+      if (!result || !result.success || !result.room_code) {
+        throw new Error('Failed to create room: Invalid response from server');
+      }
+
+      roomLogger.info('✅ Room created and joined successfully:', result.room_code);
 
       // Navigate to lobby
-      navigation.replace('Lobby', { roomCode });
+      navigation.replace('Lobby', { roomCode: result.room_code });
     } catch (error: any) {
       // Only log error message/code to avoid exposing DB internals or auth tokens
       roomLogger.error('Error creating room:', error?.message || error?.code || String(error));

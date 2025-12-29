@@ -78,6 +78,17 @@ const Card = React.memo(function Card({
   sharedDragY = 0,
   cardOverlap = DEFAULT_CARD_OVERLAP_MARGIN,
 }: CardProps) {
+  // 🔥 CRITICAL DEBUG: Why are cards rendering blank?
+  if (!card || !card.rank || !card.suit) {
+    console.error('[Card] 🚨 INVALID CARD OBJECT:', {
+      hasCard: !!card,
+      cardId: card?.id,
+      cardRank: card?.rank,
+      cardSuit: card?.suit,
+      fullCard: JSON.stringify(card),
+    });
+  }
+  
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
