@@ -1,6 +1,9 @@
 .expo/
 node_modules/.pnpm-workspace-state-v1.json
 
+# macOS system files
+.DS_Store
+
 # Supabase CLI temporary files
 apps/mobile/supabase/.temp/
 *.apk
