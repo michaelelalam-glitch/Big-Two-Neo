@@ -747,14 +747,17 @@ function GameScreenContent() {
   // CRITICAL FIX: Play/Pass action handlers - defined in GameScreen to work in BOTH orientations
   // Previously these were only set by GameControls which is only mounted in portrait mode
   // PHASE 6: Updated to support both local and multiplayer modes
-  // Task #568: Add ref-based guard to prevent race conditions during server validation
+  // Task #568: Add ref-based guards to prevent race conditions during server validation
+  // Copilot Review: Use separate refs to prevent cross-operation blocking
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
-  const isProcessingRef = useRef(false); // Synchronous guard for duplicate request prevention
+  const isPlayingCardsRef = useRef(false); // Synchronous guard for duplicate play requests
+  const isPassingRef = useRef(false); // Synchronous guard for duplicate pass requests
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
     // Task #568: Prevent race condition with synchronous ref check
-    if (isProcessingRef.current) {
+    // Copilot Review: Separate ref for play operations only
+    if (isPlayingCardsRef.current) {
       gameLogger.warn('⚠️ [GameScreen] Card play already in progress, ignoring duplicate request');
       return;
     }
@@ -773,7 +776,7 @@ function GameScreenContent() {
       }
 
       try {
-        isProcessingRef.current = true; // Set synchronous guard
+        isPlayingCardsRef.current = true; // Set synchronous guard
         setIsPlayingCards(true);
 
         // Task #270: Add haptic feedback for Play button
@@ -791,7 +794,7 @@ function GameScreenContent() {
         gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
         showError(error.message || 'Failed to play cards');
       } finally {
-        isProcessingRef.current = false; // Clear synchronous guard
+        isPlayingCardsRef.current = false; // Clear synchronous guard
         setIsPlayingCards(false);
       }
     } else {
@@ -806,7 +809,7 @@ function GameScreenContent() {
       }
 
       try {
-        isProcessingRef.current = true; // Set synchronous guard
+        isPlayingCardsRef.current = true; // Set synchronous guard
         setIsPlayingCards(true);
         hapticManager.playCard();
         
@@ -818,15 +821,16 @@ function GameScreenContent() {
         gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
         showError(error.message || 'Failed to play cards');
       } finally {
-        isProcessingRef.current = false; // Clear synchronous guard
+        isPlayingCardsRef.current = false; // Clear synchronous guard
         setIsPlayingCards(false);
       }
     }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, isPlayingCards, setSelectedCardIds]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, setSelectedCardIds]);
 
   const handlePass = useCallback(async () => {
     // Task #568: Prevent race condition with synchronous ref check
-    if (isProcessingRef.current) {
+    // Copilot Review: Separate ref for pass operations only
+    if (isPassingRef.current) {
       gameLogger.warn('⚠️ [GameScreen] Pass action already in progress, ignoring duplicate request');
       return;
     }
@@ -844,7 +848,7 @@ function GameScreenContent() {
       }
 
       try {
-        isProcessingRef.current = true; // Set synchronous guard
+        isPassingRef.current = true; // Set synchronous guard
         setIsPassing(true);
 
         // Task #270: Add haptic feedback for Pass button
@@ -857,7 +861,7 @@ function GameScreenContent() {
         gameLogger.error('❌ [GameScreen] Error passing:', error?.message || String(error));
         showError(error.message || 'Failed to pass');
       } finally {
-        isProcessingRef.current = false; // Clear synchronous guard
+        isPassingRef.current = false; // Clear synchronous guard
         setIsPassing(false);
       }
     } else {
@@ -872,7 +876,7 @@ function GameScreenContent() {
       }
 
       try {
-        isProcessingRef.current = true; // Set synchronous guard
+        isPassingRef.current = true; // Set synchronous guard
         setIsPassing(true);
         hapticManager.pass();
         
@@ -883,11 +887,11 @@ function GameScreenContent() {
         gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', error?.message || String(error));
         showError(error.message || 'Failed to pass');
       } finally {
-        isProcessingRef.current = false; // Clear synchronous guard
+        isPassingRef.current = false; // Clear synchronous guard
         setIsPassing(false);
       }
     }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPass, isPassing, setSelectedCardIds]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPass, setSelectedCardIds]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);
