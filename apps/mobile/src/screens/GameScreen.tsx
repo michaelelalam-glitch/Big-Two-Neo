@@ -360,7 +360,7 @@ function GameScreenContent() {
   const oneCardLeftDetectedRef = useRef(new Set<string>()); // Track which players we've alerted for
   useEffect(() => {
     const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
-    const hands = effectiveGameState?.hands;
+    const hands = (effectiveGameState as any)?.hands;
     
     if (!hands || typeof hands !== 'object') return;
     
@@ -391,7 +391,7 @@ function GameScreenContent() {
         oneCardLeftDetectedRef.current.delete(key);
       }
     });
-  }, [isLocalAIGame, gameState?.hands, multiplayerGameState?.hands, multiplayerPlayers, roomCode]);
+  }, [isLocalAIGame, gameState?.hands, (multiplayerGameState as any)?.hands, multiplayerPlayers, roomCode]);
   
   // CRITICAL FIX: Detect multiplayer game end and open modal with proper data
   useEffect(() => {
@@ -415,9 +415,10 @@ function GameScreenContent() {
     const formattedScores: FinalScore[] = Object.entries(finalScores as Record<string, number>).map(([position, score]) => {
       const player = multiplayerPlayers.find(p => p.player_index === parseInt(position));
       return {
-        playerName: player?.username || `Player ${parseInt(position) + 1}`,
-        score: score as number,
-        position: parseInt(position),
+        player_index: parseInt(position),
+        player_name: player?.username || `Player ${parseInt(position) + 1}`,
+        cumulative_score: score as number,
+        points_added: 0, // Unknown from this context
       };
     });
     

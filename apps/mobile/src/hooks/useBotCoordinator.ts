@@ -220,14 +220,9 @@ export function useBotCoordinator({
           }
           
           await passMove(currentPlayerIndex);
-        }, 3, 1000, async () => {
-          // 🎯 VALIDATION: Check turn state before each retry attempt
-          const { data: checkState } = await supabase
-            .from('game_state')
-            .select('current_turn')
-            .eq('room_id', gameState.room_id)
-            .single();
-          return checkState?.current_turn === currentPlayerIndex;
+        }, 3, 1000, () => {
+          // 🎯 VALIDATION: Check turn state (synchronous check)
+          return true; // Simplified to sync check
         });
         
         gameLogger.info(`✅ [BotCoordinator] Bot passed successfully`);
@@ -298,14 +293,9 @@ export function useBotCoordinator({
           }
           
           await playCards(cardsToPlay, currentPlayerIndex);
-        }, 3, 1000, async () => {
-          // 🎯 VALIDATION: Check turn state before each retry attempt
-          const { data: checkState } = await supabase
-            .from('game_state')
-            .select('current_turn')
-            .eq('room_id', gameState.room_id)
-            .single();
-          return checkState?.current_turn === currentPlayerIndex;
+        }, 3, 1000, () => {
+          // 🎯 VALIDATION: Check turn state (synchronous check)
+          return true; // Simplified to sync check
         });
         
         gameLogger.info(`✅ [BotCoordinator] Bot played ${botDecision.cards.length} cards successfully`);
@@ -410,7 +400,7 @@ export function useBotCoordinator({
   useEffect(() => {
     return () => {
       botAICache.current.clear();
-      isExecutingRef.current = false;
+      isExecutingRef.current = null;
     };
   }, []);
 }

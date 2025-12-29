@@ -5,5 +5,9 @@ node_modules/.pnpm-workspace-state-v1.json
 apps/mobile/supabase/.temp/
 *.apk
 
+# iOS/Android build artifacts
+apps/mobile/*.app/
+apps/mobile/Big2Mobile.app/
+
 # Backup files
 *.bak
