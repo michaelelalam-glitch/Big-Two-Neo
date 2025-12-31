@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
-          .update({ status: 'waiting', matched_room_id: null })
+          .update({ status: 'waiting', matched_room_id: null, matched_at: null })
           .in('user_id', matchedUserIds);
         
         return new Response(

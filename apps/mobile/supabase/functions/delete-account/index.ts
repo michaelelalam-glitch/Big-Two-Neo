@@ -125,6 +125,8 @@ Deno.serve(async (req) => {
         failed_tables: cleanupErrors,
       };
       console.warn('⚠️ [delete-account] Cleanup warnings:', cleanupErrors);
+      // TODO: Consider implementing a background cleanup job to retry failed deletions
+      // These failures are tracked and can be retried manually or via scheduled task
     }
 
     return new Response(

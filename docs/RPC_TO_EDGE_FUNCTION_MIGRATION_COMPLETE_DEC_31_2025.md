@@ -67,6 +67,8 @@ These were already Edge Functions before this migration:
 #### Notifications
 12. **send-push-notification** - Sends push notifications to players
 
+**Total: 12 Edge Functions**
+
 ## What Remains as RPC (By Design)
 
 ### Test Functions (Keep as RPC)

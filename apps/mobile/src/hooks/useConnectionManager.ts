@@ -226,7 +226,7 @@ export function useConnectionManager({
           event: '*',
           schema: 'public',
           table: 'room_players',
-          filter: `room_id=eq.${roomId},user_id=eq.${playerId}`,
+          filter: `room_id=eq.${roomId},id=eq.${playerId}`,
         },
         (payload) => {
           const newRecord = payload.new as { connection_status: string };
