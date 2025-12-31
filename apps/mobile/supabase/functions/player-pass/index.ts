@@ -113,6 +113,8 @@ Deno.serve(async (req) => {
     
     // Validate pass_count with type checking
     const rawPassCount = gameState?.pass_count;
+    // Use Number.isFinite in addition to typeof === 'number' to reject NaN, Infinity, and -Infinity,
+    // which are technically numbers but would break the pass_count logic if accepted.
     const currentPassCount =
       typeof rawPassCount === 'number' && Number.isFinite(rawPassCount) ? rawPassCount : 0;
     const newPassCount = currentPassCount + 1;
