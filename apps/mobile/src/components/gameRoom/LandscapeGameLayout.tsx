@@ -187,31 +187,31 @@ export function LandscapeGameLayout({
           />
         )}
 
-        {/* Top opponent - Player 1 (position 2 in scoreboard order) */}
+        {/* Top opponent - Player at index 1 (opposite player, +2 positions clockwise) */}
         <View style={styles.topOpponent}>
-          <LandscapeOpponent
-            name={playerNames[2] || 'Opponent 2'}
-            cardCount={cardCounts[2] || 0}
-            isActive={isOpponentActive(2)}
-            layout="horizontal"
-          />
-        </View>
-
-        {/* Left opponent - Player 2 (position 3 in scoreboard order) */}
-        <View style={styles.leftOpponent}>
-          <LandscapeOpponent
-            name={playerNames[3] || 'Opponent 3'}
-            cardCount={cardCounts[3] || 0}
-            isActive={isOpponentActive(3)}
-          />
-        </View>
-
-        {/* Right opponent - Player 3 (position 1 in scoreboard order) */}
-        <View style={styles.rightOpponent}>
           <LandscapeOpponent
             name={playerNames[1] || 'Opponent 1'}
             cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
+            layout="horizontal"
+          />
+        </View>
+
+        {/* Left opponent - Player at index 2 (left player, +3 positions = 1 counterclockwise) */}
+        <View style={styles.leftOpponent}>
+          <LandscapeOpponent
+            name={playerNames[2] || 'Opponent 2'}
+            cardCount={cardCounts[2] || 0}
+            isActive={isOpponentActive(2)}
+          />
+        </View>
+
+        {/* Right opponent - Player at index 3 (right player, +1 position clockwise) */}
+        <View style={styles.rightOpponent}>
+          <LandscapeOpponent
+            name={playerNames[3] || 'Opponent 3'}
+            cardCount={cardCounts[3] || 0}
+            isActive={isOpponentActive(3)}
           />
         </View>
 

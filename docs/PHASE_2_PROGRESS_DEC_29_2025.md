@@ -159,6 +159,7 @@ const { data, error } = await supabase.functions.invoke('play-cards', {
 - ✅ Client bypassing validation → Fixed with Edge Function enforcement
 - ✅ 3♦ enforced on all matches → Fixed with `match_number` check
 - ✅ One Card Left not enforced → Fixed in Edge Function
+- ✅ **Bot coordinator sending wrong player_id** → Fixed Dec 30, 2025 (was sending host's ID instead of bot's ID)
 
 ---
 

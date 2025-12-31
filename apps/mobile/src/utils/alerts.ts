@@ -11,7 +11,7 @@
  * - showConfirm(options) - For confirmation dialogs with custom buttons
  */
 
-import { Alert, AlertButton } from 'react-native';
+import { Alert, AlertButton, Platform, ToastAndroid } from 'react-native';
 import { i18n } from '../i18n';
 
 /**
@@ -42,12 +42,22 @@ export interface ConfirmOptions {
  * @param title Optional title (defaults to 'Error')
  */
 export const showError = (message: string, title?: string): void => {
-  Alert.alert(
-    title || i18n.t('common.error'),
-    message,
-    [{ text: i18n.t('common.ok'), style: 'default' }],
-    { cancelable: true }
-  );
+  // On Android, use Toast for non-intrusive error display during gameplay
+  // Duration: 5000ms (5 seconds) to ensure users have time to read error messages
+  // On iOS, use Alert as Toast is not available
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(
+      `❌ ${title || i18n.t('common.error')}: ${message}`,
+      5000 // Custom duration: 5 seconds for better readability
+    );
+  } else {
+    Alert.alert(
+      title || i18n.t('common.error'),
+      message,
+      [{ text: i18n.t('common.ok'), style: 'default' }],
+      { cancelable: true }
+    );
+  }
 };
 
 /**
