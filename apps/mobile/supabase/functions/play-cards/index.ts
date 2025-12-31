@@ -810,8 +810,9 @@ Deno.serve(async (req) => {
 
     // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
     // Big Two uses anticlockwise turn order, NOT clockwise!
-    // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    // Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1.
+    // NOTE: This mapping must stay in sync with the server-side / RPC turn-order logic.
+    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 
     // 12. Update played_cards (all cards played so far)

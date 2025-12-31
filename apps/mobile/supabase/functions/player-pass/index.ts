@@ -106,9 +106,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Calculate next turn (clockwise: 0→1→2→3→0)
-    const nextTurn = (player.player_index + 1) % 4;
-    const newPassCount = (gameState.pass_count || 0) + 1;
+    // 6. Calculate next turn (anticlockwise: 0→3→2→1→0)
+    // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
+    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
+    const nextTurn = turnOrder[player.player_index];
+    const newPassCount = (gameState.passes || 0) + 1;
 
     console.log('✅ [player-pass] Processing pass:', {
       player_index: player.player_index,

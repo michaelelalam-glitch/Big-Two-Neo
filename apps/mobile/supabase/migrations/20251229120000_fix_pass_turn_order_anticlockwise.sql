@@ -13,11 +13,13 @@ DECLARE
   v_player RECORD;
   v_next_turn INTEGER;
   v_new_pass_count INTEGER;
-  -- Anticlockwise turn order array: 0→3→1→2→0
+  -- Anticlockwise turn order array: 0→3→2→1→0
+  -- Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1.
   -- Position 0 (bottom) → 3 (right)
   -- Position 3 (right) → 1 (top)
   -- Position 1 (top) → 2 (left)
   -- Position 2 (left) → 0 (bottom)
+  -- NOTE: PostgreSQL arrays are 1-indexed, so turn_order[player_index + 1] accesses the mapping
   v_turn_order INTEGER[] := ARRAY[3, 2, 0, 1];
 BEGIN
   -- Get room

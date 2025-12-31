@@ -23,10 +23,8 @@ import { useBotCoordinator } from '../../hooks/useBotCoordinator';
 import { useRealtime } from '../../hooks/useRealtime';
 import { gameLogger } from '../../utils/logger';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
+import { soundManager, hapticManager, SoundType, showError } from '../../utils';
 import { useHelperButtons } from '../../hooks/useHelperButtons';
-import { useDerivedGameState } from '../../hooks/useDerivedGameState';
-import { useScoreboardMapping } from '../../hooks/useScoreboardMapping';
 import { useCardSelection } from '../../hooks/useCardSelection';
 import { useOrientationManager } from '../../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
@@ -63,7 +61,6 @@ export function MultiplayerGameScreen() {
     customCardOrder,
     setCustomCardOrder,
     handleCardsReorder,
-    getSelectedCards,
   } = useCardSelection();
 
   // Load multiplayer room data
@@ -105,8 +102,6 @@ export function MultiplayerGameScreen() {
   // Server-side multiplayer game state
   const { 
     gameState: multiplayerGameState, 
-    playerHands: multiplayerPlayerHands,
-    isConnected: isMultiplayerConnected,
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady,
     players: realtimePlayers,
@@ -410,8 +405,6 @@ export function MultiplayerGameScreen() {
   }, [multiplayerGameState?.auto_pass_timer?.remaining_ms]);
 
   // Play/Pass action handlers with race condition guards
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
 

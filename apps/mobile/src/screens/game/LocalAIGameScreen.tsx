@@ -44,7 +44,6 @@ export function LocalAIGameScreen() {
   const scoreboardContext = useScoreboard();
   const { 
     addScoreHistory, 
-    addPlayHistory,
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext;
@@ -85,8 +84,6 @@ export function LocalAIGameScreen() {
   const hasPlayedHighestCardSoundRef = useRef(false);
 
   // Race condition guards
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
 

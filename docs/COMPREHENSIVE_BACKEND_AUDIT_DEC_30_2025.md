@@ -938,8 +938,12 @@ After fixes, you should see:
 3. **Redeploy Edge Function:**
    ```bash
    cd apps/mobile
-   supabase functions deploy play-cards --project-ref dppybucldqufbqhwnkxu --no-verify-jwt
+   supabase functions deploy play-cards --project-ref dppybucldqufbqhwnkxu
    ```
+
+   > ⚠️ **Security Note:** The `play-cards` Edge Function contains privileged game logic and must **always enforce JWT verification**.  
+   > Do **not** use `--no-verify-jwt` for this or any other sensitive function.  
+   > Reserve `--no-verify-jwt` only for intentionally public, non-sensitive endpoints (if any) that are designed to be accessed without authentication.
 
 ---
 

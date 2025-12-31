@@ -275,9 +275,9 @@ CREATE TRIGGER update_pass_count
 ## Deployment Commands Reference
 
 ```bash
-# Deploy play-cards function
+# Deploy play-cards function (WITH JWT verification for security)
 cd /apps/mobile
-npx supabase functions deploy play-cards --no-verify-jwt
+npx supabase functions deploy play-cards
 
 # Check function status
 npx supabase functions list
@@ -285,6 +285,10 @@ npx supabase functions list
 # View logs
 # (Or use Supabase Dashboard)
 ```
+
+> ⚠️ **Security Note:** The `play-cards` Edge Function contains privileged game logic and must **always enforce JWT verification**.  
+> Do **not** use `--no-verify-jwt` for this or any other sensitive function.  
+> Reserve `--no-verify-jwt` only for intentionally public, non-sensitive endpoints (if any) that are designed to be accessed without authentication.
 
 ---
 
