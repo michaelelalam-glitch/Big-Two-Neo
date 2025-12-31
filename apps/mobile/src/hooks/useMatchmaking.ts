@@ -118,6 +118,11 @@ export function useMatchmaking(): UseMatchmakingReturn {
         throw new Error('Response missing required fields (matched, waiting_count)');
       }
 
+      // When matched is true, room_code and room_id must be present
+      if (result.matched && (!result.room_code || !result.room_id)) {
+        throw new Error('Matched response missing room details');
+      }
+
       if (result.matched) {
         // Match found immediately!
         setMatchFound(true);

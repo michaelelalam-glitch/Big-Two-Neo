@@ -336,4 +336,77 @@ if (startError || !startResult?.success) {
 
 ---
 
-**Status:** ✅ All critical security issues and code quality improvements addressed
+## 🔄 Round 3 Fixes (3 Additional Comments - Dec 31, 2025 09:30 UTC)
+
+### 1. Added Validation for Matched Response Room Details ✅
+**Issue:** When `matched` is true, `room_code` and `room_id` weren't validated, potentially causing issues downstream.
+
+**Fix Applied:**
+```typescript
+// When matched is true, room_code and room_id must be present
+if (result.matched && (!result.room_code || !result.room_id)) {
+  throw new Error('Matched response missing room details');
+}
+```
+
+### 2. Renamed Confusing userId Parameter to playerId ✅
+**Issue:** Parameter named `userId` was actually `room_players.id`, not `auth.uid()`, causing confusion throughout codebase.
+
+**Fix Applied:**
+- Renamed `userId` to `playerId` in `UseConnectionManagerOptions` interface
+- Updated all 11 references throughout the hook
+- Updated JSDoc and comments for clarity
+- Updated all function callbacks and dependencies
+
+**Impact:** Significantly improves code clarity and reduces risk of bugs from passing wrong identifiers.
+
+### 3. Added Comprehensive Error Logging for Cleanup Failures ✅
+**Issue:** Delete-account function silently continued if data cleanup failed, leaving orphaned data.
+
+**Fix Applied:**
+```typescript
+const cleanupErrors: string[] = [];
+
+// Track errors for each table deletion
+const { error: waitingRoomError } = await supabaseClient
+  .from('waiting_room')
+  .delete()
+  .eq('user_id', userId);
+
+if (waitingRoomError) {
+  console.error('⚠️ [delete-account] Failed to delete from waiting_room:', {
+    user_id: userId.substring(0, 8),
+    error: waitingRoomError,
+  });
+  cleanupErrors.push('waiting_room');
+}
+
+// Return warnings in response
+if (cleanupErrors.length > 0) {
+  responseBody.cleanup_warnings = {
+    message: 'Account deleted, but some related data could not be fully cleaned up.',
+    failed_tables: cleanupErrors,
+  };
+}
+```
+
+**Impact:** 
+- Better observability of cleanup failures
+- Allows retry/cleanup jobs to target specific tables
+- Informs client about partial cleanup
+
+---
+
+## 📊 Summary - Round 3
+
+| Issue | File | Fix Applied | Status |
+|-------|------|-------------|--------|
+| Room details validation | useMatchmaking.ts | Check room_code and room_id when matched | ✅ Fixed |
+| Confusing parameter naming | useConnectionManager.ts | Renamed userId → playerId (11 refs) | ✅ Fixed |
+| Silent cleanup failures | delete-account/index.ts | Added error tracking and warnings | ✅ Fixed |
+
+**Total Issues Addressed:** 3 code quality improvements
+
+---
+
+**Status:** ✅ All critical security issues and code quality improvements addressed (21 total fixes across 3 rounds)

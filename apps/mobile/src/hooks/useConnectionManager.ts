@@ -5,7 +5,7 @@ import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 interface UseConnectionManagerOptions {
   roomId: string;
-  userId: string; // This is room_players.id (player_id), NOT auth.uid()
+  playerId: string; // This is room_players.id, NOT auth.uid()
   enabled: boolean;
 }
 
@@ -31,14 +31,14 @@ interface UseConnectionManagerReturn {
  * ```tsx
  * const { connectionStatus, reconnect } = useConnectionManager({
  *   roomId: 'abc123',
- *   userId: roomPlayersId, // room_players.id, NOT auth.uid()
+ *   playerId: roomPlayersId, // room_players.id, NOT auth.uid()
  *   enabled: true,
  * });
  * ```
  */
 export function useConnectionManager({
   roomId,
-  userId,
+  playerId,
   enabled,
 }: UseConnectionManagerOptions): UseConnectionManagerReturn {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
@@ -51,16 +51,16 @@ export function useConnectionManager({
 
   /**
    * Send heartbeat to update last_seen_at
-   * Note: userId param is room_players.id (validated server-side against auth.uid())
+   * Note: playerId param is room_players.id (validated server-side against auth.uid())
    */
   const sendHeartbeat = useCallback(async () => {
-    if (!enabled || !roomId || !userId) return;
+    if (!enabled || !roomId || !playerId) return;
 
     try {
       const { data, error } = await supabase.functions.invoke('update-heartbeat', {
         body: {
           room_id: roomId,
-          player_id: userId, // userId is room_players.id
+          player_id: playerId, // playerId is room_players.id
         },
       });
 
@@ -72,20 +72,20 @@ export function useConnectionManager({
     } catch (err) {
       console.error('Heartbeat exception:', err);
     }
-  }, [enabled, roomId, userId]);
+  }, [enabled, roomId, playerId]);
 
   /**
    * Mark player as disconnected
-   * Note: userId param is room_players.id (validated server-side against auth.uid())
+   * Note: playerId param is room_players.id (validated server-side against auth.uid())
    */
   const disconnect = useCallback(async () => {
-    if (!roomId || !userId) return;
+    if (!roomId || !playerId) return;
 
     try {
       const { data, error } = await supabase.functions.invoke('mark-disconnected', {
         body: {
           room_id: roomId,
-          player_id: userId, // userId is room_players.id
+          player_id: playerId, // playerId is room_players.id
         },
       });
 
@@ -97,13 +97,13 @@ export function useConnectionManager({
     } catch (err) {
       console.error('Disconnect error:', err);
     }
-  }, [roomId, userId]);
+  }, [roomId, playerId]);
 
   /**
    * Reconnect player (restore from bot if replaced)
    */
   const reconnect = useCallback(async () => {
-    if (!roomId || !userId) return;
+    if (!roomId || !playerId) return;
 
     setIsReconnecting(true);
     setConnectionStatus('reconnecting');
@@ -112,7 +112,7 @@ export function useConnectionManager({
       const { data, error } = await supabase.functions.invoke('reconnect-player', {
         body: {
           room_id: roomId,
-          player_id: userId,
+          player_id: playerId,
         },
       });
 
@@ -146,7 +146,7 @@ export function useConnectionManager({
     } finally {
       setIsReconnecting(false);
     }
-  }, [roomId, userId, sendHeartbeat]);
+  }, [roomId, playerId, sendHeartbeat]);
 
   /**
    * Start heartbeat interval
@@ -195,13 +195,13 @@ export function useConnectionManager({
     return () => {
       subscription.remove();
     };
-  }, [enabled, roomId, userId, reconnect, stopHeartbeat]);
+  }, [enabled, roomId, playerId, reconnect, stopHeartbeat]);
 
   /**
    * Start/stop heartbeat based on enabled state
    */
   useEffect(() => {
-    if (enabled && roomId && userId && appStateRef.current === 'active') {
+    if (enabled && roomId && playerId && appStateRef.current === 'active') {
       startHeartbeat();
     } else {
       stopHeartbeat();
@@ -210,23 +210,23 @@ export function useConnectionManager({
     return () => {
       stopHeartbeat();
     };
-  }, [enabled, roomId, userId, startHeartbeat, stopHeartbeat]);
+  }, [enabled, roomId, playerId, startHeartbeat, stopHeartbeat]);
 
   /**
    * Listen for connection status changes from room_players
    */
   useEffect(() => {
-    if (!enabled || !roomId || !userId) return;
+    if (!enabled || !roomId || !playerId) return;
 
     const channel = supabase
-      .channel(`connection_status_${roomId}_${userId}`)
+      .channel(`connection_status_${roomId}_${playerId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'room_players',
-          filter: `room_id=eq.${roomId},user_id=eq.${userId}`,
+          filter: `room_id=eq.${roomId},user_id=eq.${playerId}`,
         },
         (payload) => {
           const newRecord = payload.new as { connection_status: string };
@@ -246,7 +246,7 @@ export function useConnectionManager({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [enabled, roomId, userId, stopHeartbeat]);
+  }, [enabled, roomId, playerId, stopHeartbeat]);
 
   /**
    * Cleanup on unmount

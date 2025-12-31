@@ -59,36 +59,76 @@ Deno.serve(async (req) => {
     }
 
     // Now delete user data in order (respecting foreign key constraints)
-    // These operations are safe even if they fail since auth user is already deleted
+    // These operations are safe even if they fail since auth user is already deleted,
+    // but we still log and report any cleanup issues to avoid silent data inconsistencies.
+
+    const cleanupErrors: string[] = [];
     
     // 1. Delete from waiting_room
-    await supabaseClient
+    const { error: waitingRoomError } = await supabaseClient
       .from('waiting_room')
       .delete()
       .eq('user_id', userId);
+    if (waitingRoomError) {
+      console.error('⚠️ [delete-account] Failed to delete from waiting_room:', {
+        user_id: userId.substring(0, 8),
+        error: waitingRoomError,
+      });
+      cleanupErrors.push('waiting_room');
+    }
 
     // 2. Delete from room_players
-    await supabaseClient
+    const { error: roomPlayersError } = await supabaseClient
       .from('room_players')
       .delete()
       .eq('user_id', userId);
+    if (roomPlayersError) {
+      console.error('⚠️ [delete-account] Failed to delete from room_players:', {
+        user_id: userId.substring(0, 8),
+        error: roomPlayersError,
+      });
+      cleanupErrors.push('room_players');
+    }
 
     // 3. Delete from user_profiles
-    await supabaseClient
+    const { error: userProfilesError } = await supabaseClient
       .from('user_profiles')
       .delete()
       .eq('id', userId);
+    if (userProfilesError) {
+      console.error('⚠️ [delete-account] Failed to delete from user_profiles:', {
+        user_id: userId.substring(0, 8),
+        error: userProfilesError,
+      });
+      cleanupErrors.push('user_profiles');
+    }
 
     // 4. Delete from user_stats
-    await supabaseClient
+    const { error: userStatsError } = await supabaseClient
       .from('user_stats')
       .delete()
       .eq('user_id', userId);
+    if (userStatsError) {
+      console.error('⚠️ [delete-account] Failed to delete from user_stats:', {
+        user_id: userId.substring(0, 8),
+        error: userStatsError,
+      });
+      cleanupErrors.push('user_stats');
+    }
 
     console.log('✅ [delete-account] Successfully deleted account');
 
+    const responseBody: Record<string, any> = { success: true };
+    if (cleanupErrors.length > 0) {
+      responseBody.cleanup_warnings = {
+        message: 'Account deleted, but some related data could not be fully cleaned up.',
+        failed_tables: cleanupErrors,
+      };
+      console.warn('⚠️ [delete-account] Cleanup warnings:', cleanupErrors);
+    }
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify(responseBody),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
