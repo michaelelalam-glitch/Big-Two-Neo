@@ -106,7 +106,17 @@ export function useMatchmaking(): UseMatchmakingReturn {
         throw matchError;
       }
 
+      // Runtime validation before type casting
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format from find-match');
+      }
+
       const result = data as { matched: boolean; room_code?: string; room_id?: string; waiting_count: number };
+
+      // Validate required fields
+      if (typeof result.matched !== 'boolean' || typeof result.waiting_count !== 'number') {
+        throw new Error('Response missing required fields (matched, waiting_count)');
+      }
 
       if (result.matched) {
         // Match found immediately!

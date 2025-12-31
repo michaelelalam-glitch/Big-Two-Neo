@@ -69,8 +69,11 @@ Deno.serve(async (req) => {
       .eq('status', 'cancelled');
 
     if (deleteError) {
-      console.error('❌ [cancel-matchmaking] Failed to delete entry:', deleteError);
-      // Don't fail - the entry is already marked as cancelled
+      console.warn('⚠️ [cancel-matchmaking] Waiting room entry remains marked as cancelled and may require cleanup.', {
+        user_id: userId.substring(0, 8),
+        error: deleteError,
+      });
+      // Don't fail - the entry is already marked as cancelled; this can be cleaned up by a periodic maintenance job.
     }
 
     console.log('✅ [cancel-matchmaking] Successfully cancelled matchmaking');

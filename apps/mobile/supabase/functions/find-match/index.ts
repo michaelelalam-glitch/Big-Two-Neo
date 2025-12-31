@@ -112,6 +112,8 @@ Deno.serve(async (req) => {
       .eq('user_id', userId);
 
     // 3. Clean up only this user's stale waiting room entries (older than 5 minutes)
+    // Note: This runs on every find-match call. For high-traffic scenarios,
+    // consider moving this to a scheduled background job for better performance.
     await supabaseClient
       .from('waiting_room')
       .delete()
@@ -169,6 +171,11 @@ Deno.serve(async (req) => {
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
     // 6. If we have 4+ players, create a match
+    // Note: There's a potential race condition where multiple concurrent find-match calls
+    // might try to create rooms with overlapping players. For production, consider:
+    // 1. Using database-level locking (SELECT ... FOR UPDATE)
+    // 2. Implementing optimistic concurrency control
+    // 3. Adding a 'processing' status to waiting_room entries
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');
 
@@ -213,6 +220,9 @@ Deno.serve(async (req) => {
       const roomId = room.id;
 
       // Add players to room
+      // Note: This performs multiple database operations without a transaction wrapper.
+      // For production, consider wrapping room creation and player insertion in a
+      // database transaction for atomicity. Current approach uses manual rollback on failure.
       const playersToAdd = waitingPlayers.slice(0, 4).map((player, index) => ({
         room_id: roomId,
         user_id: player.user_id,
@@ -257,6 +267,15 @@ Deno.serve(async (req) => {
 
       if (startError || !startResult?.success) {
         console.error('❌ [find-match] Failed to auto-start game:', startError || startResult);
+        
+        // Rollback: Delete room and reset waiting room entries
+        await supabaseClient.from('rooms').delete().eq('id', roomId);
+        await supabaseClient.from('room_players').delete().eq('room_id', roomId);
+        await supabaseClient
+          .from('waiting_room')
+          .update({ status: 'waiting', matched_room_id: null })
+          .in('user_id', matchedUserIds);
+        
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

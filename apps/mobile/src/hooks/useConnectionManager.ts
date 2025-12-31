@@ -5,7 +5,7 @@ import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 interface UseConnectionManagerOptions {
   roomId: string;
-  userId: string;
+  userId: string; // This is room_players.id (player_id), NOT auth.uid()
   enabled: boolean;
 }
 
@@ -31,7 +31,7 @@ interface UseConnectionManagerReturn {
  * ```tsx
  * const { connectionStatus, reconnect } = useConnectionManager({
  *   roomId: 'abc123',
- *   userId: 'user-123',
+ *   userId: roomPlayersId, // room_players.id, NOT auth.uid()
  *   enabled: true,
  * });
  * ```
@@ -51,6 +51,7 @@ export function useConnectionManager({
 
   /**
    * Send heartbeat to update last_seen_at
+   * Note: userId param is room_players.id (validated server-side against auth.uid())
    */
   const sendHeartbeat = useCallback(async () => {
     if (!enabled || !roomId || !userId) return;
@@ -59,7 +60,7 @@ export function useConnectionManager({
       const { data, error } = await supabase.functions.invoke('update-heartbeat', {
         body: {
           room_id: roomId,
-          player_id: userId,
+          player_id: userId, // userId is room_players.id
         },
       });
 
@@ -75,6 +76,7 @@ export function useConnectionManager({
 
   /**
    * Mark player as disconnected
+   * Note: userId param is room_players.id (validated server-side against auth.uid())
    */
   const disconnect = useCallback(async () => {
     if (!roomId || !userId) return;
@@ -83,7 +85,7 @@ export function useConnectionManager({
       const { data, error } = await supabase.functions.invoke('mark-disconnected', {
         body: {
           room_id: roomId,
-          player_id: userId,
+          player_id: userId, // userId is room_players.id
         },
       });
 
@@ -116,7 +118,15 @@ export function useConnectionManager({
 
       if (!error && data?.success) {
         setConnectionStatus('connected');
-        setIsSpectator(false); // Reconnected players are not spectators
+        
+        // Preserve spectator status from backend if provided
+        const isSpectatorFromServer = data?.result?.is_spectator;
+        if (typeof isSpectatorFromServer === 'boolean') {
+          setIsSpectator(isSpectatorFromServer);
+        } else {
+          // Default: reconnected players are typically not spectators
+          setIsSpectator(false);
+        }
         
         // Resume heartbeat
         if (heartbeatIntervalRef.current) {

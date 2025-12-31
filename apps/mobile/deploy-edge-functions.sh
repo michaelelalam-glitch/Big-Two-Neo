@@ -2,6 +2,19 @@
 
 # RPC to Edge Function Migration - Deployment Script
 # This script deploys all newly created Edge Functions to Supabase
+#
+# Usage:
+#   chmod +x deploy-edge-functions.sh   # one-time setup to make script executable
+#   ./deploy-edge-functions.sh          # run the deployment script
+#   # or:
+#   bash deploy-edge-functions.sh      # if you prefer not to change file permissions
+#
+# Environment Variables:
+#   SUPABASE_PROJECT_REF - Override project reference (default: dppybucldqufbqhwnkxu)
+#
+# Error Handling:
+#   set -e will cause the script to exit on the first deployment failure.
+#   All functions must deploy successfully or the script will abort.
 
 set -e  # Exit on error
 
