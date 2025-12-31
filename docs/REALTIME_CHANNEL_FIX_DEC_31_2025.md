@@ -93,6 +93,8 @@ TO authenticated
 USING (true);
 ```
 
+> **Security Note:** These permissive policies enable fast Realtime subscriptions but allow authenticated users to query any game state via PostgREST. In practice, clients only use Realtime channels (which require explicit `room:${roomId}` knowledge) and never make direct PostgREST queries. Edge Functions validate all game actions server-side. Full room-scoped policies with optimized indexes will be implemented in Phase 2 of security improvements. See SECURITY_CONSIDERATIONS_DEC_31_2025.md for full analysis and roadmap.
+
 #### 4. Added waiting_room to Realtime Publication
 ```sql
 ALTER PUBLICATION supabase_realtime ADD TABLE waiting_room;

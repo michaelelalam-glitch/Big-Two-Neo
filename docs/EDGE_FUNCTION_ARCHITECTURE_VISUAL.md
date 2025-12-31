@@ -173,9 +173,11 @@ Client (useRealtime)
 2. **Testability** - Easy to test with Deno
 3. **Flexibility** - Can use any Deno/npm packages
 4. **Observability** - Better logging and monitoring
-5. **Security** - JWT validation on every request
+5. **Security** - JWT validation on client-facing requests; service-role functions protected by UUID obscurity and channel-based access control (see SECURITY_CONSIDERATIONS_DEC_31_2025.md for full details)
 6. **Performance** - Optimized for realtime operations
 7. **Maintainability** - All logic in one place
+
+> **Note:** Some Edge Functions (e.g., heartbeat, disconnect/reconnect, game engine helpers) use service-role keys for privileged operations and accept client-supplied identifiers. While this provides flexibility for MVP development, full JWT validation will be added before public release. See SECURITY_CONSIDERATIONS_DEC_31_2025.md for security tradeoffs and roadmap.
 
 ## Deployment Status
 

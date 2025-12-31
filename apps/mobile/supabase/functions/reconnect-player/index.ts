@@ -56,7 +56,14 @@ Deno.serve(async (req) => {
     // If player was replaced by bot, restore original username
     if (player.connection_status === 'replaced_by_bot') {
       wasBot = true;
-      originalUsername = player.username.replace('Bot ', '');
+      
+      // Fallback: keep stored username unchanged if it doesn't match bot prefix pattern
+      if (typeof player.username === 'string' && player.username.startsWith('Bot ')) {
+        originalUsername = player.username.substring('Bot '.length);
+      } else {
+        // If username doesn't match bot pattern, preserve it as-is
+        originalUsername = player.username;
+      }
       
       console.log('🤖 [reconnect-player] Player was replaced by bot, restoring:', {
         bot_username: player.username,

@@ -5,34 +5,46 @@
 
 set -e  # Exit on error
 
+# Check if Supabase CLI is installed
+if ! command -v supabase &> /dev/null; then
+    echo "❌ Error: Supabase CLI not found!"
+    echo "Please install it: https://supabase.com/docs/guides/cli"
+    exit 1
+fi
+
 echo "🚀 Deploying Edge Functions to Supabase..."
 echo ""
 
-# Change to mobile app directory
-cd "$(dirname "$0")/../apps/mobile"
+# Change to mobile app directory (based on this script's location)
+cd "$(dirname "$0")"
 
 echo "📍 Current directory: $(pwd)"
 echo ""
 
+# Use environment variable or default project reference
+PROJECT_REF="${SUPABASE_PROJECT_REF:-dppybucldqufbqhwnkxu}"
+echo "🔧 Using Supabase project reference: ${PROJECT_REF}"
+echo ""
+
 # Connection Management Functions
 echo "📦 Deploying Connection Management Functions..."
-supabase functions deploy update-heartbeat --project-ref dppybucldqufbqhwnkxu
-supabase functions deploy mark-disconnected --project-ref dppybucldqufbqhwnkxu
-supabase functions deploy reconnect-player --project-ref dppybucldqufbqhwnkxu
+supabase functions deploy update-heartbeat --project-ref "${PROJECT_REF}"
+supabase functions deploy mark-disconnected --project-ref "${PROJECT_REF}"
+supabase functions deploy reconnect-player --project-ref "${PROJECT_REF}"
 echo "✅ Connection management functions deployed"
 echo ""
 
 # Matchmaking Functions
 echo "📦 Deploying Matchmaking Functions..."
-supabase functions deploy find-match --project-ref dppybucldqufbqhwnkxu
-supabase functions deploy cancel-matchmaking --project-ref dppybucldqufbqhwnkxu
+supabase functions deploy find-match --project-ref "${PROJECT_REF}"
+supabase functions deploy cancel-matchmaking --project-ref "${PROJECT_REF}"
 echo "✅ Matchmaking functions deployed"
 echo ""
 
 # Utility Functions
 echo "📦 Deploying Utility Functions..."
-supabase functions deploy server-time --project-ref dppybucldqufbqhwnkxu
-supabase functions deploy delete-account --project-ref dppybucldqufbqhwnkxu
+supabase functions deploy server-time --project-ref "${PROJECT_REF}"
+supabase functions deploy delete-account --project-ref "${PROJECT_REF}"
 echo "✅ Utility functions deployed"
 echo ""
 

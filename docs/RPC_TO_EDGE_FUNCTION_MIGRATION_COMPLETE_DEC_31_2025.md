@@ -119,11 +119,13 @@ All Edge Functions follow this pattern:
 ```
 
 ### Security Improvements
-- ✅ All Edge Functions validate JWT tokens
-- ✅ Service role key used for admin operations
-- ✅ Input sanitization and validation
-- ✅ User ID extracted from JWT (not from request body)
-- ✅ Proper error messages (no sensitive data leaked)
+- ✅ Service role key used for privileged database operations
+- ✅ Input sanitization and validation on all functions
+- ✅ Proper error messages (no stack traces in production)
+- ⏳ JWT validation on all endpoints (planned for Phase 1 - see SECURITY_CONSIDERATIONS_DEC_31_2025.md)
+- ⏳ Player ownership verification (planned for Phase 1)
+
+> **Note:** Current implementation uses service-role pattern for game logic functions with UUID-based security. Full JWT validation will be added before public release. See SECURITY_CONSIDERATIONS_DEC_31_2025.md for complete security analysis and roadmap.
 
 ### Response Format Changes
 **RPC Format:**

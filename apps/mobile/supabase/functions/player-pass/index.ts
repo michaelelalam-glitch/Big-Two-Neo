@@ -110,12 +110,17 @@ Deno.serve(async (req) => {
     // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
-    const newPassCount = (gameState.pass_count || 0) + 1;
+    
+    // Validate pass_count with type checking
+    const rawPassCount = gameState?.pass_count;
+    const currentPassCount =
+      typeof rawPassCount === 'number' && Number.isFinite(rawPassCount) ? rawPassCount : 0;
+    const newPassCount = currentPassCount + 1;
 
     console.log('✅ [player-pass] Processing pass:', {
       player_index: player.player_index,
       next_turn: nextTurn,
-      current_pass_count: gameState.pass_count,
+      current_pass_count: currentPassCount,
       new_pass_count: newPassCount,
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
@@ -192,15 +197,24 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Normalize error with proper type guards (avoid leaking sensitive details)
+    let message = 'Internal server error';
+    let stack: string | undefined;
+
+    if (error instanceof Error) {
+      message = error.message || message;
+      stack = error.stack;
+    }
+
     console.error('❌ [player-pass] Unexpected error:', error);
-    console.error('❌ [player-pass] Error stack:', error?.stack);
-    console.error('❌ [player-pass] Error details:', JSON.stringify(error, null, 2));
+    console.error('❌ [player-pass] Error stack:', stack);
+    
+    // Only return generic error message to client (no stack traces in production)
     return new Response(
       JSON.stringify({
         success: false,
-        error: error?.message || 'Internal server error',
-        details: error?.stack || error?.toString?.() || 'No additional details',
+        error: message,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
