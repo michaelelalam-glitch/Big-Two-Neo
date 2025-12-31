@@ -110,11 +110,19 @@ Deno.serve(async (req) => {
     // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
-    const newPassCount = (gameState.passes || 0) + 1;
+    
+    // Validate pass_count with type checking
+    const rawPassCount = gameState?.pass_count;
+    // Use Number.isFinite in addition to typeof === 'number' to reject NaN, Infinity, and -Infinity,
+    // which are technically numbers but would break the pass_count logic if accepted.
+    const currentPassCount =
+      typeof rawPassCount === 'number' && Number.isFinite(rawPassCount) ? rawPassCount : 0;
+    const newPassCount = currentPassCount + 1;
 
     console.log('✅ [player-pass] Processing pass:', {
       player_index: player.player_index,
       next_turn: nextTurn,
+      current_pass_count: currentPassCount,
       new_pass_count: newPassCount,
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
@@ -191,12 +199,26 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Normalize error with proper type guards (avoid leaking sensitive details)
+    let message = 'Internal server error';
+    let stack: string | undefined;
+
+    if (error instanceof Error) {
+      message = error.message || message;
+      stack = error.stack;
+    }
+
     console.error('❌ [player-pass] Unexpected error:', error);
+    console.error('❌ [player-pass] Error stack:', stack);
+    // TODO: In production, send error details to a logging service (e.g., Sentry, Datadog)
+    // rather than relying on console.error which may not be persistent or searchable.
+    
+    // Only return generic error message to client (no stack traces in production)
     return new Response(
       JSON.stringify({
         success: false,
-        error: error?.message || 'Internal server error',
+        error: message,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

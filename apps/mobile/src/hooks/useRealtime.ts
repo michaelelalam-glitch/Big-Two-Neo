@@ -40,13 +40,15 @@ import { canBeatPlay } from '../game/engine/game-logic';
  */
 async function getServerTimeMs(): Promise<number> {
   try {
-    const { data, error } = await supabase.rpc('server_time_ms');
-    if (error) {
+    const { data, error } = await supabase.functions.invoke('server-time', {
+      body: {},
+    });
+    if (error || !data?.timestamp) {
       networkLogger.error('[Clock Sync] Failed to get server time:', error);
       // Fallback to local time if server call fails
       return Date.now();
     }
-    return Number(data);
+    return Number(data.timestamp);
   } catch (err) {
     networkLogger.error('[Clock Sync] Exception getting server time:', err);
     return Date.now();
