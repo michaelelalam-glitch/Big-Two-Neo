@@ -83,6 +83,16 @@ export default function HomeScreen() {
     }, [checkCurrentRoom])
   );
 
+  const handleOfflinePractice = () => {
+    roomLogger.info('🤖 Starting Offline Practice Mode...');
+    // Navigate directly to GameScreen with LOCAL_AI_GAME mode
+    // This bypasses lobby and uses client-side GameStateManager
+    navigation.navigate('Game', { 
+      roomCode: 'LOCAL_AI_GAME',
+      forceNewGame: true 
+    });
+  };
+
   const handleLeaveCurrentRoom = async () => {
     if (!user || !currentRoom) return;
 
@@ -487,6 +497,14 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.mainButton, styles.offlinePracticeButton]}
+            onPress={handleOfflinePractice}
+          >
+            <Text style={styles.mainButtonText}>🤖 Offline Practice</Text>
+            <Text style={styles.mainButtonSubtext}>Play with 3 AI bots</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.mainButton, styles.joinButton]}
             onPress={() => navigation.navigate('JoinRoom')}
           >
@@ -677,6 +695,11 @@ const styles = StyleSheet.create({
   },
   createButton: {
     backgroundColor: '#3B82F6', // Blue
+  },
+  offlinePracticeButton: {
+    backgroundColor: '#6366F1', // Indigo
+    borderWidth: 2,
+    borderColor: '#818CF8',
   },
   joinButton: {
     backgroundColor: '#8B5CF6', // Purple

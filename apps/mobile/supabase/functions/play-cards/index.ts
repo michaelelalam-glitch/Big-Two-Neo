@@ -486,7 +486,14 @@ Deno.serve(async (req) => {
 
     const { room_code, player_id, cards } = await req.json();
 
+    console.log('🎮 [play-cards] Request received:', {
+      room_code,
+      player_id: player_id?.substring(0, 8),
+      cards_count: Array.isArray(cards) ? cards.length : 'not array',
+    });
+
     if (!room_code || !player_id || !cards || cards.length === 0) {
+      console.log('❌ [play-cards] Missing required fields');
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -521,17 +528,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Get player info
+    // 3. Get player info (using user_id column, not id)
     const { data: player, error: playerError } = await supabaseClient
       .from('room_players')
       .select('*')
-      .eq('id', player_id)
+      .eq('user_id', player_id)  // ✅ FIX: Use user_id column (not id which is the record UUID)
       .eq('room_id', room.id)
       .single();
 
     if (playerError || !player) {
+      console.log('❌ [play-cards] Player not found:', {
+        player_id: player_id?.substring(0, 8),
+        room_id: room.id,
+        error: playerError?.message,
+        errorDetails: JSON.stringify(playerError),
+      });
       return new Response(
-        JSON.stringify({ success: false, error: 'Player not found in room' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Player not found in room',
+          debug: {
+            player_id: player_id?.substring(0, 8),
+            room_id: room.id,
+            error: playerError?.message
+          }
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -555,8 +576,14 @@ Deno.serve(async (req) => {
     const is_first_play = played_cards.length === 0;
 
     if (is_first_play && match_number === 1) {
-      const has_three_diamond = cards.some((c: Card) => c.id === '3D');
+      // ✅ FIX: SQL generates 'D3' (suit-first), not '3D' (rank-first)
+      const has_three_diamond = cards.some((c: Card) => c.id === 'D3' || c.id === '3D');
       if (!has_three_diamond) {
+        console.log('❌ [play-cards] Missing 3D on first play:', {
+          cards: cards.map(c => c.id),
+          match_number,
+          is_first_play,
+        });
         return new Response(
           JSON.stringify({
             success: false,
@@ -570,6 +597,10 @@ Deno.serve(async (req) => {
     // 6. ✅ Classify combo and validate
     const comboType = classifyCards(cards);
     if (comboType === 'unknown') {
+      console.log('❌ [play-cards] Invalid card combination:', {
+        cards: cards.map(c => c.id),
+        comboType,
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid card combination' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -580,6 +611,14 @@ Deno.serve(async (req) => {
     const lastPlay = gameState.last_play as LastPlay | null;
     if (!canBeatPlay(cards, lastPlay)) {
       const lastCombo = lastPlay?.combo_type || 'None';
+      console.log('❌ [play-cards] Cannot beat last play:', {
+        cards: cards.map(c => c.id),
+        comboType,
+        lastPlay: lastPlay ? {
+          cards: lastPlay.cards.map(c => c.id),
+          combo_type: lastPlay.combo_type
+        } : null,
+      });
       return new Response(
         JSON.stringify({
           success: false,
@@ -611,9 +650,18 @@ Deno.serve(async (req) => {
     const nextPlayerHand = currentHands[nextPlayerIndex] || [];
     const nextPlayerHasOneCard = nextPlayerHand.length === 1;
 
+    console.log('🔍 One Card Left Rule Check:', {
+      nextPlayerIndex,
+      nextPlayerCardsCount: nextPlayerHand.length,
+      nextPlayerHasOneCard,
+      currentPlayerPlayingCount: cards.length,
+      hasLastPlay: !!lastPlay,
+    });
+
     // CRITICAL FIX: Only enforce One Card Left when there's a last play to beat
     // Don't enforce when leading (no lastPlay)
     if (nextPlayerHasOneCard && lastPlay && cards.length === 1) {
+      console.log('⚠️ One Card Left Rule ACTIVE - Next player has 1 card, checking enforcement...');
       // Next player has 1 card and current player is playing a single
       // Must verify this is the highest beating single they have
       const sortedPlayerHand = sortHand(playerHand);
@@ -627,13 +675,22 @@ Deno.serve(async (req) => {
         }
       });
       
+      console.log('🎴 Beating singles available:', allBeatingSingles.length, allBeatingSingles.map(c => c.id));
+      
       // Only enforce if there ARE beating singles available
       if (allBeatingSingles.length > 0) {
         const highestBeatingSingle = allBeatingSingles[allBeatingSingles.length - 1];
         const playedCard = cards[0];
         
+        console.log('🎯 Enforcement check:', {
+          playedCard: playedCard.id,
+          requiredCard: highestBeatingSingle.id,
+          isValid: playedCard.id === highestBeatingSingle.id,
+        });
+        
         // Check if they're playing the highest beating single
         if (playedCard.id !== highestBeatingSingle.id) {
+          console.log('❌ REJECTED: Not playing highest beating single');
           return new Response(
             JSON.stringify({
               success: false,
@@ -642,9 +699,21 @@ Deno.serve(async (req) => {
             }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
+        } else {
+          console.log('✅ ACCEPTED: Playing highest beating single');
         }
+      } else {
+        console.log('ℹ️ No beating singles available, rule not enforced');
       }
+    } else {
+      console.log('ℹ️ One Card Left Rule NOT ACTIVE:', {
+        reason: !nextPlayerHasOneCard ? 'Next player does not have 1 card' :
+                !lastPlay ? 'No last play (leading)' :
+                cards.length !== 1 ? 'Not playing a single' :
+                'Unknown',
+      });
     }
+
 
     // 10. ✅ Remove cards from player's hand
     const cardIdsToRemove = new Set(cards.map((c: Card) => c.id));
@@ -739,8 +808,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 13. Calculate next turn
-    const nextTurn = (player.player_index + 1) % 4;
+    // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
+    // Big Two uses anticlockwise turn order, NOT clockwise!
+    // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const nextTurn = turnOrder[player.player_index];
 
     // 12. Update played_cards (all cards played so far)
     const updatedPlayedCards = [...played_cards, ...cards];
@@ -748,6 +820,13 @@ Deno.serve(async (req) => {
     // 13. Detect highest play and create auto-pass timer
     const isHighestPlay = isHighestPossiblePlay(cards, updatedPlayedCards);
     let autoPassTimerState = null;
+
+    console.log('⏰ Auto-pass timer check:', {
+      isHighestPlay,
+      cardsLength: cards.length,
+      cardsPlayed: cards.map(c => c.id),
+      totalPlayedCards: updatedPlayedCards.length,
+    });
 
     if (isHighestPlay) {
       const serverTimeMs = Date.now();
@@ -772,12 +851,15 @@ Deno.serve(async (req) => {
         player_id: player.user_id,
       };
 
-      console.log('⏰ Auto-pass timer created (highest play detected):', {
+      console.log('✅ Auto-pass timer CREATED (highest play detected):', {
         serverTimeMs,
         endTimestamp,
         sequenceId,
         cards: cards.map(c => c.id),
+        comboType,
       });
+    } else {
+      console.log('ℹ️ Auto-pass timer NOT created - not highest play');
     }
 
     // 14. Update game state (including timer)
@@ -792,7 +874,7 @@ Deno.serve(async (req) => {
           timestamp: Date.now(),
         },
         current_turn: nextTurn,
-        pass_count: 0,
+        passes: 0,  // ✅ FIX: Use "passes" column instead of "pass_count"
         played_cards: updatedPlayedCards,
         auto_pass_timer: autoPassTimerState,
         updated_at: new Date().toISOString(),

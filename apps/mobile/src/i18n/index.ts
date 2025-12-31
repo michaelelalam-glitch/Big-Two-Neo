@@ -151,6 +151,10 @@ export interface Translations {
     leave: string;
     leftRoom: string;
     leaveRoomConfirm: string;
+    casualMatch: string;
+    casualMatchDescription: string;
+    rankedMatch: string;
+    rankedMatchDescription: string;
   };
 
   // How to Play Screen
@@ -636,6 +640,10 @@ const en: Translations = {
     leave: 'Leave',
     leftRoom: 'Left the room',
     leaveRoomConfirm: 'Leave room?',
+    casualMatch: 'Casual Match',
+    casualMatchDescription: 'Quick game with relaxed ranking',
+    rankedMatch: 'Ranked Match',
+    rankedMatchDescription: 'Competitive ELO-rated match',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -1063,6 +1071,10 @@ const ar: Translations = {
     leave: 'غادر',
     leftRoom: 'غادرت الغرفة',
     leaveRoomConfirm: 'غادر الغرفة؟',
+    casualMatch: 'مباراة عادية',
+    casualMatchDescription: 'لعبة سريعة مع تصنيف مريح',
+    rankedMatch: 'مباراة مصنفة',
+    rankedMatchDescription: 'مباراة تنافسية بتصنيف ELO',
     howToPlay: '📖 كيف تلعب',
     howToPlayDescription: 'تعلم قواعد اللعبة',
   },
@@ -1522,6 +1534,10 @@ const de: Translations = {
     leave: 'Verlassen',
     leftRoom: 'Raum verlassen',
     leaveRoomConfirm: 'Raum verlassen?',
+    casualMatch: 'Freundschaftsspiel',
+    casualMatchDescription: 'Schnelles Spiel mit entspanntem Ranking',
+    rankedMatch: 'Ranglisten-Match',
+    rankedMatchDescription: 'Wettbewerbsorientiertes ELO-Match',
     howToPlay: '📖 Wie man spielt',
     howToPlayDescription: 'Spielregeln lernen',
   },

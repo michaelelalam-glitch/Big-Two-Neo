@@ -782,11 +782,21 @@ function GameScreenContent() {
         const sortedCards = sortCardsForDisplay(cards);
         const cardIds = sortedCards.map(card => card.id);
         
-        await gameManagerRef.current.playCards(cardIds);
+        const result = await gameManagerRef.current.playCards(cardIds);
+        
+        // CRITICAL FIX: Check return value for errors (playCards returns {success, error}, doesn't throw)
+        if (!result.success) {
+          gameLogger.warn(`❌ [GameScreen] Invalid play: ${result.error}`);
+          soundManager.playSound(SoundType.INVALID_MOVE);
+          showError(result.error || 'Invalid play');
+          return; // Don't clear selection or play sound
+        }
+        
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.CARD_PLAY);
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
+        soundManager.playSound(SoundType.INVALID_MOVE);
         showError(error.message || 'Failed to play cards');
       } finally {
         isPlayingCardsRef.current = false; // Clear synchronous guard
@@ -841,11 +851,21 @@ function GameScreenContent() {
         // Task #270: Add haptic feedback for Pass button
         hapticManager.pass();
 
-        await gameManagerRef.current.pass();
+        const result = await gameManagerRef.current.pass();
+        
+        // CRITICAL FIX: Check return value for errors (pass returns {success, error}, doesn't throw)
+        if (!result.success) {
+          gameLogger.warn(`❌ [GameScreen] Cannot pass: ${result.error}`);
+          soundManager.playSound(SoundType.INVALID_MOVE);
+          showError(result.error || 'Cannot pass');
+          return; // Don't clear selection or play sound
+        }
+        
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Error passing:', error?.message || String(error));
+        soundManager.playSound(SoundType.INVALID_MOVE);
         showError(error.message || 'Failed to pass');
       } finally {
         isPassingRef.current = false; // Clear synchronous guard
@@ -948,32 +968,38 @@ function GameScreenContent() {
   const layoutPlayers = isLocalAIGame ? players : (multiplayerLayoutPlayers as any);
 
   // 🎯 PERFORMANCE: Memoize expensive props to reduce re-renders
+  // 📊 PRODUCTION FIX: Scoreboard shows TURN ORDER [0,1,2,3], not physical positions
+  // This gives clean sequential display: Steve Peterson, Bot 1, Bot 2, Bot 3
   const memoizedPlayerNames = React.useMemo(() => {
     return layoutPlayers.length === 4 
-      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.name) 
+      ? layoutPlayers.map((p: any) => p.name)  // ✅ Direct order: no mapping
       : [];
   }, [layoutPlayers]);
 
   const memoizedCurrentScores = React.useMemo(() => {
     if (layoutPlayers.length !== 4) return [];
     
-    // Calculate true cumulative scores from scoreHistory
+    // 📊 PRODUCTION FIX: Calculate scores in TURN ORDER [0,1,2,3]
+    // Scoreboard shows game logic (who's winning), not physical positions
     if (scoreHistory.length > 0) {
-      return mapPlayersToScoreboardOrder(
-        layoutPlayers.map((p: any) => ({
-          ...p,
-          score: scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[p.player_index] || 0), 0)
-        })),
-        (p: any) => p.score
-      );
+      // For local AI games, layoutPlayers are in order [0,1,2,3]
+      // For multiplayer, we need to use player_index from the player object
+      return layoutPlayers.map((p: any, index: number) => {
+        // Use player_index if available (multiplayer), otherwise use array index (local AI)
+        const playerIdx = p.player_index !== undefined ? p.player_index : index;
+        return scoreHistory.reduce(
+          (sum, match) => sum + (match.pointsAdded[playerIdx] || 0), 
+          0
+        );
+      });
     }
     
-    return mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.score);
+    return layoutPlayers.map((p: any) => p.score);  // ✅ Direct order: no mapping
   }, [layoutPlayers, scoreHistory]);
 
   const memoizedCardCounts = React.useMemo(() => {
     return layoutPlayers.length === 4 
-      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.cardCount) 
+      ? layoutPlayers.map((p: any) => p.cardCount)  // ✅ Direct order: no mapping
       : [];
   }, [layoutPlayers]);
 
@@ -990,12 +1016,11 @@ function GameScreenContent() {
     ? ((gameState as any)?.auto_pass_timer ?? undefined)
     : ((multiplayerGameState as any)?.auto_pass_timer ?? undefined); // ✅ Now reads from multiplayer game_state!
 
-  // CRITICAL FIX Task #539: Map ABSOLUTE turn index to scoreboard position
-  // current_turn from database is absolute (0=Steve, 1=Bot1, 2=Bot2, 3=Bot3)
-  // We need to convert to RELATIVE position FIRST, THEN map to scoreboard
+  // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex is direct game state index
+  // Scoreboard shows turn order [0,1,2,3], so we use raw indices
   const multiplayerCurrentTurn = (multiplayerGameState as any)?.current_turn;
   const effectiveScoreboardCurrentPlayerIndex = isLocalAIGame
-    ? mapGameIndexToScoreboardPosition((gameState as any)?.currentPlayerIndex ?? 0)
+    ? ((gameState as any)?.currentPlayerIndex ?? 0)  // ✅ Direct index: no mapping
     : (typeof multiplayerCurrentTurn === 'number' 
         ? (multiplayerCurrentTurn - multiplayerSeatIndex + 4) % 4  // Convert absolute to relative: 0→0(me), 1→1(right), 2→2(opposite), 3→3(left)
         : 0);

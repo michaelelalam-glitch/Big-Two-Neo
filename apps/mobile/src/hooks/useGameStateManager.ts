@@ -155,14 +155,20 @@ export function useGameStateManager({
             }
 
             // Track score history for scoreboard
-            const pointsAdded: number[] = [];
-            const cumulativeScores: number[] = [];
+            // CRITICAL FIX: Build arrays indexed by player position, not forEach order
+            // This ensures scores align with player indices [0,1,2,3]
+            const pointsAdded: number[] = new Array(state.players.length).fill(0);
+            const cumulativeScores: number[] = new Array(state.players.length).fill(0);
 
             state.matchScores.forEach((playerScore) => {
-              const latestMatchScore =
-                playerScore.matchScores[playerScore.matchScores.length - 1] || 0;
-              pointsAdded.push(latestMatchScore);
-              cumulativeScores.push(playerScore.score);
+              // Find this player's index in the players array
+              const playerIndex = state.players.findIndex(p => p.id === playerScore.playerId);
+              if (playerIndex !== -1) {
+                const latestMatchScore =
+                  playerScore.matchScores[playerScore.matchScores.length - 1] || 0;
+                pointsAdded[playerIndex] = latestMatchScore;
+                cumulativeScores[playerIndex] = playerScore.score;
+              }
             });
 
             const scoreHistory: ScoreHistory = {

@@ -69,14 +69,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Get current match winner (the player who won the last match)
-    const winner_index = gameState.winner;
-    if (winner_index === null || winner_index === undefined) {
+    // 2. Get current match winner by finding who has 0 cards (played them all)
+    let winner_index: number | null = null;
+    for (let i = 0; i < gameState.hands.length; i++) {
+      const hand = gameState.hands[i];
+      if (Array.isArray(hand) && hand.length === 0) {
+        winner_index = i;
+        break;
+      }
+    }
+    
+    if (winner_index === null) {
       return new Response(
-        JSON.stringify({ error: 'No winner found for previous match' }),
+        JSON.stringify({ error: 'No winner found for previous match - no player has 0 cards' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`✅ Match winner: Player ${winner_index} (had 0 cards)`);
+
 
     // 3. Create and shuffle new deck
     const deck = createDeck();
@@ -124,7 +135,7 @@ Deno.serve(async (req) => {
         game_phase: 'playing',
         current_turn: winner_index, // Winner of previous match starts
         last_play: null,
-        pass_count: 0,
+        passes: 0,  // ✅ FIX: Use "passes" column (pass_count is computed)
         winner: null,
         match_number: newMatchNumber,
         scores: cumulativeScores, // CRITICAL: Preserve cumulative scores

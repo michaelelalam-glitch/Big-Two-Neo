@@ -305,7 +305,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
-  const isHost = currentPlayer?.is_host || false;
+  const isHost = currentPlayer?.is_host === true;
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
   // Returns true ONLY when:
@@ -586,7 +586,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           current_turn: 0,
           turn_timer: 30,
           last_play: null,
-          pass_count: 0,
+          passes: 0,  // ✅ FIX: Use "passes" column (pass_count is computed)
           game_phase: 'dealing',
         })
         .select()
@@ -644,11 +644,25 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // matchWillEnd is now determined by server response (result.match_ended)
 
       // 📡 CRITICAL: Call Edge Function for server-side validation
-      gameLogger.info('[useRealtime] 📡 Calling play-cards Edge Function...');
+      // When playerIndex is provided (bot coordinator), find the bot's player_id
+      const playingPlayer = playerIndex !== undefined
+        ? roomPlayers.find(p => p.player_index === playerIndex)
+        : currentPlayer;
+      
+      if (!playingPlayer) {
+        throw new Error(`Player with index ${playerIndex} not found`);
+      }
+      
+      gameLogger.info('[useRealtime] 📡 Calling play-cards Edge Function...', {
+        player_id: playingPlayer.user_id,
+        player_index: effectivePlayerIndex,
+        is_bot: playerIndex !== undefined,
+      });
+      
       const { data: result, error: playError } = await supabase.functions.invoke('play-cards', {
         body: {
           room_code: room!.code,
-          player_id: currentPlayer!.id,
+          player_id: playingPlayer.user_id, // ✅ FIX: Use bot's user_id (not record id)
           cards: cards.map(c => ({
             id: c.id,
             rank: c.rank,
@@ -659,7 +673,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       if (playError || !result?.success) {
         const errorMessage = playError?.message || result?.error || 'Server validation failed';
+        const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
         gameLogger.error('[useRealtime] ❌ Server validation failed:', errorMessage);
+        gameLogger.error('[useRealtime] 🐛 Debug info:', debugInfo);
+        gameLogger.error('[useRealtime] 📦 Full result:', JSON.stringify(result));
         throw new Error(errorMessage);
       }
 
@@ -711,23 +728,24 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         timerState: autoPassTimerState,
       });
 
-      // Update play_history, game_phase, winner, auto_pass_timer
-      const { error: updateError } = await supabase
-        .from('game_state')
-        .update({
-          play_history: updatedPlayHistory,
-          game_phase: gameOver ? 'game_over' : (matchWillEnd ? 'finished' : 'playing'),
-          winner: matchWillEnd ? effectivePlayerIndex : null,
-          auto_pass_timer: autoPassTimerState,
-        })
-        .eq('id', gameState.id);
+      // ✅ PHASE 2 FIX: Server already updated game_state (hands, last_play, current_turn, auto_pass_timer)
+      // Client should NOT update game_state - only update play_history if needed
+      // Note: play_history is cosmetic and not critical for game logic
+      if (updatedPlayHistory.length > 0) {
+        const { error: historyError } = await supabase
+          .from('game_state')
+          .update({
+            play_history: updatedPlayHistory,
+          })
+          .eq('id', gameState.id);
 
-      if (updateError) {
-        gameLogger.error('[useRealtime] ❌ Failed to update extended fields:', updateError);
-        throw updateError;
+        if (historyError) {
+          // Non-fatal: play_history is cosmetic
+          gameLogger.warn('[useRealtime] ⚠️ Failed to update play_history (non-fatal):', historyError);
+        } else {
+          gameLogger.info('[useRealtime] ✅ Play history updated');
+        }
       }
-
-      gameLogger.info('[useRealtime] ✅ Extended fields updated');
 
       // Broadcast cards played
       await broadcastMessage('cards_played', {
@@ -842,25 +860,33 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
-      // 🔥 CRITICAL FIX: DON'T cancel timer when player passes!
-      // Timer should persist across turns and be visible to all players
-      // It only expires when: (1) timer reaches 0, OR (2) someone beats the highest play
-      
-      // CRITICAL FIX: Use execute_pass_move RPC instead of direct UPDATE
-      // This ensures row-level locking (FOR UPDATE NOWAIT) prevents race conditions
-      // Use the correct player's ID (bot's ID if playerIndex provided, otherwise current user's ID)
-      const { data, error } = await supabase.rpc('execute_pass_move', {
-        p_room_code: room.code,
-        p_player_id: passingPlayer.id, // ← NOW USES CORRECT PLAYER ID!
+      gameLogger.info('[useRealtime] 📡 Calling player-pass Edge Function...', {
+        player_id: passingPlayer.user_id,
+        player_index: passingPlayer.player_index,
+        is_bot: playerIndex !== undefined,
       });
-      
-      if (error) {
-        throw new Error(error.message || 'Failed to pass turn');
+
+      // ✅ UNIFIED ARCHITECTURE: Use Edge Function (matches play-cards pattern)
+      // This ensures consistent state management and preserves auto_pass_timer
+      const { data: result, error: passError } = await supabase.functions.invoke('player-pass', {
+        body: {
+          room_code: room.code,
+          player_id: passingPlayer.user_id, // ✅ Use user_id (consistent with play-cards)
+        }
+      });
+
+      if (passError || !result?.success) {
+        const errorMessage = passError?.message || result?.error || 'Server validation failed';
+        gameLogger.error('[useRealtime] ❌ Pass failed:', errorMessage);
+        throw new Error(errorMessage);
       }
-      
-      if (!data?.success) {
-        throw new Error(data?.error || 'Pass move failed');
-      }
+
+      gameLogger.info('[useRealtime] ✅ Pass successful:', {
+        next_turn: result.next_turn,
+        pass_count: result.pass_count,
+        trick_cleared: result.trick_cleared,
+        timer_preserved: !!result.auto_pass_timer,
+      });
       
       // Broadcast manual pass event
       await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
@@ -870,7 +896,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // DISABLED: Turn notifications are too spammy
-      // const nextPlayerIndex = data.next_turn;
+      // const nextPlayerIndex = result.next_turn;
       // const nextPlayer = roomPlayers[nextPlayerIndex];
       // if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id && room) {
       //   notifyPlayerTurn(nextPlayer.user_id, room.code, room.id, nextPlayer.username).catch(err =>
@@ -1063,6 +1089,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           setGameState(payload.new as GameState);
         }
+      })
+      // ✅ FIX: Listen to room_players changes to catch is_host updates
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'room_players',
+        filter: `room_id=eq.${roomId}`,
+      }, async (payload) => {
+        console.log('[useRealtime] 👥 room_players change:', payload.eventType);
+        // Refetch players to ensure we have latest is_host status
+        await fetchPlayers(roomId);
       });
     
     // Subscribe and track presence - WAIT for subscription to complete
