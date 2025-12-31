@@ -158,7 +158,7 @@ return new Response(JSON.stringify({
 - `player-pass/index.ts`
 
 ### Phase 2: Optimized RLS Policies (Priority: High)
-**Timeline:** January 2026
+**Timeline:** Q1 2026 (January - March 2026)
 
 1. Add database indexes for fast RLS checks
 2. Restore room-scoped SELECT policies

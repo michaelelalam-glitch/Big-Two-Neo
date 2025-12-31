@@ -171,11 +171,13 @@ Deno.serve(async (req) => {
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
     // 6. If we have 4+ players, create a match
-    // Note: There's a potential race condition where multiple concurrent find-match calls
-    // might try to create rooms with overlapping players. For production, consider:
-    // 1. Using database-level locking (SELECT ... FOR UPDATE)
-    // 2. Implementing optimistic concurrency control
-    // 3. Adding a 'processing' status to waiting_room entries
+    // ⚠️ RACE CONDITION: Multiple concurrent find-match calls can try to match the same players.
+    // This can cause match creation failures or players being matched to multiple rooms.
+    // TODO: Implement one of these mitigations before production deployment:
+    // 1. Use database-level locking (SELECT ... FOR UPDATE) on waiting_room entries
+    // 2. Implement optimistic concurrency control with 'processing' status
+    // 3. Use a distributed lock (Redis) for the matchmaking critical section
+    // Current implementation has no concurrency control and may fail under load.
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');
 
@@ -220,9 +222,11 @@ Deno.serve(async (req) => {
       const roomId = room.id;
 
       // Add players to room
-      // Note: This performs multiple database operations without a transaction wrapper.
-      // For production, consider wrapping room creation and player insertion in a
-      // database transaction for atomicity. Current approach uses manual rollback on failure.
+      // ⚠️ LIMITATION: This performs multiple database operations without a transaction wrapper.
+      // PostgreSQL transactions ARE supported in Supabase Edge Functions via the client library.
+      // TODO: For production reliability, implement proper database transactions to prevent
+      // partial state (orphaned rooms, mismatched waiting_room entries) if any step fails.
+      // Current approach uses manual rollback which itself can fail.
       const playersToAdd = waitingPlayers.slice(0, 4).map((player, index) => ({
         room_id: roomId,
         user_id: player.user_id,

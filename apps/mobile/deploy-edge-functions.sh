@@ -15,8 +15,10 @@
 # Error Handling:
 #   set -e will cause the script to exit on the first deployment failure.
 #   All functions must deploy successfully or the script will abort.
+#   For more robust deployment (continue on errors and report all failures at end),
+#   consider removing 'set -e' and tracking errors manually with exit status checks.
 
-set -e  # Exit on error
+set -e  # Exit on error (abort on first failure)
 
 # Check if Supabase CLI is installed
 if ! command -v supabase &> /dev/null; then

@@ -73,7 +73,9 @@ Deno.serve(async (req) => {
         user_id: userId.substring(0, 8),
         error: deleteError,
       });
-      // Don't fail - the entry is already marked as cancelled; this can be cleaned up by a periodic maintenance job.
+      // Don't fail - the entry is already marked as cancelled.
+      // TODO: Implement scheduled Edge Function or pg_cron job to clean up stale waiting_room entries
+      // (status='cancelled' or 'waiting' older than 10 minutes) to prevent accumulation.
     }
 
     console.log('✅ [cancel-matchmaking] Successfully cancelled matchmaking');

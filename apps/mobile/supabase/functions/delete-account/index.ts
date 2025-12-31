@@ -129,9 +129,12 @@ Deno.serve(async (req) => {
       // These failures are tracked and can be retried manually or via scheduled task
     }
 
+    // Use 207 Multi-Status when there are cleanup warnings to indicate partial success
+    const status = cleanupErrors.length > 0 ? 207 : 200;
+
     return new Response(
       JSON.stringify(responseBody),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
     console.error('💥 [delete-account] Error:', error);

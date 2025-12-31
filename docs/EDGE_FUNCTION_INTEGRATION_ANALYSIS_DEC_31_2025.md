@@ -68,6 +68,8 @@ if (is_first_play && match_number === 1) {
 ```
 **Status:** ✅ Server enforces 3♦ requirement for first play of match 1
 
+**Note:** Total count of 12 Edge Functions includes send-push-notification (notifications category).
+
 #### ✅ One Card Left Rule - WORKING
 ```typescript
 // Lines 648-710

@@ -209,6 +209,8 @@ Deno.serve(async (req) => {
 
     console.error('❌ [player-pass] Unexpected error:', error);
     console.error('❌ [player-pass] Error stack:', stack);
+    // TODO: In production, send error details to a logging service (e.g., Sentry, Datadog)
+    // rather than relying on console.error which may not be persistent or searchable.
     
     // Only return generic error message to client (no stack traces in production)
     return new Response(
