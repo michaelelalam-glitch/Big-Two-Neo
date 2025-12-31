@@ -18,11 +18,14 @@ DECLARE
   v_player RECORD;
   v_next_turn INTEGER;
   v_new_pass_count INTEGER;
-  -- Anticlockwise turn order array: 0→3→1→2→0
+  -- Anticlockwise turn order mapping: 0→3, 1→2, 2→0, 3→1
+  -- Implementation: v_turn_order[player_index + 1] because PostgreSQL arrays are 1-indexed
+  -- Example: player_index=0 → turn_order[1] = 3 (next player)
+  -- Example: player_index=2 → turn_order[3] = 0 (next player)
   -- Position 0 (bottom) → 3 (right)
-  -- Position 3 (right) → 1 (top)
-  -- Position 1 (top) → 2 (left)
+  -- Position 1 (top) → 2 (left)  
   -- Position 2 (left) → 0 (bottom)
+  -- Position 3 (right) → 1 (top)
   v_turn_order INTEGER[] := ARRAY[3, 2, 0, 1];
 BEGIN
   -- Get room
@@ -198,6 +201,8 @@ BEGIN
     END IF;
   EXCEPTION
     WHEN invalid_text_representation THEN
+      -- If UUID casting fails, log the invalid winner_id for debugging and treat as bot/invalid winner
+      RAISE LOG 'Invalid winner_id value "%" could not be cast to UUID in complete_game_from_client', p_winner_id;
       v_winner_uuid := NULL;
   END;
 

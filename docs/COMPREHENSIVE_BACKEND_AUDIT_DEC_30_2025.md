@@ -945,6 +945,8 @@ After fixes, you should see:
    > Do **not** use `--no-verify-jwt` for this or any other sensitive function.  
    > Reserve `--no-verify-jwt` only for intentionally public, non-sensitive endpoints (if any) that are designed to be accessed without authentication.
 
+   > ✅ **Status Update (Dec 31, 2025):** The `pass_count` column issue has been fully resolved. All Edge Functions and RPCs now correctly use the `passes` column from the schema.
+
 ---
 
 ## 📧 CONTACT & ESCALATION

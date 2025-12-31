@@ -52,7 +52,8 @@ BEGIN
     END IF;
   EXCEPTION
     WHEN invalid_text_representation THEN
-      -- If UUID casting fails, treat as bot/invalid winner
+      -- If UUID casting fails, log the invalid winner_id for debugging and treat as bot/invalid winner
+      RAISE LOG 'Invalid winner_id value "%" could not be cast to UUID in complete_game_from_client', p_winner_id;
       v_winner_uuid := NULL;
   END;
 
