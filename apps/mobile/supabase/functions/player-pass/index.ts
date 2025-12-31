@@ -110,11 +110,12 @@ Deno.serve(async (req) => {
     // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
-    const newPassCount = (gameState.passes || 0) + 1;
+    const newPassCount = (gameState.pass_count || 0) + 1;
 
     console.log('✅ [player-pass] Processing pass:', {
       player_index: player.player_index,
       next_turn: nextTurn,
+      current_pass_count: gameState.pass_count,
       new_pass_count: newPassCount,
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
@@ -193,10 +194,13 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error('❌ [player-pass] Unexpected error:', error);
+    console.error('❌ [player-pass] Error stack:', error?.stack);
+    console.error('❌ [player-pass] Error details:', JSON.stringify(error, null, 2));
     return new Response(
       JSON.stringify({
         success: false,
         error: error?.message || 'Internal server error',
+        details: error?.stack || error?.toString?.() || 'No additional details',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

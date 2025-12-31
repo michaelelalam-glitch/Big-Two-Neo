@@ -56,15 +56,17 @@ export function useConnectionManager({
     if (!enabled || !roomId || !userId) return;
 
     try {
-      const { error } = await supabase.rpc('update_player_heartbeat', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('update-heartbeat', {
+        body: {
+          room_id: roomId,
+          player_id: userId,
+        },
       });
 
-      if (!error) {
+      if (!error && data?.success) {
         setConnectionStatus('connected');
       } else {
-        console.error('Heartbeat error:', error);
+        console.error('Heartbeat error:', error || data?.error);
       }
     } catch (err) {
       console.error('Heartbeat exception:', err);
@@ -78,12 +80,18 @@ export function useConnectionManager({
     if (!roomId || !userId) return;
 
     try {
-      await supabase.rpc('mark_player_disconnected', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('mark-disconnected', {
+        body: {
+          room_id: roomId,
+          player_id: userId,
+        },
       });
 
-      setConnectionStatus('disconnected');
+      if (!error && data?.success) {
+        setConnectionStatus('disconnected');
+      } else {
+        console.error('Disconnect error:', error || data?.error);
+      }
     } catch (err) {
       console.error('Disconnect error:', err);
     }
@@ -99,19 +107,16 @@ export function useConnectionManager({
     setConnectionStatus('reconnecting');
 
     try {
-      const { data, error } = await supabase.rpc('reconnect_player', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('reconnect-player', {
+        body: {
+          room_id: roomId,
+          player_id: userId,
+        },
       });
 
-      if (!error && data && data.length > 0) {
-        const result = data[0]; // RPC returns array of rows
+      if (!error && data?.success) {
         setConnectionStatus('connected');
-        setIsSpectator(result.is_spectator || false);
-        
-        if (result.is_spectator) {
-        } else {
-        }
+        setIsSpectator(false); // Reconnected players are not spectators
         
         // Resume heartbeat
         if (heartbeatIntervalRef.current) {

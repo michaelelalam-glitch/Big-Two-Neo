@@ -238,12 +238,14 @@ export default function SettingsScreen() {
             return;
           }
 
-          // Call Supabase to delete user data
+          // Call Edge Function to delete user data
           // This should trigger database cascades to remove all user-related data
-          const { error } = await supabase.rpc('delete_user_account');
+          const { data, error } = await supabase.functions.invoke('delete-account', {
+            body: {},
+          });
 
-          if (error) {
-            console.error('[Settings] Failed to delete account:', error);
+          if (error || !data?.success) {
+            console.error('[Settings] Failed to delete account:', error || data);
             showError(t('settings.deleteAccountFailed'));
             return;
           }
