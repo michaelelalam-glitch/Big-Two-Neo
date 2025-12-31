@@ -46,7 +46,20 @@ Deno.serve(async (req) => {
       user_id: userId.substring(0, 8),
     });
 
-    // Delete user data in order (respecting foreign key constraints)
+    // Delete auth user FIRST to prevent inconsistent state
+    // If this fails, user data remains intact
+    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      console.error('❌ [delete-account] Failed to delete auth user:', deleteError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to delete account' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Now delete user data in order (respecting foreign key constraints)
+    // These operations are safe even if they fail since auth user is already deleted
     
     // 1. Delete from waiting_room
     await supabaseClient
@@ -71,17 +84,6 @@ Deno.serve(async (req) => {
       .from('user_stats')
       .delete()
       .eq('user_id', userId);
-
-    // 5. Delete the auth user (this requires admin privileges)
-    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
-
-    if (deleteError) {
-      console.error('❌ [delete-account] Failed to delete auth user:', deleteError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to delete account' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     console.log('✅ [delete-account] Successfully deleted account');
 

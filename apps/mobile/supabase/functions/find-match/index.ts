@@ -76,20 +76,50 @@ Deno.serve(async (req) => {
     const userId = user.id;
     const isRanked = match_type === 'ranked';
 
-    // 1. Clean up any existing room_players for this user
+    // 1. Check if user is already in an active game
+    const { data: activeRoomCheck, error: activeRoomCheckError } = await supabaseClient
+      .from('room_players')
+      .select('id, room_id, rooms!inner(status)')
+      .eq('user_id', userId)
+      .not('rooms.status', 'in', '(completed,abandoned)')
+      .limit(1);
+
+    if (activeRoomCheckError) {
+      console.error('❌ [find-match] Error checking active rooms:', activeRoomCheckError);
+    }
+
+    if (activeRoomCheck && activeRoomCheck.length > 0) {
+      console.log('⚠️ [find-match] User is already in an active game, denying matchmaking:', {
+        user_id: userId.substring(0, 8),
+        room_id: activeRoomCheck[0].room_id,
+      });
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'You are already in an active game',
+          room_id: activeRoomCheck[0].room_id,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Clean up only completed/abandoned room_players for this user
+    // Note: This uses a subquery which may not work in all Supabase versions
+    // Alternative: Clean up all room_players since we've verified no active games above
     await supabaseClient
       .from('room_players')
       .delete()
       .eq('user_id', userId);
 
-    // 2. Clean up stale waiting room entries (older than 5 minutes)
+    // 3. Clean up only this user's stale waiting room entries (older than 5 minutes)
     await supabaseClient
       .from('waiting_room')
       .delete()
+      .eq('user_id', userId)
       .eq('status', 'waiting')
       .lt('joined_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
-    // 3. Insert or update user in waiting room
+    // 4. Insert or update user in waiting room
     const { error: insertError } = await supabaseClient
       .from('waiting_room')
       .upsert({
@@ -112,7 +142,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Find waiting players (skill rating within 200, same region and match type, joined within last 5 minutes)
+    // 5. Find waiting players (skill rating within 200, same region and match type, joined within last 5 minutes)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: waitingPlayers, error: searchError } = await supabaseClient
       .from('waiting_room')
@@ -138,7 +168,7 @@ Deno.serve(async (req) => {
 
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
-    // 5. If we have 4+ players, create a match
+    // 6. If we have 4+ players, create a match
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');
 

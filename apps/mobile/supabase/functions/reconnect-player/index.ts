@@ -19,9 +19,30 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Get authenticated user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('❌ [reconnect-player] Auth error:', authError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Not authenticated' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { room_id, player_id } = await req.json();
 
     console.log('🔄 [reconnect-player] Request received:', {
+      user_id: user.id.substring(0, 8),
       room_id: room_id?.substring(0, 8),
       player_id: player_id?.substring(0, 8),
     });
@@ -34,19 +55,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get player info
+    // Get player info AND verify ownership
     const { data: player, error: playerError } = await supabaseClient
       .from('room_players')
       .select('id, user_id, username, connection_status, is_bot')
       .eq('id', player_id)
       .eq('room_id', room_id)
+      .eq('user_id', user.id)
       .single();
 
     if (playerError || !player) {
-      console.log('❌ [reconnect-player] Player not found:', playerError);
+      console.log('❌ [reconnect-player] Player not found or unauthorized:', playerError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Player not found in room' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Player not found or unauthorized' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -57,11 +79,13 @@ Deno.serve(async (req) => {
     if (player.connection_status === 'replaced_by_bot') {
       wasBot = true;
       
-      // Fallback: keep stored username unchanged if it doesn't match bot prefix pattern
+      // Safe bot username restoration: only strip 'Bot ' prefix if present
+      // This prevents incorrect stripping if a legitimate user has 'Bot ' in their name
       if (typeof player.username === 'string' && player.username.startsWith('Bot ')) {
         originalUsername = player.username.substring('Bot '.length);
       } else {
         // If username doesn't match bot pattern, preserve it as-is
+        // This handles edge cases where bot replacement didn't add the prefix
         originalUsername = player.username;
       }
       
