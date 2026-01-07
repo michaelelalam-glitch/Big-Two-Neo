@@ -83,11 +83,11 @@ BEGIN
     );
   END IF;
   
-  -- 3. Find coordinator (first human player)
+  -- 3. Find coordinator (first human player) - FIXED: Use joined_at instead of created_at
   SELECT user_id INTO v_coordinator_id
   FROM room_players
   WHERE room_id = p_room_id AND is_bot = false
-  ORDER BY created_at ASC
+  ORDER BY joined_at ASC
   LIMIT 1;
   
   IF NOT FOUND THEN
