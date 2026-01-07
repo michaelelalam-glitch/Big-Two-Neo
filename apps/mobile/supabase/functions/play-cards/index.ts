@@ -61,6 +61,10 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
 /**
  * Parse card data that might be in string or object format
  * Handles legacy games with string cards: "D3" -> {id:"D3", rank:"3", suit:"D"}
+ * 
+ * TODO: Add comprehensive test coverage for:
+ * - Normal Card objects, plain string cards, single/double/triple JSON-encoded strings
+ * - Malformed data, MAX_ITERATIONS boundary cases
  */
 function parseCard(cardData: any): Card | null {
   // Already a proper card object

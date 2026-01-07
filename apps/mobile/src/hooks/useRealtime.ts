@@ -597,8 +597,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     
     try {
       // ✅ CRITICAL FIX: Use start_game_with_bots RPC to ensure consistent turn order
-      // This RPC correctly finds the player with 3♦ and sets them as starting player,
-      // matching the local AI game behavior (anticlockwise: 0→3→1→2→0)
+      // This RPC correctly finds the player with 3♦ and sets them as starting player.
+      // Uses anticlockwise turn order (indices [3,2,0,1] → sequence depends on starting player).
       const botCount = Math.max(0, 4 - roomPlayers.length);
       const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
         p_room_id: room.id,
@@ -931,7 +931,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       gameLogger.info('[useRealtime] ✅ Pass successful:', {
         next_turn: result.next_turn,
-        passes: result.passes, // Column is 'passes' not 'pass_count'
+        passes: result.passes, // Response field is 'passes'; previous 'pass_count' usage was client-side naming mistake
         trick_cleared: result.trick_cleared,
         timer_preserved: !!result.auto_pass_timer,
       });

@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
 
-    // 7. Check if 3 consecutive passes (new trick starts)
+    // 7. Check if 3 consecutive passes (new trick starts, reset passes)
     if (newPasses >= 3) {
       console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
 

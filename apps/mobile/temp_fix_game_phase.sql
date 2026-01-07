@@ -1,3 +1,7 @@
+-- ⚠️ WARNING: This is a temporary hotfix script.
+-- DO NOT USE if migration 20260106222754_fix_game_phase_transition.sql has been applied.
+-- This file is kept for reference only and should be deleted after migration is confirmed.
+--
 -- Fix game_phase not transitioning from first_play to normal_play
 CREATE OR REPLACE FUNCTION transition_game_phase_after_first_play()
 RETURNS TRIGGER AS $$

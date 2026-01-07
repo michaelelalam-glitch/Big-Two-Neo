@@ -86,13 +86,22 @@ BEGIN
   SELECT user_id INTO v_coordinator_id
   FROM room_players
   WHERE room_id = p_room_id AND is_bot = false
-  ORDER BY joined_at ASC
+  ORDER BY joined_at ASC, user_id ASC
   LIMIT 1;
   
   IF v_coordinator_id IS NULL THEN
     RETURN json_build_object(
       'success', false,
       'error', 'No human players found in room'
+    );
+  END IF;
+  
+  -- 4b. 🔒 SECURITY CHECK: Only coordinator can start game
+  -- This check prevents unauthorized users from starting games in any room
+  IF auth.uid() IS DISTINCT FROM v_coordinator_id THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Unauthorized: Only the room coordinator can start the game'
     );
   END IF;
   
