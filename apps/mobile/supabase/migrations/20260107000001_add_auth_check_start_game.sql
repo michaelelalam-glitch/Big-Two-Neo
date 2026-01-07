@@ -67,7 +67,15 @@ BEGIN
     );
   END IF;
   
-  -- 2. Count human players and calculate bot indices
+  -- 2. Check ranked mode restriction (CRITICAL: Prevent bot injection in ranked games)
+  IF v_room.ranked_mode = true AND p_bot_count > 0 THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Cannot add bots to ranked games'
+    );
+  END IF;
+  
+  -- 3. Count human players and calculate bot indices
   SELECT COUNT(*) INTO v_human_count
   FROM room_players
   WHERE room_id = p_room_id AND is_bot = false;
@@ -83,11 +91,12 @@ BEGIN
     );
   END IF;
   
-  -- 3. Find coordinator (first human player) - FIXED: Use joined_at instead of created_at
+  -- 4. Find coordinator (first human player) - FIXED: Use joined_at instead of created_at
+  -- Added secondary sort by user_id for deterministic ordering if timestamps match
   SELECT user_id INTO v_coordinator_id
   FROM room_players
   WHERE room_id = p_room_id AND is_bot = false
-  ORDER BY joined_at ASC
+  ORDER BY joined_at ASC, user_id ASC
   LIMIT 1;
   
   IF NOT FOUND THEN

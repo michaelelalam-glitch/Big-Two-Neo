@@ -74,6 +74,7 @@ function parseCard(cardData: any): Card | null {
     
     // Handle JSON-encoded strings: "\"D3\"" -> "D3"
     // Safety: max 5 iterations to prevent infinite loops
+    // MAX_ITERATIONS=5 handles up to 5 levels of JSON string nesting from legacy data formats
     let iterations = 0;
     const MAX_ITERATIONS = 5;
     try {
@@ -123,12 +124,10 @@ function parseCards(cardsData: any[]): Card[] {
   const failedCount = totalCards - parsedCards.length;
   const failureRate = totalCards > 0 ? failedCount / totalCards : 0;
   
-  if (failureRate >= 0.5) {
-    throw new Error(`Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed (${Math.round(failureRate * 100)}% failure rate)`);
-  }
-  
+  // CRITICAL: Changed from 50% to 0% - ANY parse failure indicates data corruption
+  // Silent filtering could cause incomplete hands (e.g., 6 cards instead of 13)
   if (failedCount > 0) {
-    console.warn(`⚠️ [parseCards] ${failedCount}/${totalCards} cards failed to parse`);
+    throw new Error(`Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed (${Math.round(failureRate * 100)}% failure rate). This indicates data corruption and game cannot proceed.`);
   }
   
   return parsedCards;

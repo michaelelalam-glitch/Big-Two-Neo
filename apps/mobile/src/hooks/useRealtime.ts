@@ -596,11 +596,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
-      // Send push notifications to all players
-      notifyGameStarted(room.id, room.code).catch(err => 
-        networkLogger.error('❌ Failed to send game start notifications:', err)
-      );
-      
       // ✅ CRITICAL FIX: Use start_game_with_bots RPC to ensure consistent turn order
       // This RPC correctly finds the player with 3♦ and sets them as starting player,
       // matching the local AI game behavior (anticlockwise: 0→3→1→2→0)
@@ -615,15 +610,22 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error(startError?.message || startResult?.error || 'Failed to start game');
       }
 
-      // ✅ CRITICAL: Ensure we have a concrete game state from the RPC result
+      // ✅ CRITICAL: Validate RPC returned valid game state
       const gameState = (startResult as any).game_state ?? startResult;
       if (!gameState || !gameState.room_id) {
         throw new Error('Failed to start game: missing game state from RPC result');
       }
 
+      // CRITICAL FIX: Send push notifications AFTER RPC success (prevents notifications for failed games)
+      // Use fire-and-forget pattern with error logging only
+      notifyGameStarted(room.id, room.code).catch(err => 
+        networkLogger.error('❌ Failed to send game start notifications:', err)
+      );
+
       // Game state is created by RPC with correct starting player (who has 3♦)
-      // Broadcast game started event so all clients sync from the same initial state
-      await broadcastMessage('game_started', { success: true, gameState });
+      // Broadcast ONLY metadata - clients will fetch game state via realtime subscription
+      // This prevents broadcasting stale/incorrect game state structure
+      await broadcastMessage('game_started', { success: true, roomId: room.id });
     } catch (err) {
       const error = err as Error;
       setError(error);
