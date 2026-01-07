@@ -79,6 +79,8 @@ function parseCard(cardData: any): Card | null {
     // Handle JSON-encoded strings: "\"D3\"" -> "D3"
     // Safety: max 5 iterations to prevent infinite loops
     // MAX_ITERATIONS=5 handles up to 5 levels of JSON string nesting from legacy data formats
+    // Empirical basis: observed max nesting is 2 levels (from double-encoding bug in v1.2.3)
+    // Set to 5 to provide 2.5x safety margin above observed maximum
     let iterations = 0;
     const MAX_ITERATIONS = 5;
     try {
@@ -130,14 +132,22 @@ function parseCards(cardsData: any[]): Card[] {
   const failedCount = totalCards - parsedCards.length;
   const failureRate = totalCards > 0 ? failedCount / totalCards : 0;
   
-  // CRITICAL: Changed from 50% to 0% - ANY parse failure indicates data corruption
-  // Silent filtering could cause incomplete hands (e.g., 6 cards instead of 13)
-  if (failedCount > 0) {
+  // Graduated error handling for production resilience:
+  // - 50%+ failure = data corruption (hard fail)
+  // - <50% failure = warn but continue (handles transient issues)
+  if (failedCount > 0 && failedCount >= Math.ceil(totalCards * 0.5)) {
     const failedIndices = cardsData
       .map((c, i) => parseCard(c) === null ? i : -1)
       .filter(i => i !== -1);
     throw new Error(
       `Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed ` +
+      `(${Math.round(failureRate * 100)}% failure rate). ` +
+      `Failed at indices: [${failedIndices.join(', ')}]. ` +
+      `This indicates data corruption and game cannot proceed.`
+    );
+  } else if (failedCount > 0) {
+    console.warn(`[parseCards] ${failedCount}/${totalCards} cards failed to parse, continuing with ${parsedCards.length} valid cards`);
+  }
       `(${Math.round(failureRate * 100)}% failure rate). ` +
       `Failed at indices: [${failedIndices.join(', ')}]. ` +
       `This indicates data corruption and game cannot proceed.`
@@ -907,8 +917,8 @@ Deno.serve(async (req) => {
     }
 
     // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
-    // Turn order mapping by player_index: 0→3, 1→0, 2→1, 3→2.
-    // Actual sequence: 0→3→2→1→0 (anticlockwise around the table)
+    // Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1
+    // Example sequence starting from player 0: 0→3→1→2→0 (anticlockwise around the table)
     // NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];

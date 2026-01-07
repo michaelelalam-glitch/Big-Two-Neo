@@ -116,12 +116,13 @@ BEGIN
   END IF;
   
   -- 6. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
-  -- Anticlockwise turn order: 0→3→2→1→0 (turnOrder = [3, 2, 0, 1])
+  -- Anticlockwise turn order mapping: turnOrder = [3, 2, 0, 1]
+  -- Example sequence when human player (index 0) leads the turn: 0→3→2→1→0
   -- For proper turn sequence with human at index 0:
   --   Bot 1 (next after human): index 3 (because turnOrder[0] = 3)
-  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[3] = 2)
+  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[3] = 2)  
   --   Bot 3 (next after Bot 2): index 1 (because turnOrder[2] = 1)
-  -- NOTE: Changed from clockwise [1, 2, 3] to anticlockwise [3, 2, 1] to match local game AI
+  -- NOTE: Actual sequence depends on starting player; example above assumes player 0 starts
   IF p_bot_count = 1 THEN
     v_bot_indices := ARRAY[3];  -- Only 1 bot: place at index 3 (next after 0)
   ELSIF p_bot_count = 2 THEN
