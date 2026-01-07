@@ -56,6 +56,59 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
   ['J', 'Q', 'K', 'A', '2'],
 ];
 
+// ==================== CARD PARSING (Backwards Compatibility) ====================
+
+/**
+ * Parse card data that might be in string or object format
+ * Handles legacy games with string cards: "D3" -> {id:"D3", rank:"3", suit:"D"}
+ */
+function parseCard(cardData: any): Card | null {
+  // Already a proper card object
+  if (typeof cardData === 'object' && cardData !== null && 'id' in cardData && 'rank' in cardData && 'suit' in cardData) {
+    return cardData as Card;
+  }
+  
+  // Handle string card (legacy format)
+  if (typeof cardData === 'string') {
+    let cardStr = cardData;
+    
+    // Handle JSON-encoded strings: "\"D3\"" -> "D3"
+    try {
+      while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{'))) {
+        const parsed = JSON.parse(cardStr);
+        if (typeof parsed === 'string') {
+          cardStr = parsed;
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          return parsed as Card;
+        } else {
+          break;
+        }
+      }
+    } catch {
+      // Not JSON, treat as plain string
+    }
+    
+    // Parse plain string: "D3" -> {id:"D3", rank:"3", suit:"D"}
+    if (cardStr.length >= 2) {
+      const suit = cardStr[0] as 'D' | 'C' | 'H' | 'S';
+      const rank = cardStr.substring(1) as Card['rank'];
+      return { id: cardStr, suit, rank };
+    }
+  }
+  
+  console.error('[parseCard] Could not parse card:', cardData);
+  return null;
+}
+
+/**
+ * Parse an array of cards (handles mixed formats)
+ */
+function parseCards(cardsData: any[]): Card[] {
+  return cardsData
+    .map(c => parseCard(c))
+    .filter((c): c is Card => c !== null);
+}
+
 // ==================== GAME LOGIC ====================
 
 function sortHand(cards: Card[]): Card[] {
@@ -628,9 +681,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 8. ✅ Verify player has all the cards
+    // 8. ✅ Verify player has all the cards (with backwards compatibility for string cards)
     const currentHands = gameState.hands || {};
-    const playerHand = currentHands[player.player_index] || [];
+    const playerHandRaw = currentHands[player.player_index] || [];
+    const playerHand = parseCards(playerHandRaw); // Parse cards (handles strings and objects)
     
     for (const card of cards) {
       const hasCard = playerHand.some((c: Card) => c.id === card.id);
@@ -639,6 +693,11 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: false,
             error: `Card not in hand: ${card.id}`,
+            debug: {
+              requested_card: card.id,
+              player_hand_ids: playerHand.map(c => c.id),
+              raw_hand_sample: playerHandRaw.slice(0, 3),
+            }
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -647,7 +706,8 @@ Deno.serve(async (req) => {
 
     // 9. ✅ ONE CARD LEFT RULE: Check if next player has 1 card
     const nextPlayerIndex = (player.player_index + 1) % 4;
-    const nextPlayerHand = currentHands[nextPlayerIndex] || [];
+    const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
+    const nextPlayerHand = parseCards(nextPlayerHandRaw); // Parse cards (handles strings and objects)
     const nextPlayerHasOneCard = nextPlayerHand.length === 1;
 
     console.log('🔍 One Card Left Rule Check:', {
@@ -808,11 +868,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
+    // 13. Calculate next turn (ANTICLOCKWISE: 0→1→2→3→0)
     // Big Two uses anticlockwise turn order, NOT clockwise!
-    // Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1.
-    // NOTE: This mapping must stay in sync with the server-side / RPC turn-order logic.
-    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
+    // Turn order mapping by player_index: 0→1, 1→2, 2→3, 3→0.
+    // Actual sequence: 0→1→2→3→0 (counter-clockwise around the table)
+    // NOTE: This mapping must stay in sync with the local game AI turn-order logic.
+    const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 
     // 12. Update played_cards (all cards played so far)
@@ -864,22 +925,30 @@ Deno.serve(async (req) => {
     }
 
     // 14. Update game state (including timer)
+    const updateData: any = {
+      hands: updatedHands,
+      last_play: {
+        player_index: player.player_index,
+        cards,
+        combo_type: comboType,
+        timestamp: Date.now(),
+      },
+      current_turn: nextTurn,
+      passes: 0,
+      played_cards: updatedPlayedCards,
+      auto_pass_timer: autoPassTimerState,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Transition game_phase from "first_play" to "playing" after first play
+    if (is_first_play && match_number === 1 && gameState.game_phase === 'first_play') {
+      updateData.game_phase = 'playing';
+      console.log('✅ Transitioning game_phase: first_play → playing');
+    }
+
     const { error: updateError } = await supabaseClient
       .from('game_state')
-      .update({
-        hands: updatedHands,
-        last_play: {
-          player_index: player.player_index,
-          cards,
-          combo_type: comboType,
-          timestamp: Date.now(),
-        },
-        current_turn: nextTurn,
-        passes: 0,  // ✅ FIX: Use "passes" column instead of "pass_count"
-        played_cards: updatedPlayedCards,
-        auto_pass_timer: autoPassTimerState,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('room_id', room.id);
 
     if (updateError) {

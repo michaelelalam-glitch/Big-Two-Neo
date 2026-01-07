@@ -232,10 +232,65 @@ function GameScreenContent() {
   // MULTIPLAYER HANDS MEMO - MUST BE DEFINED BEFORE playersWithCards!!!
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, Array<{ id: string; rank: string; suit: string }>>
+      | Record<string, Array<{ id: string; rank: string; suit: string } | string>>
       | undefined;
     
-    return hands;
+    if (!hands) return undefined;
+    
+    // 🔧 CRITICAL FIX: Parse string cards into objects (handles old game data)
+    // Some games created before migration have cards as strings: "D10" instead of {id:"D10", rank:"10", suit:"D"}
+    const parsedHands: Record<string, Array<{ id: string; rank: string; suit: string }>> = {};
+    
+    for (const [playerIndex, handData] of Object.entries(hands)) {
+      if (!Array.isArray(handData)) continue;
+      
+      parsedHands[playerIndex] = handData.map((card: any) => {
+        // If card is already an object with id/rank/suit, return as-is
+        if (typeof card === 'object' && card !== null && 'id' in card && 'rank' in card && 'suit' in card) {
+          return card as { id: string; rank: string; suit: string };
+        }
+        
+        // If card is a string, parse it into object format
+        if (typeof card === 'string') {
+          // Handle double-JSON-encoded strings: "\"D10\"" -> "D10"
+          let cardStr = card;
+          try {
+            // Try to parse if it's JSON-encoded
+            while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{'))) {
+              const parsed = JSON.parse(cardStr);
+              if (typeof parsed === 'string') {
+                cardStr = parsed;
+              } else if (typeof parsed === 'object' && parsed !== null) {
+                // It's already an object
+                return parsed as { id: string; rank: string; suit: string };
+              } else {
+                break;
+              }
+            }
+          } catch {
+            // Not JSON, treat as plain string
+          }
+          
+          // Now cardStr should be like "D10", "C5", "HK", etc.
+          // Extract suit (first character) and rank (rest)
+          if (cardStr.length >= 2) {
+            const suit = cardStr[0]; // 'D', 'C', 'H', 'S'
+            const rank = cardStr.substring(1); // '10', '5', 'K', etc.
+            return {
+              id: cardStr,
+              rank,
+              suit,
+            };
+          }
+        }
+        
+        // Fallback: return invalid card to trigger error logging
+        gameLogger.error('[GameScreen] 🚨 Could not parse card:', card);
+        return { id: 'INVALID', rank: '?', suit: '?' };
+      });
+    }
+    
+    return parsedHands;
   }, [multiplayerGameState]);
   
   // PHASE 6: Merge player hands into players for bot coordinator
