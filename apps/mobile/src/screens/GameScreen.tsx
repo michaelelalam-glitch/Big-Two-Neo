@@ -254,9 +254,13 @@ function GameScreenContent() {
         if (typeof card === 'string') {
           // Handle double-JSON-encoded strings: "\"D10\"" -> "D10"
           let cardStr = card;
+          // Safety: max 5 iterations to prevent infinite loops
+          let iterations = 0;
+          const MAX_ITERATIONS = 5;
           try {
             // Try to parse if it's JSON-encoded
-            while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{'))) {
+            while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
+              iterations++;
               const parsed = JSON.parse(cardStr);
               if (typeof parsed === 'string') {
                 cardStr = parsed;

@@ -615,9 +615,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error(startError?.message || startResult?.error || 'Failed to start game');
       }
 
+      // ✅ CRITICAL: Ensure we have a concrete game state from the RPC result
+      const gameState = (startResult as any).game_state ?? startResult;
+      if (!gameState || !gameState.room_id) {
+        throw new Error('Failed to start game: missing game state from RPC result');
+      }
+
       // Game state is created by RPC with correct starting player (who has 3♦)
-      // Broadcast game started event so all clients sync
-      await broadcastMessage('game_started', { success: true });
+      // Broadcast game started event so all clients sync from the same initial state
+      await broadcastMessage('game_started', { success: true, gameState });
     } catch (err) {
       const error = err as Error;
       setError(error);

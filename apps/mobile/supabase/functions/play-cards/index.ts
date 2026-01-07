@@ -73,8 +73,12 @@ function parseCard(cardData: any): Card | null {
     let cardStr = cardData;
     
     // Handle JSON-encoded strings: "\"D3\"" -> "D3"
+    // Safety: max 5 iterations to prevent infinite loops
+    let iterations = 0;
+    const MAX_ITERATIONS = 5;
     try {
-      while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{'))) {
+      while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
+        iterations++;
         const parsed = JSON.parse(cardStr);
         if (typeof parsed === 'string') {
           cardStr = parsed;
@@ -868,10 +872,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 13. Calculate next turn (ANTICLOCKWISE: 0→1→2→3→0)
-    // Big Two uses anticlockwise turn order, NOT clockwise!
+    // 13. Calculate next turn (CLOCKWISE: 0→1→2→3→0)
     // Turn order mapping by player_index: 0→1, 1→2, 2→3, 3→0.
-    // Actual sequence: 0→1→2→3→0 (counter-clockwise around the table)
+    // Actual sequence: 0→1→2→3→0 (clockwise around the table)
     // NOTE: This mapping must stay in sync with the local game AI turn-order logic.
     const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
@@ -940,10 +943,10 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Transition game_phase from "first_play" to "playing" after first play
+    // Transition game_phase from "first_play" to "normal_play" after first play
     if (is_first_play && match_number === 1 && gameState.game_phase === 'first_play') {
-      updateData.game_phase = 'playing';
-      console.log('✅ Transitioning game_phase: first_play → playing');
+      updateData.game_phase = 'normal_play';
+      console.log('✅ Transitioning game_phase: first_play → normal_play');
     }
 
     const { error: updateError } = await supabaseClient

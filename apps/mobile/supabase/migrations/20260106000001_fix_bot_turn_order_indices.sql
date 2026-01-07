@@ -96,18 +96,19 @@ BEGIN
     );
   END IF;
   
-  -- 5. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
-  -- Anticlockwise turn order: 0→3→1→2→0 (turnOrder = [3, 2, 0, 1])
+  -- 5. ✅ CRITICAL FIX: Assign bot player_index based on clockwise turn order
+  -- Clockwise turn order: 0→1→2→3→0 (turnOrder = [1, 2, 3, 0])
   -- For proper turn sequence with human at index 0:
-  --   Bot 1 (next after human): index 3 (because turnOrder[0] = 3)
-  --   Bot 2 (next after Bot 1): index 1 (because turnOrder[3] = 1)
-  --   Bot 3 (next after Bot 2): index 2 (because turnOrder[1] = 2)
+  --   Bot 1 (next after human): index 1 (because turnOrder[0] = 1)
+  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[1] = 2)
+  --   Bot 3 (next after Bot 2): index 3 (because turnOrder[2] = 3)
+  -- NOTE: This creates the sequence 0→1→2→3→0 (clockwise)
   IF p_bot_count = 1 THEN
-    v_bot_indices := ARRAY[3];  -- Only 1 bot: place at index 3 (next after 0)
+    v_bot_indices := ARRAY[1];  -- Only 1 bot: place at index 1 (next after 0)
   ELSIF p_bot_count = 2 THEN
-    v_bot_indices := ARRAY[3, 1];  -- 2 bots: indices 3, 1 (turn: 0→3→1→0)
+    v_bot_indices := ARRAY[1, 2];  -- 2 bots: indices 1, 2 (turn: 0→1→2→0)
   ELSIF p_bot_count = 3 THEN
-    v_bot_indices := ARRAY[3, 1, 2];  -- 3 bots: indices 3, 1, 2 (turn: 0→3→1→2→0)
+    v_bot_indices := ARRAY[1, 2, 3];  -- 3 bots: indices 1, 2, 3 (turn: 0→1→2→3→0)
   ELSE
     -- Fallback for invalid bot count
     v_bot_indices := ARRAY[]::INTEGER[];
@@ -241,4 +242,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION start_game_with_bots TO authenticated;
 
-COMMENT ON FUNCTION start_game_with_bots IS 'Start game with bots using anticlockwise turn-order indices (0→3→1→2→0). Bot 2 at index 3, Bot 3 at index 1, Bot 4 at index 2.';
+COMMENT ON FUNCTION start_game_with_bots IS 'Start game with bots using clockwise turn-order indices (0→1→2→3→0). Bot 2 at index 1, Bot 3 at index 2, Bot 4 at index 3.';
