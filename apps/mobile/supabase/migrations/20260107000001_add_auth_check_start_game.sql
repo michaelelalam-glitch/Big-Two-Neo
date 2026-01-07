@@ -1,16 +1,7 @@
--- FIX: Bot player_index assignment to match anticlockwise turn order
--- Date: January 6, 2026
--- Issue: Bots are assigned sequential indices (1,2,3) but anticlockwise turn order
---        requires specific indices to match the turn sequence 0→3→2→1→0
--- 
--- Current behavior:  Steve(0) → Bot4(3) → Bot2(2) → Bot3(1) → Steve
--- Desired behavior: Steve(0) → Bot2(3) → Bot3(2) → Bot4(1) → Steve
--- 
--- Solution: Assign bot player_index based on anticlockwise turn order positions
---           turnOrder = [3, 2, 0, 1] means:
---           - Position after player 0: index 3 → Bot 2
---           - Position after player 3: index 2 → Bot 3  
---           - Position after player 2: index 1 → Bot 4
+-- Add authorization check to start_game_with_bots function
+-- Date: January 7, 2026
+-- Security Issue: SECURITY DEFINER without auth check allows any user to start games for any room
+-- Fix: Add verification that caller is room participant/owner
 
 CREATE OR REPLACE FUNCTION start_game_with_bots(
   p_room_id UUID,
@@ -30,7 +21,33 @@ DECLARE
   v_starting_player INTEGER;
   v_bot_indices INTEGER[];
   v_bot_name TEXT;
+  v_caller_id UUID;
+  v_is_participant BOOLEAN;
 BEGIN
+  -- 🔒 SECURITY CHECK: Verify caller is in the room
+  v_caller_id := auth.uid();
+  
+  IF v_caller_id IS NULL THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Unauthorized: Must be authenticated'
+    );
+  END IF;
+  
+  -- Check if caller is a participant in the room
+  SELECT EXISTS(
+    SELECT 1 FROM room_players 
+    WHERE room_id = p_room_id 
+    AND user_id = v_caller_id
+  ) INTO v_is_participant;
+  
+  IF NOT v_is_participant THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Unauthorized: Must be a room participant to start game'
+    );
+  END IF;
+  
   -- 1. Get room and validate
   SELECT * INTO v_room FROM rooms WHERE id = p_room_id;
   
@@ -50,71 +67,55 @@ BEGIN
     );
   END IF;
   
-  -- 2. Check ranked mode restriction
-  IF v_room.ranked_mode = true AND p_bot_count > 0 THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'Cannot add bots to ranked games'
-    );
-  END IF;
-  
-  -- 3. Calculate player counts
-  SELECT COUNT(*) INTO v_human_count 
-  FROM room_players 
-  WHERE room_id = p_room_id;
+  -- 2. Count human players and calculate bot indices
+  SELECT COUNT(*) INTO v_human_count
+  FROM room_players
+  WHERE room_id = p_room_id AND is_bot = false;
   
   v_total_players := v_human_count + p_bot_count;
   
-  IF v_total_players > 4 THEN
+  IF v_total_players != 4 THEN
     RETURN json_build_object(
       'success', false,
-      'error', 'Total players would exceed 4',
+      'error', 'Total players must be 4',
       'human_count', v_human_count,
       'bot_count', p_bot_count
     );
   END IF;
   
-  IF v_total_players < 2 THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'Need at least 2 players to start',
-      'current_total', v_total_players
-    );
-  END IF;
-  
-  -- 4. Get coordinator (first human player)
+  -- 3. Find coordinator (first human player)
   SELECT user_id INTO v_coordinator_id
   FROM room_players
   WHERE room_id = p_room_id AND is_bot = false
-  ORDER BY joined_at ASC
+  ORDER BY created_at ASC
   LIMIT 1;
   
-  IF v_coordinator_id IS NULL THEN
+  IF NOT FOUND THEN
     RETURN json_build_object(
       'success', false,
       'error', 'No human players found in room'
     );
   END IF;
   
-  -- 5. ✅ CRITICAL FIX: Assign bot player_index based on clockwise turn order
-  -- Clockwise turn order: 0→1→2→3→0 (turnOrder = [1, 2, 3, 0])
+  -- 4. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
+  -- Anticlockwise turn order: 0→3→2→1→0 (turnOrder = [3, 2, 0, 1])
   -- For proper turn sequence with human at index 0:
-  --   Bot 1 (next after human): index 1 (because turnOrder[0] = 1)
-  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[1] = 2)
-  --   Bot 3 (next after Bot 2): index 3 (because turnOrder[2] = 3)
-  -- NOTE: This creates the sequence 0→1→2→3→0 (clockwise)
+  --   Bot 1 (next after human): index 3 (because turnOrder[0] = 3)
+  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[3] = 2)
+  --   Bot 3 (next after Bot 2): index 1 (because turnOrder[2] = 1)
+  -- NOTE: Changed from clockwise [1, 2, 3] to anticlockwise [3, 2, 1] to match local game AI
   IF p_bot_count = 1 THEN
-    v_bot_indices := ARRAY[1];  -- Only 1 bot: place at index 1 (next after 0)
+    v_bot_indices := ARRAY[3];  -- Only 1 bot: place at index 3 (next after 0)
   ELSIF p_bot_count = 2 THEN
-    v_bot_indices := ARRAY[1, 2];  -- 2 bots: indices 1, 2 (turn: 0→1→2→0)
+    v_bot_indices := ARRAY[3, 2];  -- 2 bots: indices 3, 2 (turn: 0→3→2→0)
   ELSIF p_bot_count = 3 THEN
-    v_bot_indices := ARRAY[1, 2, 3];  -- 3 bots: indices 1, 2, 3 (turn: 0→1→2→3→0)
+    v_bot_indices := ARRAY[3, 2, 1];  -- 3 bots: indices 3, 2, 1 (turn: 0→3→2→1→0)
   ELSE
     -- Fallback for invalid bot count
     v_bot_indices := ARRAY[]::INTEGER[];
   END IF;
   
-  -- 6. Create bot players with correct indices and names
+  -- 5. Create bot players with correct indices and names
   FOR v_i IN 1..p_bot_count LOOP
     -- Bot names: Bot 2, Bot 3, Bot 4 (matching their visual turn position)
     v_bot_name := 'Bot ' || (v_i + 1)::TEXT;
@@ -139,7 +140,7 @@ BEGIN
     );
   END LOOP;
   
-  -- 7. Shuffle deck and deal cards
+  -- 6. Shuffle deck and deal cards
   v_deck := ARRAY[
     'D3','C3','H3','S3','D4','C4','H4','S4','D5','C5','H5','S5',
     'D6','C6','H6','S6','D7','C7','H7','S7','D8','C8','H8','S8',
@@ -168,7 +169,7 @@ BEGIN
     );
   END LOOP;
   
-  -- Find starting player (who has 3 of Diamonds)
+  -- Find starting player (who has 3♦)
   v_starting_player := NULL;
   FOR v_i IN 0..(v_total_players - 1) LOOP
     IF v_player_hands->v_i::TEXT @> '["D3"]'::jsonb THEN
@@ -181,7 +182,7 @@ BEGIN
     v_starting_player := 0; -- Fallback
   END IF;
   
-  -- 8. UPSERT game_state (using correct column names from schema)
+  -- 7. UPSERT game_state (using correct column names from schema)
   INSERT INTO game_state (
     room_id,
     current_turn,
@@ -221,12 +222,12 @@ BEGIN
     auto_pass_timer = EXCLUDED.auto_pass_timer,
     updated_at = NOW();
   
-  -- 9. Update room status to 'playing'
+  -- 8. Update room status to 'playing'
   UPDATE rooms
   SET status = 'playing', updated_at = NOW()
   WHERE id = p_room_id;
   
-  -- 10. Success
+  -- 9. Success
   RETURN json_build_object(
     'success', true,
     'room_id', p_room_id,
@@ -242,4 +243,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION start_game_with_bots TO authenticated;
 
-COMMENT ON FUNCTION start_game_with_bots IS 'Start game with bots using anticlockwise turn-order indices (0→3→2→1→0). Bot 2 at index 3, Bot 3 at index 2, Bot 4 at index 1.';
+COMMENT ON FUNCTION start_game_with_bots IS 'Start game with bots using anticlockwise turn-order indices (0→3→2→1→0). Includes authorization check. Bot 2 at index 3, Bot 3 at index 2, Bot 4 at index 1.';

@@ -929,7 +929,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       gameLogger.info('[useRealtime] ✅ Pass successful:', {
         next_turn: result.next_turn,
-        pass_count: result.pass_count,
+        passes: result.passes,
         trick_cleared: result.trick_cleared,
         timer_preserved: !!result.auto_pass_timer,
       });

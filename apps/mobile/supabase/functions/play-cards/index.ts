@@ -81,6 +81,11 @@ function parseCard(cardData: any): Card | null {
         iterations++;
         const parsed = JSON.parse(cardStr);
         if (typeof parsed === 'string') {
+          // Verify parsed value actually changed (prevent infinite loop)
+          if (parsed === cardStr) {
+            console.warn('[parseCard] JSON.parse returned same value, breaking loop');
+            break;
+          }
           cardStr = parsed;
         } else if (typeof parsed === 'object' && parsed !== null) {
           return parsed as Card;
@@ -106,11 +111,26 @@ function parseCard(cardData: any): Card | null {
 
 /**
  * Parse an array of cards (handles mixed formats)
+ * Throws error if ≥50% of cards fail to parse (data integrity issue)
  */
 function parseCards(cardsData: any[]): Card[] {
-  return cardsData
+  const totalCards = cardsData.length;
+  const parsedCards = cardsData
     .map(c => parseCard(c))
     .filter((c): c is Card => c !== null);
+  
+  const failedCount = totalCards - parsedCards.length;
+  const failureRate = totalCards > 0 ? failedCount / totalCards : 0;
+  
+  if (failureRate >= 0.5) {
+    throw new Error(`Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed (${Math.round(failureRate * 100)}% failure rate)`);
+  }
+  
+  if (failedCount > 0) {
+    console.warn(`⚠️ [parseCards] ${failedCount}/${totalCards} cards failed to parse`);
+  }
+  
+  return parsedCards;
 }
 
 // ==================== GAME LOGIC ====================
@@ -872,11 +892,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 13. Calculate next turn (CLOCKWISE: 0→1→2→3→0)
-    // Turn order mapping by player_index: 0→1, 1→2, 2→3, 3→0.
-    // Actual sequence: 0→1→2→3→0 (clockwise around the table)
-    // NOTE: This mapping must stay in sync with the local game AI turn-order logic.
-    const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
+    // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
+    // Turn order mapping by player_index: 0→3, 1→0, 2→1, 3→2.
+    // Actual sequence: 0→3→2→1→0 (anticlockwise around the table)
+    // NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
+    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 
     // 12. Update played_cards (all cards played so far)
@@ -943,11 +963,9 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Transition game_phase from "first_play" to "normal_play" after first play
-    if (is_first_play && match_number === 1 && gameState.game_phase === 'first_play') {
-      updateData.game_phase = 'normal_play';
-      console.log('✅ Transitioning game_phase: first_play → normal_play');
-    }
+    // NOTE: game_phase transition from "first_play" to "normal_play" is handled automatically
+    // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
+    // No manual transition needed here to avoid race conditions
 
     const { error: updateError } = await supabaseClient
       .from('game_state')

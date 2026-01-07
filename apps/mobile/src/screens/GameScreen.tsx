@@ -263,6 +263,11 @@ function GameScreenContent() {
               iterations++;
               const parsed = JSON.parse(cardStr);
               if (typeof parsed === 'string') {
+                // Verify parsed value actually changed (prevent subtle bugs)
+                if (parsed === cardStr) {
+                  console.warn('[GameScreen] JSON.parse returned same value, breaking loop');
+                  break;
+                }
                 cardStr = parsed;
               } else if (typeof parsed === 'object' && parsed !== null) {
                 // It's already an object
@@ -288,10 +293,10 @@ function GameScreenContent() {
           }
         }
         
-        // Fallback: return invalid card to trigger error logging
+        // Fallback: Invalid card detected - log error and return null
         gameLogger.error('[GameScreen] 🚨 Could not parse card:', card);
-        return { id: 'INVALID', rank: '?', suit: '?' };
-      });
+        return null;
+      }).filter((card): card is { id: string; rank: string; suit: string } => card !== null);
     }
     
     return parsedHands;

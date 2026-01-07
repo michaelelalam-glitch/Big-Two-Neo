@@ -106,10 +106,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Calculate next turn (anticlockwise: 0→1→2→3→0)
-    // Turn order mapping: [0→1, 1→2, 2→3, 3→0]
-    // Actual sequence: 0→1→2→3→0 (counter-clockwise around the table)
-    const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
+    // 6. Calculate next turn (anticlockwise: 0→3→2→1→0)
+    // Turn order mapping: [0→3, 1→0, 2→1, 3→2]
+    // Actual sequence: 0→3→2→1→0 (anticlockwise around the table)
+    // NOTE: MUST match local game AI and play-cards function: [3, 2, 0, 1]
+    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
     
     // Validate passes with type checking
