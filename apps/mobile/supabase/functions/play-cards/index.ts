@@ -82,11 +82,12 @@ function parseCard(cardData: any): Card | null {
         const parsed = JSON.parse(cardStr);
         if (typeof parsed === 'string') {
           // Verify parsed value actually changed (prevent infinite loop)
-          if (parsed === cardStr) {
+          const previousCardStr = cardStr;
+          cardStr = parsed;
+          if (cardStr === previousCardStr) {
             console.warn('[parseCard] JSON.parse returned same value, breaking loop');
             break;
           }
-          cardStr = parsed;
         } else if (typeof parsed === 'object' && parsed !== null) {
           return parsed as Card;
         } else {

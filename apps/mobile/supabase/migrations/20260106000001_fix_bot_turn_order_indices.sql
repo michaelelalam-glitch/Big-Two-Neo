@@ -96,19 +96,19 @@ BEGIN
     );
   END IF;
   
-  -- 5. ✅ CRITICAL FIX: Assign bot player_index based on clockwise turn order
-  -- Clockwise turn order: 0→1→2→3→0 (turnOrder = [1, 2, 3, 0])
+  -- 5. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
+  -- Anticlockwise turn order: 0→3→2→1→0 (turnOrder = [3, 2, 0, 1])
   -- For proper turn sequence with human at index 0:
-  --   Bot 1 (next after human): index 1 (because turnOrder[0] = 1)
-  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[1] = 2)
-  --   Bot 3 (next after Bot 2): index 3 (because turnOrder[2] = 3)
-  -- NOTE: This creates the sequence 0→1→2→3→0 (clockwise)
+  --   Bot 1 (next after human): index 3 (because turnOrder[0] = 3)
+  --   Bot 2 (next after Bot 1): index 2 (because turnOrder[3] = 2)
+  --   Bot 3 (next after Bot 2): index 1 (because turnOrder[2] = 1)
+  -- NOTE: This creates the sequence 0→3→2→1→0 (anticlockwise) matching Big Two rules
   IF p_bot_count = 1 THEN
-    v_bot_indices := ARRAY[1];  -- Only 1 bot: place at index 1 (next after 0)
+    v_bot_indices := ARRAY[3];  -- Only 1 bot: place at index 3 (next after 0)
   ELSIF p_bot_count = 2 THEN
-    v_bot_indices := ARRAY[1, 2];  -- 2 bots: indices 1, 2 (turn: 0→1→2→0)
+    v_bot_indices := ARRAY[3, 2];  -- 2 bots: indices 3, 2 (turn: 0→3→2→0)
   ELSIF p_bot_count = 3 THEN
-    v_bot_indices := ARRAY[1, 2, 3];  -- 3 bots: indices 1, 2, 3 (turn: 0→1→2→3→0)
+    v_bot_indices := ARRAY[3, 2, 1];  -- 3 bots: indices 3, 2, 1 (turn: 0→3→2→1→0)
   ELSE
     -- Fallback for invalid bot count
     v_bot_indices := ARRAY[]::INTEGER[];

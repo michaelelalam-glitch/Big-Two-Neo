@@ -264,11 +264,12 @@ function GameScreenContent() {
               const parsed = JSON.parse(cardStr);
               if (typeof parsed === 'string') {
                 // Verify parsed value actually changed (prevent subtle bugs)
-                if (parsed === cardStr) {
+                const previousCardStr = cardStr;
+                cardStr = parsed;
+                if (cardStr === previousCardStr) {
                   console.warn('[GameScreen] JSON.parse returned same value, breaking loop');
                   break;
                 }
-                cardStr = parsed;
               } else if (typeof parsed === 'object' && parsed !== null) {
                 // It's already an object
                 return parsed as { id: string; rank: string; suit: string };
