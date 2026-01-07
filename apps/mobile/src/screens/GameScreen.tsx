@@ -277,8 +277,9 @@ function GameScreenContent() {
                 break;
               }
             }
-          } catch {
+          } catch (e) {
             // Not JSON, treat as plain string
+            console.debug('[GameScreen] JSON parse failed, treating as plain string:', { card, error: e });
           }
           
           // Now cardStr should be like "D10", "C5", "HK", etc.

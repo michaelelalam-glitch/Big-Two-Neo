@@ -106,7 +106,16 @@ BEGIN
     );
   END IF;
   
-  -- 4. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
+  -- 5. CRITICAL SECURITY: Verify caller is the coordinator
+  -- Only the coordinator (room creator/first player) can start the game
+  IF v_caller_id IS DISTINCT FROM v_coordinator_id THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Unauthorized: Only the room coordinator can start the game'
+    );
+  END IF;
+  
+  -- 6. ✅ CRITICAL FIX: Assign bot player_index based on anticlockwise turn order
   -- Anticlockwise turn order: 0→3→2→1→0 (turnOrder = [3, 2, 0, 1])
   -- For proper turn sequence with human at index 0:
   --   Bot 1 (next after human): index 3 (because turnOrder[0] = 3)

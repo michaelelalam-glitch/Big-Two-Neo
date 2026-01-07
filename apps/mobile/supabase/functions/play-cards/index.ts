@@ -95,8 +95,9 @@ function parseCard(cardData: any): Card | null {
           break;
         }
       }
-    } catch {
+    } catch (e) {
       // Not JSON, treat as plain string
+      console.debug('[parseCard] JSON parse failed, treating as plain string:', { cardData, error: e });
     }
     
     // Parse plain string: "D3" -> {id:"D3", rank:"3", suit:"D"}
@@ -107,7 +108,8 @@ function parseCard(cardData: any): Card | null {
     }
   }
   
-  console.error('[parseCard] Could not parse card:', cardData);
+  // Failed to parse - log warning with details
+  console.warn('[parseCard] Failed to parse card - returning null:', { cardData, type: typeof cardData });
   return null;
 }
 
@@ -127,7 +129,15 @@ function parseCards(cardsData: any[]): Card[] {
   // CRITICAL: Changed from 50% to 0% - ANY parse failure indicates data corruption
   // Silent filtering could cause incomplete hands (e.g., 6 cards instead of 13)
   if (failedCount > 0) {
-    throw new Error(`Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed (${Math.round(failureRate * 100)}% failure rate). This indicates data corruption and game cannot proceed.`);
+    const failedIndices = cardsData
+      .map((c, i) => parseCard(c) === null ? i : -1)
+      .filter(i => i !== -1);
+    throw new Error(
+      `Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed ` +
+      `(${Math.round(failureRate * 100)}% failure rate). ` +
+      `Failed at indices: [${failedIndices.join(', ')}]. ` +
+      `This indicates data corruption and game cannot proceed.`
+    );
   }
   
   return parsedCards;
