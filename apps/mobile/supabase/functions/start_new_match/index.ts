@@ -101,6 +101,14 @@ Deno.serve(async (req) => {
       shuffledDeck.slice(39, 52),
     ];
 
+    // 4.5. Convert array to JSONB object (database expects {"0": [...], "1": [...], ...})
+    const handsObject: Record<string, Card[]> = {
+      "0": newHands[0],
+      "1": newHands[1],
+      "2": newHands[2],
+      "3": newHands[3],
+    };
+
     // 5. Get cumulative scores from room_players (preserve across matches)
     const { data: roomPlayersData, error: playersError } = await supabaseClient
       .from('room_players')
@@ -131,7 +139,7 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabaseClient
       .from('game_state')
       .update({
-        hands: newHands,
+        hands: handsObject, // ✅ FIX: Use object format, not array
         game_phase: 'playing',
         current_turn: winner_index, // Winner of previous match starts
         last_play: null,
@@ -140,6 +148,7 @@ Deno.serve(async (req) => {
         match_number: newMatchNumber,
         scores: cumulativeScores, // CRITICAL: Preserve cumulative scores
         play_history: existingPlayHistory, // CRITICAL: Preserve all match histories (don't clear!)
+        played_cards: [], // ✅ FIX: Clear played cards for new match
         auto_pass_timer: null,
       })
       .eq('id', gameState.id);
