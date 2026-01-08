@@ -35,6 +35,33 @@ import { networkLogger, gameLogger } from '../utils/logger';
 import { canBeatPlay } from '../game/engine/game-logic';
 
 /**
+ * Extract detailed error message from Supabase Edge Function response
+ * When an Edge Function returns a non-2xx status, the actual error details
+ * are in error.context, not just error.message
+ */
+function extractEdgeFunctionError(error: any, result: any, fallback: string): string {
+  // Priority 1: Check if result has error field (from Edge Function response body)
+  if (result?.error) {
+    return result.error;
+  }
+  
+  // Priority 2: Check error.context.status for HTTP status code
+  if (error?.context?.status) {
+    const status = error.context.status;
+    const statusText = error.context.statusText || '';
+    return `HTTP ${status}${statusText ? ': ' + statusText : ''}`;
+  }
+  
+  // Priority 3: Use error.message (usually "Edge Function returned a non-2xx status code")
+  if (error?.message && error.message !== 'Edge Function returned a non-2xx status code') {
+    return error.message;
+  }
+  
+  // Fallback
+  return fallback;
+}
+
+/**
  * Get server time from Supabase for clock synchronization
  * CRITICAL: This ensures all clients use the same time reference
  */
@@ -569,34 +596,36 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     }
     
     try {
-      // Update room status
-      await supabase
-        .from('rooms')
-        .update({ status: 'playing' })
-        .eq('id', room.id);
-      
-      // Send push notifications to all players
+      // ✅ CRITICAL FIX: Use start_game_with_bots RPC to ensure consistent turn order
+      // This RPC correctly finds the player with 3♦ and sets them as starting player.
+      // Uses anticlockwise turn order (indices [3,2,0,1] → sequence depends on starting player).
+      const botCount = Math.max(0, 4 - roomPlayers.length);
+      const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
+        p_room_id: room.id,
+        p_bot_count: botCount,
+        p_bot_difficulty: 'medium',
+      });
+
+      if (startError || !startResult?.success) {
+        throw new Error(startError?.message || startResult?.error || 'Failed to start game');
+      }
+
+      // ✅ CRITICAL: Validate RPC returned valid game state
+      const gameState = (startResult as any).game_state ?? startResult;
+      if (!gameState || !gameState.room_id) {
+        throw new Error('Failed to start game: missing game state from RPC result');
+      }
+
+      // CRITICAL FIX: Send push notifications AFTER RPC success (prevents notifications for failed games)
+      // Use fire-and-forget pattern with error logging only
       notifyGameStarted(room.id, room.code).catch(err => 
         networkLogger.error('❌ Failed to send game start notifications:', err)
       );
-      
-      // Create initial game state
-      const { data: newGameState, error: gameError } = await supabase
-        .from('game_state')
-        .insert({
-          room_id: room.id,
-          current_turn: 0,
-          turn_timer: 30,
-          last_play: null,
-          passes: 0,  // ✅ FIX: Use "passes" column (pass_count is computed)
-          game_phase: 'dealing',
-        })
-        .select()
-        .single();
-      
-      if (gameError) throw gameError;
-      
-      await broadcastMessage('game_started', { game_state: newGameState });
+
+      // Game state is created by RPC with correct starting player (who has 3♦)
+      // Broadcast ONLY metadata - clients will fetch game state via realtime subscription
+      // This prevents broadcasting stale/incorrect game state structure
+      await broadcastMessage('game_started', { success: true, roomId: room.id });
     } catch (err) {
       const error = err as Error;
       setError(error);
@@ -674,11 +703,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
 
       if (playError || !result?.success) {
-        const errorMessage = playError?.message || result?.error || 'Server validation failed';
+        const errorMessage = extractEdgeFunctionError(playError, result, 'Server validation failed');
         const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
-        gameLogger.error('[useRealtime] ❌ Server validation failed:', errorMessage);
-        gameLogger.error('[useRealtime] 🐛 Debug info:', debugInfo);
-        gameLogger.error('[useRealtime] 📦 Full result:', JSON.stringify(result));
+        const statusCode = playError?.context?.status || 'unknown';
+        
+        gameLogger.error('[useRealtime] ❌ Server validation failed:', {
+          message: errorMessage,
+          status: statusCode,
+          debug: debugInfo,
+        });
+        gameLogger.error('[useRealtime] 📦 Full error context:', {
+          error: playError,
+          result: result,
+        });
+        
         throw new Error(errorMessage);
       }
 
@@ -878,14 +916,22 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
 
       if (passError || !result?.success) {
-        const errorMessage = passError?.message || result?.error || 'Server validation failed';
-        gameLogger.error('[useRealtime] ❌ Pass failed:', errorMessage);
+        const errorMessage = extractEdgeFunctionError(passError, result, 'Pass validation failed');
+        const statusCode = passError?.context?.status || 'unknown';
+        
+        gameLogger.error('[useRealtime] ❌ Pass failed:', {
+          message: errorMessage,
+          status: statusCode,
+          fullError: passError,
+          result: result,
+        });
+        
         throw new Error(errorMessage);
       }
 
       gameLogger.info('[useRealtime] ✅ Pass successful:', {
         next_turn: result.next_turn,
-        pass_count: result.pass_count,
+        passes: result.passes, // Response field is 'passes'; previously both DB column and client reference were 'pass_count', renamed to 'passes' for consistency
         trick_cleared: result.trick_cleared,
         timer_preserved: !!result.auto_pass_timer,
       });

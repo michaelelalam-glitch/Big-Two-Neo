@@ -56,6 +56,106 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
   ['J', 'Q', 'K', 'A', '2'],
 ];
 
+// ==================== CARD PARSING (Backwards Compatibility) ====================
+
+/**
+ * Parse card data that might be in string or object format
+ * Handles legacy games with string cards: "D3" -> {id:"D3", rank:"3", suit:"D"}
+ * 
+ * TODO: Add comprehensive test coverage for:
+ * - Normal Card objects, plain string cards, single/double/triple JSON-encoded strings
+ * - Malformed data, MAX_ITERATIONS boundary cases
+ */
+function parseCard(cardData: any): Card | null {
+  // Already a proper card object
+  if (typeof cardData === 'object' && cardData !== null && 'id' in cardData && 'rank' in cardData && 'suit' in cardData) {
+    return cardData as Card;
+  }
+  
+  // Handle string card (legacy format)
+  if (typeof cardData === 'string') {
+    let cardStr = cardData;
+    
+    // Handle JSON-encoded strings: "\"D3\"" -> "D3"
+    // Safety: max 5 iterations to prevent infinite loops
+    // MAX_ITERATIONS=5 handles up to 5 levels of JSON string nesting from legacy data formats
+    // Empirical basis: observed max nesting is 2 levels (from double-encoding bug in v1.2.3)
+    // Set to 5 to provide 2.5x safety margin above observed maximum
+    let iterations = 0;
+    const MAX_ITERATIONS = 5;
+    try {
+      while (iterations < MAX_ITERATIONS) {
+        // Early exit: if string doesn't start with quote or brace, no more parsing needed
+        if (typeof cardStr !== 'string' || (!cardStr.startsWith('"') && !cardStr.startsWith('{'))) {
+          break;
+        }
+        iterations++;
+        const parsed = JSON.parse(cardStr);
+        if (typeof parsed === 'string') {
+          // Verify parsed value actually changed (prevent infinite loop)
+          const previousCardStr = cardStr;
+          cardStr = parsed;
+          if (cardStr === previousCardStr) {
+            console.warn('[parseCard] JSON.parse returned same value, breaking loop');
+            break;
+          }
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          return parsed as Card;
+        } else {
+          break;
+        }
+      }
+    } catch (e) {
+      // Not JSON, treat as plain string
+      console.debug('[parseCard] JSON parse failed, treating as plain string:', { cardData, error: e });
+    }
+    
+    // Parse plain string: "D3" -> {id:"D3", rank:"3", suit:"D"}
+    if (cardStr.length >= 2) {
+      const suit = cardStr[0] as 'D' | 'C' | 'H' | 'S';
+      const rank = cardStr.substring(1) as Card['rank'];
+      return { id: cardStr, suit, rank };
+    }
+  }
+  
+  // Failed to parse - log warning with details
+  console.warn('[parseCard] Failed to parse card - returning null:', { cardData, type: typeof cardData });
+  return null;
+}
+
+/**
+ * Parse an array of cards (handles mixed formats)
+ * Throws error if ≥50% of cards fail to parse (data integrity issue)
+ */
+function parseCards(cardsData: any[]): Card[] {
+  const totalCards = cardsData.length;
+  const parsedCards = cardsData
+    .map(c => parseCard(c))
+    .filter((c): c is Card => c !== null);
+  
+  const failedCount = totalCards - parsedCards.length;
+  const failureRate = totalCards > 0 ? failedCount / totalCards : 0;
+  
+  // Graduated error handling for production resilience:
+  // - 50%+ failure = data corruption (hard fail)
+  // - <50% failure = warn but continue (handles transient issues)
+  if (failedCount > 0 && failedCount >= Math.ceil(totalCards * 0.5)) {
+    const failedIndices = cardsData
+      .map((c, i) => parseCard(c) === null ? i : -1)
+      .filter(i => i !== -1);
+    throw new Error(
+      `Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed ` +
+      `(${Math.round(failureRate * 100)}% failure rate). ` +
+      `Failed at indices: [${failedIndices.join(', ')}]. ` +
+      `This indicates data corruption and game cannot proceed.`
+    );
+  } else if (failedCount > 0) {
+    console.warn(`[parseCards] ${failedCount}/${totalCards} cards failed to parse, continuing with ${parsedCards.length} valid cards`);
+  }
+  
+  return parsedCards;
+}
+
 // ==================== GAME LOGIC ====================
 
 function sortHand(cards: Card[]): Card[] {
@@ -628,9 +728,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 8. ✅ Verify player has all the cards
+    // 8. ✅ Verify player has all the cards (with backwards compatibility for string cards)
     const currentHands = gameState.hands || {};
-    const playerHand = currentHands[player.player_index] || [];
+    const playerHandRaw = currentHands[player.player_index] || [];
+    const playerHand = parseCards(playerHandRaw); // Parse cards (handles strings and objects)
     
     for (const card of cards) {
       const hasCard = playerHand.some((c: Card) => c.id === card.id);
@@ -639,6 +740,11 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: false,
             error: `Card not in hand: ${card.id}`,
+            debug: {
+              requested_card: card.id,
+              player_hand_ids: playerHand.map(c => c.id),
+              raw_hand_sample: playerHandRaw.slice(0, 3),
+            }
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -647,7 +753,8 @@ Deno.serve(async (req) => {
 
     // 9. ✅ ONE CARD LEFT RULE: Check if next player has 1 card
     const nextPlayerIndex = (player.player_index + 1) % 4;
-    const nextPlayerHand = currentHands[nextPlayerIndex] || [];
+    const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
+    const nextPlayerHand = parseCards(nextPlayerHandRaw); // Parse cards (handles strings and objects)
     const nextPlayerHasOneCard = nextPlayerHand.length === 1;
 
     console.log('🔍 One Card Left Rule Check:', {
@@ -809,9 +916,11 @@ Deno.serve(async (req) => {
     }
 
     // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
-    // Big Two uses anticlockwise turn order, NOT clockwise!
-    // Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1.
-    // NOTE: This mapping must stay in sync with the server-side / RPC turn-order logic.
+    /*
+     * Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1
+     * Example sequence starting from player 0: 0→3→2→1→0 (anticlockwise around the table)
+     * NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
+     */
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 
@@ -864,22 +973,28 @@ Deno.serve(async (req) => {
     }
 
     // 14. Update game state (including timer)
+    const updateData: any = {
+      hands: updatedHands,
+      last_play: {
+        player_index: player.player_index,
+        cards,
+        combo_type: comboType,
+        timestamp: Date.now(),
+      },
+      current_turn: nextTurn,
+      passes: 0,
+      played_cards: updatedPlayedCards,
+      auto_pass_timer: autoPassTimerState,
+      updated_at: new Date().toISOString(),
+    };
+
+    // NOTE: game_phase transition from "first_play" to "normal_play" is handled automatically
+    // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
+    // No manual transition needed here to avoid race conditions
+
     const { error: updateError } = await supabaseClient
       .from('game_state')
-      .update({
-        hands: updatedHands,
-        last_play: {
-          player_index: player.player_index,
-          cards,
-          combo_type: comboType,
-          timestamp: Date.now(),
-        },
-        current_turn: nextTurn,
-        passes: 0,  // ✅ FIX: Use "passes" column instead of "pass_count"
-        played_cards: updatedPlayedCards,
-        auto_pass_timer: autoPassTimerState,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('room_id', room.id);
 
     if (updateError) {

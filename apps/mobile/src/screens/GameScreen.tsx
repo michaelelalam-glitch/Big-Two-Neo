@@ -232,10 +232,87 @@ function GameScreenContent() {
   // MULTIPLAYER HANDS MEMO - MUST BE DEFINED BEFORE playersWithCards!!!
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, Array<{ id: string; rank: string; suit: string }>>
+      | Record<string, Array<{ id: string; rank: string; suit: string } | string>>
       | undefined;
     
-    return hands;
+    if (!hands) return undefined;
+    
+    // 🔧 CRITICAL FIX: Parse string cards into objects (handles old game data)
+    // Some games created before migration have cards as strings: "D10" instead of {id:"D10", rank:"10", suit:"D"}
+    const parsedHands: Record<string, Array<{ id: string; rank: string; suit: string }>> = {};
+    
+    for (const [playerIndex, handData] of Object.entries(hands)) {
+      if (!Array.isArray(handData)) continue;
+      
+      parsedHands[playerIndex] = handData.map((card: any) => {
+        // If card is already an object with id/rank/suit, return as-is
+        if (typeof card === 'object' && card !== null && 'id' in card && 'rank' in card && 'suit' in card) {
+          return card as { id: string; rank: string; suit: string };
+        }
+        
+        // If card is a string, parse it into object format
+        if (typeof card === 'string') {
+          // Handle double-JSON-encoded strings: "\"D10\"" -> "D10"
+          let cardStr = card;
+          // Safety: max 5 iterations to prevent infinite loops
+          let iterations = 0;
+          const MAX_ITERATIONS = 5;
+          try {
+            // Try to parse if it's JSON-encoded
+            while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
+              iterations++;
+              const parsed = JSON.parse(cardStr);
+              if (typeof parsed === 'string') {
+                // Verify parsed value actually changed (prevent subtle bugs)
+                const previousCardStr = cardStr;
+                cardStr = parsed;
+                if (cardStr === previousCardStr) {
+                  console.warn('[GameScreen] JSON.parse returned same value, breaking loop');
+                  break;
+                }
+              } else if (typeof parsed === 'object' && parsed !== null) {
+                // It's already an object
+                return parsed as { id: string; rank: string; suit: string };
+              } else {
+                break;
+              }
+            }
+          } catch (e) {
+            // Not JSON, treat as plain string
+            console.debug('[GameScreen] JSON parse failed, treating as plain string:', { card, error: e });
+          }
+          
+          // Now cardStr should be like "D10", "C5", "HK", etc.
+          // Extract suit (first character) and rank (rest)
+          if (cardStr.length >= 2) {
+            // Validate suit is one of the four valid suits
+            const validSuits = ['D', 'C', 'H', 'S'] as const;
+            const suitChar = cardStr[0];
+            if (!validSuits.includes(suitChar as any)) {
+              gameLogger.error('[GameScreen] 🚨 Invalid suit detected while parsing card string:', {
+                rawCard: card,
+                parsedString: cardStr,
+                suitChar,
+              });
+              return null;
+            }
+            const suit = suitChar as (typeof validSuits)[number];
+            const rank = cardStr.substring(1); // '10', '5', 'K', etc.
+            return {
+              id: cardStr,
+              rank,
+              suit,
+            };
+          }
+        }
+        
+        // Fallback: Invalid card detected - log error and return null
+        gameLogger.error('[GameScreen] 🚨 Could not parse card:', card);
+        return null;
+      }).filter((card): card is { id: string; rank: string; suit: string } => card !== null);
+    }
+    
+    return parsedHands;
   }, [multiplayerGameState]);
   
   // PHASE 6: Merge player hands into players for bot coordinator

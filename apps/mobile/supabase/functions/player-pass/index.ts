@@ -107,28 +107,30 @@ Deno.serve(async (req) => {
     }
 
     // 6. Calculate next turn (anticlockwise: 0→3→2→1→0)
-    // Turn order mapping: [0→3, 1→2, 2→0, 3→1]
+    // Turn order mapping: [0→3, 1→0, 2→1, 3→2]
+    // Actual sequence: 0→3→2→1→0 (anticlockwise around the table)
+    // NOTE: MUST match local game AI and play-cards function: [3, 2, 0, 1]
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
     
-    // Validate pass_count with type checking
-    const rawPassCount = gameState?.pass_count;
+    // Validate passes with type checking
+    const rawPasses = gameState?.passes;
     // Use Number.isFinite in addition to typeof === 'number' to reject NaN, Infinity, and -Infinity,
-    // which are technically numbers but would break the pass_count logic if accepted.
-    const currentPassCount =
-      typeof rawPassCount === 'number' && Number.isFinite(rawPassCount) ? rawPassCount : 0;
-    const newPassCount = currentPassCount + 1;
+    // which are technically numbers but would break the passes logic if accepted.
+    const currentPasses =
+      typeof rawPasses === 'number' && Number.isFinite(rawPasses) ? rawPasses : 0;
+    const newPasses = currentPasses + 1;
 
     console.log('✅ [player-pass] Processing pass:', {
       player_index: player.player_index,
       next_turn: nextTurn,
-      current_pass_count: currentPassCount,
-      new_pass_count: newPassCount,
+      current_passes: currentPasses,
+      new_passes: newPasses,
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
 
-    // 7. Check if 3 consecutive passes (new trick starts)
-    if (newPassCount >= 3) {
+    // 7. Check if 3 consecutive passes (new trick starts, reset passes)
+    if (newPasses >= 3) {
       console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
 
       // Clear trick: remove last_play, reset pass count, advance turn
@@ -138,7 +140,7 @@ Deno.serve(async (req) => {
         .from('game_state')
         .update({
           current_turn: nextTurn,
-          pass_count: 0,
+          passes: 0,
           last_play: null,
           // DO NOT set auto_pass_timer to NULL - let it persist!
           updated_at: new Date().toISOString(),
@@ -160,7 +162,7 @@ Deno.serve(async (req) => {
           success: true,
           next_turn: nextTurn,
           trick_cleared: true,
-          pass_count: 0,
+          passes: 0,
           auto_pass_timer: gameState.auto_pass_timer, // Return existing timer
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -173,7 +175,7 @@ Deno.serve(async (req) => {
       .from('game_state')
       .update({
         current_turn: nextTurn,
-        pass_count: newPassCount,
+        passes: newPasses,
         // DO NOT touch auto_pass_timer - preserve existing value!
         updated_at: new Date().toISOString(),
       })
@@ -193,7 +195,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         next_turn: nextTurn,
-        pass_count: newPassCount,
+        passes: newPasses,
         trick_cleared: false,
         auto_pass_timer: gameState.auto_pass_timer, // Return existing timer
       }),
