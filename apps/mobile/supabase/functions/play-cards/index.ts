@@ -84,7 +84,11 @@ function parseCard(cardData: any): Card | null {
     let iterations = 0;
     const MAX_ITERATIONS = 5;
     try {
-      while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
+      while (iterations < MAX_ITERATIONS) {
+        // Early exit: if string doesn't start with quote or brace, no more parsing needed
+        if (typeof cardStr !== 'string' || (!cardStr.startsWith('"') && !cardStr.startsWith('{'))) {
+          break;
+        }
         iterations++;
         const parsed = JSON.parse(cardStr);
         if (typeof parsed === 'string') {
@@ -147,11 +151,6 @@ function parseCards(cardsData: any[]): Card[] {
     );
   } else if (failedCount > 0) {
     console.warn(`[parseCards] ${failedCount}/${totalCards} cards failed to parse, continuing with ${parsedCards.length} valid cards`);
-  }
-      `(${Math.round(failureRate * 100)}% failure rate). ` +
-      `Failed at indices: [${failedIndices.join(', ')}]. ` +
-      `This indicates data corruption and game cannot proceed.`
-    );
   }
   
   return parsedCards;
@@ -917,9 +916,11 @@ Deno.serve(async (req) => {
     }
 
     // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
-    // Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1
-    // Example sequence starting from player 0: 0→3→1→2→0 (anticlockwise around the table)
-    // NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
+    /*
+     * Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1
+     * Example sequence starting from player 0: 0→3→2→1→0 (anticlockwise around the table)
+     * NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
+     */
     const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 

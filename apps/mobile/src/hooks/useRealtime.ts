@@ -931,7 +931,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       gameLogger.info('[useRealtime] ✅ Pass successful:', {
         next_turn: result.next_turn,
-        passes: result.passes, // Response field is 'passes'; previous 'pass_count' usage was client-side naming mistake
+        passes: result.passes, // Response field is 'passes'; previously both DB column and client reference were 'pass_count', renamed to 'passes' for consistency
         trick_cleared: result.trick_cleared,
         timer_preserved: !!result.auto_pass_timer,
       });

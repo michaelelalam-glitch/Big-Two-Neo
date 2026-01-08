@@ -19,7 +19,9 @@ BEGIN
   -- This is a defensive migration in case future schema adds turn_order column
   
   RAISE NOTICE 'Migration complete: No turn_order column found in game_state (turn order managed by function)';
-  RAISE NOTICE 'All future games will use anticlockwise turn order [3,2,0,1] from start_game_with_bots function';
+  RAISE NOTICE 'All future games will use anticlockwise turn order mapping [3,2,0,1] from start_game_with_bots function';
+  RAISE NOTICE 'This array maps current player index to next player index: 0→3, 1→2, 2→0, 3→1';
+  RAISE NOTICE 'The actual play sequence depends on the starting player (e.g., if player 0 starts: 0→3→2→1→0)';
   
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Migration note: % (This is expected if no schema change needed)', SQLERRM;

@@ -285,7 +285,18 @@ function GameScreenContent() {
           // Now cardStr should be like "D10", "C5", "HK", etc.
           // Extract suit (first character) and rank (rest)
           if (cardStr.length >= 2) {
-            const suit = cardStr[0]; // 'D', 'C', 'H', 'S'
+            // Validate suit is one of the four valid suits
+            const validSuits = ['D', 'C', 'H', 'S'] as const;
+            const suitChar = cardStr[0];
+            if (!validSuits.includes(suitChar as any)) {
+              gameLogger.error('[GameScreen] 🚨 Invalid suit detected while parsing card string:', {
+                rawCard: card,
+                parsedString: cardStr,
+                suitChar,
+              });
+              return null;
+            }
+            const suit = suitChar as (typeof validSuits)[number];
             const rank = cardStr.substring(1); // '10', '5', 'K', etc.
             return {
               id: cardStr,
