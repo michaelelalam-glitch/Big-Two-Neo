@@ -70,9 +70,10 @@ Deno.serve(async (req) => {
     }
 
     // 2. Get current match winner by finding who has 0 cards (played them all)
+    // Note: hands is a JSONB object {"0": [...], "1": [...], "2": [...], "3": [...]}
     let winner_index: number | null = null;
-    for (let i = 0; i < gameState.hands.length; i++) {
-      const hand = gameState.hands[i];
+    for (let i = 0; i < 4; i++) {
+      const hand = (gameState.hands as any)[String(i)];
       if (Array.isArray(hand) && hand.length === 0) {
         winner_index = i;
         break;
