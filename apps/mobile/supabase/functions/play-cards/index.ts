@@ -1006,12 +1006,7 @@ Deno.serve(async (req) => {
 
     const { error: updateError } = await supabaseClient
       .from('game_state')
-      .update({
-        current_player: updateData.current_player,
-        last_player: updateData.last_player,
-        played_cards: updateData.played_cards,
-        passes: updateData.passes,
-      })
+      .update(updateData)
       .eq('room_id', room.id);
 
     if (updateError) {
