@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     if (newPasses >= 3) {
       console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
 
-      // Clear trick: remove last_play, reset pass count, advance turn
+      // Clear trick: remove last_play, reset pass count (stored in 'passes' field), advance turn
       // 🔥 CRITICAL: Preserve auto_pass_timer if it exists!
       // The timer should persist until: (1) timer expires, or (2) someone beats the highest play
       const { error: updateError } = await supabaseClient

@@ -1,9 +1,18 @@
--- CRITICAL: Data migration for existing in-progress games with old turn order
+-- ============================================================================
+-- Migration: Document Turn Order Change (No Data Migration)
 -- Date: January 7, 2026
--- Issue: Previous migration (20260106000001) changed function to use anticlockwise [3,2,0,1]
---        but existing games created with clockwise [1,2,3,0] are still in progress
--- Impact: Inconsistent turn order between old and new games causes multiplayer desync
--- Solution: Update existing game_state records to use new turn order
+-- Purpose: Document the turn order change from clockwise to anticlockwise
+--          for historical tracking. NO DATA MIGRATION OCCURS.
+-- 
+-- Rationale: Turn order logic exists only in application functions 
+--            (start_game_with_bots, play-cards, player-pass), not in 
+--            persisted game_state data. Therefore, no existing game data 
+--            requires modification.
+-- 
+-- Impact: 
+--   - Existing in-progress games: Continue using old function logic until completion
+--   - New games: Use updated start_game_with_bots with anticlockwise turn order [3,2,0,1]
+-- ============================================================================
 
 -- ==================== MIGRATION ====================
 
@@ -12,7 +21,12 @@
 DO $$
 BEGIN
   -- Log migration start
-  RAISE NOTICE 'Starting turn order data migration for existing games...';
+  RAISE NOTICE '=== Turn Order Change Documentation ===';
+  RAISE NOTICE 'Previous turn order (clockwise): [1,2,3,0] → 0→1→2→3→0';
+  RAISE NOTICE 'New turn order (anticlockwise): [3,2,0,1] → 0→3→2→1→0';
+  RAISE NOTICE 'All future games will use anticlockwise turn order [3,2,0,1] from start_game_with_bots function';
+  RAISE NOTICE 'This migration performs NO data updates - it exists for documentation only';
+  RAISE NOTICE '======================================';
   
   -- Note: This migration assumes game_state doesn't store turn_order directly
   -- If turn order is only in function logic, no data migration needed

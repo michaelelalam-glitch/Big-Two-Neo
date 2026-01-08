@@ -76,13 +76,25 @@ function parseCard(cardData: any): Card | null {
   if (typeof cardData === 'string') {
     let cardStr = cardData;
     
+    /**
+     * Maximum iterations for JSON parsing loop to handle legacy nested string formats.
+     * 
+     * RATIONALE:
+     * - Legacy data may have cards stored as JSON-encoded strings with up to 2-3 levels
+     *   of nesting (e.g., '"{\\"suit\\":\\"D\\",\\"value\\":\\"3\\"}"')
+     * - Empirical basis: Maximum observed nesting is 2 levels (from double-encoding
+     *   bug in v1.2.3 that affected card data migration)
+     * - Setting to 5 provides 2.5x safety margin above observed maximum
+     * - Prevents infinite loops while allowing legitimate deeply-nested strings
+     * 
+     * IMPORTANT: If you encounter legitimate cards that require >5 iterations,
+     * investigate the data format issue at its source rather than increasing this limit.
+     */
+    const MAX_ITERATIONS = 5;
+    
     // Handle JSON-encoded strings: "\"D3\"" -> "D3"
     // Safety: max 5 iterations to prevent infinite loops
-    // MAX_ITERATIONS=5 handles up to 5 levels of JSON string nesting from legacy data formats
-    // Empirical basis: observed max nesting is 2 levels (from double-encoding bug in v1.2.3)
-    // Set to 5 to provide 2.5x safety margin above observed maximum
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
     try {
       while (iterations < MAX_ITERATIONS) {
         // Early exit: if string doesn't start with quote or brace, no more parsing needed
@@ -994,7 +1006,12 @@ Deno.serve(async (req) => {
 
     const { error: updateError } = await supabaseClient
       .from('game_state')
-      .update(updateData)
+      .update({
+        current_player: updateData.current_player,
+        last_player: updateData.last_player,
+        played_cards: updateData.played_cards,
+        passes: updateData.passes,
+      })
       .eq('room_id', room.id);
 
     if (updateError) {

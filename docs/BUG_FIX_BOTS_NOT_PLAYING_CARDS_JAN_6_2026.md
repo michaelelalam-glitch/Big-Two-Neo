@@ -8,13 +8,13 @@
 
 ## 🎯 Problem Summary
 
-Bots were only playing the 3♦ on the first turn, then passing every subsequent turn with the error message: `"No 3D found"`. This made the multiplayer game unplayable.
+Bots were only playing the 3♦ on the first turn, then passing every subsequent turn with the error message: `"No 3♦ found"`. This made the multiplayer game unplayable.
 
 ### Symptoms
-- Bot 4 plays 3D successfully ✅
-- Bot 2 passes: "No 3D found" ✅ (correct)
-- Bot 3 passes: "No 3D found" ✅ (correct)
-- **Bot 4 passes: "No 3D found"** ❌ (BUG! Should beat current play)
+- Bot 4 plays 3♦ successfully ✅
+- Bot 2 passes: "No 3♦ found" ✅ (correct)
+- Bot 3 passes: "No 3♦ found" ✅ (correct)
+- **Bot 4 passes: "No 3♦ found"** ❌ (BUG! Should beat current play)
 - HTTP 400 error when Bot 4 tries to pass
 
 ---
@@ -116,7 +116,7 @@ Game continues normally ✅
 
 ## 📁 Files Created
 
-1. `/apps/mobile/supabase/migrations/20260106_fix_game_phase_transition.sql` - Timestamped migration
+1. `/apps/mobile/supabase/migrations/20260106222754_fix_game_phase_transition.sql` - Timestamped migration
 2. `/apps/mobile/temp_fix_game_phase.sql` - Quick-apply SQL script
 
 ---
