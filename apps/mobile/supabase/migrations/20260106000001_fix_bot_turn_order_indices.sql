@@ -1,3 +1,12 @@
+-- ============================================================================
+-- SUPERSEDED: This function definition is replaced by migration 20260107000001
+-- Date: January 6, 2026 (Initial Version)
+-- Replaced by: 20260107000001_add_auth_check_start_game.sql
+-- Reason: Later migration adds authorization checks to ensure only room
+--         coordinator can start game. The version in 20260107000001 is
+--         the ACTIVE implementation.
+-- ============================================================================
+--
 -- FIX: Bot player_index assignment to match anticlockwise turn order
 -- Date: January 6, 2026
 -- Issue: Bots are assigned sequential indices (1,2,3) but anticlockwise turn order

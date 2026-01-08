@@ -244,19 +244,24 @@ function GameScreenContent() {
     for (const [playerIndex, handData] of Object.entries(hands)) {
       if (!Array.isArray(handData)) continue;
       
-      parsedHands[playerIndex] = handData.map((card: any) => {
+      // Map cards with index tracking for better error reporting
+      const parseResults = handData.map((card: any, index: number) => {
         // If card is already an object with id/rank/suit, return as-is
         if (typeof card === 'object' && card !== null && 'id' in card && 'rank' in card && 'suit' in card) {
-          return card as { id: string; rank: string; suit: string };
+          return { index, raw: card, parsed: card as { id: string; rank: string; suit: string } };
         }
         
         // If card is a string, parse it into object format
         if (typeof card === 'string') {
           // Handle double-JSON-encoded strings: "\"D10\"" -> "D10"
           let cardStr = card;
-          // Safety: max 5 iterations to prevent infinite loops
-          let iterations = 0;
+          /**
+           * Maximum iterations for JSON parsing loop to handle legacy nested string formats.
+           * Rationale: Legacy data may have cards with 2-3 levels of JSON nesting.
+           * Setting to 5 provides safety margin while preventing infinite loops.
+           */
           const MAX_ITERATIONS = 5;
+          let iterations = 0;
           try {
             // Try to parse if it's JSON-encoded
             while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
@@ -272,7 +277,7 @@ function GameScreenContent() {
                 }
               } else if (typeof parsed === 'object' && parsed !== null) {
                 // It's already an object
-                return parsed as { id: string; rank: string; suit: string };
+                return { index, raw: card, parsed: parsed as { id: string; rank: string; suit: string } };
               } else {
                 break;
               }
@@ -294,22 +299,43 @@ function GameScreenContent() {
                 parsedString: cardStr,
                 suitChar,
               });
-              return null;
+              return { index, raw: card, parsed: null };
             }
             const suit = suitChar as (typeof validSuits)[number];
             const rank = cardStr.substring(1); // '10', '5', 'K', etc.
             return {
-              id: cardStr,
-              rank,
-              suit,
+              index,
+              raw: card,
+              parsed: {
+                id: cardStr,
+                rank,
+                suit,
+              },
             };
           }
         }
         
         // Fallback: Invalid card detected - log error and return null
         gameLogger.error('[GameScreen] 🚨 Could not parse card:', card);
-        return null;
-      }).filter((card): card is { id: string; rank: string; suit: string } => card !== null);
+        return { index, raw: card, parsed: null };
+      });
+
+      // Check for parsing failures - fail completely if any cards couldn't be parsed
+      const failedParses = parseResults.filter(r => r.parsed === null);
+      if (failedParses.length > 0) {
+        const failedIndices = failedParses.map(f => f.index);
+        const errorMsg = `Card parsing failed for ${failedParses.length}/${handData.length} cards in hand for player ${playerIndex}. Failed indices: ${failedIndices.join(', ')}. Cannot proceed with incomplete hand.`;
+        gameLogger.error('[GameScreen] 🚨 CRITICAL: ' + errorMsg, {
+          playerIndex,
+          totalCards: handData.length,
+          failedCount: failedParses.length,
+          failedCards: failedParses.map(f => f.raw),
+        });
+        throw new Error(errorMsg);
+      }
+
+      // All cards parsed successfully
+      parsedHands[playerIndex] = parseResults.map(r => r.parsed!);
     }
     
     return parsedHands;
