@@ -12,6 +12,9 @@ interface Card {
   rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
 }
 
+// Database stores hands as JSONB object with string keys "0"-"3"
+type HandsObject = Record<string, Card[]>;
+
 function createDeck(): Card[] {
   const suits: Array<'D' | 'C' | 'H' | 'S'> = ['D', 'C', 'H', 'S'];
   const ranks: Array<'3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2'> = [
@@ -72,8 +75,9 @@ Deno.serve(async (req) => {
     // 2. Get current match winner by finding who has 0 cards (played them all)
     // Note: hands is a JSONB object {"0": [...], "1": [...], "2": [...], "3": [...]}
     let winner_index: number | null = null;
+    const hands = gameState.hands as HandsObject;
     for (let i = 0; i < 4; i++) {
-      const hand = (gameState.hands as any)[String(i)];
+      const hand = hands[String(i)];
       if (Array.isArray(hand) && hand.length === 0) {
         winner_index = i;
         break;
@@ -103,7 +107,11 @@ Deno.serve(async (req) => {
     ];
 
     // 4.5. Convert array to JSONB object (database expects {"0": [...], "1": [...], ...})
-    const handsObject: Record<string, Card[]> = {
+    // TODO: Add integration tests to verify:
+    // - Hands conversion to object format works correctly
+    // - Winner detection with JSONB object structure  
+    // - played_cards reset between matches
+    const handsObject: HandsObject = {
       "0": newHands[0],
       "1": newHands[1],
       "2": newHands[2],
