@@ -927,13 +927,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 13. Calculate next turn (ANTICLOCKWISE: 0→3→2→1→0)
+    // 13. Calculate next turn (COUNTERCLOCKWISE: 0→1→2→3→0)
     /*
-     * Turn order mapping by player_index: 0→3, 1→2, 2→0, 3→1
-     * Example sequence starting from player 0: 0→3→2→1→0 (anticlockwise around the table)
-     * NOTE: This MUST match local game AI turn-order logic: [3, 2, 0, 1]
+     * Turn order mapping by player_index: 0→1, 1→2, 2→3, 3→0
+     * Example sequence starting from player 0: 0→1→2→3→0 (counterclockwise around the table)
+     * NOTE: This MUST match local game AI turn-order logic and player-pass function
      */
-    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
+    const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
 
     // 12. Update played_cards (all cards played so far)
@@ -984,7 +984,7 @@ Deno.serve(async (req) => {
       console.log('ℹ️ Auto-pass timer NOT created - not highest play');
     }
 
-    // 14. Update game state (including timer)
+    // 14. Update game state (including timer and match winner)
     const updateData: any = {
       hands: updatedHands,
       last_play: {
@@ -1000,7 +1000,25 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // NOTE: game_phase transition from "first_play" to "normal_play" is handled automatically
+    // ✅ CRITICAL FIX: Freeze game when match ends to prevent bots from playing during transition
+    // Set game_phase='finished' to stop all further plays until start_new_match resets it
+    // Also store match winner and timestamps for proper tracking
+    if (matchEnded) {
+      updateData.game_phase = 'finished'; // ← FREEZE THE GAME
+      updateData.last_match_winner_index = player.player_index; // Store match winner
+      updateData.match_ended_at = new Date().toISOString(); // Record match end time
+      console.log(`✅ Match ended! Player ${player.player_index} won. Game frozen (phase=finished)`);
+      
+      // If game is over (someone >= 101), also record game end
+      if (gameOver && finalWinnerIndex !== null) {
+        updateData.game_phase = 'game_over'; // Game completely finished
+        updateData.game_winner_index = finalWinnerIndex; // Store game winner (lowest score)
+        updateData.game_ended_at = new Date().toISOString(); // Record game end time
+        console.log(`🎉 GAME OVER recorded! Winner: Player ${finalWinnerIndex}`);
+      }
+    }
+
+    // NOTE: game_phase transition from "first_play" to "playing" is handled automatically
     // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
     // No manual transition needed here to avoid race conditions
 

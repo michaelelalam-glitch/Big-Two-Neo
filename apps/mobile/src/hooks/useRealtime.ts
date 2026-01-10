@@ -832,24 +832,34 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             onMatchEnded(currentMatchNumber, matchScores);
           }
 
-          // Start next match
-          gameLogger.info('[useRealtime] 🔄 Starting next match in 2 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Start next match (fire-and-forget to prevent bot coordinator interference)
+          // CRITICAL FIX: Use IIFE so bot actions during transition don't interrupt match start
+          (async () => {
+            try {
+              gameLogger.info('[useRealtime] 🔄 Starting next match in 2 seconds...');
+              await new Promise(resolve => setTimeout(resolve, 2000));
 
-          gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
-          const { data: newMatchData, error: newMatchError } = await supabase.functions.invoke('start_new_match', {
-            body: { room_id: room!.id },
-          });
+              gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
+              const { data: newMatchData, error: newMatchError } = await supabase.functions.invoke('start_new_match', {
+                body: { room_id: room!.id },
+              });
 
-          if (newMatchError) {
-            gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
-          } else {
-            gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
-            await broadcastMessage('new_match_started', {
-              match_number: newMatchData.match_number,
-              starting_player_index: newMatchData.starting_player_index,
-            });
-          }
+              if (newMatchError) {
+                gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
+              } else {
+                gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
+                await broadcastMessage('new_match_started', {
+                  match_number: newMatchData.match_number,
+                  starting_player_index: newMatchData.starting_player_index,
+                });
+              }
+            } catch (matchStartError) {
+              gameLogger.error('[useRealtime] 💥 Match start failed (non-fatal):', matchStartError);
+            }
+          })().catch((unhandledError) => {
+            // Ensure any unexpected rejection from the match start flow is logged
+            gameLogger.error('[useRealtime] 💥 Unhandled error in match start flow:', unhandledError);
+          }); // Fire-and-forget: don't await (but handle rejections)
         }
       }
 
