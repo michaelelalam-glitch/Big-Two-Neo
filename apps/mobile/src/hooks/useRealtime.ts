@@ -856,7 +856,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             } catch (matchStartError) {
               gameLogger.error('[useRealtime] 💥 Match start failed (non-fatal):', matchStartError);
             }
-          })(); // Fire-and-forget: don't await
+          })().catch((unhandledError) => {
+            // Ensure any unexpected rejection from the match start flow is logged
+            gameLogger.error('[useRealtime] 💥 Unhandled error in match start flow:', unhandledError);
+          }); // Fire-and-forget: don't await (but handle rejections)
         }
       }
 

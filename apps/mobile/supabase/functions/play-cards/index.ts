@@ -1018,7 +1018,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // NOTE: game_phase transition from "first_play" to "normal_play" is handled automatically
+    // NOTE: game_phase transition from "first_play" to "playing" is handled automatically
     // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
     // No manual transition needed here to avoid race conditions
 

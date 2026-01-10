@@ -13,7 +13,12 @@ interface Card {
 }
 
 // Database stores hands as JSONB object with string keys "0"-"3"
-type HandsObject = Record<string, Card[]>;
+type HandsObject = {
+  "0": Card[];
+  "1": Card[];
+  "2": Card[];
+  "3": Card[];
+};
 
 function createDeck(): Card[] {
   const suits: Array<'D' | 'C' | 'H' | 'S'> = ['D', 'C', 'H', 'S'];
@@ -81,8 +86,11 @@ Deno.serve(async (req) => {
       console.log('⚠️ No last_match_winner_index set, falling back to 0-card search...');
       const hands = gameState.hands as HandsObject;
       for (let i = 0; i < 4; i++) {
-        const hand = hands[String(i)];
-        if (Array.isArray(hand) && hand.length === 0) {
+        const hand = hands[String(i) as keyof HandsObject];
+        if (!hand || !Array.isArray(hand)) {
+          continue; // Skip if hand is malformed
+        }
+        if (hand.length === 0) {
           winner_index = i;
           break;
         }
