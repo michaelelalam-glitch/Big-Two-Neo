@@ -1,6 +1,11 @@
 -- ============================================================================
 -- CRITICAL FIX: Add match and game tracking columns
 -- ============================================================================
+-- MIGRATION NOTES:
+-- - This migration supersedes 20260110000001_add_last_match_winner_index.sql
+-- - CHECK constraints use explicit NULL handling per PostgreSQL best practices
+-- - Pattern: CHECK (column IS NULL OR (column >= min AND column < max))
+--
 -- Purpose: Add timestamp and winner tracking for match/game end events
 -- Date: January 10, 2026
 -- Applied: 20260110033809
@@ -9,7 +14,7 @@
 -- Add columns for tracking match and game completion
 ALTER TABLE game_state 
 ADD COLUMN IF NOT EXISTS last_match_winner_index INTEGER
-CHECK (last_match_winner_index >= 0 AND last_match_winner_index < 4);
+CHECK (last_match_winner_index IS NULL OR (last_match_winner_index >= 0 AND last_match_winner_index < 4));
 
 ALTER TABLE game_state 
 ADD COLUMN IF NOT EXISTS match_ended_at TIMESTAMPTZ;
@@ -19,7 +24,7 @@ ADD COLUMN IF NOT EXISTS game_ended_at TIMESTAMPTZ;
 
 ALTER TABLE game_state 
 ADD COLUMN IF NOT EXISTS game_winner_index INTEGER
-CHECK (game_winner_index >= 0 AND game_winner_index < 4);
+CHECK (game_winner_index IS NULL OR (game_winner_index >= 0 AND game_winner_index < 4));
 
 -- Add comments
 COMMENT ON COLUMN game_state.last_match_winner_index IS 

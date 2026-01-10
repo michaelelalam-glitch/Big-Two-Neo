@@ -1,5 +1,18 @@
 -- ============================================================================
--- CRITICAL FIX: Add last_match_winner_index column to game_state table
+-- MIGRATION STATUS: SUPERSEDED BY 20260110033809
+-- ============================================================================
+-- This migration has been superseded by:
+--   20260110033809_add_match_and_game_tracking_columns.sql
+--
+-- The later migration adds the same column (last_match_winner_index) along with
+-- additional tracking columns (match_ended_at, game_ended_at, game_winner_index).
+--
+-- This migration is retained as a no-op for migration history consistency.
+-- If you're reviewing the schema, please refer to migration 20260110033809.
+-- ============================================================================
+
+-- ============================================================================
+-- ORIGINAL PURPOSE: Add last_match_winner_index column to game_state table
 -- ============================================================================
 -- ROOT CAUSE: start_new_match edge function fails with "No winner found" error
 -- 
@@ -19,19 +32,20 @@
 -- Task #585: Fix Match End Error
 -- Reference: /Users/michaelalam/Desktop/console log.md line 843
 
--- Add last_match_winner_index column
-ALTER TABLE game_state 
-ADD COLUMN IF NOT EXISTS last_match_winner_index INTEGER
-CHECK (last_match_winner_index >= 0 AND last_match_winner_index < 4);
+-- MIGRATION SUPERSEDED: This migration has been superseded by migration
+-- 20260110033809_add_match_and_game_tracking_columns.sql which adds the same
+-- column along with additional tracking columns. This is now a no-op migration
+-- to maintain migration history consistency.
 
-COMMENT ON COLUMN game_state.last_match_winner_index IS 
-  'Index (0-3) of the player who won the previous match. Used by start_new_match to determine who starts the next match. Updated by play-cards when a player finishes all cards.';
+-- Original intent: Add last_match_winner_index column
+-- Current status: Column added by later migration 20260110033809
+-- Action: No-op migration with informational notices only
 
--- Success message
+-- Informational message
 DO $$
 BEGIN
-  RAISE NOTICE '✅ Added last_match_winner_index column to game_state table';
-  RAISE NOTICE '   - Stores winner of previous match (0-3)';
-  RAISE NOTICE '   - Prevents "No winner found" error in start_new_match';
-  RAISE NOTICE '   - Eliminates race condition when transitioning between matches';
+  RAISE NOTICE 'ℹ️  Migration 20260110000001 superseded by 20260110033809';
+  RAISE NOTICE '   - last_match_winner_index column added by later migration';
+  RAISE NOTICE '   - This migration is now a no-op for consistency';
+  RAISE NOTICE '   - No action required';
 END $$;

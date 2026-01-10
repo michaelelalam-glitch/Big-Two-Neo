@@ -1,8 +1,18 @@
 -- ============================================================================
 -- CRITICAL FIX: CREATE THE MISSING TRIGGER + Fix All Game Phase Issues
 -- ============================================================================
--- ROOT CAUSE: Previous migration only created the FUNCTION but never created
--- the TRIGGER itself! So the function was never being called.
+-- MIGRATION STATUS: STANDALONE - Complete trigger creation and fix
+--
+-- This migration is COMPLETE and contains:
+-- 1. Function creation (CREATE OR REPLACE)
+-- 2. Trigger creation (CREATE TRIGGER)
+-- 3. Data fixes for stuck games
+--
+-- No previous migration created the function without the trigger - this is
+-- the definitive migration for the game phase transition functionality.
+-- ============================================================================
+--
+-- ROOT CAUSE: Games stuck in 'first_play' phase after first card played
 --
 -- COMPLETE FIX:
 -- 1. Drop old trigger if exists

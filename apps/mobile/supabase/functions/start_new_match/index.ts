@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     ];
 
     // 4.5. Convert array to JSONB object (database expects {"0": [...], "1": [...], ...})
-    // TODO: Add integration tests to verify:
+    // Integration test coverage needed:
     // - Hands conversion to object format works correctly
     // - Winner detection with JSONB object structure  
     // - played_cards reset between matches
