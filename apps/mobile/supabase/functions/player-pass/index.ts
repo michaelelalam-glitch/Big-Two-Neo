@@ -98,7 +98,33 @@ Deno.serve(async (req) => {
     }
 
     // 5. Cannot pass if leading (no last_play)
+    // BUT: Handle race condition where trick was just cleared by previous player's 3rd pass
     if (!gameState.last_play) {
+      // Validate passes with type checking
+      const rawPasses = gameState?.passes;
+      const currentPasses =
+        typeof rawPasses === 'number' && Number.isFinite(rawPasses) ? rawPasses : 0;
+      
+      // If passes is 0 and we have no last_play, this is a race condition:
+      // The previous player's pass cleared the trick, making this player the leader.
+      // The bot coordinator had already queued this pass action before the trick cleared.
+      // Solution: Silently succeed and let them play as the leader on their actual turn.
+      if (currentPasses === 0) {
+        console.log('✅ [player-pass] Race condition detected: trick already cleared, succeeding gracefully');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            next_turn: gameState.current_turn, // Keep current turn (they are now leader)
+            passes: 0,
+            trick_cleared: true,
+            timer_preserved: false,
+            auto_pass_timer: gameState.auto_pass_timer,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Otherwise, genuinely cannot pass when leading
       console.log('❌ [player-pass] Cannot pass when leading');
       return new Response(
         JSON.stringify({ success: false, error: 'Cannot pass when leading' }),
@@ -106,11 +132,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Calculate next turn (anticlockwise: 0→3→2→1→0)
-    // Turn order mapping: [0→3, 1→0, 2→1, 3→2]
-    // Actual sequence: 0→3→2→1→0 (anticlockwise around the table)
-    // NOTE: MUST match local game AI and play-cards function: [3, 2, 0, 1]
-    const turnOrder = [3, 2, 0, 1]; // Next player index for current indices [0, 1, 2, 3]
+    // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
+    // Turn order mapping: [0→1, 1→2, 2→3, 3→0]
+    // Actual sequence: 0→1→2→3→0 (counterclockwise around the table)
+    // NOTE: MUST match local game AI and play-cards function: [1, 2, 3, 0]
+    const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
     
     // Validate passes with type checking

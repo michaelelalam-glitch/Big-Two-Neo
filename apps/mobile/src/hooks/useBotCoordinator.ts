@@ -138,10 +138,8 @@ export function useBotCoordinator({
       // Mark this specific turn as executing
       isExecutingRef.current = currentTurnKey;
       
-      // CRITICAL: Add thinking delay for smoother gameplay and state propagation
-      // Without delay, rapid-fire bot moves cause race conditions in database updates
-      gameLogger.info(`🤖 [BotCoordinator] Bot thinking for 1.5s...`);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // ✅ REMOVED: 1.5s thinking delay to match local game AI behavior (instant bot moves)
+      // The 300ms Realtime sync delay after each bot action provides sufficient state propagation time
       
       gameLogger.info(`🤖 [BotCoordinator] Executing bot turn for ${currentPlayer.username || currentPlayer.player_name || `Bot ${currentPlayerIndex + 1}`}`, {
         player_index: currentPlayerIndex,
@@ -190,9 +188,9 @@ export function useBotCoordinator({
         // Bot passes - use same passMove function as humans
         gameLogger.info(`[BotCoordinator] Bot passing turn`);
         
-        // CRITICAL: Re-verify turn hasn't changed after thinking delay
+        // CRITICAL: Re-verify turn hasn't changed during bot execution
         if (gameState.current_turn !== currentPlayerIndex) {
-          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during thinking delay, aborting pass', {
+          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during bot execution, aborting pass', {
             expected_turn: currentPlayerIndex,
             actual_turn: gameState.current_turn,
           });
@@ -260,9 +258,9 @@ export function useBotCoordinator({
         }
         
         
-        // CRITICAL: Re-verify turn hasn't changed after thinking delay
+        // CRITICAL: Re-verify turn hasn't changed during bot execution
         if (gameState.current_turn !== currentPlayerIndex) {
-          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during thinking delay, aborting play', {
+          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during bot execution, aborting play', {
             expected_turn: currentPlayerIndex,
             actual_turn: gameState.current_turn,
           });
@@ -376,11 +374,14 @@ export function useBotCoordinator({
       username: currentPlayer?.username,
     });
     
-    // Only execute on bot turns (works in BOTH first_play and playing phases)
-    // 🔥 CRITICAL FIX: Bots must work in 'first_play' phase too! (3D must be played)
+    // Only execute on bot turns in active game phases
+    // ✅ CRITICAL FIX: Skip bot execution when game_phase='finished' (match ended, waiting for new match)
+    // Bots work in 'first_play' (3D must be played) and 'playing' phases only
     if (currentPlayer?.is_bot && (gameState.game_phase === 'first_play' || gameState.game_phase === 'playing')) {
       gameLogger.info('[BotCoordinator] 🤖 Bot turn detected, scheduling execution');
       executeBotTurn();
+    } else if (currentPlayer?.is_bot && gameState.game_phase === 'finished') {
+      gameLogger.info('[BotCoordinator] ⏸️ Bot turn skipped - match ended (phase=finished)');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
