@@ -45,6 +45,8 @@ const COMBO_STRENGTH: Record<ComboType, number> = {
 };
 
 const VALID_STRAIGHT_SEQUENCES: string[][] = [
+  ['A', '2', '3', '4', '5'],   // 5-high (A is low)
+  ['2', '3', '4', '5', '6'],   // 6-high (2 is low)
   ['3', '4', '5', '6', '7'],
   ['4', '5', '6', '7', '8'],
   ['5', '6', '7', '8', '9'],
@@ -52,8 +54,7 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
   ['7', '8', '9', '10', 'J'],
   ['8', '9', '10', 'J', 'Q'],
   ['9', '10', 'J', 'Q', 'K'],
-  ['10', 'J', 'Q', 'K', 'A'],
-  ['J', 'Q', 'K', 'A', '2'],
+  ['10', 'J', 'Q', 'K', 'A'],  // A-high (highest)
 ];
 
 // ==================== CARD PARSING (Backwards Compatibility) ====================
