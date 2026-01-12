@@ -1463,7 +1463,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex}`);
                 
                 // Broadcast auto-pass event (non-blocking)
-                broadcastMessage('auto_pass_executed', {
+                void broadcastMessage('auto_pass_executed', {
                   player_index: playerIndex,
                 }).catch((broadcastError) => {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
@@ -1486,9 +1486,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             // Wait for all passes to complete in parallel
             await Promise.all(passPromises);
             
-            // Short delay for Realtime sync before clearing timer
-            networkLogger.info('⏰ [Timer] Waiting 100ms for final Realtime sync...');
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Delay for Realtime sync before clearing timer (250ms for production reliability)
+            networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
+            await new Promise(resolve => setTimeout(resolve, 250));
             
             networkLogger.info('⏰ [Timer] Auto-pass complete! Clearing timer state...');
             

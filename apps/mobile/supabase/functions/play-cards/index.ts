@@ -311,7 +311,9 @@ function generateFullDeck(): Card[] {
   const ranks: Card['rank'][] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   for (const suit of suits) {
     for (const rank of ranks) {
-      deck.push({ id: `${suit}${rank}`, rank, suit });  // ✅ FIX: Use suit-first format to match database
+      // Note: Card.id here is suit+rank (e.g., "D3") to match the database schema,
+      // which differs from the multiplayer.ts doc ("rank + suit", e.g., "3D").
+      deck.push({ id: `${suit}${rank}`, rank, suit });
     }
   }
   return deck;
@@ -951,9 +953,7 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    // 🐛 CRITICAL FIX: Pass played_cards (before current play) not updatedPlayedCards
-    // Issue: If we pass updatedPlayedCards, the current cards are already filtered out
-    // when calculating remaining cards, so 2S won't match itself as highest remaining
+    // Pass played_cards (before current play) so getRemainingCards can include the current cards for comparison
     const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 

@@ -1,8 +1,11 @@
-# Bug Fix: Auto-Pass Timer Not Working in Match 2+ (Jan 12, 2026)
+# Bug Fix: Auto-Pass Timer Database Trigger - played_cards Reset (Jan 12, 2026)
 
 ## 🐛 Issue Description
 
 **Symptom:** Autopass countdown timer works perfectly in Match 1 but stops triggering in Match 2, 3, etc. The timer doesn't detect highest played cards and doesn't start the countdown alert.
+
+**Root Cause:** The `played_cards` array was not resetting between matches (database trigger fix).
+**Note:** This document covers the database trigger issue. For the card ID format mismatch fix, see `BUG_FIX_AUTOPASS_TIMER_AND_BOT_3D_JAN_12_2026.md`.
 
 **Reporter:** User
 
