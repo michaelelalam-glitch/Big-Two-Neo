@@ -20,6 +20,7 @@ export interface BotPlayOptions {
   hand: Card[];
   lastPlay: LastPlay | null;
   isFirstPlayOfGame: boolean;
+  matchNumber?: number; // Current match number (1, 2, 3, etc.)
   playerCardCounts: number[];
   currentPlayerIndex: number; // Index of the current bot player
   difficulty?: BotDifficulty;
@@ -49,18 +50,20 @@ export class BotAI {
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, playerCardCounts, currentPlayerIndex } = options;
+    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex } = options;
     
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
     }
 
-    // First play of game - must include 3D
-    if (isFirstPlayOfGame) {
+    // First play of MATCH 1 ONLY - must include 3D
+    // Match 2+ can start with any valid play
+    const currentMatch = matchNumber || 1;
+    if (isFirstPlayOfGame && currentMatch === 1) {
       return this.handleFirstPlay(hand);
     }
 
-    // Leading (no last play)
+    // Leading (no last play) - Match 2+ or after trick cleared
     if (!lastPlay) {
       return this.handleLeading(hand, playerCardCounts, currentPlayerIndex);
     }

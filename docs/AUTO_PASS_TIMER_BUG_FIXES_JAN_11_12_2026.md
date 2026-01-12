@@ -23,15 +23,7 @@ If you're reviewing this PR and looking for the actual bug fix diffs (e.g., useR
 
 ---
 
-## 📋 Original Problem Overview (Fixed in Prior Commits)
-
-Auto-pass timer was not working correctly in multiplayer games. Through iterative debugging, we discovered and fixed 10 distinct bugs affecting timer triggering, performance, correctness, and timing accuracy.
-
-**Goal:** Match local AI game behavior - instant, accurate auto-pass timer.
-
----
-
-## 📋 Problem Overview
+## 📋 Problem Overview (Fixed in Prior Commits)
 
 Auto-pass timer was not working correctly in multiplayer games. Through iterative debugging, we discovered and fixed 10 distinct bugs affecting timer triggering, performance, correctness, and timing accuracy.
 
@@ -298,7 +290,7 @@ All scenarios tested and verified:
 - [x] Correct players passed (all except exempt)
 - [x] Already-passed players not auto-passed again
 - [x] Timer cleared after expiry
-- [x] Timer clears when 3 players pass manually
+- [x] Timer persists through manual passes (per Bug #8 design - only expires on timeout or beat)
 
 **Timing & Accuracy:**
 - [x] Timer expires at correct time (clock sync)
