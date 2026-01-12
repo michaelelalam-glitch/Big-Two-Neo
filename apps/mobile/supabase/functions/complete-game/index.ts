@@ -345,6 +345,12 @@ Deno.serve(async (req: Request) => {
           }
         });
         
+<<<<<<< Updated upstream
+=======
+        // Wait briefly for broadcast to send
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+>>>>>>> Stashed changes
       } catch (broadcastError) {
         console.error('[Complete Game] Error broadcasting game_ended:', broadcastError);
         // Non-critical - continue

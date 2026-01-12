@@ -33,6 +33,13 @@ import { useCardSelection } from '../hooks/useCardSelection';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { sortCardsForDisplay } from '../utils/cardSorting';
+<<<<<<< Updated upstream
+=======
+import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
+import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
+import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
+import type { FinalScore } from '../types/gameEnd';
+>>>>>>> Stashed changes
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -40,7 +47,11 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
+<<<<<<< Updated upstream
   const { user, profile } = useAuth();
+=======
+  const { user } = useAuth();
+>>>>>>> Stashed changes
   const scoreboardContext = useScoreboard(); // Get entire context
   const { 
     addScoreHistory, 
@@ -50,12 +61,29 @@ function GameScreenContent() {
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
+<<<<<<< Updated upstream
   const { roomCode, forceNewGame = false } = route.params;
+=======
+  const { roomCode } = route.params;
+>>>>>>> Stashed changes
   const [showSettings, setShowSettings] = useState(false);
   
+<<<<<<< Updated upstream
   // PHASE 6: Detect game mode
   const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
   const isMultiplayerGame = !isLocalAIGame;
+=======
+  // CRITICAL FIX: Store refs to always get latest context values
+  const scoreboardRef = useRef(scoreboardContext);
+  useEffect(() => {
+    scoreboardRef.current = scoreboardContext;
+  }, [scoreboardContext]);
+  
+  // Game state management
+  const gameManagerRef = useRef<GameStateManager | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+>>>>>>> Stashed changes
   
   gameLogger.info(`🎮 [GameScreen] Game mode: ${isLocalAIGame ? 'LOCAL AI (client-side)' : 'MULTIPLAYER (server-side)'}`);
   
@@ -91,6 +119,7 @@ function GameScreenContent() {
   useEffect(() => {
     if (!isMultiplayerGame) return;
     
+<<<<<<< Updated upstream
     const loadMultiplayerRoom = async () => {
       try {
         const { data: roomData, error: roomError } = await supabase
@@ -126,6 +155,11 @@ function GameScreenContent() {
         gameLogger.error('[GameScreen] Error loading multiplayer room:', error?.message || String(error));
       }
     };
+=======
+    const currentState = gameManagerRef.current.getState();
+    // CRITICAL FIX: Check BOTH gameEnded AND gameOver to stop bot turns when game finishes
+    if (!currentState || currentState.gameEnded || currentState.gameOver) return;
+>>>>>>> Stashed changes
     
     loadMultiplayerRoom();
   }, [isMultiplayerGame, roomCode, navigation]);
@@ -419,6 +453,7 @@ function GameScreenContent() {
     if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) {
       return;
     }
+<<<<<<< Updated upstream
     
     gameLogger.info(`[GameScreen] 📊 Syncing ${playHistoryArray.length} plays from multiplayer game state to scoreboard`);
     
@@ -436,6 +471,284 @@ function GameScreenContent() {
       
       if (!playsByMatch[matchNum]) {
         playsByMatch[matchNum] = [];
+=======
+
+    const initGame = async () => {
+      try {
+        gameLogger.info('🎮 [GameScreen] Initializing game engine for room:', roomCode);
+        
+        // Mark as initializing
+        isInitializedRef.current = true;
+        initializedRoomRef.current = roomCode;
+        
+        // Create game manager
+        const manager = createGameStateManager();
+        gameManagerRef.current = manager;
+        
+        // Task #416: Register Play Again callback
+        setOnPlayAgain(() => async () => {
+          gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
+          try {
+            // Reinitialize the game with same settings
+            const newState = await manager.initializeGame({
+              playerName: currentPlayerName,
+              botCount: 3,
+              botDifficulty: 'medium'
+            });
+            setGameState(newState);
+            
+            // Play game start sound
+            soundManager.playSound(SoundType.GAME_START);
+            gameLogger.info('✅ [GameScreen] Game restarted successfully');
+          } catch (error) {
+            gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
+            showError('Failed to restart game. Please try again.');
+          }
+        });
+        
+        // Task #417: Register Return to Menu callback
+        setOnReturnToMenu(() => () => {
+          gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
+          // Navigate to home screen (resets the navigation stack)
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        });
+        
+        // Subscribe to state changes
+        const unsubscribe = manager.subscribe((state: GameState) => {
+          gameLogger.debug('📊 [GameScreen] Game state updated:', {
+            currentPlayer: state.players[state.currentPlayerIndex].name,
+            handSize: state.players[0].hand.length,
+            lastPlay: state.lastPlay?.combo_type || 'none',
+            gameEnded: state.gameEnded,
+            gameOver: state.gameOver
+          });
+          
+          // CRITICAL DEBUG: Log game over detection
+          if (state.gameOver || state.gameEnded) {
+            gameLogger.info('🚨 [GAME OVER DEBUG] State flags:', {
+              gameOver: state.gameOver,
+              gameEnded: state.gameEnded,
+              matchScores: state.matchScores.map(s => ({ name: s.playerName, score: s.score }))
+            });
+          }
+          
+          // Play turn notification when it becomes player's turn
+          const previousState = gameState;
+          if (previousState && state.currentPlayerIndex === 0 && previousState.currentPlayerIndex !== 0) {
+            soundManager.playSound(SoundType.TURN_NOTIFICATION);
+            gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
+          }
+          
+          setGameState(state);
+          
+          // Handle match end (someone ran out of cards)
+          if (state.gameEnded && !state.gameOver) {
+            // Match ended but game continues
+            const matchWinner = state.players.find(p => p.id === state.winnerId);
+            const matchScores = state.matchScores;
+            
+            // Play win/lose sound based on match outcome
+            if (matchWinner && matchWinner.id === state.players[0].id) {
+              soundManager.playSound(SoundType.WIN);
+              gameLogger.info('🎵 [Audio] Win sound triggered - player won match');
+            } else {
+              soundManager.playSound(SoundType.LOSE);
+              gameLogger.info('🎵 [Audio] Lose sound triggered - player lost match');
+            }
+            
+            // Task #351: Track score history for scoreboard
+            // Extract points added this match from matchScores array
+            const pointsAdded: number[] = [];
+            const cumulativeScores: number[] = [];
+            
+            matchScores.forEach(playerScore => {
+              // Get the latest match score (points added this match)
+              const latestMatchScore = playerScore.matchScores[playerScore.matchScores.length - 1] || 0;
+              pointsAdded.push(latestMatchScore);
+              cumulativeScores.push(playerScore.score);
+            });
+            
+            // CRITICAL FIX: Reorder scores to match scoreboard display order [0,3,1,2]
+            // matchScores is in game state order [0,1,2,3] (player indices)
+            // but scoreboard displays in visual layout order [0,3,1,2] (bottom, top, left, right)
+            // This transformation ensures scores are displayed correctly in the UI
+            // without this fix, player scores would appear in wrong positions on scoreboard
+            const reorderedPointsAdded = [
+              pointsAdded[0],  // Bottom player (index 0) stays at position 0
+              pointsAdded[3],  // Right player (index 3) moves to position 1 
+              pointsAdded[1],  // Top player (index 1) moves to position 2
+              pointsAdded[2]   // Left player (index 2) moves to position 3
+            ];
+            const reorderedScores = [
+              cumulativeScores[0],
+              cumulativeScores[3],
+              cumulativeScores[1],
+              cumulativeScores[2]
+            ];
+            
+            const scoreHistory: ScoreHistory = {
+              matchNumber: state.currentMatch,
+              pointsAdded: reorderedPointsAdded,
+              scores: reorderedScores,
+              timestamp: new Date().toISOString(),
+            };
+            
+            addScoreHistory(scoreHistory);
+            gameLogger.info('📊 [Score History] Added to scoreboard context:', scoreHistory);
+            
+            // Build score summary
+            const scoreSummary = matchScores
+              .map(s => `${s.playerName}: ${s.score} pts`)
+              .join('\n');
+            
+            // Store match complete handler for reuse after "Stay" is pressed
+            const showMatchCompleteDialog = () => {
+              showConfirm({
+                title: `Match ${state.currentMatch} Complete!`,
+                message: `${matchWinner?.name || 'Someone'} wins the match!\n\n${scoreSummary}`,
+                confirmText: 'Next Match',
+                cancelText: 'Leave Game',
+                onConfirm: async () => {
+                  gameLogger.info('🔄 [GameScreen] Starting next match...');
+                  const result = await manager.startNewMatch();
+                  if (result.success) {
+                    gameLogger.info('✅ [GameScreen] New match started');
+                    // Bot turns will be triggered by the subscription callback
+                  } else {
+                    // Only log error message to avoid exposing game state internals
+                    const errorMsg = (typeof result.error === 'object' && result.error && 'message' in result.error) ? (result.error as { message: string }).message : String(result.error);
+                    gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
+                  }
+                },
+                onCancel: () => {
+                  // Leave Game with confirmation
+                  showConfirm({
+                    title: 'Leave Game?',
+                    message: 'Are you sure you want to leave? Your progress will be lost.',
+                    confirmText: 'Leave',
+                    cancelText: 'Stay',
+                    destructive: true,
+                    onConfirm: () => handleLeaveGame(true), // Skip nested confirmation
+                    onCancel: () => {
+                      // Stay: Re-show match complete dialog so user can choose Next Match
+                      gameLogger.info('📊 [GameScreen] User chose to stay - showing Match Complete dialog again');
+                      showMatchCompleteDialog();
+                    }
+                  });
+                }
+              });
+            };
+            
+            showMatchCompleteDialog();
+            // Note: Don't return here - game continues after dialog dismisses
+          }
+          
+          // Handle game over (101+ points reached) - Task #415
+          // CRITICAL FIX: Only open modal when BOTH gameOver AND gameEnded are true
+          // This prevents modal from opening while final match is still in progress
+          if (state.gameOver && state.gameEnded) {
+            gameLogger.info('🚨 [GAME OVER] Detected! Opening Game End Modal...', {
+              gameOver: state.gameOver,
+              gameEnded: state.gameEnded,
+              finalWinnerId: state.finalWinnerId
+            });
+            
+            // Scoreboard will NOT auto-expand - user controls expansion manually
+            gameLogger.info('📊 [Game Over] Game finished - scoreboard remains in current state');
+            
+            const finalWinner = state.matchScores.find(s => s.playerId === state.finalWinnerId);
+            
+            // Prepare final scores in display order (Task #415)
+            const finalScores: FinalScore[] = state.matchScores
+              .sort((a, b) => a.score - b.score) // Sort by ascending score (lowest score wins)
+              .map((s, index) => ({
+                player_index: state.players.findIndex(p => p.id === s.playerId),
+                player_name: s.playerName,
+                cumulative_score: s.score,
+                points_added: 0, // Final game over doesn't add points
+                rank: index + 1,
+                is_busted: s.score >= 101
+              }));
+            
+            // Get player names in game order
+            const playerNames = state.players.map(p => p.name);
+            
+            // Get current scoreboard data (use empty arrays as fallback, modal can handle it)
+            const currentScoreHistory = scoreboardRef.current?.scoreHistory || scoreHistory || [];
+            const currentPlayHistory = scoreboardRef.current?.playHistoryByMatch || playHistoryByMatch || [];
+            
+            gameLogger.info('📊 [Game Over] Modal data:', {
+              scoreHistoryCount: currentScoreHistory.length,
+              playHistoryCount: currentPlayHistory.length,
+              finalScoresCount: finalScores.length
+            });
+            
+            // CRITICAL FIX: Open modal immediately (no delays that can cause Android issues)
+            // Use requestAnimationFrame to ensure UI thread is ready
+            requestAnimationFrame(() => {
+              gameLogger.info('🎉 [Game Over] Opening Game End Modal NOW');
+              
+              try {
+                openGameEndModal(
+                  finalWinner?.playerName || 'Someone',
+                  state.players.findIndex(p => p.id === state.finalWinnerId),
+                  finalScores,
+                  playerNames,
+                  currentScoreHistory,
+                  currentPlayHistory
+                );
+                
+                gameLogger.info('✅ [Game Over] Game End Modal opened successfully');
+              } catch (error) {
+                gameLogger.error('❌ [Game Over] Failed to open modal:', error);
+                // Fallback: Show simple alert
+                showInfo(`Game Over! ${finalWinner?.playerName || 'Someone'} wins!`);
+              }
+            });
+            
+            return; // Stop processing here to prevent bot turns
+          }
+          
+          // Trigger bot turn check after state update
+          setTimeout(() => checkAndExecuteBotTurn(), 100);
+        });
+
+        // Initialize game with 3 bots
+        const initialState = await manager.initializeGame({
+          playerName: currentPlayerName,
+          botCount: 3,
+          botDifficulty: 'medium' // Can be changed to 'easy', 'medium', or 'hard'
+        });
+
+        setGameState(initialState);
+        setIsInitializing(false);
+        gameLogger.info('✅ [GameScreen] Game initialized successfully');
+
+        // Play game start sound (Task #270 - only on game start, not every match)
+        soundManager.playSound(SoundType.GAME_START);
+        gameLogger.info('🎵 [Audio] Game start sound triggered');
+
+        // Bot turn will be triggered by subscription callback
+
+        return () => {
+          unsubscribe();
+          // Cleanup timer interval to prevent memory leaks
+          if (gameManagerRef.current) {
+            gameManagerRef.current.destroy();
+          }
+          // Cleanup audio resources to prevent memory leaks
+          soundManager.cleanup().catch(err => {
+            gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
+          });
+        };
+      } catch (error: any) {
+        gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
+        setIsInitializing(false);
+        showError('Failed to initialize game. Please try again.');
+>>>>>>> Stashed changes
       }
       
       playsByMatch[matchNum].push({
@@ -1142,6 +1455,7 @@ function GameScreenContent() {
   };
 
   return (
+<<<<<<< Updated upstream
     <Profiler id="GameScreen" onRender={onRenderCallback as any}>
       <View style={[styles.container, { direction: 'ltr' }]}>
         {/* Spectator Mode Banner - Show if player is spectating */}
@@ -1172,6 +1486,25 @@ function GameScreenContent() {
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
             isGameFinished={(gameState as any)?.gameOver ?? false}
+=======
+    <View style={styles.container}>
+      {isInitializing ? (
+        // Loading state
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Initializing game...</Text>
+          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
+        </View>
+      ) : (
+        <>
+          {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
+          <ScoreboardContainer
+            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
+            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
+            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
+            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
+            matchNumber={gameState?.currentMatch || 1}
+            isGameFinished={gameState?.gameOver || false}
+>>>>>>> Stashed changes
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
@@ -1326,6 +1659,11 @@ function GameScreenContent() {
               onCardsReorder={handleCardsReorder}
             />
           </View>
+          
+          {/* Game End Modal (Task #415) - CRITICAL FIX: Wrapped in error boundary */}
+          <GameEndErrorBoundary onReset={() => {}}>
+            <GameEndModal />
+          </GameEndErrorBoundary>
         </>
       )}
       

@@ -1086,6 +1086,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('broadcast', { event: 'game_ended' }, (payload) => {
         networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
         // Fetch updated game state which will trigger modal in GameScreen
+<<<<<<< Updated upstream
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
@@ -1097,6 +1098,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           onMatchEnded(matchNumber, matchScores);
         }
         // Fetch updated game state to sync new match
+=======
+>>>>>>> Stashed changes
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
