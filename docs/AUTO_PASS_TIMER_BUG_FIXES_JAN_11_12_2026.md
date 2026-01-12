@@ -20,37 +20,35 @@ Auto-pass timer was not working correctly in multiplayer games. Through iterativ
 
 ### Bug #1: Wrong Order of Operations (Highest Play Detection)
 **Issue:** Timer never triggered when highest card (2♠) was played  
-**Root Cause:** Checking if play is highest AFTER adding cards to played_cards array  
-**Location:** `apps/mobile/supabase/functions/play-cards/index.ts` line 945
+**Root Cause:** Was checking if play is highest AFTER adding cards to played_cards array  
+**Location:** `apps/mobile/supabase/functions/play-cards/index.ts` line 948
+**Status:** ✅ FIXED (prior commit)
 
-**Before:**
+**Implementation:**
 ```typescript
+// Update played_cards (all cards played so far)
 const updatedPlayedCards = [...played_cards, ...cards];
-const isHighestPlay = isHighestPossiblePlay(cards, updatedPlayedCards); // ❌ Card already in array
-```
 
-**After:**
-```typescript
+// Detect highest play - MUST check BEFORE adding to array
 const isHighestPlay = isHighestPossiblePlay(cards, played_cards); // ✅ Check BEFORE adding
-const updatedPlayedCards = [...played_cards, ...cards];
 ```
+
+**Note:** The fix passes `played_cards` (before current play) not `updatedPlayedCards`, ensuring the current cards aren't filtered out when calculating if they're the highest remaining play.
 
 ---
 
 ### Bug #2: Card ID Format Mismatch
 **Issue:** Even after Bug #1 fix, timer still didn't trigger  
-**Root Cause:** Server deck uses "2S" format, client sends "S2" format  
-**Location:** `apps/mobile/supabase/functions/play-cards/index.ts` line 313
+**Root Cause:** Server deck was using "2S" format (rank+suit), client sends "S2" format (suit+rank)  
+**Location:** `apps/mobile/supabase/functions/play-cards/index.ts` line 314
+**Status:** ✅ FIXED (prior commit)
 
-**Before:**
+**Implementation:**
 ```typescript
-deck.push({ id: `${rank}${suit}`, rank, suit }); // Produces "2S"
+deck.push({ id: `${suit}${rank}`, rank, suit }); // ✅ Uses S2 format to match client
 ```
 
-**After:**
-```typescript
-deck.push({ id: `${suit}${rank}`, rank, suit }); // Produces "S2" ✅
-```
+**Note:** The fix ensures server and client use consistent suit-first card ID format throughout the codebase.
 
 ---
 
@@ -157,28 +155,32 @@ for (let i = 0; i < roomPlayers.length; i++) {
 
 ---
 
-### Bug #8: Timer Not Clearing on Manual Passes
-**Issue:** Timer countdown stays visible when 3 players pass manually  
-**Root Cause:** Edge Function preserved timer when clearing trick  
-**Location:** `apps/mobile/supabase/functions/player-pass/index.ts` lines 161-197
+### Bug #8: Timer Persistence Logic (Design Decision)
+**Issue:** Initial confusion about when timer should clear  
+**Design Decision:** Timer should PERSIST through manual passes until:
+  1. Timer expires (auto-pass triggered), OR
+  2. Someone beats the highest play
 
-**Before:**
+**Location:** `apps/mobile/supabase/functions/player-pass/index.ts` lines 163-171
+**Status:** ✅ CORRECTLY IMPLEMENTED
+
+**Implementation:**
 ```typescript
-.update({
-  passes: 0,
-  last_play: null,
-  // DO NOT set auto_pass_timer to NULL - let it persist! ❌
-})
+// 🔥 CRITICAL: Preserve auto_pass_timer if it exists!
+// The timer should persist until: (1) timer expires, or (2) someone beats the highest play
+const { error: updateError } = await supabaseClient
+  .from('game_state')
+  .update({
+    current_turn: nextTurn,
+    passes: 0,
+    last_play: null,
+    // DO NOT set auto_pass_timer to NULL - let it persist! ✅
+    updated_at: new Date().toISOString(),
+  })
+  .eq('id', gameState.id);
 ```
 
-**After:**
-```typescript
-.update({
-  passes: 0,
-  last_play: null,
-  auto_pass_timer: null, // ✅ Clear timer
-})
-```
+**Rationale:** When 3 consecutive passes clear the trick, the timer should continue running because the highest play (e.g., 2♠) is still unbeatable. Only when someone beats it or the timer expires should it be cleared.
 
 ---
 

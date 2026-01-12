@@ -21,7 +21,16 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 // Delay between user actions to prevent rapid repeated presses (milliseconds)
 const ACTION_DEBOUNCE_MS = 300;
-import { soundManager, hapticManager, HapticType, SoundType, showError, showInfo, showConfirm, performanceMonitor } from '../utils';
+import {
+  soundManager,
+  hapticManager,
+  HapticType,
+  SoundType,
+  showError,
+  showInfo,
+  showConfirm,
+  performanceMonitor,
+} from '../utils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { i18n } from '../i18n';
@@ -53,7 +62,7 @@ function GameScreenContent() {
   const { roomCode, forceNewGame = false } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
-  // CRITICAL FIX: Store refs to always get latest context values
+  // Store refs to always get latest context values (prevent stale closure)
   const scoreboardRef = useRef(scoreboardContext);
   useEffect(() => {
     scoreboardRef.current = scoreboardContext;
@@ -505,6 +514,13 @@ function GameScreenContent() {
   }, [isLocalAIGame, gameState, multiplayerGameState, multiplayerPlayers, roomCode]);
 
   // Local game (AI) state management
+  // TODO: Refactor this large useEffect (270+ lines) into custom hooks:
+  //   - useGameInitialization (setup, play again, return to menu)
+  //   - useGameStateSubscription (state changes, audio triggers)
+  //   - useMatchEndHandling (match completion dialogs, score tracking)
+  //   - useGameOverHandling (final modal, cleanup)
+  //   - useBotTurnExecution (bot turn logic)
+  // This would improve maintainability and testability.
   useEffect(() => {
     if (!isLocalAIGame) return; // Only for local AI games
     
@@ -647,6 +663,12 @@ function GameScreenContent() {
                 confirmText: 'Next Match',
                 cancelText: 'Leave Game',
                 onConfirm: async () => {
+                  // User wants to continue - start next match
+                  gameLogger.info('🎮 [GameScreen] User chose Next Match - continuing game');
+                  // No action needed here - the game continues naturally
+                },
+                onCancel: () => {
+                  // User wants to leave - show confirmation
                   showConfirm({
                     title: 'Leave Game?',
                     message: 'Are you sure you want to leave? Your progress will be lost.',
