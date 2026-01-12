@@ -1450,7 +1450,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           networkLogger.info(`⏰ [Timer] Players to auto-pass: [${playersToPass.join(', ')}]`);
           
           // ⚡ CRITICAL FIX: Execute auto-pass for all players in PARALLEL (like local AI game)
-          // This eliminates the 1.5s lag from sequential execution (3 × 500ms delays)
+          // This eliminates the cumulative lag caused by sequential execution with per-player delays
+          // NOTE: Parallel execution may cause race conditions where multiple pass() calls check the same
+          // stale gameState.current_turn. The backend edge function validates turns server-side and
+          // rejects with "Not your turn" errors, which are handled gracefully below.
           const executeAutoPasses = async () => {
             // Pass all players in parallel using Promise.all
             const passPromises = playersToPass.map(async (playerIndex) => {
