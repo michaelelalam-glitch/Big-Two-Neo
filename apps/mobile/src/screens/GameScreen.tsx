@@ -21,7 +21,7 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 
 // Delay between user actions to prevent rapid repeated presses (milliseconds)
 const ACTION_DEBOUNCE_MS = 300;
-import { soundManager, hapticManager, SoundType, showError, showInfo, showConfirm, performanceMonitor } from '../utils';
+import { soundManager, hapticManager, HapticType, SoundType, showError, showInfo, showConfirm, performanceMonitor } from '../utils';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { i18n } from '../i18n';
