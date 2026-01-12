@@ -796,7 +796,21 @@ function GameScreenContent() {
     };
     
     initGame();
-  }, [roomCode, currentPlayerName, navigation, isLocalAIGame, addScoreHistory, addPlayHistory, setOnPlayAgain, setOnReturnToMenu, setIsScoreboardExpanded]);
+  }, [
+    roomCode,
+    currentPlayerName,
+    navigation,
+    isLocalAIGame,
+    addScoreHistory,
+    addPlayHistory,
+    setOnPlayAgain,
+    setOnReturnToMenu,
+    setIsScoreboardExpanded,
+    scoreHistory,
+    playHistoryByMatch,
+    openGameEndModal,
+    handleLeaveGame,
+  ]);
   
   // CRITICAL FIX: Detect multiplayer game end and open modal with proper data
   useEffect(() => {

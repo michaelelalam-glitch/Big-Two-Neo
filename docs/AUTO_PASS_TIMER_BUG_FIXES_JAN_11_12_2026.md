@@ -4,7 +4,30 @@
 **PR:** #73  
 **Status:** ✅ ALL 10 BUGS FIXED
 
-**Note:** This documentation covers the complete evolution of fixes developed over Jan 11-12. The final PR includes merge conflict resolutions, import fixes, and production-readiness improvements built on top of the original 10 bug fixes which were committed to the dev branch in prior commits.
+## ⚠️ IMPORTANT: About This PR
+
+This PR (#73) represents the **final merge and polish** of the auto-pass timer fixes. The actual bug fixes (Bugs #1-10) were implemented in **prior commits** to the `dev` branch during Jan 11-12, 2026.
+
+**What THIS PR Contains:**
+- ✅ Documentation fixes (corrected Bug #1, #2, #8 descriptions to match actual code)
+- ✅ Code quality improvements (removed 100ms timeout, fixed confirmation dialog UX)
+- ✅ Import formatting and emoji restoration
+- ✅ Merge conflict resolutions from dev branch
+
+**What PRIOR COMMITS Contain (not in this PR diff):**
+- ✅ All 10 bug fixes to: `play-cards/index.ts`, `player-pass/index.ts`, `useRealtime.ts`, `AutoPassTimer.tsx`, `performanceMonitor.ts`
+- ✅ Original implementation of parallel execution, auto_pass flag, timer detection, etc.
+
+**Why This Matters:** 
+If you're reviewing this PR and looking for the actual bug fix diffs (e.g., useRealtime.ts changes), they won't appear here because they were already committed to `dev` in earlier commits. This PR only contains the final polish and documentation corrections.
+
+---
+
+## 📋 Original Problem Overview (Fixed in Prior Commits)
+
+Auto-pass timer was not working correctly in multiplayer games. Through iterative debugging, we discovered and fixed 10 distinct bugs affecting timer triggering, performance, correctness, and timing accuracy.
+
+**Goal:** Match local AI game behavior - instant, accurate auto-pass timer.
 
 ---
 
