@@ -17,6 +17,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { useClockSync } from './useClockSync';
 import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import {
   Room,
@@ -335,6 +336,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
   const isHost = currentPlayer?.is_host === true;
+  
+  // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
+  const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
   // Returns true ONLY when:
@@ -1391,21 +1395,22 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         return;
       }
       
-      // ⏰ NEW: Calculate remaining time from server-authoritative end_timestamp
+      // ⏰ CRITICAL FIX: Calculate remaining time from server-authoritative end_timestamp
+      // MUST use getCorrectedNow() (clock sync) to match AutoPassTimer component
       let remaining: number;
       const endTimestamp = (currentTimerState as any).end_timestamp;
       
       if (typeof endTimestamp === 'number') {
-        // Use end_timestamp (server-authoritative)
-        const now = Date.now();
-        remaining = Math.max(0, endTimestamp - now);
+        // Use end_timestamp with clock-corrected time (matches AutoPassTimer)
+        const correctedNow = getCorrectedNow();
+        remaining = Math.max(0, endTimestamp - correctedNow);
         
-        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (endTime: ${new Date(endTimestamp).toISOString()})`);
+        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
       } else {
         // Fallback: calculate from started_at (old architecture)
         const startedAt = new Date(currentTimerState.started_at).getTime();
-        const now = Date.now();
-        const elapsed = now - startedAt;
+        const correctedNow = getCorrectedNow();
+        const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
         
         networkLogger.info(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
@@ -1444,44 +1449,46 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           
           networkLogger.info(`⏰ [Timer] Players to auto-pass: [${playersToPass.join(', ')}]`);
           
-          // Execute auto-pass for each player sequentially
+          // ⚡ CRITICAL FIX: Execute auto-pass for all players in PARALLEL (like local AI game)
+          // This eliminates the 1.5s lag from sequential execution (3 × 500ms delays)
           const executeAutoPasses = async () => {
-            for (const playerIndex of playersToPass) {
+            // Pass all players in parallel using Promise.all
+            const passPromises = playersToPass.map(async (playerIndex) => {
               try {
                 networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}...`);
                 
-                // Call pass() - backend will validate if it's their turn
-                // If not their turn yet, backend will reject with "Not your turn" error
+                // Call pass() - backend validates turn
                 await pass(playerIndex);
                 
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex}`);
                 
-                // Broadcast auto-pass event
-                await broadcastMessage('auto_pass_executed', {
+                // Broadcast auto-pass event (non-blocking)
+                broadcastMessage('auto_pass_executed', {
                   player_index: playerIndex,
                 }).catch((broadcastError) => {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
                 
-                // CRITICAL: Wait longer for Realtime to propagate the updated game_state
-                // This ensures the next pass() call sees the updated current_turn
-                networkLogger.info(`⏰ [Timer] Waiting 500ms for Realtime sync...`);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
               } catch (error) {
                 const errorMsg = (error as Error).message || String(error);
                 
-                // If error is "Not your turn", that's expected - skip this player
+                // If error is "Not your turn", player already passed - this is fine
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] Player ${playerIndex} already passed or not their turn - skipping`);
-                  continue; // Continue to next player
+                  networkLogger.warn(`⏰ [Timer] Player ${playerIndex} already passed - skipping`);
+                  return; // Return silently, not an error
                 }
                 
-                // Other errors are unexpected - log and stop
-                networkLogger.error(`⏰ [Timer] Unexpected error for player ${playerIndex}:`, error);
-                break; // Stop on unexpected error
+                // Other errors are logged but don't block other passes
+                networkLogger.error(`⏰ [Timer] Error for player ${playerIndex}:`, error);
               }
-            }
+            });
+            
+            // Wait for all passes to complete in parallel
+            await Promise.all(passPromises);
+            
+            // Short delay for Realtime sync before clearing timer
+            networkLogger.info('⏰ [Timer] Waiting 100ms for final Realtime sync...');
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             networkLogger.info('⏰ [Timer] Auto-pass complete! Clearing timer state...');
             
