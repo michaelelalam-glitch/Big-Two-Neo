@@ -1156,7 +1156,8 @@ export class GameStateManager {
     } catch (error: any) {
       // Suppress 503 errors (Edge Function not deployed/cold start)
       // Game still works - this only affects stats tracking
-      if (error?.message?.includes('503')) {
+      const statusCode = error?.status || error?.statusCode || error?.code;
+      if (statusCode === 503 || statusCode === '503' || error?.message?.includes('503')) {
         statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
       } else {
         statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
