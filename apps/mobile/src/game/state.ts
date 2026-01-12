@@ -1154,9 +1154,6 @@ export class GameStateManager {
         statsLogger.info('✅ [Stats] Game completed via RPC fallback:', rpcResult);
       }
     } catch (error: any) {
-<<<<<<< Updated upstream
-      statsLogger.error('❌ [Stats] Failed to save game stats:', error?.message || error?.code || String(error));
-=======
       // Suppress 503 errors (Edge Function not deployed/cold start)
       // Game still works - this only affects stats tracking
       if (error?.message?.includes('503')) {
@@ -1164,7 +1161,6 @@ export class GameStateManager {
       } else {
         statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
       }
->>>>>>> Stashed changes
     }
   }
 

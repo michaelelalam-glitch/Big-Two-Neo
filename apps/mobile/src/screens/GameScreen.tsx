@@ -33,13 +33,6 @@ import { useCardSelection } from '../hooks/useCardSelection';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { sortCardsForDisplay } from '../utils/cardSorting';
-<<<<<<< Updated upstream
-=======
-import { soundManager, hapticManager, HapticType, SoundType, showError, showConfirm, showInfo } from '../utils';
-import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
-import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
-import type { FinalScore } from '../types/gameEnd';
->>>>>>> Stashed changes
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -47,11 +40,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 function GameScreenContent() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
-<<<<<<< Updated upstream
   const { user, profile } = useAuth();
-=======
-  const { user } = useAuth();
->>>>>>> Stashed changes
   const scoreboardContext = useScoreboard(); // Get entire context
   const { 
     addScoreHistory, 
@@ -61,29 +50,18 @@ function GameScreenContent() {
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
-<<<<<<< Updated upstream
   const { roomCode, forceNewGame = false } = route.params;
-=======
-  const { roomCode } = route.params;
->>>>>>> Stashed changes
   const [showSettings, setShowSettings] = useState(false);
   
-<<<<<<< Updated upstream
-  // PHASE 6: Detect game mode
-  const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
-  const isMultiplayerGame = !isLocalAIGame;
-=======
   // CRITICAL FIX: Store refs to always get latest context values
   const scoreboardRef = useRef(scoreboardContext);
   useEffect(() => {
     scoreboardRef.current = scoreboardContext;
   }, [scoreboardContext]);
   
-  // Game state management
-  const gameManagerRef = useRef<GameStateManager | null>(null);
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
->>>>>>> Stashed changes
+  // PHASE 6: Detect game mode
+  const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
+  const isMultiplayerGame = !isLocalAIGame;
   
   gameLogger.info(`🎮 [GameScreen] Game mode: ${isLocalAIGame ? 'LOCAL AI (client-side)' : 'MULTIPLAYER (server-side)'}`);
   
@@ -93,12 +71,6 @@ function GameScreenContent() {
   
   // Orientation manager (Task #450) - gracefully handles missing native module
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
-  
-  // CRITICAL FIX: Store refs to always get latest context values
-  const scoreboardRef = useRef(scoreboardContext);
-  useEffect(() => {
-    scoreboardRef.current = scoreboardContext;
-  }, [scoreboardContext]);
 
   // Get player username from profile (consistent with leaderboard and lobby)
   const currentPlayerName = profile?.username || 
@@ -119,7 +91,6 @@ function GameScreenContent() {
   useEffect(() => {
     if (!isMultiplayerGame) return;
     
-<<<<<<< Updated upstream
     const loadMultiplayerRoom = async () => {
       try {
         const { data: roomData, error: roomError } = await supabase
@@ -155,11 +126,6 @@ function GameScreenContent() {
         gameLogger.error('[GameScreen] Error loading multiplayer room:', error?.message || String(error));
       }
     };
-=======
-    const currentState = gameManagerRef.current.getState();
-    // CRITICAL FIX: Check BOTH gameEnded AND gameOver to stop bot turns when game finishes
-    if (!currentState || currentState.gameEnded || currentState.gameOver) return;
->>>>>>> Stashed changes
     
     loadMultiplayerRoom();
   }, [isMultiplayerGame, roomCode, navigation]);
@@ -453,7 +419,6 @@ function GameScreenContent() {
     if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) {
       return;
     }
-<<<<<<< Updated upstream
     
     gameLogger.info(`[GameScreen] 📊 Syncing ${playHistoryArray.length} plays from multiplayer game state to scoreboard`);
     
@@ -471,8 +436,68 @@ function GameScreenContent() {
       
       if (!playsByMatch[matchNum]) {
         playsByMatch[matchNum] = [];
-=======
+      }
+      
+      playsByMatch[matchNum].push({
+        by: play.position as PlayerPosition,
+        type: play.combo_type || 'single',
+        count: play.cards.length,
+        cards: play.cards,
+      });
+    });
+    
+    // Add each match's plays to scoreboard
+    Object.entries(playsByMatch).forEach(([matchNumStr, hands]) => {
+      const matchNum = parseInt(matchNumStr, 10);
+      const matchData: PlayHistoryMatch = {
+        matchNumber: matchNum,
+        hands,
+      };
+      gameLogger.info(`[GameScreen] 📊 Adding ${hands.length} hands for Match ${matchNum} to scoreboard`);
+      addPlayHistory(matchData);
+    });
+    
+  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, roomCode, addPlayHistory]);
+  
+  // CRITICAL FIX: One card left detection for ALL players (local + multiplayer)
+  const oneCardLeftDetectedRef = useRef(new Set<string>()); // Track which players we've alerted for
+  useEffect(() => {
+    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
+    const hands = (effectiveGameState as any)?.hands;
+    
+    if (!hands || typeof hands !== 'object') return;
+    
+    // Check each player's hand
+    Object.entries(hands).forEach(([playerIndex, cards]) => {
+      if (!Array.isArray(cards)) return;
+      
+      const key = `${roomCode}-${playerIndex}`;
+      
+      if (cards.length === 1 && !oneCardLeftDetectedRef.current.has(key)) {
+        // Player has one card left - first time detection
+        const player = isLocalAIGame 
+          ? (gameState as any)?.players?.[parseInt(playerIndex)]
+          : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
+        
+        if (player) {
+          const playerName = isLocalAIGame ? player.name : player.username;
+          soundManager.playSound(SoundType.TURN_NOTIFICATION);
+          hapticManager.trigger(HapticType.WARNING);
+          showInfo(`${playerName} has one card left!`);
+          gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
+          oneCardLeftDetectedRef.current.add(key);
+        }
+      } else if (cards.length > 1 && oneCardLeftDetectedRef.current.has(key)) {
+        // Player drew more cards, reset alert
+        oneCardLeftDetectedRef.current.delete(key);
+      }
+    });
+  }, [isLocalAIGame, gameState, multiplayerGameState, multiplayerPlayers, roomCode]);
 
+  // Local game (AI) state management
+  useEffect(() => {
+    if (!isLocalAIGame) return; // Only for local AI games
+    
     const initGame = async () => {
       try {
         gameLogger.info('🎮 [GameScreen] Initializing game engine for room:', roomCode);
@@ -612,19 +637,6 @@ function GameScreenContent() {
                 confirmText: 'Next Match',
                 cancelText: 'Leave Game',
                 onConfirm: async () => {
-                  gameLogger.info('🔄 [GameScreen] Starting next match...');
-                  const result = await manager.startNewMatch();
-                  if (result.success) {
-                    gameLogger.info('✅ [GameScreen] New match started');
-                    // Bot turns will be triggered by the subscription callback
-                  } else {
-                    // Only log error message to avoid exposing game state internals
-                    const errorMsg = (typeof result.error === 'object' && result.error && 'message' in result.error) ? (result.error as { message: string }).message : String(result.error);
-                    gameLogger.error('❌ [GameScreen] Failed to start new match:', errorMsg);
-                  }
-                },
-                onCancel: () => {
-                  // Leave Game with confirmation
                   showConfirm({
                     title: 'Leave Game?',
                     message: 'Are you sure you want to leave? Your progress will be lost.',
@@ -748,66 +760,11 @@ function GameScreenContent() {
         gameLogger.error('❌ [GameScreen] Failed to initialize game:', error?.message || error?.code || String(error));
         setIsInitializing(false);
         showError('Failed to initialize game. Please try again.');
->>>>>>> Stashed changes
       }
-      
-      playsByMatch[matchNum].push({
-        by: play.position as PlayerPosition,
-        type: play.combo_type || 'single',
-        count: play.cards.length,
-        cards: play.cards,
-      });
-    });
+    };
     
-    // Add each match's plays to scoreboard
-    Object.entries(playsByMatch).forEach(([matchNumStr, hands]) => {
-      const matchNum = parseInt(matchNumStr, 10);
-      const matchData: PlayHistoryMatch = {
-        matchNumber: matchNum,
-        hands,
-      };
-      gameLogger.info(`[GameScreen] 📊 Adding ${hands.length} hands for Match ${matchNum} to scoreboard`);
-      addPlayHistory(matchData);
-    });
-    
-  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, roomCode, addPlayHistory]);
-  
-  // CRITICAL FIX: One card left detection for ALL players (local + multiplayer)
-  const oneCardLeftDetectedRef = useRef(new Set<string>()); // Track which players we've alerted for
-  useEffect(() => {
-    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
-    const hands = (effectiveGameState as any)?.hands;
-    
-    if (!hands || typeof hands !== 'object') return;
-    
-    // Check each player's hand
-    Object.entries(hands).forEach(([playerIndex, cards]) => {
-      if (!Array.isArray(cards)) return;
-      
-      const key = `${roomCode}-${playerIndex}`;
-      
-      if (cards.length === 1 && !oneCardLeftDetectedRef.current.has(key)) {
-        // Player has one card left - first time detection
-        const player = isLocalAIGame 
-          ? (gameState as any)?.players?.[parseInt(playerIndex)]
-          : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
-        
-        const playerName = player?.username || player?.name || `Player ${parseInt(playerIndex) + 1}`;
-        
-        gameLogger.info(`🚨 [One Card Left] ${playerName} has ONE CARD LEFT!`);
-        
-        // DISABLED: Alert causes crashes on physical devices
-        // soundManager.playSound(SoundType.HIGHEST_CARD);
-        // showInfo(`${playerName} has ONE CARD LEFT! 🃏`, { duration: 3000 });
-        
-        // Mark as detected
-        oneCardLeftDetectedRef.current.add(key);
-      } else if (cards.length > 1 && oneCardLeftDetectedRef.current.has(key)) {
-        // Player picked up cards again - remove from detected set
-        oneCardLeftDetectedRef.current.delete(key);
-      }
-    });
-  }, [isLocalAIGame, (gameState as any)?.hands, (multiplayerGameState as any)?.hands, multiplayerPlayers, roomCode]);
+    initGame();
+  }, [roomCode, currentPlayerName, navigation, isLocalAIGame, addScoreHistory, addPlayHistory, setOnPlayAgain, setOnReturnToMenu, setIsScoreboardExpanded]);
   
   // CRITICAL FIX: Detect multiplayer game end and open modal with proper data
   useEffect(() => {
@@ -1455,7 +1412,6 @@ function GameScreenContent() {
   };
 
   return (
-<<<<<<< Updated upstream
     <Profiler id="GameScreen" onRender={onRenderCallback as any}>
       <View style={[styles.container, { direction: 'ltr' }]}>
         {/* Spectator Mode Banner - Show if player is spectating */}
@@ -1486,25 +1442,6 @@ function GameScreenContent() {
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
             isGameFinished={(gameState as any)?.gameOver ?? false}
-=======
-    <View style={styles.container}>
-      {isInitializing ? (
-        // Loading state
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Initializing game...</Text>
-          <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
-        </View>
-      ) : (
-        <>
-          {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
-          <ScoreboardContainer
-            playerNames={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.name) : []}
-            currentScores={gameState ? gameState.matchScores.map(s => s.score) : []}
-            cardCounts={gameState ? mapPlayersToScoreboardOrder(gameState.players, p => p.hand.length) : []}
-            currentPlayerIndex={mapGameIndexToScoreboardPosition(gameState?.currentPlayerIndex || 0)}
-            matchNumber={gameState?.currentMatch || 1}
-            isGameFinished={gameState?.gameOver || false}
->>>>>>> Stashed changes
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
