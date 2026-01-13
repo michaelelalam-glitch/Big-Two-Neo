@@ -311,6 +311,10 @@ function generateFullDeck(): Card[] {
   const ranks: Card['rank'][] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   for (const suit of suits) {
     for (const rank of ranks) {
+      // Note: Card.id here is constructed as rank+suit (e.g., "3D") to match the
+      // rest of the client code. IDs are treated as opaque: cards are compared by
+      // their rank and suit fields (see cardsEqual/getRemainingCards), so the
+      // specific string format is only for consistency in display/logging.
       deck.push({ id: `${rank}${suit}`, rank, suit });
     }
   }
@@ -321,22 +325,32 @@ const FULL_DECK = generateFullDeck();
 
 function getRemainingCards(playedCards: Card[]): Card[] {
   return FULL_DECK.filter(
-    (card) => !playedCards.some((played) => played.id === card.id)
+    (card) => !playedCards.some((played) => played.rank === card.rank && played.suit === card.suit)
   );
 }
 
 function cardsEqual(a: Card, b: Card): boolean {
-  return a.id === b.id;
+  // Compare by rank and suit instead of ID to handle format inconsistencies
+  return a.rank === b.rank && a.suit === b.suit;
 }
 
 function isHighestRemainingSingle(card: Card, playedCards: Card[]): boolean {
   const remaining = getRemainingCards(playedCards);
-  if (remaining.length === 0) return false;
   
-  const sorted = sortHand(remaining);
-  const highest = sorted[sorted.length - 1];
+  // Filter out the current card from remaining (since we're checking if IT is highest)
+  const notCurrentCard = remaining.filter(c => !(c.rank === card.rank && c.suit === card.suit));
   
-  return cardsEqual(card, highest);
+  // If no other cards remain, this is the last card (highest by default)
+  if (notCurrentCard.length === 0) return true;
+  
+  const sorted = sortHand(notCurrentCard);
+  const highestOther = sorted[sorted.length - 1];
+  
+  // Current card is highest if its value is greater than any other remaining card
+  const currentValue = getCardValue(card);
+  const highestOtherValue = getCardValue(highestOther);
+  
+  return currentValue > highestOtherValue;
 }
 
 function generateAllPairs(remaining: Card[]): Card[][] {
@@ -941,7 +955,8 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    const isHighestPlay = isHighestPossiblePlay(cards, updatedPlayedCards);
+    // Pass played_cards (before current play) so getRemainingCards can include the current cards for comparison
+    const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 
     console.log('⏰ Auto-pass timer check:', {
@@ -949,6 +964,7 @@ Deno.serve(async (req) => {
       cardsLength: cards.length,
       cardsPlayed: cards.map(c => c.id),
       totalPlayedCards: updatedPlayedCards.length,
+      playedCardsBeforeCurrent: played_cards.length,
     });
 
     if (isHighestPlay) {

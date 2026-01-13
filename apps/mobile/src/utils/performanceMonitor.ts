@@ -61,17 +61,17 @@ class PerformanceMonitor {
     componentMetrics.push(metrics);
     this.metrics.set(id, componentMetrics);
 
-    // Log slow renders
-    if (actualDuration > this.FRAME_BUDGET) {
-      const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
-      console.warn(
-        `${severity} Slow render detected: ${id} (${phase})`,
-        `\n  Duration: ${actualDuration.toFixed(2)}ms`,
-        `\n  Base: ${baseDuration.toFixed(2)}ms`,
-        `\n  Budget: ${this.FRAME_BUDGET}ms`,
-        `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
-      );
-    }
+    // Log slow renders (DISABLED - too noisy)
+    // if (actualDuration > this.FRAME_BUDGET) {
+    //   const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
+    //   console.warn(
+    //     `${severity} Slow render detected: ${id} (${phase})`,
+    //     `\n  Duration: ${actualDuration.toFixed(2)}ms`,
+    //     `\n  Base: ${baseDuration.toFixed(2)}ms`,
+    //     `\n  Budget: ${this.FRAME_BUDGET}ms`,
+    //     `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
+    //   );
+    // }
   }
 
   /**

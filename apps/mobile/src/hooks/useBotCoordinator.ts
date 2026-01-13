@@ -174,6 +174,7 @@ export function useBotCoordinator({
         hand: botHand,
         lastPlay,
         isFirstPlayOfGame,
+        matchNumber, // Pass match number so bot knows if 3D is required
         playerCardCounts,
         currentPlayerIndex,
       });
