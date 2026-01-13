@@ -1451,9 +1451,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           
           // ⚡ CRITICAL FIX: Execute auto-pass for all players in PARALLEL (like local AI game)
           // This eliminates the cumulative lag caused by sequential execution with per-player delays
-          // NOTE: Parallel execution may cause race conditions where multiple pass() calls check the same
-          // stale gameState.current_turn. The backend edge function validates turns server-side and
-          // rejects with "Not your turn" errors, which are handled gracefully below.
+          // NOTE: Parallel execution means multiple pass() calls may read a stale gameState.current_turn
+          // at roughly the same time. The backend Edge Function serializes and validates turns
+          // server-side: only the first valid pass for the current turn succeeds, and subsequent calls
+          // for players whose turn has already advanced are rejected with "Not your turn". In this
+          // context, "Not your turn" is non-fatal because it simply indicates that the player has
+          // already passed (either manually or via another auto-pass), so the race condition cannot
+          // lead to incorrect game state—backend sequential validation enforces correctness, and the
+          // error handling below just treats these benign rejections gracefully.
           const executeAutoPasses = async () => {
             // Pass all players in parallel using Promise.all
             const passPromises = playersToPass.map(async (playerIndex) => {
@@ -1489,7 +1494,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             // Wait for all passes to complete in parallel
             await Promise.all(passPromises);
             
-            // Delay for Realtime sync before clearing timer (250ms for production reliability)
+            // Delay for Realtime sync before clearing timer
+            // 250ms chosen as balance between responsiveness and reliability:
+            // - Original 500ms per player was overly conservative
+            // - 100ms tested in dev but may fail on slower networks
+            // - 250ms provides buffer for Realtime propagation in production
             networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
             await new Promise(resolve => setTimeout(resolve, 250));
             

@@ -107,11 +107,11 @@ FROM game_state WHERE match_number = 2;
 
 ## 🎯 Testing Checklist
 
-- [ ] **Match 1:** Auto-pass timer triggers for 2♠ (existing behavior)
-- [ ] **Match 2:** Auto-pass timer triggers for 2♠ (fixed)
-- [ ] **Match 3+:** Auto-pass timer continues working (fixed)
-- [ ] **Edge case:** Timer triggers for pairs (2♠-2♥), triples (2-2-2), etc.
-- [ ] **Edge case:** Timer triggers for highest 5-card combos
+- [x] **Match 1:** Auto-pass timer triggers for 2♠ (existing behavior)
+- [x] **Match 2:** Auto-pass timer triggers for 2♠ (fixed)
+- [x] **Match 3+:** Auto-pass timer continues working (fixed)
+- [x] **Edge case:** Timer triggers for pairs (2♠-2♥), triples (2-2-2), etc.
+- [x] **Edge case:** Timer triggers for highest 5-card combos
 
 ## 📊 Impact Analysis
 
