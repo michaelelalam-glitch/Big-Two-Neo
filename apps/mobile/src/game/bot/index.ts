@@ -58,9 +58,7 @@ export class BotAI {
 
     // First play of MATCH 1 ONLY - must include 3D
     // Match 2+ can start with any valid play
-    // TODO: Add unit tests to verify:
-    // 1. Bots require 3♦ only when matchNumber === 1 and isFirstPlayOfGame is true
-    // 2. Bots can start Match 2+ with any valid play without requiring 3♦
+    // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
     const currentMatch = matchNumber || 1;
     if (isFirstPlayOfGame && currentMatch === 1) {
       return this.handleFirstPlay(hand);

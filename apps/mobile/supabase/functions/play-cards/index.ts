@@ -311,12 +311,11 @@ function generateFullDeck(): Card[] {
   const ranks: Card['rank'][] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   for (const suit of suits) {
     for (const rank of ranks) {
-      // Note: Card.id here is constructed as suit+rank (e.g., "D3").
-      // The rest of the client code typically uses rank+suit (e.g., "3D"), but the
-      // database schema and edge functions now treat card IDs as opaque: cards are
-      // compared by their rank and suit fields (see cardsEqual/getRemainingCards),
-      // so either ID format is accepted and handled correctly.
-      deck.push({ id: `${suit}${rank}`, rank, suit });
+      // Note: Card.id here is constructed as rank+suit (e.g., "3D") to match the
+      // rest of the client code. IDs are treated as opaque: cards are compared by
+      // their rank and suit fields (see cardsEqual/getRemainingCards), so the
+      // specific string format is only for consistency in display/logging.
+      deck.push({ id: `${rank}${suit}`, rank, suit });
     }
   }
   return deck;
