@@ -132,6 +132,97 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 5.5 ✅ ONE CARD LEFT RULE: Check if player can pass
+    // Get current hands for all players
+    const currentHands = gameState.hands || {};
+    
+    // Calculate next player index (counterclockwise: 0→1→2→3→0)
+    const nextPlayerIndex = [1, 2, 3, 0][player.player_index];
+    const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
+    
+    // Helper to parse cards from raw format
+    const parseCards = (rawCards: any[]): Array<{id: string, suit: string, rank: string}> => {
+      if (!Array.isArray(rawCards)) return [];
+      return rawCards.map(c => {
+        if (typeof c === 'string') {
+          // Format: "5D" → {id: "5D", suit: "D", rank: "5"}
+          const match = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
+          if (match) {
+            const [, rank, suit] = match;
+            return { id: c, suit, rank };
+          }
+        } else if (typeof c === 'object' && c !== null) {
+          return {
+            id: c.id || `${c.rank}${c.suit}`,
+            suit: c.suit,
+            rank: c.rank,
+          };
+        }
+        return null;
+      }).filter(c => c !== null);
+    };
+    
+    const nextPlayerHand = parseCards(nextPlayerHandRaw);
+    const playerHandRaw = currentHands[player.player_index] || [];
+    const playerHand = parseCards(playerHandRaw);
+    const lastPlay = gameState.last_play;
+    
+    // Only check if: next player has 1 card AND last play was a single
+    if (nextPlayerHand.length === 1 && lastPlay?.cards?.length === 1) {
+      console.log('🎯 [player-pass] One Card Left check triggered:', {
+        nextPlayerIndex,
+        nextPlayerCards: nextPlayerHand.length,
+        lastPlayCards: lastPlay.cards.length,
+      });
+
+      try {
+        // Create a timeout promise (5 seconds max)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('One Card Left validation timeout (5s)')), 5000);
+        });
+
+        // Call SQL function - it will check if player has a higher single
+        const validationPromise = supabaseClient
+          .rpc('validate_one_card_left_rule', {
+            p_selected_cards: [],              // Empty array = passing (no cards selected)
+            p_current_player_hand: playerHand, // Player's current hand
+            p_next_player_card_count: nextPlayerHand.length, // Should be 1
+            p_last_play: lastPlay || null      // Last play object
+          });
+
+        // Race between validation and timeout
+        const { data: oneCardLeftValidation, error: validationError } = await Promise.race([
+          validationPromise,
+          timeoutPromise
+        ]) as any;
+
+        if (validationError) {
+          console.error('❌ [player-pass] One Card Left SQL error:', {
+            message: validationError.message,
+            details: validationError.details,
+            hint: validationError.hint,
+            code: validationError.code,
+          });
+          // Don't block gameplay if SQL function fails - just log and continue
+        } else if (oneCardLeftValidation && !oneCardLeftValidation.valid) {
+          console.log('❌ [player-pass] One Card Left Rule blocks pass:', oneCardLeftValidation);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: oneCardLeftValidation.error,
+              required_card: oneCardLeftValidation.required_card,
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log('✅ [player-pass] One Card Left validation passed - no higher single available');
+        }
+      } catch (err) {
+        console.error('❌ [player-pass] One Card Left exception:', err);
+        // Don't block gameplay if validation throws - log and continue
+      }
+    }
+
     // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
     // Turn order mapping: [0→1, 1→2, 2→3, 3→0]
     // Actual sequence: 0→1→2→3→0 (counterclockwise around the table)
@@ -159,16 +250,39 @@ Deno.serve(async (req) => {
     if (newPasses >= 3) {
       console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
 
-      // Clear trick: remove last_play, reset pass count (stored in 'passes' field), advance turn
-      // 🔥 CRITICAL: Preserve auto_pass_timer if it exists!
-      // The timer should persist until: (1) timer expires, or (2) someone beats the highest play
+      // ⚡ CRITICAL FIX: Determine correct next turn after 3 passes
+      // If auto-pass timer is active, return to exempt player (who played highest card)
+      // Otherwise, use normal turn advancement
+      const { data: correctNextTurn, error: nextTurnError } = await supabaseClient
+        .rpc('get_next_turn_after_three_passes', {
+          p_game_state_id: gameState.id,
+          p_last_passing_player_index: player.player_index,
+        });
+
+      if (nextTurnError) {
+        console.error('❌ [player-pass] Failed to calculate next turn:', nextTurnError);
+        // Fallback to normal turn order if SQL function fails
+      }
+
+      const finalNextTurn = (typeof correctNextTurn === 'number') ? correctNextTurn : nextTurn;
+      
+      console.log('🔄 [player-pass] Turn calculation:', {
+        normal_next_turn: nextTurn,
+        correct_next_turn: finalNextTurn,
+        has_auto_pass_timer: !!gameState.auto_pass_timer,
+        timer_active: gameState.auto_pass_timer?.active,
+        exempt_player: gameState.auto_pass_timer?.player_index,
+      });
+
+      // Clear trick: remove last_play, reset pass count (stored in 'passes' field), set correct turn
+      // 🔥 CRITICAL: Clear auto_pass_timer since all players have passed (trick complete)
       const { error: updateError } = await supabaseClient
         .from('game_state')
         .update({
-          current_turn: nextTurn,
+          current_turn: finalNextTurn,
           passes: 0,
           last_play: null,
-          // DO NOT set auto_pass_timer to NULL - let it persist!
+          auto_pass_timer: null, // Clear timer after trick completes
           updated_at: new Date().toISOString(),
         })
         .eq('id', gameState.id);
@@ -181,15 +295,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log('✅ [player-pass] Trick cleared successfully');
+      console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
       return new Response(
         JSON.stringify({
           success: true,
-          next_turn: nextTurn,
+          next_turn: finalNextTurn,
           trick_cleared: true,
           passes: 0,
-          auto_pass_timer: gameState.auto_pass_timer, // Return existing timer
+          auto_pass_timer: null, // Timer cleared
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

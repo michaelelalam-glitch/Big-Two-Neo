@@ -311,6 +311,10 @@ function generateFullDeck(): Card[] {
   const ranks: Card['rank'][] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   for (const suit of suits) {
     for (const rank of ranks) {
+      // Note: Card.id here is constructed as rank+suit (e.g., "3D") to match the
+      // rest of the client code. IDs are treated as opaque: cards are compared by
+      // their rank and suit fields (see cardsEqual/getRemainingCards), so the
+      // specific string format is only for consistency in display/logging.
       deck.push({ id: `${rank}${suit}`, rank, suit });
     }
   }
@@ -321,22 +325,32 @@ const FULL_DECK = generateFullDeck();
 
 function getRemainingCards(playedCards: Card[]): Card[] {
   return FULL_DECK.filter(
-    (card) => !playedCards.some((played) => played.id === card.id)
+    (card) => !playedCards.some((played) => played.rank === card.rank && played.suit === card.suit)
   );
 }
 
 function cardsEqual(a: Card, b: Card): boolean {
-  return a.id === b.id;
+  // Compare by rank and suit instead of ID to handle format inconsistencies
+  return a.rank === b.rank && a.suit === b.suit;
 }
 
 function isHighestRemainingSingle(card: Card, playedCards: Card[]): boolean {
   const remaining = getRemainingCards(playedCards);
-  if (remaining.length === 0) return false;
   
-  const sorted = sortHand(remaining);
-  const highest = sorted[sorted.length - 1];
+  // Filter out the current card from remaining (since we're checking if IT is highest)
+  const notCurrentCard = remaining.filter(c => !(c.rank === card.rank && c.suit === card.suit));
   
-  return cardsEqual(card, highest);
+  // If no other cards remain, this is the last card (highest by default)
+  if (notCurrentCard.length === 0) return true;
+  
+  const sorted = sortHand(notCurrentCard);
+  const highestOther = sorted[sorted.length - 1];
+  
+  // Current card is highest if its value is greater than any other remaining card
+  const currentValue = getCardValue(card);
+  const highestOtherValue = getCardValue(highestOther);
+  
+  return currentValue > highestOtherValue;
 }
 
 function generateAllPairs(remaining: Card[]): Card[][] {
@@ -741,7 +755,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 8. ✅ Verify player has all the cards (with backwards compatibility for string cards)
+    // 9. ✅ Verify player has all the cards (with backwards compatibility for string cards)
     const currentHands = gameState.hands || {};
     const playerHandRaw = currentHands[player.player_index] || [];
     const playerHand = parseCards(playerHandRaw); // Parse cards (handles strings and objects)
@@ -764,78 +778,68 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 9. ✅ ONE CARD LEFT RULE: Check if next player has 1 card
+    // 10. ✅ ONE CARD LEFT RULE: Validate using Postgres function
     const nextPlayerIndex = (player.player_index + 1) % 4;
     const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
-    const nextPlayerHand = parseCards(nextPlayerHandRaw); // Parse cards (handles strings and objects)
-    const nextPlayerHasOneCard = nextPlayerHand.length === 1;
-
-    console.log('🔍 One Card Left Rule Check:', {
-      nextPlayerIndex,
-      nextPlayerCardsCount: nextPlayerHand.length,
-      nextPlayerHasOneCard,
-      currentPlayerPlayingCount: cards.length,
-      hasLastPlay: !!lastPlay,
-    });
-
-    // CRITICAL FIX: Only enforce One Card Left when there's a last play to beat
-    // Don't enforce when leading (no lastPlay)
-    if (nextPlayerHasOneCard && lastPlay && cards.length === 1) {
-      console.log('⚠️ One Card Left Rule ACTIVE - Next player has 1 card, checking enforcement...');
-      // Next player has 1 card and current player is playing a single
-      // Must verify this is the highest beating single they have
-      const sortedPlayerHand = sortHand(playerHand);
-      
-      // Only get singles that CAN beat the last play
-      const allBeatingSingles = sortedPlayerHand.filter(c => {
-        try {
-          return canBeatPlay([c], lastPlay);
-        } catch (e) {
-          return false; // If can't beat, exclude it
-        }
+    const nextPlayerHand = parseCards(nextPlayerHandRaw);
+    
+    // Only check if next player has 1 card and current play is a single
+    if (nextPlayerHand.length === 1 && cards.length === 1) {
+      console.log('🎯 One Card Left check triggered:', {
+        nextPlayerIndex,
+        nextPlayerCards: nextPlayerHand.length,
+        playingCards: cards.length,
       });
-      
-      console.log('🎴 Beating singles available:', allBeatingSingles.length, allBeatingSingles.map(c => c.id));
-      
-      // Only enforce if there ARE beating singles available
-      if (allBeatingSingles.length > 0) {
-        const highestBeatingSingle = allBeatingSingles[allBeatingSingles.length - 1];
-        const playedCard = cards[0];
-        
-        console.log('🎯 Enforcement check:', {
-          playedCard: playedCard.id,
-          requiredCard: highestBeatingSingle.id,
-          isValid: playedCard.id === highestBeatingSingle.id,
+
+      try {
+        // Create a timeout promise (5 seconds max)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('One Card Left validation timeout (5s)')), 5000);
         });
-        
-        // Check if they're playing the highest beating single
-        if (playedCard.id !== highestBeatingSingle.id) {
-          console.log('❌ REJECTED: Not playing highest beating single');
+
+        // Call SQL function with proper JSONB formatting
+        const validationPromise = supabaseClient
+          .rpc('validate_one_card_left_rule', {
+            p_selected_cards: cards,           // Array of Card objects
+            p_current_player_hand: playerHand, // Array of Card objects
+            p_next_player_card_count: nextPlayerHand.length, // INTEGER
+            p_last_play: lastPlay || null      // LastPlay object or null
+          });
+
+        // Race between validation and timeout
+        const { data: oneCardLeftValidation, error: validationError } = await Promise.race([
+          validationPromise,
+          timeoutPromise
+        ]) as any;
+
+        if (validationError) {
+          console.error('❌ One Card Left SQL error:', {
+            message: validationError.message,
+            details: validationError.details,
+            hint: validationError.hint,
+            code: validationError.code,
+          });
+          // Don't block gameplay if SQL function fails - just log and continue
+        } else if (oneCardLeftValidation && !oneCardLeftValidation.valid) {
+          console.log('❌ One Card Left Rule violation:', oneCardLeftValidation);
           return new Response(
             JSON.stringify({
               success: false,
-              error: 'One Card Left Rule: You must play your highest single that beats the last play',
-              required_card: highestBeatingSingle,
+              error: oneCardLeftValidation.error,
+              required_card: oneCardLeftValidation.required_card,
             }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         } else {
-          console.log('✅ ACCEPTED: Playing highest beating single');
+          console.log('✅ One Card Left validation passed');
         }
-      } else {
-        console.log('ℹ️ No beating singles available, rule not enforced');
+      } catch (err) {
+        console.error('❌ One Card Left exception:', err);
+        // Don't block gameplay if validation throws - log and continue
       }
-    } else {
-      console.log('ℹ️ One Card Left Rule NOT ACTIVE:', {
-        reason: !nextPlayerHasOneCard ? 'Next player does not have 1 card' :
-                !lastPlay ? 'No last play (leading)' :
-                cards.length !== 1 ? 'Not playing a single' :
-                'Unknown',
-      });
     }
 
-
-    // 10. ✅ Remove cards from player's hand
+    // 11. ✅ Remove cards from player's hand
     const cardIdsToRemove = new Set(cards.map((c: Card) => c.id));
     const updatedHand = playerHand.filter((c: Card) => !cardIdsToRemove.has(c.id));
     
@@ -941,7 +945,8 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    const isHighestPlay = isHighestPossiblePlay(cards, updatedPlayedCards);
+    // Pass played_cards (before current play) so getRemainingCards can include the current cards for comparison
+    const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 
     console.log('⏰ Auto-pass timer check:', {
@@ -949,6 +954,7 @@ Deno.serve(async (req) => {
       cardsLength: cards.length,
       cardsPlayed: cards.map(c => c.id),
       totalPlayedCards: updatedPlayedCards.length,
+      playedCardsBeforeCurrent: played_cards.length,
     });
 
     if (isHighestPlay) {

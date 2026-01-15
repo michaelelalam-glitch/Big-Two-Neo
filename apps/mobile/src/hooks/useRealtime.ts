@@ -17,6 +17,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { useClockSync } from './useClockSync';
 import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import {
   Room,
@@ -335,6 +336,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
   const isHost = currentPlayer?.is_host === true;
+  
+  // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
+  const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
   // Returns true ONLY when:
@@ -1391,21 +1395,22 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         return;
       }
       
-      // ⏰ NEW: Calculate remaining time from server-authoritative end_timestamp
+      // ⏰ CRITICAL FIX: Calculate remaining time from server-authoritative end_timestamp
+      // MUST use getCorrectedNow() (clock sync) to match AutoPassTimer component
       let remaining: number;
       const endTimestamp = (currentTimerState as any).end_timestamp;
       
       if (typeof endTimestamp === 'number') {
-        // Use end_timestamp (server-authoritative)
-        const now = Date.now();
-        remaining = Math.max(0, endTimestamp - now);
+        // Use end_timestamp with clock-corrected time (matches AutoPassTimer)
+        const correctedNow = getCorrectedNow();
+        remaining = Math.max(0, endTimestamp - correctedNow);
         
-        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (endTime: ${new Date(endTimestamp).toISOString()})`);
+        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
       } else {
         // Fallback: calculate from started_at (old architecture)
         const startedAt = new Date(currentTimerState.started_at).getTime();
-        const now = Date.now();
-        const elapsed = now - startedAt;
+        const correctedNow = getCorrectedNow();
+        const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
         
         networkLogger.info(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
@@ -1423,82 +1428,133 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         const exemptPlayerId = currentTimerState.player_id; // Player who played the highest card
         networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
       
-        // Find the player who played the highest card by matching player_id
-        const exemptPlayer = roomPlayers.find(p => p.user_id === exemptPlayerId);
-        const exemptPlayerIndex = exemptPlayer?.player_index;
-        
-        networkLogger.info(`⏰ [Timer] Exempt player index: ${exemptPlayerIndex}, current turn: ${gameState.current_turn}, pass_count: ${gameState.pass_count}`);
-        
-        // Auto-pass logic:
-        // We need to pass players starting from AFTER the exempt player until we've passed 3 players
-        // This ensures the exempt player gets to play again
-        const playersToPass: number[] = [];
-        
-        if (exemptPlayerIndex !== undefined) {
-          // Calculate which players need to be auto-passed
-          // Start from the player AFTER the one who played the highest card
-          for (let i = 1; i <= 3; i++) {
-            const playerIndex = (exemptPlayerIndex + i) % roomPlayers.length;
-            playersToPass.push(playerIndex);
+        // ⚡ SIMPLIFIED SEQUENTIAL AUTO-PASS
+        // Execute immediately with guard - calculate everything INSIDE to avoid race conditions
+        const executeAutoPasses = async () => {
+          // Execution guard: Prevent multiple simultaneous auto-pass executions
+          const executionKey = `${room?.id}_${exemptPlayerId}_${Date.now()}`;
+          if ((window as any).__activeAutoPassExecution) {
+            networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress, skipping execution`);
+            return;
           }
+          (window as any).__activeAutoPassExecution = executionKey;
           
-          networkLogger.info(`⏰ [Timer] Players to auto-pass: [${playersToPass.join(', ')}]`);
-          
-          // Execute auto-pass for each player sequentially
-          const executeAutoPasses = async () => {
-            for (const playerIndex of playersToPass) {
+          try {
+            // 🔍 STEP 1: Query FRESH game state to see how many passes needed
+            const { data: currentGameState, error: stateError } = await supabase
+              .from('game_state')
+              .select('current_turn, passes, last_play, auto_pass_timer')
+              .eq('room_id', room?.id)
+              .single();
+            
+            if (stateError || !currentGameState) {
+              networkLogger.error(`⏰ [Timer] Failed to fetch game state:`, stateError);
+              return;
+            }
+            
+            // Check if trick already completed
+            if (currentGameState.last_play === null && currentGameState.passes === 0) {
+              networkLogger.info(`⏰ [Timer] ✅ Trick already completed, no auto-pass needed`);
+              return;
+            }
+            
+            // Check if timer still active
+            if (!currentGameState.auto_pass_timer || !currentGameState.auto_pass_timer.active) {
+              networkLogger.info(`⏰ [Timer] Timer manually cleared, no auto-pass needed`);
+              return;
+            }
+            
+            // Calculate remaining passes needed
+            const currentPassCount = currentGameState.passes || 0;
+            const remainingPasses = 3 - currentPassCount;
+            
+            networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, need ${remainingPasses} more`);
+            
+            if (remainingPasses <= 0) {
+              networkLogger.info(`⏰ [Timer] No passes needed (already ${currentPassCount}/3)`);
+              return;
+            }
+            
+            // 🔄 STEP 2: Pass remaining players sequentially, querying fresh turn each time
+            let passedCount = 0;
+            
+            for (let i = 0; i < remainingPasses; i++) {
               try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}...`);
+                // Query fresh current_turn BEFORE each pass (server updates turn after each pass)
+                const { data: freshState, error: freshError } = await supabase
+                  .from('game_state')
+                  .select('current_turn, passes')
+                  .eq('room_id', room?.id)
+                  .single();
                 
-                // Call pass() - backend will validate if it's their turn
-                // If not their turn yet, backend will reject with "Not your turn" error
-                await pass(playerIndex);
+                if (freshError || !freshState) {
+                  networkLogger.error(`⏰ [Timer] Failed to fetch fresh state:`, freshError);
+                  break; // Stop if we can't get fresh state
+                }
                 
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex}`);
+                const currentTurn = freshState.current_turn;
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurn}... (${passedCount + 1}/${remainingPasses})`);
                 
-                // Broadcast auto-pass event
-                await broadcastMessage('auto_pass_executed', {
-                  player_index: playerIndex,
+                // Pass this player and wait for completion
+                await pass(currentTurn);
+                
+                passedCount++;
+                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurn} (${passedCount}/${remainingPasses})`);
+                
+                // Broadcast auto-pass event (non-blocking)
+                void broadcastMessage('auto_pass_executed', {
+                  player_index: currentTurn,
                 }).catch((broadcastError) => {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
                 
-                // CRITICAL: Wait longer for Realtime to propagate the updated game_state
-                // This ensures the next pass() call sees the updated current_turn
-                networkLogger.info(`⏰ [Timer] Waiting 500ms for Realtime sync...`);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
               } catch (error) {
                 const errorMsg = (error as Error).message || String(error);
                 
-                // If error is "Not your turn", that's expected - skip this player
+                // "Not your turn" means someone passed manually during auto-pass
+                // Log and continue to next player instead of stopping
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] Player ${playerIndex} already passed or not their turn - skipping`);
-                  continue; // Continue to next player
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player already passed or not their turn, trying next iteration...`);
+                  continue; // Try next pass
                 }
                 
-                // Other errors are unexpected - log and stop
-                networkLogger.error(`⏰ [Timer] Unexpected error for player ${playerIndex}:`, error);
-                break; // Stop on unexpected error
+                // Other errors - log and try next player
+                networkLogger.error(`⏰ [Timer] ❌ Error during auto-pass:`, error);
               }
             }
             
-            networkLogger.info('⏰ [Timer] Auto-pass complete! Clearing timer state...');
+            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${remainingPasses} players passed`);
             
-            // Clear the timer from database after all passes
-            try {
-              await supabase
-                .from('game_state')
-                .update({ auto_pass_timer: null })
-                .eq('room_id', room?.id);
-              networkLogger.info('⏰ [Timer] ✅ Timer cleared from database');
-            } catch (error) {
-              networkLogger.error('[Timer] Failed to clear timer:', error);
+            // Delay for Realtime sync before clearing timer
+            networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
+            await new Promise(resolve => setTimeout(resolve, 250));
+            
+            // Clear timer if we passed any players
+            if (passedCount > 0) {
+              networkLogger.info('⏰ [Timer] Clearing timer state from database...');
+              try {
+                await supabase
+                  .from('game_state')
+                  .update({ auto_pass_timer: null })
+                  .eq('room_id', room?.id);
+                networkLogger.info('⏰ [Timer] ✅ Timer cleared from database');
+              } catch (error) {
+                networkLogger.error('[Timer] Failed to clear timer:', error);
+              }
+            } else {
+              networkLogger.info('⏰ [Timer] No passes executed, timer likely already cleared');
             }
-          };
-          
-          executeAutoPasses();
-        }
+            
+          } catch (error) {
+            networkLogger.error(`⏰ [Timer] ❌ Fatal error in auto-pass execution:`, error);
+          } finally {
+            // Always clear execution guard
+            delete (window as any).__activeAutoPassExecution;
+          }
+        };
+        
+        // Execute auto-pass immediately
+        void executeAutoPasses();
       }
     }, 100); // Check every 100ms
     
