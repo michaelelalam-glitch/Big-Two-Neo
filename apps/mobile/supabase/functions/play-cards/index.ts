@@ -311,10 +311,11 @@ function generateFullDeck(): Card[] {
   const ranks: Card['rank'][] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   for (const suit of suits) {
     for (const rank of ranks) {
-      // Note: Card.id here is constructed as rank+suit (e.g., "3D") to match the
-      // rest of the client code. IDs are treated as opaque: cards are compared by
-      // their rank and suit fields (see cardsEqual/getRemainingCards), so the
-      // specific string format is only for consistency in display/logging.
+      // Note: Card.id here is constructed as rank+suit (e.g., "3D") and MUST match
+      // the format used by the client (see BUG_FIX_AUTOPASS_TIMER_AND_BOT_3D_JAN_12_2026.md).
+      // Game logic in this module compares cards by their rank and suit fields
+      // (see cardsEqual/getRemainingCards), but the id string format is still
+      // important for correctly matching cards with client-sent data.
       deck.push({ id: `${rank}${suit}`, rank, suit });
     }
   }

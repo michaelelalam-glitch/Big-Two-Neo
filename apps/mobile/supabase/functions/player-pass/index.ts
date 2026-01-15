@@ -1,5 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+// @copilot-review-fix: Use shared parseCards utility to reduce duplication
+import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,28 +142,7 @@ Deno.serve(async (req) => {
     const nextPlayerIndex = [1, 2, 3, 0][player.player_index];
     const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
     
-    // Helper to parse cards from raw format
-    const parseCards = (rawCards: any[]): Array<{id: string, suit: string, rank: string}> => {
-      if (!Array.isArray(rawCards)) return [];
-      return rawCards.map(c => {
-        if (typeof c === 'string') {
-          // Format: "5D" → {id: "5D", suit: "D", rank: "5"}
-          const match = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
-          if (match) {
-            const [, rank, suit] = match;
-            return { id: c, suit, rank };
-          }
-        } else if (typeof c === 'object' && c !== null) {
-          return {
-            id: c.id || `${c.rank}${c.suit}`,
-            suit: c.suit,
-            rank: c.rank,
-          };
-        }
-        return null;
-      }).filter(c => c !== null);
-    };
-    
+    // @copilot-review-fix: Using shared parseCards utility from _shared/parseCards.ts
     const nextPlayerHand = parseCards(nextPlayerHandRaw);
     const playerHandRaw = currentHands[player.player_index] || [];
     const playerHand = parseCards(playerHandRaw);

@@ -28,6 +28,8 @@ export interface PerformanceReport {
 
 class PerformanceMonitor {
   private enabled = __DEV__;
+  // @copilot-review-fix: Added configurable logging option
+  private logSlowRenders = process.env.LOG_SLOW_RENDERS === 'true' || false;
   private metrics: Map<string, RenderMetrics[]> = new Map();
   private readonly FRAME_BUDGET = 16; // ms for 60fps
   private readonly FRAME_DROP_THRESHOLD = 32; // 2 frames
@@ -61,17 +63,18 @@ class PerformanceMonitor {
     componentMetrics.push(metrics);
     this.metrics.set(id, componentMetrics);
 
-    // Log slow renders (DISABLED - too noisy)
-    // if (actualDuration > this.FRAME_BUDGET) {
-    //   const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
-    //   console.warn(
-    //     `${severity} Slow render detected: ${id} (${phase})`,
-    //     `\n  Duration: ${actualDuration.toFixed(2)}ms`,
-    //     `\n  Base: ${baseDuration.toFixed(2)}ms`,
-    //     `\n  Budget: ${this.FRAME_BUDGET}ms`,
-    //     `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
-    //   );
-    // }
+    // Log slow renders (controlled by LOG_SLOW_RENDERS env var or setLogSlowRenders())
+    // @copilot-review-fix: Made configurable instead of commented out
+    if (this.logSlowRenders && actualDuration > this.FRAME_BUDGET) {
+      const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
+      console.warn(
+        `${severity} Slow render detected: ${id} (${phase})`,
+        `\n  Duration: ${actualDuration.toFixed(2)}ms`,
+        `\n  Base: ${baseDuration.toFixed(2)}ms`,
+        `\n  Budget: ${this.FRAME_BUDGET}ms`,
+        `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
+      );
+    }
   }
 
   /**
@@ -153,6 +156,14 @@ class PerformanceMonitor {
    */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+  }
+
+  /**
+   * Enable/disable slow render logging
+   * @copilot-review-fix: Added method to enable/disable logging without code changes
+   */
+  setLogSlowRenders(enabled: boolean): void {
+    this.logSlowRenders = enabled;
   }
 }
 

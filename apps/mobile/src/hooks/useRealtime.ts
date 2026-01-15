@@ -36,24 +36,116 @@ import { networkLogger, gameLogger } from '../utils/logger';
 import { canBeatPlay } from '../game/engine/game-logic';
 
 /**
+ * Map server error messages to user-friendly explanations
+ * Provides context and guidance for why a play was rejected
+ */
+function getPlayErrorExplanation(serverError: string): string {
+  const errorLower = serverError.toLowerCase();
+  
+  // Turn validation
+  if (errorLower.includes('not your turn')) {
+    return 'Not your turn. Wait for other players to complete their moves.';
+  }
+  
+  // First play 3♦ requirement
+  if (errorLower.includes('first play') && errorLower.includes('3')) {
+    return 'First play must include the 3 of Diamonds (3♦).';
+  }
+  
+  // Invalid combination
+  if (errorLower.includes('invalid card combination') || errorLower.includes('invalid combo')) {
+    return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
+  }
+  
+  // Cannot beat last play
+  if (errorLower.includes('cannot beat')) {
+    const match = serverError.match(/Cannot beat (\w+) with (\w+)/i);
+    if (match) {
+      return `Cannot beat ${match[1]} with ${match[2]}. Play a higher card combo or pass.`;
+    }
+    return 'Cannot beat the current play. Play higher cards or pass your turn.';
+  }
+  
+  // One Card Left Rule
+  if (errorLower.includes('one card left')) {
+    return 'One Card Left Rule: When next player has 1 card, you must play your highest single card if playing a single.';
+  }
+  
+  // Card not in hand
+  if (errorLower.includes('card not in hand')) {
+    return 'One or more selected cards are not in your hand. Please refresh and try again.';
+  }
+  
+  // Game state errors
+  if (errorLower.includes('game state not found')) {
+    return 'Game state not found. The game may have ended or been disconnected.';
+  }
+  
+  if (errorLower.includes('room not found')) {
+    return 'Room not found. The game session may have expired.';
+  }
+  
+  // Default: return original server error
+  return serverError;
+}
+
+/**
  * Extract detailed error message from Supabase Edge Function response
  * When an Edge Function returns a non-2xx status, the actual error details
  * are in error.context, not just error.message
  */
-function extractEdgeFunctionError(error: any, result: any, fallback: string): string {
+async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: string): Promise<string> {
   // Priority 1: Check if result has error field (from Edge Function response body)
+  // This works when the Edge Function returns a successful response with error details
   if (result?.error) {
     return result.error;
   }
   
-  // Priority 2: Check error.context.status for HTTP status code
-  if (error?.context?.status) {
-    const status = error.context.status;
-    const statusText = error.context.statusText || '';
-    return `HTTP ${status}${statusText ? ': ' + statusText : ''}`;
+  // Priority 2: Try to read the response body from error.context
+  // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
+  if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
+    try {
+      const bodyText = await error.context.text();
+      const parsed = JSON.parse(bodyText);
+      if (parsed?.error) {
+        gameLogger.info('[extractEdgeFunctionError] ✅ Extracted error from response body:', parsed.error);
+        return parsed.error;
+      }
+    } catch (e) {
+      gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
+    }
   }
   
-  // Priority 3: Use error.message (usually "Edge Function returned a non-2xx status code")
+  // Priority 3: Check if error.context already has parsed fields
+  if (error?.context) {
+    // Try to get error from parsed body
+    if (error.context.error) {
+      return error.context.error;
+    }
+    
+    // Try to parse JSON body string if present
+    if (error.context.body) {
+      try {
+        const parsed = typeof error.context.body === 'string' 
+          ? JSON.parse(error.context.body) 
+          : error.context.body;
+        if (parsed?.error) {
+          return parsed.error;
+        }
+      } catch (e) {
+        gameLogger.warn('[extractEdgeFunctionError] Failed to parse error.context.body:', e);
+      }
+    }
+    
+    // If we have status code but no error message, return generic status
+    if (error.context.status) {
+      const status = error.context.status;
+      const statusText = error.context.statusText || '';
+      return `HTTP ${status}${statusText ? ': ' + statusText : ''}`;
+    }
+  }
+  
+  // Priority 4: Use error.message (usually "Edge Function returned a non-2xx status code")
   if (error?.message && error.message !== 'Edge Function returned a non-2xx status code') {
     return error.message;
   }
@@ -330,6 +422,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
   const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
+  // @copilot-review-fix: Changed from window global to useRef for proper React pattern
+  const autoPassExecutionGuard = useRef<string | null>(null);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -707,7 +801,18 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
 
       if (playError || !result?.success) {
-        const errorMessage = extractEdgeFunctionError(playError, result, 'Server validation failed');
+        // Debug logging: Log full error structure to understand what we're receiving
+        gameLogger.error('[useRealtime] 🔍 Full error object structure:', {
+          hasError: !!playError,
+          hasResult: !!result,
+          errorKeys: playError ? Object.keys(playError) : [],
+          errorContext: playError?.context,
+          errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
+          resultKeys: result ? Object.keys(result) : [],
+          result: result,
+        });
+        
+        const errorMessage = await extractEdgeFunctionErrorAsync(playError, result, 'Server validation failed');
         const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
         const statusCode = playError?.context?.status || 'unknown';
         
@@ -721,7 +826,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           result: result,
         });
         
-        throw new Error(errorMessage);
+        // Enhance error message with user-friendly explanation
+        const userFriendlyError = getPlayErrorExplanation(errorMessage);
+        throw new Error(userFriendlyError);
       }
 
       gameLogger.info('[useRealtime] ✅ Server validation passed:', result);
@@ -930,7 +1037,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
 
       if (passError || !result?.success) {
-        const errorMessage = extractEdgeFunctionError(passError, result, 'Pass validation failed');
+        const errorMessage = await extractEdgeFunctionErrorAsync(passError, result, 'Pass validation failed');
         const statusCode = passError?.context?.status || 'unknown';
         
         gameLogger.error('[useRealtime] ❌ Pass failed:', {
@@ -1428,19 +1535,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         const exemptPlayerId = currentTimerState.player_id; // Player who played the highest card
         networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
       
-        // ⚡ SIMPLIFIED SEQUENTIAL AUTO-PASS
-        // Execute immediately with guard - calculate everything INSIDE to avoid race conditions
+        // ⚡ FIXED SEQUENTIAL AUTO-PASS
+        // @copilot-review-fix: Calculate array of players UPFRONT to avoid timing issues
         const executeAutoPasses = async () => {
           // Execution guard: Prevent multiple simultaneous auto-pass executions
+          // @copilot-review-fix: Changed from window global to useRef
           const executionKey = `${room?.id}_${exemptPlayerId}_${Date.now()}`;
-          if ((window as any).__activeAutoPassExecution) {
+          if (autoPassExecutionGuard.current) {
             networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress, skipping execution`);
             return;
           }
-          (window as any).__activeAutoPassExecution = executionKey;
+          autoPassExecutionGuard.current = executionKey;
           
           try {
-            // 🔍 STEP 1: Query FRESH game state to see how many passes needed
+            // 🔍 STEP 1: Query FRESH game state to get starting position
             const { data: currentGameState, error: stateError } = await supabase
               .from('game_state')
               .select('current_turn, passes, last_play, auto_pass_timer')
@@ -1468,45 +1576,57 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             const currentPassCount = currentGameState.passes || 0;
             const remainingPasses = 3 - currentPassCount;
             
-            networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, need ${remainingPasses} more`);
-            
             if (remainingPasses <= 0) {
               networkLogger.info(`⏰ [Timer] No passes needed (already ${currentPassCount}/3)`);
               return;
             }
             
-            // 🔄 STEP 2: Pass remaining players sequentially, querying fresh turn each time
+            // @copilot-review-fix: Calculate the ARRAY of 3 players to pass UPFRONT
+            // based on exempt player, then pass them by index with delay
+            // This avoids the timing issue where querying current_turn after each pass
+            // would keep returning the NEW current player instead of the 3 sequential ones
+            const exemptPlayerIndex = currentGameState.auto_pass_timer?.player_index;
+            if (typeof exemptPlayerIndex !== 'number') {
+              networkLogger.error(`⏰ [Timer] No exempt player index found`);
+              return;
+            }
+            
+            // Calculate which 3 players need to pass (everyone except exempt)
+            const playersToPass: number[] = [];
+            for (let i = 1; i <= 3; i++) {
+              const playerIndex = (exemptPlayerIndex + i) % 4;
+              playersToPass.push(playerIndex);
+            }
+            
+            networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
+            networkLogger.info(`⏰ [Timer] Players to auto-pass (pre-calculated): [${playersToPass.join(', ')}]`);
+            
+            // 🔄 STEP 2: Pass players sequentially with delay between each
             let passedCount = 0;
             
             for (let i = 0; i < remainingPasses; i++) {
+              const playerIndex = playersToPass[i];
+              
               try {
-                // Query fresh current_turn BEFORE each pass (server updates turn after each pass)
-                const { data: freshState, error: freshError } = await supabase
-                  .from('game_state')
-                  .select('current_turn, passes')
-                  .eq('room_id', room?.id)
-                  .single();
-                
-                if (freshError || !freshState) {
-                  networkLogger.error(`⏰ [Timer] Failed to fetch fresh state:`, freshError);
-                  break; // Stop if we can't get fresh state
-                }
-                
-                const currentTurn = freshState.current_turn;
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurn}... (${passedCount + 1}/${remainingPasses})`);
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${remainingPasses})`);
                 
                 // Pass this player and wait for completion
-                await pass(currentTurn);
+                await pass(playerIndex);
                 
                 passedCount++;
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurn} (${passedCount}/${remainingPasses})`);
+                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${remainingPasses})`);
                 
                 // Broadcast auto-pass event (non-blocking)
                 void broadcastMessage('auto_pass_executed', {
-                  player_index: currentTurn,
+                  player_index: playerIndex,
                 }).catch((broadcastError) => {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
+                
+                // @copilot-review-fix: Add small delay between passes to allow Realtime sync
+                if (i < remainingPasses - 1) {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                }
                 
               } catch (error) {
                 const errorMsg = (error as Error).message || String(error);
@@ -1514,7 +1634,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // "Not your turn" means someone passed manually during auto-pass
                 // Log and continue to next player instead of stopping
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player already passed or not their turn, trying next iteration...`);
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${playerIndex} already passed or not their turn, trying next...`);
                   continue; // Try next pass
                 }
                 
@@ -1548,8 +1668,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           } catch (error) {
             networkLogger.error(`⏰ [Timer] ❌ Fatal error in auto-pass execution:`, error);
           } finally {
-            // Always clear execution guard
-            delete (window as any).__activeAutoPassExecution;
+            // Always clear execution guard (using ref now)
+            autoPassExecutionGuard.current = null;
           }
         };
         

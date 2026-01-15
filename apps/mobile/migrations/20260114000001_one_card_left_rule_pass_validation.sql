@@ -26,7 +26,8 @@ BEGIN
   END IF;
   
   -- Determine if player is passing (empty array) or playing
-  v_is_passing := jsonb_array_length(p_selected_cards) = 0;
+  -- @copilot-review-fix: Added NULL check as jsonb_array_length returns NULL for NULL input
+  v_is_passing := p_selected_cards IS NOT NULL AND jsonb_array_length(p_selected_cards) = 0;
   
   -- Rule only applies when:
   -- 1. Player is passing, OR
