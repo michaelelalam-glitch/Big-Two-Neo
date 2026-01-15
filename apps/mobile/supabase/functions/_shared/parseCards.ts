@@ -27,7 +27,8 @@ export function parseCards(rawCards: unknown[]): ParsedCard[] {
   return rawCards.map(c => {
     if (typeof c === 'string') {
       // Format: "5D" → {id: "5D", suit: "D", rank: "5"}
-      // Supports single digit ranks (2-9, T for 10) and face cards (J, Q, K, A)
+      // @copilot-review-fix: Supports both "T" and "10" for ten (e.g., "TD" or "10D")
+      // Ranks: 2-9, T (ten), 10, J, Q, K, A | Suits: D, C, H, S
       const match = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
       if (match) {
         const [, rank, suit] = match;

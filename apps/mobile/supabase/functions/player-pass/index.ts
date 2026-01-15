@@ -179,13 +179,15 @@ Deno.serve(async (req) => {
           });
 
         // Race between validation and timeout
-        const { data: oneCardLeftValidation, error: validationError } = await Promise.race([
-          validationPromise,
-          timeoutPromise
-        ]) as any;
-
-        // @copilot-review-fix: Clean up timeout to prevent memory leak
-        abortController.abort();
+        // @copilot-review-fix: Use try/finally to ensure cleanup even on error
+        let raceResult: any;
+        try {
+          raceResult = await Promise.race([validationPromise, timeoutPromise]);
+        } finally {
+          // Always clean up timeout to prevent memory leak
+          abortController.abort();
+        }
+        const { data: oneCardLeftValidation, error: validationError } = raceResult;
 
         if (validationError) {
           console.error('❌ [player-pass] One Card Left SQL error:', {

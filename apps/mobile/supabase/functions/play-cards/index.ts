@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-// @copilot-review-fix: Using shared parseCards utility
-import { parseCard, parseCards } from '../_shared/parseCards.ts';
+// @copilot-review-fix: Using shared parseCards utility (parseCard not needed here)
+import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

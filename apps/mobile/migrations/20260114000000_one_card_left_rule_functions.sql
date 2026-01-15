@@ -19,6 +19,11 @@ DECLARE
   v_last_play_card JSONB;
   v_last_play_value INTEGER;
 BEGIN
+  -- @copilot-review-fix: Return NULL early if p_hand is NULL or empty
+  IF p_hand IS NULL OR jsonb_array_length(p_hand) = 0 THEN
+    RETURN NULL;
+  END IF;
+
   -- If no last play (leading), return highest card from hand
   IF p_last_play IS NULL OR p_last_play->>'combo_type' IS NULL THEN
     FOR v_card IN SELECT * FROM jsonb_array_elements(p_hand)
@@ -67,9 +72,19 @@ DECLARE
   v_rank_value INTEGER;
   v_suit_value INTEGER;
 BEGIN
+  -- @copilot-review-fix: Return -1 for NULL/invalid input (distinguishable from valid 0)
+  IF p_card IS NULL THEN
+    RETURN -1;
+  END IF;
+
   v_rank := p_card->>'rank';
   v_suit := p_card->>'suit';
-  
+
+  -- @copilot-review-fix: Return -1 if required fields are missing
+  IF v_rank IS NULL OR v_suit IS NULL THEN
+    RETURN -1;
+  END IF;
+
   -- Rank values
   v_rank_value := CASE v_rank
     WHEN '3' THEN 1
@@ -123,8 +138,8 @@ BEGIN
     RETURN jsonb_build_object('valid', true);
   END IF;
   
-  -- Rule only applies to singles
-  IF jsonb_array_length(p_selected_cards) != 1 THEN
+  -- @copilot-review-fix: Handle NULL p_selected_cards (jsonb_array_length returns NULL for NULL)
+  IF p_selected_cards IS NULL OR jsonb_array_length(p_selected_cards) != 1 THEN
     RETURN jsonb_build_object('valid', true);
   END IF;
   
