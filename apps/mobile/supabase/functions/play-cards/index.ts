@@ -1,5 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+// @copilot-review-fix: Using shared parseCards utility
+import { parseCard, parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,38 +138,7 @@ function parseCard(cardData: any): Card | null {
   return null;
 }
 
-/**
- * Parse an array of cards (handles mixed formats)
- * Throws error if ≥50% of cards fail to parse (data integrity issue)
- */
-function parseCards(cardsData: any[]): Card[] {
-  const totalCards = cardsData.length;
-  const parsedCards = cardsData
-    .map(c => parseCard(c))
-    .filter((c): c is Card => c !== null);
-  
-  const failedCount = totalCards - parsedCards.length;
-  const failureRate = totalCards > 0 ? failedCount / totalCards : 0;
-  
-  // Graduated error handling for production resilience:
-  // - 50%+ failure = data corruption (hard fail)
-  // - <50% failure = warn but continue (handles transient issues)
-  if (failedCount > 0 && failedCount >= Math.ceil(totalCards * 0.5)) {
-    const failedIndices = cardsData
-      .map((c, i) => parseCard(c) === null ? i : -1)
-      .filter(i => i !== -1);
-    throw new Error(
-      `Card parsing failed: ${failedCount}/${totalCards} cards could not be parsed ` +
-      `(${Math.round(failureRate * 100)}% failure rate). ` +
-      `Failed at indices: [${failedIndices.join(', ')}]. ` +
-      `This indicates data corruption and game cannot proceed.`
-    );
-  } else if (failedCount > 0) {
-    console.warn(`[parseCards] ${failedCount}/${totalCards} cards failed to parse, continuing with ${parsedCards.length} valid cards`);
-  }
-  
-  return parsedCards;
-}
+// @copilot-review-fix: parseCards now imported from shared utility above
 
 // ==================== GAME LOGIC ====================
 
@@ -946,7 +917,8 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    // Pass played_cards (before current play) so getRemainingCards can include the current cards for comparison
+    // @copilot-review-fix: Clarified comment - we pass played_cards (cards played before this turn)
+    // so isHighestPossiblePlay() knows what's already been removed from circulation
     const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 

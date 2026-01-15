@@ -422,8 +422,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
   const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
-  // @copilot-review-fix: Changed from window global to useRef for proper React pattern
-  const autoPassExecutionGuard = useRef<string | null>(null);
+  // @copilot-review-fix: Changed from window global to useRef<boolean> for proper React pattern
+  const autoPassExecutionGuard = useRef<boolean>(false);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -1539,13 +1539,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // @copilot-review-fix: Calculate array of players UPFRONT to avoid timing issues
         const executeAutoPasses = async () => {
           // Execution guard: Prevent multiple simultaneous auto-pass executions
-          // @copilot-review-fix: Changed from window global to useRef
-          const executionKey = `${room?.id}_${exemptPlayerId}_${Date.now()}`;
+          // @copilot-review-fix: Using boolean useRef for proper React pattern
           if (autoPassExecutionGuard.current) {
             networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress, skipping execution`);
             return;
           }
-          autoPassExecutionGuard.current = executionKey;
+          autoPassExecutionGuard.current = true;
           
           try {
             // 🔍 STEP 1: Query FRESH game state to get starting position
@@ -1591,10 +1590,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            // Calculate which 3 players need to pass (everyone except exempt)
+            // Calculate which players need to pass (everyone except exempt)
+            // @copilot-review-fix: Use roomPlayers.length instead of hardcoded 4
+            const totalPlayers = roomPlayers.length;
             const playersToPass: number[] = [];
-            for (let i = 1; i <= 3; i++) {
-              const playerIndex = (exemptPlayerIndex + i) % 4;
+            for (let i = 1; i < totalPlayers; i++) {
+              const playerIndex = (exemptPlayerIndex + i) % totalPlayers;
               playersToPass.push(playerIndex);
             }
             
@@ -1602,19 +1603,21 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             networkLogger.info(`⏰ [Timer] Players to auto-pass (pre-calculated): [${playersToPass.join(', ')}]`);
             
             // 🔄 STEP 2: Pass players sequentially with delay between each
+            // @copilot-review-fix: Account for already passed players by slicing from currentPassCount
+            const remainingPlayersToPass = playersToPass.slice(currentPassCount);
             let passedCount = 0;
             
-            for (let i = 0; i < remainingPasses; i++) {
-              const playerIndex = playersToPass[i];
+            for (let i = 0; i < remainingPlayersToPass.length; i++) {
+              const playerIndex = remainingPlayersToPass[i];
               
               try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${remainingPasses})`);
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${remainingPlayersToPass.length})`);
                 
                 // Pass this player and wait for completion
                 await pass(playerIndex);
                 
                 passedCount++;
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${remainingPasses})`);
+                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${remainingPlayersToPass.length})`);
                 
                 // Broadcast auto-pass event (non-blocking)
                 void broadcastMessage('auto_pass_executed', {
@@ -1623,9 +1626,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
                 
-                // @copilot-review-fix: Add small delay between passes to allow Realtime sync
-                if (i < remainingPasses - 1) {
-                  await new Promise(resolve => setTimeout(resolve, 300));
+                // @copilot-review-fix: Delay between passes to allow Realtime sync (500ms for reliability)
+                const PASS_DELAY_MS = 500; // Configurable: increase if sync issues occur
+                if (i < remainingPlayersToPass.length - 1) {
+                  await new Promise(resolve => setTimeout(resolve, PASS_DELAY_MS));
                 }
                 
               } catch (error) {
@@ -1643,7 +1647,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               }
             }
             
-            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${remainingPasses} players passed`);
+            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${remainingPlayersToPass.length} players passed`);
             
             // Delay for Realtime sync before clearing timer
             networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
@@ -1669,7 +1673,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             networkLogger.error(`⏰ [Timer] ❌ Fatal error in auto-pass execution:`, error);
           } finally {
             // Always clear execution guard (using ref now)
-            autoPassExecutionGuard.current = null;
+            autoPassExecutionGuard.current = false;
           }
         };
         

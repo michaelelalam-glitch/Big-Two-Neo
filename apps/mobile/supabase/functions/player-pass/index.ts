@@ -156,10 +156,17 @@ Deno.serve(async (req) => {
         lastPlayCards: lastPlay.cards.length,
       });
 
+      // @copilot-review-fix: Use AbortController to clean up setTimeout on early resolution
+      const abortController = new AbortController();
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      
       try {
-        // Create a timeout promise (5 seconds max)
+        // Create a timeout promise (5 seconds max) with cleanup
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('One Card Left validation timeout (5s)')), 5000);
+          timeoutId = setTimeout(() => reject(new Error('One Card Left validation timeout (5s)')), 5000);
+          abortController.signal.addEventListener('abort', () => {
+            if (timeoutId) clearTimeout(timeoutId);
+          });
         });
 
         // Call SQL function - it will check if player has a higher single
@@ -176,6 +183,9 @@ Deno.serve(async (req) => {
           validationPromise,
           timeoutPromise
         ]) as any;
+
+        // @copilot-review-fix: Clean up timeout to prevent memory leak
+        abortController.abort();
 
         if (validationError) {
           console.error('❌ [player-pass] One Card Left SQL error:', {
