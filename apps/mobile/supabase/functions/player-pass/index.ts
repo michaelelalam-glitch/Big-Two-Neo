@@ -138,9 +138,15 @@ Deno.serve(async (req) => {
     // Get current hands for all players
     const currentHands = gameState.hands || {};
     
+    // Calculate total players from hands object
+    // @copilot-review-fix (Round 7): Validate totalPlayers > 1 before proceeding
+    // This prevents incorrect turn calculations when hands object is empty or malformed
+    const totalPlayers = Object.keys(currentHands).length;
+    
+    // Only proceed with One Card Left check if we have valid player count
+    if (totalPlayers > 1) {
     // Calculate next player index (counterclockwise: 0→1→2→3→0)
     // @copilot-review-fix: Use modulo arithmetic to support variable player counts
-    const totalPlayers = Object.keys(currentHands).length || 4; // Default to 4 if hands empty
     const nextPlayerIndex = (player.player_index + 1) % totalPlayers;
     const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
     
@@ -158,18 +164,30 @@ Deno.serve(async (req) => {
         lastPlayCards: lastPlay.cards.length,
       });
 
-      // @copilot-review-fix: Track timeout ID for cleanup on early resolution
+      // @copilot-review-fix (Round 7): Improved timeout cleanup - clear timeout BEFORE rejection
+      // This prevents the issue where rejection happens before flag is set
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      let timeoutFired = false; // Track if timeout callback executed
+      let timeoutCleared = false; // Track if timeout was externally cleared
+      
+      // Helper to safely clear timeout
+      const clearTimeoutSafe = () => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+          timeoutCleared = true;
+        }
+      };
       
       try {
-        // Create a timeout promise (5 seconds max) with cleanup
-        // @copilot-review-fix: Use flag to prevent unhandled rejection when timeout fires after race won
+        // Create a timeout promise (5 seconds max) with improved cleanup
+        // @copilot-review-fix: Check if timeout was externally cleared before rejecting
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => {
-            timeoutFired = true;
-            timeoutId = null; // Mark as fired
-            reject(new Error('One Card Left validation timeout (5s)'));
+            // Only reject if timeout wasn't cleared externally (race was still pending)
+            if (!timeoutCleared) {
+              timeoutId = null; // Mark as fired
+              reject(new Error('One Card Left validation timeout (5s)'));
+            }
           }, 5000);
         });
 
@@ -188,11 +206,8 @@ Deno.serve(async (req) => {
         try {
           raceResult = await Promise.race([validationPromise, timeoutPromise]);
         } finally {
-          // Always clear timeout if it hasn't fired yet
-          if (timeoutId && !timeoutFired) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
+          // Always clear timeout using safe helper (idempotent)
+          clearTimeoutSafe();
         }
         const { data: oneCardLeftValidation, error: validationError } = raceResult;
 
@@ -222,6 +237,7 @@ Deno.serve(async (req) => {
         // Don't block gameplay if validation throws - log and continue
       }
     }
+    } // End of if (totalPlayers > 1) - @copilot-review-fix (Round 7)
 
     // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
     // Turn order mapping: [0→1, 1→2, 2→3, 3→0]

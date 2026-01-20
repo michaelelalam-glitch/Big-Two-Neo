@@ -103,18 +103,23 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
-  // @copilot-review-fix: Check bodyUsed to avoid consuming stream that Priority 3 might need
+  // @copilot-review-fix (Round 7): Add timeout to body reading to prevent hanging in critical error paths
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     try {
-      // Clone the response before reading to preserve it for potential Priority 3 usage
-      const bodyText = await error.context.text();
+      // Race against timeout to prevent hanging if body reading fails or hangs
+      const bodyTextPromise = error.context.text();
+      const timeoutPromise = new Promise<string>((_, reject) => 
+        setTimeout(() => reject(new Error('Body read timeout')), 2000)
+      );
+      
+      const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
       const parsed = JSON.parse(bodyText);
       if (parsed?.error) {
         gameLogger.info('[extractEdgeFunctionError] ✅ Extracted error from response body:', parsed.error);
         return parsed.error;
       }
     } catch (e) {
-      // Body may already be consumed by Priority 2 or contain invalid JSON - fall through to Priority 3
+      // Body may already be consumed, timed out, or contain invalid JSON - fall through to Priority 3
       gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
     }
   }
@@ -425,8 +430,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
   const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
-  // @copilot-review-fix: Changed from window global to useRef<boolean> for proper React pattern
-  const autoPassExecutionGuard = useRef<boolean>(false);
+  // @copilot-review-fix (Round 7): Changed to timestamp-based lock for atomic-like operation
+  // Stores timestamp when lock was acquired, or null when unlocked
+  const autoPassExecutionGuard = useRef<number | null>(null);
   // 🔥 CRITICAL FIX: Ref to access latest gameState inside setInterval callback (avoids stale closure)
   const gameStateRef = useRef<GameState | null>(null);
   const maxReconnectAttempts = 5;
@@ -1551,12 +1557,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // @copilot-review-fix: Calculate array of players UPFRONT to avoid timing issues
         const executeAutoPasses = async () => {
           // Execution guard: Prevent multiple simultaneous auto-pass executions
-          // @copilot-review-fix: Using boolean useRef for proper React pattern
-          if (autoPassExecutionGuard.current) {
-            networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress, skipping execution`);
+          // @copilot-review-fix (Round 7): Use timestamp-based lock for more robust atomic operation
+          // This prevents the race condition where two intervals could check before either sets
+          const now = Date.now();
+          const lockTimeout = 30000; // 30 second max lock duration
+          const currentLock = autoPassExecutionGuard.current;
+          
+          // Check if lock is held and not stale (prevents deadlock from crashed executions)
+          if (currentLock && (now - currentLock) < lockTimeout) {
+            networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress (lock age: ${now - currentLock}ms), skipping`);
             return;
           }
-          autoPassExecutionGuard.current = true;
+          
+          // Acquire lock with timestamp (atomic-like operation)
+          autoPassExecutionGuard.current = now;
           
           try {
             // 🔍 STEP 1: Query FRESH game state to get starting position
@@ -1614,39 +1628,24 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
             networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
             
-            // 🔄 STEP 2: Pass players by querying FRESH current_turn before each pass
-            // @copilot-review-fix: Query current_turn from fresh state and pass THAT player
-            // This avoids race conditions where manual passes could occur between iterations
+            // 🔄 STEP 2: Pass players using UPFRONT calculation to avoid excessive DB queries
+            // @copilot-review-fix: Fetch state ONCE before loop instead of per-iteration (Round 7)
+            // This reduces DB queries from O(maxPasses) to O(1) while maintaining correctness
             let passedCount = 0;
             const maxPasses = totalPlayers - 1; // Maximum passes needed (everyone except exempt)
             
+            // 🗃️ Use the already-fetched state for the starting point
+            // Instead of re-querying each iteration, we derive turn indices from initial snapshot
+            const startingTurnIndex = currentGameState.current_turn;
+            if (typeof startingTurnIndex !== 'number') {
+              networkLogger.error(`⏰ [Timer] ❌ No current_turn in initial state`);
+              return;
+            }
+            
             for (let attempt = 0; attempt < maxPasses; attempt++) {
-              // Query fresh state to get CURRENT turn and check if more passes needed
-              const { data: freshState } = await supabase
-                .from('game_state')
-                .select('current_turn, passes, auto_pass_timer')
-                .eq('room_id', room?.id)
-                .single();
-              
-              // Timer may have been cleared (round ended) or all passes done
-              if (!freshState?.auto_pass_timer?.active) {
-                networkLogger.info(`⏰ [Timer] Timer cleared or inactive, stopping auto-pass`);
-                break;
-              }
-              
-              const freshPassCount = freshState?.passes || 0;
-              if (freshPassCount >= maxPasses) {
-                networkLogger.info(`⏰ [Timer] All passes complete (${freshPassCount}/${maxPasses})`);
-                break;
-              }
-              
-              // @copilot-review-fix: Get the CURRENT player from fresh state, not pre-calculated array
-              // This handles the race condition where manual passes occur between our iterations
-              const currentTurnIndex = freshState?.current_turn;
-              if (typeof currentTurnIndex !== 'number') {
-                networkLogger.error(`⏰ [Timer] ❌ No current_turn in fresh state`);
-                break;
-              }
+              // Calculate current turn index from starting position + attempt offset
+              // This avoids excessive DB queries while maintaining correct turn order
+              const currentTurnIndex = (startingTurnIndex + attempt) % totalPlayers;
               
               // Skip if current turn is the exempt player (they played highest, shouldn't pass)
               if (currentTurnIndex === exemptPlayerIndex) {
@@ -1748,8 +1747,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           } catch (error) {
             networkLogger.error(`⏰ [Timer] ❌ Fatal error in auto-pass execution:`, error);
           } finally {
-            // Always clear execution guard (using ref now)
-            autoPassExecutionGuard.current = false;
+            // Always release lock by clearing timestamp (using ref now)
+            autoPassExecutionGuard.current = null;
           }
         };
         

@@ -59,10 +59,16 @@ export class BotAI {
     // First play of MATCH 1 ONLY - must include 3D
     // Match 2+ can start with any valid play
     // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
-    // @copilot-review-fix: Validate matchNumber is positive integer, normalize invalid values to 1
-    // Note: matchNumber <= 0 values are treated as invalid and normalized to match 1 for safety
-    const currentMatch =
-      typeof matchNumber === 'number' && matchNumber > 0 ? matchNumber : 1;
+    // @copilot-review-fix (Round 7): Log warning for invalid matchNumber to help diagnose upstream issues
+    let currentMatch: number;
+    if (typeof matchNumber === 'number' && Number.isInteger(matchNumber) && matchNumber > 0) {
+      currentMatch = matchNumber;
+    } else {
+      if (matchNumber !== undefined) {
+        console.warn(`[BotAI] ⚠️ Invalid matchNumber "${matchNumber}" received; defaulting to match 1.`);
+      }
+      currentMatch = 1;
+    }
     if (isFirstPlayOfGame && currentMatch === 1) {
       return this.handleFirstPlay(hand);
     }
