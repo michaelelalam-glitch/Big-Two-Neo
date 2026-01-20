@@ -995,6 +995,8 @@ Deno.serve(async (req) => {
           combo_type: comboType,
         },
         player_id: player.user_id,
+        // Add player_index at top level for client compatibility
+        player_index: player.player_index,
       };
 
       console.log('✅ Auto-pass timer CREATED (highest play detected):', {

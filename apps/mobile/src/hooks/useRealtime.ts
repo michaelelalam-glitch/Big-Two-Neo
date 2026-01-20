@@ -1596,9 +1596,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             // based on exempt player, then pass them by index with delay
             // This avoids the timing issue where querying current_turn after each pass
             // would keep returning the NEW current player instead of the 3 sequential ones
-            const exemptPlayerIndex = currentGameState.auto_pass_timer?.player_index;
+            // BUG FIX: Server sets `triggering_play.position`, not `player_index`
+            const timerState = currentGameState.auto_pass_timer as {
+              triggering_play?: { position?: number };
+              player_index?: number; // Legacy fallback
+            } | null;
+            const exemptPlayerIndex = timerState?.triggering_play?.position ?? timerState?.player_index;
             if (typeof exemptPlayerIndex !== 'number') {
-              networkLogger.error(`⏰ [Timer] No exempt player index found`);
+              networkLogger.error(`⏰ [Timer] No exempt player index found in timer state:`, JSON.stringify(timerState));
               return;
             }
             
