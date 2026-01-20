@@ -53,7 +53,8 @@ function getPlayErrorExplanation(serverError: string): string {
   }
   
   // Invalid combination
-  if (errorLower.includes('invalid card combination') || errorLower.includes('invalid combo')) {
+  // @copilot-review-fix (Round 9): Use regex for more specific pattern matching to avoid false positives
+  if (/\b(invalid card combination|invalid combo)\b/i.test(serverError)) {
     return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
   }
   
@@ -1649,10 +1650,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            for (let attempt = 0; attempt < maxPasses; attempt++) {
-              // Calculate current turn index from starting position + attempt offset
-              // This avoids excessive DB queries while maintaining correct turn order
-              const currentTurnIndex = (startingTurnIndex + attempt) % totalPlayers;
+            // @copilot-review-fix (Round 9): Use separate turnOffset counter instead of attempt index
+            // If a pass fails and we continue, turnOffset won't increment, keeping turn order correct
+            // attempt = loop safety limit, turnOffset = actual turn progression
+            let turnOffset = 0;
+            
+            for (let attempt = 0; attempt < maxPasses && turnOffset < maxPasses; attempt++) {
+              // Calculate current turn index from starting position + turnOffset (not attempt!)
+              // @copilot-review-fix (Round 9): This ensures failed passes don't skip players
+              const currentTurnIndex = (startingTurnIndex + turnOffset) % totalPlayers;
               
               // Skip if current turn is the exempt player (they played highest, shouldn't pass)
               if (currentTurnIndex === exemptPlayerIndex) {
@@ -1693,6 +1699,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 }
                 
                 passedCount++;
+                turnOffset++; // @copilot-review-fix (Round 9): Increment turn offset on success
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
                 networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
                 
@@ -1722,10 +1729,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 const errorMsg = (error as Error).message || String(error);
                 
                 // "Not your turn" means server rejected - likely already passed or turn advanced
-                // @copilot-review-fix: Differentiate handling - "Not your turn" continues, other errors break
+                // @copilot-review-fix (Round 9): Increment turnOffset since this player's turn was handled
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, trying next...`);
-                  // Don't count as failure, continue to next iteration (fresh state query will handle)
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, moving to next player...`);
+                  turnOffset++; // Turn was handled (manually or by server), move to next
                   continue;
                 }
                 

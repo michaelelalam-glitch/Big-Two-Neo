@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-// @copilot-review-fix: Using shared parseCards utility (parseCard not needed here)
+// @copilot-review-fix (Round 9): parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
