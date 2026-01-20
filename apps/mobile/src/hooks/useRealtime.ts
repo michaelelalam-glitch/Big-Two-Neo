@@ -1630,14 +1630,35 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               // Calculate which player to pass based on current fresh state
               const playerIndex = playersToPass[freshPassCount];
               
+              // Get the player info for this index
+              const playerToPass = roomPlayers.find(p => p.player_index === playerIndex);
+              if (!playerToPass) {
+                networkLogger.error(`⏰ [Timer] ❌ No player found at index ${playerIndex}`);
+                continue;
+              }
+              
               try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${maxPasses})`);
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
                 
-                // Pass this player and wait for completion
-                await pass(playerIndex);
+                // 🔥 CRITICAL FIX: Call Edge Function DIRECTLY instead of using pass() 
+                // The pass() function uses stale gameState from React closure, causing
+                // "Not your turn" errors when current_turn changes between passes.
+                // By calling the Edge Function directly, we bypass the stale closure issue.
+                const { data: passResult, error: passError } = await supabase.functions.invoke('player-pass', {
+                  body: {
+                    room_code: room?.code,
+                    player_id: playerToPass.user_id,
+                  }
+                });
+                
+                if (passError || !passResult?.success) {
+                  const errorMsg = passResult?.error || passError?.message || 'Unknown error';
+                  throw new Error(errorMsg);
+                }
                 
                 passedCount++;
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${maxPasses})`);
+                networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
                 
                 // Broadcast auto-pass event (non-blocking)
                 void broadcastMessage('auto_pass_executed', {
@@ -1646,8 +1667,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
                 
-                // @copilot-review-fix: Delay between passes to allow Realtime sync (500ms for reliability)
-                const PASS_DELAY_MS = 500; // Configurable: increase if sync issues occur
+                // If trick was cleared (3rd pass), we're done
+                if (passResult.trick_cleared) {
+                  networkLogger.info(`⏰ [Timer] 🎯 Trick cleared after 3 passes, stopping auto-pass`);
+                  break;
+                }
+                
+                // Delay between passes to allow Realtime sync (300ms is enough with direct Edge Function call)
+                const PASS_DELAY_MS = 300;
                 if (attempt < maxPasses - 1) {
                   await new Promise(resolve => setTimeout(resolve, PASS_DELAY_MS));
                 }
@@ -1655,15 +1682,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               } catch (error) {
                 const errorMsg = (error as Error).message || String(error);
                 
-                // "Not your turn" means someone passed manually during auto-pass
-                // Log and continue to next player instead of stopping
+                // "Not your turn" means server rejected - likely already passed or turn advanced
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${playerIndex} already passed or not their turn, trying next...`);
-                  continue; // Try next pass
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${playerIndex} - server says not their turn, trying next...`);
+                  // Don't count as failure, continue to next iteration (fresh state query will handle)
+                  continue;
                 }
                 
-                // Other errors - log and try next player
-                networkLogger.error(`⏰ [Timer] ❌ Error during auto-pass:`, error);
+                // Other errors - log and continue
+                networkLogger.error(`⏰ [Timer] ❌ Error during auto-pass for player ${playerIndex}:`, errorMsg);
               }
             }
             
