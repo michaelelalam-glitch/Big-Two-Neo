@@ -139,7 +139,9 @@ Deno.serve(async (req) => {
     const currentHands = gameState.hands || {};
     
     // Calculate next player index (counterclockwise: 0→1→2→3→0)
-    const nextPlayerIndex = [1, 2, 3, 0][player.player_index];
+    // @copilot-review-fix: Use modulo arithmetic to support variable player counts
+    const totalPlayers = Object.keys(currentHands).length || 4; // Default to 4 if hands empty
+    const nextPlayerIndex = (player.player_index + 1) % totalPlayers;
     const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
     
     // @copilot-review-fix: Using shared parseCards utility from _shared/parseCards.ts
@@ -158,12 +160,14 @@ Deno.serve(async (req) => {
 
       // @copilot-review-fix: Track timeout ID for cleanup on early resolution
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let timeoutFired = false; // Track if timeout callback executed
       
       try {
         // Create a timeout promise (5 seconds max) with cleanup
-        // @copilot-review-fix: Clear timeout directly to prevent race condition where callback fires after early resolution
-        const timeoutPromise = new Promise((_, reject) => {
+        // @copilot-review-fix: Use flag to prevent unhandled rejection when timeout fires after race won
+        const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => {
+            timeoutFired = true;
             timeoutId = null; // Mark as fired
             reject(new Error('One Card Left validation timeout (5s)'));
           }, 5000);
@@ -179,11 +183,16 @@ Deno.serve(async (req) => {
           });
 
         // Race between validation and timeout
-        // @copilot-review-fix: Clear timeout directly after race to prevent callback firing
-        const raceResult = await Promise.race([validationPromise, timeoutPromise]) as any;
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
+        // @copilot-review-fix: Always clear timeout in finally block to prevent memory leaks
+        let raceResult: any;
+        try {
+          raceResult = await Promise.race([validationPromise, timeoutPromise]);
+        } finally {
+          // Always clear timeout if it hasn't fired yet
+          if (timeoutId && !timeoutFired) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
         }
         const { data: oneCardLeftValidation, error: validationError } = raceResult;
 

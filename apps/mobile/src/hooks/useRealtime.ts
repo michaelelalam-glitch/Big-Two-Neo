@@ -1629,6 +1629,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               
               // Calculate which player to pass based on how many passes WE'VE done in this loop
               // Use passedCount (our loop counter) NOT freshPassCount (DB total) to index correctly
+              // @copilot-review-fix: Design decision - we use pre-calculated array indexed by OUR loop counter
+              // because manual passes during timer are detected by freshPassCount check above (remainingNeeded <= 0).
+              // If manual pass occurred, timer gets cleared and we exit the loop early.
+              // This is intentional to avoid recalculating which player to pass mid-loop.
               const playerIndex = playersToPass[passedCount];
               
               // Get the player info for this index
@@ -1677,7 +1681,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // Delay between consecutive auto-passes for visual feedback and Realtime sync
                 // Note: Could be made configurable via settings if needed
                 const AUTO_PASS_DELAY_MS = 300;
-                if (attempt < maxPasses - 1) {
+                // @copilot-review-fix: Check both attempt counter and passedCount to handle errors correctly
+                const hasRemainingAttempts = (attempt + 1 < maxPasses) && (passedCount < maxPasses);
+                if (hasRemainingAttempts) {
                   await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
                 }
                 
@@ -1685,14 +1691,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 const errorMsg = (error as Error).message || String(error);
                 
                 // "Not your turn" means server rejected - likely already passed or turn advanced
+                // @copilot-review-fix: Differentiate handling - "Not your turn" continues, other errors break
                 if (errorMsg.includes('Not your turn')) {
                   networkLogger.warn(`⏰ [Timer] ⚠️ Player ${playerIndex} - server says not their turn, trying next...`);
                   // Don't count as failure, continue to next iteration (fresh state query will handle)
                   continue;
                 }
                 
-                // Other errors - log and continue
-                networkLogger.error(`⏰ [Timer] ❌ Error during auto-pass for player ${playerIndex}:`, errorMsg);
+                // Other errors are unexpected - log and break to prevent further issues
+                networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${playerIndex}:`, errorMsg);
+                break; // Stop on unexpected error to prevent cascading failures
               }
             }
             
