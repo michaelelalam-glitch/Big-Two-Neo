@@ -671,7 +671,10 @@ Deno.serve(async (req) => {
 
     // 5. ✅ Validate 3♦ requirement (ONLY first play of FIRST MATCH)
     const match_number = gameState.match_number || 1;
-    const played_cards = gameState.played_cards || [];
+    // 🔧 FIX: Parse played_cards to handle legacy string format (e.g., "D3" → {id:"D3", rank:"3", suit:"D"})
+    // This is critical for isHighestPossiblePlay() detection to work correctly
+    const played_cards_raw = gameState.played_cards || [];
+    const played_cards = parseCards(played_cards_raw);
     const is_first_play = played_cards.length === 0;
 
     if (is_first_play && match_number === 1) {
