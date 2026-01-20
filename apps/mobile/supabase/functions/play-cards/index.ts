@@ -329,8 +329,22 @@ function isHighestRemainingSingle(card: Card, playedCards: Card[]): boolean {
   // Filter out the current card from remaining (since we're checking if IT is highest)
   const notCurrentCard = remaining.filter(c => !(c.rank === card.rank && c.suit === card.suit));
   
+  // Debug logging to trace highest card detection
+  console.log('🔍 [isHighestRemainingSingle] Checking card:', {
+    cardId: card.id,
+    cardRank: card.rank,
+    cardSuit: card.suit,
+    cardValue: getCardValue(card),
+    playedCardsCount: playedCards.length,
+    remainingCardsCount: remaining.length,
+    notCurrentCardCount: notCurrentCard.length,
+  });
+  
   // If no other cards remain, this is the last card (highest by default)
-  if (notCurrentCard.length === 0) return true;
+  if (notCurrentCard.length === 0) {
+    console.log('🔍 [isHighestRemainingSingle] ✅ No other cards remain - this is highest!');
+    return true;
+  }
   
   const sorted = sortHand(notCurrentCard);
   const highestOther = sorted[sorted.length - 1];
@@ -339,7 +353,17 @@ function isHighestRemainingSingle(card: Card, playedCards: Card[]): boolean {
   const currentValue = getCardValue(card);
   const highestOtherValue = getCardValue(highestOther);
   
-  return currentValue > highestOtherValue;
+  const isHighest = currentValue > highestOtherValue;
+  
+  console.log('🔍 [isHighestRemainingSingle] Comparison result:', {
+    currentCard: card.id,
+    currentValue,
+    highestOtherCard: highestOther.id,
+    highestOtherValue,
+    isHighest,
+  });
+  
+  return isHighest;
 }
 
 function generateAllPairs(remaining: Card[]): Card[][] {

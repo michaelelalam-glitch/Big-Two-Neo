@@ -427,6 +427,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const currentTimerId = useRef<string | null>(null);
   // @copilot-review-fix: Changed from window global to useRef<boolean> for proper React pattern
   const autoPassExecutionGuard = useRef<boolean>(false);
+  // 🔥 CRITICAL FIX: Ref to access latest gameState inside setInterval callback (avoids stale closure)
+  const gameStateRef = useRef<GameState | null>(null);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -436,6 +438,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
   const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
+
+  // 🔥 CRITICAL: Keep gameStateRef synced with latest gameState for setInterval access
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
   // Returns true ONLY when:
@@ -1491,8 +1498,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // ⏰ CRITICAL FIX: Use setInterval to poll for timer expiration every 100ms
     // Uses SERVER-AUTHORITATIVE end_timestamp with clock sync
     activeTimerInterval.current = setInterval(() => {
-      // ⚠️ CRITICAL: Re-read timer state on each tick to avoid stale closure data
-      const currentTimerState = gameState?.auto_pass_timer;
+      // 🔥 CRITICAL FIX: Use gameStateRef.current instead of gameState (avoids stale closure)
+      // The gameState from useEffect closure is captured once and never updates inside setInterval
+      // gameStateRef.current is kept in sync via a separate useEffect
+      const currentTimerState = gameStateRef.current?.auto_pass_timer;
       
       // If timer was cleared or deactivated, stop interval
       if (!currentTimerState || !currentTimerState.active) {
