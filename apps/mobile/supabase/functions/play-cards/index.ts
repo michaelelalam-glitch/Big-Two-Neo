@@ -961,8 +961,10 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    // @copilot-review-fix: Clarified comment - we pass played_cards (cards played before this turn)
-    // so isHighestPossiblePlay() knows what's already been removed from circulation
+    // @copilot-review-fix (Round 8): Clarified - we intentionally pass played_cards (BEFORE adding current cards)
+    // NOT updatedPlayedCards. This is correct because isHighestPossiblePlay() needs to know what cards
+    // were played BEFORE this turn to determine if the current play is the highest remaining.
+    // The updatedPlayedCards is only used for the database update below.
     const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 

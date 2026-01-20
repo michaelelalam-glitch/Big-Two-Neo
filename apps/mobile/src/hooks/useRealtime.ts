@@ -104,12 +104,13 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
   // @copilot-review-fix (Round 7): Add timeout to body reading to prevent hanging in critical error paths
+  // @copilot-review-fix (Round 8): Reduced timeout from 2s to 1s for better user-facing responsiveness
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     try {
       // Race against timeout to prevent hanging if body reading fails or hangs
       const bodyTextPromise = error.context.text();
       const timeoutPromise = new Promise<string>((_, reject) => 
-        setTimeout(() => reject(new Error('Body read timeout')), 2000)
+        setTimeout(() => reject(new Error('Body read timeout')), 1000)
       );
       
       const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
@@ -1569,6 +1570,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             return;
           }
           
+          // @copilot-review-fix (Round 8): Log when stale lock is being overridden for debugging
+          if (currentLock && (now - currentLock) >= lockTimeout) {
+            networkLogger.warn(`⏰ [Timer] ⚠️ Stale lock detected (age: ${now - currentLock}ms > ${lockTimeout}ms), overriding. ` +
+              `Previous execution may have taken longer than expected or crashed.`);
+          }
+          
           // Acquire lock with timestamp (atomic-like operation)
           autoPassExecutionGuard.current = now;
           
@@ -1667,6 +1674,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // The pass() function uses stale gameState from React closure, causing
                 // "Not your turn" errors when current_turn changes between passes.
                 // By calling the Edge Function directly, we bypass the stale closure issue.
+                // 
+                // @copilot-review-fix (Round 8): Documented differences from pass() function:
+                // - pass() logs via gameLogger → we log via networkLogger (equivalent)
+                // - pass() broadcasts 'player_passed' → we broadcast 'auto_pass_executed' (intentionally different)
+                // - pass() waits 300ms for Realtime → we wait at end of loop (see below)
+                // - pass() sets error state → not needed for auto-pass (errors logged, don't block UI)
                 const { data: passResult, error: passError } = await supabase.functions.invoke('player-pass', {
                   body: {
                     room_code: room?.code,

@@ -72,17 +72,18 @@ DECLARE
   v_rank_value INTEGER;
   v_suit_value INTEGER;
 BEGIN
-  -- @copilot-review-fix: Return -1 for NULL/invalid input (distinguishable from valid 0)
+  -- @copilot-review-fix (Round 8): Changed sentinel from -1 to -999 for clearer invalid marker
+  -- This avoids any theoretical collision with valid card values (range: 11-134)
   IF p_card IS NULL THEN
-    RETURN -1;
+    RETURN -999;
   END IF;
 
   v_rank := p_card->>'rank';
   v_suit := p_card->>'suit';
 
-  -- @copilot-review-fix: Return -1 if required fields are missing
+  -- @copilot-review-fix: Return -999 if required fields are missing
   IF v_rank IS NULL OR v_suit IS NULL THEN
-    RETURN -1;
+    RETURN -999;
   END IF;
 
   -- Rank values
@@ -100,8 +101,8 @@ BEGIN
     WHEN 'K' THEN 11
     WHEN 'A' THEN 12
     WHEN '2' THEN 13
-    -- @copilot-review-fix: Return -1 for unknown rank (consistent with NULL handling above)
-    ELSE -1
+    -- @copilot-review-fix (Round 8): Return -999 for unknown rank (distinctive invalid marker)
+    ELSE -999
   END;
   
   -- Suit values
@@ -110,13 +111,13 @@ BEGIN
     WHEN 'C' THEN 2
     WHEN 'H' THEN 3
     WHEN 'S' THEN 4
-    -- @copilot-review-fix: Return -1 for unknown suit (consistent with NULL handling above)
-    ELSE -1
+    -- @copilot-review-fix (Round 8): Return -999 for unknown suit (distinctive invalid marker)
+    ELSE -999
   END;
   
-  -- @copilot-review-fix: Return -1 if either rank or suit is invalid
+  -- @copilot-review-fix (Round 8): Check for -999 sentinel value
   IF v_rank_value < 0 OR v_suit_value < 0 THEN
-    RETURN -1;
+    RETURN -999;
   END IF;
   
   RETURN v_rank_value * 10 + v_suit_value;

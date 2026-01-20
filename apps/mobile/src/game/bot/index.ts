@@ -60,12 +60,14 @@ export class BotAI {
     // Match 2+ can start with any valid play
     // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
     // @copilot-review-fix (Round 7): Log warning for invalid matchNumber to help diagnose upstream issues
+    // @copilot-review-fix (Round 8): Added upper bound validation (max 1000 matches)
+    const MAX_MATCH_NUMBER = 1000; // Reasonable upper bound for match count
     let currentMatch: number;
-    if (typeof matchNumber === 'number' && Number.isInteger(matchNumber) && matchNumber > 0) {
+    if (typeof matchNumber === 'number' && Number.isInteger(matchNumber) && matchNumber > 0 && matchNumber <= MAX_MATCH_NUMBER) {
       currentMatch = matchNumber;
     } else {
       if (matchNumber !== undefined) {
-        console.warn(`[BotAI] ⚠️ Invalid matchNumber "${matchNumber}" received; defaulting to match 1.`);
+        console.warn(`[BotAI] ⚠️ Invalid matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
       }
       currentMatch = 1;
     }
