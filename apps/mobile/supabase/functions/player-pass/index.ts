@@ -156,13 +156,12 @@ Deno.serve(async (req) => {
         lastPlayCards: lastPlay.cards.length,
       });
 
-      // @copilot-review-fix: Use AbortController to clean up setTimeout on early resolution
-      const abortController = new AbortController();
+      // @copilot-review-fix: Track timeout ID for cleanup on early resolution
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       
       try {
         // Create a timeout promise (5 seconds max) with cleanup
-        // @copilot-review-fix: Clear timeout directly to prevent race condition where callback fires after abort
+        // @copilot-review-fix: Clear timeout directly to prevent race condition where callback fires after early resolution
         const timeoutPromise = new Promise((_, reject) => {
           timeoutId = setTimeout(() => {
             timeoutId = null; // Mark as fired

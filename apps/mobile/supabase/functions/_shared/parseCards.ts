@@ -27,8 +27,9 @@ export function parseCards(rawCards: unknown[]): ParsedCard[] {
   return rawCards.map(c => {
     if (typeof c === 'string') {
       // Format: "5D" → {id: "5D", suit: "D", rank: "5"}
-      // @copilot-review-fix: Supports both "T" and "10" for ten (e.g., "TD" or "10D")
-      // Ranks: 2-9, T (ten), 10, J, Q, K, A | Suits: D, C, H, S
+      // @copilot-review-fix: Supports both "10" and "T" for ten (e.g., "10D" or "TD")
+      // Ranks: 2-9, 10, T (alias for ten), J, Q, K, A | Suits: D, C, H, S
+      // Regex order: [2-9TJQKA] matches single-char ranks; |10 handles two-char "10"
       const match = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
       if (match) {
         const [, rank, suit] = match;

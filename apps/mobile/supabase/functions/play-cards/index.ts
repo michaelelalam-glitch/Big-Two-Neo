@@ -138,7 +138,7 @@ function parseCard(cardData: any): Card | null {
   return null;
 }
 
-// @copilot-review-fix: parseCards now imported from shared utility above
+// @copilot-review-fix: parseCards imported from shared utility at top. parseCard() is defined locally above for single-card parsing.
 
 // ==================== GAME LOGIC ====================
 

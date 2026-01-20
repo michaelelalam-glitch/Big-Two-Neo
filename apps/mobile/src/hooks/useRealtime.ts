@@ -114,12 +114,12 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
         return parsed.error;
       }
     } catch (e) {
-      // Body may be consumed or invalid JSON - fall through to Priority 3
+      // Body may already be consumed by Priority 2 or contain invalid JSON - fall through to Priority 3
       gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
     }
   }
   
-  // Priority 3: Check if error.context already has parsed fields
+  // Priority 3: Check if error.context already has parsed fields (body already consumed above)
   if (error?.context) {
     // Try to get error from parsed body
     if (error.context.error) {
@@ -1627,8 +1627,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 break;
               }
               
-              // Calculate which player to pass based on current fresh state
-              const playerIndex = playersToPass[freshPassCount];
+              // Calculate which player to pass based on how many passes WE'VE done in this loop
+              // Use passedCount (our loop counter) NOT freshPassCount (DB total) to index correctly
+              const playerIndex = playersToPass[passedCount];
               
               // Get the player info for this index
               const playerToPass = roomPlayers.find(p => p.player_index === playerIndex);
@@ -1673,10 +1674,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   break;
                 }
                 
-                // Delay between passes to allow Realtime sync (300ms is enough with direct Edge Function call)
-                const PASS_DELAY_MS = 300;
+                // Delay between consecutive auto-passes for visual feedback and Realtime sync
+                // Note: Could be made configurable via settings if needed
+                const AUTO_PASS_DELAY_MS = 300;
                 if (attempt < maxPasses - 1) {
-                  await new Promise(resolve => setTimeout(resolve, PASS_DELAY_MS));
+                  await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
                 }
                 
               } catch (error) {
