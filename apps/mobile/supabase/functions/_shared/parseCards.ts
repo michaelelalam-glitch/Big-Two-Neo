@@ -14,9 +14,10 @@ export interface ParsedCard {
 /**
  * Parse cards from raw database format to structured card objects
  * 
- * Handles two formats:
- * 1. String format: "5D" → {id: "5D", suit: "D", rank: "5"}
- * 2. Object format: {id?: string, suit: string, rank: string}
+ * Handles THREE formats (backwards compatible):
+ * 1. Rank-Suit format: "5D" → {id: "5D", suit: "D", rank: "5"}  (client format)
+ * 2. Suit-Rank format: "D5" → {id: "D5", suit: "D", rank: "5"}  (SQL deck format)
+ * 3. Object format: {id?: string, suit: string, rank: string}
  * 
  * @param rawCards Array of cards in either string or object format
  * @returns Array of parsed card objects with id, suit, and rank
@@ -26,13 +27,19 @@ export function parseCards(rawCards: unknown[]): ParsedCard[] {
   
   return rawCards.map(c => {
     if (typeof c === 'string') {
-      // Format: "5D" → {id: "5D", suit: "D", rank: "5"}
-      // @copilot-review-fix: Supports both "10" and "T" for ten (e.g., "10D" or "TD")
+      // Try FORMAT 1: Rank-Suit (e.g., "5D", "10D", "JD")
       // Ranks: 2-9, 10, T (alias for ten), J, Q, K, A | Suits: D, C, H, S
-      // Regex order: [2-9TJQKA] matches single-char ranks; |10 handles two-char "10"
-      const match = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
-      if (match) {
-        const [, rank, suit] = match;
+      const rankSuitMatch = c.match(/^([2-9TJQKA]|10)([DCHS])$/);
+      if (rankSuitMatch) {
+        const [, rank, suit] = rankSuitMatch;
+        return { id: c, suit, rank };
+      }
+      
+      // Try FORMAT 2: Suit-Rank (e.g., "D5", "D10", "DJ") - SQL deck format
+      // Suit first (D, C, H, S), then rank
+      const suitRankMatch = c.match(/^([DCHS])([2-9TJQKA]|10)$/);
+      if (suitRankMatch) {
+        const [, suit, rank] = suitRankMatch;
         return { id: c, suit, rank };
       }
     } else if (typeof c === 'object' && c !== null) {

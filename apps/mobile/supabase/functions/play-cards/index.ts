@@ -125,8 +125,25 @@ function parseCard(cardData: any): Card | null {
       console.debug('[parseCard] JSON parse failed, treating as plain string:', { cardData, error: e });
     }
     
-    // Parse plain string: "D3" -> {id:"D3", rank:"3", suit:"D"}
+    // Parse plain string - supports BOTH formats:
+    // Format 1: Suit-Rank "D3" -> {id:"D3", rank:"3", suit:"D"} (SQL deck format)
+    // Format 2: Rank-Suit "3D" -> {id:"3D", rank:"3", suit:"D"} (client format)
     if (cardStr.length >= 2) {
+      // Try Suit-Rank format first (D3, C10, etc.) - SQL deck format
+      const suitRankMatch = cardStr.match(/^([DCHS])([2-9TJQKA]|10)$/);
+      if (suitRankMatch) {
+        const [, suit, rank] = suitRankMatch;
+        return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
+      }
+      
+      // Try Rank-Suit format (3D, 10C, etc.) - client format
+      const rankSuitMatch = cardStr.match(/^([2-9TJQKA]|10)([DCHS])$/);
+      if (rankSuitMatch) {
+        const [, rank, suit] = rankSuitMatch;
+        return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
+      }
+      
+      // Fallback for legacy format without regex validation
       const suit = cardStr[0] as 'D' | 'C' | 'H' | 'S';
       const rank = cardStr.substring(1) as Card['rank'];
       return { id: cardStr, suit, rank };
