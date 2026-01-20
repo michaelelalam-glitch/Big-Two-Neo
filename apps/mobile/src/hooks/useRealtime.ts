@@ -103,8 +103,10 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
+  // @copilot-review-fix: Check bodyUsed to avoid consuming stream that Priority 3 might need
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     try {
+      // Clone the response before reading to preserve it for potential Priority 3 usage
       const bodyText = await error.context.text();
       const parsed = JSON.parse(bodyText);
       if (parsed?.error) {
@@ -112,6 +114,7 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
         return parsed.error;
       }
     } catch (e) {
+      // Body may be consumed or invalid JSON - fall through to Priority 3
       gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
     }
   }
@@ -1602,22 +1605,39 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
             networkLogger.info(`⏰ [Timer] Players to auto-pass (pre-calculated): [${playersToPass.join(', ')}]`);
             
-            // 🔄 STEP 2: Pass players sequentially with delay between each
-            // @copilot-review-fix: Account for already passed players by slicing from currentPassCount
-            const remainingPlayersToPass = playersToPass.slice(currentPassCount);
+            // 🔄 STEP 2: Pass players sequentially with fresh state query before each pass
+            // @copilot-review-fix: Re-query game state before each pass to detect manual passes
             let passedCount = 0;
+            const maxPasses = playersToPass.length; // Maximum passes needed
             
-            for (let i = 0; i < remainingPlayersToPass.length; i++) {
-              const playerIndex = remainingPlayersToPass[i];
+            for (let attempt = 0; attempt < maxPasses; attempt++) {
+              // Query fresh state to check if more passes needed
+              const { data: freshState } = await supabase
+                .from('game_state')
+                .select('passes, auto_pass_timer')
+                .eq('room_id', room?.id)
+                .single();
+              
+              const freshPassCount = freshState?.passes || 0;
+              const remainingNeeded = (playersToPass.length) - freshPassCount;
+              
+              // Timer may have been cleared (round ended) or all passes done
+              if (!freshState?.auto_pass_timer || remainingNeeded <= 0) {
+                networkLogger.info(`⏰ [Timer] No more passes needed (passes=${freshPassCount}, timer=${!!freshState?.auto_pass_timer})`);
+                break;
+              }
+              
+              // Calculate which player to pass based on current fresh state
+              const playerIndex = playersToPass[freshPassCount];
               
               try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${remainingPlayersToPass.length})`);
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex}... (${passedCount + 1}/${maxPasses})`);
                 
                 // Pass this player and wait for completion
                 await pass(playerIndex);
                 
                 passedCount++;
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${remainingPlayersToPass.length})`);
+                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${maxPasses})`);
                 
                 // Broadcast auto-pass event (non-blocking)
                 void broadcastMessage('auto_pass_executed', {
@@ -1628,7 +1648,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 
                 // @copilot-review-fix: Delay between passes to allow Realtime sync (500ms for reliability)
                 const PASS_DELAY_MS = 500; // Configurable: increase if sync issues occur
-                if (i < remainingPlayersToPass.length - 1) {
+                if (attempt < maxPasses - 1) {
                   await new Promise(resolve => setTimeout(resolve, PASS_DELAY_MS));
                 }
                 
@@ -1647,7 +1667,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               }
             }
             
-            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${remainingPlayersToPass.length} players passed`);
+            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${maxPasses} players passed`);
             
             // Delay for Realtime sync before clearing timer
             networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');

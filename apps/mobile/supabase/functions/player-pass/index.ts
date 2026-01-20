@@ -162,11 +162,12 @@ Deno.serve(async (req) => {
       
       try {
         // Create a timeout promise (5 seconds max) with cleanup
+        // @copilot-review-fix: Clear timeout directly to prevent race condition where callback fires after abort
         const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('One Card Left validation timeout (5s)')), 5000);
-          abortController.signal.addEventListener('abort', () => {
-            if (timeoutId) clearTimeout(timeoutId);
-          });
+          timeoutId = setTimeout(() => {
+            timeoutId = null; // Mark as fired
+            reject(new Error('One Card Left validation timeout (5s)'));
+          }, 5000);
         });
 
         // Call SQL function - it will check if player has a higher single
@@ -179,13 +180,11 @@ Deno.serve(async (req) => {
           });
 
         // Race between validation and timeout
-        // @copilot-review-fix: Use try/finally to ensure cleanup even on error
-        let raceResult: any;
-        try {
-          raceResult = await Promise.race([validationPromise, timeoutPromise]);
-        } finally {
-          // Always clean up timeout to prevent memory leak
-          abortController.abort();
+        // @copilot-review-fix: Clear timeout directly after race to prevent callback firing
+        const raceResult = await Promise.race([validationPromise, timeoutPromise]) as any;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
         }
         const { data: oneCardLeftValidation, error: validationError } = raceResult;
 

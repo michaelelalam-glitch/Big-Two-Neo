@@ -100,7 +100,8 @@ BEGIN
     WHEN 'K' THEN 11
     WHEN 'A' THEN 12
     WHEN '2' THEN 13
-    ELSE 0
+    -- @copilot-review-fix: Return -1 for unknown rank (consistent with NULL handling above)
+    ELSE -1
   END;
   
   -- Suit values
@@ -109,8 +110,14 @@ BEGIN
     WHEN 'C' THEN 2
     WHEN 'H' THEN 3
     WHEN 'S' THEN 4
-    ELSE 0
+    -- @copilot-review-fix: Return -1 for unknown suit (consistent with NULL handling above)
+    ELSE -1
   END;
+  
+  -- @copilot-review-fix: Return -1 if either rank or suit is invalid
+  IF v_rank_value < 0 OR v_suit_value < 0 THEN
+    RETURN -1;
+  END IF;
   
   RETURN v_rank_value * 10 + v_suit_value;
 END;
