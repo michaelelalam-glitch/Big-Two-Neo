@@ -956,7 +956,8 @@ function GameScreenContent() {
     if (typeof pos !== 'number') return null;
     const p = multiplayerPlayers.find((pl) => pl.player_index === pos);
     // Fallback to "Player N" if player list isn't loaded yet
-    return p?.username ?? (pos !== null ? `Player ${pos + 1}` : null);
+    // Note: pos is guaranteed to be a number here due to the typeof check above
+    return p?.username ?? `Player ${pos + 1}`;
   }, [multiplayerLastPlay, multiplayerPlayers]);
 
   const multiplayerLastPlayComboType = (multiplayerLastPlay?.combo_type as string | null) ?? null;

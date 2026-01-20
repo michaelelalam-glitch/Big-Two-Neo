@@ -1605,54 +1605,59 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             // Calculate which players need to pass (everyone except exempt)
             // @copilot-review-fix: Use roomPlayers.length instead of hardcoded 4
             const totalPlayers = roomPlayers.length;
-            const playersToPass: number[] = [];
-            for (let i = 1; i < totalPlayers; i++) {
-              const playerIndex = (exemptPlayerIndex + i) % totalPlayers;
-              playersToPass.push(playerIndex);
-            }
             
             networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
-            networkLogger.info(`⏰ [Timer] Players to auto-pass (pre-calculated): [${playersToPass.join(', ')}]`);
+            networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
             
-            // 🔄 STEP 2: Pass players sequentially with fresh state query before each pass
-            // @copilot-review-fix: Re-query game state before each pass to detect manual passes
+            // 🔄 STEP 2: Pass players by querying FRESH current_turn before each pass
+            // @copilot-review-fix: Query current_turn from fresh state and pass THAT player
+            // This avoids race conditions where manual passes could occur between iterations
             let passedCount = 0;
-            const maxPasses = playersToPass.length; // Maximum passes needed
+            const maxPasses = totalPlayers - 1; // Maximum passes needed (everyone except exempt)
             
             for (let attempt = 0; attempt < maxPasses; attempt++) {
-              // Query fresh state to check if more passes needed
+              // Query fresh state to get CURRENT turn and check if more passes needed
               const { data: freshState } = await supabase
                 .from('game_state')
-                .select('passes, auto_pass_timer')
+                .select('current_turn, passes, auto_pass_timer')
                 .eq('room_id', room?.id)
                 .single();
               
-              const freshPassCount = freshState?.passes || 0;
-              const remainingNeeded = (playersToPass.length) - freshPassCount;
-              
               // Timer may have been cleared (round ended) or all passes done
-              if (!freshState?.auto_pass_timer || remainingNeeded <= 0) {
-                networkLogger.info(`⏰ [Timer] No more passes needed (passes=${freshPassCount}, timer=${!!freshState?.auto_pass_timer})`);
+              if (!freshState?.auto_pass_timer?.active) {
+                networkLogger.info(`⏰ [Timer] Timer cleared or inactive, stopping auto-pass`);
                 break;
               }
               
-              // Calculate which player to pass based on how many passes WE'VE done in this loop
-              // Use passedCount (our loop counter) NOT freshPassCount (DB total) to index correctly
-              // @copilot-review-fix: Design decision - we use pre-calculated array indexed by OUR loop counter
-              // because manual passes during timer are detected by freshPassCount check above (remainingNeeded <= 0).
-              // If manual pass occurred, timer gets cleared and we exit the loop early.
-              // This is intentional to avoid recalculating which player to pass mid-loop.
-              const playerIndex = playersToPass[passedCount];
+              const freshPassCount = freshState?.passes || 0;
+              if (freshPassCount >= maxPasses) {
+                networkLogger.info(`⏰ [Timer] All passes complete (${freshPassCount}/${maxPasses})`);
+                break;
+              }
               
-              // Get the player info for this index
-              const playerToPass = roomPlayers.find(p => p.player_index === playerIndex);
+              // @copilot-review-fix: Get the CURRENT player from fresh state, not pre-calculated array
+              // This handles the race condition where manual passes occur between our iterations
+              const currentTurnIndex = freshState?.current_turn;
+              if (typeof currentTurnIndex !== 'number') {
+                networkLogger.error(`⏰ [Timer] ❌ No current_turn in fresh state`);
+                break;
+              }
+              
+              // Skip if current turn is the exempt player (they played highest, shouldn't pass)
+              if (currentTurnIndex === exemptPlayerIndex) {
+                networkLogger.info(`⏰ [Timer] Current turn is exempt player ${exemptPlayerIndex}, round complete`);
+                break;
+              }
+              
+              // Get the player info for current turn
+              const playerToPass = roomPlayers.find(p => p.player_index === currentTurnIndex);
               if (!playerToPass) {
-                networkLogger.error(`⏰ [Timer] ❌ No player found at index ${playerIndex}`);
+                networkLogger.error(`⏰ [Timer] ❌ No player found at index ${currentTurnIndex}`);
                 continue;
               }
               
               try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${playerIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
+                networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurnIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
                 
                 // 🔥 CRITICAL FIX: Call Edge Function DIRECTLY instead of using pass() 
                 // The pass() function uses stale gameState from React closure, causing
@@ -1671,12 +1676,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 }
                 
                 passedCount++;
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${playerIndex} (${passedCount}/${maxPasses})`);
+                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
                 networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
                 
                 // Broadcast auto-pass event (non-blocking)
                 void broadcastMessage('auto_pass_executed', {
-                  player_index: playerIndex,
+                  player_index: currentTurnIndex,
                 }).catch((broadcastError) => {
                   networkLogger.error('[Timer] Broadcast failed:', broadcastError);
                 });
@@ -1702,13 +1707,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // "Not your turn" means server rejected - likely already passed or turn advanced
                 // @copilot-review-fix: Differentiate handling - "Not your turn" continues, other errors break
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${playerIndex} - server says not their turn, trying next...`);
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, trying next...`);
                   // Don't count as failure, continue to next iteration (fresh state query will handle)
                   continue;
                 }
                 
                 // Other errors are unexpected - log and break to prevent further issues
-                networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${playerIndex}:`, errorMsg);
+                networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${currentTurnIndex}:`, errorMsg);
                 break; // Stop on unexpected error to prevent cascading failures
               }
             }

@@ -59,9 +59,10 @@ export class BotAI {
     // First play of MATCH 1 ONLY - must include 3D
     // Match 2+ can start with any valid play
     // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
-    // @copilot-review-fix: Use typeof check to safely handle undefined/null matchNumber (default to 1)
-    // Note: matchNumber=0 would indicate "before match 1" which shouldn't occur in normal gameplay
-    const currentMatch = typeof matchNumber === 'number' ? matchNumber : 1;
+    // @copilot-review-fix: Validate matchNumber is positive integer, normalize invalid values to 1
+    // Note: matchNumber <= 0 values are treated as invalid and normalized to match 1 for safety
+    const currentMatch =
+      typeof matchNumber === 'number' && matchNumber > 0 ? matchNumber : 1;
     if (isFirstPlayOfGame && currentMatch === 1) {
       return this.handleFirstPlay(hand);
     }
