@@ -1745,11 +1745,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                     if (freshState) {
                       // Calculate correct turnOffset based on actual server state
                       // turnOffset = how many positions ahead the server's turn is from our expected turn
-                      const expectedTurn = (startingTurn + attempt) % totalPlayers;
+                      const expectedTurn = (startingTurnIndex + attempt) % totalPlayers;
                       const actualTurn = freshState.current_turn;
                       if (expectedTurn !== actualTurn) {
                         // Server turn has advanced - calculate offset
-                        turnOffset = (actualTurn - startingTurn + totalPlayers) % totalPlayers - attempt;
+                        turnOffset = (actualTurn - startingTurnIndex + totalPlayers) % totalPlayers - attempt;
                         networkLogger.info(`⏰ [Timer] Synced with server: actualTurn=${actualTurn}, adjusted turnOffset=${turnOffset}`);
                       }
                       
@@ -1760,8 +1760,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                       }
                     }
                   } catch (queryError) {
-                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, incrementing offset as fallback');
-                    turnOffset++; // Fallback to offset increment if query fails
+                    // If we cannot query fresh state, do not speculate by adjusting turnOffset.
+                    // Abort the auto-pass loop to avoid drifting out of sync with the server.
+                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync');
+                    break;
                   }
                   continue;
                 }
