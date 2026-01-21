@@ -1,5 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+// @copilot-review-fix: Use shared parseCards utility to reduce duplication
+import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -132,6 +134,111 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 5.5 ✅ ONE CARD LEFT RULE: Check if player can pass
+    // Get current hands for all players
+    const currentHands = gameState.hands || {};
+    
+    // Calculate total players from hands object
+    // @copilot-review-fix (Round 7): Validate totalPlayers > 1 before proceeding
+    // This prevents incorrect turn calculations when hands object is empty or malformed
+    const totalPlayers = Object.keys(currentHands).length;
+    
+    // Only proceed with One Card Left check if we have valid player count
+    if (totalPlayers > 1) {
+    // Calculate next player index (counterclockwise: 0→1→2→3→0)
+    // @copilot-review-fix: Use modulo arithmetic to support variable player counts
+    const nextPlayerIndex = (player.player_index + 1) % totalPlayers;
+    const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
+    
+    // @copilot-review-fix: Using shared parseCards utility from _shared/parseCards.ts
+    const nextPlayerHand = parseCards(nextPlayerHandRaw);
+    const playerHandRaw = currentHands[player.player_index] || [];
+    const playerHand = parseCards(playerHandRaw);
+    const lastPlay = gameState.last_play;
+    
+    // Only check if: next player has 1 card AND last play was a single
+    if (nextPlayerHand.length === 1 && lastPlay?.cards?.length === 1) {
+      console.log('🎯 [player-pass] One Card Left check triggered:', {
+        nextPlayerIndex,
+        nextPlayerCards: nextPlayerHand.length,
+        lastPlayCards: lastPlay.cards.length,
+      });
+
+      // @copilot-review-fix (Round 7): Improved timeout cleanup - clear timeout BEFORE rejection
+      // This prevents the issue where rejection happens before flag is set
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let timeoutCleared = false; // Track if timeout was externally cleared
+      
+      // Helper to safely clear timeout
+      const clearTimeoutSafe = () => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+          timeoutCleared = true;
+        }
+      };
+      
+      try {
+        // Create a timeout promise (5 seconds max) with improved cleanup
+        // @copilot-review-fix: Check if timeout was externally cleared before rejecting
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            // Only reject if timeout wasn't cleared externally (race was still pending)
+            if (!timeoutCleared) {
+              timeoutId = null; // Mark as fired
+              reject(new Error('One Card Left validation timeout (5s)'));
+            }
+          }, 5000);
+        });
+
+        // Call SQL function - it will check if player has a higher single
+        const validationPromise = supabaseClient
+          .rpc('validate_one_card_left_rule', {
+            p_selected_cards: [],              // Empty array = passing (no cards selected)
+            p_current_player_hand: playerHand, // Player's current hand
+            p_next_player_card_count: nextPlayerHand.length, // Should be 1
+            p_last_play: lastPlay || null      // Last play object
+          });
+
+        // Race between validation and timeout
+        // @copilot-review-fix: Always clear timeout in finally block to prevent memory leaks
+        let raceResult: any;
+        try {
+          raceResult = await Promise.race([validationPromise, timeoutPromise]);
+        } finally {
+          // Always clear timeout using safe helper (idempotent)
+          clearTimeoutSafe();
+        }
+        const { data: oneCardLeftValidation, error: validationError } = raceResult;
+
+        if (validationError) {
+          console.error('❌ [player-pass] One Card Left SQL error:', {
+            message: validationError.message,
+            details: validationError.details,
+            hint: validationError.hint,
+            code: validationError.code,
+          });
+          // Don't block gameplay if SQL function fails - just log and continue
+        } else if (oneCardLeftValidation && !oneCardLeftValidation.valid) {
+          console.log('❌ [player-pass] One Card Left Rule blocks pass:', oneCardLeftValidation);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: oneCardLeftValidation.error,
+              required_card: oneCardLeftValidation.required_card,
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log('✅ [player-pass] One Card Left validation passed - no higher single available');
+        }
+      } catch (err) {
+        console.error('❌ [player-pass] One Card Left exception:', err);
+        // Don't block gameplay if validation throws - log and continue
+      }
+    }
+    } // End of if (totalPlayers > 1) - @copilot-review-fix (Round 7)
+
     // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
     // Turn order mapping: [0→1, 1→2, 2→3, 3→0]
     // Actual sequence: 0→1→2→3→0 (counterclockwise around the table)
@@ -159,16 +266,39 @@ Deno.serve(async (req) => {
     if (newPasses >= 3) {
       console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
 
-      // Clear trick: remove last_play, reset pass count (stored in 'passes' field), advance turn
-      // 🔥 CRITICAL: Preserve auto_pass_timer if it exists!
-      // The timer should persist until: (1) timer expires, or (2) someone beats the highest play
+      // ⚡ CRITICAL FIX: Determine correct next turn after 3 passes
+      // If auto-pass timer is active, return to exempt player (who played highest card)
+      // Otherwise, use normal turn advancement
+      const { data: correctNextTurn, error: nextTurnError } = await supabaseClient
+        .rpc('get_next_turn_after_three_passes', {
+          p_game_state_id: gameState.id,
+          p_last_passing_player_index: player.player_index,
+        });
+
+      if (nextTurnError) {
+        console.error('❌ [player-pass] Failed to calculate next turn:', nextTurnError);
+        // Fallback to normal turn order if SQL function fails
+      }
+
+      const finalNextTurn = (typeof correctNextTurn === 'number') ? correctNextTurn : nextTurn;
+      
+      console.log('🔄 [player-pass] Turn calculation:', {
+        normal_next_turn: nextTurn,
+        correct_next_turn: finalNextTurn,
+        has_auto_pass_timer: !!gameState.auto_pass_timer,
+        timer_active: gameState.auto_pass_timer?.active,
+        exempt_player: gameState.auto_pass_timer?.player_index,
+      });
+
+      // Clear trick: remove last_play, reset pass count (stored in 'passes' field), set correct turn
+      // 🔥 CRITICAL: Clear auto_pass_timer since all players have passed (trick complete)
       const { error: updateError } = await supabaseClient
         .from('game_state')
         .update({
-          current_turn: nextTurn,
+          current_turn: finalNextTurn,
           passes: 0,
           last_play: null,
-          // DO NOT set auto_pass_timer to NULL - let it persist!
+          auto_pass_timer: null, // Clear timer after trick completes
           updated_at: new Date().toISOString(),
         })
         .eq('id', gameState.id);
@@ -181,15 +311,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log('✅ [player-pass] Trick cleared successfully');
+      console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
       return new Response(
         JSON.stringify({
           success: true,
-          next_turn: nextTurn,
+          next_turn: finalNextTurn,
           trick_cleared: true,
           passes: 0,
-          auto_pass_timer: gameState.auto_pass_timer, // Return existing timer
+          auto_pass_timer: null, // Timer cleared
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
