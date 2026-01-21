@@ -28,8 +28,11 @@ export interface PerformanceReport {
 
 class PerformanceMonitor {
   private enabled = __DEV__;
-  // @copilot-review-fix: Configurable logging (defaults to false when env var not set)
-  private logSlowRenders = process.env.LOG_SLOW_RENDERS === 'true';
+  // @copilot-review-fix (Round 10): Configurable logging - defaults to __DEV__ to maintain
+  // debugging capability. Override with LOG_SLOW_RENDERS env var if needed.
+  private logSlowRenders = process.env.LOG_SLOW_RENDERS != null 
+    ? process.env.LOG_SLOW_RENDERS === 'true' 
+    : __DEV__;
   private metrics: Map<string, RenderMetrics[]> = new Map();
   private readonly FRAME_BUDGET = 16; // ms for 60fps
   private readonly FRAME_DROP_THRESHOLD = 32; // 2 frames

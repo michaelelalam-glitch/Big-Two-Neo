@@ -1729,10 +1729,40 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 const errorMsg = (error as Error).message || String(error);
                 
                 // "Not your turn" means server rejected - likely already passed or turn advanced
-                // @copilot-review-fix (Round 9): Increment turnOffset since this player's turn was handled
+                // @copilot-review-fix (Round 10): Query fresh server state instead of calculating locally
+                // This prevents turnOffset from drifting and skipping players
                 if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, moving to next player...`);
-                  turnOffset++; // Turn was handled (manually or by server), move to next
+                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, querying fresh state...`);
+                  
+                  // Query server for actual current turn state
+                  try {
+                    const { data: freshState } = await supabase
+                      .from('game_state')
+                      .select('current_turn, auto_pass_timer')
+                      .eq('room_id', room?.id)
+                      .single();
+                    
+                    if (freshState) {
+                      // Calculate correct turnOffset based on actual server state
+                      // turnOffset = how many positions ahead the server's turn is from our expected turn
+                      const expectedTurn = (startingTurn + attempt) % totalPlayers;
+                      const actualTurn = freshState.current_turn;
+                      if (expectedTurn !== actualTurn) {
+                        // Server turn has advanced - calculate offset
+                        turnOffset = (actualTurn - startingTurn + totalPlayers) % totalPlayers - attempt;
+                        networkLogger.info(`⏰ [Timer] Synced with server: actualTurn=${actualTurn}, adjusted turnOffset=${turnOffset}`);
+                      }
+                      
+                      // Check if timer was cleared by another action
+                      if (!freshState.auto_pass_timer?.active) {
+                        networkLogger.info('⏰ [Timer] Timer no longer active on server, stopping execution');
+                        break;
+                      }
+                    }
+                  } catch (queryError) {
+                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, incrementing offset as fallback');
+                    turnOffset++; // Fallback to offset increment if query fails
+                  }
                   continue;
                 }
                 

@@ -61,6 +61,9 @@ END;
 $$;
 
 -- Function to get card value (rank * 10 + suit)
+-- @copilot-review-fix (Round 10): IMMUTABLE is valid because the rank-to-value and suit-to-value
+-- mappings are constant (e.g., '3'=0, '2'=12 for ranks; 'D'=0, 'S'=3 for suits).
+-- For any given JSONB card input, the computed value will always be the same.
 CREATE OR REPLACE FUNCTION get_card_value(p_card JSONB)
 RETURNS INTEGER
 LANGUAGE plpgsql

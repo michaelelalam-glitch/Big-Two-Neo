@@ -155,7 +155,8 @@ function parseCard(cardData: any): Card | null {
   return null;
 }
 
-// @copilot-review-fix: parseCards imported from shared utility at top. parseCard() is defined locally above for single-card parsing.
+// @copilot-review-fix (Round 10): parseCards() was moved to the shared utility module (imported at top).
+// parseCard() remains defined locally above for single-card parsing within this function.
 
 // ==================== GAME LOGIC ====================
 
@@ -961,10 +962,12 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    // @copilot-review-fix (Round 8): Clarified - we intentionally pass played_cards (BEFORE adding current cards)
-    // NOT updatedPlayedCards. This is correct because isHighestPossiblePlay() needs to know what cards
-    // were played BEFORE this turn to determine if the current play is the highest remaining.
-    // The updatedPlayedCards is only used for the database update below.
+    // @copilot-review-fix (Round 10): We pass played_cards (BEFORE current cards), not updatedPlayedCards.
+    // WHY: isHighestPossiblePlay() checks if ANY unplayed cards can beat the current play.
+    // - played_cards = cards already played in previous turns (unavailable to beat current play)
+    // - cards = the current play being evaluated
+    // By excluding 'cards' from played_cards, we correctly identify all cards that COULD beat this play.
+    // If no unplayed cards can beat it, we know this is the highest possible play and trigger auto-pass.
     const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
     let autoPassTimerState = null;
 
