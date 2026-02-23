@@ -5,6 +5,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import HomeScreen from '../screens/HomeScreen';
+import GameSelectionScreen from '../screens/GameSelectionScreen';
 import SignInScreen from '../screens/SignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
@@ -22,6 +23,7 @@ import MatchHistoryScreen from '../screens/MatchHistoryScreen';
 import RankedLeaderboardScreen from '../screens/RankedLeaderboardScreen';
 
 export type RootStackParamList = {
+  GameSelection: undefined;
   Home: undefined;
   SignIn: undefined;
   Profile: undefined;
@@ -78,6 +80,7 @@ export default function AppNavigator() {
           ) : (
             // App Stack
             <>
+              <Stack.Screen name="GameSelection" component={GameSelectionScreen} />
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
