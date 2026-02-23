@@ -20,7 +20,7 @@ export default function GameSelectionScreen() {
   const { profile, user } = useAuth();
 
   const handleChinesePoker = () => {
-    navigation.replace('Home');
+    navigation.navigate('Home');
   };
 
   const handleLebaneseDeal = () => {

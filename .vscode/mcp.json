@@ -4,6 +4,7 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@notionhq/notion-mcp-server"],
+      // Requires NOTION_TOKEN to be set in the environment (e.g., export NOTION_TOKEN=your_token)
       "env": {
         "NOTION_TOKEN": "${env:NOTION_TOKEN}"
       }
