@@ -4,17 +4,10 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@notionhq/notion-mcp-server"],
+      // Requires NOTION_TOKEN to be set in the environment (e.g., export NOTION_TOKEN=your_token)
       "env": {
-        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer ${input:notionApiKey}\", \"Notion-Version\": \"2022-06-28\"}"
+        "NOTION_TOKEN": "${env:NOTION_TOKEN}"
       }
     }
-  },
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "notionApiKey",
-      "description": "Notion Integration API Key (from notion.so/profile/integrations)",
-      "password": true
-    }
-  ]
+  }
 }
