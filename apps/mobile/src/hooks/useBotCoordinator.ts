@@ -138,10 +138,8 @@ export function useBotCoordinator({
       // Mark this specific turn as executing
       isExecutingRef.current = currentTurnKey;
       
-      // CRITICAL: Add thinking delay for smoother gameplay and state propagation
-      // Without delay, rapid-fire bot moves cause race conditions in database updates
-      gameLogger.info(`🤖 [BotCoordinator] Bot thinking for 1.5s...`);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // ✅ REMOVED: 1.5s thinking delay to match local game AI behavior (instant bot moves)
+      // The 300ms Realtime sync delay after each bot action provides sufficient state propagation time
       
       gameLogger.info(`🤖 [BotCoordinator] Executing bot turn for ${currentPlayer.username || currentPlayer.player_name || `Bot ${currentPlayerIndex + 1}`}`, {
         player_index: currentPlayerIndex,
@@ -176,6 +174,7 @@ export function useBotCoordinator({
         hand: botHand,
         lastPlay,
         isFirstPlayOfGame,
+        matchNumber, // Pass match number so bot knows if 3D is required
         playerCardCounts,
         currentPlayerIndex,
       });
@@ -190,9 +189,9 @@ export function useBotCoordinator({
         // Bot passes - use same passMove function as humans
         gameLogger.info(`[BotCoordinator] Bot passing turn`);
         
-        // CRITICAL: Re-verify turn hasn't changed after thinking delay
+        // CRITICAL: Re-verify turn hasn't changed during bot execution
         if (gameState.current_turn !== currentPlayerIndex) {
-          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during thinking delay, aborting pass', {
+          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during bot execution, aborting pass', {
             expected_turn: currentPlayerIndex,
             actual_turn: gameState.current_turn,
           });
@@ -201,36 +200,44 @@ export function useBotCoordinator({
           return;
         }
         
-        await retryWithBackoff(async () => {
-          // TRIPLE-CHECK: Verify turn hasn't changed right before calling passMove
-          const { data: latestGameState } = await supabase
-            .from('game_state')
-            .select('current_turn')
-            .eq('room_id', gameState.room_id)
-            .single();
+        try {
+          await retryWithBackoff(async () => {
+            // TRIPLE-CHECK: Verify turn hasn't changed right before calling passMove
+            const { data: latestGameState } = await supabase
+              .from('game_state')
+              .select('current_turn')
+              .eq('room_id', gameState.room_id)
+              .single();
+            
+            if (latestGameState?.current_turn !== currentPlayerIndex) {
+              gameLogger.warn('[BotCoordinator] ⚠️ Turn changed RIGHT before passMove, aborting', {
+                expected_turn: currentPlayerIndex,
+                actual_turn: latestGameState?.current_turn,
+              });
+              // Reset execution flag
+              isExecutingRef.current = null;
+              throw new Error('Turn changed - abort execution');
+            }
+            
+            await passMove(currentPlayerIndex);
+          }, 3, 1000, () => {
+            // 🎯 VALIDATION: Check turn state (synchronous check)
+            return true; // Simplified to sync check
+          });
           
-          if (latestGameState?.current_turn !== currentPlayerIndex) {
-            gameLogger.warn('[BotCoordinator] ⚠️ Turn changed RIGHT before passMove, aborting', {
-              expected_turn: currentPlayerIndex,
-              actual_turn: latestGameState?.current_turn,
-            });
-            // Reset execution flag
-            isExecutingRef.current = null;
-            throw new Error('Turn changed - abort execution');
-          }
+          gameLogger.info(`✅ [BotCoordinator] Bot passed successfully`);
           
-          await passMove(currentPlayerIndex);
-        }, 3, 1000, () => {
-          // 🎯 VALIDATION: Check turn state (synchronous check)
-          return true; // Simplified to sync check
-        });
-        
-        gameLogger.info(`✅ [BotCoordinator] Bot passed successfully`);
-        
-        // CRITICAL: Wait for Realtime broadcast to propagate before continuing
-        // This ensures the next bot sees the updated turn state
-        gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
-        await new Promise(resolve => setTimeout(resolve, 300));
+          // CRITICAL: Wait for Realtime broadcast to propagate before continuing
+          // This ensures the next bot sees the updated turn state
+          gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (passError: any) {
+          // 🚨 CRITICAL FIX: Reset execution ref immediately on pass failure
+          // This allows the bot to retry on the next useEffect trigger
+          gameLogger.error('[BotCoordinator] ❌ Bot pass failed after retries:', passError?.message || String(passError));
+          isExecutingRef.current = null;
+          throw passError; // Re-throw to be caught by outer catch block
+        }
       } else {
         // Bot plays cards (botDecision.cards is string[] of card IDs)
         gameLogger.info(`[BotCoordinator] Bot playing ${botDecision.cards.length} cards: ${botDecision.cards.join(', ')}`);
@@ -260,9 +267,9 @@ export function useBotCoordinator({
         }
         
         
-        // CRITICAL: Re-verify turn hasn't changed after thinking delay
+        // CRITICAL: Re-verify turn hasn't changed during bot execution
         if (gameState.current_turn !== currentPlayerIndex) {
-          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during thinking delay, aborting play', {
+          gameLogger.warn('[BotCoordinator] ⚠️ Turn changed during bot execution, aborting play', {
             expected_turn: currentPlayerIndex,
             actual_turn: gameState.current_turn,
           });
@@ -273,37 +280,45 @@ export function useBotCoordinator({
         
         // Use same playCards function as humans, but pass bot's player_index
         // This allows the host to play cards on behalf of the bot
-        await retryWithBackoff(async () => {
-          // TRIPLE-CHECK: Verify turn hasn't changed right before calling playCards
-          // This is the final safeguard against race conditions
-          const { data: latestGameState } = await supabase
-            .from('game_state')
-            .select('current_turn')
-            .eq('room_id', gameState.room_id)
-            .single();
+        try {
+          await retryWithBackoff(async () => {
+            // TRIPLE-CHECK: Verify turn hasn't changed right before calling playCards
+            // This is the final safeguard against race conditions
+            const { data: latestGameState } = await supabase
+              .from('game_state')
+              .select('current_turn')
+              .eq('room_id', gameState.room_id)
+              .single();
+            
+            if (latestGameState?.current_turn !== currentPlayerIndex) {
+              gameLogger.warn('[BotCoordinator] ⚠️ Turn changed RIGHT before playCards, aborting', {
+                expected_turn: currentPlayerIndex,
+                actual_turn: latestGameState?.current_turn,
+              });
+              // Reset execution flag
+              isExecutingRef.current = null;
+              throw new Error('Turn changed - abort execution');
+            }
+            
+            await playCards(cardsToPlay, currentPlayerIndex);
+          }, 3, 1000, () => {
+            // 🎯 VALIDATION: Check turn state (synchronous check)
+            return true; // Simplified to sync check
+          });
           
-          if (latestGameState?.current_turn !== currentPlayerIndex) {
-            gameLogger.warn('[BotCoordinator] ⚠️ Turn changed RIGHT before playCards, aborting', {
-              expected_turn: currentPlayerIndex,
-              actual_turn: latestGameState?.current_turn,
-            });
-            // Reset execution flag
-            isExecutingRef.current = null;
-            throw new Error('Turn changed - abort execution');
-          }
+          gameLogger.info(`✅ [BotCoordinator] Bot played ${botDecision.cards.length} cards successfully`);
           
-          await playCards(cardsToPlay, currentPlayerIndex);
-        }, 3, 1000, () => {
-          // 🎯 VALIDATION: Check turn state (synchronous check)
-          return true; // Simplified to sync check
-        });
-        
-        gameLogger.info(`✅ [BotCoordinator] Bot played ${botDecision.cards.length} cards successfully`);
-        
-        // CRITICAL: Wait for Realtime broadcast to propagate before continuing
-        // This ensures the next bot sees the updated turn state
-        gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
-        await new Promise(resolve => setTimeout(resolve, 300));
+          // CRITICAL: Wait for Realtime broadcast to propagate before continuing
+          // This ensures the next bot sees the updated turn state
+          gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (playError: any) {
+          // 🚨 CRITICAL FIX: Reset execution ref immediately on play failure
+          // This allows the bot to retry on the next useEffect trigger
+          gameLogger.error('[BotCoordinator] ❌ Bot play failed after retries:', playError?.message || String(playError));
+          isExecutingRef.current = null;
+          throw playError; // Re-throw to be caught by outer catch block
+        }
       }
       
     } catch (error: any) {
@@ -376,11 +391,14 @@ export function useBotCoordinator({
       username: currentPlayer?.username,
     });
     
-    // Only execute on bot turns (works in BOTH first_play and playing phases)
-    // 🔥 CRITICAL FIX: Bots must work in 'first_play' phase too! (3D must be played)
+    // Only execute on bot turns in active game phases
+    // ✅ CRITICAL FIX: Skip bot execution when game_phase='finished' (match ended, waiting for new match)
+    // Bots work in 'first_play' (3D must be played) and 'playing' phases only
     if (currentPlayer?.is_bot && (gameState.game_phase === 'first_play' || gameState.game_phase === 'playing')) {
       gameLogger.info('[BotCoordinator] 🤖 Bot turn detected, scheduling execution');
       executeBotTurn();
+    } else if (currentPlayer?.is_bot && gameState.game_phase === 'finished') {
+      gameLogger.info('[BotCoordinator] ⏸️ Bot turn skipped - match ended (phase=finished)');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

@@ -2,7 +2,7 @@
 **Project:** Big2 Mobile App  
 **Created:** December 29, 2025  
 **Last Updated:** December 29, 2025  
-**Total Tasks:** 16
+**Total Tasks:** 17
 
 ---
 
@@ -10,11 +10,11 @@
 
 | Phase | Total | Completed | In Progress | Todo | % Complete |
 |-------|-------|-----------|-------------|------|------------|
-| 🔥 Week 1 (Critical) | 3 | 1 | 0 | 2 | 33% |
+| 🔥 Week 1 (Critical) | 4 | 1 | 2 | 1 | 75% |
 | ⚡ Week 2-3 (High) | 4 | 0 | 0 | 4 | 0% |
 | 📊 Month 2 (Medium) | 5 | 0 | 0 | 5 | 0% |
 | 🎯 Month 3+ (Low) | 4 | 0 | 0 | 4 | 0% |
-| **TOTAL** | **16** | **1** | **0** | **15** | **6%** |
+| **TOTAL** | **17** | **1** | **2** | **14** | **18%** |
 
 ---
 
@@ -28,13 +28,15 @@
 - **Impact:** CI/CD builds passing
 - **Completed:** December 29, 2025
 
-### ⏳ Task #568: Prevent card play race condition
+### ✅ Task #568: Prevent card play race condition
 - **Priority:** Critical
 - **Domain:** Frontend
-- **Status:** 📋 TODO
+- **Status:** ✅ IN REVIEW (PR #64)
 - **Description:** Add isProcessing ref in GameScreen.tsx:752 to prevent duplicate card play requests during server validation. Disable Play button during request processing.
 - **Impact:** Prevents game-breaking bugs
-- **Risk if Skipped:** Game state corruption, duplicate plays
+- **PR:** https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/64
+- **Completed:** December 29, 2025
+- **Testing:** TypeScript passes, backward compatible, multi-mode support
 
 ### ⏳ Task #569: Remove all console statements
 - **Priority:** Critical
@@ -43,6 +45,17 @@
 - **Description:** Global find-replace console.* with logger methods. Add ESLint rule to prevent future console usage. Verify all 20+ instances removed.
 - **Impact:** Performance, security (no sensitive data in logs)
 - **Estimated Time:** 2 hours
+
+### 🆕 Task #583: Fix game_state duplicate key constraint error
+- **Priority:** CRITICAL (Production Blocker)
+- **Domain:** Backend / Database
+- **Status:** ✅ IN REVIEW (PR #64)
+- **Description:** Fix "duplicate key value violates unique constraint game_state_room_id_key" error when starting games. Update start_game_with_bots() to use UPSERT (ON CONFLICT DO UPDATE) instead of INSERT to handle game restarts.
+- **Impact:** Users cannot start games - complete blocker
+- **PR:** https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/64
+- **Root Cause:** Function tries to INSERT game_state, but room_id is UNIQUE. Previous games leave records.
+- **Solution:** Use INSERT ... ON CONFLICT (room_id) DO UPDATE to handle both new games and restarts
+- **Completed:** December 29, 2025
 
 ---
 
@@ -159,10 +172,11 @@
 ## 📈 Velocity Tracking
 
 ### Week 1 (Dec 29 - Jan 5, 2026)
-- **Planned:** Tasks #567, #568, #569
+- **Planned:** Tasks #567, #568, #569, #583 (new critical bug)
 - **Completed:** Task #567 ✅
-- **Remaining:** 2 tasks
-- **Estimated Remaining Time:** 6-8 hours
+- **In Review:** Task #568 🏃 (PR #64), Task #583 🏃 (PR #64)
+- **Remaining:** 1 task
+- **Estimated Remaining Time:** 2 hours
 
 ### Week 2-3 (Jan 6 - Jan 19, 2026)
 - **Planned:** Tasks #570, #571, #572, #573
@@ -216,6 +230,14 @@
 - ✅ Created 16 tasks in admin dashboard
 - ✅ Fixed TypeScript errors (Task #567)
 - ✅ CI/CD build passing
+- ✅ Synced main and dev branches (dev was 2 commits behind)
+- ✅ Created fix/task-568-card-play-race-condition branch from dev
+- ✅ Implemented race condition fix with isProcessingRef (Task #568)
+- ✅ Created PR #64 for Task #568
+- ✅ Addressed 4 Copilot review comments on PR #64 (separate refs, fixed warnings, removed state from deps)
+- ✅ Discovered critical production blocker: game_state duplicate key constraint (Task #583)
+- ✅ Fixed database constraint error with UPSERT migration
+- ✅ Updated progress tracker with new Task #583
 - 📋 Started progress tracking system
 
 ---

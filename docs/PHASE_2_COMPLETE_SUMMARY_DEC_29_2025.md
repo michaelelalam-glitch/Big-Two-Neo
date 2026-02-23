@@ -1,8 +1,9 @@
 # 🎉 Phase 2 Complete - Server-Side Architecture Migration
 
 **Date:** December 29, 2025  
-**Status:** ✅ 100% Implementation Complete  
-**Tasks Completed:** 5/5  
+**Status:** ✅ READY FOR TESTING (Schema Fixed Dec 30, 2025)  
+**Tasks Completed:** 5/5 Implementation + 3 Critical Bugs Fixed  
+**Schema Status:** All required columns exist (match_number, pass_count, auto_pass_timer)
 
 ---
 
@@ -210,9 +211,40 @@ supabase functions deploy play-cards --project-ref dppybucldqufbqhwnkxu
 
 ---
 
-## Known Issues / Limitations
+## 🚨 CRITICAL: Production Readiness Issues (Dec 30, 2025)
 
-### Current Limitations
+### ✅ ALL CRITICAL ISSUES RESOLVED!
+All blocking schema issues have been fixed. The database already has all required columns:
+- ✅ `match_number` column exists (verified Dec 30)
+- ✅ `pass_count` column exists (verified Dec 30)
+- ✅ `auto_pass_timer` column exists (verified Dec 30)
+
+**Status:** READY FOR TESTING ✅
+
+### FIXED ISSUES ✅
+1. **Bot coordinator sending wrong player_id** - FIXED Dec 30, 2025
+   - Was sending host's player_id instead of bot's player_id
+   - Fixed in `useRealtime.ts` line 647-665
+
+2. **Client trying to update non-existent 'winner' column** - FIXED Dec 30, 2025
+   - Client tried to update columns that don't exist
+   - Fixed by removing redundant client updates (server handles all)
+
+3. **Client redundantly updating game_state** - FIXED Dec 30, 2025
+   - Violates Phase 2 architecture (server is source of truth)
+   - Now only updates `play_history` (cosmetic)
+
+4. **Missing database columns** - VERIFIED EXIST Dec 30, 2025
+   - Columns were already added through previous migrations
+   - No migration needed - ready to use!
+
+### Known Non-Blocking Issues
+1. **Migration history out of sync** - LOW PRIORITY
+   - Impact: Dev workflow only (can't use `supabase db push/pull`)
+   - Workaround: Use SQL Editor for future schema changes
+   - Fix Guide: [MIGRATION_HISTORY_FIX_DEC_30_2025.md](./MIGRATION_HISTORY_FIX_DEC_30_2025.md)
+
+### Current Limitations (Non-Blocking)
 1. Five-card combo detection simplified (rare edge cases)
    - Impact: Low (works for 99.9% of cases)
    - Fix: Can enhance in future if needed
@@ -228,6 +260,7 @@ supabase functions deploy play-cards --project-ref dppybucldqufbqhwnkxu
 ### Pre-Existing Errors (Not Phase 2 Related)
 - `NodeJS.Timeout` type error (cosmetic, doesn't affect functionality)
 - `Element implicitly has 'any' type` (TypeScript strictness)
+- Migration history out of sync (dev workflow issue, not production blocking)
 
 ---
 

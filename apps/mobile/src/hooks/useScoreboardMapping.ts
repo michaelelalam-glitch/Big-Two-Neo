@@ -102,36 +102,26 @@ export function useScoreboardMapping({
       return playerScore?.score || 0;
     };
 
-    return [
-      {
-        name: gameState.players[0].name, // Bottom (player)
-        cardCount: gameState.players[0].hand.length,
-        score: getPlayerScore(gameState.players[0].id),
-        position: 'bottom' as const,
-        isActive: gameState.currentPlayerIndex === 0,
-      },
-      {
-        name: gameState.players[1].name, // Top
-        cardCount: gameState.players[1].hand.length,
-        score: getPlayerScore(gameState.players[1].id),
-        position: 'top' as const,
-        isActive: gameState.currentPlayerIndex === 1,
-      },
-      {
-        name: gameState.players[2].name, // Left
-        cardCount: gameState.players[2].hand.length,
-        score: getPlayerScore(gameState.players[2].id),
-        position: 'left' as const,
-        isActive: gameState.currentPlayerIndex === 2,
-      },
-      {
-        name: gameState.players[3].name, // Right
-        cardCount: gameState.players[3].hand.length,
-        score: getPlayerScore(gameState.players[3].id),
-        position: 'right' as const,
-        isActive: gameState.currentPlayerIndex === 3,
-      },
-    ];
+    // Return players in player index order (0, 1, 2, 3) for scoreboard
+    // This ensures scoreboard shows: Steve → Bot 1 → Bot 2 → Bot 3
+    // regardless of their physical layout positions
+    return gameState.players.map((player, index) => {
+      // Map player index to layout position
+      const positionMap: Record<number, 'bottom' | 'top' | 'left' | 'right'> = {
+        0: 'bottom', // Player 0 is always bottom
+        1: 'top',    // Player 1 is top (opposite)
+        2: 'left',   // Player 2 is left
+        3: 'right',  // Player 3 is right
+      };
+
+      return {
+        name: player.name,
+        cardCount: player.hand.length,
+        score: getPlayerScore(player.id),
+        position: positionMap[index],
+        isActive: gameState.currentPlayerIndex === index,
+      };
+    });
   }, [gameState, currentPlayerName]);
 
   // Memoize scoreboard players to prevent unnecessary re-renders

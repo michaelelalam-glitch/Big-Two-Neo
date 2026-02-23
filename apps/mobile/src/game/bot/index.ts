@@ -20,6 +20,7 @@ export interface BotPlayOptions {
   hand: Card[];
   lastPlay: LastPlay | null;
   isFirstPlayOfGame: boolean;
+  matchNumber?: number; // Current match number (1, 2, 3, etc.)
   playerCardCounts: number[];
   currentPlayerIndex: number; // Index of the current bot player
   difficulty?: BotDifficulty;
@@ -49,18 +50,39 @@ export class BotAI {
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, playerCardCounts, currentPlayerIndex } = options;
+    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex } = options;
     
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
     }
 
-    // First play of game - must include 3D
-    if (isFirstPlayOfGame) {
+    // First play of MATCH 1 ONLY - must include 3D
+    // Match 2+ can start with any valid play
+    // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
+    // @copilot-review-fix (Round 9): Separate warnings for different invalid matchNumber types
+    const MAX_MATCH_NUMBER = 1000; // Reasonable upper bound for match count
+    let currentMatch: number;
+    if (typeof matchNumber === 'number') {
+      if (Number.isInteger(matchNumber) && matchNumber > 0 && matchNumber <= MAX_MATCH_NUMBER) {
+        currentMatch = matchNumber;
+      } else if (!Number.isInteger(matchNumber)) {
+        console.warn(`[BotAI] ⚠️ Non-integer matchNumber "${matchNumber}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+        currentMatch = 1;
+      } else {
+        console.warn(`[BotAI] ⚠️ Out-of-range matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+        currentMatch = 1;
+      }
+    } else {
+      if (matchNumber !== undefined) {
+        console.warn(`[BotAI] ⚠️ Non-numeric matchNumber "${String(matchNumber)}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+      }
+      currentMatch = 1;
+    }
+    if (isFirstPlayOfGame && currentMatch === 1) {
       return this.handleFirstPlay(hand);
     }
 
-    // Leading (no last play)
+    // Leading (no last play) - Match 2+ or after trick cleared
     if (!lastPlay) {
       return this.handleLeading(hand, playerCardCounts, currentPlayerIndex);
     }
@@ -104,9 +126,9 @@ export class BotAI {
 
     // CRITICAL: Check "One Card Left" rule when leading
     // Find the next player's card count (player after current bot)
-    // Use anticlockwise turn order: for each player index i, turnOrder[i] gives the next player.
-    // Mapping: 0→3, 1→2, 2→0, 3→1. Example sequence starting from 0: 0→3→1→2→0.
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    // Use counterclockwise turn order: for each player index i, turnOrder[i] gives the next player.
+    // Counterclockwise: 0→1→2→3→0, so sequence maps to: 0→1, 1→2, 2→3, 3→0
+    const turnOrder = [1, 2, 3, 0]; // Next player for indices [0,1,2,3]
     const nextPlayerIndex = turnOrder[currentPlayerIndex];
     const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
     
@@ -165,8 +187,8 @@ export class BotAI {
 
     // Check "One Card Left" rule
     // Find the next player's card count (player after current bot)
-    // Use anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    // Use counterclockwise turn order: 0→1→2→3→0 (sequence: 0→1→2→3→0)
+    const turnOrder = [1, 2, 3, 0]; // Next player for indices [0,1,2,3]
     const nextPlayerIndex = turnOrder[currentPlayerIndex];
     const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
     

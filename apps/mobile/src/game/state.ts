@@ -274,15 +274,15 @@ export class GameStateManager {
       },
     ];
 
-    // Bot names match physical positions (counter-clockwise from player):
-    // Player 1 (top) = Bot 2
-    // Player 2 (left) = Bot 3  
-    // Player 3 (right, next in turn order) = Bot 1
-    const botNames = ['Bot 2', 'Bot 3', 'Bot 1'];
+    // ✅ Bot names now match player indices for scoreboard clarity
+    // Player array: [0: Steve, 1: Bot 1, 2: Bot 2, 3: Bot 3]
+    // Turn order: Steve (0) → Bot 1 (1) → Bot 2 (2) → Bot 3 (3)
+    // Physical layout: [bottom: 0, top: 1, left: 2, right: 3]
     for (let i = 0; i < botCount; i++) {
+      const botNumber = i + 1; // Bot 1, Bot 2, Bot 3
       players.push({
-        id: `bot_${i + 1}`,
-        name: botNames[i] || `Bot ${i + 1}`,
+        id: `bot_${botNumber}`,
+        name: `Bot ${botNumber}`,
         hand: [],
         isBot: true,
         botDifficulty,
@@ -1081,7 +1081,8 @@ export class GameStateManager {
       if (!winnerPlayer) {
         throw new Error(`Winner player not found in state for finalWinnerId: ${finalWinnerId}`);
       }
-      const winnerUserId = winnerPlayer.isBot ? `bot_${winnerPlayer.id}` : user.id;
+      // ✅ FIX: winnerPlayer.id is already "bot_1", "bot_2", etc. - don't double-prefix
+      const winnerUserId = winnerPlayer.isBot ? winnerPlayer.id : user.id;
 
       const gameCompletionData = {
         room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
@@ -1153,7 +1154,14 @@ export class GameStateManager {
         statsLogger.info('✅ [Stats] Game completed via RPC fallback:', rpcResult);
       }
     } catch (error: any) {
-      statsLogger.error('❌ [Stats] Failed to save game stats:', error?.message || error?.code || String(error));
+      // Suppress 503 errors (Edge Function not deployed/cold start)
+      // Game still works - this only affects stats tracking
+      const statusCode = error?.status || error?.statusCode || error?.code;
+      if (statusCode === 503 || statusCode === '503' || error?.message?.includes('503')) {
+        statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
+      } else {
+        statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
+      }
     }
   }
 

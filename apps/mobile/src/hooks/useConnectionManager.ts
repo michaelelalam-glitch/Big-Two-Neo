@@ -5,7 +5,7 @@ import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 interface UseConnectionManagerOptions {
   roomId: string;
-  userId: string;
+  playerId: string; // This is room_players.id, NOT auth.uid()
   enabled: boolean;
 }
 
@@ -31,14 +31,14 @@ interface UseConnectionManagerReturn {
  * ```tsx
  * const { connectionStatus, reconnect } = useConnectionManager({
  *   roomId: 'abc123',
- *   userId: 'user-123',
+ *   playerId: roomPlayersId, // room_players.id, NOT auth.uid()
  *   enabled: true,
  * });
  * ```
  */
 export function useConnectionManager({
   roomId,
-  userId,
+  playerId,
   enabled,
 }: UseConnectionManagerOptions): UseConnectionManagerReturn {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
@@ -51,66 +51,81 @@ export function useConnectionManager({
 
   /**
    * Send heartbeat to update last_seen_at
+   * Note: playerId param is room_players.id (validated server-side against auth.uid())
    */
   const sendHeartbeat = useCallback(async () => {
-    if (!enabled || !roomId || !userId) return;
+    if (!enabled || !roomId || !playerId) return;
 
     try {
-      const { error } = await supabase.rpc('update_player_heartbeat', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('update-heartbeat', {
+        body: {
+          room_id: roomId,
+          player_id: playerId, // playerId is room_players.id
+        },
       });
 
-      if (!error) {
+      if (!error && data?.success) {
         setConnectionStatus('connected');
       } else {
-        console.error('Heartbeat error:', error);
+        console.error('Heartbeat error:', error || data?.error);
       }
     } catch (err) {
       console.error('Heartbeat exception:', err);
     }
-  }, [enabled, roomId, userId]);
+  }, [enabled, roomId, playerId]);
 
   /**
    * Mark player as disconnected
+   * Note: playerId param is room_players.id (validated server-side against auth.uid())
    */
   const disconnect = useCallback(async () => {
-    if (!roomId || !userId) return;
+    if (!roomId || !playerId) return;
 
     try {
-      await supabase.rpc('mark_player_disconnected', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('mark-disconnected', {
+        body: {
+          room_id: roomId,
+          player_id: playerId, // playerId is room_players.id
+        },
       });
 
-      setConnectionStatus('disconnected');
+      if (!error && data?.success) {
+        setConnectionStatus('disconnected');
+      } else {
+        console.error('Disconnect error:', error || data?.error);
+      }
     } catch (err) {
       console.error('Disconnect error:', err);
     }
-  }, [roomId, userId]);
+  }, [roomId, playerId]);
 
   /**
    * Reconnect player (restore from bot if replaced)
    */
   const reconnect = useCallback(async () => {
-    if (!roomId || !userId) return;
+    if (!roomId || !playerId) return;
 
     setIsReconnecting(true);
     setConnectionStatus('reconnecting');
 
     try {
-      const { data, error } = await supabase.rpc('reconnect_player', {
-        p_room_id: roomId,
-        p_user_id: userId,
+      const { data, error } = await supabase.functions.invoke('reconnect-player', {
+        body: {
+          room_id: roomId,
+          player_id: playerId,
+        },
       });
 
-      if (!error && data && data.length > 0) {
-        const result = data[0]; // RPC returns array of rows
+      if (!error && data?.success) {
         setConnectionStatus('connected');
-        setIsSpectator(result.is_spectator || false);
         
-        if (result.is_spectator) {
+        // Preserve spectator status from backend if provided
+        const isSpectatorFromServer = data?.result?.is_spectator;
+        if (typeof isSpectatorFromServer === 'boolean') {
+          setIsSpectator(isSpectatorFromServer);
         } else {
+          // Default: reconnected players are typically not spectators
+          setIsSpectator(false);
         }
         
         // Resume heartbeat
@@ -131,7 +146,7 @@ export function useConnectionManager({
     } finally {
       setIsReconnecting(false);
     }
-  }, [roomId, userId, sendHeartbeat]);
+  }, [roomId, playerId, sendHeartbeat]);
 
   /**
    * Start heartbeat interval
@@ -180,13 +195,13 @@ export function useConnectionManager({
     return () => {
       subscription.remove();
     };
-  }, [enabled, roomId, userId, reconnect, stopHeartbeat]);
+  }, [enabled, roomId, playerId, reconnect, stopHeartbeat]);
 
   /**
    * Start/stop heartbeat based on enabled state
    */
   useEffect(() => {
-    if (enabled && roomId && userId && appStateRef.current === 'active') {
+    if (enabled && roomId && playerId && appStateRef.current === 'active') {
       startHeartbeat();
     } else {
       stopHeartbeat();
@@ -195,23 +210,23 @@ export function useConnectionManager({
     return () => {
       stopHeartbeat();
     };
-  }, [enabled, roomId, userId, startHeartbeat, stopHeartbeat]);
+  }, [enabled, roomId, playerId, startHeartbeat, stopHeartbeat]);
 
   /**
    * Listen for connection status changes from room_players
    */
   useEffect(() => {
-    if (!enabled || !roomId || !userId) return;
+    if (!enabled || !roomId || !playerId) return;
 
     const channel = supabase
-      .channel(`connection_status_${roomId}_${userId}`)
+      .channel(`connection_status_${roomId}_${playerId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'room_players',
-          filter: `room_id=eq.${roomId},user_id=eq.${userId}`,
+          filter: `room_id=eq.${roomId},id=eq.${playerId}`,
         },
         (payload) => {
           const newRecord = payload.new as { connection_status: string };
@@ -231,7 +246,7 @@ export function useConnectionManager({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [enabled, roomId, userId, stopHeartbeat]);
+  }, [enabled, roomId, playerId, stopHeartbeat]);
 
   /**
    * Cleanup on unmount

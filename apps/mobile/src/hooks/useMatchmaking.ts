@@ -92,19 +92,36 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       userIdRef.current = user.id;
 
-      // Call find_match function with match_type parameter
-      const { data, error: matchError } = await supabase.rpc('find_match', {
-        p_username: username,
-        p_skill_rating: skillRating,
-        p_region: region,
-        p_match_type: matchType, // Pass match type to DB function
+      // Call find-match Edge Function
+      const { data, error: matchError } = await supabase.functions.invoke('find-match', {
+        body: {
+          username,
+          skill_rating: skillRating,
+          region,
+          match_type: matchType,
+        },
       });
 
       if (matchError) {
         throw matchError;
       }
 
-      const result = data?.[0] as MatchResult;
+      // Runtime validation before type casting
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format from find-match');
+      }
+
+      const result = data as { matched: boolean; room_code?: string; room_id?: string; waiting_count: number };
+
+      // Validate required fields
+      if (typeof result.matched !== 'boolean' || typeof result.waiting_count !== 'number') {
+        throw new Error('Response missing required fields (matched, waiting_count)');
+      }
+
+      // When matched is true, room_code and room_id must be present
+      if (result.matched && (!result.room_code || !result.room_id)) {
+        throw new Error('Matched response missing room details');
+      }
 
       if (result.matched) {
         // Match found immediately!
@@ -140,19 +157,21 @@ export function useMatchmaking(): UseMatchmakingReturn {
     username: string,
     skillRating: number,
     region: string,
-    matchType: 'casual' | 'ranked' = 'casual' // Add matchType parameter
+    matchType: 'casual' | 'ranked' = 'casual'
   ) => {
     try {
-      const { data, error: matchError } = await supabase.rpc('find_match', {
-        p_username: username,
-        p_skill_rating: skillRating,
-        p_region: region,
-        p_match_type: matchType, // Pass match type to DB function
+      const { data, error: matchError } = await supabase.functions.invoke('find-match', {
+        body: {
+          username,
+          skill_rating: skillRating,
+          region,
+          match_type: matchType,
+        },
       });
 
       if (matchError) throw matchError;
 
-      const result = data?.[0] as MatchResult;
+      const result = data as { matched: boolean; room_code?: string; room_id?: string; waiting_count: number };
 
       if (result.matched) {
         // Match found!
@@ -262,13 +281,13 @@ export function useMatchmaking(): UseMatchmakingReturn {
         channelRef.current = null;
       }
 
-      // Call cancel function
-      const { error: cancelError } = await supabase.rpc('cancel_matchmaking', {
-        p_user_id: userId,
+      // Call cancel-matchmaking Edge Function
+      const { data, error: cancelError } = await supabase.functions.invoke('cancel-matchmaking', {
+        body: {},
       });
 
-      if (cancelError) {
-        console.error('Error canceling matchmaking:', cancelError);
+      if (cancelError || !data?.success) {
+        console.error('Error canceling matchmaking:', cancelError || data);
       }
 
       setIsSearching(false);
