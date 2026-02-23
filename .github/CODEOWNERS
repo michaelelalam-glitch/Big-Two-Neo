@@ -1,0 +1,25 @@
+# CODEOWNERS — automatic review requests on pull requests
+#
+# For PRs targeting main: @michaelelalam-glitch is required reviewer on everything.
+# For game-specific paths: each dev is auto-requested as reviewer.
+#
+# Syntax: <pattern>  <github-username>
+
+# ─── Global: You must review & approve every PR to main ──────────────────────
+*                                                               @michaelelalam-glitch
+
+# ─── Chinese Poker — your domain ─────────────────────────────────────────────
+apps/mobile/src/screens/chinese-poker/                         @michaelelalam-glitch
+apps/mobile/src/game/chinese-poker/                            @michaelelalam-glitch
+apps/mobile/src/screens/HomeScreen.tsx                         @michaelelalam-glitch
+apps/mobile/src/screens/GameScreen.tsx                         @michaelelalam-glitch
+
+# ─── Lebanese Deal — employee's domain ───────────────────────────────────────
+# TODO: Replace @employee-github-username with your employee's actual GitHub handle
+apps/mobile/src/screens/lebanese-deal/                         @employee-github-username
+apps/mobile/src/game/lebanese-deal/                            @employee-github-username
+apps/mobile/src/screens/LebaneseDealScreen.tsx                 @employee-github-username
+
+# ─── Shared files — both parties are auto-requested ──────────────────────────
+apps/mobile/src/screens/GameSelectionScreen.tsx                @michaelelalam-glitch @employee-github-username
+apps/mobile/src/navigation/AppNavigator.tsx                    @michaelelalam-glitch @employee-github-username
