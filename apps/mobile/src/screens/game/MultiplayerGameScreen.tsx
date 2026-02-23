@@ -407,6 +407,8 @@ export function MultiplayerGameScreen() {
   // Play/Pass action handlers with race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
+  const [isPlayingCards, setIsPlayingCards] = useState(false);
+  const [isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
     if (isPlayingCardsRef.current) {

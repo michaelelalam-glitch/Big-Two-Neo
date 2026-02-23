@@ -126,8 +126,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
       if (result.matched) {
         // Match found immediately!
         setMatchFound(true);
-        setRoomCode(result.room_code);
-        setRoomId(result.room_id);
+        setRoomCode(result.room_code ?? null);
+        setRoomId(result.room_id ?? null);
         setIsSearching(false);
         setWaitingCount(4);
       } else {
@@ -176,8 +176,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
       if (result.matched) {
         // Match found!
         setMatchFound(true);
-        setRoomCode(result.room_code);
-        setRoomId(result.room_id);
+        setRoomCode(result.room_code ?? null);
+        setRoomId(result.room_id ?? null);
         setIsSearching(false);
         setWaitingCount(4);
         

@@ -181,7 +181,7 @@ export function useConnectionManager({
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
 
-      if (enabled && roomId && userId) {
+      if (enabled && roomId && playerId) {
         if (nextAppState === 'active' && previousAppState !== 'active') {
           // App came to foreground - reconnect
           reconnect();

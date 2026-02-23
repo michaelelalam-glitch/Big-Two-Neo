@@ -86,6 +86,8 @@ export function LocalAIGameScreen() {
   // Race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
+  const [isPlayingCards, setIsPlayingCards] = useState(false);
+  const [isPassing, setIsPassing] = useState(false);
 
   // One card left detection
   const oneCardLeftDetectedRef = useRef(new Set<string>());
