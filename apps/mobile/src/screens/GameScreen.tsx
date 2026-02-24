@@ -1138,13 +1138,24 @@ function GameScreenContent() {
     ? ((gameState as any)?.auto_pass_timer ?? undefined)
     : ((multiplayerGameState as any)?.auto_pass_timer ?? undefined); // ✅ Now reads from multiplayer game_state!
 
-  // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex is direct game state index
-  // Scoreboard shows turn order [0,1,2,3], so we use raw indices
+  // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex must match multiplayerLayoutPlayers array order.
+  // multiplayerLayoutPlayers array order: [me (index 0), top (index 1), left (index 2), right (index 3)].
+  // We resolve the LAYOUT ARRAY INDEX of the active player so that:
+  //   - LandscapeGameLayout's isOpponentActive(index) shows the red circle on the correct player
+  //   - LandscapeScoreboard highlights the correct row
+  // NOTE: Portrait is unaffected — it reads .isActive directly from each player object.
   const multiplayerCurrentTurn = (multiplayerGameState as any)?.current_turn;
+
+  // Helper: map absolute player_index → layout array slot [me=0, top=1, left=2, right=3]
+  const getMultiplayerScoreboardIndex = (currentTurn: number): number => {
+    const idx = multiplayerLayoutPlayers.findIndex((p: any) => p.player_index === currentTurn);
+    return idx >= 0 ? idx : 0;
+  };
+
   const effectiveScoreboardCurrentPlayerIndex = isLocalAIGame
-    ? ((gameState as any)?.currentPlayerIndex ?? 0)  // ✅ Direct index: no mapping
-    : (typeof multiplayerCurrentTurn === 'number' 
-        ? (multiplayerCurrentTurn - multiplayerSeatIndex + 4) % 4  // Convert absolute to relative: 0→0(me), 1→1(right), 2→2(opposite), 3→3(left)
+    ? ((gameState as any)?.currentPlayerIndex ?? 0)  // ✅ Local AI: direct game state index
+    : (typeof multiplayerCurrentTurn === 'number'
+        ? getMultiplayerScoreboardIndex(multiplayerCurrentTurn)  // ✅ FIX: layout-aware lookup
         : 0);
 
   // Performance profiling callback (Task #430)
