@@ -71,9 +71,9 @@ export function GameLayout({
           <View style={styles.centerPlayArea}>
             <CenterPlayArea
               lastPlayed={lastPlayedCards}
-              lastPlayedBy={lastPlayedBy || 'Waiting...'}
+              lastPlayedBy={lastPlayedBy || null}
               combinationType={lastPlayComboType}
-              comboDisplayText={lastPlayCombo || 'No plays yet'}
+              comboDisplayText={lastPlayCombo || undefined}
             />
 
             {/* Auto-Pass Timer Display */}

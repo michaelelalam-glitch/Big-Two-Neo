@@ -140,7 +140,8 @@ describe('LandscapeOvalTable - Active State', () => {
       />
     );
 
-    expect(getByText('Straight to 6')).toBeTruthy();
+    // Combined format: "Last played by Carol: Straight to 6"
+    expect(getByText(/Last played by Carol: Straight to 6/)).toBeTruthy();
   });
 
   it('does not render combo text when not provided', () => {
@@ -166,7 +167,8 @@ describe('LandscapeOvalTable - Active State', () => {
 
     const cards = getAllByTestId(/^landscape-card-/);
     expect(cards).toHaveLength(1);
-    expect(getByText('Single (3♠)')).toBeTruthy();
+    // Combined format: "Last played by Alice: Single (3♠)"
+    expect(getByText(/Last played by Alice: Single/)).toBeTruthy();
   });
 });
 

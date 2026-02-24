@@ -280,17 +280,44 @@ export function MultiplayerGameScreen() {
 
   const effectiveLastPlayedBy = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.by || null;
-  }, [multiplayerGameState]);
+    // Edge function stores player as player_index (not 'by')
+    const playerIdx = lastPlay?.player_index;
+    if (typeof playerIdx !== 'number') return null;
+    const player = realtimePlayers?.find((p: any) => p.player_index === playerIdx);
+    return player?.username ?? `Player ${playerIdx + 1}`;
+  }, [multiplayerGameState, realtimePlayers]);
 
   const effectiveLastPlayComboType = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.comboType || null;
+    // Edge function stores as combo_type (not comboType)
+    return lastPlay?.combo_type || null;
   }, [multiplayerGameState]);
 
   const effectiveLastPlayCombo = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.combo || null;
+    const comboType: string | null = lastPlay?.combo_type || null;
+    const cards = lastPlay?.cards;
+    if (!comboType) return null;
+    if (!Array.isArray(cards) || cards.length === 0) return comboType;
+    if (comboType === 'Single') return `Single ${cards[0].rank}`;
+    if (comboType === 'Pair') return `Pair of ${cards[0].rank}s`;
+    if (comboType === 'Triple') return `Triple ${cards[0].rank}s`;
+    if (comboType === 'Straight') {
+      const sorted = sortCardsForDisplay(cards, 'Straight');
+      const high = sorted[0];
+      return high ? `Straight to ${high.rank}` : 'Straight';
+    }
+    if (comboType === 'Flush') {
+      const sorted = sortCardsForDisplay(cards, 'Flush');
+      const high = sorted[0];
+      return high ? `Flush (${high.rank} high)` : 'Flush';
+    }
+    if (comboType === 'Straight Flush') {
+      const sorted = sortCardsForDisplay(cards, 'Straight Flush');
+      const high = sorted[0];
+      return high ? `Straight Flush to ${high.rank}` : 'Straight Flush';
+    }
+    return comboType;
   }, [multiplayerGameState]);
 
   // Scoreboard mapping (multiplayer uses realtime players)

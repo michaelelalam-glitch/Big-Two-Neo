@@ -653,12 +653,12 @@ function GameScreenContent() {
   }, [multiplayerLastPlay]);
 
   const multiplayerLastPlayedBy = React.useMemo(() => {
-    const pos = multiplayerLastPlay?.position;
-    if (typeof pos !== 'number') return null;
-    const p = multiplayerPlayers.find((pl) => pl.player_index === pos);
+    // Edge function stores player as player_index (not position)
+    const playerIdx = multiplayerLastPlay?.player_index;
+    if (typeof playerIdx !== 'number') return null;
+    const p = multiplayerPlayers.find((pl) => pl.player_index === playerIdx);
     // Fallback to "Player N" if player list isn't loaded yet
-    // Note: pos is guaranteed to be a number here due to the typeof check above
-    return p?.username ?? `Player ${pos + 1}`;
+    return p?.username ?? `Player ${playerIdx + 1}`;
   }, [multiplayerLastPlay, multiplayerPlayers]);
 
   const multiplayerLastPlayComboType = (multiplayerLastPlay?.combo_type as string | null) ?? null;
