@@ -835,6 +835,27 @@ function GameScreenContent() {
   // NOTE: Only for LOCAL games - multiplayer uses auto_pass_deadline instead
   const hasPlayedHighestCardSoundRef = useRef(false);
 
+  // Multiplayer match start sound tracking: detect match_number changes
+  const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
+
+  // "fi_mat3am_hawn" plays on EVERY match start (match 1, 2, 3...) for multiplayer
+  useEffect(() => {
+    if (!isMultiplayerGame || !multiplayerGameState) return;
+
+    const currentMatchNumber = (multiplayerGameState as any)?.match_number ?? null;
+    const gamePhase = (multiplayerGameState as any)?.game_phase;
+
+    // Only fire when the game is actively in the playing phase
+    if (gamePhase !== 'playing') return;
+
+    // Fire when match_number changes — covers match 1 start and all subsequent matches
+    if (currentMatchNumber !== null && currentMatchNumber !== previousMultiplayerMatchNumberRef.current) {
+      previousMultiplayerMatchNumberRef.current = currentMatchNumber;
+      soundManager.playSound(SoundType.GAME_START);
+      gameLogger.info(`🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber}`);
+    }
+  }, [isMultiplayerGame, multiplayerGameState]);
+
   useEffect(() => {
     // CRITICAL FIX: Support BOTH local and multiplayer auto-pass timers
     const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;

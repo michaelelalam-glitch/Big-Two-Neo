@@ -407,6 +407,23 @@ export function MultiplayerGameScreen() {
   // Auto-pass timer audio/haptic feedback
   const hasPlayedHighestCardSoundRef = useRef(false);
 
+  // "fi_mat3am_hawn" plays on EVERY match start (match 1, 2, 3...) for multiplayer
+  const previousMatchNumberRef = useRef<number | null>(null);
+  useEffect(() => {
+    const currentMatchNumber = (multiplayerGameState as any)?.match_number ?? null;
+    const gamePhase = (multiplayerGameState as any)?.game_phase;
+
+    // Only fire when the game is actively in the playing phase
+    if (gamePhase !== 'playing') return;
+
+    // Fire when match_number changes — covers match 1 start and all subsequent matches
+    if (currentMatchNumber !== null && currentMatchNumber !== previousMatchNumberRef.current) {
+      previousMatchNumberRef.current = currentMatchNumber;
+      soundManager.playSound(SoundType.GAME_START);
+      gameLogger.info(`🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber}`);
+    }
+  }, [multiplayerGameState]);
+
   useEffect(() => {
     const timerState = multiplayerGameState?.auto_pass_timer;
 
