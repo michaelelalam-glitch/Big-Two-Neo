@@ -1139,7 +1139,7 @@ function GameScreenContent() {
     : ((multiplayerGameState as any)?.auto_pass_timer ?? undefined); // ✅ Now reads from multiplayer game_state!
 
   // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex must match multiplayerLayoutPlayers array order.
-  // multiplayerLayoutPlayers is ordered: [me(+0), top(+2), left(+3), right(+1)].
+  // multiplayerLayoutPlayers array order: [me (index 0), top (index 1), left (index 2), right (index 3)].
   // We resolve the LAYOUT ARRAY INDEX of the active player so that:
   //   - LandscapeGameLayout's isOpponentActive(index) shows the red circle on the correct player
   //   - LandscapeScoreboard highlights the correct row
