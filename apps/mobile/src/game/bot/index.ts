@@ -566,20 +566,28 @@ export class BotAI {
           }
         }
       }
-      // @copilot-review-fix (Round 2): Sort 5-card combos by strength so validPlays[0]
+      // @copilot-review-fix (Round 2+3): Sort 5-card combos by strength so validPlays[0]
       // is truly the weakest and validPlays[last] is truly the strongest.
-      // Uses canBeatPlay to determine relative ordering between combos.
+      // Uses strict weak ordering: compare both directions to handle ties correctly.
       if (validPlays.length > 1) {
         validPlays.sort((a, b) => {
           const cardsA = a.map(id => hand.find(c => c.id === id)!);
           const cardsB = b.map(id => hand.find(c => c.id === id)!);
+          const classA = classifyCards(cardsA);
           const classB = classifyCards(cardsB);
           const aBeatsB = canBeatPlay(cardsA, {
             position: 0,
             cards: cardsB,
             combo_type: classB,
           });
-          return aBeatsB ? 1 : -1;
+          const bBeatsA = canBeatPlay(cardsB, {
+            position: 0,
+            cards: cardsA,
+            combo_type: classA,
+          });
+          if (aBeatsB && !bBeatsA) return 1;   // A stronger, sort later
+          if (!aBeatsB && bBeatsA) return -1;  // A weaker, sort earlier
+          return 0;                             // Equal strength
         });
       }
     }

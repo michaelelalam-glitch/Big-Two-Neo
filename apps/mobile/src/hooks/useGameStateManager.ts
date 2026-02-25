@@ -133,19 +133,22 @@ export function useGameStateManager({
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
         }
 
+        // @copilot-review-fix (Round 3): Track previous player index in a ref
+        // instead of reading from the stale `gameState` closure.
+        let prevPlayerIndex: number | null = null;
+
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
           // Play turn notification when it becomes player's turn
-          const previousState = gameState;
           if (
-            previousState &&
+            prevPlayerIndex !== null &&
             state.currentPlayerIndex === 0 &&
-            previousState.currentPlayerIndex !== 0
+            prevPlayerIndex !== 0
           ) {
             soundManager.playSound(SoundType.TURN_NOTIFICATION);
-
             gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
           }
+          prevPlayerIndex = state.currentPlayerIndex;
 
           setGameState(state);
 
@@ -310,6 +313,14 @@ export function useGameStateManager({
           '❌ [useGameStateManager] Failed to initialize game:',
           error?.message || error?.code || String(error)
         );
+        // @copilot-review-fix (Round 3): Reset init guards on failure so a
+        // re-render can retry initialization instead of being permanently stuck.
+        isInitializedRef.current = false;
+        initializedRoomRef.current = null;
+        if (gameManagerRef.current) {
+          gameManagerRef.current.destroy();
+          gameManagerRef.current = null;
+        }
         setIsInitializing(false);
         Alert.alert(i18n.t('common.error'), 'Failed to initialize game. Please try again.');
       }

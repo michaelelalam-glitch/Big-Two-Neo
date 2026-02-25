@@ -535,8 +535,15 @@ export class GameStateManager {
       retryCount++;
       gameLogger.warn(`⚠️ [GameStateManager] Bot ${currentPlayer.name} play rejected (attempt ${retryCount}/${MAX_BOT_RETRIES}): ${result.error}`);
 
-      // Fallback: if One Card Left error, find and play highest single
-      if (result.error?.includes('Must play highest single') || result.error?.includes('opponent has 1 card')) {
+      // @copilot-review-fix (Round 3): Broaden One Card Left error matching.
+      // pass() rewrites the message with player names, so also check for
+      // "Cannot pass" + "1 card left" to catch all variants.
+      const errorMsg = result.error ?? '';
+      if (
+        errorMsg.includes('Must play highest single') ||
+        errorMsg.includes('opponent has 1 card') ||
+        (errorMsg.includes('Cannot pass') && errorMsg.includes('1 card left'))
+      ) {
         const sorted = sortHand(currentPlayer.hand);
         if (this.state.lastPlay) {
           const highestSingle = findHighestBeatingSingle(sorted, this.state.lastPlay);
