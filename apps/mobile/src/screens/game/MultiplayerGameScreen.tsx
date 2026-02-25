@@ -8,13 +8,12 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
-import { MatchNumberDisplay } from '../../components/game/MatchNumberDisplay';
-import { ScoreActionButtons } from '../../components/game/ScoreActionButtons';
+// MatchNumberDisplay & ScoreActionButtons inlined below (Task #590)
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
@@ -756,17 +755,32 @@ export function MultiplayerGameScreen() {
         />
       ) : (
         <>
-          {/* Match number display - top center below notch (Task #590) */}
-          <MatchNumberDisplay
-            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-            isGameFinished={false}
-          />
+          {/* Match number display - top center (Task #590 inlined) */}
+          <View style={styles.matchNumberContainer}>
+            <View style={styles.matchNumberBadge}>
+              <Text style={styles.matchNumberText}>
+                {`Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+              </Text>
+            </View>
+          </View>
 
-          {/* Score action buttons - top left (Task #590) */}
-          <ScoreActionButtons
-            onToggleExpand={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
-            onTogglePlayHistory={() => setIsPlayHistoryOpen(!isPlayHistoryOpen)}
-          />
+          {/* Score action buttons - top left (Task #590 inlined) */}
+          <View style={styles.scoreActionContainer}>
+            <TouchableOpacity
+              style={styles.scoreActionButton}
+              onPress={() => setIsPlayHistoryOpen(!isPlayHistoryOpen)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.scoreActionButtonText}>📜</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.scoreActionButton}
+              onPress={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.scoreActionButtonText}>▶</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Scoreboard: expanded view + play history modal (Task #590: no more compact) */}
           <ScoreboardContainer
@@ -979,5 +993,48 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     color: COLORS.gray.light,
     fontSize: FONT_SIZES.md,
+  },
+  // Task #590: Match number display - top center
+  matchNumberContainer: {
+    position: 'absolute',
+    top: POSITIONING.menuTop,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 150,
+  },
+  matchNumberBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  matchNumberText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  // Task #590: Score action buttons - top left
+  scoreActionContainer: {
+    position: 'absolute',
+    top: POSITIONING.menuTop,
+    left: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 150,
+  },
+  scoreActionButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 10,
+  },
+  scoreActionButtonText: {
+    fontSize: 18,
   },
 });

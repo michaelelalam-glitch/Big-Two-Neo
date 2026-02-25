@@ -2,13 +2,25 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
-import { TotalScoreBadge } from '../scoreboard/TotalScoreBadge';
+// TotalScoreBadge inlined below (Task #590) to avoid Metro new-file caching issues
 
 interface PlayerInfoProps {
   name: string;
   cardCount: number;
   isActive: boolean; // Current turn indicator
   totalScore?: number; // Cumulative total score (Task #590)
+}
+
+// Inline TotalScoreBadge helpers
+function getScoreBadgeColor(score: number): string {
+  if (score > 0) return '#4CAF50';
+  if (score < 0) return '#F44336';
+  return '#78909C';
+}
+
+function formatScore(score: number): string {
+  if (score > 0) return `+${score}`;
+  return `${score}`;
 }
 
 export default function PlayerInfo({
@@ -35,10 +47,14 @@ export default function PlayerInfo({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
-        {/* Total score badge positioned on avatar (bottom-left) */}
+        {/* Total score badge positioned on avatar (bottom-left) - Task #590 inlined */}
         {totalScore !== undefined && (
           <View style={styles.scoreBadgePosition}>
-            <TotalScoreBadge score={totalScore} visible={true} />
+            <View style={[styles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
+              <Text style={styles.scoreBadgeText}>
+                {formatScore(totalScore)}
+              </Text>
+            </View>
           </View>
         )}
       </View>
@@ -114,5 +130,22 @@ const styles = StyleSheet.create({
     bottom: -6,
     left: -6,
     zIndex: 10,
+  },
+  // Task #590: Inline total score badge styles
+  scoreBadge: {
+    minWidth: 32,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  scoreBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: '#FFFFFF',
   },
 });
