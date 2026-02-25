@@ -93,8 +93,10 @@ export const useScoreboardContainerStyles = () => {
   return useMemo(() => ({
     container: {
       position: 'absolute' as const,
-      top: dims.moderateScale(12),
-      left: dims.moderateScale(12),
+      top: dims.isPortrait ? 90 : dims.moderateScale(12),
+      left: dims.isPortrait ? 0 : dims.moderateScale(12),
+      right: dims.isPortrait ? 0 : undefined,
+      alignItems: dims.isPortrait ? 'center' as const : undefined,
       maxWidth: dims.isPortrait 
         ? dims.screenWidth * 0.9 
         : dims.isLargeDevice 

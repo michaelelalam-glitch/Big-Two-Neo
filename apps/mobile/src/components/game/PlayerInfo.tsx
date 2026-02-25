@@ -19,7 +19,6 @@ function getScoreBadgeColor(score: number): string {
 }
 
 function formatScore(score: number): string {
-  if (score > 0) return `+${score}`;
   return `${score}`;
 }
 

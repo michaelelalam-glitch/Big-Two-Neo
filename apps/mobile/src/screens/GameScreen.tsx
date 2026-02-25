@@ -1599,7 +1599,7 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: OVERLAYS.menuBackground,
     borderRadius: 10,
   },
   scoreActionButtonText: {
