@@ -33,6 +33,7 @@ import {
   AutoPassTimerState,
 } from '../types/multiplayer';
 import { networkLogger, gameLogger } from '../utils/logger';
+import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { canBeatPlay } from '../game/engine/game-logic';
 
 /**
@@ -170,7 +171,7 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
  */
 async function getServerTimeMs(): Promise<number> {
   try {
-    const { data, error } = await supabase.functions.invoke('server-time', {
+    const { data, error } = await invokeWithRetry('server-time', {
       body: {},
     });
     if (error || !data?.timestamp) {
@@ -807,7 +808,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         is_bot: playerIndex !== undefined,
       });
       
-      const { data: result, error: playError } = await supabase.functions.invoke('play-cards', {
+      const { data: result, error: playError } = await invokeWithRetry('play-cards', {
         body: {
           room_code: room!.code,
           player_id: playingPlayer.user_id, // ✅ FIX: Use bot's user_id (not record id)
@@ -970,7 +971,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               await new Promise(resolve => setTimeout(resolve, 2000));
 
               gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
-              const { data: newMatchData, error: newMatchError } = await supabase.functions.invoke('start_new_match', {
+              const { data: newMatchData, error: newMatchError } = await invokeWithRetry('start_new_match', {
                 body: { room_id: room!.id },
               });
 
@@ -1048,7 +1049,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       // ✅ UNIFIED ARCHITECTURE: Use Edge Function (matches play-cards pattern)
       // This ensures consistent state management and preserves auto_pass_timer
-      const { data: result, error: passError } = await supabase.functions.invoke('player-pass', {
+      const { data: result, error: passError } = await invokeWithRetry('player-pass', {
         body: {
           room_code: room.code,
           player_id: passingPlayer.user_id, // ✅ Use user_id (consistent with play-cards)
@@ -1687,7 +1688,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // - pass() broadcasts 'player_passed' → we broadcast 'auto_pass_executed' (intentionally different)
                 // - pass() waits 300ms for Realtime → we wait at end of loop (see below)
                 // - pass() sets error state → not needed for auto-pass (errors logged, don't block UI)
-                const { data: passResult, error: passError } = await supabase.functions.invoke('player-pass', {
+                const { data: passResult, error: passError } = await invokeWithRetry('player-pass', {
                   body: {
                     room_code: room?.code,
                     player_id: playerToPass.user_id,

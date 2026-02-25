@@ -960,7 +960,8 @@ function GameScreenContent() {
         soundManager.playSound(SoundType.CARD_PLAY);
       } catch (error: any) {
         gameLogger.error('❌ [GameScreen] Error playing cards:', error?.message || String(error));
-        showError(error.message || 'Failed to play cards');
+        // Re-throw so GameControls can properly handle the error (show Alert, play error sound)
+        throw error;
       } finally {
         isPlayingCardsRef.current = false; // Clear synchronous guard
         setIsPlayingCards(false);
