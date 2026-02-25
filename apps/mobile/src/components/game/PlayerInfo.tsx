@@ -2,17 +2,20 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 
 interface PlayerInfoProps {
   name: string;
   cardCount: number;
   isActive: boolean; // Current turn indicator
+  totalScore?: number; // Cumulative total score (Task #590)
 }
 
 export default function PlayerInfo({
   name,
   cardCount,
   isActive,
+  totalScore,
 }: PlayerInfoProps) {
   const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}`;
   
@@ -32,6 +35,19 @@ export default function PlayerInfo({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
+        {totalScore !== undefined && (
+          <View
+            style={scoreDisplayStyles.scoreBadgePosition}
+            accessibilityLabel={`Score: ${formatScore(totalScore)}`}
+          >
+            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
+              <Text style={scoreDisplayStyles.scoreBadgeText}>
+                {formatScore(totalScore)}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Player name badge */}

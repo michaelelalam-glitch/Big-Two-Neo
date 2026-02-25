@@ -1017,7 +1017,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
+      // by BotCoordinator's own catch block. Calling onError here would show a confusing
+      // Alert to the user for something they didn't do (e.g., "Not your turn" race condition
+      // after a FunctionsFetchError retry for a previous bot's play).
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
+      }
       throw error;
     }
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
@@ -1034,6 +1042,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     
     if (!gameState || !passingPlayer || gameState.current_turn !== passingPlayer.player_index) {
       throw new Error('Not your turn');
+    }
+    
+    // FIX: If the auto-pass timer is currently executing, silently skip.
+    // This prevents race conditions where pass() fires from a stale handler
+    // while executeAutoPasses() has already handled the turn via direct Edge Function call.
+    if (autoPassExecutionGuard.current) {
+      gameLogger.info('[useRealtime] ⚠️ Skipping pass() — auto-pass execution in progress');
+      return;
     }
     
     if (!room?.code) {
@@ -1077,6 +1093,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         timer_preserved: !!result.auto_pass_timer,
       });
       
+      // FIX: Immediately clear local timer state when the trick cleared (timer not preserved).
+      // Without this, the timer polling interval keeps running on stale state until the
+      // Realtime subscription propagates, which can trigger a duplicate executeAutoPasses().
+      if (!result.auto_pass_timer) {
+        setGameState(prevState => {
+          if (!prevState) return prevState;
+          return { ...prevState, auto_pass_timer: null };
+        });
+      }
+      
       // Broadcast manual pass event
       await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
       
@@ -1095,7 +1121,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
+      }
       throw error;
     }
   }, [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]);
@@ -1826,7 +1857,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     gameState?.game_phase,
     room?.id,
     roomPlayers,
-    pass,
+    // NOTE: `pass` intentionally omitted — executeAutoPasses() calls invokeWithRetry
+    // directly, not pass(). Including `pass` caused the timer interval to be destroyed
+    // and recreated on every gameState change (since pass depends on gameState),
+    // resulting in massive log churn and potential race conditions.
     broadcastMessage,
   ]);
 

@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -13,6 +13,8 @@ import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, G
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGameStateManager } from '../../hooks/useGameStateManager';
 import { gameLogger } from '../../utils/logger';
@@ -211,6 +213,17 @@ export function LocalAIGameScreen() {
   );
   const matchNumber = (gameState as any)?.currentMatch ?? 1;
   const isGameFinished = (gameState as any)?.gameOver ?? false;
+
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
 
   // Selected cards for controls
   const selectedCards = useMemo(() => {
@@ -474,6 +487,40 @@ export function LocalAIGameScreen() {
           />
         ) : (
           <>
+            {/* Match number display - top center (Task #590) */}
+            <View style={scoreDisplayStyles.matchNumberContainer}>
+              <View style={scoreDisplayStyles.matchNumberBadge}>
+                <Text style={scoreDisplayStyles.matchNumberText}>
+                  {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Score action buttons - top left (Task #590) */}
+            <View style={scoreDisplayStyles.scoreActionContainer}>
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsPlayHistoryOpen(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="View play history"
+                accessibilityHint="Opens the list of plays for this match"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsScoreboardExpanded(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle scoreboard"
+                accessibilityHint="Expands or collapses the scoreboard"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scoreboard: expanded view + play history modal (Task #590) */}
             <ScoreboardContainer
               playerNames={memoizedPlayerNames}
               currentScores={memoizedCurrentScores}
@@ -509,7 +556,7 @@ export function LocalAIGameScreen() {
             </Pressable>
 
             <GameLayout
-              players={layoutPlayers as any}
+              players={layoutPlayersWithScores as any}
               lastPlayedCards={lastPlayedCards as any}
               lastPlayedBy={lastPlayedBy as any}
               lastPlayComboType={lastPlayComboType as any}
@@ -522,6 +569,7 @@ export function LocalAIGameScreen() {
                 name={layoutPlayers[0]?.name ?? currentPlayerName}
                 cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
                 isActive={layoutPlayers[0]?.isActive ?? false}
+                totalScore={playerTotalScores[0] ?? 0}
               />
             </View>
 

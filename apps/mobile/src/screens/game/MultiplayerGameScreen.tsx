@@ -8,15 +8,18 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
+// Match number + score action button styles imported from shared scoreDisplayStyles (Task #590)
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { useBotCoordinator } from '../../hooks/useBotCoordinator';
@@ -37,7 +40,7 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch } = useScoreboard();
+  const { addScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
@@ -679,6 +682,17 @@ export function MultiplayerGameScreen() {
     return activeIndex >= 0 ? activeIndex : 0;
   }, [layoutPlayers]);
 
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
+
   // Render based on orientation
   const isLandscape = currentOrientation?.includes('LANDSCAPE');
 
@@ -692,6 +706,11 @@ export function MultiplayerGameScreen() {
       gameLogger.warn(`[Performance] ${id} render took ${actualDuration.toFixed(2)}ms`);
     }
   }, []);
+
+  // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
+  const isGameFinished =
+    (multiplayerGameState as any)?.game_phase === 'finished' ||
+    (multiplayerGameState as any)?.game_phase === 'game_over';
 
   // Show loading state while connecting/loading
   if (isLoading) {
@@ -713,7 +732,7 @@ export function MultiplayerGameScreen() {
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
           matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-          isGameFinished={false}
+          isGameFinished={isGameFinished}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}
@@ -741,20 +760,51 @@ export function MultiplayerGameScreen() {
         />
       ) : (
         <>
-          {/* Scoreboard (top-left, outside table) */}
-          <View style={styles.scoreboardContainer}>
-            <ScoreboardContainer
-              currentScores={memoizedCurrentScores}
-              cardCounts={memoizedCardCounts}
-              currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-              matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-              isGameFinished={false}
-              scoreHistory={scoreHistory}
-              playHistory={playHistoryByMatch}
-              originalPlayerNames={memoizedOriginalPlayerNames}
-              playerNames={memoizedPlayerNames}
-            />
+          {/* Match number display - top center (Task #590 inlined) */}
+          <View style={scoreDisplayStyles.matchNumberContainer}>
+            <View style={scoreDisplayStyles.matchNumberBadge}>
+              <Text style={scoreDisplayStyles.matchNumberText}>
+                {isGameFinished ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+              </Text>
+            </View>
           </View>
+
+          {/* Score action buttons - top left (Task #590 inlined) */}
+          <View style={scoreDisplayStyles.scoreActionContainer}>
+            <TouchableOpacity
+              style={scoreDisplayStyles.scoreActionButton}
+              onPress={() => setIsPlayHistoryOpen(prev => !prev)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="View play history"
+              accessibilityHint="Opens the list of plays for this match"
+            >
+              <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={scoreDisplayStyles.scoreActionButton}
+              onPress={() => setIsScoreboardExpanded(prev => !prev)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle scoreboard"
+              accessibilityHint="Expands or collapses the scoreboard"
+            >
+              <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Scoreboard: expanded view + play history modal (Task #590: no more compact) */}
+          <ScoreboardContainer
+            currentScores={memoizedCurrentScores}
+            cardCounts={memoizedCardCounts}
+            currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+            isGameFinished={isGameFinished}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+            originalPlayerNames={memoizedOriginalPlayerNames}
+            playerNames={memoizedPlayerNames}
+          />
 
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
@@ -787,7 +837,7 @@ export function MultiplayerGameScreen() {
 
           {/* Game table layout */}
           <GameLayout
-            players={layoutPlayers as any}
+            players={layoutPlayersWithScores as any}
             lastPlayedCards={effectiveLastPlayedCards as any}
             lastPlayedBy={effectiveLastPlayedBy as any}
             lastPlayComboType={effectiveLastPlayComboType as any}
@@ -801,6 +851,7 @@ export function MultiplayerGameScreen() {
               name={layoutPlayers[0]?.name ?? currentPlayerName}
               cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
               isActive={layoutPlayers[0]?.isActive ?? false}
+              totalScore={playerTotalScores[0] ?? 0}
             />
           </View>
           
@@ -863,12 +914,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,
-  },
-  scoreboardContainer: {
-    position: 'absolute',
-    top: POSITIONING.scoreboardTop,
-    left: POSITIONING.scoreboardLeft,
-    zIndex: 100,
   },
   menuContainer: {
     position: 'absolute',

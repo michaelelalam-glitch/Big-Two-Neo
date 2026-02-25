@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -10,6 +10,8 @@ import type { Card } from '../game/types';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
+import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
+import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { useGameStateManager } from '../hooks/useGameStateManager';
@@ -184,10 +186,13 @@ function GameScreenContent() {
     username: currentPlayerName,
     onError: (error) => {
       gameLogger.error('[GameScreen] Multiplayer error:', error.message);
-      // Only show critical errors, not connection issues
-      if (!error.message.includes('connection') && !error.message.includes('reconnect')) {
-        showError(error.message);
+      // Only show critical errors, not connection issues or turn race conditions
+      const msg = error.message?.toLowerCase() || '';
+      if (msg.includes('connection') || msg.includes('reconnect') || msg.includes('not your turn')) {
+        gameLogger.warn('⚠️ [GameScreen] Suppressed non-critical multiplayer error from UI');
+        return;
       }
+      showError(error.message);
     },
     onDisconnect: () => {
       gameLogger.warn('[GameScreen] Multiplayer disconnected');
@@ -1028,8 +1033,16 @@ function GameScreenContent() {
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
       } catch (error: any) {
-        gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', error?.message || String(error));
-        showError(error.message || 'Failed to pass');
+        // Suppress 'Not your turn' in multiplayer — this commonly occurs due to a race
+        // between the auto-pass timer (executeAutoPasses) and a stale UI handler.
+        // The server already processed the turn; showing an alert would confuse the user.
+        const msg = error?.message || String(error);
+        if (msg.includes('Not your turn')) {
+          gameLogger.warn('⚠️ [GameScreen] Suppressed "Not your turn" pass error (likely auto-pass race)');
+        } else {
+          gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
+          showError(msg || 'Failed to pass');
+        }
       } finally {
         isPassingRef.current = false; // Clear synchronous guard
         setIsPassing(false);
@@ -1107,6 +1120,28 @@ function GameScreenContent() {
   const selectedCards = getSelectedCards(effectivePlayerHand);
 
   const layoutPlayers = isLocalAIGame ? players : (multiplayerLayoutPlayers as any);
+
+  // Task #590: Compute total scores per player for score badges (shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
+
+  // Task #590: Match number and game finished state
+  const matchNumber = isLocalAIGame 
+    ? ((gameState as any)?.currentMatch ?? 1) 
+    : ((multiplayerGameState as any)?.match_number ?? 1);
+  const isGameFinished = isLocalAIGame
+    ? ((gameState as any)?.gameOver ?? false)
+    : (
+        (multiplayerGameState as any)?.game_phase === 'finished' ||
+        (multiplayerGameState as any)?.game_phase === 'game_over'
+      );
+
+  // Task #590: Layout players with total scores for GameLayout
+  const layoutPlayersWithScores = React.useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
 
   // 🎯 PERFORMANCE: Memoize expensive props to reduce re-renders
   // 📊 PRODUCTION FIX: Scoreboard shows TURN ORDER [0,1,2,3], not physical positions
@@ -1225,11 +1260,12 @@ function GameScreenContent() {
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
-            isGameFinished={(gameState as any)?.gameOver ?? false}
+            isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
+            totalScores={playerTotalScores}
 
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}
@@ -1276,14 +1312,47 @@ function GameScreenContent() {
         ) : (
           // PORTRAIT MODE (existing layout)
           <>
-            {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
+            {/* Task #590: Match number display - top center */}
+            <View style={scoreDisplayStyles.matchNumberContainer}>
+              <View style={scoreDisplayStyles.matchNumberBadge}>
+                <Text style={scoreDisplayStyles.matchNumberText}>
+                  {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Task #590: Score action buttons - top left */}
+            <View style={scoreDisplayStyles.scoreActionContainer}>
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsPlayHistoryOpen(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="View play history"
+                accessibilityHint="Opens the list of plays for this match"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsScoreboardExpanded(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle scoreboard"
+                accessibilityHint="Expands or collapses the scoreboard"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scoreboard Container (expanded view + play history modal, Task #590: no more compact) */}
             <ScoreboardContainer
             playerNames={memoizedPlayerNames}
             currentScores={memoizedCurrentScores}
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-            matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
-            isGameFinished={(gameState as any)?.gameOver ?? false}
+            matchNumber={matchNumber}
+            isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
@@ -1322,7 +1391,7 @@ function GameScreenContent() {
 
           {/* Game table layout - extracted to GameLayout component (Task #426) */}
           <GameLayout
-            players={layoutPlayers as any}
+            players={layoutPlayersWithScores as any}
             lastPlayedCards={effectiveLastPlayedCards as any}
             lastPlayedBy={effectiveLastPlayedBy as any}
             lastPlayComboType={effectiveLastPlayComboType as any}
@@ -1336,6 +1405,7 @@ function GameScreenContent() {
               name={layoutPlayers[0]?.name ?? currentPlayerName}
               cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
               isActive={layoutPlayers[0]?.isActive ?? false}
+              totalScore={playerTotalScores[0] ?? 0}
             />
           </View>
           
@@ -1414,12 +1484,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary, // Dark background outside table
-  },
-  scoreboardContainer: {
-    position: 'absolute',
-    top: POSITIONING.scoreboardTop,
-    left: POSITIONING.scoreboardLeft,
-    zIndex: 100,
   },
   menuContainer: {
     position: 'absolute',
