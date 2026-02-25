@@ -174,9 +174,9 @@ export class BotAI {
     const minOpponentCards = Math.min(...opponentCounts);
 
     // CRITICAL: Check "One Card Left" rule when leading
-    const turnOrder = [1, 2, 3, 0];
-    const nextPlayerIndex = turnOrder[currentPlayerIndex];
-    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    // Anticlockwise turn order matching game engine: 0→3→1→2→0
+    const nextActivePlayer = this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // If next player has 1 card, MUST lead with highest single to block them
     if (nextPlayerCardCount === 1) {
@@ -272,9 +272,9 @@ export class BotAI {
     const minOpponentCards = Math.min(...opponentCounts);
 
     // Check "One Card Left" rule
-    const turnOrder = [1, 2, 3, 0];
-    const nextPlayerIndex = turnOrder[currentPlayerIndex];
-    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    // Anticlockwise turn order matching game engine: 0→3→1→2→0
+    const nextActivePlayer = this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
     const lastPlayPlayerCardCount = playerCardCounts[lastPlay.position];
@@ -401,15 +401,15 @@ export class BotAI {
   }
 
   /**
-   * Find best 5-card combo in hand
+   * Find a valid 5-card combo in hand (returns weakest available).
    * @copilot-review-fix (Round 1): Search all C(n,5) combinations, not just contiguous slices,
    * so non-contiguous combos like flushes are found.
+   * @copilot-review-fix (Round 2): Removed dead bestCombo variable. Since the hand is sorted
+   * by Big Two rank order and we iterate from lowest indices, the first valid combo found
+   * uses the weakest cards, conserving stronger cards for later plays.
    */
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
-
-    // Generate all 5-card combinations and find the lowest valid combo
-    let bestCombo: Card[] | null = null;
 
     const n = hand.length;
     for (let a = 0; a < n - 4; a++) {
@@ -420,7 +420,7 @@ export class BotAI {
               const fiveCards = [hand[a], hand[b], hand[c], hand[d], hand[e]];
               const combo = classifyCards(fiveCards);
               if (this.is5CardCombo(combo)) {
-                // Return first valid combo found (hand is sorted, so lowest cards first)
+                // Return first valid combo found (hand is sorted, so lowest-indexed cards are weakest)
                 return fiveCards.map(c => c.id);
               }
             }
@@ -429,7 +429,7 @@ export class BotAI {
       }
     }
 
-    return bestCombo;
+    return null;
   }
 
   /**
@@ -566,9 +566,48 @@ export class BotAI {
           }
         }
       }
+      // @copilot-review-fix (Round 2): Sort 5-card combos by strength so validPlays[0]
+      // is truly the weakest and validPlays[last] is truly the strongest.
+      // Uses canBeatPlay to determine relative ordering between combos.
+      if (validPlays.length > 1) {
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => hand.find(c => c.id === id)!);
+          const cardsB = b.map(id => hand.find(c => c.id === id)!);
+          const classB = classifyCards(cardsB);
+          const aBeatsB = canBeatPlay(cardsA, {
+            position: 0,
+            cards: cardsB,
+            combo_type: classB,
+          });
+          return aBeatsB ? 1 : -1;
+        });
+      }
     }
 
     return validPlays;
+  }
+
+  /**
+   * Find the next active player (with cards > 0) in anticlockwise turn order.
+   * Matches the game engine's turn order: 0→3→1→2→0
+   * Skips players who have already finished (0 cards).
+   * Returns -1 if no active player found.
+   */
+  private findNextActivePlayer(currentPlayerIndex: number, playerCardCounts: number[]): number {
+    // Anticlockwise turn order matching game engine (state.ts)
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    let nextIndex = turnOrder[currentPlayerIndex];
+    const startIndex = nextIndex;
+    
+    // Walk through turn order, skipping players with 0 cards (already finished)
+    do {
+      if (playerCardCounts[nextIndex] > 0) {
+        return nextIndex;
+      }
+      nextIndex = turnOrder[nextIndex];
+    } while (nextIndex !== startIndex);
+    
+    return -1; // No active player found
   }
 
   /**

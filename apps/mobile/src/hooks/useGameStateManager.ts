@@ -95,6 +95,11 @@ export function useGameStateManager({
       return;
     }
 
+    // @copilot-review-fix (Round 2): Capture unsubscribe in outer scope so useEffect
+    // can return synchronous cleanup. Previously, cleanup was returned inside async
+    // initGame() and never reached React.
+    let unsubscribeFn: (() => void) | null = null;
+
     const initGame = async () => {
       try {
         gameLogger.info('🎮 [useGameStateManager] Initializing game engine for room:', roomCode);
@@ -138,6 +143,7 @@ export function useGameStateManager({
             previousState.currentPlayerIndex !== 0
           ) {
             soundManager.playSound(SoundType.TURN_NOTIFICATION);
+
             gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
           }
 
@@ -278,6 +284,9 @@ export function useGameStateManager({
           setTimeout(() => checkAndExecuteBotTurn(), 100);
         });
 
+        // Capture unsubscribe for synchronous cleanup
+        unsubscribeFn = unsubscribe;
+
         // Only initialize NEW game if no saved state was loaded
         if (!savedState) {
           gameLogger.info('🆕 [useGameStateManager] No saved game found - starting new game');
@@ -296,20 +305,6 @@ export function useGameStateManager({
           soundManager.playSound(SoundType.GAME_START);
           gameLogger.info('🎵 [Audio] Game start sound triggered');
         }
-
-        return () => {
-          unsubscribe();
-          if (gameManagerRef.current) {
-            gameManagerRef.current.destroy();
-          }
-          if (autoStartMatchTimeoutRef.current) {
-            clearTimeout(autoStartMatchTimeoutRef.current);
-            autoStartMatchTimeoutRef.current = null;
-          }
-          soundManager.cleanup().catch((err) => {
-            gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
-          });
-        };
       } catch (error: any) {
         gameLogger.error(
           '❌ [useGameStateManager] Failed to initialize game:',
@@ -321,6 +316,23 @@ export function useGameStateManager({
     };
 
     initGame();
+
+    // @copilot-review-fix (Round 2): Return synchronous cleanup from useEffect itself.
+    // Previously, cleanup was returned inside async initGame() where React couldn't reach it,
+    // leaking subscriptions, timeouts, and the game manager on unmount/re-render.
+    return () => {
+      unsubscribeFn?.();
+      if (gameManagerRef.current) {
+        gameManagerRef.current.destroy();
+      }
+      if (autoStartMatchTimeoutRef.current) {
+        clearTimeout(autoStartMatchTimeoutRef.current);
+        autoStartMatchTimeoutRef.current = null;
+      }
+      soundManager.cleanup().catch((err) => {
+        gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
+      });
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, currentPlayerName, isLocalGame, botDifficulty]);
 
