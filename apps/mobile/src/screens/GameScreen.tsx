@@ -186,10 +186,13 @@ function GameScreenContent() {
     username: currentPlayerName,
     onError: (error) => {
       gameLogger.error('[GameScreen] Multiplayer error:', error.message);
-      // Only show critical errors, not connection issues
-      if (!error.message.includes('connection') && !error.message.includes('reconnect')) {
-        showError(error.message);
+      // Only show critical errors, not connection issues or turn race conditions
+      const msg = error.message?.toLowerCase() || '';
+      if (msg.includes('connection') || msg.includes('reconnect') || msg.includes('not your turn')) {
+        gameLogger.warn('⚠️ [GameScreen] Suppressed non-critical multiplayer error from UI');
+        return;
       }
+      showError(error.message);
     },
     onDisconnect: () => {
       gameLogger.warn('[GameScreen] Multiplayer disconnected');

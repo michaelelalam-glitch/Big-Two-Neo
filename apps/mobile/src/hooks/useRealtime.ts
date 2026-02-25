@@ -1017,7 +1017,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
+      // by BotCoordinator's own catch block. Calling onError here would show a confusing
+      // Alert to the user for something they didn't do (e.g., "Not your turn" race condition
+      // after a FunctionsFetchError retry for a previous bot's play).
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
+      }
       throw error;
     }
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
@@ -1113,7 +1121,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
+      }
       throw error;
     }
   }, [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]);
