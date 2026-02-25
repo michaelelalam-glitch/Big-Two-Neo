@@ -218,8 +218,11 @@ export function LocalAIGameScreen() {
   const playerTotalScores = useMemo(() => {
     if (layoutPlayers.length !== 4) return [0, 0, 0, 0];
     if (scoreHistory.length > 0) {
-      return layoutPlayers.map((p: any) => {
-        return scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[p.player_index] || 0), 0);
+      // layoutPlayers are in display order [you, top, left, right]
+      // scoreHistory pointsAdded is indexed by game player_index
+      // Use mapPlayersToScoreboardOrder to align correctly
+      return layoutPlayers.map((_p: any, i: number) => {
+        return scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[i] || 0), 0);
       });
     }
     return layoutPlayers.map((p: any) => p.score || 0);

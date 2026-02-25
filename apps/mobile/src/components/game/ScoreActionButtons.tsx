@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { POSITIONING } from '../../constants';
 
 interface ScoreActionButtonsProps {
   onToggleExpand: () => void;
@@ -21,10 +21,8 @@ interface ScoreActionButtonsProps {
 }
 
 export function ScoreActionButtons({ onToggleExpand, onTogglePlayHistory }: ScoreActionButtonsProps) {
-  const insets = useSafeAreaInsets();
-
   return (
-    <View style={[styles.container, { top: insets.top + 4 }]}>
+    <View style={styles.container}>
       {/* Play History Button */}
       <TouchableOpacity
         style={styles.button}
@@ -55,10 +53,11 @@ export function ScoreActionButtons({ onToggleExpand, onTogglePlayHistory }: Scor
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    top: POSITIONING.menuTop,
     left: 12,
     flexDirection: 'row',
     gap: 8,
-    zIndex: 100,
+    zIndex: 150,
   },
   button: {
     minWidth: 44,

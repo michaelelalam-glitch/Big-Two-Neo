@@ -9,8 +9,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING } from '../../constants';
+import { POSITIONING } from '../../constants';
 
 interface MatchNumberDisplayProps {
   matchNumber: number;
@@ -18,10 +17,8 @@ interface MatchNumberDisplayProps {
 }
 
 export function MatchNumberDisplay({ matchNumber, isGameFinished }: MatchNumberDisplayProps) {
-  const insets = useSafeAreaInsets();
-
   return (
-    <View style={[styles.container, { top: insets.top + 4 }]}>
+    <View style={styles.container}>
       <View style={styles.badge}>
         <Text style={styles.text}>
           {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
@@ -34,10 +31,11 @@ export function MatchNumberDisplay({ matchNumber, isGameFinished }: MatchNumberD
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    top: POSITIONING.menuTop,
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 110,
+    zIndex: 150,
     pointerEvents: 'none',
   },
   badge: {
