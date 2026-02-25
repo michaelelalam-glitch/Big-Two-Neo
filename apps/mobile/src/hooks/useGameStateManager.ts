@@ -13,6 +13,7 @@ interface UseGameStateManagerProps {
   currentPlayerName: string;
   forceNewGame?: boolean;
   isLocalGame?: boolean; // NEW: Only initialize game engine for local games
+  botDifficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty for local games (Task #596)
   addScoreHistory: (history: ScoreHistory) => void;
   openGameEndModal: (
     winnerName: string,
@@ -51,6 +52,7 @@ export function useGameStateManager({
   currentPlayerName,
   forceNewGame = false,
   isLocalGame = true, // Default true for backwards compatibility
+  botDifficulty = 'medium', // Default medium for backwards compatibility (Task #596)
   addScoreHistory,
   openGameEndModal,
   scoreHistory,
@@ -277,11 +279,11 @@ export function useGameStateManager({
         // Only initialize NEW game if no saved state was loaded
         if (!savedState) {
           gameLogger.info('🆕 [useGameStateManager] No saved game found - starting new game');
-          // Initialize game with 3 bots
+          // Initialize game with 3 bots using configured difficulty (Task #596)
           const initialState = await manager.initializeGame({
             playerName: currentPlayerName,
             botCount: 3,
-            botDifficulty: 'medium',
+            botDifficulty: botDifficulty,
           });
 
           setGameState(initialState);

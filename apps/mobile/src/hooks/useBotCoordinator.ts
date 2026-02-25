@@ -148,11 +148,17 @@ export function useBotCoordinator({
       });
       
       // Get or create bot AI for this player
+      // CRITICAL FIX (Task #596): Validate cached bot difficulty matches player's actual difficulty
+      // Previously, once a BotAI was cached, it was never recreated even if difficulty changed
+      const expectedDifficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
       let botAI = botAICache.current.get(currentPlayerIndex);
-      if (!botAI) {
-        const difficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
-        botAI = new BotAI(difficulty);
+      if (!botAI || botAI.difficulty !== expectedDifficulty) {
+        if (botAI) {
+          gameLogger.info(`[BotCoordinator] ♻️ Recreating BotAI for player ${currentPlayerIndex} - difficulty changed to '${expectedDifficulty}'`);
+        }
+        botAI = new BotAI(expectedDifficulty);
         botAICache.current.set(currentPlayerIndex, botAI);
+        gameLogger.info(`[BotCoordinator] 🎯 Created BotAI for player ${currentPlayerIndex} with difficulty='${expectedDifficulty}'`);
       }
       
       // Prepare bot decision inputs

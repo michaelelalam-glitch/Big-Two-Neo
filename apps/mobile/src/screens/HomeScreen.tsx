@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
   const [showFindGameModal, setShowFindGameModal] = useState(false);
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, startMatchmaking, resetMatch } = useMatchmaking();
@@ -84,12 +85,17 @@ export default function HomeScreen() {
   );
 
   const handleOfflinePractice = () => {
-    roomLogger.info('🤖 Starting Offline Practice Mode...');
-    // Navigate directly to GameScreen with LOCAL_AI_GAME mode
-    // This bypasses lobby and uses client-side GameStateManager
+    // Show difficulty picker modal instead of navigating directly
+    setShowDifficultyModal(true);
+  };
+
+  const handleStartOfflineWithDifficulty = (difficulty: 'easy' | 'medium' | 'hard') => {
+    setShowDifficultyModal(false);
+    roomLogger.info(`🤖 Starting Offline Practice Mode with ${difficulty} bots...`);
     navigation.navigate('Game', { 
       roomCode: 'LOCAL_AI_GAME',
-      forceNewGame: true 
+      forceNewGame: true,
+      botDifficulty: difficulty,
     });
   };
 
@@ -523,6 +529,57 @@ export default function HomeScreen() {
       </View>
       </ScrollView>
       
+      {/* Bot Difficulty Picker Modal */}
+      <Modal
+        visible={showDifficultyModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDifficultyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>🤖 Bot Difficulty</Text>
+            <Text style={styles.modalSubtitle}>Choose how smart the bots will be</Text>
+            
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.difficultyEasyButton]}
+                onPress={() => handleStartOfflineWithDifficulty('easy')}
+              >
+                <Text style={styles.modalButtonIcon}>😊</Text>
+                <Text style={styles.modalButtonText}>Easy</Text>
+                <Text style={styles.modalButtonSubtext}>Bots make mistakes and pass often. Great for learning!</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.difficultyMediumButton]}
+                onPress={() => handleStartOfflineWithDifficulty('medium')}
+              >
+                <Text style={styles.modalButtonIcon}>🧠</Text>
+                <Text style={styles.modalButtonText}>Medium</Text>
+                <Text style={styles.modalButtonSubtext}>Balanced play with basic strategy. A fair challenge.</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.difficultyHardButton]}
+                onPress={() => handleStartOfflineWithDifficulty('hard')}
+              >
+                <Text style={styles.modalButtonIcon}>🔥</Text>
+                <Text style={styles.modalButtonText}>Hard</Text>
+                <Text style={styles.modalButtonSubtext}>Optimal play with advanced combos. Think you can win?</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowDifficultyModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Find a Game Modal */}
       <Modal
         visible={showFindGameModal}
@@ -778,6 +835,18 @@ const styles = StyleSheet.create({
   modalRankedButton: {
     backgroundColor: '#F59E0B',
     borderColor: '#FBBF24',
+  },
+  difficultyEasyButton: {
+    backgroundColor: '#10B981',
+    borderColor: '#34D399',
+  },
+  difficultyMediumButton: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#FBBF24',
+  },
+  difficultyHardButton: {
+    backgroundColor: '#EF4444',
+    borderColor: '#F87171',
   },
   modalButtonIcon: {
     fontSize: 32,

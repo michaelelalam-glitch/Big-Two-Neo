@@ -697,8 +697,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   /**
    * Start the game (host only)
+   * @param botDifficulty - Difficulty level for bot players (default: 'medium')
    */
-  const startGame = useCallback(async (): Promise<void> => {
+  const startGame = useCallback(async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
     if (!isHost || !room) return;
     
     // Check if all room players are ready
@@ -719,7 +720,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
         p_room_id: room.id,
         p_bot_count: botCount,
-        p_bot_difficulty: 'medium',
+        p_bot_difficulty: botDifficulty,
       });
 
       if (startError || !startResult?.success) {
