@@ -1030,8 +1030,16 @@ function GameScreenContent() {
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
       } catch (error: any) {
-        gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', error?.message || String(error));
-        showError(error.message || 'Failed to pass');
+        // Suppress 'Not your turn' in multiplayer — this commonly occurs due to a race
+        // between the auto-pass timer (executeAutoPasses) and a stale UI handler.
+        // The server already processed the turn; showing an alert would confuse the user.
+        const msg = error?.message || String(error);
+        if (msg.includes('Not your turn')) {
+          gameLogger.warn('⚠️ [GameScreen] Suppressed "Not your turn" pass error (likely auto-pass race)');
+        } else {
+          gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
+          showError(msg || 'Failed to pass');
+        }
       } finally {
         isPassingRef.current = false; // Clear synchronous guard
         setIsPassing(false);

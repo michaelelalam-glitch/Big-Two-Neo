@@ -1036,6 +1036,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       throw new Error('Not your turn');
     }
     
+    // FIX: If the auto-pass timer is currently executing, silently skip.
+    // This prevents race conditions where pass() fires from a stale handler
+    // while executeAutoPasses() has already handled the turn via direct Edge Function call.
+    if (autoPassExecutionGuard.current) {
+      gameLogger.info('[useRealtime] ⚠️ Skipping pass() — auto-pass execution in progress');
+      return;
+    }
+    
     if (!room?.code) {
       throw new Error('Room code not available');
     }
@@ -1076,6 +1084,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         trick_cleared: result.trick_cleared,
         timer_preserved: !!result.auto_pass_timer,
       });
+      
+      // FIX: Immediately clear local timer state when the trick cleared (timer not preserved).
+      // Without this, the timer polling interval keeps running on stale state until the
+      // Realtime subscription propagates, which can trigger a duplicate executeAutoPasses().
+      if (!result.auto_pass_timer) {
+        setGameState(prevState => {
+          if (!prevState) return prevState;
+          return { ...prevState, auto_pass_timer: null };
+        });
+      }
       
       // Broadcast manual pass event
       await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
@@ -1826,7 +1844,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     gameState?.game_phase,
     room?.id,
     roomPlayers,
-    pass,
+    // NOTE: `pass` intentionally omitted — executeAutoPasses() calls invokeWithRetry
+    // directly, not pass(). Including `pass` caused the timer interval to be destroyed
+    // and recreated on every gameState change (since pass depends on gameState),
+    // resulting in massive log churn and potential race conditions.
     broadcastMessage,
   ]);
 
