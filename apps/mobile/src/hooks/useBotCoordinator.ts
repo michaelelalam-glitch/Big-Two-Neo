@@ -184,6 +184,18 @@ export function useBotCoordinator({
                                  players.every((p: any) => p.cards?.length === 13));
 
       // Calculate bot decision
+      // Multiplayer uses sequential turn order (0→1→2→3→0), matching the server's
+      // Edge Function logic. Compute nextPlayerIndex so bot AI's One Card Left
+      // detection matches the server's validation.
+      const numPlayers = players.length;
+      let nextPlayerIdx = (currentPlayerIndex + 1) % numPlayers;
+      // Skip players with 0 cards (already finished)
+      const maxSteps = numPlayers;
+      for (let step = 0; step < maxSteps; step++) {
+        if (playerCardCounts[nextPlayerIdx] > 0) break;
+        nextPlayerIdx = (nextPlayerIdx + 1) % numPlayers;
+      }
+
       const botDecision = botAI.getPlay({
         hand: botHand,
         lastPlay,
@@ -191,6 +203,7 @@ export function useBotCoordinator({
         matchNumber, // Pass match number so bot knows if 3D is required
         playerCardCounts,
         currentPlayerIndex,
+        nextPlayerIndex: nextPlayerIdx,
       });
       
       gameLogger.info(`[BotCoordinator] Bot decision:`, {

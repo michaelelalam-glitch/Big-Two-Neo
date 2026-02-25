@@ -23,6 +23,7 @@ export interface BotPlayOptions {
   matchNumber?: number; // Current match number (1, 2, 3, etc.)
   playerCardCounts: number[];
   currentPlayerIndex: number; // Index of the current bot player
+  nextPlayerIndex?: number; // Pre-computed next player index (for multiplayer where turn order differs)
   difficulty?: BotDifficulty;
 }
 
@@ -50,7 +51,7 @@ export class BotAI {
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex } = options;
+    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex, nextPlayerIndex } = options;
     
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
@@ -84,11 +85,11 @@ export class BotAI {
 
     // Leading (no last play) - Match 2+ or after trick cleared
     if (!lastPlay) {
-      return this.handleLeading(hand, playerCardCounts, currentPlayerIndex);
+      return this.handleLeading(hand, playerCardCounts, currentPlayerIndex, nextPlayerIndex);
     }
 
     // Following - try to beat last play
-    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex);
+    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex, nextPlayerIndex);
   }
 
   /**
@@ -166,7 +167,7 @@ export class BotAI {
    * - MEDIUM: Occasionally leads with pairs (40%). Basic strategy.
    * - HARD: Strategic combo play. Leads with pairs/triples to preserve singles. 5-card combos when opponent is low.
    */
-  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number): BotPlayResult {
+  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number, nextPlayerIndex?: number): BotPlayResult {
     const sorted = sortHand(hand);
     // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
     const opponentCounts = playerCardCounts
@@ -174,8 +175,11 @@ export class BotAI {
     const minOpponentCards = Math.min(...opponentCounts);
 
     // CRITICAL: Check "One Card Left" rule when leading
-    // Anticlockwise turn order matching game engine: 0→3→1→2→0
-    const nextActivePlayer = this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
+    // otherwise fall back to anticlockwise turn order (local games).
+    const nextActivePlayer = nextPlayerIndex !== undefined
+      ? nextPlayerIndex
+      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
     const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // If next player has 1 card, MUST lead with highest single to block them
@@ -263,7 +267,8 @@ export class BotAI {
     hand: Card[], 
     lastPlay: LastPlay, 
     playerCardCounts: number[],
-    currentPlayerIndex: number
+    currentPlayerIndex: number,
+    nextPlayerIndex?: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
     // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
@@ -272,8 +277,11 @@ export class BotAI {
     const minOpponentCards = Math.min(...opponentCounts);
 
     // Check "One Card Left" rule
-    // Anticlockwise turn order matching game engine: 0→3→1→2→0
-    const nextActivePlayer = this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
+    // otherwise fall back to anticlockwise turn order (local games).
+    const nextActivePlayer = nextPlayerIndex !== undefined
+      ? nextPlayerIndex
+      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
     const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
