@@ -361,10 +361,9 @@ export default function LobbyScreen() {
         return;
       }
 
-      // Host check:
-      // - Casual games: anyone can start (RPC picks coordinator as first human)
-      // - Private/Ranked: host-only
-      if (!roomType.isCasual && !roomPlayerData.is_host) {
+      // Host check: Only the host can start the game in ALL room types
+      // Server-side RPC also enforces this (coordinator = first human player = host)
+      if (!roomPlayerData.is_host) {
         showError(i18n.t('lobby.onlyHostCanStart'));
         return;
       }
@@ -603,9 +602,9 @@ export default function LobbyScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Bot Filling Controls - Only for Casual/Private (NOT Ranked) */}
+        {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
         {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
-        {(isHost || isMatchmakingRoom) && !roomType.isRanked ? (
+        {isHost && !roomType.isRanked ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
@@ -670,10 +669,7 @@ export default function LobbyScreen() {
             )}
             
             <Text style={styles.hostInfo}>
-              {roomType.isCasual 
-                ? i18n.t('lobby.casualRoomInfo') || 'Anyone can start this casual game'
-                : i18n.t('lobby.hostInfo')
-              }
+              {i18n.t('lobby.hostInfo') || 'Only the host can start the game'}
             </Text>
           </>
         ) : null}
@@ -692,10 +688,10 @@ export default function LobbyScreen() {
           </View>
         )}
         
-        {/* Non-host in private room */}
-        {!roomType.isRanked && !isHost && !isMatchmakingRoom && (
+        {/* Non-host players: show waiting message in all non-ranked rooms */}
+        {!roomType.isRanked && !isHost && (
           <Text style={styles.waitingInfo}>
-            {i18n.t('lobby.waitingForHost')}
+            {i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
           </Text>
         )}
       </View>
