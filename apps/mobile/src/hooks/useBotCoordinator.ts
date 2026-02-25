@@ -440,12 +440,90 @@ export function useBotCoordinator({
   ]);
   
   /**
+   * FAILSAFE: Retry start_new_match if game is stuck in 'finished' phase.
+   * 
+   * When a bot plays its last card (highest card), the play-cards edge function
+   * sets game_phase='finished' and the useRealtime playCards flow fires
+   * start_new_match as a fire-and-forget IIFE. If that call fails silently
+   * (network error, timeout, etc.), the game gets permanently stuck.
+   * 
+   * This failsafe detects when the coordinator sees 'finished' for >5 seconds
+   * and retries the start_new_match edge function call to unstick the game.
+   */
+  const matchEndFailsafeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  useEffect(() => {
+    // Only the coordinator should retry start_new_match
+    if (!isCoordinator || !gameState || !gameState.room_id) {
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+      return;
+    }
+    
+    const phase = gameState.game_phase;
+    
+    if (phase === 'finished') {
+      // Game is in 'finished' state — start a 5-second failsafe timer
+      if (!matchEndFailsafeRef.current) {
+        gameLogger.info('[BotCoordinator] ⏱️ Match finished — starting 5s failsafe for start_new_match');
+        matchEndFailsafeRef.current = setTimeout(async () => {
+          // Double-check we're still in 'finished' phase
+          try {
+            const { data: latestState } = await supabase
+              .from('game_state')
+              .select('game_phase')
+              .eq('room_id', gameState.room_id)
+              .single();
+            
+            if (latestState?.game_phase === 'finished') {
+              gameLogger.warn('[BotCoordinator] ⚠️ FAILSAFE: Game still stuck in finished after 5s — retrying start_new_match');
+              const { data, error } = await supabase.functions.invoke('start_new_match', {
+                body: { room_id: gameState.room_id },
+              });
+              
+              if (error) {
+                gameLogger.error('[BotCoordinator] ❌ FAILSAFE start_new_match failed:', error);
+              } else {
+                gameLogger.info('[BotCoordinator] ✅ FAILSAFE start_new_match succeeded:', data);
+              }
+            } else {
+              gameLogger.info('[BotCoordinator] ✅ Game progressed before failsafe (phase:', latestState?.game_phase, ')');
+            }
+          } catch (err: any) {
+            gameLogger.error('[BotCoordinator] 💥 FAILSAFE error:', err?.message || String(err));
+          }
+          matchEndFailsafeRef.current = null;
+        }, 5000);
+      }
+    } else {
+      // Game is NOT in 'finished' — clear any pending failsafe
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+    };
+  }, [isCoordinator, gameState?.game_phase, gameState?.room_id]);
+
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
     return () => {
       botAICache.current.clear();
       isExecutingRef.current = null;
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
     };
   }, []);
 }

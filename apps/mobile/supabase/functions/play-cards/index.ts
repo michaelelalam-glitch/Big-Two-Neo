@@ -979,7 +979,12 @@ Deno.serve(async (req) => {
       playedCardsBeforeCurrent: played_cards.length,
     });
 
-    if (isHighestPlay) {
+    // CRITICAL FIX: Do NOT create auto-pass timer when match has ended.
+    // When a player plays their last card (matchEnded=true), the match is over —
+    // there's no one left to auto-pass. Creating a timer here causes the client-side
+    // AutoPassTimer to loop at remaining=0 indefinitely, spamming logs and potentially
+    // blocking the start_new_match transition.
+    if (isHighestPlay && !matchEnded) {
       const serverTimeMs = Date.now();
       const durationMs = 10000; // 10 seconds
       const endTimestamp = serverTimeMs + durationMs;
@@ -1011,6 +1016,8 @@ Deno.serve(async (req) => {
         cards: cards.map(c => c.id),
         comboType,
       });
+    } else if (matchEnded) {
+      console.log('ℹ️ Auto-pass timer NOT created - match ended (player played last card)');
     } else {
       console.log('ℹ️ Auto-pass timer NOT created - not highest play');
     }

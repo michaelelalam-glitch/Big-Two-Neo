@@ -1152,9 +1152,14 @@ function GameScreenContent() {
   const hasEffectiveGameState = isLocalAIGame ? !!gameState : !!multiplayerGameState;
   // 🔥 FIXED Task #540: Auto-pass timer now works in BOTH local AND multiplayer!
   // The game_state table has auto_pass_timer column for multiplayer (added Dec 28, 2025)
+  // CRITICAL FIX: Don't show auto-pass timer when game_phase='finished' or 'game_over'.
+  // When a bot plays its last card (highest play), the server may still have an active timer
+  // in the game_state. Rendering it causes rAF spam at remaining=0.
+  const multiplayerPhase = (multiplayerGameState as any)?.game_phase;
+  const isMatchActive = !multiplayerPhase || (multiplayerPhase !== 'finished' && multiplayerPhase !== 'game_over');
   const effectiveAutoPassTimerState = isLocalAIGame
     ? ((gameState as any)?.auto_pass_timer ?? undefined)
-    : ((multiplayerGameState as any)?.auto_pass_timer ?? undefined); // ✅ Now reads from multiplayer game_state!
+    : (isMatchActive ? ((multiplayerGameState as any)?.auto_pass_timer ?? undefined) : undefined); // ✅ Suppress timer when match is over
 
   // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex must match multiplayerLayoutPlayers array order.
   // multiplayerLayoutPlayers array order: [me (index 0), top (index 1), left (index 2), right (index 3)].

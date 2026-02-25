@@ -40,23 +40,39 @@ export default function AutoPassTimer({
   const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
 
   // Update current time every frame for smooth countdown
+  // CRITICAL FIX: Stop the rAF loop once remaining reaches 0 to prevent
+  // infinite log spam and unnecessary CPU usage when timer has expired.
   useEffect(() => {
     if (!timerState || !timerState.active) {
       return;
     }
 
     let animationFrameId: number;
+    let stopped = false;
     const updateTime = () => {
-      setCurrentTime(Date.now());
+      if (stopped) return;
+      const now = Date.now();
+      // Check if timer has expired — if so, do one final update and stop the loop
+      const endTimestamp = (timerState as any).end_timestamp;
+      if (typeof endTimestamp === 'number') {
+        const correctedNow = now + (offsetMs || 0);
+        if (correctedNow >= endTimestamp) {
+          setCurrentTime(now);
+          stopped = true;
+          return; // Don't schedule another frame
+        }
+      }
+      setCurrentTime(now);
       animationFrameId = requestAnimationFrame(updateTime);
     };
     
     animationFrameId = requestAnimationFrame(updateTime);
     
     return () => {
+      stopped = true;
       cancelAnimationFrame(animationFrameId);
     };
-  }, [timerState?.active, (timerState as any)?.end_timestamp]);
+  }, [timerState?.active, (timerState as any)?.end_timestamp, offsetMs]);
 
   // ⏰ CRITICAL: Calculate remaining time from server-authoritative endTimestamp
   const calculateRemainingMs = (): number => {
@@ -70,7 +86,9 @@ export default function AutoPassTimer({
       const remaining = Math.max(0, endTimestamp - correctedNow);
       
       // Debug logging (only log once per second to avoid spam)
-      if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
+      // CRITICAL FIX: Also guard against remaining=0, which made the old condition
+      // always true (Math.floor(0/1000)=0 !== Math.floor(-16/1000)=-1) causing 60fps log spam
+      if (remaining > 0 && Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
         console.log('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
           correctedNow: new Date(correctedNow).toISOString(),
