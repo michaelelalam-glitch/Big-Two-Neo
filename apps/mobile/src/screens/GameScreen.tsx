@@ -59,7 +59,7 @@ function GameScreenContent() {
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd(); // Task #415, #416, #417
-  const { roomCode, forceNewGame = false } = route.params;
+  const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
   // Store refs to always get latest context values (prevent stale closure)
@@ -151,6 +151,7 @@ function GameScreenContent() {
     currentPlayerName,
     forceNewGame,
     isLocalGame: isLocalAIGame, // CRITICAL: Only init for local games, not multiplayer!
+    botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
     openGameEndModal: (winnerName: string, winnerPosition: number, finalScores: FinalScore[], playerNames: string[], scoreHistory: ScoreHistory[], playHistory: PlayHistoryMatch[]) => {
       openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, scoreHistory, playHistory);
@@ -744,7 +745,7 @@ function GameScreenContent() {
         const newState = await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
-          botDifficulty: 'medium',
+          botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
         });
         // TODO: This needs to trigger a state update through the hook
         gameLogger.info('✅ [GameScreen] Game restarted successfully');

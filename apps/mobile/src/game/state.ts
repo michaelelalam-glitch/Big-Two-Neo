@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay } from './engine';
+import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { type AutoPassTimerState } from '../types/multiplayer';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
@@ -409,8 +409,14 @@ export class GameStateManager {
     // Check "One Card Left" rule - cannot pass if next player has 1 card and you have valid single
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
     // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[this.state.currentPlayerIndex];
+    // Skip players who have already finished (0 cards) to find actual next player
+    const turnOrderPass = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    let nextPlayerIndex = turnOrderPass[this.state.currentPlayerIndex];
+    const startPassIdx = nextPlayerIndex;
+    while (this.state.players[nextPlayerIndex].hand.length === 0 && nextPlayerIndex !== this.state.currentPlayerIndex) {
+      nextPlayerIndex = turnOrderPass[nextPlayerIndex];
+      if (nextPlayerIndex === startPassIdx) break; // Safety: prevent infinite loop
+    }
     const nextPlayer = this.state.players[nextPlayerIndex];
     const nextPlayerCardCount = nextPlayer.hand.length;
     
@@ -513,11 +519,65 @@ export class GameStateManager {
       botPlay.reasoning ? `(${botPlay.reasoning})` : ''
     );
 
-    // Execute bot decision
+    // Execute bot decision with circuit breaker to prevent infinite loops
+    const MAX_BOT_RETRIES = 3;
+    let retryCount = 0;
+    let result: { success: boolean; error?: string };
+
     if (botPlay.cards === null) {
-      await this.pass();
+      result = await this.pass();
     } else {
-      await this.playCards(botPlay.cards);
+      result = await this.playCards(botPlay.cards);
+    }
+
+    // If play was rejected, retry with fallback logic
+    while (!result.success && retryCount < MAX_BOT_RETRIES) {
+      retryCount++;
+      gameLogger.warn(`⚠️ [GameStateManager] Bot ${currentPlayer.name} play rejected (attempt ${retryCount}/${MAX_BOT_RETRIES}): ${result.error}`);
+
+      // @copilot-review-fix (Round 3): Broaden One Card Left error matching.
+      // pass() rewrites the message with player names, so also check for
+      // "Cannot pass" + "1 card left" to catch all variants.
+      const errorMsg = result.error ?? '';
+      if (
+        errorMsg.includes('Must play highest single') ||
+        errorMsg.includes('opponent has 1 card') ||
+        (errorMsg.includes('Cannot pass') && errorMsg.includes('1 card left'))
+      ) {
+        const sorted = sortHand(currentPlayer.hand);
+        if (this.state.lastPlay) {
+          const highestSingle = findHighestBeatingSingle(sorted, this.state.lastPlay);
+          if (highestSingle) {
+            gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: playing highest single ${highestSingle.rank}${highestSingle.suit}`);
+            result = await this.playCards([highestSingle.id]);
+            continue;
+          }
+        }
+        // When leading, play highest card in hand
+        const highestCard = sorted[sorted.length - 1];
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: leading with highest single ${highestCard.rank}${highestCard.suit}`);
+        result = await this.playCards([highestCard.id]);
+        continue;
+      }
+
+      // Generic fallback: try to pass
+      if (this.state.lastPlay && !this.state.isFirstPlayOfGame) {
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: attempting pass`);
+        result = await this.pass();
+      } else {
+        // Can't pass when leading - play lowest card
+        const sorted = sortHand(currentPlayer.hand);
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: playing lowest card`);
+        result = await this.playCards([sorted[0].id]);
+      }
+    }
+
+    if (!result.success) {
+      gameLogger.error(`❌ [GameStateManager] Bot ${currentPlayer.name} STUCK after ${MAX_BOT_RETRIES} retries: ${result.error}. Force-passing.`);
+      // Last resort: force advance to prevent infinite loop
+      this.advanceToNextPlayer();
+      await this.saveState();
+      this.notifyListeners();
     }
     
     gameLogger.debug(`✅ [GameStateManager] Bot ${currentPlayer.name} turn complete. Next player: ${this.state.players[this.state.currentPlayerIndex].name}`);
@@ -728,9 +788,15 @@ export class GameStateManager {
     }
 
     // Check "One Card Left" rule
-    // Get next player's card count (anticlockwise turn order: 0→3→1→2→0)
+    // Get next ACTIVE player's card count (anticlockwise, skipping finished players)
     const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+    let nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+    const startCheckIdx = nextPlayerIndex;
+    // Skip players who have already finished (0 cards)
+    while (this.state!.players[nextPlayerIndex].hand.length === 0 && nextPlayerIndex !== this.state!.currentPlayerIndex) {
+      nextPlayerIndex = turnOrder[nextPlayerIndex];
+      if (nextPlayerIndex === startCheckIdx) break; // Safety: prevent infinite loop
+    }
     const nextPlayerCardCount = this.state!.players[nextPlayerIndex].hand.length;
     
     const oneCardLeftValidation = validateOneCardLeftRule(

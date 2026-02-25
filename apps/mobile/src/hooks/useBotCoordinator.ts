@@ -148,16 +148,30 @@ export function useBotCoordinator({
       });
       
       // Get or create bot AI for this player
+      // CRITICAL FIX (Task #596): Validate cached bot difficulty matches player's actual difficulty
+      // Previously, once a BotAI was cached, it was never recreated even if difficulty changed
+      const expectedDifficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
       let botAI = botAICache.current.get(currentPlayerIndex);
-      if (!botAI) {
-        const difficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
-        botAI = new BotAI(difficulty);
+      if (!botAI || botAI.difficulty !== expectedDifficulty) {
+        if (botAI) {
+          gameLogger.info(`[BotCoordinator] ♻️ Recreating BotAI for player ${currentPlayerIndex} - difficulty changed to '${expectedDifficulty}'`);
+        }
+        botAI = new BotAI(expectedDifficulty);
         botAICache.current.set(currentPlayerIndex, botAI);
+        gameLogger.info(`[BotCoordinator] 🎯 Created BotAI for player ${currentPlayerIndex} with difficulty='${expectedDifficulty}'`);
       }
       
       // Prepare bot decision inputs
       const botHand: Card[] = currentPlayer.cards || [];
-      const playerCardCounts = players.map((p: any) => p.cards?.length || 0);
+      // @copilot-review-fix (Round 2): Build playerCardCounts indexed by player_index
+      // to ensure correct mapping regardless of players array order
+      const playerCardCounts = new Array(4).fill(0);
+      players.forEach((p: any) => {
+        const idx = p.player_index;
+        if (idx !== undefined && idx !== null && idx >= 0 && idx < 4) {
+          playerCardCounts[idx] = p.cards?.length || 0;
+        }
+      });
       
       const lastPlay = gameState.last_play ? {
         position: gameState.last_play.position,

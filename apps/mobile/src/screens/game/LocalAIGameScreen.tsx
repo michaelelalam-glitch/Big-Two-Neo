@@ -48,7 +48,7 @@ export function LocalAIGameScreen() {
     playHistoryByMatch 
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
-  const { roomCode, forceNewGame = false } = route.params;
+  const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
   gameLogger.info(`🎮 [LocalAIGameScreen] Starting local AI game`);
@@ -104,6 +104,7 @@ export function LocalAIGameScreen() {
     currentPlayerName,
     forceNewGame,
     isLocalGame: true,
+    botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
     openGameEndModal,
     scoreHistory,
@@ -248,7 +249,7 @@ export function LocalAIGameScreen() {
         await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
-          botDifficulty: 'medium',
+          botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
         });
         soundManager.playSound(SoundType.GAME_START);
       } catch (error) {
