@@ -114,15 +114,42 @@ export class BotAI {
     }
 
     // Medium: 50% chance to search for pair with 3D
+    // @copilot-review-fix (Round 1): Use sorted hand index to pick lowest-strength pair with 3D
     if (this.difficulty === 'medium' && Math.random() < 0.5) {
       const pairs = this.findAllPairs(sorted);
-      for (const pair of pairs) {
-        if (pair.includes(threeD.id)) {
-          return {
-            cards: pair,
-            reasoning: `[MEDIUM] Playing pair with 3D`
-          };
+      const candidatePairs = pairs.filter(pair => pair.includes(threeD.id));
+
+      if (candidatePairs.length > 0) {
+        // Build lookup from card id to its index in the Big Two-sorted hand
+        const idToIndex = new Map<string, number>();
+        for (let i = 0; i < sorted.length; i++) {
+          idToIndex.set(sorted[i].id, i);
         }
+
+        // Choose the "lowest" pair by Big Two order, based on positions in `sorted`
+        let bestPair = candidatePairs[0];
+        let bestStrength = Math.max(
+          idToIndex.get(bestPair[0]) ?? Number.MAX_SAFE_INTEGER,
+          idToIndex.get(bestPair[1]) ?? Number.MAX_SAFE_INTEGER
+        );
+
+        for (let i = 1; i < candidatePairs.length; i++) {
+          const pair = candidatePairs[i];
+          const strength = Math.max(
+            idToIndex.get(pair[0]) ?? Number.MAX_SAFE_INTEGER,
+            idToIndex.get(pair[1]) ?? Number.MAX_SAFE_INTEGER
+          );
+
+          if (strength < bestStrength) {
+            bestStrength = strength;
+            bestPair = pair;
+          }
+        }
+
+        return {
+          cards: bestPair,
+          reasoning: `[MEDIUM] Playing pair with 3D`
+        };
       }
     }
 
@@ -141,7 +168,10 @@ export class BotAI {
    */
   private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number): BotPlayResult {
     const sorted = sortHand(hand);
-    const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+    // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
+    const opponentCounts = playerCardCounts
+      .map((count, index) => (index !== currentPlayerIndex && count > 0 ? count : Number.POSITIVE_INFINITY));
+    const minOpponentCards = Math.min(...opponentCounts);
 
     // CRITICAL: Check "One Card Left" rule when leading
     const turnOrder = [1, 2, 3, 0];
@@ -236,7 +266,10 @@ export class BotAI {
     currentPlayerIndex: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
-    const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+    // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
+    const opponentCounts = playerCardCounts
+      .map((count, index) => (index !== currentPlayerIndex && count > 0 ? count : Number.POSITIVE_INFINITY));
+    const minOpponentCards = Math.min(...opponentCounts);
 
     // Check "One Card Left" rule
     const turnOrder = [1, 2, 3, 0];
@@ -369,21 +402,34 @@ export class BotAI {
 
   /**
    * Find best 5-card combo in hand
+   * @copilot-review-fix (Round 1): Search all C(n,5) combinations, not just contiguous slices,
+   * so non-contiguous combos like flushes are found.
    */
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
 
-    // Try combinations from lowest cards first
-    for (let i = 0; i <= hand.length - 5; i++) {
-      const fiveCards = hand.slice(i, i + 5);
-      const combo = classifyCards(fiveCards);
-      
-      if (this.is5CardCombo(combo)) {
-        return fiveCards.map(c => c.id);
+    // Generate all 5-card combinations and find the lowest valid combo
+    let bestCombo: Card[] | null = null;
+
+    const n = hand.length;
+    for (let a = 0; a < n - 4; a++) {
+      for (let b = a + 1; b < n - 3; b++) {
+        for (let c = b + 1; c < n - 2; c++) {
+          for (let d = c + 1; d < n - 1; d++) {
+            for (let e = d + 1; e < n; e++) {
+              const fiveCards = [hand[a], hand[b], hand[c], hand[d], hand[e]];
+              const combo = classifyCards(fiveCards);
+              if (this.is5CardCombo(combo)) {
+                // Return first valid combo found (hand is sorted, so lowest cards first)
+                return fiveCards.map(c => c.id);
+              }
+            }
+          }
+        }
       }
     }
 
-    return null;
+    return bestCombo;
   }
 
   /**
@@ -503,11 +549,21 @@ export class BotAI {
         }
       }
     } else if (numCards === 5) {
-      // 5-card combos
-      for (let i = 0; i <= hand.length - 5; i++) {
-        const fiveCards = hand.slice(i, i + 5);
-        if (canBeatPlay(fiveCards, lastPlay)) {
-          validPlays.push(fiveCards.map(c => c.id));
+      // 5-card combos - search all C(n,5) combinations
+      // @copilot-review-fix (Round 1): Use full combinations, not just contiguous slices
+      const n = hand.length;
+      for (let a = 0; a < n - 4; a++) {
+        for (let b = a + 1; b < n - 3; b++) {
+          for (let c = b + 1; c < n - 2; c++) {
+            for (let d = c + 1; d < n - 1; d++) {
+              for (let e = d + 1; e < n; e++) {
+                const fiveCards = [hand[a], hand[b], hand[c], hand[d], hand[e]];
+                if (canBeatPlay(fiveCards, lastPlay)) {
+                  validPlays.push(fiveCards.map(c => c.id));
+                }
+              }
+            }
+          }
         }
       }
     }

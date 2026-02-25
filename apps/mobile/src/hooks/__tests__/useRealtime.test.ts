@@ -273,21 +273,10 @@ describe.skip('useRealtime', () => {
         },
       ];
 
-      (supabase.from as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
-            data: { ...mockRoom, status: 'playing' },
-            error: null,
-          }),
-        }),
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { room_id: mockRoom.id, game_phase: 'dealing' },
-              error: null,
-            }),
-          }),
-        }),
+      // @copilot-review-fix (Round 1): startGame now uses RPC ('start_game_with_bots') instead of supabase.from
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: { success: true, room_id: mockRoom.id },
+        error: null,
       });
 
       const { result } = renderHook(() => useRealtime(mockOptions));
@@ -306,8 +295,10 @@ describe.skip('useRealtime', () => {
         await result.current.startGame();
       });
 
-      expect(supabase.from).toHaveBeenCalledWith('rooms');
-      expect(supabase.from).toHaveBeenCalledWith('game_state');
+      expect(supabase.rpc).toHaveBeenCalledWith('start_game_with_bots', expect.objectContaining({
+        p_room_id: mockRoom.id,
+        p_bot_difficulty: 'medium',
+      }));
     });
 
     it('should play cards on player turn', async () => {

@@ -88,8 +88,10 @@ export function useGameStateManager({
       return;
     }
 
-    // Prevent multiple initializations for the same room
-    if (isInitializedRef.current && initializedRoomRef.current === roomCode) {
+    // Prevent multiple initializations for the same room+difficulty
+    // @copilot-review-fix (Round 1): Include botDifficulty in guard key
+    const initKey = `${roomCode}:${botDifficulty}`;
+    if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;
     }
 
@@ -99,7 +101,7 @@ export function useGameStateManager({
 
         // Mark as initializing
         isInitializedRef.current = true;
-        initializedRoomRef.current = roomCode;
+        initializedRoomRef.current = initKey;
 
         // Create game manager
         const manager = createGameStateManager();
@@ -320,7 +322,7 @@ export function useGameStateManager({
 
     initGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode, currentPlayerName, isLocalGame]);
+  }, [roomCode, currentPlayerName, isLocalGame, botDifficulty]);
 
   return {
     gameManagerRef,
