@@ -768,7 +768,7 @@ export function MultiplayerGameScreen() {
           <View style={scoreDisplayStyles.scoreActionContainer}>
             <TouchableOpacity
               style={scoreDisplayStyles.scoreActionButton}
-              onPress={() => setIsPlayHistoryOpen(!isPlayHistoryOpen)}
+              onPress={() => setIsPlayHistoryOpen(prev => !prev)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="View play history"
@@ -778,7 +778,7 @@ export function MultiplayerGameScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={scoreDisplayStyles.scoreActionButton}
-              onPress={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
+              onPress={() => setIsScoreboardExpanded(prev => !prev)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Toggle scoreboard"

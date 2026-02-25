@@ -1322,7 +1322,7 @@ function GameScreenContent() {
             <View style={scoreDisplayStyles.scoreActionContainer}>
               <TouchableOpacity
                 style={scoreDisplayStyles.scoreActionButton}
-                onPress={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
+                onPress={() => scoreboardContext.setIsPlayHistoryOpen(prev => !prev)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="View play history"
@@ -1332,7 +1332,7 @@ function GameScreenContent() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={scoreDisplayStyles.scoreActionButton}
-                onPress={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
+                onPress={() => scoreboardContext.setIsScoreboardExpanded(prev => !prev)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Toggle scoreboard"

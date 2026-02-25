@@ -1,8 +1,9 @@
 /**
  * ScoreboardContainer Component
  * 
- * Main wrapper component that manages scoreboard state and routing
- * Shows ExpandedScoreboard when toggled via inline action buttons in game screens
+ * Main wrapper component that manages scoreboard state and routing.
+ * Shows ExpandedScoreboard when toggled open via inline action buttons in the game screens.
+ * When collapsed, renders an empty container (no scoreboard content visible).
  * (Task #590: CompactScoreboard removed — match badge, action buttons, and score
  *  badges are now rendered directly in the game screen components)
  * Integrates with ScoreboardContext for state management
@@ -15,7 +16,6 @@ import React from 'react';
 import { View } from 'react-native';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
 import { ScoreboardProps } from '../../types/scoreboard';
-import CompactScoreboard from './CompactScoreboard';
 import ExpandedScoreboard from './ExpandedScoreboard';
 import PlayHistoryModal from './PlayHistoryModal';
 import ScoreboardErrorBoundary from './ScoreboardErrorBoundary';

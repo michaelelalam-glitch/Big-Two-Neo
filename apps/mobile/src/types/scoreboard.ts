@@ -1,6 +1,6 @@
 /**
  * TypeScript interfaces for the Scoreboard system
- * 
+ *
  * This file contains all type definitions for:
  * - Compact Scoreboard (fixed top-left panel)
  * - Expanded Scoreboard (full match history table)
@@ -12,6 +12,7 @@
 
 // Import Card from game types
 import type { Card } from '../game/types';
+import type { SetStateAction } from 'react';
 
 // ============================================================================
 // SCORE HISTORY TYPES
@@ -204,9 +205,9 @@ export interface TotalScoreRowProps {
  */
 export interface ScoreboardContextState {
   isScoreboardExpanded: boolean;  // Whether scoreboard is expanded
-  setIsScoreboardExpanded: (value: boolean) => void;
+  setIsScoreboardExpanded: (value: SetStateAction<boolean>) => void;
   isPlayHistoryOpen: boolean;     // Whether play history modal is open
-  setIsPlayHistoryOpen: (value: boolean) => void;
+  setIsPlayHistoryOpen: (value: SetStateAction<boolean>) => void;
   collapsedMatches: Set<number>;  // Set of collapsed match numbers in play history
   toggleMatchCollapse: (matchNumber: number) => void;
   scoreHistory: ScoreHistory[];   // All score history

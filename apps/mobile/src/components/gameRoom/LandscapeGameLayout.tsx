@@ -410,8 +410,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   // Task #590: Match number pill — landscape override
-  // Landscape uses fixed top/left (no safe-area inset needed; SafeAreaView handles edges).
-  // Portrait uses POSITIONING.menuTop via scoreDisplayStyles (accounts for status bar).
+  // Landscape uses fixed top/left because SafeAreaView already handles insets at the edges.
+  // Portrait uses POSITIONING.menuTop via scoreDisplayStyles to account for the status bar
+  // (no SafeAreaView wrapper there). The values intentionally differ between orientations.
   matchNumberContainer: {
     position: 'absolute',
     top: 8,
@@ -440,14 +441,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 60, // Move CLOSER TO TABLE (away from scoreboard)
     top: '50%',
-    transform: [{ translateY: -58 }], // Raised to prevent overlap with bottom player's name/card-count badge
+    transform: [{ translateY: -58 }], // Raised (from -40) to prevent overlap with the new total-score badge below avatars
     zIndex: 5,
   },
   rightOpponent: {
     position: 'absolute',
     right: 60,
     top: '50%',
-    transform: [{ translateY: -58 }], // Raised to match left opponent
+    transform: [{ translateY: -58 }], // Raised (from -40) to match left opponent
     zIndex: 5,
   },
   

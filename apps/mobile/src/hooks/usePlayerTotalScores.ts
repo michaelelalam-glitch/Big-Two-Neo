@@ -9,6 +9,14 @@
  */
 
 import { useMemo } from 'react';
+import { ScoreHistory } from '../types/scoreboard';
+
+/** Minimal player shape needed for score lookups. */
+interface LayoutPlayer {
+  player_index?: number;
+  playerIndex?: number;
+  score?: number;
+}
 
 /**
  * Compute total scores for each player from scoreHistory.
@@ -18,19 +26,19 @@ import { useMemo } from 'react';
  * @returns             Array of total scores aligned with layoutPlayers order.
  */
 export function usePlayerTotalScores(
-  layoutPlayers: any[],
-  scoreHistory: any[],
+  layoutPlayers: LayoutPlayer[],
+  scoreHistory: ScoreHistory[],
 ): number[] {
   return useMemo(() => {
     if (layoutPlayers.length !== 4 || scoreHistory.length === 0) {
-      return layoutPlayers.map((p: any) => p.score || 0);
+      return layoutPlayers.map((p) => p.score || 0);
     }
-    return layoutPlayers.map((p: any, i: number) => {
+    return layoutPlayers.map((p, i) => {
       const playerIndex =
         (p?.player_index ?? p?.playerIndex) !== undefined
-          ? (p.player_index ?? p.playerIndex)
+          ? (p.player_index ?? p.playerIndex)!
           : i;
-      return scoreHistory.reduce((sum: number, match: any) => {
+      return scoreHistory.reduce((sum, match) => {
         const pointsArray = match.pointsAdded || [];
         return (
           sum +
