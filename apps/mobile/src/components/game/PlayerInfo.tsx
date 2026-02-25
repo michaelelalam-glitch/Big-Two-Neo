@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
-// TotalScoreBadge inlined below (Task #590) to avoid Metro new-file caching issues
+// TotalScoreBadge inlined below (Task #590) — single source of truth for portrait score badge
 
 interface PlayerInfoProps {
   name: string;

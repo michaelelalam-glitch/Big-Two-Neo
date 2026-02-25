@@ -155,7 +155,7 @@ export function LandscapeGameLayout({
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.contentContainer}>
-        {/* Task #590: Match number pill - top center */}
+        {/* Task #590: Match number pill - far left corner */}
         <View style={styles.matchNumberContainer}>
           <View style={styles.matchNumberBadge}>
             <Text style={styles.matchNumberText}>
@@ -164,19 +164,25 @@ export function LandscapeGameLayout({
           </View>
         </View>
 
-        {/* Task #590: Score action buttons - top left */}
+        {/* Task #590: Score action buttons - below Match N pill */}
         <View style={styles.scoreActionContainer}>
           <TouchableOpacity
             style={styles.scoreActionButton}
-            onPress={() => setShowPlayHistory(!showPlayHistory)}
+            onPress={() => setShowPlayHistory(prev => !prev)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="View play history"
+            accessibilityHint="Opens the list of plays for this match"
           >
             <Text style={styles.scoreActionButtonText}>📜</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.scoreActionButton}
-            onPress={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
+            onPress={() => setIsScoreboardExpanded(prev => !prev)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle scoreboard"
+            accessibilityHint="Expands or collapses the scoreboard"
           >
             <Text style={styles.scoreActionButtonText}>▶</Text>
           </TouchableOpacity>
@@ -402,13 +408,11 @@ const styles = StyleSheet.create({
     left: -30,
     zIndex: 10,
   },
-  // Task #590: Match number pill - top center
+  // Task #590: Match number pill - far left corner (above action buttons)
   matchNumberContainer: {
     position: 'absolute',
     top: 8,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    left: 8,
     zIndex: 150,
   },
   matchNumberBadge: {
@@ -425,10 +429,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  // Task #590: Score action buttons - top left
+  // Task #590: Score action buttons - below Match N pill
   scoreActionContainer: {
     position: 'absolute',
-    top: 8,
+    top: 46,
     left: 8,
     flexDirection: 'row',
     gap: 8,
@@ -460,14 +464,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 60, // Move CLOSER TO TABLE (away from scoreboard)
     top: '50%',
-    transform: [{ translateY: -40 }], // Move LOWER (was -50, now +10)
+    transform: [{ translateY: -58 }], // Raised to avoid overlap with user's card count badge
     zIndex: 5,
   },
   rightOpponent: {
     position: 'absolute',
     right: 60,
     top: '50%',
-    transform: [{ translateY: -40 }],
+    transform: [{ translateY: -58 }], // Raised to match left opponent
     zIndex: 5,
   },
   

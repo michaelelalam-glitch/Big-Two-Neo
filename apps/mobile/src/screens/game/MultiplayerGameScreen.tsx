@@ -681,9 +681,19 @@ export function MultiplayerGameScreen() {
   }, [layoutPlayers]);
 
   // Compute per-player total scores for badges (Task #590)
+  // Uses player_index when available to align with scoreHistory pointsAdded indexing
   const playerTotalScores = useMemo(() => {
-    return memoizedCurrentScores;
-  }, [memoizedCurrentScores]);
+    if (layoutPlayers.length !== 4 || scoreHistory.length === 0) return memoizedCurrentScores;
+    return layoutPlayers.map((p: any, i: number) => {
+      const playerIndex = (p?.player_index ?? p?.playerIndex) !== undefined
+        ? (p.player_index ?? p.playerIndex)
+        : i;
+      return scoreHistory.reduce((sum: number, match: any) => {
+        const pointsArray = match.pointsAdded || [];
+        return sum + (playerIndex >= 0 && playerIndex < pointsArray.length ? (pointsArray[playerIndex] || 0) : 0);
+      }, 0);
+    });
+  }, [layoutPlayers, scoreHistory, memoizedCurrentScores]);
 
   // Layout players with totalScore attached (Task #590)
   const layoutPlayersWithScores = useMemo(() => {
@@ -759,7 +769,7 @@ export function MultiplayerGameScreen() {
           <View style={styles.matchNumberContainer}>
             <View style={styles.matchNumberBadge}>
               <Text style={styles.matchNumberText}>
-                {`Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+                {(multiplayerGameState as any)?.game_phase === 'finished' ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
               </Text>
             </View>
           </View>
@@ -770,6 +780,9 @@ export function MultiplayerGameScreen() {
               style={styles.scoreActionButton}
               onPress={() => setIsPlayHistoryOpen(!isPlayHistoryOpen)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="View play history"
+              accessibilityHint="Opens the list of plays for this match"
             >
               <Text style={styles.scoreActionButtonText}>📜</Text>
             </TouchableOpacity>
@@ -777,6 +790,9 @@ export function MultiplayerGameScreen() {
               style={styles.scoreActionButton}
               onPress={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle scoreboard"
+              accessibilityHint="Expands or collapses the scoreboard"
             >
               <Text style={styles.scoreActionButtonText}>▶</Text>
             </TouchableOpacity>
@@ -788,7 +804,7 @@ export function MultiplayerGameScreen() {
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-            isGameFinished={false}
+            isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished'}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}

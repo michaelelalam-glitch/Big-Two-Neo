@@ -1109,11 +1109,18 @@ function GameScreenContent() {
   const layoutPlayers = isLocalAIGame ? players : (multiplayerLayoutPlayers as any);
 
   // Task #590: Compute total scores per player for score badges
+  // Uses player_index when available (multiplayer) to align with pointsAdded indexing
   const playerTotalScores = React.useMemo(() => {
     if (layoutPlayers.length !== 4 || scoreHistory.length === 0) return [0, 0, 0, 0];
-    return layoutPlayers.map((_: any, i: number) => {
+    return layoutPlayers.map((p: any, i: number) => {
+      const playerIndex = (p?.player_index ?? p?.playerIndex) !== undefined
+        ? (p.player_index ?? p.playerIndex)
+        : i;
       return scoreHistory.reduce(
-        (sum: number, match: any) => sum + (match.pointsAdded[i] || 0),
+        (sum: number, match: any) => {
+          const pointsArray = match.pointsAdded || [];
+          return sum + (playerIndex >= 0 && playerIndex < pointsArray.length ? (pointsArray[playerIndex] || 0) : 0);
+        },
         0
       );
     });
@@ -1123,7 +1130,9 @@ function GameScreenContent() {
   const matchNumber = isLocalAIGame 
     ? ((gameState as any)?.currentMatch ?? 1) 
     : ((multiplayerGameState as any)?.match_number ?? 1);
-  const isGameFinished = (gameState as any)?.gameOver ?? false;
+  const isGameFinished = isLocalAIGame
+    ? ((gameState as any)?.gameOver ?? false)
+    : ((multiplayerGameState as any)?.game_phase === 'finished');
 
   // Task #590: Layout players with total scores for GameLayout
   const layoutPlayersWithScores = React.useMemo(() => {
@@ -1250,7 +1259,7 @@ function GameScreenContent() {
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
-            isGameFinished={(gameState as any)?.gameOver ?? false}
+            isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
@@ -1317,6 +1326,9 @@ function GameScreenContent() {
                 style={styles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="View play history"
+                accessibilityHint="Opens the list of plays for this match"
               >
                 <Text style={styles.scoreActionButtonText}>📜</Text>
               </TouchableOpacity>
@@ -1324,6 +1336,9 @@ function GameScreenContent() {
                 style={styles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle scoreboard"
+                accessibilityHint="Expands or collapses the scoreboard"
               >
                 <Text style={styles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>

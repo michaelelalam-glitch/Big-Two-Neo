@@ -213,14 +213,18 @@ export function LocalAIGameScreen() {
   const isGameFinished = (gameState as any)?.gameOver ?? false;
 
   // Compute per-player total scores for badges (Task #590)
+  // Uses player_index when available to align with pointsAdded indexing
   const playerTotalScores = useMemo(() => {
     if (layoutPlayers.length !== 4) return [0, 0, 0, 0];
     if (scoreHistory.length > 0) {
-      // layoutPlayers are in display order [you, top, left, right]
-      // scoreHistory pointsAdded is indexed by game player_index
-      // Use mapPlayersToScoreboardOrder to align correctly
-      return layoutPlayers.map((_p: any, i: number) => {
-        return scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[i] || 0), 0);
+      return layoutPlayers.map((p: any, i: number) => {
+        const playerIndex = (p?.player_index ?? p?.playerIndex) !== undefined
+          ? (p.player_index ?? p.playerIndex)
+          : i;
+        return scoreHistory.reduce((sum, match) => {
+          const pointsArray = match.pointsAdded || [];
+          return sum + (playerIndex >= 0 && playerIndex < pointsArray.length ? (pointsArray[playerIndex] || 0) : 0);
+        }, 0);
       });
     }
     return layoutPlayers.map((p: any) => p.score || 0);
@@ -511,6 +515,9 @@ export function LocalAIGameScreen() {
                 style={styles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="View play history"
+                accessibilityHint="Opens the list of plays for this match"
               >
                 <Text style={styles.scoreActionButtonText}>📜</Text>
               </TouchableOpacity>
@@ -518,6 +525,9 @@ export function LocalAIGameScreen() {
                 style={styles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle scoreboard"
+                accessibilityHint="Expands or collapses the scoreboard"
               >
                 <Text style={styles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>
