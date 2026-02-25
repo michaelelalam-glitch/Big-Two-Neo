@@ -493,16 +493,12 @@ function GameScreenContent() {
           const playerName = isLocalAIGame ? player.name : player.username;
           gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
           
-          // DISABLED in production: Native alerts can cause crashes on some physical devices
-          // Keep full notification behavior in development only
-          if (__DEV__) {
-            try {
-              soundManager.playSound(SoundType.TURN_NOTIFICATION);
-              hapticManager.trigger(HapticType.WARNING);
-              showInfo(`${playerName} has one card left!`);
-            } catch (error) {
-              gameLogger.error('Error showing one-card-left notification', { error, playerName, playerIndex });
-            }
+          // Play subtle notification without intrusive popup
+          try {
+            soundManager.playSound(SoundType.TURN_NOTIFICATION);
+            hapticManager.trigger(HapticType.WARNING);
+          } catch (error) {
+            gameLogger.error('Error showing one-card-left notification', { error, playerName, playerIndex });
           }
           
           oneCardLeftDetectedRef.current.add(key);
