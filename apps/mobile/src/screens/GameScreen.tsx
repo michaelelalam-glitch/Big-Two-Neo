@@ -1130,7 +1130,10 @@ function GameScreenContent() {
     : ((multiplayerGameState as any)?.match_number ?? 1);
   const isGameFinished = isLocalAIGame
     ? ((gameState as any)?.gameOver ?? false)
-    : ((multiplayerGameState as any)?.game_phase === 'finished');
+    : (
+        (multiplayerGameState as any)?.game_phase === 'finished' ||
+        (multiplayerGameState as any)?.game_phase === 'game_over'
+      );
 
   // Task #590: Layout players with total scores for GameLayout
   const layoutPlayersWithScores = React.useMemo(() => {
@@ -1481,12 +1484,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary, // Dark background outside table
-  },
-  scoreboardContainer: {
-    position: 'absolute',
-    top: POSITIONING.scoreboardTop,
-    left: POSITIONING.scoreboardLeft,
-    zIndex: 100,
   },
   menuContainer: {
     position: 'absolute',

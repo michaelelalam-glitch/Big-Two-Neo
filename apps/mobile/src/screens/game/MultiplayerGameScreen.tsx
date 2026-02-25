@@ -727,7 +727,7 @@ export function MultiplayerGameScreen() {
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
           matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-          isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished'}
+          isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over'}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}
@@ -759,7 +759,7 @@ export function MultiplayerGameScreen() {
           <View style={scoreDisplayStyles.matchNumberContainer}>
             <View style={scoreDisplayStyles.matchNumberBadge}>
               <Text style={scoreDisplayStyles.matchNumberText}>
-                {(multiplayerGameState as any)?.game_phase === 'finished' ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+                {((multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over') ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
               </Text>
             </View>
           </View>
@@ -794,7 +794,7 @@ export function MultiplayerGameScreen() {
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-            isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished'}
+            isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over'}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
@@ -909,12 +909,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.primary,
-  },
-  scoreboardContainer: {
-    position: 'absolute',
-    top: POSITIONING.scoreboardTop,
-    left: POSITIONING.scoreboardLeft,
-    zIndex: 100,
   },
   menuContainer: {
     position: 'absolute',
