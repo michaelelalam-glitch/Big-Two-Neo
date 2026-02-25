@@ -19,6 +19,7 @@ import type { Card } from '../../game/types';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { useBotCoordinator } from '../../hooks/useBotCoordinator';
@@ -681,22 +682,8 @@ export function MultiplayerGameScreen() {
     return activeIndex >= 0 ? activeIndex : 0;
   }, [layoutPlayers]);
 
-  // Compute per-player total scores for badges (Task #590)
-  // Uses player_index when available to align with scoreHistory pointsAdded indexing
-  const playerTotalScores = useMemo(() => {
-    if (layoutPlayers.length !== 4 || scoreHistory.length === 0) {
-      return layoutPlayers.map((p: any) => p.score || 0);
-    }
-    return layoutPlayers.map((p: any, i: number) => {
-      const playerIndex = (p?.player_index ?? p?.playerIndex) !== undefined
-        ? (p.player_index ?? p.playerIndex)
-        : i;
-      return scoreHistory.reduce((sum: number, match: any) => {
-        const pointsArray = match.pointsAdded || [];
-        return sum + (playerIndex >= 0 && playerIndex < pointsArray.length ? (pointsArray[playerIndex] || 0) : 0);
-      }, 0);
-    });
-  }, [layoutPlayers, scoreHistory]);
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
   // Layout players with totalScore attached (Task #590)
   const layoutPlayersWithScores = useMemo(() => {
@@ -740,7 +727,7 @@ export function MultiplayerGameScreen() {
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
           matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-          isGameFinished={false}
+          isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished'}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}

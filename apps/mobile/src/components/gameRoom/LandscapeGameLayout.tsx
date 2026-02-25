@@ -26,6 +26,7 @@ import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import { gameLogger } from '../../utils/logger';
 import { i18n } from '../../i18n';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -157,8 +158,8 @@ export function LandscapeGameLayout({
       <View style={styles.contentContainer}>
         {/* Task #590: Match number pill - far left corner */}
         <View style={styles.matchNumberContainer}>
-          <View style={styles.matchNumberBadge}>
-            <Text style={styles.matchNumberText}>
+          <View style={scoreDisplayStyles.matchNumberBadge}>
+            <Text style={scoreDisplayStyles.matchNumberText}>
               {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
             </Text>
           </View>
@@ -167,24 +168,24 @@ export function LandscapeGameLayout({
         {/* Task #590: Score action buttons - below Match N pill */}
         <View style={styles.scoreActionContainer}>
           <TouchableOpacity
-            style={styles.scoreActionButton}
+            style={scoreDisplayStyles.scoreActionButton}
             onPress={() => setShowPlayHistory(prev => !prev)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="View play history"
             accessibilityHint="Opens the list of plays for this match"
           >
-            <Text style={styles.scoreActionButtonText}>📜</Text>
+            <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.scoreActionButton}
+            style={scoreDisplayStyles.scoreActionButton}
             onPress={() => setIsScoreboardExpanded(prev => !prev)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Toggle scoreboard"
             accessibilityHint="Expands or collapses the scoreboard"
           >
-            <Text style={styles.scoreActionButtonText}>▶</Text>
+            <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
           </TouchableOpacity>
         </View>
 
@@ -408,28 +409,16 @@ const styles = StyleSheet.create({
     left: -30,
     zIndex: 10,
   },
-  // Task #590: Match number pill - far left corner (above action buttons)
+  // Task #590: Match number pill — landscape override
+  // Landscape uses fixed top/left (no safe-area inset needed; SafeAreaView handles edges).
+  // Portrait uses POSITIONING.menuTop via scoreDisplayStyles (accounts for status bar).
   matchNumberContainer: {
     position: 'absolute',
     top: 8,
     left: 8,
     zIndex: 150,
   },
-  matchNumberBadge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.4)',
-  },
-  matchNumberText: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  // Task #590: Score action buttons - below Match N pill
+  // Task #590: Score action buttons — landscape override
   scoreActionContainer: {
     position: 'absolute',
     top: 46,
@@ -437,19 +426,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     zIndex: 150,
-  },
-  scoreActionButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-  },
-  scoreActionButtonText: {
-    fontSize: 16,
   },
   
   // Opponent positions around table

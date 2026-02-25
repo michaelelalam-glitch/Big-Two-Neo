@@ -22,8 +22,9 @@ export function getScoreBadgeColor(score: number): string {
   return '#78909C'; // gray
 }
 
-/** Formats a numeric score for display. */
+/** Formats a numeric score for display — prefixes '+' on positive values for color-blind clarity. */
 export function formatScore(score: number): string {
+  if (score > 0) return `+${score}`;
   return `${score}`;
 }
 

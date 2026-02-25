@@ -14,6 +14,7 @@ import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGameStateManager } from '../../hooks/useGameStateManager';
 import { gameLogger } from '../../utils/logger';
@@ -213,23 +214,8 @@ export function LocalAIGameScreen() {
   const matchNumber = (gameState as any)?.currentMatch ?? 1;
   const isGameFinished = (gameState as any)?.gameOver ?? false;
 
-  // Compute per-player total scores for badges (Task #590)
-  // Uses player_index when available to align with pointsAdded indexing
-  const playerTotalScores = useMemo(() => {
-    if (layoutPlayers.length !== 4) return [0, 0, 0, 0];
-    if (scoreHistory.length > 0) {
-      return layoutPlayers.map((p: any, i: number) => {
-        const playerIndex = (p?.player_index ?? p?.playerIndex) !== undefined
-          ? (p.player_index ?? p.playerIndex)
-          : i;
-        return scoreHistory.reduce((sum, match) => {
-          const pointsArray = match.pointsAdded || [];
-          return sum + (playerIndex >= 0 && playerIndex < pointsArray.length ? (pointsArray[playerIndex] || 0) : 0);
-        }, 0);
-      });
-    }
-    return layoutPlayers.map((p: any) => p.score || 0);
-  }, [layoutPlayers, scoreHistory]);
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
   // Layout players with totalScore attached (Task #590)
   const layoutPlayersWithScores = useMemo(() => {
