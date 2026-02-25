@@ -13,6 +13,8 @@ import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-naviga
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
+import { MatchNumberDisplay } from '../../components/game/MatchNumberDisplay';
+import { ScoreActionButtons } from '../../components/game/ScoreActionButtons';
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
@@ -37,7 +39,7 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch } = useScoreboard();
+  const { addScoreHistory, scoreHistory, playHistoryByMatch, isScoreboardExpanded, setIsScoreboardExpanded, isPlayHistoryOpen, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
@@ -679,6 +681,19 @@ export function MultiplayerGameScreen() {
     return activeIndex >= 0 ? activeIndex : 0;
   }, [layoutPlayers]);
 
+  // Compute per-player total scores for badges (Task #590)
+  const playerTotalScores = useMemo(() => {
+    return memoizedCurrentScores;
+  }, [memoizedCurrentScores]);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
+
   // Render based on orientation
   const isLandscape = currentOrientation?.includes('LANDSCAPE');
 
@@ -741,20 +756,30 @@ export function MultiplayerGameScreen() {
         />
       ) : (
         <>
-          {/* Scoreboard (top-left, outside table) */}
-          <View style={styles.scoreboardContainer}>
-            <ScoreboardContainer
-              currentScores={memoizedCurrentScores}
-              cardCounts={memoizedCardCounts}
-              currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-              matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-              isGameFinished={false}
-              scoreHistory={scoreHistory}
-              playHistory={playHistoryByMatch}
-              originalPlayerNames={memoizedOriginalPlayerNames}
-              playerNames={memoizedPlayerNames}
-            />
-          </View>
+          {/* Match number display - top center below notch (Task #590) */}
+          <MatchNumberDisplay
+            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+            isGameFinished={false}
+          />
+
+          {/* Score action buttons - top left (Task #590) */}
+          <ScoreActionButtons
+            onToggleExpand={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
+            onTogglePlayHistory={() => setIsPlayHistoryOpen(!isPlayHistoryOpen)}
+          />
+
+          {/* Scoreboard: expanded view + play history modal (Task #590: no more compact) */}
+          <ScoreboardContainer
+            currentScores={memoizedCurrentScores}
+            cardCounts={memoizedCardCounts}
+            currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+            isGameFinished={false}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+            originalPlayerNames={memoizedOriginalPlayerNames}
+            playerNames={memoizedPlayerNames}
+          />
 
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
@@ -787,7 +812,7 @@ export function MultiplayerGameScreen() {
 
           {/* Game table layout */}
           <GameLayout
-            players={layoutPlayers as any}
+            players={layoutPlayersWithScores as any}
             lastPlayedCards={effectiveLastPlayedCards as any}
             lastPlayedBy={effectiveLastPlayedBy as any}
             lastPlayComboType={effectiveLastPlayComboType as any}
@@ -801,6 +826,7 @@ export function MultiplayerGameScreen() {
               name={layoutPlayers[0]?.name ?? currentPlayerName}
               cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
               isActive={layoutPlayers[0]?.isActive ?? false}
+              totalScore={playerTotalScores[0] ?? 0}
             />
           </View>
           

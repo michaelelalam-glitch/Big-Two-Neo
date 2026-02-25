@@ -2,17 +2,20 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { TotalScoreBadge } from '../scoreboard/TotalScoreBadge';
 
 interface PlayerInfoProps {
   name: string;
   cardCount: number;
   isActive: boolean; // Current turn indicator
+  totalScore?: number; // Cumulative total score (Task #590)
 }
 
 export default function PlayerInfo({
   name,
   cardCount,
   isActive,
+  totalScore,
 }: PlayerInfoProps) {
   const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}`;
   
@@ -32,6 +35,12 @@ export default function PlayerInfo({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Total score badge positioned on avatar (bottom-left) */}
+        {totalScore !== undefined && (
+          <View style={styles.scoreBadgePosition}>
+            <TotalScoreBadge score={totalScore} visible={true} />
+          </View>
+        )}
       </View>
 
       {/* Player name badge */}
@@ -98,6 +107,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
+    zIndex: 10,
+  },
+  scoreBadgePosition: {
+    position: 'absolute',
+    bottom: -6,
+    left: -6,
     zIndex: 10,
   },
 });

@@ -10,6 +10,8 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
+import { MatchNumberDisplay } from '../../components/game/MatchNumberDisplay';
+import { ScoreActionButtons } from '../../components/game/ScoreActionButtons';
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
@@ -211,6 +213,25 @@ export function LocalAIGameScreen() {
   );
   const matchNumber = (gameState as any)?.currentMatch ?? 1;
   const isGameFinished = (gameState as any)?.gameOver ?? false;
+
+  // Compute per-player total scores for badges (Task #590)
+  const playerTotalScores = useMemo(() => {
+    if (layoutPlayers.length !== 4) return [0, 0, 0, 0];
+    if (scoreHistory.length > 0) {
+      return layoutPlayers.map((p: any) => {
+        return scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[p.player_index] || 0), 0);
+      });
+    }
+    return layoutPlayers.map((p: any) => p.score || 0);
+  }, [layoutPlayers, scoreHistory]);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
 
   // Selected cards for controls
   const selectedCards = useMemo(() => {
@@ -474,6 +495,19 @@ export function LocalAIGameScreen() {
           />
         ) : (
           <>
+            {/* Match number display - top center below notch (Task #590) */}
+            <MatchNumberDisplay
+              matchNumber={matchNumber}
+              isGameFinished={isGameFinished}
+            />
+
+            {/* Score action buttons - top left (Task #590) */}
+            <ScoreActionButtons
+              onToggleExpand={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
+              onTogglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
+            />
+
+            {/* Scoreboard: expanded view + play history modal (Task #590: no more compact) */}
             <ScoreboardContainer
               playerNames={memoizedPlayerNames}
               currentScores={memoizedCurrentScores}
@@ -509,7 +543,7 @@ export function LocalAIGameScreen() {
             </Pressable>
 
             <GameLayout
-              players={layoutPlayers as any}
+              players={layoutPlayersWithScores as any}
               lastPlayedCards={lastPlayedCards as any}
               lastPlayedBy={lastPlayedBy as any}
               lastPlayComboType={lastPlayComboType as any}
@@ -522,6 +556,7 @@ export function LocalAIGameScreen() {
                 name={layoutPlayers[0]?.name ?? currentPlayerName}
                 cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
                 isActive={layoutPlayers[0]?.isActive ?? false}
+                totalScore={playerTotalScores[0] ?? 0}
               />
             </View>
 

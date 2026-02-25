@@ -59,24 +59,9 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
     <ScoreboardErrorBoundary>
       {/* Main Scoreboard Container */}
       <View style={styles.container}>
-        {/* Compact View */}
-        {!isScoreboardExpanded && (
-          <CompactScoreboard
-            playerNames={playerNames}
-            currentScores={currentScores}
-            cardCounts={cardCounts}
-            currentPlayerIndex={currentPlayerIndex}
-            matchNumber={matchNumber}
-            isGameFinished={isGameFinished}
-            scoreHistory={scoreHistory}
-            playHistory={playHistory}
-            isExpanded={isScoreboardExpanded}
-            onToggleExpand={handleToggleExpand}
-            onTogglePlayHistory={handleTogglePlayHistory}
-          />
-        )}
+        {/* Task #590: CompactScoreboard removed - replaced by MatchNumberDisplay + ScoreActionButtons + TotalScoreBadge */}
 
-        {/* Expanded View */}
+        {/* Expanded View (toggled via ScoreActionButtons) */}
         {isScoreboardExpanded && (
           <ExpandedScoreboard
             playerNames={playerNames}
