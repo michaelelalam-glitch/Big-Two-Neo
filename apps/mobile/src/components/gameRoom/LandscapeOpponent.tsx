@@ -19,6 +19,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -73,9 +74,12 @@ export function LandscapeOpponent({
         </View>
         {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
         {totalScore !== undefined && (
-          <View style={styles.scoreBadgePosition}>
-            <View style={[styles.scoreBadge, { backgroundColor: totalScore > 0 ? '#4CAF50' : totalScore < 0 ? '#F44336' : '#78909C' }]}>
-              <Text style={styles.scoreBadgeText}>{`${totalScore}`}</Text>
+          <View
+            style={scoreDisplayStyles.scoreBadgePosition}
+            accessibilityLabel={`Score: ${formatScore(totalScore)}`}
+          >
+            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
+              <Text style={scoreDisplayStyles.scoreBadgeText}>{formatScore(totalScore)}</Text>
             </View>
           </View>
         )}
@@ -174,29 +178,6 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
-  },
-  // Task #590: Total score badge
-  scoreBadgePosition: {
-    position: 'absolute',
-    bottom: -6,
-    left: -6,
-    zIndex: 10,
-  },
-  scoreBadge: {
-    minWidth: 32,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  scoreBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: '#FFFFFF',
   },
 });
 

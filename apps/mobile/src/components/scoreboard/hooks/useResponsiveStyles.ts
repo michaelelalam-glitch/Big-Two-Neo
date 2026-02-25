@@ -102,7 +102,7 @@ export const useScoreboardContainerStyles = () => {
         : dims.isLargeDevice 
           ? dims.moderateScale(500) 
           : dims.moderateScale(400),
-      zIndex: 100,
+      zIndex: 200, // Above match badge + action buttons (z-index 150)
       pointerEvents: 'box-none' as const, // Task #380: Allow touch events to pass through to elements below
       ...Platform.select({
         ios: {

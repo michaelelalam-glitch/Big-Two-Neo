@@ -13,6 +13,7 @@ import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, G
 import { ScoreboardContainer } from '../../components/scoreboard';
 import type { Card } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGameStateManager } from '../../hooks/useGameStateManager';
 import { gameLogger } from '../../utils/logger';
@@ -501,35 +502,35 @@ export function LocalAIGameScreen() {
         ) : (
           <>
             {/* Match number display - top center (Task #590) */}
-            <View style={styles.matchNumberContainer}>
-              <View style={styles.matchNumberBadge}>
-                <Text style={styles.matchNumberText}>
+            <View style={scoreDisplayStyles.matchNumberContainer}>
+              <View style={scoreDisplayStyles.matchNumberBadge}>
+                <Text style={scoreDisplayStyles.matchNumberText}>
                   {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
                 </Text>
               </View>
             </View>
 
             {/* Score action buttons - top left (Task #590) */}
-            <View style={styles.scoreActionContainer}>
+            <View style={scoreDisplayStyles.scoreActionContainer}>
               <TouchableOpacity
-                style={styles.scoreActionButton}
+                style={scoreDisplayStyles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="View play history"
                 accessibilityHint="Opens the list of plays for this match"
               >
-                <Text style={styles.scoreActionButtonText}>📜</Text>
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.scoreActionButton}
+                style={scoreDisplayStyles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Toggle scoreboard"
                 accessibilityHint="Expands or collapses the scoreboard"
               >
-                <Text style={styles.scoreActionButtonText}>▶</Text>
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>
             </View>
 
@@ -729,48 +730,5 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     color: COLORS.gray.light,
     fontSize: FONT_SIZES.md,
-  },
-  // Task #590: Match number display - top center
-  matchNumberContainer: {
-    position: 'absolute',
-    top: POSITIONING.menuTop,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 150,
-  },
-  matchNumberBadge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.4)',
-  },
-  matchNumberText: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  // Task #590: Score action buttons - top left
-  scoreActionContainer: {
-    position: 'absolute',
-    top: POSITIONING.menuTop,
-    left: 12,
-    flexDirection: 'row',
-    gap: 8,
-    zIndex: 150,
-  },
-  scoreActionButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: OVERLAYS.menuBackground,
-    borderRadius: 10,
-  },
-  scoreActionButtonText: {
-    fontSize: 18,
   },
 });

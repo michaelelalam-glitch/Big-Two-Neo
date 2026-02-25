@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 60, // Move CLOSER TO TABLE (away from scoreboard)
     top: '50%',
-    transform: [{ translateY: -58 }], // Raised to avoid overlap with user's card count badge
+    transform: [{ translateY: -58 }], // Raised to prevent overlap with bottom player's name/card-count badge
     zIndex: 5,
   },
   rightOpponent: {

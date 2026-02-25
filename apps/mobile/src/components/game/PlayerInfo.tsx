@@ -2,24 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
-// TotalScoreBadge inlined below (Task #590) — single source of truth for portrait score badge
+import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 
 interface PlayerInfoProps {
   name: string;
   cardCount: number;
   isActive: boolean; // Current turn indicator
   totalScore?: number; // Cumulative total score (Task #590)
-}
-
-// Inline TotalScoreBadge helpers
-function getScoreBadgeColor(score: number): string {
-  if (score > 0) return '#4CAF50';
-  if (score < 0) return '#F44336';
-  return '#78909C';
-}
-
-function formatScore(score: number): string {
-  return `${score}`;
 }
 
 export default function PlayerInfo({
@@ -46,11 +35,14 @@ export default function PlayerInfo({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
-        {/* Total score badge positioned on avatar (bottom-left) - Task #590 inlined */}
+        {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
         {totalScore !== undefined && (
-          <View style={styles.scoreBadgePosition}>
-            <View style={[styles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
-              <Text style={styles.scoreBadgeText}>
+          <View
+            style={scoreDisplayStyles.scoreBadgePosition}
+            accessibilityLabel={`Score: ${formatScore(totalScore)}`}
+          >
+            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
+              <Text style={scoreDisplayStyles.scoreBadgeText}>
                 {formatScore(totalScore)}
               </Text>
             </View>
@@ -123,28 +115,5 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
-  },
-  scoreBadgePosition: {
-    position: 'absolute',
-    bottom: -6,
-    left: -6,
-    zIndex: 10,
-  },
-  // Task #590: Inline total score badge styles
-  scoreBadge: {
-    minWidth: 32,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  scoreBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: '#FFFFFF',
   },
 });

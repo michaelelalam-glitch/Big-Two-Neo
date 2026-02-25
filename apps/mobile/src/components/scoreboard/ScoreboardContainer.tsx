@@ -2,7 +2,9 @@
  * ScoreboardContainer Component
  * 
  * Main wrapper component that manages scoreboard state and routing
- * Switches between CompactScoreboard and ExpandedScoreboard
+ * Shows ExpandedScoreboard when toggled via inline action buttons in game screens
+ * (Task #590: CompactScoreboard removed — match badge, action buttons, and score
+ *  badges are now rendered directly in the game screen components)
  * Integrates with ScoreboardContext for state management
  * 
  * Created as part of Task #348: ScoreboardContainer wrapper
