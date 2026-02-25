@@ -707,6 +707,11 @@ export function MultiplayerGameScreen() {
     }
   }, []);
 
+  // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
+  const isGameFinished =
+    (multiplayerGameState as any)?.game_phase === 'finished' ||
+    (multiplayerGameState as any)?.game_phase === 'game_over';
+
   // Show loading state while connecting/loading
   if (isLoading) {
     return (
@@ -727,7 +732,7 @@ export function MultiplayerGameScreen() {
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
           matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-          isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over'}
+          isGameFinished={isGameFinished}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}
@@ -759,7 +764,7 @@ export function MultiplayerGameScreen() {
           <View style={scoreDisplayStyles.matchNumberContainer}>
             <View style={scoreDisplayStyles.matchNumberBadge}>
               <Text style={scoreDisplayStyles.matchNumberText}>
-                {((multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over') ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+                {isGameFinished ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
               </Text>
             </View>
           </View>
@@ -794,7 +799,7 @@ export function MultiplayerGameScreen() {
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-            isGameFinished={(multiplayerGameState as any)?.game_phase === 'finished' || (multiplayerGameState as any)?.game_phase === 'game_over'}
+            isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
