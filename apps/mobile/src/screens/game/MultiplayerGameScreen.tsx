@@ -40,7 +40,7 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch, isScoreboardExpanded, setIsScoreboardExpanded, isPlayHistoryOpen, setIsPlayHistoryOpen } = useScoreboard();
+  const { addScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   

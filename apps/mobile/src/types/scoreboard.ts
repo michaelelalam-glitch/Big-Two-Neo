@@ -10,9 +10,8 @@
  * Date: December 12, 2025
  */
 
-// Import Card from game types
-import type { Card } from '../game/types';
 import type { SetStateAction } from 'react';
+import type { Card } from '../game/types';
 
 // ============================================================================
 // SCORE HISTORY TYPES
