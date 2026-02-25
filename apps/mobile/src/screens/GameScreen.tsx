@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -1108,6 +1108,31 @@ function GameScreenContent() {
 
   const layoutPlayers = isLocalAIGame ? players : (multiplayerLayoutPlayers as any);
 
+  // Task #590: Compute total scores per player for score badges
+  const playerTotalScores = React.useMemo(() => {
+    if (layoutPlayers.length !== 4 || scoreHistory.length === 0) return [0, 0, 0, 0];
+    return layoutPlayers.map((_: any, i: number) => {
+      return scoreHistory.reduce(
+        (sum: number, match: any) => sum + (match.pointsAdded[i] || 0),
+        0
+      );
+    });
+  }, [layoutPlayers, scoreHistory]);
+
+  // Task #590: Match number and game finished state
+  const matchNumber = isLocalAIGame 
+    ? ((gameState as any)?.currentMatch ?? 1) 
+    : ((multiplayerGameState as any)?.match_number ?? 1);
+  const isGameFinished = (gameState as any)?.gameOver ?? false;
+
+  // Task #590: Layout players with total scores for GameLayout
+  const layoutPlayersWithScores = React.useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
+
   // 🎯 PERFORMANCE: Memoize expensive props to reduce re-renders
   // 📊 PRODUCTION FIX: Scoreboard shows TURN ORDER [0,1,2,3], not physical positions
   // This gives clean sequential display: Steve Peterson, Bot 1, Bot 2, Bot 3
@@ -1276,14 +1301,41 @@ function GameScreenContent() {
         ) : (
           // PORTRAIT MODE (existing layout)
           <>
-            {/* Scoreboard Container (top-left, with expand/collapse & play history) */}
+            {/* Task #590: Match number display - top center */}
+            <View style={styles.matchNumberContainer}>
+              <View style={styles.matchNumberBadge}>
+                <Text style={styles.matchNumberText}>
+                  {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Task #590: Score action buttons - top left */}
+            <View style={styles.scoreActionContainer}>
+              <TouchableOpacity
+                style={styles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsPlayHistoryOpen(!scoreboardContext.isPlayHistoryOpen)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scoreActionButtonText}>📜</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsScoreboardExpanded(!scoreboardContext.isScoreboardExpanded)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scoreActionButtonText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scoreboard Container (expanded view + play history modal, Task #590: no more compact) */}
             <ScoreboardContainer
             playerNames={memoizedPlayerNames}
             currentScores={memoizedCurrentScores}
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-            matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : ((multiplayerGameState as any)?.match_number ?? 1)}
-            isGameFinished={(gameState as any)?.gameOver ?? false}
+            matchNumber={matchNumber}
+            isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
@@ -1322,7 +1374,7 @@ function GameScreenContent() {
 
           {/* Game table layout - extracted to GameLayout component (Task #426) */}
           <GameLayout
-            players={layoutPlayers as any}
+            players={layoutPlayersWithScores as any}
             lastPlayedCards={effectiveLastPlayedCards as any}
             lastPlayedBy={effectiveLastPlayedBy as any}
             lastPlayComboType={effectiveLastPlayComboType as any}
@@ -1336,6 +1388,7 @@ function GameScreenContent() {
               name={layoutPlayers[0]?.name ?? currentPlayerName}
               cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
               isActive={layoutPlayers[0]?.isActive ?? false}
+              totalScore={playerTotalScores[0] ?? 0}
             />
           </View>
           
@@ -1508,6 +1561,49 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     color: COLORS.gray.light,
     fontSize: FONT_SIZES.md,
+  },
+  // Task #590: Match number display - top center
+  matchNumberContainer: {
+    position: 'absolute',
+    top: POSITIONING.menuTop,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 150,
+  },
+  matchNumberBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  matchNumberText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  // Task #590: Score action buttons - top left
+  scoreActionContainer: {
+    position: 'absolute',
+    top: POSITIONING.menuTop,
+    left: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 150,
+  },
+  scoreActionButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 10,
+  },
+  scoreActionButtonText: {
+    fontSize: 18,
   },
   // Spectator Mode Banner Styles
   spectatorBanner: {
