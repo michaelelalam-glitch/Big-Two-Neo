@@ -61,19 +61,8 @@ export const LandscapeScoreboard: React.FC<LandscapeScoreboardProps> = ({
 
   return (
     <View style={styles.container}>
-      {!isExpanded ? (
-        <CollapsedScoreboard
-          playerNames={playerNames}
-          currentScores={currentScores}
-          cardCounts={cardCounts}
-          currentPlayerIndex={currentPlayerIndex}
-          matchNumber={matchNumber}
-          isGameFinished={isGameFinished}
-          scoreHistory={scoreHistory}
-          onToggleExpand={onToggleExpand}
-          onTogglePlayHistory={onTogglePlayHistory}
-        />
-      ) : (
+      {/* Task #590: Collapsed scoreboard removed - match number pill and action buttons are now separate */}
+      {isExpanded && (
         <PortraitExpandedScoreboard
           playerNames={playerNames}
           currentScores={currentScores}

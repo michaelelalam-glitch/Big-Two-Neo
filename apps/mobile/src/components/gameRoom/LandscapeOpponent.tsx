@@ -35,6 +35,8 @@ interface LandscapeOpponentProps {
   photoUrl?: string | null;
   /** Layout direction: 'vertical' (name below avatar) or 'horizontal' (name to right of avatar) */
   layout?: 'vertical' | 'horizontal';
+  /** Total cumulative score (Task #590) */
+  totalScore?: number;
 }
 
 // ============================================================================
@@ -47,6 +49,7 @@ export function LandscapeOpponent({
   isActive,
   photoUrl,
   layout = 'vertical',
+  totalScore,
 }: LandscapeOpponentProps) {
   
   return (
@@ -68,6 +71,14 @@ export function LandscapeOpponent({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
+        {totalScore !== undefined && (
+          <View style={styles.scoreBadgePosition}>
+            <View style={[styles.scoreBadge, { backgroundColor: totalScore > 0 ? '#4CAF50' : totalScore < 0 ? '#F44336' : '#78909C' }]}>
+              <Text style={styles.scoreBadgeText}>{`${totalScore}`}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Player Name Badge */}
@@ -163,6 +174,29 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
+  },
+  // Task #590: Total score badge
+  scoreBadgePosition: {
+    position: 'absolute',
+    bottom: -6,
+    left: -6,
+    zIndex: 10,
+  },
+  scoreBadge: {
+    minWidth: 32,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  scoreBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: '#FFFFFF',
   },
 });
 

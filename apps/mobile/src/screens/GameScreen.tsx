@@ -1255,6 +1255,7 @@ function GameScreenContent() {
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
+            totalScores={playerTotalScores}
 
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}

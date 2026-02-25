@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable } from 'react-native';
+import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
 import { LandscapeOvalTable } from './LandscapeOvalTable';
@@ -43,6 +43,8 @@ export interface LandscapeGameLayoutProps {
   playHistory?: any[];
   originalPlayerNames?: string[]; // Original player names for play history (game state order)
   autoPassTimerState?: AutoPassTimerState;
+  /** Total cumulative scores per player (Task #590) */
+  totalScores?: number[];
   
   /** Table data */
   lastPlayedCards?: CardType[];
@@ -94,6 +96,7 @@ export function LandscapeGameLayout({
   playHistory = [],
   originalPlayerNames,
   autoPassTimerState,
+  totalScores = [0, 0, 0, 0],
   
   // Table
   lastPlayedCards,
@@ -152,7 +155,34 @@ export function LandscapeGameLayout({
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.contentContainer}>
-        {/* Scoreboard - top left */}
+        {/* Task #590: Match number pill - top center */}
+        <View style={styles.matchNumberContainer}>
+          <View style={styles.matchNumberBadge}>
+            <Text style={styles.matchNumberText}>
+              {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Task #590: Score action buttons - top left */}
+        <View style={styles.scoreActionContainer}>
+          <TouchableOpacity
+            style={styles.scoreActionButton}
+            onPress={() => setShowPlayHistory(!showPlayHistory)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.scoreActionButtonText}>📜</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.scoreActionButton}
+            onPress={() => setIsScoreboardExpanded(!isScoreboardExpanded)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.scoreActionButtonText}>▶</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Scoreboard - expanded only (Task #590: collapsed removed) */}
         <View style={styles.scoreboardContainer}>
           <LandscapeScoreboard
             playerNames={playerNames}
@@ -194,6 +224,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
             layout="horizontal"
+            totalScore={totalScores[1]}
           />
         </View>
 
@@ -203,6 +234,7 @@ export function LandscapeGameLayout({
             name={playerNames[2] || 'Opponent 2'}
             cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
+            totalScore={totalScores[2]}
           />
         </View>
 
@@ -212,6 +244,7 @@ export function LandscapeGameLayout({
             name={playerNames[3] || 'Opponent 3'}
             cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
+            totalScore={totalScores[3]}
           />
         </View>
 
@@ -268,6 +301,7 @@ export function LandscapeGameLayout({
             cardCount={playerCardCount}
             isActive={isPlayerActive}
             layout="vertical"
+            totalScore={totalScores[0]}
           />
         </View>
         
@@ -365,8 +399,53 @@ const styles = StyleSheet.create({
   scoreboardContainer: {
     position: 'absolute',
     top: 0,
-    left: -30, // EXTREME LEFT as requested
+    left: -30,
     zIndex: 10,
+  },
+  // Task #590: Match number pill - top center
+  matchNumberContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 150,
+  },
+  matchNumberBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  matchNumberText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  // Task #590: Score action buttons - top left
+  scoreActionContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 150,
+  },
+  scoreActionButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+  },
+  scoreActionButtonText: {
+    fontSize: 16,
   },
   
   // Opponent positions around table
