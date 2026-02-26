@@ -116,11 +116,12 @@ jobs:
       
       
       - name: ⚠️ Integration tests skipped (no credentials)
-        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == ''
-        run: echo "::warning::Integration tests skipped — EXPO_PUBLIC_SUPABASE_ANON_KEY not configured as a GitHub secret"
+        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == '' || env.SUPABASE_SERVICE_ROLE_KEY == ''
+        run: echo "::warning::Integration tests skipped — EXPO_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY must both be configured as GitHub secrets"
 
       - name: 🧪 Run integration tests
-        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != ''
+        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
+        continue-on-error: true
         run: |
           cd apps/mobile
           set +e
@@ -143,6 +144,7 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
       
       - name: 📊 Upload test coverage

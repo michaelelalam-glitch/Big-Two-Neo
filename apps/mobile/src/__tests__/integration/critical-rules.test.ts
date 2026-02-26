@@ -29,6 +29,8 @@ jest.mock('../../utils/soundManager', () => ({
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://dppybucldqufbqhwnkxu.supabase.co';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Service role key bypasses RLS — required for integration tests to insert test data
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 describe('Critical Multiplayer Rules - Server-Side Validation', () => {
   let supabase: SupabaseClient;
@@ -41,7 +43,13 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
     if (!SUPABASE_ANON_KEY) {
       throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY not set in environment');
     }
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        'SUPABASE_SERVICE_ROLE_KEY not set — integration tests require the service role key to bypass RLS policies'
+      );
+    }
+    // Use service role key so inserts bypass RLS (test data, not production users)
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   });
 
   beforeEach(async () => {
