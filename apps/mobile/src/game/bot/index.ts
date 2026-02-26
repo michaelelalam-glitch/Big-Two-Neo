@@ -578,9 +578,10 @@ export class BotAI {
       // and validPlays[validPlays.length - 1] is the strongest.
       // Uses a strict weak ordering by comparing in both directions to handle ties correctly.
       if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
         validPlays.sort((a, b) => {
-          const cardsA = a.map(id => hand.find(c => c.id === id)!);
-          const cardsB = b.map(id => hand.find(c => c.id === id)!);
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
           const classA = classifyCards(cardsA);
           const classB = classifyCards(cardsB);
           const aBeatsB = canBeatPlay(cardsA, {

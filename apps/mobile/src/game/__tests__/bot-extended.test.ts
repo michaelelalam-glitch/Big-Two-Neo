@@ -7,7 +7,11 @@ import type { Card } from '../types';
 
 describe('BotAI - Extended Coverage Tests', () => {
   describe('Easy difficulty comprehensive tests', () => {
-    test('easy bot passes approximately 40% of the time (statistical test)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('easy bot always passes when Math.random is below pass threshold', () => {
       const bot = new BotAI('easy');
       const hand: Card[] = [
         { id: '5D', rank: '5' as const, suit: 'D' as const },
@@ -21,16 +25,46 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Single' as const,
       };
 
+      // Mock Math.random to 0.3 — always below the easy-bot 0.5 pass threshold
+      jest.spyOn(Math, 'random').mockReturnValue(0.3);
+
       let passCount = 0;
-      const iterations = 100;
+      const iterations = 20;
       for (let i = 0; i < iterations; i++) {
         const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
         if (result.cards === null) passCount++;
       }
 
-      // Should pass roughly 50% ± 25% (binomial, mean=50, std≈5, wide margin)
-      expect(passCount).toBeGreaterThan(20);
-      expect(passCount).toBeLessThan(80);
+      // With Math.random() pinned below the 0.5 threshold the bot always passes
+      expect(passCount).toBe(iterations);
+    });
+
+    test('easy bot never passes when Math.random is above pass threshold', () => {
+      const bot = new BotAI('easy');
+      const hand: Card[] = [
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '7C', rank: '7' as const, suit: 'C' as const },
+        { id: '9H', rank: '9' as const, suit: 'H' as const },
+        { id: 'JD', rank: 'J' as const, suit: 'D' as const },
+      ];
+      const lastPlay = {
+        position: 0,
+        cards: [{ id: '4D', rank: '4' as const, suit: 'D' as const }],
+        combo_type: 'Single' as const,
+      };
+
+      // Mock Math.random to 0.7 — always above the easy-bot 0.5 pass threshold
+      jest.spyOn(Math, 'random').mockReturnValue(0.7);
+
+      let passCount = 0;
+      const iterations = 20;
+      for (let i = 0; i < iterations; i++) {
+        const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+        if (result.cards === null) passCount++;
+      }
+
+      // With Math.random() pinned above the 0.5 threshold the bot always plays
+      expect(passCount).toBe(0);
     });
 
     test('easy bot makes first play with low card', () => {

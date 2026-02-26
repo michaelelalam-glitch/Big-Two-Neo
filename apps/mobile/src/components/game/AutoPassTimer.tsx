@@ -61,6 +61,15 @@ export default function AutoPassTimer({
           stopped = true;
           return; // Don't schedule another frame
         }
+      } else {
+        // Fallback path: stop when started_at + duration_ms has elapsed
+        const startedAt = new Date(timerState.started_at).getTime();
+        const durationMs = timerState.duration_ms || 10000;
+        if (!isNaN(startedAt) && now >= startedAt + durationMs) {
+          setCurrentTime(now);
+          stopped = true;
+          return; // Don't schedule another frame
+        }
       }
       setCurrentTime(now);
       animationFrameId = requestAnimationFrame(updateTime);

@@ -39,6 +39,8 @@ export default function PlayerInfo({
         {totalScore !== undefined && (
           <View
             style={scoreDisplayStyles.scoreBadgePosition}
+            accessible={true}
+            accessibilityRole="text"
             accessibilityLabel={`Score: ${formatScore(totalScore)}`}
           >
             <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>

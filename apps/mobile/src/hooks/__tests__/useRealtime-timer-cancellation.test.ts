@@ -242,7 +242,7 @@ describe('useRealtime - Timer Cancellation', () => {
     });
 
     // Ensure removeChannel is available
-    (supabase.removeChannel as jest.Mock) = jest.fn();
+    (supabase as any).removeChannel = jest.fn();
   });
 
   afterEach(() => {
