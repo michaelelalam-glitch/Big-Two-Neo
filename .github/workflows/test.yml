@@ -61,32 +61,38 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          # --forceExit returns exit code 1 even when all tests pass (open handles).
-          # Redirect to file (not pipe/tee) so --forceExit can terminate the process.
+          # Call jest directly (not via pnpm) — pnpm wrapper prevents --forceExit
+          # from killing the full process tree, causing CI to hang indefinitely.
+          # timeout sends SIGKILL after 480s as a safety net.
           set +e
-          pnpm run test:unit --passWithNoTests --forceExit --coverage > /tmp/test-output.txt 2>&1
+          timeout --signal=KILL 480 npx jest \
+            --testPathIgnorePatterns='/integration/' \
+            --forceExit --passWithNoTests --coverage \
+            --maxWorkers=2 > /tmp/test-output.txt 2>&1
           JEST_EXIT=$?
           set -e
           
-          # Display the output in CI logs
           cat /tmp/test-output.txt
           
-          # Verify tests actually ran
+          # timeout returns 137 when it kills the process (128 + SIGKILL=9)
+          if [ "$JEST_EXIT" -eq 137 ]; then
+            echo "❌ Jest was killed by timeout after 8 minutes — tests may be hanging"
+            exit 1
+          fi
+          
           if ! grep -qE "Test Suites:.*[0-9]+ passed" /tmp/test-output.txt; then
             echo "❌ No test suites passed — tests may not have run"
             exit 1
           fi
-          # Check for actual test suite failures
           if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/test-output.txt; then
             echo "❌ Test suites failed"
             exit 1
           fi
-          # Check for individual test failures
           if grep -qE "Tests:.*[0-9]+ failed" /tmp/test-output.txt; then
             echo "❌ Individual tests failed"
             exit 1
           fi
-          echo "✅ All tests passed (jest exit code was $JEST_EXIT, likely due to --forceExit open handles)"
+          echo "✅ All tests passed (jest exit code was $JEST_EXIT)"
         timeout-minutes: 10
       
       - name: 🧪 Run integration tests
