@@ -63,52 +63,44 @@ jobs:
           cd apps/mobile
           # Call jest directly (not via pnpm) — pnpm wrapper prevents --forceExit
           # from killing the full process tree, causing CI to hang.
-          # Uses --json for structured output instead of fragile text-grep (audit N1).
-          # timeout sends SIGKILL after 300s as a safety net.
+          # Use --outputFile (not pipe) so Jest writes JSON to disk independently
+          # of its exit mechanism; avoids pipe flush race with --forceExit on Linux.
           set +e
           timeout --signal=KILL 300 npx jest \
             --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests --json 2>/dev/null \
-            | node -e "
-              let data = '';
-              process.stdin.on('data', chunk => data += chunk);
-              process.stdin.on('end', () => {
-                try {
-                  const result = JSON.parse(data);
-                  const passed = result.numPassedTests || 0;
-                  const failed = result.numFailedTests || 0;
-                  const total = result.numTotalTests || 0;
-                  const suitesPassed = result.numPassedTestSuites || 0;
-                  const suitesFailed = result.numFailedTestSuites || 0;
-                  const suitesTotal = result.numTotalTestSuites || 0;
-                  console.log('Test Suites: ' + suitesPassed + '/' + suitesTotal + ' passed' + (suitesFailed ? ', ' + suitesFailed + ' failed' : ''));
-                  console.log('Tests:       ' + passed + '/' + total + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
-                  if (result.success) {
-                    console.log('✅ All tests passed');
-                    process.exit(0);
-                  } else {
-                    console.log('❌ Test failures detected');
-                    // Print failed test names for debugging
-                    (result.testResults || []).forEach(suite => {
-                      (suite.assertionResults || []).filter(t => t.status === 'failed').forEach(t => {
-                        console.log('  FAIL: ' + t.ancestorTitles.join(' > ') + ' > ' + t.title);
-                      });
-                    });
-                    process.exit(1);
-                  }
-                } catch (e) {
-                  console.error('❌ Failed to parse Jest JSON output:', e.message);
-                  console.error('Raw output (first 500 chars):', data.substring(0, 500));
-                  process.exit(1);
-                }
-              });
-            "
-          JEST_RESULT=$?
+            --forceExit --passWithNoTests \
+            --json --outputFile=/tmp/jest-results.json 2>&1
+          JEST_EXIT=$?
           set -e
-          
-          if [ "$JEST_RESULT" -ne 0 ]; then
+
+          if [ ! -f /tmp/jest-results.json ]; then
+            echo "❌ Jest did not produce /tmp/jest-results.json — killed or crashed (exit $JEST_EXIT)"
             exit 1
           fi
+
+          node -e "
+            const result = JSON.parse(require('fs').readFileSync('/tmp/jest-results.json', 'utf8'));
+            const passed = result.numPassedTests || 0;
+            const failed = result.numFailedTests || 0;
+            const total = result.numTotalTests || 0;
+            const suitesPassed = result.numPassedTestSuites || 0;
+            const suitesFailed = result.numFailedTestSuites || 0;
+            const suitesTotal = result.numTotalTestSuites || 0;
+            console.log('Test Suites: ' + suitesPassed + '/' + suitesTotal + ' passed' + (suitesFailed ? ', ' + suitesFailed + ' failed' : ''));
+            console.log('Tests:       ' + passed + '/' + total + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
+            if (result.success) {
+              console.log('✅ All tests passed');
+              process.exit(0);
+            } else {
+              console.log('❌ Test failures detected');
+              (result.testResults || []).forEach(suite => {
+                (suite.assertionResults || []).filter(t => t.status === 'failed').forEach(t => {
+                  console.log('  FAIL: ' + t.ancestorTitles.join(' > ') + ' > ' + t.title);
+                });
+              });
+              process.exit(1);
+            }
+          "
         timeout-minutes: 7
       
       - name: 📊 Collect coverage (game logic)
