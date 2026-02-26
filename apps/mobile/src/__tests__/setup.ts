@@ -62,6 +62,20 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
+// Global afterEach: ensure no hanging timers between tests
+afterEach(() => {
+  // Clear any pending timers (both real and fake) to prevent hangs
+  jest.clearAllTimers();
+  // Restore real timers if fake timers were enabled per-test
+  try { jest.useRealTimers(); } catch { /* already using real timers */ }
+});
+
+// Global afterAll: final cleanup before worker exit
+afterAll(() => {
+  jest.clearAllTimers();
+  jest.restoreAllMocks();
+});
+
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
   return {
