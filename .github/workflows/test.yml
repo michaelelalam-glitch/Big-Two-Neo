@@ -58,17 +58,20 @@ jobs:
           cd apps/mobile
           npx tsc --noEmit
       
-      - name: 🧪 Run unit tests
+      - name: 🧪 Run unit tests + coverage
         run: |
           cd apps/mobile
-          # Call jest directly (not via pnpm) — pnpm wrapper prevents --forceExit
-          # from killing the full process tree, causing CI to hang.
-          # Use --outputFile (not pipe) so Jest writes JSON to disk independently
-          # of its exit mechanism; avoids pipe flush race with --forceExit on Linux.
+          # --runInBand: run all tests in a single process, eliminating the
+          # worker-pool / forceExit deadlock that caused coverage to hang in CI.
+          # --coverage: collected in the same pass so tests only run once.
+          # --outputFile: write JSON to disk; avoids pipe-flush race on Linux.
+          # jest exits 0 when tests pass; exits 1 when coverage thresholds fail
+          # (even if all tests pass) — we check both separately below.
           set +e
-          timeout --signal=KILL 300 npx jest \
+          timeout --signal=KILL 420 npx jest \
             --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests \
+            --forceExit --passWithNoTests --runInBand \
+            --coverage \
             --json --outputFile=/tmp/jest-results.json 2>&1
           JEST_EXIT=$?
           set -e
@@ -101,30 +104,16 @@ jobs:
               process.exit(1);
             }
           "
-        timeout-minutes: 7
+          NODE_RESULT=$?
+
+          # jest exits 1 for coverage threshold failures even when all tests pass;
+          # check JEST_EXIT separately so threshold violations also fail CI.
+          if [ "$NODE_RESULT" -eq 0 ] && [ "$JEST_EXIT" -ne 0 ]; then
+            echo "❌ Coverage thresholds not met (see coverage table above)"
+            exit 1
+          fi
+        timeout-minutes: 10
       
-      - name: 📊 Collect coverage (game logic)
-        if: success()
-        run: |
-          cd apps/mobile
-          set +e
-          timeout --signal=KILL 300 npx jest \
-            --testPathPattern='src/game/' \
-            --forceExit --coverage > /tmp/coverage-output.txt 2>&1
-          COVERAGE_EXIT=$?
-          set -e
-          cat /tmp/coverage-output.txt | tail -30
-          if [ "$COVERAGE_EXIT" -ne 0 ] && [ "$COVERAGE_EXIT" -ne 1 ]; then
-            echo "❌ Coverage collection crashed (exit $COVERAGE_EXIT)"
-            exit 1
-          fi
-          # Check if coverage thresholds failed
-          if grep -qE "Jest: \"global\" coverage threshold .* not met" /tmp/coverage-output.txt; then
-            echo "❌ Coverage thresholds not met"
-            exit 1
-          fi
-          echo "✅ Coverage collected and thresholds met"
-        timeout-minutes: 7
       
       - name: ⚠️ Integration tests skipped (no credentials)
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == ''
