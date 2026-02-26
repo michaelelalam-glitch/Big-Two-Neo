@@ -62,11 +62,14 @@ jobs:
         run: |
           cd apps/mobile
           # --forceExit returns exit code 1 even when all tests pass (open handles).
-          # Capture output and parse text results to distinguish real failures from benign exit codes.
+          # Redirect to file (not pipe/tee) so --forceExit can terminate the process.
           set +e
-          pnpm run test:unit --passWithNoTests --forceExit --coverage 2>&1 | tee /tmp/test-output.txt
+          pnpm run test:unit --passWithNoTests --forceExit --coverage > /tmp/test-output.txt 2>&1
           JEST_EXIT=$?
           set -e
+          
+          # Display the output in CI logs
+          cat /tmp/test-output.txt
           
           # Verify tests actually ran
           if ! grep -qE "Test Suites:.*[0-9]+ passed" /tmp/test-output.txt; then
@@ -90,9 +93,11 @@ jobs:
         run: |
           cd apps/mobile
           set +e
-          pnpm run test:integration --passWithNoTests --forceExit 2>&1 | tee /tmp/integration-output.txt
+          pnpm run test:integration --passWithNoTests --forceExit > /tmp/integration-output.txt 2>&1
           JEST_EXIT=$?
           set -e
+          
+          cat /tmp/integration-output.txt
           
           # If no tests ran, that's fine (passWithNoTests)
           if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/integration-output.txt; then
