@@ -21,7 +21,7 @@ export function useHelperButtons({
   playerHand,
   lastPlay,
   isFirstPlay,
-  _customCardOrder,
+  customCardOrder: _customCardOrder,
   setCustomCardOrder,
   setSelectedCardIds,
 }: UseHelperButtonsParams) {
