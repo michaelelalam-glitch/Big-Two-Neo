@@ -16,7 +16,8 @@ if (typeof global.__DEV__ === 'undefined') {
 // Polyfill requestAnimationFrame/cancelAnimationFrame for Node.js test environment
 // Components like AutoPassTimer use rAF for smooth countdown rendering
 if (typeof global.requestAnimationFrame === 'undefined') {
-  (global as any).requestAnimationFrame = (cb: FrameRequestCallback): number => setTimeout(cb, 0) as unknown as number;
+  (global as any).requestAnimationFrame = (cb: FrameRequestCallback): number =>
+    setTimeout(() => cb(Date.now()), 0) as unknown as number;
   (global as any).cancelAnimationFrame = (id: number): void => clearTimeout(id);
 }
 

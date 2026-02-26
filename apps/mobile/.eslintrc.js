@@ -38,8 +38,8 @@ module.exports = {
     // Console rules — app uses structured logger; console is acceptable in dev/debug paths
     'no-console': 'off',
     
-    // Import rules
-    'import/order': 'off',
+    // Import rules — warn so CI surfaces ordering issues without blocking merges
+    'import/order': 'warn',
     'import/no-duplicates': 'warn',
   },
   settings: {

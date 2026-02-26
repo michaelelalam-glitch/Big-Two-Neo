@@ -20,12 +20,14 @@ describe('usePlayerTotalScores', () => {
     scores,
   });
 
-  it('returns zeros when scoreHistory is empty', () => {
+  it('returns zeros when scoreHistory is empty and players have no score field', () => {
+    // Omit `score` property entirely so the test genuinely validates the zero-default
+    // path rather than accidentally passing via a score fallback of 0.
     const players = [
-      { player_index: 0, score: 0 },
-      { player_index: 1, score: 0 },
-      { player_index: 2, score: 0 },
-      { player_index: 3, score: 0 },
+      { player_index: 0 },
+      { player_index: 1 },
+      { player_index: 2 },
+      { player_index: 3 },
     ];
     const { result } = renderHook(() => usePlayerTotalScores(players, []));
     expect(result.current).toEqual([0, 0, 0, 0]);

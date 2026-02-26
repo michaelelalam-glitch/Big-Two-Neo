@@ -17,7 +17,7 @@
  * - Late joins or reconnections
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useClockSync } from '../../hooks/useClockSync';
@@ -29,15 +29,15 @@ interface AutoPassTimerProps {
   currentPlayerIndex: number; // Index of the current user
 }
 
-// Module-scoped variable to throttle debug logs to once per whole-second transition.
-let _lastLoggedSecond = -1;
-
 export default function AutoPassTimer({
   timerState,
   currentPlayerIndex: _currentPlayerIndex,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
   const [currentTime, setCurrentTime] = useState(Date.now());
+  // Throttle debug logs to once per whole-second transition.
+  // Component-scoped ref (not module-scoped) so multiple instances and test cases stay isolated.
+  const lastLoggedSecondRef = useRef(-1);
   
   // ⏱️ CRITICAL: Clock sync with server
   const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
@@ -99,10 +99,9 @@ export default function AutoPassTimer({
       const remaining = Math.max(0, endTimestamp - correctedNow);
       
       // Debug: log once per whole-second transition (not every frame).
-      // Store last logged second in a module-scoped variable to avoid duplicate logs.
       const currentSecond = Math.ceil(remaining / 1000);
-      if (remaining > 0 && currentSecond !== _lastLoggedSecond) {
-        _lastLoggedSecond = currentSecond;
+      if (remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
+        lastLoggedSecondRef.current = currentSecond;
         console.log('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
           correctedNow: new Date(correctedNow).toISOString(),
