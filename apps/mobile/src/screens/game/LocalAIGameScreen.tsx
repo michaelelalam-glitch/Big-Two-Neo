@@ -88,8 +88,6 @@ export function LocalAIGameScreen() {
   // Race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [_isPlayingCards, setIsPlayingCards] = useState(false);
-  const [_isPassing, setIsPassing] = useState(false);
 
   // One card left detection
   const oneCardLeftDetectedRef = useRef(new Set<string>());
@@ -321,7 +319,6 @@ export function LocalAIGameScreen() {
 
     try {
       isPlayingCardsRef.current = true;
-      setIsPlayingCards(true);
       hapticManager.playCard();
 
       const sortedCards = sortCardsForDisplay(cards);
@@ -335,7 +332,6 @@ export function LocalAIGameScreen() {
       showError(error.message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
-      setIsPlayingCards(false);
     }
   }, [gameManagerRef, setSelectedCardIds]);
 
@@ -352,7 +348,6 @@ export function LocalAIGameScreen() {
 
     try {
       isPassingRef.current = true;
-      setIsPassing(true);
       hapticManager.pass();
 
       await gameManagerRef.current.pass();
@@ -363,7 +358,6 @@ export function LocalAIGameScreen() {
       showError(error.message || 'Failed to pass');
     } finally {
       isPassingRef.current = false;
-      setIsPassing(false);
     }
   }, [gameManagerRef, setSelectedCardIds]);
 

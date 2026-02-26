@@ -20,14 +20,15 @@ if (typeof global.requestAnimationFrame === 'undefined') {
   (global as any).cancelAnimationFrame = (id: number): void => clearTimeout(id);
 }
 
-// Mock console methods to reduce noise in test output
+// Mock verbose console methods to reduce noise in test output
+// Keep warn and error visible for debugging real issues
 global.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  warn: console.warn,
+  error: console.error,
 };
 
 // Mock react-native-reanimated

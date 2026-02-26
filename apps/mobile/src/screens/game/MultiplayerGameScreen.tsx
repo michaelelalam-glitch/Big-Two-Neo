@@ -454,8 +454,6 @@ export function MultiplayerGameScreen() {
   // Play/Pass action handlers with race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [_isPlayingCards, setIsPlayingCards] = useState(false);
-  const [_isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
     if (isPlayingCardsRef.current) {
@@ -470,7 +468,6 @@ export function MultiplayerGameScreen() {
 
     try {
       isPlayingCardsRef.current = true;
-      setIsPlayingCards(true);
       hapticManager.playCard();
       
       const sortedCards = sortCardsForDisplay(cards);
@@ -482,7 +479,6 @@ export function MultiplayerGameScreen() {
       showError(error.message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
-      setIsPlayingCards(false);
     }
   }, [multiplayerPlayCards, setSelectedCardIds]);
 
@@ -499,7 +495,6 @@ export function MultiplayerGameScreen() {
 
     try {
       isPassingRef.current = true;
-      setIsPassing(true);
       hapticManager.pass();
 
       await multiplayerPass();
@@ -510,7 +505,6 @@ export function MultiplayerGameScreen() {
       showError(error.message || 'Failed to pass');
     } finally {
       isPassingRef.current = false;
-      setIsPassing(false);
     }
   }, [multiplayerPass, setSelectedCardIds]);
 

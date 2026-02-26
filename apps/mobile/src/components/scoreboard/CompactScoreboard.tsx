@@ -80,7 +80,6 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
         {playerNames.map((name, index) => {
           const isCurrentPlayer = index === currentPlayerIndex;
           const score = currentScores[index] || 0;
-          const _cardCount = cardCounts[index] || 0;
           const scoreColor = getScoreColor(score, isGameFinished, currentScores);
           const nameColor = getPlayerNameColor(isCurrentPlayer);
 

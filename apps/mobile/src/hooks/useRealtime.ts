@@ -25,7 +25,6 @@ import {
   GameState,
   PlayerHand,
   Card,
-  ComboType,
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
@@ -167,10 +166,6 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
 // These interfaces type the JSON bodies returned by Supabase Edge Functions so
 // that callers of invokeWithRetry<T> get proper type-checking.
 
-interface ServerTimeResponse {
-  timestamp: number;
-}
-
 interface PlayCardsResponse {
   success: boolean;
   debug?: any;
@@ -200,27 +195,6 @@ interface PlayerPassResponse {
   auto_pass_timer?: any;
 }
 
-/**
- * Get server time from Supabase for clock synchronization
- * CRITICAL: This ensures all clients use the same time reference
- */
-async function _getServerTimeMs(): Promise<number> {
-  try {
-    const { data, error } = await invokeWithRetry<ServerTimeResponse>('server-time', {
-      body: {},
-    });
-    if (error || !data?.timestamp) {
-      networkLogger.error('[Clock Sync] Failed to get server time:', error);
-      // Fallback to local time if server call fails
-      return Date.now();
-    }
-    return Number(data.timestamp);
-  } catch (err) {
-    networkLogger.error('[Clock Sync] Exception getting server time:', err);
-    return Date.now();
-  }
-}
-
 interface UseRealtimeOptions {
   userId: string;
   username: string;
@@ -232,179 +206,12 @@ interface UseRealtimeOptions {
 
 export type { UseRealtimeOptions };
 
-// ============================================================================
-// MATCH SCORING SYSTEM (Phase 1 - ported from local game)
-// ============================================================================
-
 interface PlayerMatchScoreDetail {
   player_index: number;
   cardsRemaining: number;
   pointsPerCard: number;
   matchScore: number;
   cumulativeScore: number;
-}
-
-/**
- * Calculate score for a single player based on cards remaining
- * Scoring rules:
- * - 1-4 cards: 1 point per card
- * - 5-9 cards: 2 points per card
- * - 10-13 cards: 3 points per card
- * - Winner (0 cards): 0 points
- */
-function _calculatePlayerMatchScore(
-  cardsRemaining: number,
-  currentScore: number
-): PlayerMatchScoreDetail {
-  let pointsPerCard: number;
-  
-  if (cardsRemaining >= 1 && cardsRemaining <= 4) {
-    pointsPerCard = 1;
-  } else if (cardsRemaining >= 5 && cardsRemaining <= 9) {
-    pointsPerCard = 2;
-  } else if (cardsRemaining >= 10 && cardsRemaining <= 13) {
-    pointsPerCard = 3;
-  } else {
-    pointsPerCard = 0; // Winner or invalid
-  }
-  
-  const matchScore = cardsRemaining * pointsPerCard;
-  const cumulativeScore = currentScore + matchScore;
-  
-  return {
-    player_index: -1, // Will be set by caller
-    cardsRemaining,
-    pointsPerCard,
-    matchScore,
-    cumulativeScore,
-  };
-}
-
-/**
- * Check if game should end (any player >= 101 points)
- */
-function _shouldGameEnd(scores: PlayerMatchScoreDetail[]): boolean {
-  return scores.some(score => score.cumulativeScore >= 101);
-}
-
-/**
- * Find final winner (player with lowest cumulative score)
- */
-function _findFinalWinner(scores: PlayerMatchScoreDetail[]): number {
-  let lowestScore = Infinity;
-  let winnerIndex = scores[0].player_index;
-  
-  scores.forEach(score => {
-    if (score.cumulativeScore < lowestScore) {
-      lowestScore = score.cumulativeScore;
-      winnerIndex = score.player_index;
-    }
-  });
-  
-  return winnerIndex;
-}
-
-/**
- * Determines the type of 5-card combination in Big Two (e.g., Straight, Flush, Full House, Four of a Kind, Straight Flush).
- *
- * @param {Card[]} cards - An array of exactly 5 Card objects. Each card should have a `rank` and `suit` property.
- * @returns {ComboType} The type of 5-card combo: 'Straight', 'Flush', 'Full House', 'Four of a Kind', or 'Straight Flush'.
- * @throws {Error} If the input array does not contain exactly 5 cards, or if the cards do not form a valid 5-card combination.
- *
- * Logic:
- * - Sorts cards by rank value.
- * - Checks for flush (all cards of the same suit).
- * - Checks for straight (consecutive ranks following Big Two rules).
- * - Counts rank frequencies to identify four of a kind and full house.
- * - Returns the appropriate ComboType based on Big Two rules:
- *   - 'Straight Flush': both straight and flush.
- *   - 'Four of a Kind': four cards of the same rank.
- *   - 'Full House': three cards of one rank and two of another.
- *   - 'Flush': all cards of the same suit.
- *   - 'Straight': five consecutive ranks.
- *   - Throws error if none of the above.
- */
-function _determine5CardCombo(cards: Card[]): ComboType {
-  if (cards.length !== 5) {
-    throw new Error('determine5CardCombo expects exactly 5 cards');
-  }
-
-  // Sort cards by rank value for easier analysis
-  const rankValues: Record<string, number> = {
-    '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
-    'J': 11, 'Q': 12, 'K': 13, 'A': 14, '2': 15
-  };
-  
-  const sortedCards = [...cards].sort((a, b) => rankValues[a.rank] - rankValues[b.rank]);
-  
-  // Check for flush (all same suit)
-  const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
-  
-  // All valid Big Two straight sequences
-  // Note: A-2-3-4-5 and 2-3-4-5-6 are valid wraparounds (A or 2 acting as low card)
-  // But sequences like J-Q-K-A-2, Q-K-A-2-3, K-A-2-3-4 are INVALID (2 cannot be high in a straight)
-  const VALID_STRAIGHT_SEQUENCES: string[][] = [
-    ['3', '4', '5', '6', '7'],
-    ['4', '5', '6', '7', '8'],
-    ['5', '6', '7', '8', '9'],
-    ['6', '7', '8', '9', '10'],
-    ['7', '8', '9', '10', 'J'],
-    ['8', '9', '10', 'J', 'Q'],
-    ['9', '10', 'J', 'Q', 'K'],
-    ['10', 'J', 'Q', 'K', 'A'],
-    ['A', '2', '3', '4', '5'],  // Wraparound: Ace acts as low
-    ['2', '3', '4', '5', '6'],  // Wraparound: 2 acts as low
-  ];
-  
-  // Check for straight (Big Two rules)
-  // For wraparound sequences (A-2-3-4-5 and 2-3-4-5-6), sorting breaks the pattern
-  // So we need to check against both sorted and original rank orders
-  const handRanks = sortedCards.map(card => card.rank);
-  const originalHandRanks = cards.map(card => card.rank);
-  
-  let isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
-    seq.every((rank, idx) => rank === handRanks[idx])
-  );
-  
-  // Explicitly check for wraparound straights in original order
-  // These patterns won't match after sorting due to high rank values of A and 2
-  if (!isStraight) {
-    // Check A-2-3-4-5 pattern
-    const a2345Pattern: string[] = ['A', '2', '3', '4', '5'];
-    // Check 2-3-4-5-6 pattern  
-    const t23456Pattern: string[] = ['2', '3', '4', '5', '6'];
-    
-    // Create a set of original ranks for order-independent matching
-    const rankSet = new Set<string>(originalHandRanks);
-    
-    if (a2345Pattern.every(rank => rankSet.has(rank)) ||
-        t23456Pattern.every(rank => rankSet.has(rank))) {
-      isStraight = true;
-    }
-  }
-  
-  // Count rank frequencies
-  const rankCounts = sortedCards.reduce((acc, card) => {
-    acc[card.rank] = (acc[card.rank] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const counts = Object.values(rankCounts).sort((a, b) => b - a);
-  
-  // Determine combo type
-  if (isFlush && isStraight) {
-    return 'Straight Flush';
-  } else if (counts[0] === 4) {
-    return 'Four of a Kind';
-  } else if (counts[0] === 3 && counts[1] === 2) {
-    return 'Full House';
-  } else if (isFlush) {
-    return 'Flush';
-  } else if (isStraight) {
-    return 'Straight';
-  } else {
-    throw new Error('Invalid 5-card combination');
-  }
 }
 
 /**

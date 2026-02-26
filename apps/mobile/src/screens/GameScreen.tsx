@@ -40,9 +40,6 @@ import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
-// Delay between user actions to prevent rapid repeated presses (milliseconds)
-const _ACTION_DEBOUNCE_MS = 300;
-
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -75,7 +72,6 @@ function GameScreenContent() {
   gameLogger.info(`🎮 [GameScreen] Game mode: ${isLocalAIGame ? 'LOCAL AI (client-side)' : 'MULTIPLAYER (server-side)'}`);
   
   // PHASE 6: State for multiplayer room data
-  const [_multiplayerRoomId, setMultiplayerRoomId] = useState<string | null>(null);
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<any[]>([]);
   
   // Orientation manager (Task #450) - gracefully handles missing native module
@@ -114,8 +110,6 @@ function GameScreenContent() {
           navigation.replace('Home');
           return;
         }
-        
-        setMultiplayerRoomId(roomData.id);
         
         // Load players
         const { data: playersData, error: playersError } = await supabase
@@ -171,8 +165,6 @@ function GameScreenContent() {
   // PHASE 6: Server-side multiplayer game state (MULTIPLAYER games only)
   const { 
     gameState: multiplayerGameState, 
-    playerHands: _multiplayerPlayerHands,
-    isConnected: _isMultiplayerConnected,
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady, // BULLETPROOF: Game state fully loaded
     players: realtimePlayers,
@@ -586,8 +578,6 @@ function GameScreenContent() {
   // Scoreboard mapping hook (Task #Phase 2B)
   const {
     players,
-    mapPlayersToScoreboardOrder: _mapPlayersToScoreboardOrder,
-    mapGameIndexToScoreboardPosition: _mapGameIndexToScoreboardPosition,
   } = useScoreboardMapping({
     gameState,
     currentPlayerName,
@@ -741,7 +731,7 @@ function GameScreenContent() {
     setOnPlayAgain(() => async () => {
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
       try {
-        const _newState = await manager.initializeGame({
+        await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
           botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
@@ -892,8 +882,6 @@ function GameScreenContent() {
   // PHASE 6: Updated to support both local and multiplayer modes
   // Task #568: Add ref-based guards to prevent race conditions during server validation
   // Copilot Review: Use separate refs to prevent cross-operation blocking
-  const [_isPlayingCards, setIsPlayingCards] = useState(false);
-  const [_isPassing, setIsPassing] = useState(false);
   const isPlayingCardsRef = useRef(false); // Synchronous guard for duplicate play requests
   const isPassingRef = useRef(false); // Synchronous guard for duplicate pass requests
 
@@ -915,7 +903,6 @@ function GameScreenContent() {
 
       try {
         isPlayingCardsRef.current = true; // Set synchronous guard
-        setIsPlayingCards(true);
 
         // Task #270: Add haptic feedback for Play button
         hapticManager.playCard();
@@ -943,7 +930,6 @@ function GameScreenContent() {
         showError(error.message || 'Failed to play cards');
       } finally {
         isPlayingCardsRef.current = false; // Clear synchronous guard
-        setIsPlayingCards(false);
       }
     } else {
       // Multiplayer game - use Realtime hook
@@ -954,7 +940,6 @@ function GameScreenContent() {
 
       try {
         isPlayingCardsRef.current = true; // Set synchronous guard
-        setIsPlayingCards(true);
         hapticManager.playCard();
         
         const sortedCards = sortCardsForDisplay(cards);
@@ -967,7 +952,6 @@ function GameScreenContent() {
         throw error;
       } finally {
         isPlayingCardsRef.current = false; // Clear synchronous guard
-        setIsPlayingCards(false);
       }
     }
   }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, setSelectedCardIds]);
@@ -990,7 +974,6 @@ function GameScreenContent() {
 
       try {
         isPassingRef.current = true; // Set synchronous guard
-        setIsPassing(true);
 
         // Task #270: Add haptic feedback for Pass button
         hapticManager.pass();
@@ -1013,7 +996,6 @@ function GameScreenContent() {
         showError(error.message || 'Failed to pass');
       } finally {
         isPassingRef.current = false; // Clear synchronous guard
-        setIsPassing(false);
       }
     } else {
       // Multiplayer game
@@ -1024,7 +1006,6 @@ function GameScreenContent() {
 
       try {
         isPassingRef.current = true; // Set synchronous guard
-        setIsPassing(true);
         hapticManager.pass();
         
         await multiplayerPass();
@@ -1043,7 +1024,6 @@ function GameScreenContent() {
         }
       } finally {
         isPassingRef.current = false; // Clear synchronous guard
-        setIsPassing(false);
       }
     }
   }, [isLocalAIGame, gameManagerRef, multiplayerPass, setSelectedCardIds]);

@@ -50,8 +50,7 @@ jobs:
       - name: 🔍 Run ESLint
         run: |
           cd apps/mobile
-          pnpm run lint || echo "::warning::ESLint found issues"
-        continue-on-error: true
+          pnpm run lint
       
       - name: 🔧 Run TypeScript type-check
         run: |
@@ -61,13 +60,13 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          timeout 180 pnpm run test:unit --passWithNoTests --forceExit || true
+          pnpm run test:unit --passWithNoTests --forceExit --coverage
         timeout-minutes: 4
       
       - name: 🧪 Run integration tests
         run: |
           cd apps/mobile
-          timeout 180 pnpm run test:integration --passWithNoTests --forceExit || true
+          pnpm run test:integration --passWithNoTests --forceExit
         timeout-minutes: 4
         env:
           # Add test environment variables if needed

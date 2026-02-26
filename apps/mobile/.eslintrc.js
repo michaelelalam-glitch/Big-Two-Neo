@@ -24,11 +24,11 @@ module.exports = {
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-explicit-any': 'off', // Too pervasive; strict typing is a separate initiative
+    '@typescript-eslint/no-explicit-any': 'warn', // Gradually address; strict typing is a separate initiative
     '@typescript-eslint/no-require-imports': 'off', // Used for conditional/dynamic imports in RN
     
     // React Hooks rules
-    'react-hooks/exhaustive-deps': 'off', // Many deps are intentionally excluded to prevent infinite loops
+    'react-hooks/exhaustive-deps': 'warn', // Warn on missing deps; intentional exclusions use eslint-disable-next-line
     
     // Console rules — app uses structured logger; console is acceptable in dev/debug paths
     'no-console': 'off',
