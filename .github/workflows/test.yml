@@ -61,58 +61,46 @@ jobs:
       - name: 🧪 Run unit tests + coverage
         run: |
           cd apps/mobile
-          # --runInBand: run all tests in a single process, eliminating the
-          # worker-pool / forceExit deadlock that caused coverage to hang in CI.
-          # --coverage: collected in the same pass so tests only run once.
-          # --outputFile: write JSON to disk; avoids pipe-flush race on Linux.
-          # jest exits 0 when tests pass; exits 1 when coverage thresholds fail
-          # (even if all tests pass) — we check both separately below.
+          # --maxWorkers=2: matches CI runner's 2 vCPUs; avoids the single-thread
+          # hang that occurred with --runInBand + --json + --coverage on Ubuntu CI.
+          # --forceExit: safe with ≤2 workers — coverage merge completes before exit.
+          # NO --json flag: JSON serialization of coverage data adds 10x overhead
+          # and caused Jest to deadlock on resource-constrained CI runners.
+          # Results are parsed from stdout via grep instead.
           set +e
-          timeout --signal=KILL 420 npx jest \
+          timeout --signal=KILL 540 npx jest \
             --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests --runInBand \
+            --forceExit --passWithNoTests \
+            --maxWorkers=2 \
             --testTimeout=15000 \
-            --coverage \
-            --json --outputFile=/tmp/jest-results.json 2>&1
-          JEST_EXIT=$?
+            --coverage 2>&1 | tee /tmp/unit-test-output.txt
+          JEST_EXIT=${PIPESTATUS[0]}
           set -e
 
-          if [ ! -f /tmp/jest-results.json ]; then
-            echo "❌ Jest did not produce /tmp/jest-results.json — killed or crashed (exit $JEST_EXIT)"
+          echo ""
+          echo "Jest exit code: $JEST_EXIT"
+
+          # Check for test failures in output
+          if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/unit-test-output.txt; then
+            echo "❌ Test suite failures detected"
+            exit 1
+          fi
+          if grep -qE "Tests:.*[0-9]+ failed" /tmp/unit-test-output.txt; then
+            echo "❌ Test failures detected"
             exit 1
           fi
 
-          node -e "
-            const result = JSON.parse(require('fs').readFileSync('/tmp/jest-results.json', 'utf8'));
-            const passed = result.numPassedTests || 0;
-            const failed = result.numFailedTests || 0;
-            const total = result.numTotalTests || 0;
-            const suitesPassed = result.numPassedTestSuites || 0;
-            const suitesFailed = result.numFailedTestSuites || 0;
-            const suitesTotal = result.numTotalTestSuites || 0;
-            console.log('Test Suites: ' + suitesPassed + '/' + suitesTotal + ' passed' + (suitesFailed ? ', ' + suitesFailed + ' failed' : ''));
-            console.log('Tests:       ' + passed + '/' + total + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
-            if (result.success) {
-              console.log('✅ All tests passed');
-              process.exit(0);
-            } else {
-              console.log('❌ Test failures detected');
-              (result.testResults || []).forEach(suite => {
-                (suite.assertionResults || []).filter(t => t.status === 'failed').forEach(t => {
-                  console.log('  FAIL: ' + t.ancestorTitles.join(' > ') + ' > ' + t.title);
-                });
-              });
-              process.exit(1);
-            }
-          "
-          NODE_RESULT=$?
-
-          # jest exits 1 for coverage threshold failures even when all tests pass;
-          # check JEST_EXIT separately so threshold violations also fail CI.
-          if [ "$NODE_RESULT" -eq 0 ] && [ "$JEST_EXIT" -ne 0 ]; then
-            echo "❌ Coverage thresholds not met (see coverage table above)"
+          # Jest exits 1 for coverage threshold failures even when all tests pass
+          if [ "$JEST_EXIT" -ne 0 ]; then
+            if grep -q "Coverage for" /tmp/unit-test-output.txt || grep -q "threshold" /tmp/unit-test-output.txt; then
+              echo "❌ Coverage thresholds not met"
+            else
+              echo "❌ Jest failed (exit $JEST_EXIT)"
+            fi
             exit 1
           fi
+
+          echo "✅ All unit tests + coverage passed"
         timeout-minutes: 10
       
       

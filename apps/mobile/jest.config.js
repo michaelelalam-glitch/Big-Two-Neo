@@ -4,12 +4,16 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  globals: {
-    'ts-jest': {
-      tsconfig: {
-        jsx: 'react',
+  // Modern ts-jest config (globals.ts-jest is deprecated in ts-jest 29+).
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react',
+        },
       },
-    },
+    ],
   },
   collectCoverageFrom: [
     'src/game/**/*.ts',
