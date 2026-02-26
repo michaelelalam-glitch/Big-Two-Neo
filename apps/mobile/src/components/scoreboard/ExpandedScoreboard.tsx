@@ -204,6 +204,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                   </View>
                 );
               });
+            // eslint-disable-next-line react-hooks/exhaustive-deps -- styles.tableCell etc. come from useExpandedScoreboardStyles() (stable memoized result); including them would add noise without functional benefit since style changes will be captured whenever the parent re-renders
             }, [scoreHistory, currentScores, isGameFinished])}
           </View>
         </ScrollView>

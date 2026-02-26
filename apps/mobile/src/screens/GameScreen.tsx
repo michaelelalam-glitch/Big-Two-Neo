@@ -598,7 +598,8 @@ function GameScreenContent() {
     const raw = multiplayerHandsByIndex?.[String(multiplayerSeatIndex)];
     const result = Array.isArray(raw) ? (raw as any[]) : [];
     return result;
-  }, [multiplayerHandsByIndex, multiplayerSeatIndex, multiplayerGameState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState is an unnecessary dep here; multiplayerHandsByIndex already changes whenever the game state updates hand data; removing it prevents a double-recompute on every game state broadcast
+  }, [multiplayerHandsByIndex, multiplayerSeatIndex]);
 
   // Compute effective values BEFORE helper buttons hook (CRITICAL BUG FIX Dec 27 2025)
   // Helper buttons need the ACTUAL hand being displayed, not just localPlayerHand
@@ -620,6 +621,7 @@ function GameScreenContent() {
     }
     
     return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is an extra trigger that ensures effectivePlayerHand recomputes when hands update; ESLint flags it as unnecessary but it serves as a safety net for React's dep comparison
   }, [isLocalAIGame, localPlayerHand, multiplayerPlayerHand, multiplayerHandsByIndex, customCardOrder]);
   
   // CRITICAL: Define multiplayerLastPlay BEFORE using it in useHelperButtons!
@@ -640,6 +642,7 @@ function GameScreenContent() {
   const multiplayerLastPlayedCards = React.useMemo(() => {
     const cards = multiplayerLastPlay?.cards;
     return Array.isArray(cards) ? cards : [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is an unnecessary dep; this memo only reads multiplayerLastPlay which already reflects the latest play
   }, [multiplayerLastPlay]);
 
   const multiplayerLastPlayedBy = React.useMemo(() => {
@@ -778,6 +781,7 @@ function GameScreenContent() {
         // This ensures other screens can auto-rotate properly
         if (orientationAvailable) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
             const ScreenOrientation = require('expo-screen-orientation');
             await ScreenOrientation.unlockAsync();
             gameLogger.info('🔓 [Orientation] Unlocked on navigation away from GameScreen');
@@ -875,6 +879,7 @@ function GameScreenContent() {
       hapticManager.urgentCountdown(displaySeconds);
       gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState and multiplayerGameState (full objects) intentionally excluded; subscribing to only the specific scalar that drives haptic/sound intensity prevents this firing on every unrelated state field change
   }, [isMultiplayerGame, isLocalAIGame, gameState?.auto_pass_timer?.remaining_ms, multiplayerGameState?.auto_pass_timer?.remaining_ms]);
 
   // CRITICAL FIX: Play/Pass action handlers - defined in GameScreen to work in BOTH orientations

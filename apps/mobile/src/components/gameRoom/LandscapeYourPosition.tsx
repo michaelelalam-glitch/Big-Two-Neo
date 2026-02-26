@@ -29,7 +29,6 @@ import type { Card as CardType } from '../../game/types';
 // CONSTANTS
 // ============================================================================
 
-const _CARD_OVERLAP_MARGIN = -30; // Same as portrait mode
 const CARD_SPACING = 40; // For drag calculations
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag up to play
 

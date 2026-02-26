@@ -154,6 +154,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         responseListener.current.remove();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation intentionally excluded: React Navigation's navigation object is stable across renders; adding it would add noise and risk re-subscribing to notification listeners unnecessarily
   }, [handleNotificationResponse]);
 
   // Auto-register when user logs in

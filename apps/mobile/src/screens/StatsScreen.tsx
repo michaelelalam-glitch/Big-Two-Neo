@@ -225,7 +225,8 @@ export default function StatsScreen() {
   const getTimeAgo = (date: Date): string => {
     try {
       return formatDistanceToNow(date, { addSuffix: true });
-    } catch {
+    } catch (error) {
+      console.warn('[StatsScreen] getTimeAgo fallback:', error);
       return format(date, 'MMM d, yyyy');
     }
   };

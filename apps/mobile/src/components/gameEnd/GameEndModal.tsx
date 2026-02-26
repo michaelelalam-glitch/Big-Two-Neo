@@ -80,6 +80,7 @@ export const GameEndModal: React.FC = () => {
     } else {
       setShowFireworks(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startPulseAnimation is an inline function defined in the component body; adding it to deps would require useCallback wrapping; its identity changes every render but the effect only needs to call it when showGameEndModal flips
   }, [showGameEndModal]);
 
   // Pulsing animation for winner text

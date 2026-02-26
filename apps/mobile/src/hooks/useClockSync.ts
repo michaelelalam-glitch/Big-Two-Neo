@@ -65,6 +65,7 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
       setIsSynced(false);
       networkLogger.warn('[Clock Sync] ⚠️ No server time in timer state - using local time');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- full timerState excluded intentionally; only the two scalar fields that indicate a new server time sync are needed as triggers; adding timerState would re-sync the clock offset on every timer tick
   }, [timerState?.active, (timerState as any)?.server_time_at_creation]);
 
   const getCorrectedNow = (): number => {

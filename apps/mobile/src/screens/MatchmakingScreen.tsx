@@ -62,6 +62,7 @@ export default function MatchmakingScreen() {
     return () => {
       void cancelMatchmaking();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cancelMatchmaking, matchType, navigation, startMatchmaking intentionally excluded; this effect is intentionally scoped to user/profile changes (representing the authenticated context); including the matchmaking functions would restart matchmaking on every hook re-render
   }, [user, profile]);
 
   // Navigate to lobby when match found

@@ -607,7 +607,6 @@ export class GameStateManager {
         }
         // CRITICAL: Migrate matchComboStats structure for each player
         if (this.state && this.state.matchScores) {
-          let _needsMigration = false;
           this.state.matchScores.forEach(matchScore => {
             if (!matchScore?.matchComboStats) {
               gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore?.playerId}`);
@@ -623,7 +622,6 @@ export class GameStateManager {
                   straight_flushes: [],
                   royal_flushes: [],
                 };
-                _needsMigration = true;
               }
             }
           });

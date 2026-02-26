@@ -63,35 +63,52 @@ jobs:
           cd apps/mobile
           # Call jest directly (not via pnpm) — pnpm wrapper prevents --forceExit
           # from killing the full process tree, causing CI to hang.
+          # Uses --json for structured output instead of fragile text-grep (audit N1).
           # timeout sends SIGKILL after 300s as a safety net.
           set +e
           timeout --signal=KILL 300 npx jest \
             --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests > /tmp/test-output.txt 2>&1
-          JEST_EXIT=$?
+            --forceExit --passWithNoTests --json 2>/dev/null \
+            | node -e "
+              let data = '';
+              process.stdin.on('data', chunk => data += chunk);
+              process.stdin.on('end', () => {
+                try {
+                  const result = JSON.parse(data);
+                  const passed = result.numPassedTests || 0;
+                  const failed = result.numFailedTests || 0;
+                  const total = result.numTotalTests || 0;
+                  const suitesPassed = result.numPassedTestSuites || 0;
+                  const suitesFailed = result.numFailedTestSuites || 0;
+                  const suitesTotal = result.numTotalTestSuites || 0;
+                  console.log('Test Suites: ' + suitesPassed + '/' + suitesTotal + ' passed' + (suitesFailed ? ', ' + suitesFailed + ' failed' : ''));
+                  console.log('Tests:       ' + passed + '/' + total + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
+                  if (result.success) {
+                    console.log('✅ All tests passed');
+                    process.exit(0);
+                  } else {
+                    console.log('❌ Test failures detected');
+                    // Print failed test names for debugging
+                    (result.testResults || []).forEach(suite => {
+                      (suite.assertionResults || []).filter(t => t.status === 'failed').forEach(t => {
+                        console.log('  FAIL: ' + t.ancestorTitles.join(' > ') + ' > ' + t.title);
+                      });
+                    });
+                    process.exit(1);
+                  }
+                } catch (e) {
+                  console.error('❌ Failed to parse Jest JSON output:', e.message);
+                  console.error('Raw output (first 500 chars):', data.substring(0, 500));
+                  process.exit(1);
+                }
+              });
+            "
+          JEST_RESULT=$?
           set -e
           
-          cat /tmp/test-output.txt
-          
-          # timeout returns 137 when it kills the process (128 + SIGKILL=9)
-          if [ "$JEST_EXIT" -eq 137 ]; then
-            echo "❌ Jest was killed by timeout after 5 minutes — tests may be hanging"
+          if [ "$JEST_RESULT" -ne 0 ]; then
             exit 1
           fi
-          
-          if ! grep -qE "Test Suites:.*[0-9]+ passed" /tmp/test-output.txt; then
-            echo "❌ No test suites passed — tests may not have run"
-            exit 1
-          fi
-          if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/test-output.txt; then
-            echo "❌ Test suites failed"
-            exit 1
-          fi
-          if grep -qE "Tests:.*[0-9]+ failed" /tmp/test-output.txt; then
-            echo "❌ Individual tests failed"
-            exit 1
-          fi
-          echo "✅ All tests passed (jest exit code was $JEST_EXIT)"
         timeout-minutes: 7
       
       - name: 📊 Collect coverage (game logic)
@@ -102,11 +119,25 @@ jobs:
           timeout --signal=KILL 300 npx jest \
             --testPathPattern='src/game/' \
             --forceExit --coverage > /tmp/coverage-output.txt 2>&1
+          COVERAGE_EXIT=$?
           set -e
           cat /tmp/coverage-output.txt | tail -30
+          if [ "$COVERAGE_EXIT" -ne 0 ] && [ "$COVERAGE_EXIT" -ne 1 ]; then
+            echo "❌ Coverage collection crashed (exit $COVERAGE_EXIT)"
+            exit 1
+          fi
+          # Check if coverage thresholds failed
+          if grep -qE "Jest: \"global\" coverage threshold .* not met" /tmp/coverage-output.txt; then
+            echo "❌ Coverage thresholds not met"
+            exit 1
+          fi
+          echo "✅ Coverage collected and thresholds met"
         timeout-minutes: 7
-        continue-on-error: true
       
+      - name: ⚠️ Integration tests skipped (no credentials)
+        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == ''
+        run: echo "::warning::Integration tests skipped — EXPO_PUBLIC_SUPABASE_ANON_KEY not configured as a GitHub secret"
+
       - name: 🧪 Run integration tests
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != ''
         run: |

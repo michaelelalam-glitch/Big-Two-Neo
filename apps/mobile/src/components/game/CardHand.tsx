@@ -259,7 +259,7 @@ export default function CardHand({
     } else {
       setDragState(prev => ({ ...prev, targetIndex: null }));
     }
-  }, [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards]);
+  }, [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards, CARD_SPACING]);
 
   // Handle drag end for rearranging or playing
   const handleDragEnd = useCallback((cardId: string, translationX: number, translationY: number) => {

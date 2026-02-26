@@ -23,9 +23,9 @@ module.exports = {
     
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-explicit-any': 'warn', // Gradually address; strict typing is a separate initiative
-    '@typescript-eslint/no-require-imports': 'off', // Used for conditional/dynamic imports in RN
+    '@typescript-eslint/no-require-imports': 'error', // Prefer static imports; callsites using require() for graceful-degradation have inline disables
     
     // React Hooks rules
     'react-hooks/exhaustive-deps': 'warn', // Warn on missing deps; intentional exclusions use eslint-disable-next-line
@@ -34,35 +34,7 @@ module.exports = {
     'no-console': 'off',
     
     // Import rules
-    'import/order': ['off', {
-      'groups': [
-        'builtin',
-        'external',
-        'internal',
-        ['parent', 'sibling'],
-        'index',
-        'object',
-        'type'
-      ],
-      'pathGroups': [
-        {
-          'pattern': 'react',
-          'group': 'external',
-          'position': 'before'
-        },
-        {
-          'pattern': 'react-native',
-          'group': 'external',
-          'position': 'before'
-        }
-      ],
-      'pathGroupsExcludedImportTypes': ['react', 'react-native'],
-      'newlines-between': 'never',
-      'alphabetize': {
-        'order': 'asc',
-        'caseInsensitive': true
-      }
-    }],
+    'import/order': 'off',
     'import/no-duplicates': 'warn',
   },
   settings: {
@@ -70,4 +42,13 @@ module.exports = {
       version: 'detect',
     },
   },
+  overrides: [
+    {
+      // Jest test files use require() extensively for jest.mock() and jest.requireActual() patterns
+      files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', 'src/__tests__/setup.ts'],
+      rules: {
+        '@typescript-eslint/no-require-imports': 'off',
+      },
+    },
+  ],
 };

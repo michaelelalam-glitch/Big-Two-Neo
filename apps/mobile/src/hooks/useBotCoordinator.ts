@@ -366,6 +366,7 @@ export function useBotCoordinator({
    * Monitor game state and trigger bot turns
    * CRITICAL: Only depend on current_turn and game_phase to prevent infinite re-execution
    */
+  const hasGameHands = !!gameState?.hands; // Extract for stable dep (avoids !! complex expression lint warning)
   useEffect(() => {
     gameLogger.info('[BotCoordinator] useEffect triggered', {
       isCoordinator,
@@ -427,13 +428,13 @@ export function useBotCoordinator({
     } else if (currentPlayer?.is_bot && gameState.game_phase === 'finished') {
       gameLogger.info('[BotCoordinator] ⏸️ Bot turn skipped - match ended (phase=finished)');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState (full object) intentionally excluded; only granular fields subscribed to prevent re-triggering on every state mutation; executeBotTurn excluded to avoid infinite loop (stable via useCallback)
   }, [
     gameState?.current_turn, // Only trigger when turn changes
     gameState?.game_phase, // Only trigger when phase changes
     isCoordinator, // CRITICAL: Re-run when coordinator status changes (false -> true)
     roomCode,
-    !!gameState?.hands, // Only trigger when hands existence changes (undefined -> object), not when hands content changes
+    hasGameHands, // Only trigger when hands existence changes (undefined -> object), not when hands content changes
     players.length, // Re-run when players count changes (0 -> 4 at game start)
     // NOTE: Intentionally omitting executeBotTurn to prevent infinite loop
     // executeBotTurn is stable via useCallback
@@ -461,7 +462,7 @@ export function useBotCoordinator({
       }
       return;
     }
-    
+
     const phase = gameState.game_phase;
     
     if (phase === 'finished') {
@@ -511,6 +512,7 @@ export function useBotCoordinator({
         matchEndFailsafeRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchEndFailsafeRef.current ref value intentionally read during cleanup; copied into local variable not possible here since it's set inside the timeout callback, which runs asynchronously
   }, [isCoordinator, gameState?.game_phase, gameState?.room_id]);
 
   /**
@@ -518,9 +520,11 @@ export function useBotCoordinator({
    */
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- botAICache.current is a plain mutable ref (not a DOM ref); stale-value warning is not applicable for plain data refs
       botAICache.current.clear();
       isExecutingRef.current = null;
       if (matchEndFailsafeRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- botAICache.current and matchEndFailsafeRef.current are non-React-rendered refs; ref-in-cleanup warning is a false positive for plain data refs (not DOM refs)
         clearTimeout(matchEndFailsafeRef.current);
         matchEndFailsafeRef.current = null;
       }

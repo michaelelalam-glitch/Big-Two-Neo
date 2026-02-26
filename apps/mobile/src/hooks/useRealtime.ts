@@ -392,6 +392,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded: including it causes circular dependency (joinChannel → createRoom → joinChannel); joinChannel is guaranteed stable via useCallback with its own stable deps
   }, [userId, username, onError]);
   
   /**
@@ -463,6 +464,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded (same circular dependency reason as createRoom above)
   }, [userId, username, onError, broadcastMessage]);
   
   /**
@@ -626,12 +628,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error('Cannot play an empty hand');
       }
 
-      // Get current hands to check for match end locally (for UI responsiveness)
-      const currentHands = gameState.hands || {};
-      const myHandKey = String(effectivePlayerIndex);
-      const myHand = currentHands[myHandKey as unknown as number] || [];
-      const cardIdsToRemove = new Set(cards.map(c => c.id));
-      const _cardsRemainingAfterPlay = myHand.filter((c: Card) => !cardIdsToRemove.has(c.id)).length;
       // matchWillEnd is now determined by server response (result.match_ended)
 
       // 📡 CRITICAL: Call Edge Function for server-side validation
@@ -870,6 +866,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       throw error;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded: onMatchEnded is a stable callback prop ref; room is read via room?.code but including the full room object would cause playCards to become a new function reference on every subscription update
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**
@@ -1198,7 +1195,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-    // eslint-disable-next-line react-hooks/exhaustive-deps  
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded from joinChannel; reading it inside the channel callbacks would capture a stale closure — gameState is read dynamically from the latest broadcast events instead
   }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
   
   /**
@@ -1261,16 +1258,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // This ensures we have initial state even if channel subscription lags
       try {
         await fetchPlayers(existingRoom.id);
-      } catch {
-        networkLogger.warn('[connectToRoom] Retrying fetch players...');
+      } catch (error) {
+        networkLogger.warn('[connectToRoom] Retrying fetch players...', error);
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchPlayers(existingRoom.id);
       }
       
       try {
         await fetchGameState(existingRoom.id);
-      } catch {
-        networkLogger.warn('[connectToRoom] Retrying fetch state...');
+      } catch (error) {
+        networkLogger.warn('[connectToRoom] Retrying fetch state...', error);
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchGameState(existingRoom.id);
       }
@@ -1297,8 +1294,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
       }
-      // Cleanup timer interval
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref); stale-value ref-in-cleanup warning is not applicable for interval refs
       if (timerIntervalRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- same ref, same reason
         clearInterval(timerIntervalRef.current);
       }
     };
@@ -1634,10 +1632,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                         break;
                       }
                     }
-                  } catch {
+                  } catch (error) {
                     // If we cannot query fresh state, do not speculate by adjusting turnOffset.
                     // Abort the auto-pass loop to avoid drifting out of sync with the server.
-                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync');
+                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync', error);
                     break;
                   }
                   continue;
@@ -1693,6 +1691,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         currentTimerId.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer, getCorrectedNow, and room?.code intentionally excluded: these are read inside the interval callback via ref-based patterns; including them would destroy/recreate the interval on every game state broadcast
   }, [
     gameState?.auto_pass_timer?.active,
     gameState?.auto_pass_timer?.started_at,

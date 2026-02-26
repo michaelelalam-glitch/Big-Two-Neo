@@ -72,6 +72,7 @@ export default function AutoPassTimer({
       stopped = true;
       cancelAnimationFrame(animationFrameId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- full timerState intentionally excluded: deps are the specific scalar fields that trigger rescheduling; including the whole object would restart the rAF loop on every render
   }, [timerState?.active, (timerState as any)?.end_timestamp, offsetMs]);
 
   // ⏰ CRITICAL: Calculate remaining time from server-authoritative endTimestamp
@@ -156,6 +157,7 @@ export default function AutoPassTimer({
     } else {
       pulseAnim.setValue(1);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState intentionally excluded: only the derived values (currentSeconds, remainingMs, timerState?.active) are needed to gate the animation; full timerState object not required
   }, [currentSeconds, timerState?.active, remainingMs, pulseAnim]);
 
   // Don't render if timer is not active or has expired

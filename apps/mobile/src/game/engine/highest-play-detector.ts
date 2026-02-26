@@ -414,7 +414,6 @@ function isHighestRemainingFiveCardCombo(
   // Same strength - check if this is the best of this type
   const remaining = getRemainingCards(playedCards);
   const sorted = sortHand(cards);
-  const _highest = sorted[sorted.length - 1];
   
   switch (type) {
     case 'Straight Flush': {

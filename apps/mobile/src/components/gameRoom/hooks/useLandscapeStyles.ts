@@ -326,5 +326,6 @@ export const useLandscapeScoreboardStyles = () => {
         color: ScoreboardColors.text.highlight,
       },
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- width and height are indirectly captured via isLandscape (which is computed from them above); including them would be redundant but ESLint cannot infer this
   }, [width, height, isLandscape]);
 };

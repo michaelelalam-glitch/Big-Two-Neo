@@ -63,10 +63,51 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
+// Track real setInterval/setTimeout handles so we can clear them between tests.
+// GameStateManager (and similar) create real intervals in constructors that keep
+// the Jest worker alive after tests complete, causing --forceExit dependency (O2).
+const _realSetInterval = global.setInterval;
+const _realClearInterval = global.clearInterval;
+const _realSetTimeout = global.setTimeout;
+const _realClearTimeout = global.clearTimeout;
+const _activeIntervals = new Set<ReturnType<typeof setInterval>>();
+const _activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+global.setInterval = ((...args: Parameters<typeof setInterval>) => {
+  const id = _realSetInterval(...args);
+  _activeIntervals.add(id);
+  return id;
+}) as typeof setInterval;
+
+global.clearInterval = ((id: ReturnType<typeof setInterval>) => {
+  _activeIntervals.delete(id);
+  return _realClearInterval(id);
+}) as typeof clearInterval;
+
+global.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+  const id = _realSetTimeout(...args);
+  _activeTimeouts.add(id);
+  return id;
+}) as typeof setTimeout;
+
+global.clearTimeout = ((id: ReturnType<typeof setTimeout>) => {
+  _activeTimeouts.delete(id);
+  return _realClearTimeout(id);
+}) as typeof clearTimeout;
+
 // Global afterEach: ensure no hanging timers between tests
 afterEach(() => {
   // Clear any pending timers (both real and fake) to prevent hangs
   jest.clearAllTimers();
+  // Clear any tracked real intervals/timeouts
+  for (const id of _activeIntervals) {
+    _realClearInterval(id);
+  }
+  _activeIntervals.clear();
+  for (const id of _activeTimeouts) {
+    _realClearTimeout(id);
+  }
+  _activeTimeouts.clear();
   // Restore real timers if fake timers were enabled per-test
   try { jest.useRealTimers(); } catch { /* already using real timers */ }
 });
@@ -74,6 +115,15 @@ afterEach(() => {
 // Global afterAll: final cleanup before worker exit
 afterAll(() => {
   jest.clearAllTimers();
+  // Final cleanup of any remaining real handles
+  for (const id of _activeIntervals) {
+    _realClearInterval(id);
+  }
+  _activeIntervals.clear();
+  for (const id of _activeTimeouts) {
+    _realClearTimeout(id);
+  }
+  _activeTimeouts.clear();
   jest.restoreAllMocks();
 });
 

@@ -276,20 +276,18 @@ export function LocalAIGameScreen() {
         routes: [{ name: 'Home' }],
       });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- botDifficulty intentionally excluded from the game-end callback setup effect; the callbacks only need to re-register when the player name or navigation ref changes; botDifficulty is read at call-time inside the async callback
   }, [currentPlayerName, navigation, gameManagerRef, setOnPlayAgain, setOnReturnToMenu]);
 
   // Cleanup on deliberate leave
   useEffect(() => {
-    let _isDeliberateLeave = false;
-    
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
     const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
       const actionType = e?.data?.action?.type;
       if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
-        _isDeliberateLeave = true;
-        
         if (orientationAvailable) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
             const ScreenOrientation = require('expo-screen-orientation');
             await ScreenOrientation.unlockAsync();
             gameLogger.info('🔓 Unlocked orientation on navigation away');
@@ -401,6 +399,7 @@ export function LocalAIGameScreen() {
     if (displaySeconds <= 5 && displaySeconds >= 1) {
       hapticManager.urgentCountdown(displaySeconds);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer (full object) intentionally excluded; only remaining_ms drives the haptic intensity; subscribing to the full timer object would retrigger on started_at / active changes unrelated to countdown display
   }, [gameState?.auto_pass_timer?.remaining_ms]);
 
   // One card left detection
@@ -420,6 +419,7 @@ export function LocalAIGameScreen() {
         oneCardLeftDetectedRef.current.delete(key);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- using (gameState as any)?.hands as a dep is a complex expression; gameState (full object) intentionally excluded as we only need to react to hand content changes, not all game state mutations
   }, [(gameState as any)?.hands, roomCode]);
 
   // Performance profiling

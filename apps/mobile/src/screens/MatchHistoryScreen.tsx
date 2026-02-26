@@ -45,6 +45,7 @@ export default function MatchHistoryScreen() {
 
   useEffect(() => {
     loadMatches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMatches intentionally excluded; it is defined in the component body without useCallback; user is the correct trigger (load history when the authenticated user changes)
   }, [user]);
 
   const loadMatches = async (pageNum: number = 0) => {

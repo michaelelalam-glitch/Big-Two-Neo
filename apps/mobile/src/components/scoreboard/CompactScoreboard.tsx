@@ -21,7 +21,7 @@ import { CompactScoreboardProps } from '../../types/scoreboard';
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   playerNames,
   currentScores,
-  cardCounts,
+  cardCounts: _cardCounts,
   currentPlayerIndex,
   matchNumber,
   isGameFinished,

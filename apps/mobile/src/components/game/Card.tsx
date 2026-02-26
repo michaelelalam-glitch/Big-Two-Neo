@@ -39,7 +39,6 @@ const TABLE_CARD_WIDTH = 47;
 const TABLE_CARD_HEIGHT = 72;
 
 const SELECTED_OFFSET = -20; // Offset for selected card elevation
-const _DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
 const DEFAULT_CARD_OVERLAP_MARGIN = -40; // Default overlap (original portrait value)
 
 // Touch target improvements (30px touch target - balanced for fitting 13 cards while improving UX)

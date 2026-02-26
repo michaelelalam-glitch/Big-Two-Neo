@@ -68,6 +68,7 @@ export default function LobbyScreen() {
   useEffect(() => {
     loadPlayers();
     return subscribeToPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlayers and subscribeToPlayers intentionally excluded; they are defined in the component body without useCallback; adding them would cause the subscription to tear down and re-create on every render; roomCode is the correct trigger
   }, [roomCode]);
 
   const getRoomId = async () => {

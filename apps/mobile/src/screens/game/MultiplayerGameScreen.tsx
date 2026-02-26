@@ -449,6 +449,7 @@ export function MultiplayerGameScreen() {
       hapticManager.urgentCountdown(displaySeconds);
       gameLogger.info(`📳 [Haptic] Progressive vibration: ${displaySeconds}s`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState?.auto_pass_timer (full object) intentionally excluded; only remaining_ms drives haptic intensity; see LocalAIGameScreen for same pattern
   }, [multiplayerGameState?.auto_pass_timer?.remaining_ms]);
 
   // Play/Pass action handlers with race condition guards
@@ -616,6 +617,7 @@ export function MultiplayerGameScreen() {
         // Unlock orientation
         if (orientationAvailable) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
             const ScreenOrientation = require('expo-screen-orientation');
             await ScreenOrientation.unlockAsync();
             gameLogger.info('🔓 [Orientation] Unlocked on navigation away');
