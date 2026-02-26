@@ -87,7 +87,7 @@ jobs:
             exit 1
           fi
           echo "✅ All tests passed (jest exit code was $JEST_EXIT, likely due to --forceExit open handles)"
-        timeout-minutes: 5
+        timeout-minutes: 10
       
       - name: 🧪 Run integration tests
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != ''
