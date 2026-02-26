@@ -138,7 +138,7 @@ const mockCard = (rank: Card['rank'], suit: Card['suit']): Card => ({
 
 const renderWithProvider = (component: React.ReactElement) => {
   return render(
-    <ScoreboardProvider>
+    <ScoreboardProvider initialExpanded={true}>
       {component}
     </ScoreboardProvider>
   );

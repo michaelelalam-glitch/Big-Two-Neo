@@ -13,6 +13,13 @@ if (typeof global.__DEV__ === 'undefined') {
   global.__DEV__ = process.env.NODE_ENV !== 'production';
 }
 
+// Polyfill requestAnimationFrame/cancelAnimationFrame for Node.js test environment
+// Components like AutoPassTimer use rAF for smooth countdown rendering
+if (typeof global.requestAnimationFrame === 'undefined') {
+  (global as any).requestAnimationFrame = (cb: FrameRequestCallback): number => setTimeout(cb, 0) as unknown as number;
+  (global as any).cancelAnimationFrame = (id: number): void => clearTimeout(id);
+}
+
 // Mock console methods to reduce noise in test output
 global.console = {
   ...console,

@@ -1,39 +1,47 @@
 /**
- * Tests for useRealtime hook and multiplayer functionality
+ * Tests for useRealtime hook - core functionality
+ *
+ * Architecture note (Dec 2025):
+ * - Game actions (playCards, pass) now use Edge Functions via invokeWithRetry
+ * - Game state is managed server-side; client does optimistic local updates
+ * - Combo type determination moved to server (play-cards Edge Function)
+ * - Timer cancellation tests are in useRealtime-timer-cancellation.test.ts
  */
 
-// Mock Supabase BEFORE imports to prevent initialization error
+// Mock Supabase BEFORE imports
 jest.mock('../../services/supabase');
 
-// Mock soundManager to prevent .m4a file parse errors
-jest.mock('../../utils/soundManager', () => ({
-  soundManager: {
-    playSound: jest.fn().mockResolvedValue(undefined),
-    stopSound: jest.fn(),
-    initialize: jest.fn().mockResolvedValue(undefined),
+// Mock Edge Function calls
+jest.mock('../../utils/edgeFunctionRetry', () => ({
+  invokeWithRetry: jest.fn().mockResolvedValue({
+    data: { success: true },
+    error: null,
+  }),
+}));
+
+// Mock loggers
+jest.mock('../../utils/logger', () => ({
+  networkLogger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    logRealtimeEvent: jest.fn(),
+    logRealtimeError: jest.fn(),
   },
-  SoundType: {
-    GAME_START: 'GAME_START',
-    HIGHEST_CARD: 'HIGHEST_CARD',
-    CARD_PLAY: 'CARD_PLAY',
-    PASS: 'PASS',
-    WINNER: 'WINNER',
+  gameLogger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRealtime } from '../useRealtime';
 import { supabase } from '../../services/supabase';
-import type { Card } from '../../game/types';
+import { invokeWithRetry } from '../../utils/edgeFunctionRetry';
 
-// Helper to create test cards with proper typing
-const createCard = (rank: Card['rank'], suit: Card['suit']): Card => ({
-  id: `${rank}-${suit}`,
-  rank,
-  suit,
-});
-
-describe.skip('useRealtime', () => {
+describe('useRealtime', () => {
   const mockUserId = 'user-123';
   const mockUsername = 'TestUser';
   const mockOptions = {
@@ -43,18 +51,47 @@ describe.skip('useRealtime', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (supabase.removeChannel as jest.Mock) = jest.fn();
+  });
+
+  describe('Initial State', () => {
+    it('should start disconnected', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    it('should have no error initially', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should have no room initially', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+      expect(result.current.room).toBeNull();
+    });
+
+    it('should have no game state initially', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+      expect(result.current.gameState).toBeNull();
+    });
+
+    it('should not be loading initially', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   describe('Room Management', () => {
-    it('should create a new room', async () => {
+    it('should create a room', async () => {
       const mockRoom = {
         id: 'room-123',
-        code: 'ABC123',
+        code: 'ABCD12',
         host_id: mockUserId,
         status: 'waiting',
         max_players: 4,
       };
 
+      // createRoom: from('rooms').insert({...}).select().single()
       (supabase.from as jest.Mock).mockReturnValue({
         insert: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
@@ -66,6 +103,17 @@ describe.skip('useRealtime', () => {
         }),
       });
 
+      (supabase.channel as jest.Mock).mockReturnValue({
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn().mockImplementation((cb?: any) => {
+          if (typeof cb === 'function') cb('SUBSCRIBED');
+          return { unsubscribe: jest.fn() };
+        }),
+        send: jest.fn().mockResolvedValue(undefined),
+        track: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: jest.fn(),
+      });
+
       const { result } = renderHook(() => useRealtime(mockOptions));
 
       await act(async () => {
@@ -74,1221 +122,75 @@ describe.skip('useRealtime', () => {
       });
 
       expect(result.current.room).toEqual(mockRoom);
-      expect(result.current.isHost).toBe(true);
-    });
-
-    it('should join an existing room', async () => {
-      const mockCode = 'ABC123';
-      const mockRoom = {
-        id: 'room-123',
-        code: mockCode,
-        host_id: 'other-user',
-        status: 'waiting',
-        max_players: 4,
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: mockRoom,
-                error: null,
-              }),
-            }),
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      await act(async () => {
-        await result.current.joinRoom(mockCode);
-      });
-
-      expect(result.current.room).toEqual(mockRoom);
-      expect(result.current.isHost).toBe(false);
-    });
-
-    it('should handle room not found error', async () => {
-      const mockCode = 'INVALID';
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Room not found' },
-              }),
-            }),
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      await expect(async () => {
-        await act(async () => {
-          await result.current.joinRoom(mockCode);
-        });
-      }).rejects.toThrow();
-    });
-
-    it('should leave a room', async () => {
-      const mockRoom = {
-        id: 'room-123',
-        code: 'ABC123',
-        host_id: mockUserId,
-        status: 'waiting',
-        max_players: 4,
-      };
-
-      // Setup initial state
-      (supabase.from as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
-            data: null,
-            error: null,
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Manually set room state for test
-      act(() => {
-        // @ts-ignore - setting internal state for test
-        result.current.room = mockRoom;
-      });
-
-      await act(async () => {
-        await result.current.leaveRoom();
-      });
-
-      expect(result.current.room).toBeNull();
-      expect(result.current.isConnected).toBe(false);
     });
   });
 
-  describe('Player Management', () => {
-    it('should set player ready status', async () => {
-      const mockPlayer = {
-        id: 'player-123',
-        user_id: mockUserId,
-        username: mockUsername,
-        position: 0,
-        is_host: true,
-        is_ready: false,
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
-            data: { ...mockPlayer, is_ready: true },
-            error: null,
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      await act(async () => {
-        await result.current.setReady(true);
-      });
-
-      // Verify update was called with room_players table
-      expect(supabase.from).toHaveBeenCalledWith('room_players');
-    });
-
-    it('should track multiple room players', async () => {
-      const mockPlayers = [
-        {
-          id: 'player-1',
-          user_id: mockUserId,
-          username: mockUsername,
-          position: 0,
-          is_host: true,
-          is_ready: true,
-        },
-        {
-          id: 'player-2',
-          user_id: 'user-456',
-          username: 'Player2',
-          position: 1,
-          is_host: false,
-          is_ready: false,
-        },
-      ];
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockPlayers,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Trigger fetch room players
-      await act(async () => {
-        // Internal method call simulation
-      });
-
-      // Wait for players to be set
-      await waitFor(() => {
-        expect(result.current.players.length).toBeGreaterThan(0);
-      });
-    });
-  });
-
-  describe('Game Actions', () => {
-    it('should start game when host', async () => {
-      const mockRoom = {
-        id: 'room-123',
-        code: 'ABC123',
-        host_id: mockUserId,
-        status: 'waiting',
-        max_players: 4,
-      };
-
-      const mockPlayers = [
-        {
-          id: 'player-1',
-          user_id: mockUserId,
-          position: 0,
-          is_host: true,
-          is_ready: true,
-        },
-        {
-          id: 'player-2',
-          user_id: 'user-456',
-          position: 1,
-          is_host: false,
-          is_ready: true,
-        },
-      ];
-
-      // @copilot-review-fix (Round 1): startGame now uses RPC ('start_game_with_bots') instead of supabase.from
-      (supabase.rpc as jest.Mock).mockResolvedValue({
-        data: { success: true, room_id: mockRoom.id },
-        error: null,
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Setup initial state
-      act(() => {
-        // @ts-ignore
-        result.current.room = mockRoom;
-        // @ts-ignore
-        result.current.players = mockPlayers;
-        // @ts-ignore
-        result.current.isHost = true;
-      });
-
-      await act(async () => {
-        await result.current.startGame();
-      });
-
-      expect(supabase.rpc).toHaveBeenCalledWith('start_game_with_bots', expect.objectContaining({
-        p_room_id: mockRoom.id,
-        p_bot_difficulty: 'medium',
-      }));
-    });
-
-    it('should play cards on player turn', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
-            data: { ...mockGameState, last_play: { cards: mockCards } },
-            error: null,
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Setup state
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(supabase.from).toHaveBeenCalledWith('game_state');
-    });
-
-    it('should determine combo type for single card', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'single',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for pair', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'pair',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for triple', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-        createCard('3', 'C'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'triple',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for straight', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'H'),
-        createCard('5', 'C'),
-        createCard('6', 'D'),
-        createCard('7', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'straight',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for A-2-3-4-5 wraparound straight', async () => {
-      const mockCards = [
-        createCard('A', 'S'),
-        createCard('2', 'H'),
-        createCard('3', 'C'),
-        createCard('4', 'D'),
-        createCard('5', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'straight',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for 2-3-4-5-6 wraparound straight', async () => {
-      const mockCards = [
-        createCard('2', 'S'),
-        createCard('3', 'H'),
-        createCard('4', 'C'),
-        createCard('5', 'D'),
-        createCard('6', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'straight',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for flush', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('5', 'S'),
-        createCard('7', 'S'),
-        createCard('9', 'S'),
-        createCard('J', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'flush',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for full house', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-        createCard('3', 'C'),
-        createCard('4', 'D'),
-        createCard('4', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'Full House',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for four of a kind', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-        createCard('3', 'C'),
-        createCard('3', 'D'),
-        createCard('4', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'Four of a Kind',
-          }),
-        })
-      );
-    });
-
-    it('should determine combo type for straight flush', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'S'),
-        createCard('5', 'S'),
-        createCard('6', 'S'),
-        createCard('7', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: mockGameState, error: null }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({ update: updateMock });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await act(async () => {
-        await result.current.playCards(mockCards);
-      });
-
-      expect(updateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          last_play: expect.objectContaining({
-            combo_type: 'Straight Flush',
-          }),
-        })
-      );
-    });
-
-    it('should throw error for empty cards array', async () => {
-      const mockCards: any[] = [];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Cannot play an empty hand');
-    });
-
-    it('should throw error for invalid card count (4 cards)', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'H'),
-        createCard('5', 'C'),
-        createCard('6', 'D'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid card combination');
-    });
-
-    it('should throw error for invalid card count (6 cards)', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'H'),
-        createCard('5', 'C'),
-        createCard('6', 'D'),
-        createCard('7', 'S'),
-        createCard('8', 'H'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid card combination');
-    });
-
-    it('should throw error for invalid 5-card combination', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('5', 'H'),
-        createCard('7', 'C'),
-        createCard('9', 'D'),
-        createCard('K', 'S'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid 5-card combination');
-    });
-
-    it('should throw error for invalid pair with mismatched ranks', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'H'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid pair: cards must have matching ranks');
-    });
-
-    it('should throw error for invalid triple with two matching and one different', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('3', 'H'),
-        createCard('4', 'C'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid triple: all cards must have matching ranks');
-    });
-
-    it('should throw error for invalid triple with all different ranks', async () => {
-      const mockCards = [
-        createCard('3', 'S'),
-        createCard('4', 'H'),
-        createCard('5', 'C'),
-      ];
-
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-        is_host: true,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer];
-      });
-
-      await expect(
-        act(async () => {
-          await result.current.playCards(mockCards);
-        })
-      ).rejects.toThrow('Invalid triple: all cards must have matching ranks');
-    });
-
-    it('should pass turn', async () => {
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 0,
-        pass_count: 0,
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
-            data: { ...mockGameState, pass_count: 1, current_turn: 1 },
-            error: null,
-          }),
-        }),
-      });
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Setup state
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-        // @ts-ignore
-        result.current.players = [mockPlayer, { position: 1 }];
-      });
-
-      await act(async () => {
-        await result.current.pass();
-      });
-
-      expect(supabase.from).toHaveBeenCalledWith('game_state');
-    });
-
-    it('should not allow actions when not player turn', async () => {
-      const mockGameState = {
-        id: 'game-123',
-        room_id: 'room-123',
-        current_turn: 1, // Not current player's turn
-        game_phase: 'playing',
-      };
-
-      const mockPlayer = {
-        id: 'player-1',
-        user_id: mockUserId,
-        position: 0,
-      };
-
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      // Setup state
-      act(() => {
-        // @ts-ignore
-        result.current.gameState = mockGameState;
-        // @ts-ignore
-        result.current.currentPlayer = mockPlayer;
-      });
-
-      await expect(async () => {
-        await act(async () => {
-          await result.current.playCards([createCard('3', 'S')]);
-        });
-      }).rejects.toThrow('Not your turn');
-    });
-  });
-
-  describe('Real-time Synchronization', () => {
-    it('should handle connection state changes', () => {
-      const { result } = renderHook(() => useRealtime(mockOptions));
-
-      expect(result.current.isConnected).toBe(false);
-
-      // Connection changes would be tested with actual channel subscription
-    });
-
-    it('should handle reconnection', async () => {
-      const onReconnect = jest.fn();
-      const { result } = renderHook(() =>
-        useRealtime({ ...mockOptions, onReconnect })
-      );
-
-      await act(async () => {
-        await result.current.reconnect();
-      });
-
-      // Reconnection logic would trigger onReconnect callback
-    });
-
-    it('should handle errors gracefully', () => {
+  describe('Error Handling', () => {
+    it('should accept onError callback', () => {
       const onError = jest.fn();
       const { result } = renderHook(() =>
         useRealtime({ ...mockOptions, onError })
       );
-
       expect(result.current.error).toBeNull();
+    });
+
+    it('should accept onDisconnect callback', () => {
+      const onDisconnect = jest.fn();
+      const { result } = renderHook(() =>
+        useRealtime({ ...mockOptions, onDisconnect })
+      );
+      expect(result.current.isConnected).toBe(false);
     });
   });
 
-  describe('Room Code Generation', () => {
-    it('should generate unique 6-character codes', async () => {
-      const codes = new Set<string>();
+  describe('Hook Return API', () => {
+    it('should expose all expected functions', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
 
-      // Generate multiple codes
-      for (let i = 0; i < 100; i++) {
-        (supabase.from as jest.Mock).mockReturnValue({
-          insert: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: {
-                  id: `room-${i}`,
-                  code: `CODE${i}`,
-                  host_id: mockUserId,
-                  status: 'waiting',
-                  max_players: 4,
-                },
-                error: null,
-              }),
-            }),
-          }),
-        });
+      expect(typeof result.current.createRoom).toBe('function');
+      expect(typeof result.current.joinRoom).toBe('function');
+      expect(typeof result.current.connectToRoom).toBe('function');
+      expect(typeof result.current.leaveRoom).toBe('function');
+      expect(typeof result.current.setReady).toBe('function');
+      expect(typeof result.current.startGame).toBe('function');
+      expect(typeof result.current.playCards).toBe('function');
+      expect(typeof result.current.pass).toBe('function');
+    });
 
-        const { result } = renderHook(() => useRealtime(mockOptions));
+    it('should expose all expected state values', () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
 
-        await act(async () => {
-          const room = await result.current.createRoom();
-          codes.add(room.code);
-        });
-      }
+      expect(result.current).toHaveProperty('room');
+      expect(result.current).toHaveProperty('gameState');
+      expect(result.current).toHaveProperty('isConnected');
+      expect(result.current).toHaveProperty('loading');
+      expect(result.current).toHaveProperty('error');
+      expect(result.current).toHaveProperty('players');
+      expect(result.current).toHaveProperty('currentPlayer');
+      expect(result.current).toHaveProperty('isHost');
+    });
+  });
 
-      // All codes should be unique
-      expect(codes.size).toBe(100);
+  describe('Turn Validation', () => {
+    it('should throw when passing without game state', async () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
 
-      // All codes should be 6 characters
-      codes.forEach((code) => {
-        expect(code.length).toBe(6);
-      });
+      // gameState is null — pass should throw
+      await expect(
+        act(async () => {
+          await result.current.pass();
+        })
+      ).rejects.toThrow('Not your turn');
+    });
+
+    it('should throw when playing cards without game state', async () => {
+      const { result } = renderHook(() => useRealtime(mockOptions));
+
+      await expect(
+        act(async () => {
+          await result.current.playCards([{ id: 'AH', suit: 'H', rank: 'A' }]);
+        })
+      ).rejects.toThrow();
     });
   });
 });

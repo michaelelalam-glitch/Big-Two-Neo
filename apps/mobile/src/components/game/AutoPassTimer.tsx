@@ -105,6 +105,12 @@ export default function AutoPassTimer({
     
     // FALLBACK: Old architecture (calculate from started_at)
     const startedAt = new Date(timerState.started_at).getTime();
+    
+    // Guard against invalid dates
+    if (isNaN(startedAt)) {
+      return 0;
+    }
+    
     const elapsed = currentTime - startedAt;
     const durationMs = timerState.duration_ms || 10000;
     const remaining = Math.max(0, durationMs - elapsed);

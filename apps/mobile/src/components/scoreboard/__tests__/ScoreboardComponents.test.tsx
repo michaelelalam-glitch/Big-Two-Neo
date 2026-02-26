@@ -140,7 +140,7 @@ describe('CompactScoreboard', () => {
         />
       );
 
-      expect(getByText('🏁 Game Over')).toBeTruthy();
+      expect(getByText('Game Over 😵')).toBeTruthy();
     });
   });
 

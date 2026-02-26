@@ -293,7 +293,7 @@ describe('LandscapeOvalTable - Integration', () => {
     // Now showing cards
     expect(queryByText('No cards played yet')).toBeNull();
     expect(getByText(/Last played by Alice/)).toBeTruthy();
-    expect(getByText('Triple (A)')).toBeTruthy();
+    expect(getByText(/Triple \(A\)/)).toBeTruthy();
   });
 
   it('updates when player changes', () => {
@@ -390,6 +390,6 @@ describe('LandscapeOvalTable - Props Validation', () => {
       />
     );
 
-    expect(getByText('Full House (A)')).toBeTruthy();
+    expect(getByText(/Full House \(A\)/)).toBeTruthy();
   });
 });

@@ -97,8 +97,8 @@ describe('Card Component', () => {
     jest.clearAllMocks();
   });
 
-  it.skip('renders card with correct rank and suit', () => {
-    const { getByText } = render(
+  it('renders card with correct rank and suit', () => {
+    const { getAllByText } = render(
       <Card
         card={mockCard}
         isSelected={false}
@@ -107,12 +107,12 @@ describe('Card Component', () => {
     );
 
     // Rank appears twice (top-left and bottom-right)
-    const rankElements = getByText('3');
-    expect(rankElements).toBeTruthy();
+    const rankElements = getAllByText('3');
+    expect(rankElements.length).toBe(2);
 
-    // Suit symbol appears (♥)
-    const suitElements = getByText('♥');
-    expect(suitElements).toBeTruthy();
+    // Suit symbol appears 3 times (top-left, center, bottom-right)
+    const suitElements = getAllByText('♥');
+    expect(suitElements.length).toBe(3);
   });
 
   // TODO: Gesture testing requires E2E framework (Detox)
@@ -132,8 +132,8 @@ describe('Card Component', () => {
     expect(mockOnToggleSelect).not.toHaveBeenCalled();
   });
 
-  it.skip('displays selected state with border', () => {
-    const { getByText } = render(
+  it('displays selected state with border', () => {
+    const { getAllByText } = render(
       <Card
         card={mockCard}
         isSelected={true}
@@ -142,10 +142,10 @@ describe('Card Component', () => {
     );
 
     // Component renders when selected
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
   });
 
-  it.skip('displays different suits with correct colors', () => {
+  it('displays different suits with correct colors', () => {
     const suits: Array<{ suit: 'H' | 'D' | 'C' | 'S'; symbol: string }> = [
       { suit: 'H', symbol: '♥' },
       { suit: 'D', symbol: '♦' },
@@ -160,7 +160,7 @@ describe('Card Component', () => {
         suit,
       };
 
-      const { getByText } = render(
+      const { getAllByText } = render(
         <Card
           card={card}
           isSelected={false}
@@ -168,13 +168,13 @@ describe('Card Component', () => {
         />
       );
 
-      expect(getByText(symbol)).toBeTruthy();
-      expect(getByText('A')).toBeTruthy();
+      expect(getAllByText(symbol).length).toBeGreaterThanOrEqual(1);
+      expect(getAllByText('A').length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  it.skip('respects disabled prop', () => {
-    const { getByText } = render(
+  it('respects disabled prop', () => {
+    const { getAllByText } = render(
       <Card
         card={mockCard}
         isSelected={false}
@@ -184,15 +184,15 @@ describe('Card Component', () => {
     );
 
     // Component still renders when disabled
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
   });
 
   // Test for animation value resets on selection state changes (Task #378)
   // NOTE: This test validates component stability during selection state changes.
   // Actual animation value resets (opacity, scale) are Reanimated shared values
   // that don't directly affect the DOM and would require E2E testing to verify.
-  it.skip('resets animation values when selection state changes', () => {
-    const { rerender, getByText } = render(
+  it('resets animation values when selection state changes', () => {
+    const { rerender, getAllByText } = render(
       <Card
         card={mockCard}
         isSelected={false}
@@ -201,7 +201,7 @@ describe('Card Component', () => {
     );
 
     // Verify initial render
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
 
     // Change selection state - should trigger useEffect to reset animation values
     rerender(
@@ -213,7 +213,7 @@ describe('Card Component', () => {
     );
 
     // Component should re-render without errors after selection state change
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
 
     // Change back to unselected
     rerender(
@@ -225,11 +225,11 @@ describe('Card Component', () => {
     );
 
     // Component should still render correctly after multiple state changes
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
   });
 
-  it.skip('maintains stable component when selection state changes rapidly', () => {
-    const { rerender, getByText } = render(
+  it('maintains stable component when selection state changes rapidly', () => {
+    const { rerender, getAllByText } = render(
       <Card
         card={mockCard}
         isSelected={false}
@@ -256,6 +256,6 @@ describe('Card Component', () => {
     }
 
     // Component should remain stable after rapid state changes
-    expect(getByText('3')).toBeTruthy();
+    expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
   });
 });
