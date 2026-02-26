@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { i18n } from '../i18n';
 import { soundManager, SoundType, showError, showInfo } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
-import { i18n } from '../i18n';
-import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { FinalScore } from '../types/gameEnd';
+import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 
 interface UseGameStateManagerProps {
   roomCode: string;

@@ -1,49 +1,47 @@
 import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
+import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
+import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ScoreboardContainer } from '../components/scoreboard';
-import type { Card } from '../game/types';
-import type { FinalScore } from '../types/gameEnd';
-import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
-import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
-import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { useGameStateManager } from '../hooks/useGameStateManager';
-import { useBotCoordinator } from '../hooks/useBotCoordinator';
-import { useRealtime } from '../hooks/useRealtime';
-import { gameLogger } from '../utils/logger';
+import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
+import { useBotCoordinator } from '../hooks/useBotCoordinator';
+import { useBotTurnManager } from '../hooks/useBotTurnManager';
+import { useCardSelection } from '../hooks/useCardSelection';
+import { useDerivedGameState } from '../hooks/useDerivedGameState';
+import { useGameStateManager } from '../hooks/useGameStateManager';
+import { useHelperButtons } from '../hooks/useHelperButtons';
+import { useOrientationManager } from '../hooks/useOrientationManager';
+import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
-
-// Delay between user actions to prevent rapid repeated presses (milliseconds)
-const ACTION_DEBOUNCE_MS = 300;
+import { useRealtime } from '../hooks/useRealtime';
+import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
+import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
+import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
 import {
   soundManager,
   hapticManager,
   HapticType,
   SoundType,
   showError,
-  showInfo,
   showConfirm,
   performanceMonitor,
 } from '../utils';
-import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
-import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
-import { i18n } from '../i18n';
-import { useBotTurnManager } from '../hooks/useBotTurnManager';
-import { useHelperButtons } from '../hooks/useHelperButtons';
-import { useDerivedGameState } from '../hooks/useDerivedGameState';
-import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
-import { useCardSelection } from '../hooks/useCardSelection';
-import { useOrientationManager } from '../hooks/useOrientationManager';
-import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { sortCardsForDisplay } from '../utils/cardSorting';
+import { gameLogger } from '../utils/logger';
+import type { Card } from '../game/types';
+import type { FinalScore } from '../types/gameEnd';
+import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
+import type { StackNavigationProp } from '@react-navigation/stack';
+
+// Delay between user actions to prevent rapid repeated presses (milliseconds)
+const _ACTION_DEBOUNCE_MS = 300;
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -56,7 +54,7 @@ function GameScreenContent() {
   const { 
     addScoreHistory, 
     addPlayHistory,
-    setIsScoreboardExpanded, 
+    setIsScoreboardExpanded: _setIsScoreboardExpanded, 
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
@@ -77,7 +75,7 @@ function GameScreenContent() {
   gameLogger.info(`🎮 [GameScreen] Game mode: ${isLocalAIGame ? 'LOCAL AI (client-side)' : 'MULTIPLAYER (server-side)'}`);
   
   // PHASE 6: State for multiplayer room data
-  const [multiplayerRoomId, setMultiplayerRoomId] = useState<string | null>(null);
+  const [_multiplayerRoomId, setMultiplayerRoomId] = useState<string | null>(null);
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<any[]>([]);
   
   // Orientation manager (Task #450) - gracefully handles missing native module
@@ -173,8 +171,8 @@ function GameScreenContent() {
   // PHASE 6: Server-side multiplayer game state (MULTIPLAYER games only)
   const { 
     gameState: multiplayerGameState, 
-    playerHands: multiplayerPlayerHands,
-    isConnected: isMultiplayerConnected,
+    playerHands: _multiplayerPlayerHands,
+    isConnected: _isMultiplayerConnected,
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady, // BULLETPROOF: Game state fully loaded
     players: realtimePlayers,
@@ -247,14 +245,14 @@ function GameScreenContent() {
   // MULTIPLAYER HANDS MEMO - MUST BE DEFINED BEFORE playersWithCards!!!
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, Array<{ id: string; rank: string; suit: string } | string>>
+      | Record<string, ({ id: string; rank: string; suit: string } | string)[]>
       | undefined;
     
     if (!hands) return undefined;
     
     // 🔧 CRITICAL FIX: Parse string cards into objects (handles old game data)
     // Some games created before migration have cards as strings: "D10" instead of {id:"D10", rank:"10", suit:"D"}
-    const parsedHands: Record<string, Array<{ id: string; rank: string; suit: string }>> = {};
+    const parsedHands: Record<string, { id: string; rank: string; suit: string }[]> = {};
     
     for (const [playerIndex, handData] of Object.entries(hands)) {
       if (!Array.isArray(handData)) continue;
@@ -588,8 +586,8 @@ function GameScreenContent() {
   // Scoreboard mapping hook (Task #Phase 2B)
   const {
     players,
-    mapPlayersToScoreboardOrder,
-    mapGameIndexToScoreboardPosition,
+    mapPlayersToScoreboardOrder: _mapPlayersToScoreboardOrder,
+    mapGameIndexToScoreboardPosition: _mapGameIndexToScoreboardPosition,
   } = useScoreboardMapping({
     gameState,
     currentPlayerName,
@@ -743,7 +741,7 @@ function GameScreenContent() {
     setOnPlayAgain(() => async () => {
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
       try {
-        const newState = await manager.initializeGame({
+        const _newState = await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
           botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
@@ -894,8 +892,8 @@ function GameScreenContent() {
   // PHASE 6: Updated to support both local and multiplayer modes
   // Task #568: Add ref-based guards to prevent race conditions during server validation
   // Copilot Review: Use separate refs to prevent cross-operation blocking
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
+  const [_isPlayingCards, setIsPlayingCards] = useState(false);
+  const [_isPassing, setIsPassing] = useState(false);
   const isPlayingCardsRef = useRef(false); // Synchronous guard for duplicate play requests
   const isPassingRef = useRef(false); // Synchronous guard for duplicate pass requests
 

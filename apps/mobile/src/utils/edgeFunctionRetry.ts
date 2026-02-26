@@ -8,8 +8,8 @@
  * This utility wraps the invoke call with exponential backoff retry logic.
  */
 
-import { supabase } from '../services/supabase';
 import { networkLogger } from './logger';
+import { supabase } from '../services/supabase';
 
 /** Maximum number of retry attempts after the initial call fails */
 const MAX_RETRIES = 2;

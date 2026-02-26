@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { useMatchmaking } from '../hooks/useMatchmaking';
+import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
-import { roomLogger } from '../utils/logger';
 import { showError, showSuccess, showConfirm } from '../utils';
-import { i18n } from '../i18n';
-import { useMatchmaking } from '../hooks/useMatchmaking';
+import { roomLogger } from '../utils/logger';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   
   // Ranked matchmaking hook
-  const { matchFound, roomCode: rankedRoomCode, startMatchmaking, resetMatch } = useMatchmaking();
+  const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
   const [isRankedSearching, setIsRankedSearching] = useState(false);
   
   // Auto-navigate when ranked match found
@@ -303,7 +303,7 @@ export default function HomeScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verify cleanup succeeded
-      const { data: stillInRoom, error: verifyError } = await supabase
+      const { data: stillInRoom, error: _verifyError } = await supabase
         .from('room_players')
         .select('room_id')
         .eq('user_id', user.id)

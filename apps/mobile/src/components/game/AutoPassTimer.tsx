@@ -19,10 +19,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import type { AutoPassTimerState } from '../../types/multiplayer';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
-import { i18n } from '../../i18n';
 import { useClockSync } from '../../hooks/useClockSync';
+import { i18n } from '../../i18n';
+import type { AutoPassTimerState } from '../../types/multiplayer';
 
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
@@ -31,7 +31,7 @@ interface AutoPassTimerProps {
 
 export default function AutoPassTimer({
   timerState,
-  currentPlayerIndex,
+  currentPlayerIndex: _currentPlayerIndex,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
   const [currentTime, setCurrentTime] = useState(Date.now());

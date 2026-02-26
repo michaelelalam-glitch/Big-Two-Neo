@@ -13,7 +13,7 @@ import type { Rank, Suit } from '../game/types';
  */
 export function CardAssetsDemo() {
   // Example cards from a Big Two game
-  const sampleHand: Array<{ rank: Rank; suit: Suit }> = [
+  const sampleHand: { rank: Rank; suit: Suit }[] = [
     { rank: '3', suit: 'D' },  // 3 of Diamonds (starting card)
     { rank: '5', suit: 'H' },  // 5 of Hearts
     { rank: '10', suit: 'S' }, // 10 of Spades

@@ -1,14 +1,13 @@
-import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Explicit import removed - Babel plugin handles initialization in v4.1.6+
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
-import AppNavigator from './src/navigation/AppNavigator';
 import { i18n } from './src/i18n';
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
   const [i18nInitialized, setI18nInitialized] = useState(false);

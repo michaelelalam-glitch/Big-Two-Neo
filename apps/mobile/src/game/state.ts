@@ -4,14 +4,14 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
-import { type AutoPassTimerState } from '../types/multiplayer';
-import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
-import { supabase } from '../services/supabase';
 import { API } from '../constants';
-import { gameLogger, statsLogger } from '../utils/logger';
+import { supabase } from '../services/supabase';
+import { type AutoPassTimerState } from '../types/multiplayer';
 import { showError, soundManager, SoundType } from '../utils';
+import { gameLogger, statsLogger } from '../utils/logger';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -607,7 +607,7 @@ export class GameStateManager {
         }
         // CRITICAL: Migrate matchComboStats structure for each player
         if (this.state && this.state.matchScores) {
-          let needsMigration = false;
+          let _needsMigration = false;
           this.state.matchScores.forEach(matchScore => {
             if (!matchScore?.matchComboStats) {
               gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore?.playerId}`);
@@ -623,7 +623,7 @@ export class GameStateManager {
                   straight_flushes: [],
                   royal_flushes: [],
                 };
-                needsMigration = true;
+                _needsMigration = true;
               }
             }
           });

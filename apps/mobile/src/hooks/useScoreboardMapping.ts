@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { GameState, Player } from '../game/state';
+import type { GameState } from '../game/state';
 
 /**
  * Maps players array to scoreboard display order [0, 3, 1, 2]

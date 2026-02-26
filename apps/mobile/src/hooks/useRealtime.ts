@@ -16,9 +16,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
 import { useClockSync } from './useClockSync';
-import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
+import { notifyGameStarted, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
+import { supabase } from '../services/supabase';
 import {
   Room,
   Player,
@@ -29,12 +29,10 @@ import {
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
-  PlayerPresence,
   AutoPassTimerState,
 } from '../types/multiplayer';
-import { networkLogger, gameLogger } from '../utils/logger';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
-import { canBeatPlay } from '../game/engine/game-logic';
+import { networkLogger, gameLogger } from '../utils/logger';
 
 /**
  * Map server error messages to user-friendly explanations
@@ -206,7 +204,7 @@ interface PlayerPassResponse {
  * Get server time from Supabase for clock synchronization
  * CRITICAL: This ensures all clients use the same time reference
  */
-async function getServerTimeMs(): Promise<number> {
+async function _getServerTimeMs(): Promise<number> {
   try {
     const { data, error } = await invokeWithRetry<ServerTimeResponse>('server-time', {
       body: {},
@@ -254,7 +252,7 @@ interface PlayerMatchScoreDetail {
  * - 10-13 cards: 3 points per card
  * - Winner (0 cards): 0 points
  */
-function calculatePlayerMatchScore(
+function _calculatePlayerMatchScore(
   cardsRemaining: number,
   currentScore: number
 ): PlayerMatchScoreDetail {
@@ -285,14 +283,14 @@ function calculatePlayerMatchScore(
 /**
  * Check if game should end (any player >= 101 points)
  */
-function shouldGameEnd(scores: PlayerMatchScoreDetail[]): boolean {
+function _shouldGameEnd(scores: PlayerMatchScoreDetail[]): boolean {
   return scores.some(score => score.cumulativeScore >= 101);
 }
 
 /**
  * Find final winner (player with lowest cumulative score)
  */
-function findFinalWinner(scores: PlayerMatchScoreDetail[]): number {
+function _findFinalWinner(scores: PlayerMatchScoreDetail[]): number {
   let lowestScore = Infinity;
   let winnerIndex = scores[0].player_index;
   
@@ -326,7 +324,7 @@ function findFinalWinner(scores: PlayerMatchScoreDetail[]): number {
  *   - 'Straight': five consecutive ranks.
  *   - Throws error if none of the above.
  */
-function determine5CardCombo(cards: Card[]): ComboType {
+function _determine5CardCombo(cards: Card[]): ComboType {
   if (cards.length !== 5) {
     throw new Error('determine5CardCombo expects exactly 5 cards');
   }
@@ -826,7 +824,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const myHandKey = String(effectivePlayerIndex);
       const myHand = currentHands[myHandKey as unknown as number] || [];
       const cardIdsToRemove = new Set(cards.map(c => c.id));
-      const cardsRemainingAfterPlay = myHand.filter((c: Card) => !cardIdsToRemove.has(c.id)).length;
+      const _cardsRemainingAfterPlay = myHand.filter((c: Card) => !cardIdsToRemove.has(c.id)).length;
       // matchWillEnd is now determined by server response (result.match_ended)
 
       // 📡 CRITICAL: Call Edge Function for server-side validation
@@ -1259,27 +1257,27 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // Subscribe to presence events (logging disabled to reduce console noise)
     channel
       .on('presence', { event: 'sync' }, () => {})
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {})
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {});
+      .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {})
+      .on('presence', { event: 'leave' }, ({ key: _key2, leftPresences: _leftPresences }) => {});
     
     // Subscribe to broadcast events
     channel
-      .on('broadcast', { event: 'player_joined' }, (payload) => {
+      .on('broadcast', { event: 'player_joined' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'player_left' }, (payload) => {
+      .on('broadcast', { event: 'player_left' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'player_ready' }, (payload) => {
+      .on('broadcast', { event: 'player_ready' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'game_started' }, (payload) => {
+      .on('broadcast', { event: 'game_started' }, (_payload) => {
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'cards_played' }, (payload) => {
+      .on('broadcast', { event: 'cards_played' }, (_payload) => {
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'player_passed' }, (payload) => {
+      .on('broadcast', { event: 'player_passed' }, (_payload) => {
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'game_ended' }, (payload) => {
@@ -1312,14 +1310,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         }
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'auto_pass_timer_cancelled' }, (payload) => {
+      .on('broadcast', { event: 'auto_pass_timer_cancelled' }, (_payload) => {
         setGameState(prevState => {
           if (!prevState) return prevState;
           return { ...prevState, auto_pass_timer: null };
         });
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'auto_pass_executed' }, (payload) => {
+      .on('broadcast', { event: 'auto_pass_executed' }, (_payload) => {
         setGameState(prevState => {
           if (!prevState) return prevState;
           return { ...prevState, auto_pass_timer: null };
@@ -1456,7 +1454,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // This ensures we have initial state even if channel subscription lags
       try {
         await fetchPlayers(existingRoom.id);
-      } catch (playerError: any) {
+      } catch {
         networkLogger.warn('[connectToRoom] Retrying fetch players...');
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchPlayers(existingRoom.id);
@@ -1464,7 +1462,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       
       try {
         await fetchGameState(existingRoom.id);
-      } catch (stateError) {
+      } catch {
         networkLogger.warn('[connectToRoom] Retrying fetch state...');
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchGameState(existingRoom.id);
@@ -1829,7 +1827,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                         break;
                       }
                     }
-                  } catch (queryError) {
+                  } catch {
                     // If we cannot query fresh state, do not speculate by adjusting turnOffset.
                     // Abort the auto-pass loop to avoid drifting out of sync with the server.
                     networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync');

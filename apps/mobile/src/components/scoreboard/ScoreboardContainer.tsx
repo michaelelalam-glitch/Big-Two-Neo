@@ -14,12 +14,12 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { ScoreboardProps } from '../../types/scoreboard';
 import ExpandedScoreboard from './ExpandedScoreboard';
+import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 import PlayHistoryModal from './PlayHistoryModal';
 import ScoreboardErrorBoundary from './ScoreboardErrorBoundary';
-import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
+import { useScoreboard } from '../../contexts/ScoreboardContext';
+import { ScoreboardProps } from '../../types/scoreboard';
 
 export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   playerNames,

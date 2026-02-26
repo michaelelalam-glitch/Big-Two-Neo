@@ -12,11 +12,11 @@
  * Date: December 12, 2025
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useCompactScoreboardStyles } from './hooks/useResponsiveStyles';
 import { getPlayerNameColor, getScoreColor } from './styles/colors';
 import { CompactScoreboardProps } from '../../types/scoreboard';
-import { useCompactScoreboardStyles, useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   playerNames,
@@ -25,10 +25,10 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   currentPlayerIndex,
   matchNumber,
   isGameFinished,
-  scoreHistory,
+  scoreHistory: _scoreHistory,
   onToggleExpand,
   onTogglePlayHistory,
-  isExpanded,
+  isExpanded: _isExpanded,
 }) => {
   // Use responsive styles
   const styles = useCompactScoreboardStyles();
@@ -80,7 +80,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
         {playerNames.map((name, index) => {
           const isCurrentPlayer = index === currentPlayerIndex;
           const score = currentScores[index] || 0;
-          const cardCount = cardCounts[index] || 0;
+          const _cardCount = cardCounts[index] || 0;
           const scoreColor = getScoreColor(score, isGameFinished, currentScores);
           const nameColor = getPlayerNameColor(isCurrentPlayer);
 

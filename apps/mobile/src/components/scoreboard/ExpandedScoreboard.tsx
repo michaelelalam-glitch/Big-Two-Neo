@@ -16,9 +16,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
 import { ExpandedScoreboardProps } from '../../types/scoreboard';
-import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   playerNames,
@@ -30,7 +30,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   scoreHistory,
   onToggleExpand,
   onTogglePlayHistory,
-  isExpanded,
+  isExpanded: _isExpanded,
 }) => {
   // Use responsive styles
   const styles = useExpandedScoreboardStyles();

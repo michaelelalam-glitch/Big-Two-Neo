@@ -12,8 +12,6 @@ import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  LANDSCAPE_BASE,
-  BREAKPOINTS,
   LANDSCAPE_DIMENSIONS,
   getDeviceCategory,
   clamp,

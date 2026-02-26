@@ -42,7 +42,7 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
           const errorText = await fetch(`data:application/json;base64,${btoa(JSON.stringify(blob))}`).catch(() => null);
           errorBody = errorText;
         }
-      } catch (e) {
+} catch {
         // Ignore blob parsing errors
       }
       
@@ -184,7 +184,7 @@ export async function notifyPlayerTurn(
   userId: string,
   roomCode: string,
   roomId: string,
-  playerName?: string
+  _playerName?: string
 ): Promise<void> {
   await sendPushNotification({
     user_ids: [userId],

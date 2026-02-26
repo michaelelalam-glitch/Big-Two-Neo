@@ -414,7 +414,7 @@ function isHighestRemainingFiveCardCombo(
   // Same strength - check if this is the best of this type
   const remaining = getRemainingCards(playedCards);
   const sorted = sortHand(cards);
-  const highest = sorted[sorted.length - 1];
+  const _highest = sorted[sorted.length - 1];
   
   switch (type) {
     case 'Straight Flush': {
@@ -608,7 +608,7 @@ function isHighestRemainingFiveCardCombo(
       const possibleStraights: Card[][] = [];
       
       // Generate all combinations by trying different suits for each rank
-      function generateStraightsRecursive(rankIdx: number, current: Card[]): void {
+      const generateStraightsRecursive = (rankIdx: number, current: Card[]): void => {
         if (rankIdx === currentSeq.length) {
           possibleStraights.push([...current]);
           return;

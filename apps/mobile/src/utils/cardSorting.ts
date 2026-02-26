@@ -131,7 +131,7 @@ export const classifyAndSortCards = (cards: Card[], comboType?: string): {
   isFlush: boolean;
 } => {
   // Default sort
-  let sortedCards = sortCards(cards);
+  const sortedCards = sortCards(cards);
   const detectedStraight = isStraight(cards);
   const detectedFlush = isFlush(cards);
   

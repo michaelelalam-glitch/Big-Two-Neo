@@ -7,30 +7,30 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
-import { ScoreboardContainer } from '../../components/scoreboard';
-import type { Card } from '../../game/types';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
-import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
-import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
-import { useAuth } from '../../contexts/AuthContext';
-import { useGameStateManager } from '../../hooks/useGameStateManager';
-import { gameLogger } from '../../utils/logger';
-import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { usePlayHistoryTracking } from '../../hooks/usePlayHistoryTracking';
-import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
-import { useGameEnd } from '../../contexts/GameEndContext';
 import { GameEndModal, GameEndErrorBoundary } from '../../components/gameEnd';
-import { useBotTurnManager } from '../../hooks/useBotTurnManager';
-import { useHelperButtons } from '../../hooks/useHelperButtons';
-import { useDerivedGameState } from '../../hooks/useDerivedGameState';
-import { useScoreboardMapping } from '../../hooks/useScoreboardMapping';
-import { useCardSelection } from '../../hooks/useCardSelection';
-import { useOrientationManager } from '../../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
+import { ScoreboardContainer } from '../../components/scoreboard';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
+import { useAuth } from '../../contexts/AuthContext';
+import { useGameEnd } from '../../contexts/GameEndContext';
+import { useScoreboard } from '../../contexts/ScoreboardContext';
+import { useBotTurnManager } from '../../hooks/useBotTurnManager';
+import { useCardSelection } from '../../hooks/useCardSelection';
+import { useDerivedGameState } from '../../hooks/useDerivedGameState';
+import { useGameStateManager } from '../../hooks/useGameStateManager';
+import { useHelperButtons } from '../../hooks/useHelperButtons';
+import { useOrientationManager } from '../../hooks/useOrientationManager';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
+import { usePlayHistoryTracking } from '../../hooks/usePlayHistoryTracking';
+import { useScoreboardMapping } from '../../hooks/useScoreboardMapping';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
+import { gameLogger } from '../../utils/logger';
+import type { Card } from '../../game/types';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -88,8 +88,8 @@ export function LocalAIGameScreen() {
   // Race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
+  const [_isPlayingCards, setIsPlayingCards] = useState(false);
+  const [_isPassing, setIsPassing] = useState(false);
 
   // One card left detection
   const oneCardLeftDetectedRef = useRef(new Set<string>());
@@ -282,13 +282,13 @@ export function LocalAIGameScreen() {
 
   // Cleanup on deliberate leave
   useEffect(() => {
-    let isDeliberateLeave = false;
+    let _isDeliberateLeave = false;
     
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
     const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
       const actionType = e?.data?.action?.type;
       if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
-        isDeliberateLeave = true;
+        _isDeliberateLeave = true;
         
         if (orientationAvailable) {
           try {

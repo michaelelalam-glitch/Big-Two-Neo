@@ -12,8 +12,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { AutoPassTimerState } from '../types/multiplayer';
 import { networkLogger } from '../utils/logger';
+import type { AutoPassTimerState } from '../types/multiplayer';
 
 interface ClockSyncResult {
   /** Clock offset in milliseconds (positive = client is ahead of server) */

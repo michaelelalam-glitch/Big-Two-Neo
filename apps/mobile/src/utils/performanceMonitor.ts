@@ -176,11 +176,10 @@ export const performanceMonitor = new PerformanceMonitor();
  * Hook to track component render count
  */
 export const useRenderCount = (componentName: string): void => {
-  if (!__DEV__) return;
-  
   const renderCount = React.useRef(0);
   
   React.useEffect(() => {
+    if (!__DEV__) return;
     renderCount.current += 1;
     console.log(`🔄 ${componentName} render #${renderCount.current}`);
   });

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
 import { showError } from '../utils';
 
 type MatchHistoryNavigationProp = StackNavigationProp<RootStackParamList, 'MatchHistory'>;

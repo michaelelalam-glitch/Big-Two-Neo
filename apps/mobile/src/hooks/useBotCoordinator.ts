@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../services/supabase';
-import { BotAI, type BotDifficulty } from '../game/bot';
-import type { Card } from '../game/types';
 import { classifyCards } from '../game';
+import { BotAI, type BotDifficulty } from '../game/bot';
+import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
+import type { Card } from '../game/types';
 
 /**
  * Retry a function with exponential backoff

@@ -22,8 +22,8 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { ScoreboardProps } from '../../types/scoreboard';
 import { useLandscapeScoreboardStyles } from './hooks/useLandscapeStyles';
+import { ScoreboardProps } from '../../types/scoreboard';
 import { ExpandedScoreboard as PortraitExpandedScoreboard } from '../scoreboard/ExpandedScoreboard';
 
 // Re-export PlayHistoryModal from scoreboard (identical in landscape)

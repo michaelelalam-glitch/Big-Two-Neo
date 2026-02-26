@@ -24,7 +24,7 @@ let orientationError: string | null = null;
 try {
   ScreenOrientation = require('expo-screen-orientation');
   gameLogger.info('✅ [Orientation] expo-screen-orientation module loaded successfully');
-} catch (error) {
+} catch {
   orientationError = 'Module not available. Make sure you are using a development build (not Expo Go).';
   gameLogger.warn('⚠️ [Orientation] expo-screen-orientation not available - orientation toggle disabled');
   gameLogger.warn('   This feature requires a development build. Run: npm run prebuild && npm run ios');

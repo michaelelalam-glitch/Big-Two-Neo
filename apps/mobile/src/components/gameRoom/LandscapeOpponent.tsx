@@ -18,8 +18,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
-import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 // ============================================================================
 // TYPE DEFINITIONS

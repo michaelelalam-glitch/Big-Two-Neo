@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from './Card';
-import { sortHand } from '../../game/engine/game-logic';
-import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
+import type { Card as CardType } from '../../game/types';
 
 // PORTRAIT vs LANDSCAPE CARD SPACING (separate constants for each orientation)
 // PORTRAIT: EXACT ORIGINAL VALUES FROM BEFORE LANDSCAPE MODE

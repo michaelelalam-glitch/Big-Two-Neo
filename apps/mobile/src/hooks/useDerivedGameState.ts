@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { Card } from '../game/types';
-import type { GameState } from '../game/state';
 import { sortCardsForDisplay } from '../utils/cardSorting';
+import type { GameState } from '../game/state';
+import type { Card } from '../game/types';
 
 // Constants
 const SUIT_NAMES: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '♠' };

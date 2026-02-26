@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
-import { soundManager, hapticManager, HapticType, showConfirm } from '../../utils';
 import { i18n } from '../../i18n';
+import { soundManager, hapticManager, HapticType } from '../../utils';
 
 interface GameSettingsModalProps {
   visible: boolean;

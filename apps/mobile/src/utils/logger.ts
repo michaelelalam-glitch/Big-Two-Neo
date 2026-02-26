@@ -24,7 +24,7 @@ let FileSystem: typeof import('expo-file-system') | undefined;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   FileSystem = require('expo-file-system');
-} catch (e) {
+} catch {
   // FileSystem not available - will use console transport even in production
   // This is acceptable for environments where file system access is not available
   FileSystem = undefined;

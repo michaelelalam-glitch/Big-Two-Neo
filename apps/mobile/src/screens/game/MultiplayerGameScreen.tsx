@@ -10,28 +10,28 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
-// Match number + score action button styles imported from shared scoreDisplayStyles (Task #590)
-import { ScoreboardContainer } from '../../components/scoreboard';
-import type { Card } from '../../game/types';
-import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
-import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
-import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../services/supabase';
-import { useBotCoordinator } from '../../hooks/useBotCoordinator';
-import { useRealtime } from '../../hooks/useRealtime';
-import { gameLogger } from '../../utils/logger';
-import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { soundManager, hapticManager, SoundType, showError } from '../../utils';
-import { useHelperButtons } from '../../hooks/useHelperButtons';
-import { useCardSelection } from '../../hooks/useCardSelection';
-import { useOrientationManager } from '../../hooks/useOrientationManager';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
+import { ScoreboardContainer } from '../../components/scoreboard';
+// Match number + score action button styles imported from shared scoreDisplayStyles (Task #590)
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
+import { useAuth } from '../../contexts/AuthContext';
+import { useScoreboard } from '../../contexts/ScoreboardContext';
+import { useBotCoordinator } from '../../hooks/useBotCoordinator';
+import { useCardSelection } from '../../hooks/useCardSelection';
+import { useHelperButtons } from '../../hooks/useHelperButtons';
+import { useOrientationManager } from '../../hooks/useOrientationManager';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
+import { useRealtime } from '../../hooks/useRealtime';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { supabase } from '../../services/supabase';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { soundManager, hapticManager, SoundType, showError } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
+import { gameLogger } from '../../utils/logger';
+import type { Card } from '../../game/types';
+import type { ScoreHistory, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -166,7 +166,7 @@ export function MultiplayerGameScreen() {
   // Multiplayer hands memo
   const multiplayerHandsByIndex = useMemo(() => {
     const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, Array<{ id: string; rank: string; suit: string }>>
+      | Record<string, { id: string; rank: string; suit: string }[]>
       | undefined;
     
     return hands;
@@ -454,8 +454,8 @@ export function MultiplayerGameScreen() {
   // Play/Pass action handlers with race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
+  const [_isPlayingCards, setIsPlayingCards] = useState(false);
+  const [_isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
     if (isPlayingCardsRef.current) {

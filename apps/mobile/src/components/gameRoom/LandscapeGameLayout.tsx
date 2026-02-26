@@ -15,18 +15,18 @@
 import React from 'react';
 import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
-import { LandscapeOvalTable } from './LandscapeOvalTable';
-import { LandscapeYourPosition } from './LandscapeYourPosition';
-import { LandscapeControlBar } from './LandscapeControlBar';
+import { LandscapeControlBar as _LandscapeControlBar } from './LandscapeControlBar';
 import { LandscapeOpponent } from './LandscapeOpponent';
-import { AutoPassTimer } from '../game';
-import { HelperButtons } from '../game/HelperButtons';
-import type { Card as CardType } from '../../game/types';
-import type { AutoPassTimerState } from '../../types/multiplayer';
-import { gameLogger } from '../../utils/logger';
+import { LandscapeOvalTable } from './LandscapeOvalTable';
+import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
+import { LandscapeYourPosition } from './LandscapeYourPosition';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { gameLogger as _gameLogger } from '../../utils/logger';
+import { AutoPassTimer } from '../game';
+import { HelperButtons as _HelperButtons } from '../game/HelperButtons';
+import type { Card as CardType } from '../../game/types';
+import type { AutoPassTimerState } from '../../types/multiplayer';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -117,7 +117,7 @@ export function LandscapeGameLayout({
   
   // Controls
   onOrientationToggle,
-  onHelp,
+  onHelp: _onHelp,
   onSort,
   onSmartSort,
   onPlay,

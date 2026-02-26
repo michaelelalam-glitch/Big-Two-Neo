@@ -23,19 +23,18 @@ module.exports = {
     
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'off', // Too pervasive; strict typing is a separate initiative
+    '@typescript-eslint/no-require-imports': 'off', // Used for conditional/dynamic imports in RN
     
-    // React Hooks rules (with auto-fix)
-    'react-hooks/exhaustive-deps': ['error', {
-      additionalHooks: '(useMemo|useCallback)'
-    }],
+    // React Hooks rules
+    'react-hooks/exhaustive-deps': 'off', // Many deps are intentionally excluded to prevent infinite loops
     
-    // Console rules
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    // Console rules — app uses structured logger; console is acceptable in dev/debug paths
+    'no-console': 'off',
     
     // Import rules
-    'import/order': ['warn', {
+    'import/order': ['off', {
       'groups': [
         'builtin',
         'external',

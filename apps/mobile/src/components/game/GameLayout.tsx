@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 import { PlayerInfo, CenterPlayArea, AutoPassTimer } from './index';
 import type { AutoPassTimerState } from '../../types/multiplayer';
-import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 
 interface GameLayoutProps {
   /** Array of 4 players in display order [user, top, left, right] */

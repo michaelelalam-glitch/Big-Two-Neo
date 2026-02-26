@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS, OPACITIES } from '../../constants';
-import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 interface PlayerInfoProps {
   name: string;

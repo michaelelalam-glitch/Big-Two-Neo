@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Clipboard, Share, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { roomLogger } from '../utils/logger';
-import { showError } from '../utils';
-import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { notifyGameStarted } from '../services/pushNotificationTriggers';
+import { supabase } from '../services/supabase';
+import { showError } from '../utils';
+import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -53,7 +53,7 @@ export default function LobbyScreen() {
     isCasual: false,
     isRanked: false,
   });
-  const [isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
+  const [_isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
@@ -470,7 +470,7 @@ export default function LobbyScreen() {
     }
   };
 
-  const renderPlayer = ({ item, index }: { item: Player | null; index: number }) => {
+  const renderPlayer = ({ item, index: _index }: { item: Player | null; index: number }) => {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>

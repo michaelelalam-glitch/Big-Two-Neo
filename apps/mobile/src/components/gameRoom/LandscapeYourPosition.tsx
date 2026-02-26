@@ -16,20 +16,20 @@
  * Date: December 18, 2025
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Card from '../game/Card';
-import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
 import { gameLogger } from '../../utils/logger';
+import Card from '../game/Card';
+import type { Card as CardType } from '../../game/types';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const CARD_OVERLAP_MARGIN = -30; // Same as portrait mode
+const _CARD_OVERLAP_MARGIN = -30; // Same as portrait mode
 const CARD_SPACING = 40; // For drag calculations
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag up to play
 
@@ -77,11 +77,11 @@ const initialDragState: DragState = {
 // ============================================================================
 
 export function LandscapeYourPosition({
-  playerName,
+  playerName: _playerName,
   cards,
   selectedCardIds,
   onSelectionChange,
-  isActive,
+  isActive: _isActive,
   disabled = false,
   onPlayCards,
   onCardsReorder,

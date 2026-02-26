@@ -10,9 +10,9 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import { LANDSCAPE_DIMENSIONS } from '../../constants/landscape';
+import type { Card as CardType } from '../../game/types';
 
 interface LandscapeCardProps {
   card: CardType;

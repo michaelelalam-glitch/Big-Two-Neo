@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
-import { RoomPlayerWithRoom } from '../types';
-import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { 
   registerForPushNotificationsAsync, 
   savePushTokenToDatabase,
   removePushTokenFromDatabase 
 } from '../services/notificationService';
+import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
+import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { detectRegion } from '../utils/regionDetector';
 
 /**
