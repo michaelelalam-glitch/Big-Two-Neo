@@ -1296,7 +1296,7 @@ function GameScreenContent() {
           // PORTRAIT MODE (existing layout)
           <>
             {/* Task #590: Match number display - top center */}
-            <View style={scoreDisplayStyles.matchNumberContainer}>
+            <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
               <View style={scoreDisplayStyles.matchNumberBadge}>
                 <Text style={scoreDisplayStyles.matchNumberText}>
                   {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
@@ -1305,7 +1305,7 @@ function GameScreenContent() {
             </View>
 
             {/* Task #590: Score action buttons - top left */}
-            <View style={scoreDisplayStyles.scoreActionContainer}>
+            <View style={scoreDisplayStyles.scoreActionContainer} pointerEvents="box-none">
               <TouchableOpacity
                 style={scoreDisplayStyles.scoreActionButton}
                 onPress={() => scoreboardContext.setIsPlayHistoryOpen(prev => !prev)}
@@ -1472,7 +1472,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
   },
   menuIcon: {
     width: LAYOUT.menuIconSize,
@@ -1487,7 +1487,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
     width: LAYOUT.menuIconSize,
     height: LAYOUT.menuIconSize,
     backgroundColor: OVERLAYS.menuBackground,

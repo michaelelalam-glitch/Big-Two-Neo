@@ -757,7 +757,7 @@ export function MultiplayerGameScreen() {
       ) : (
         <>
           {/* Match number display - top center (Task #590 inlined) */}
-          <View style={scoreDisplayStyles.matchNumberContainer}>
+          <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
             <View style={scoreDisplayStyles.matchNumberBadge}>
               <Text style={scoreDisplayStyles.matchNumberText}>
                 {isGameFinished ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
@@ -766,7 +766,7 @@ export function MultiplayerGameScreen() {
           </View>
 
           {/* Score action buttons - top left (Task #590 inlined) */}
-          <View style={scoreDisplayStyles.scoreActionContainer}>
+          <View style={scoreDisplayStyles.scoreActionContainer} pointerEvents="box-none">
             <TouchableOpacity
               style={scoreDisplayStyles.scoreActionButton}
               onPress={() => setIsPlayHistoryOpen(prev => !prev)}
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
   },
   menuIcon: {
     width: LAYOUT.menuIconSize,
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
     width: LAYOUT.menuIconSize,
     height: LAYOUT.menuIconSize,
     backgroundColor: OVERLAYS.menuBackground,

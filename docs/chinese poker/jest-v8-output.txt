@@ -1,0 +1,1808 @@
+PASS src/__tests__/fixes/audio-stress.test.ts (11.105 s)
+PASS src/hooks/__tests__/usePlayerTotalScores.test.ts
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      28 |       { player_index: 3, score: 0 },
+      29 |     ];
+    > 30 |     const { result } = renderHook(() => usePlayerTotalScores(players, []));
+         |                                  ^
+      31 |     expect(result.current).toEqual([0, 0, 0, 0]);
+      32 |   });
+      33 |
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:30:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      39 |       { player_index: 3, score: 0 },
+      40 |     ];
+    > 41 |     const { result } = renderHook(() => usePlayerTotalScores(players, []));
+         |                                  ^
+      42 |     expect(result.current).toEqual([5, -3, 10, 0]);
+      43 |   });
+      44 |
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:41:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      54 |       makeScoreHistory(2, [-2, 6, -2, -2], [1, 5, -3, -3]),
+      55 |     ];
+    > 56 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+         |                                  ^
+      57 |     expect(result.current).toEqual([1, 5, -3, -3]);
+      58 |   });
+      59 |
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:56:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      69 |       makeScoreHistory(1, [10, 20, 30, 40], [10, 20, 30, 40]),
+      70 |     ];
+    > 71 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+         |                                  ^
+      72 |     // Each player should get their own column: p2→30, p0→10, p3→40, p1→20
+      73 |     expect(result.current).toEqual([30, 10, 40, 20]);
+      74 |   });
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:71:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      85 |       makeScoreHistory(1, [5, -2, -2, -1], [5, -2, -2, -1]),
+      86 |     ];
+    > 87 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+         |                                  ^
+      88 |     expect(result.current).toEqual([5, -2, -2, -1]);
+      89 |   });
+      90 |
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:87:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+       99 |       makeScoreHistory(1, [100, 200, 300, 400], [100, 200, 300, 400]),
+      100 |     ];
+    > 101 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+          |                                  ^
+      102 |     expect(result.current).toEqual([400, 200, 100, 300]);
+      103 |   });
+      104 |
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:101:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      106 |     const players = [{ score: 5 }, { score: 10 }];
+      107 |     const history = [makeScoreHistory(1, [1, 2], [1, 2])];
+    > 108 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+          |                                  ^
+      109 |     // Fewer than 4 players → falls back to p.score (matches guard condition)
+      110 |     expect(result.current).toEqual([5, 10]);
+      111 |   });
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:108:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      121 |       { matchNumber: 1, pointsAdded: [], scores: [] } as ScoreHistory,
+      122 |     ];
+    > 123 |     const { result } = renderHook(() => usePlayerTotalScores(players, history));
+          |                                  ^
+      124 |     expect(result.current).toEqual([0, 0, 0, 0]);
+      125 |   });
+      126 | });
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayerTotalScores.test.ts:123:34)
+
+PASS src/utils/__tests__/cardSorting.test.ts
+PASS src/game/__tests__/one-card-left-debug.test.ts
+PASS src/__tests__/utils/edgeFunctionRetry.test.ts
+PASS src/constants/__tests__/landscape-simple.test.ts
+PASS src/game/__tests__/scoring.test.ts
+PASS src/hooks/__tests__/useRealtime-autopass.test.ts
+PASS src/game/__tests__/bot-extended.test.ts
+PASS src/game/__tests__/game-logic.test.ts
+PASS src/game/__tests__/bot.test.ts
+PASS src/utils/__tests__/cardOverlap.test.ts
+PASS src/utils/__tests__/hintLogic.test.ts
+PASS src/utils/__tests__/helperButtonUtils.test.ts
+PASS src/__tests__/settings/settings.test.ts
+  ● Console
+
+    console.warn
+      [i18n] Translation not found: nonexistent.key
+
+      1975 |         value = value[key];
+      1976 |       } else {
+    > 1977 |         console.warn(`[i18n] Translation not found: ${path}`);
+           |                 ^
+      1978 |         return path;
+      1979 |       }
+      1980 |     }
+
+      at I18nManager.t (src/i18n/index.ts:1977:17)
+      at Object.<anonymous> (src/__tests__/settings/settings.test.ts:123:32)
+
+PASS src/utils/__tests__/scaling.test.ts
+PASS src/game/__tests__/timer-cancellation-on-game-end.test.ts
+  ● Console
+
+    console.warn
+      [Logger] expo-file-system not available - using console transport Jest encountered an unexpected token
+      
+      Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+      
+      Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+      
+      By default "node_modules" folder is ignored by transformers.
+      
+      Here's what you can do:
+       • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+       • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+       • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+       • If you need a custom transformation specify a "transform" option in your config.
+       • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+      
+      You'll find more details and examples of these config options in the docs:
+      https://jestjs.io/docs/configuration
+      For information about custom transformations, see:
+      https://jestjs.io/docs/code-transformation
+      
+      Details:
+      
+      /Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/expo-file-system@19.0.21_expo@54.0.29_@babel+core@7.28.5_react-native@0.81.5_@babel+cor_91c5f42def663cfc2e19cf298a758760/node_modules/expo-file-system/src/index.ts:1
+      ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){export * from './FileSystem';
+                                                                                        ^^^^^^
+      
+      SyntaxError: Unexpected token 'export'
+          at new Script (node:vm:117:7)
+          at Runtime.createScriptFromCode (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1399:25)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/utils/logger.ts:26:16)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/utils/playHistoryUtils.ts:6:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/utils/index.ts:11:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/game/state.ts:13:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/game/__tests__/timer-cancellation-on-game-end.test.ts:32:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at jestAdapter (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)
+          at runTestInternal (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
+
+      30 |   FileSystem = undefined;
+      31 |   if (__DEV__) {
+    > 32 |     console.warn('[Logger] expo-file-system not available - using console transport', error);
+         |             ^
+      33 |   }
+      34 | }
+      35 |
+
+      at Object.<anonymous> (src/utils/logger.ts:32:13)
+      at Object.<anonymous> (src/utils/playHistoryUtils.ts:6:1)
+      at Object.<anonymous> (src/utils/index.ts:11:1)
+      at Object.<anonymous> (src/game/state.ts:13:1)
+      at Object.<anonymous> (src/game/__tests__/timer-cancellation-on-game-end.test.ts:32:1)
+
+PASS src/constants/__tests__/landscape.test.ts
+PASS src/game/__tests__/five-card-combo-classification.test.ts
+PASS src/game/__tests__/game-logic-extended.test.ts
+PASS src/components/gameEnd/__tests__/FinalStandings.test.tsx
+PASS src/game/__tests__/auto-pass-timer.test.ts
+PASS src/game/__tests__/bot-matchNumber.test.ts
+  ● Console
+
+    console.warn
+      [BotAI] ⚠️ Out-of-range matchNumber "0" received (expected: 1-1000); defaulting to match 1.
+
+      71 |         currentMatch = 1;
+      72 |       } else {
+    > 73 |         console.warn(`[BotAI] ⚠️ Out-of-range matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+         |                 ^
+      74 |         currentMatch = 1;
+      75 |       }
+      76 |     } else {
+
+      at BotAI.getPlay (src/game/bot/index.ts:73:17)
+      at getBotPlay (src/game/bot/index.ts:658:14)
+      at Object.<anonymous> (src/game/__tests__/bot-matchNumber.test.ts:170:32)
+
+PASS src/__tests__/fixes/race-condition.test.ts
+PASS src/game/__tests__/highest-play-detector.test.ts
+PASS src/components/gameRoom/__tests__/LandscapeIntegration.test.ts
+PASS src/__tests__/fixes/memory-leak.test.ts
+PASS src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx
+  ● Console
+
+    console.warn
+      [Logger] expo-file-system not available - using console transport Jest encountered an unexpected token
+      
+      Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+      
+      Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+      
+      By default "node_modules" folder is ignored by transformers.
+      
+      Here's what you can do:
+       • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+       • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+       • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+       • If you need a custom transformation specify a "transform" option in your config.
+       • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+      
+      You'll find more details and examples of these config options in the docs:
+      https://jestjs.io/docs/configuration
+      For information about custom transformations, see:
+      https://jestjs.io/docs/code-transformation
+      
+      Details:
+      
+      /Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/expo-file-system@19.0.21_expo@54.0.29_@babel+core@7.28.5_react-native@0.81.5_@babel+cor_91c5f42def663cfc2e19cf298a758760/node_modules/expo-file-system/src/index.ts:1
+      ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){export * from './FileSystem';
+                                                                                        ^^^^^^
+      
+      SyntaxError: Unexpected token 'export'
+          at new Script (node:vm:117:7)
+          at Runtime.createScriptFromCode (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1399:25)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/utils/logger.ts:26:16)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/components/gameRoom/LandscapeYourPosition.tsx:24:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/components/gameRoom/LandscapeGameLayout.tsx:22:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at Runtime.requireModuleOrMock (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1048:21)
+          at Object.<anonymous> (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:105:1)
+          at Runtime._execModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)
+          at jestAdapter (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)
+          at runTestInternal (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/Users/michaelalam/Desktop/Desktop/Coding/Coding/Big-Two-Neo/apps/mobile/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
+
+      30 |   FileSystem = undefined;
+      31 |   if (__DEV__) {
+    > 32 |     console.warn('[Logger] expo-file-system not available - using console transport', error);
+         |             ^
+      33 |   }
+      34 | }
+      35 |
+
+      at Object.<anonymous> (src/utils/logger.ts:32:13)
+      at Object.<anonymous> (src/components/gameRoom/LandscapeYourPosition.tsx:24:1)
+      at Object.<anonymous> (src/components/gameRoom/LandscapeGameLayout.tsx:22:1)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:105:1)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      172 |   describe('Component Integration', () => {
+      173 |     it('should render all major components', () => {
+    > 174 |       const { getAllByText, getByText, getByLabelText } = render(
+          |                                                                 ^
+      175 |         <LandscapeGameLayout {...defaultProps} />
+      176 |       );
+      177 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:174:65)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      190 |     
+      191 |     it('should integrate scoreboard with game data', () => {
+    > 192 |       const { getAllByText, getByText } = render(
+          |                                                 ^
+      193 |         <LandscapeGameLayout {...defaultProps} />
+      194 |       );
+      195 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:192:49)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      205 |     
+      206 |     it('should integrate table with last played cards', () => {
+    > 207 |       const { getAllByText, getByText } = render(
+          |                                                 ^
+      208 |         <LandscapeGameLayout {...defaultProps} />
+      209 |       );
+      210 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:207:49)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      217 |     
+      218 |     it('should integrate player position with cards', () => {
+    > 219 |       const { getAllByText } = render(
+          |                                      ^
+      220 |         <LandscapeGameLayout {...defaultProps} />
+      221 |       );
+      222 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:219:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      236 |   describe('Visual Layout', () => {
+      237 |     it('should position scoreboard in top-left corner', () => {
+    > 238 |       const { getAllByText } = render(
+          |                                      ^
+      239 |         <LandscapeGameLayout {...defaultProps} />
+      240 |       );
+      241 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:238:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      246 |     
+      247 |     it('should center oval table in main area', () => {
+    > 248 |       const { getByText } = render(
+          |                                   ^
+      249 |         <LandscapeGameLayout {...defaultProps} />
+      250 |       );
+      251 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:248:35)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      255 |     
+      256 |     it('should position control bar at bottom', () => {
+    > 257 |       const { getByLabelText } = render(
+          |                                        ^
+      258 |         <LandscapeGameLayout {...defaultProps} />
+      259 |       );
+      260 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:257:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      264 |     
+      265 |     it('should apply dark background color', () => {
+    > 266 |       const { getAllByText } = render(
+          |                                      ^
+      267 |         <LandscapeGameLayout {...defaultProps} />
+      268 |       );
+      269 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:266:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      281 |     it('should call onPass when pass button pressed', () => {
+      282 |       const onPass = jest.fn();
+    > 283 |       const { getByLabelText } = render(
+          |                                        ^
+      284 |         <LandscapeGameLayout {...defaultProps} onPass={onPass} />
+      285 |       );
+      286 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:283:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      293 |     it('should call onPlay when play button pressed and canPlay is true', () => {
+      294 |       const onPlay = jest.fn();
+    > 295 |       const { getByLabelText } = render(
+          |                                        ^
+      296 |         <LandscapeGameLayout {...defaultProps} onPlay={onPlay} canPlay={true} />
+      297 |       );
+      298 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:295:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      305 |     it('should call onSort when sort button pressed', () => {
+      306 |       const onSort = jest.fn();
+    > 307 |       const { getByLabelText } = render(
+          |                                        ^
+      308 |         <LandscapeGameLayout {...defaultProps} onSort={onSort} />
+      309 |       );
+      310 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:307:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      317 |     it('should call onSmartSort when smart sort button pressed', () => {
+      318 |       const onSmartSort = jest.fn();
+    > 319 |       const { getByLabelText } = render(
+          |                                        ^
+      320 |         <LandscapeGameLayout {...defaultProps} onSmartSort={onSmartSort} />
+      321 |       );
+      322 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:319:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      329 |     it('should call onHint when hint button pressed', () => {
+      330 |       const onHint = jest.fn();
+    > 331 |       const { getByLabelText } = render(
+          |                                        ^
+      332 |         <LandscapeGameLayout {...defaultProps} onHint={onHint} />
+      333 |       );
+      334 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:331:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      341 |     it('should call onSettings when settings button pressed', () => {
+      342 |       const onSettings = jest.fn();
+    > 343 |       const { getByLabelText } = render(
+          |                                        ^
+      344 |         <LandscapeGameLayout {...defaultProps} onSettings={onSettings} />
+      345 |       );
+      346 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:343:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      353 |     it('should handle card selection changes', () => {
+      354 |       const onSelectionChange = jest.fn();
+    > 355 |       const { getByText } = render(
+          |                                   ^
+      356 |         <LandscapeGameLayout {...defaultProps} onSelectionChange={onSelectionChange} />
+      357 |       );
+      358 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:355:35)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      369 |   describe('Responsive Behavior', () => {
+      370 |     it('should handle game finished state', () => {
+    > 371 |       const { getAllByText, queryByLabelText } = render(
+          |                                                        ^
+      372 |         <LandscapeGameLayout {...defaultProps} isGameFinished={true} />
+      373 |       );
+      374 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:371:56)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      381 |     
+      382 |     it('should handle empty last played cards', () => {
+    > 383 |       const { queryAllByText } = render(
+          |                                        ^
+      384 |         <LandscapeGameLayout {...defaultProps} lastPlayedCards={undefined} />
+      385 |       );
+      386 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:383:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      390 |     
+      391 |     it('should handle disabled state', () => {
+    > 392 |       const { getByLabelText } = render(
+          |                                        ^
+      393 |         <LandscapeGameLayout {...defaultProps} disabled={true} />
+      394 |       );
+      395 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:392:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      399 |     
+      400 |     it('should handle inactive player state', () => {
+    > 401 |       const { getByLabelText } = render(
+          |                                        ^
+      402 |         <LandscapeGameLayout {...defaultProps} isPlayerActive={false} />
+      403 |       );
+      404 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:401:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      409 |     
+      410 |     it('should update when props change', async () => {
+    > 411 |       const { rerender, getAllByText } = render(
+          |                                                ^
+      412 |         <LandscapeGameLayout {...defaultProps} />
+      413 |       );
+      414 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:411:48)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      437 |   describe('Accessibility', () => {
+      438 |     it('should have accessible labels for all interactive elements', () => {
+    > 439 |       const { getByLabelText } = render(
+          |                                        ^
+      440 |         <LandscapeGameLayout {...defaultProps} />
+      441 |       );
+      442 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:439:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      452 |     
+      453 |     it('should use SafeAreaView for proper safe area handling', () => {
+    > 454 |       const { getAllByText } = render(
+          |                                      ^
+      455 |         <LandscapeGameLayout {...defaultProps} />
+      456 |       );
+      457 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:454:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      468 |   describe('Edge Cases', () => {
+      469 |     it('should handle zero cards in hand', () => {
+    > 470 |       const { getAllByText } = render(
+          |                                      ^
+      471 |         <LandscapeGameLayout {...defaultProps} playerCards={[]} />
+      472 |       );
+      473 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:470:38)
+
+    console.warn
+      [i18n] Translation not found: game.noCards
+
+      1975 |         value = value[key];
+      1976 |       } else {
+    > 1977 |         console.warn(`[i18n] Translation not found: ${path}`);
+           |                 ^
+      1978 |         return path;
+      1979 |       }
+      1980 |     }
+
+      at I18nManager.t (src/i18n/index.ts:1977:17)
+      at LandscapeYourPosition (src/components/gameRoom/LandscapeYourPosition.tsx:250:48)
+      at Object.react-stack-bottom-frame (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:13976:20)
+      at renderWithHooks (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2866:22)
+      at updateFunctionComponent (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6006:19)
+      at beginWork (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:7474:18)
+      at runWithFiberInDEV (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:1574:13)
+      at performUnitOfWork (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10980:22)
+      at workLoopSync (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10816:41)
+      at renderRootSync (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10797:11)
+      at performWorkOnRoot (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10349:13)
+      at performWorkOnRootViaSchedulerTask (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2094:7)
+      at flushActQueue (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:566:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:859:10)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:470:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      485 |       }));
+      486 |       
+    > 487 |       const { getAllByText } = render(
+          |                                      ^
+      488 |         <LandscapeGameLayout {...defaultProps} playerCards={maxCards} />
+      489 |       );
+      490 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:487:38)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      493 |     
+      494 |     it('should handle missing optional callbacks', () => {
+    > 495 |       const { getByLabelText } = render(
+          |                                        ^
+      496 |         <LandscapeGameLayout 
+      497 |           {...defaultProps}
+      498 |           onHelp={undefined}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:495:40)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      516 |       ];
+      517 |       
+    > 518 |       const { getByText } = render(
+          |                                   ^
+      519 |         <LandscapeGameLayout {...defaultProps} playerNames={longNames} />
+      520 |       );
+      521 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:518:35)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      534 |       const startTime = Date.now();
+      535 |       
+    > 536 |       render(<LandscapeGameLayout {...defaultProps} />);
+          |             ^
+      537 |       
+      538 |       const renderTime = Date.now() - startTime;
+      539 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:536:13)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      543 |     
+      544 |     it('should handle multiple rapid updates efficiently', async () => {
+    > 545 |       const { rerender } = render(
+          |                                  ^
+      546 |         <LandscapeGameLayout {...defaultProps} />
+      547 |       );
+      548 |       
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameRoom/__tests__/LandscapeGameLayout.test.tsx:545:34)
+
+PASS src/components/gameEnd/__tests__/GameEndModal.test.tsx
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      76 |   describe('Basic Rendering', () => {
+      77 |     it('renders without errors when modal is closed', () => {
+    > 78 |       const { toJSON } = render(
+         |                                ^
+      79 |         <GameEndProvider>
+      80 |           <GameEndModal />
+      81 |         </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndModal.test.tsx:78:32)
+
+PASS src/components/game/__tests__/Card.test.tsx
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+       99 |
+      100 |   it('renders card with correct rank and suit', () => {
+    > 101 |     const { getAllByText } = render(
+          |                                    ^
+      102 |       <Card
+      103 |         card={mockCard}
+      104 |         isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:101:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      120 |   // This test suite verifies component structure and rendering only
+      121 |   it('renders without errors when tapped', () => {
+    > 122 |     const { getByTestId } = render(
+          |                                   ^
+      123 |       <Card
+      124 |         card={mockCard}
+      125 |         isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:122:35)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      134 |
+      135 |   it('displays selected state with border', () => {
+    > 136 |     const { getAllByText } = render(
+          |                                    ^
+      137 |       <Card
+      138 |         card={mockCard}
+      139 |         isSelected={true}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:136:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      161 |       };
+      162 |
+    > 163 |       const { getAllByText } = render(
+          |                                      ^
+      164 |         <Card
+      165 |           card={card}
+      166 |           isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at src/components/game/__tests__/Card.test.tsx:163:38
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:156:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      161 |       };
+      162 |
+    > 163 |       const { getAllByText } = render(
+          |                                      ^
+      164 |         <Card
+      165 |           card={card}
+      166 |           isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at src/components/game/__tests__/Card.test.tsx:163:38
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:156:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      161 |       };
+      162 |
+    > 163 |       const { getAllByText } = render(
+          |                                      ^
+      164 |         <Card
+      165 |           card={card}
+      166 |           isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at src/components/game/__tests__/Card.test.tsx:163:38
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:156:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      161 |       };
+      162 |
+    > 163 |       const { getAllByText } = render(
+          |                                      ^
+      164 |         <Card
+      165 |           card={card}
+      166 |           isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at src/components/game/__tests__/Card.test.tsx:163:38
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:156:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      175 |
+      176 |   it('respects disabled prop', () => {
+    > 177 |     const { getAllByText } = render(
+          |                                    ^
+      178 |       <Card
+      179 |         card={mockCard}
+      180 |         isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:177:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      193 |   // that don't directly affect the DOM and would require E2E testing to verify.
+      194 |   it('resets animation values when selection state changes', () => {
+    > 195 |     const { rerender, getAllByText } = render(
+          |                                              ^
+      196 |       <Card
+      197 |         card={mockCard}
+      198 |         isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:195:46)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      230 |
+      231 |   it('maintains stable component when selection state changes rapidly', () => {
+    > 232 |     const { rerender, getAllByText } = render(
+          |                                              ^
+      233 |       <Card
+      234 |         card={mockCard}
+      235 |         isSelected={false}
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/game/__tests__/Card.test.tsx:232:46)
+
+PASS src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      42 |       });
+      43 |
+    > 44 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+         |                                    ^
+      45 |
+      46 |       expect(result.current.screenWidth).toBe(932);
+      47 |       expect(result.current.screenHeight).toBe(430);
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:44:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+       96 |       });
+       97 |
+    >  98 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+       99 |
+      100 |       expect(result.current.category).toBe('phoneSmall');
+      101 |       expect(result.current.cardWidth).toBe(56); // Smaller cards
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:98:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      121 |       });
+      122 |
+    > 123 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      124 |
+      125 |       expect(result.current.category).toBe('tabletSmall');
+      126 |       expect(result.current.cardWidth).toBe(80); // Larger cards
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:123:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      146 |       });
+      147 |
+    > 148 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      149 |
+      150 |       expect(result.current.category).toBe('tabletLarge');
+      151 |       expect(result.current.cardWidth).toBe(88); // Largest cards
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:148:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      172 |       });
+      173 |
+    > 174 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      175 |
+      176 |       expect(result.current.isLandscape).toBe(false);
+      177 |       expect(result.current.usableWidth).toBe(430);
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:174:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      196 |       });
+      197 |
+    > 198 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      199 |
+      200 |       const initialWidth = result.current.screenWidth;
+      201 |       expect(initialWidth).toBe(932);
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:198:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      222 |       });
+      223 |
+    > 224 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      225 |
+      226 |       // Usable width: 932 - 40 - 50 = 842
+      227 |       expect(result.current.usableWidth).toBe(842);
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:224:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      248 |       });
+      249 |
+    > 250 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      251 |
+      252 |       // Table width should be 45% of screen width, clamped between 320-560
+      253 |       const expected = Math.min(Math.max(932 * 0.45, 320), 560);
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:250:36)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      270 |       });
+      271 |
+    > 272 |       const { result } = renderHook(() => useAdaptiveLandscapeLayout());
+          |                                    ^
+      273 |
+      274 |       expect(result.current.tableBorderRadius).toBe(result.current.tableHeight / 2);
+      275 |     });
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/useAdaptiveLandscapeLayout.test.ts:272:36)
+
+PASS src/hooks/__tests__/usePlayHistoryTracking.test.tsx
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+       99 |
+      100 |   test('should initialize without errors', () => {
+    > 101 |     const { result } = renderHook(
+          |                                  ^
+      102 |       () => usePlayHistoryTracking(null),
+      103 |       { wrapper }
+      104 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:101:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      110 |     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+      111 |
+    > 112 |     renderHook(
+          |               ^
+      113 |       () => usePlayHistoryTracking(null),
+      114 |       { wrapper }
+      115 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:112:15)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      126 |     const gameState = createMockGameState({ gameStarted: false });
+      127 |
+    > 128 |     renderHook(
+          |               ^
+      129 |       () => usePlayHistoryTracking(gameState),
+      130 |       { wrapper }
+      131 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:128:15)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      141 |     const gameState = createMockGameState();
+      142 |
+    > 143 |     const { result } = renderHook(
+          |                                  ^
+      144 |       () => usePlayHistoryTrackingWithState(gameState),
+      145 |       { wrapper }
+      146 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:143:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      155 |     const gameState = createMockGameState();
+      156 |
+    > 157 |     const { result } = renderHook(
+          |                                  ^
+      158 |       () => usePlayHistoryTrackingWithState(gameState),
+      159 |       { wrapper }
+      160 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:157:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      169 |     const gameState = createMockGameState();
+      170 |
+    > 171 |     const { result, rerender } = renderHook(
+          |                                            ^
+      172 |       ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
+      173 |       { 
+      174 |         wrapper,
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:171:44)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      205 |     const gameState = createMockGameState({ currentMatch: 1 });
+      206 |
+    > 207 |     const { result, rerender } = renderHook(
+          |                                            ^
+      208 |       ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
+      209 |       { 
+      210 |         wrapper,
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:207:44)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      246 |     });
+      247 |
+    > 248 |     const { result } = renderHook(
+          |                                  ^
+      249 |       () => usePlayHistoryTrackingWithState(gameState),
+      250 |       { wrapper }
+      251 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:248:34)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      262 |     const gameState = createMockGameState();
+      263 |
+    > 264 |     renderHook(
+          |               ^
+      265 |       () => usePlayHistoryTracking(gameState, false), // disabled
+      266 |       { wrapper }
+      267 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:264:15)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      292 |     });
+      293 |
+    > 294 |     renderHook(
+          |               ^
+      295 |       () => usePlayHistoryTracking(gameState),
+      296 |       { wrapper }
+      297 |     );
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:294:15)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      309 |     const gameState = createMockGameState();
+      310 |
+    > 311 |     const { rerender } = renderHook<void, { state: GameState }>(
+          |                                    ^
+      312 |       ({ state }: { state: GameState }) => usePlayHistoryTracking(state),
+      313 |       { 
+      314 |         wrapper,
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at renderHook (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-hook.tsx:55:58)
+      at Object.<anonymous> (src/hooks/__tests__/usePlayHistoryTracking.test.tsx:311:36)
+
+PASS src/components/gameEnd/__tests__/GameEndIntegration.test.tsx
+  ● Console
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      20 |     };
+      21 |
+    > 22 |     const { getByText } = render(
+         |                                 ^
+      23 |       <GameEndProvider>
+      24 |         <TestComponent />
+      25 |       </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndIntegration.test.tsx:22:33)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      37 |     };
+      38 |
+    > 39 |     render(
+         |           ^
+      40 |       <GameEndProvider>
+      41 |         <TestComponent />
+      42 |       </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndIntegration.test.tsx:39:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      70 |     ];
+      71 |
+    > 72 |     render(
+         |           ^
+      73 |       <GameEndProvider>
+      74 |         <TestComponent />
+      75 |       </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndIntegration.test.tsx:72:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      93 |     };
+      94 |
+    > 95 |     render(
+         |           ^
+      96 |       <GameEndProvider>
+      97 |         <TestComponent />
+      98 |       </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndIntegration.test.tsx:95:11)
+
+    console.error
+      react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+      114 |     };
+      115 |
+    > 116 |     render(
+          |           ^
+      117 |       <GameEndProvider>
+      118 |         <TestComponent />
+      119 |       </GameEndProvider>
+
+      at Object.<anonymous>.process.env.NODE_ENV.exports.create (node_modules/.pnpm/react-test-renderer@19.1.0_react@19.1.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14598:17)
+      at create (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:15:29)
+      at callback (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:31:24)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22)
+      at actImplementation (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_@types+node@24.10.1__react-native@0.81_f117036a14a6b919a1aa1996a1219c5a/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/components/gameEnd/__tests__/GameEndIntegration.test.tsx:116:11)
+
+EXIT=143

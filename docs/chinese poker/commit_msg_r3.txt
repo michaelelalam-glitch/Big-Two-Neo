@@ -1,0 +1,10 @@
+fix: address Copilot Round 3 review comments
+
+- Broaden One Card Left error matching in executeBotTurn circuit breaker
+  to also catch "Cannot pass" + "1 card left" from pass() rewrite
+- Fix 5-card combo sort to strict weak ordering (compare both directions)
+  to avoid non-deterministic results on ties
+- Fix stale closure in useGameStateManager subscribe callback by tracking
+  prevPlayerIndex in a local variable instead of reading stale gameState
+- Reset init guards (isInitializedRef, initializedRoomRef) on catch so
+  re-renders can retry initialization after transient failures
