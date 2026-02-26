@@ -29,6 +29,9 @@ interface AutoPassTimerProps {
   currentPlayerIndex: number; // Index of the current user
 }
 
+// Module-scoped variable to throttle debug logs to once per whole-second transition.
+let _lastLoggedSecond = -1;
+
 export default function AutoPassTimer({
   timerState,
   currentPlayerIndex: _currentPlayerIndex,
@@ -95,10 +98,11 @@ export default function AutoPassTimer({
       const correctedNow = getCorrectedNow();
       const remaining = Math.max(0, endTimestamp - correctedNow);
       
-      // Debug logging (only log once per second to avoid spam)
-      // CRITICAL FIX: Also guard against remaining=0, which made the old condition
-      // always true (Math.floor(0/1000)=0 !== Math.floor(-16/1000)=-1) causing 60fps log spam
-      if (remaining > 0 && Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
+      // Debug: log once per whole-second transition (not every frame).
+      // Store last logged second in a module-scoped variable to avoid duplicate logs.
+      const currentSecond = Math.ceil(remaining / 1000);
+      if (remaining > 0 && currentSecond !== _lastLoggedSecond) {
+        _lastLoggedSecond = currentSecond;
         console.log('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
           correctedNow: new Date(correctedNow).toISOString(),
@@ -106,7 +110,7 @@ export default function AutoPassTimer({
           offsetMs,
           isSynced,
           remaining,
-          seconds: Math.ceil(remaining / 1000),
+          seconds: currentSecond,
         });
       }
       

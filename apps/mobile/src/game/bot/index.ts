@@ -557,9 +557,10 @@ export class BotAI {
         }
       }
     } else if (numCards === 5) {
-      // 5-card combos - search all C(n,5) combinations
-      // @copilot-review-fix (Round 1): Use full combinations, not just contiguous slices
+      // 5-card combos - search all C(n,5) combinations.
+      // With a max hand of 13 cards this is C(13,5)=1287 iterations, which is fast.
       const n = hand.length;
+      if (n > 13) return validPlays; // Safety cap: skip combo search for unexpectedly large hands
       for (let a = 0; a < n - 4; a++) {
         for (let b = a + 1; b < n - 3; b++) {
           for (let c = b + 1; c < n - 2; c++) {

@@ -30,6 +30,12 @@ module.exports = {
     '!src/components/scoreboard/**/index.ts',
     '!src/components/scoreboard/styles/**',
   ],
+  // Coverage thresholds reflect current levels after the Chinese Poker feature branch merge.
+  // Plan to incrementally increase back toward 80%:
+  //   Phase 1 (next sprint): branches 55, functions 70, lines/statements 68
+  //   Phase 2: branches 65, functions 75, lines/statements 75
+  //   Phase 3 (target): all categories ≥ 80
+  // New code should always include tests to avoid further regression.
   coverageThreshold: {
     global: {
       branches: 48,

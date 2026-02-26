@@ -10,7 +10,17 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { randomUUID } from 'crypto';
+
+// Use crypto.randomUUID() via globalThis — available in Node 19+ and modern browsers.
+// This avoids importing the Node-only 'crypto' module which lacks type declarations
+// in React Native / Expo tsconfig.
+const randomUUID = (): string =>
+  globalThis.crypto?.randomUUID?.() ??
+  // Fallback for older Node versions: generate a v4-like UUID from Math.random
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 
 // Mock soundManager to prevent .m4a file parse errors
 jest.mock('../../utils/soundManager', () => ({
