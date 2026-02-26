@@ -62,13 +62,12 @@ jobs:
         run: |
           cd apps/mobile
           # Call jest directly (not via pnpm) — pnpm wrapper prevents --forceExit
-          # from killing the full process tree, causing CI to hang indefinitely.
-          # timeout sends SIGKILL after 480s as a safety net.
+          # from killing the full process tree, causing CI to hang.
+          # timeout sends SIGKILL after 300s as a safety net.
           set +e
-          timeout --signal=KILL 480 npx jest \
+          timeout --signal=KILL 300 npx jest \
             --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests --coverage \
-            --maxWorkers=2 > /tmp/test-output.txt 2>&1
+            --forceExit --passWithNoTests > /tmp/test-output.txt 2>&1
           JEST_EXIT=$?
           set -e
           
@@ -76,7 +75,7 @@ jobs:
           
           # timeout returns 137 when it kills the process (128 + SIGKILL=9)
           if [ "$JEST_EXIT" -eq 137 ]; then
-            echo "❌ Jest was killed by timeout after 8 minutes — tests may be hanging"
+            echo "❌ Jest was killed by timeout after 5 minutes — tests may be hanging"
             exit 1
           fi
           
@@ -93,7 +92,20 @@ jobs:
             exit 1
           fi
           echo "✅ All tests passed (jest exit code was $JEST_EXIT)"
-        timeout-minutes: 10
+        timeout-minutes: 7
+      
+      - name: 📊 Collect coverage (game logic)
+        if: success()
+        run: |
+          cd apps/mobile
+          set +e
+          timeout --signal=KILL 300 npx jest \
+            --testPathPattern='src/game/' \
+            --forceExit --coverage > /tmp/coverage-output.txt 2>&1
+          set -e
+          cat /tmp/coverage-output.txt | tail -30
+        timeout-minutes: 7
+        continue-on-error: true
       
       - name: 🧪 Run integration tests
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != ''
