@@ -24,7 +24,12 @@ module.exports = {
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-explicit-any': 'warn', // Gradually address; strict typing is a separate initiative
+    // TEMPORARY: keep this as 'warn' while we migrate away from `any`.
+    // - New and modified code should avoid `any` and use precise types (or generics/unknown) instead.
+    // - Existing `any` usages in legacy modules should be either refactored or explicitly documented
+    //   with eslint-disable comments tied to tech-debt tasks.
+    // - Once the outstanding `any` usage backlog is cleared, tighten this rule to 'error'.
+    '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-require-imports': 'error', // Prefer static imports; callsites using require() for graceful-degradation have inline disables
     
     // React Hooks rules

@@ -115,7 +115,7 @@ export class BotAI {
     }
 
     // Medium: 50% chance to search for pair with 3D
-    // @copilot-review-fix (Round 1): Use sorted hand index to pick lowest-strength pair with 3D
+    // Use sorted hand index to pick lowest-strength pair with 3D
     if (this.difficulty === 'medium' && Math.random() < 0.5) {
       const pairs = this.findAllPairs(sorted);
       const candidatePairs = pairs.filter(pair => pair.includes(threeD.id));
@@ -410,11 +410,11 @@ export class BotAI {
 
   /**
    * Find a valid 5-card combo in hand (returns weakest available).
-   * @copilot-review-fix (Round 1): Search all C(n,5) combinations, not just contiguous slices,
-   * so non-contiguous combos like flushes are found.
-   * @copilot-review-fix (Round 2): Removed dead bestCombo variable. Since the hand is sorted
-   * by Big Two rank order and we iterate from lowest indices, the first valid combo found
-   * uses the weakest cards, conserving stronger cards for later plays.
+   * Search all C(n,5) combinations, not just contiguous slices, so
+   * non-contiguous combos like flushes are found. Because the hand is sorted by Big Two
+   * rank order and we iterate from lowest indices, the first valid combo found uses the
+   * weakest cards, conserving stronger cards for later plays and making an explicit
+   * bestCombo accumulator unnecessary.
    */
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
@@ -574,9 +574,9 @@ export class BotAI {
           }
         }
       }
-      // @copilot-review-fix (Round 2+3): Sort 5-card combos by strength so validPlays[0]
-      // is truly the weakest and validPlays[last] is truly the strongest.
-      // Uses strict weak ordering: compare both directions to handle ties correctly.
+      // Sort 5-card combos by strength so validPlays[0] is the weakest
+      // and validPlays[validPlays.length - 1] is the strongest.
+      // Uses a strict weak ordering by comparing in both directions to handle ties correctly.
       if (validPlays.length > 1) {
         validPlays.sort((a, b) => {
           const cardsA = a.map(id => hand.find(c => c.id === id)!);

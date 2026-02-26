@@ -30,7 +30,7 @@ jest.mock('../../utils/soundManager', () => ({
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://dppybucldqufbqhwnkxu.supabase.co';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 // Service role key bypasses RLS — required for integration tests to insert test data
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 describe('Critical Multiplayer Rules - Server-Side Validation', () => {
   let supabase: SupabaseClient;

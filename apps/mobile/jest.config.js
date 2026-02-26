@@ -4,6 +4,11 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  // Use v8 coverage provider — significantly faster than the default babel provider,
+  // which avoids CI hangs caused by slow coverage serialization on resource-constrained runners.
+  coverageProvider: 'v8',
+  // Prevent OOM on CI runners by recycling workers that exceed 512MB.
+  workerIdleMemoryLimit: '512MB',
   // Modern ts-jest config (globals.ts-jest is deprecated in ts-jest 29+).
   transform: {
     '^.+\\.tsx?$': [

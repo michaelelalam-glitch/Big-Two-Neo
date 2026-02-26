@@ -535,7 +535,7 @@ export class GameStateManager {
       retryCount++;
       gameLogger.warn(`⚠️ [GameStateManager] Bot ${currentPlayer.name} play rejected (attempt ${retryCount}/${MAX_BOT_RETRIES}): ${result.error}`);
 
-      // @copilot-review-fix (Round 3): Broaden One Card Left error matching.
+      // Broaden One Card Left error matching.
       // pass() rewrites the message with player names, so also check for
       // "Cannot pass" + "1 card left" to catch all variants.
       const errorMsg = result.error ?? '';

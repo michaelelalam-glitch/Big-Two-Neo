@@ -65,7 +65,7 @@ jest.mock('react-native-reanimated', () => {
 
 // Track real setInterval/setTimeout handles so we can clear them between tests.
 // GameStateManager (and similar) create real intervals in constructors that keep
-// the Jest worker alive after tests complete, causing --forceExit dependency (O2).
+// the Jest worker alive after tests complete, which would otherwise require using Jest's --forceExit option.
 const _realSetInterval = global.setInterval;
 const _realClearInterval = global.clearInterval;
 const _realSetTimeout = global.setTimeout;

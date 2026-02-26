@@ -64,11 +64,11 @@ jobs:
           # --maxWorkers=2: matches CI runner's 2 vCPUs; avoids the single-thread
           # hang that occurred with --runInBand + --json + --coverage on Ubuntu CI.
           # --forceExit: safe with ≤2 workers — coverage merge completes before exit.
-          # NO --json flag: JSON serialization of coverage data adds 10x overhead
-          # and caused Jest to deadlock on resource-constrained CI runners.
-          # Results are parsed from stdout via grep instead.
+          # coverageProvider=v8 (set in jest.config.js) avoids the slow babel
+          # instrumentation that previously caused CI deadlocks.
+          # NODE_OPTIONS caps heap to 3GB to prevent OOM on 7GB CI runners.
           set +e
-          timeout --signal=KILL 540 npx jest \
+          NODE_OPTIONS="--max-old-space-size=3072" timeout --signal=KILL 480 npx jest \
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
