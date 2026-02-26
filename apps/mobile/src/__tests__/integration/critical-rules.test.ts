@@ -48,8 +48,8 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
     // Create a test room and game state
     testRoomCode = `TEST${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
-    // Create mock user session (in real test, would authenticate)
-    testUserId = `test-user-${Date.now()}`;
+    // Use proper UUIDs — Supabase host_id/user_id columns are UUID type
+    testUserId = crypto.randomUUID();
     
     // Create room
     const { data: room, error: roomError } = await supabase
@@ -71,9 +71,9 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
     // Create 4 players (1 human, 3 bots)
     const players = [
       { room_id: testRoomId, user_id: testUserId, username: 'TestPlayer', player_index: 0, is_bot: false },
-      { room_id: testRoomId, user_id: 'bot-1', username: 'Bot 1', player_index: 1, is_bot: true },
-      { room_id: testRoomId, user_id: 'bot-2', username: 'Bot 2', player_index: 2, is_bot: true },
-      { room_id: testRoomId, user_id: 'bot-3', username: 'Bot 3', player_index: 3, is_bot: true },
+      { room_id: testRoomId, user_id: crypto.randomUUID(), username: 'Bot 1', player_index: 1, is_bot: true },
+      { room_id: testRoomId, user_id: crypto.randomUUID(), username: 'Bot 2', player_index: 2, is_bot: true },
+      { room_id: testRoomId, user_id: crypto.randomUUID(), username: 'Bot 3', player_index: 3, is_bot: true },
     ];
 
     const { data: createdPlayers, error: playersError } = await supabase
