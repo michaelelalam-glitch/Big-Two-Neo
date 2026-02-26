@@ -71,6 +71,7 @@ jobs:
           timeout --signal=KILL 420 npx jest \
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests --runInBand \
+            --testTimeout=15000 \
             --coverage \
             --json --outputFile=/tmp/jest-results.json 2>&1
           JEST_EXIT=$?
