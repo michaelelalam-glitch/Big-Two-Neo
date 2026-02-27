@@ -60,10 +60,11 @@ describe('invokeWithRetry', () => {
       .mockResolvedValueOnce({ data: null, error: fetchError })
       .mockResolvedValueOnce({ data: { success: true }, error: null });
 
-    // Run with real timers for this test since we need the setTimeout to resolve
-    jest.useRealTimers();
+    // Use fake timers and advance through the retry backoff delay
+    const resultPromise = invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    await jest.advanceTimersByTimeAsync(1000); // Advance past 500ms backoff
 
-    const result = await invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    const result = await resultPromise;
 
     expect(result.data).toEqual({ success: true });
     expect(result.error).toBeNull();
@@ -77,9 +78,11 @@ describe('invokeWithRetry', () => {
       .mockResolvedValueOnce({ data: null, error: fetchError })
       .mockResolvedValueOnce({ data: null, error: fetchError });
 
-    jest.useRealTimers();
+    // Use fake timers and advance through both retry backoff delays
+    const resultPromise = invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    await jest.advanceTimersByTimeAsync(2000); // Advance past 500ms + 1000ms backoffs
 
-    const result = await invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    const result = await resultPromise;
 
     expect(result.data).toBeNull();
     expect(result.error).toBe(fetchError);
@@ -94,9 +97,11 @@ describe('invokeWithRetry', () => {
       .mockRejectedValueOnce(fetchError)
       .mockResolvedValueOnce({ data: { success: true }, error: null });
 
-    jest.useRealTimers();
+    // Use fake timers and advance through the retry backoff delay
+    const resultPromise = invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    await jest.advanceTimersByTimeAsync(1000); // Advance past 500ms backoff
 
-    const result = await invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
+    const result = await resultPromise;
 
     expect(result.data).toEqual({ success: true });
     expect(result.error).toBeNull();
@@ -107,8 +112,6 @@ describe('invokeWithRetry', () => {
     const error = new Error('Some other error');
 
     mockInvoke.mockRejectedValueOnce(error);
-
-    jest.useRealTimers();
 
     const result = await invokeWithRetry('play-cards', { body: { room_code: 'ABC123' } });
 

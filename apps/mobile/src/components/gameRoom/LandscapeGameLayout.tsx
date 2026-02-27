@@ -160,7 +160,7 @@ export function LandscapeGameLayout({
         <View style={styles.matchNumberContainer}>
           <View style={scoreDisplayStyles.matchNumberBadge}>
             <Text style={scoreDisplayStyles.matchNumberText}>
-              {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+              {isGameFinished ? i18n.t('game.gameOver') : `${i18n.t('gameEnd.match')} ${matchNumber}`}
             </Text>
           </View>
         </View>

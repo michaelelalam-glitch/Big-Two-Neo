@@ -1,3 +1,5 @@
+// Side-effect 'react-native-gesture-handler' import lives in index.ts (the entry point)
+// so it executes before any other app code, per the library's setup requirements.
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Explicit import removed - Babel plugin handles initialization in v4.1.6+
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation

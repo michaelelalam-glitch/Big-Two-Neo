@@ -106,7 +106,6 @@ export const useScoreboardContainerStyles = () => {
                    // expanded scoreboard overlays everything when open. When collapsed,
                    // ScoreboardContainer renders no scoreboard content (only an empty container),
                    // so no layering conflict occurs.
-      pointerEvents: 'box-none' as const, // Task #380: Allow touch events to pass through to elements below
       ...Platform.select({
         ios: {
           shadowColor: ScoreboardColors.shadow.heavy,
@@ -119,6 +118,9 @@ export const useScoreboardContainerStyles = () => {
         },
       }),
     },
+    // Task #380: pointerEvents is a View prop, not a style property.
+    // Apply as <View pointerEvents={containerPointerEvents} style={styles.container}>
+    containerPointerEvents: 'box-none' as const,
   }), [dims]);
 };
 
@@ -135,8 +137,10 @@ export const useCompactScoreboardStyles = () => {
       padding: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
       minWidth: dims.isSmallDevice ? dims.moderateScale(180) : dims.moderateScale(200),
       maxWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
-      pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },
+    // Task #380: pointerEvents is a View prop, not a style property.
+    // Apply as <View pointerEvents={compactContainerPointerEvents} style={styles.compactContainer}>
+    compactContainerPointerEvents: 'auto' as const,
 
     compactHeader: {
       flexDirection: 'row' as const,
@@ -259,8 +263,10 @@ export const useExpandedScoreboardStyles = () => {
         top: dims.moderateScale(20),  // Match play history top position
         left: dims.moderateScale(20),  // Match play history left position
       }),
-      pointerEvents: 'auto' as const, // Task #380: Capture touches on scoreboard content
     },
+    // Task #380: pointerEvents is a View prop, not a style property.
+    // Apply as <View pointerEvents={expandedContainerPointerEvents} style={styles.expandedContainer}>
+    expandedContainerPointerEvents: 'auto' as const,
 
     expandedHeader: {
       flexDirection: 'row' as const,

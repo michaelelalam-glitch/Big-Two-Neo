@@ -60,7 +60,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
   return (
     <ScoreboardErrorBoundary>
       {/* Main Scoreboard Container */}
-      <View style={styles.container}>
+      <View pointerEvents={styles.containerPointerEvents} style={styles.container}>
         {/* Task #590: CompactScoreboard removed - match badge + action buttons + score badges are now inline in screens */}
 
         {/* Expanded View (toggled via ScoreActionButtons) */}

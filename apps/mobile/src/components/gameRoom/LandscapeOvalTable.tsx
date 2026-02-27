@@ -95,7 +95,9 @@ export function LandscapeOvalTable({
       {(lastPlayedBy || comboDisplayText) && (
         <Text style={styles.lastPlayInfo} numberOfLines={1}>
           {lastPlayedBy
-            ? `${i18n.t('game.lastPlayedBy')} ${lastPlayedBy}: ${comboDisplayText || ''}`
+            ? comboDisplayText
+              ? `${i18n.t('game.lastPlayedBy')} ${lastPlayedBy}: ${comboDisplayText}`
+              : `${i18n.t('game.lastPlayedBy')} ${lastPlayedBy}`
             : comboDisplayText}
         </Text>
       )}

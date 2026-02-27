@@ -60,7 +60,6 @@ export class BotAI {
     // First play of MATCH 1 ONLY - must include 3D
     // Match 2+ can start with any valid play
     // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
-    // @copilot-review-fix (Round 9): Separate warnings for different invalid matchNumber types
     const MAX_MATCH_NUMBER = 1000; // Reasonable upper bound for match count
     let currentMatch: number;
     if (typeof matchNumber === 'number') {
@@ -169,10 +168,10 @@ export class BotAI {
    */
   private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number, nextPlayerIndex?: number): BotPlayResult {
     const sorted = sortHand(hand);
-    // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
-    const opponentCounts = playerCardCounts
-      .map((count, index) => (index !== currentPlayerIndex && count > 0 ? count : Number.POSITIVE_INFINITY));
-    const minOpponentCards = Math.min(...opponentCounts);
+    // Compute opponent card counts by index, excluding the current player and empty hands
+    const activeOpponentCounts = playerCardCounts
+      .filter((count, index) => index !== currentPlayerIndex && count > 0);
+    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // CRITICAL: Check "One Card Left" rule when leading
     // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
@@ -271,10 +270,10 @@ export class BotAI {
     nextPlayerIndex?: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
-    // @copilot-review-fix (Round 1): Compute opponent cards by index, not by value comparison
-    const opponentCounts = playerCardCounts
-      .map((count, index) => (index !== currentPlayerIndex && count > 0 ? count : Number.POSITIVE_INFINITY));
-    const minOpponentCards = Math.min(...opponentCounts);
+    // Compute opponent card counts by index, excluding the current player and empty hands
+    const activeOpponentCounts = playerCardCounts
+      .filter((count, index) => index !== currentPlayerIndex && count > 0);
+    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // Check "One Card Left" rule
     // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
@@ -557,8 +556,10 @@ export class BotAI {
         }
       }
     } else if (numCards === 5) {
-      // 5-card combos - search all C(n,5) combinations.
-      // With a max hand of 13 cards this is C(13,5)=1287 iterations, which is fast.
+      // 5-card combos — search all C(n,5) combinations.
+      // With a max hand of 13 cards this is C(13,5) = 1287 iterations, which completes
+      // in <1ms on mobile devices. The safety cap below prevents degenerate performance
+      // for unexpectedly large hands.
       const n = hand.length;
       if (n > 13) return validPlays; // Safety cap: skip combo search for unexpectedly large hands
       for (let a = 0; a < n - 4; a++) {

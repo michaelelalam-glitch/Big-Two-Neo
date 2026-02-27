@@ -37,7 +37,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   // Auto-expansion on game finish was removed to give user full control.
 
   return (
-    <View style={styles.compactContainer}>
+    <View pointerEvents={styles.compactContainerPointerEvents} style={styles.compactContainer}>
       {/* Header with match number and action buttons */}
       <View style={styles.compactHeader}>
         <Text style={styles.matchTitle}>

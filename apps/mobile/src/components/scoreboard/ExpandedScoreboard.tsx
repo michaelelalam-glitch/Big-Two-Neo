@@ -36,7 +36,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   const styles = useExpandedScoreboardStyles();
 
   return (
-    <View style={styles.expandedContainer}>
+    <View pointerEvents={styles.expandedContainerPointerEvents} style={styles.expandedContainer}>
       {/* Header */}
       <View style={styles.expandedHeader}>
         <Text style={styles.expandedTitle}>

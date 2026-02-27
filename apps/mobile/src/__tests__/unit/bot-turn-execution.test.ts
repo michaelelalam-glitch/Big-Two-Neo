@@ -245,13 +245,18 @@ describe('Task #288: Duplicate Bot Turn Execution Fix', () => {
     }
 
     // Verify execution log entries have monotonically non-decreasing timestamps
-    // and no immediate duplicate bot triggers for the same player within a single tick
     for (let i = 1; i < executionLog.length; i++) {
       const prev = executionLog[i - 1];
       const curr = executionLog[i];
 
       // Timestamps must never go backwards
       expect(curr.timestamp).toBeGreaterThanOrEqual(prev.timestamp);
+
+      // No immediate duplicate bot triggers for the same player
+      // (same-player reruns indicate a new trick/round, so they must have a later timestamp)
+      if (prev.playerIndex === curr.playerIndex) {
+        expect(curr.timestamp).toBeGreaterThan(prev.timestamp);
+      }
     }
   });
 });

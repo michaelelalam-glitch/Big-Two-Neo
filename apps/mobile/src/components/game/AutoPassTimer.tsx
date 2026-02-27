@@ -100,7 +100,7 @@ export default function AutoPassTimer({
       
       // Debug: log once per whole-second transition (not every frame).
       const currentSecond = Math.ceil(remaining / 1000);
-      if (remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
+      if (__DEV__ && remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
         lastLoggedSecondRef.current = currentSecond;
         console.log('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
@@ -128,7 +128,7 @@ export default function AutoPassTimer({
     const durationMs = timerState.duration_ms || 10000;
     const remaining = Math.max(0, durationMs - elapsed);
     
-    if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
+    if (__DEV__ && Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
       console.log('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
         startedAt: new Date(startedAt).toISOString(),
         currentTime: new Date(currentTime).toISOString(),
