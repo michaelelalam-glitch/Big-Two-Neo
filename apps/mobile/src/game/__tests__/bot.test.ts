@@ -113,6 +113,17 @@ describe('Bot AI - Leading (no last play)', () => {
 });
 
 describe('Bot AI - Following (beating last play)', () => {
+  let randomSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // Pin Math.random to avoid non-deterministic pass decisions in medium difficulty
+    randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+  });
+
+  afterEach(() => {
+    randomSpy.mockRestore();
+  });
+
   test('bot finds valid play to beat single', () => {
     const hand: Card[] = [
       { id: '3D', rank: '3', suit: 'D' },
