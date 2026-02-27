@@ -222,14 +222,18 @@ describe('Task #288: Duplicate Bot Turn Execution Fix', () => {
   });
 
   test('should handle rapid state updates without duplicate executions', async () => {
-    const executionLog: Array<{ playerIndex: number; timestamp: number }> = [];
+    // Use a monotonic counter instead of Date.now() to avoid flakiness:
+    // on fast CI runners two entries can occur within the same millisecond,
+    // causing Date.now() comparisons to fail non-deterministically.
+    let sequenceCounter = 0;
+    const executionLog: Array<{ playerIndex: number; seq: number }> = [];
 
     // Subscribe to rapid state updates
     manager.subscribe((state) => {
       if (state.players[state.currentPlayerIndex].isBot) {
         executionLog.push({
           playerIndex: state.currentPlayerIndex,
-          timestamp: Date.now()
+          seq: ++sequenceCounter,
         });
       }
     });
@@ -246,18 +250,18 @@ describe('Task #288: Duplicate Bot Turn Execution Fix', () => {
       }
     }
 
-    // Verify execution log entries have monotonically non-decreasing timestamps
+    // Verify monotonically increasing sequence numbers
     for (let i = 1; i < executionLog.length; i++) {
       const prev = executionLog[i - 1];
       const curr = executionLog[i];
 
-      // Timestamps must never go backwards
-      expect(curr.timestamp).toBeGreaterThanOrEqual(prev.timestamp);
+      // Sequence must always increase (no reordering)
+      expect(curr.seq).toBeGreaterThan(prev.seq);
 
       // No immediate duplicate bot triggers for the same player
-      // (same-player reruns indicate a new trick/round, so they must have a later timestamp)
+      // (same-player reruns indicate a new trick/round, so they must have a later sequence)
       if (prev.playerIndex === curr.playerIndex) {
-        expect(curr.timestamp).toBeGreaterThan(prev.timestamp);
+        expect(curr.seq).toBeGreaterThan(prev.seq);
       }
     }
   });

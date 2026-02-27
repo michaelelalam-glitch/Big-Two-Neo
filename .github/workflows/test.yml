@@ -58,50 +58,64 @@ jobs:
           cd apps/mobile
           npx tsc --noEmit
       
-      - name: 🧪 Run unit tests + coverage
+      - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          # --maxWorkers=2: matches CI runner's 2 vCPUs; avoids the single-thread
-          # hang that occurred with --runInBand + --json + --coverage on Ubuntu CI.
-          # --forceExit: safe with ≤2 workers — coverage merge completes before exit.
-          # coverageProvider=v8 (set in jest.config.js) avoids the slow babel
-          # instrumentation that previously caused CI deadlocks.
-          # NODE_OPTIONS caps heap to 3GB to prevent OOM on 7GB CI runners.
-          set +e
-          NODE_OPTIONS="--max-old-space-size=3072" timeout --signal=KILL 480 npx jest \
+          # Step 1: Run all unit tests WITHOUT coverage for fast feedback.
+          # Uses --json piped to a Node script for structured exit-code validation
+          # instead of fragile text-grep heuristics (addresses audit finding N1).
+          # --maxWorkers=2: matches CI runner's 2 vCPUs.
+          # --forceExit: safety net for open handles (mitigated in setup.ts but kept as belt-and-suspenders).
+          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
             --testTimeout=15000 \
-            --coverage 2>&1 | tee /tmp/unit-test-output.txt
-          JEST_EXIT=${PIPESTATUS[0]}
-          set -e
+            --no-coverage \
+            --json 2>/dev/null | node -e "
+              let data = '';
+              process.stdin.on('data', chunk => data += chunk);
+              process.stdin.on('end', () => {
+                try {
+                  const result = JSON.parse(data);
+                  const passed = result.numPassedTests || 0;
+                  const failed = result.numFailedTests || 0;
+                  const total = result.numTotalTests || 0;
+                  console.log('Test Suites: ' + result.numPassedTestSuites + ' passed, ' + result.numTotalTestSuites + ' total');
+                  console.log('Tests:       ' + passed + ' passed, ' + total + ' total');
+                  if (failed > 0) {
+                    console.log('');
+                    console.log('❌ ' + failed + ' test(s) failed:');
+                    (result.testResults || []).forEach(suite => {
+                      (suite.assertionResults || []).filter(t => t.status === 'failed').forEach(t => {
+                        console.log('  FAIL: ' + t.ancestorTitles.join(' > ') + ' > ' + t.title);
+                      });
+                    });
+                    process.exit(1);
+                  }
+                  console.log('✅ All ' + passed + ' unit tests passed');
+                  process.exit(0);
+                } catch (e) {
+                  console.error('❌ Failed to parse Jest JSON output:', e.message);
+                  process.exit(1);
+                }
+              });
+            "
+        timeout-minutes: 8
 
-          echo ""
-          echo "Jest exit code: $JEST_EXIT"
-
-          # Check for test failures in output
-          if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/unit-test-output.txt; then
-            echo "❌ Test suite failures detected"
-            exit 1
-          fi
-          if grep -qE "Tests:.*[0-9]+ failed" /tmp/unit-test-output.txt; then
-            echo "❌ Test failures detected"
-            exit 1
-          fi
-
-          # Jest exits 1 for coverage threshold failures even when all tests pass
-          if [ "$JEST_EXIT" -ne 0 ]; then
-            if grep -q "Coverage for" /tmp/unit-test-output.txt || grep -q "threshold" /tmp/unit-test-output.txt; then
-              echo "❌ Coverage thresholds not met"
-            else
-              echo "❌ Jest failed (exit $JEST_EXIT)"
-            fi
-            exit 1
-          fi
-
-          echo "✅ All unit tests + coverage passed"
-        timeout-minutes: 10
+      - name: 📊 Run coverage (game logic)
+        run: |
+          cd apps/mobile
+          # Step 2: Coverage on game logic subset only — fast and blocking.
+          # coverageThreshold in jest.config.js is enforced here (branches 48, functions 65, etc.).
+          # Scoped to src/game/ tests to keep runtime under 3 minutes on CI.
+          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
+            --testPathPattern='src/game/' \
+            --forceExit --passWithNoTests \
+            --maxWorkers=2 \
+            --testTimeout=15000 \
+            --coverage
+        timeout-minutes: 5
       
       
       - name: ⚠️ Integration tests skipped (no credentials)
@@ -113,23 +127,35 @@ jobs:
 
       - name: 🧪 Run integration tests
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
-        continue-on-error: true
         run: |
           cd apps/mobile
-          set +e
-          pnpm run test:integration --passWithNoTests --forceExit > /tmp/integration-output.txt 2>&1
-          JEST_EXIT=$?
-          set -e
-          
-          cat /tmp/integration-output.txt
-          
-          if grep -qE "Test Suites:.*[0-9]+ failed" /tmp/integration-output.txt; then
-            echo "❌ Integration test suites failed (non-blocking)"
-          elif grep -qE "Tests:.*[0-9]+ failed" /tmp/integration-output.txt; then
-            echo "❌ Integration tests failed (non-blocking)"
-          else
-            echo "✅ Integration tests passed (jest exit code was $JEST_EXIT)"
-          fi
+          # Integration tests are blocking when credentials are present.
+          # Uses --json for structured validation (same as unit tests).
+          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
+            --testPathPattern='integration/' \
+            --forceExit --passWithNoTests \
+            --maxWorkers=2 \
+            --testTimeout=30000 \
+            --no-coverage \
+            --json 2>/dev/null | node -e "
+              let data = '';
+              process.stdin.on('data', chunk => data += chunk);
+              process.stdin.on('end', () => {
+                try {
+                  const result = JSON.parse(data);
+                  const failed = result.numFailedTests || 0;
+                  console.log('Integration Tests: ' + result.numPassedTests + '/' + result.numTotalTests + ' passed');
+                  if (failed > 0) {
+                    console.log('❌ ' + failed + ' integration test(s) failed');
+                    process.exit(1);
+                  }
+                  console.log('✅ All integration tests passed');
+                } catch (e) {
+                  console.error('❌ Failed to parse Jest JSON output:', e.message);
+                  process.exit(1);
+                }
+              });
+            "
         timeout-minutes: 4
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}

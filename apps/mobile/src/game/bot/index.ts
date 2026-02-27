@@ -41,10 +41,15 @@ export interface BotPlayResult {
  * - Hard: Optimal play using game theory
  */
 export class BotAI {
-  public readonly difficulty: BotDifficulty;
+  private readonly _difficulty: BotDifficulty;
 
   constructor(difficulty: BotDifficulty = 'medium') {
-    this.difficulty = difficulty;
+    this._difficulty = difficulty;
+  }
+
+  /** Read-only access to the bot's difficulty level. */
+  get difficulty(): BotDifficulty {
+    return this._difficulty;
   }
 
   /**
@@ -103,7 +108,7 @@ export class BotAI {
     }
 
     // Hard: Always search for best combo with 3D (pair/triple)
-    if (this.difficulty === 'hard') {
+    if (this._difficulty === 'hard') {
       const comboWith3D = this.findBestComboWith3D(sorted, threeD);
       if (comboWith3D) {
         return { 
@@ -115,7 +120,7 @@ export class BotAI {
 
     // Medium: 50% chance to search for pair with 3D
     // Use sorted hand index to pick lowest-strength pair with 3D
-    if (this.difficulty === 'medium' && Math.random() < 0.5) {
+    if (this._difficulty === 'medium' && Math.random() < 0.5) {
       const pairs = this.findAllPairs(sorted);
       const candidatePairs = pairs.filter(pair => pair.includes(threeD.id));
 
@@ -155,7 +160,7 @@ export class BotAI {
 
     // Easy: Always just play 3D as single (no combo search)
     // Medium fallback: play 3D as single
-    return { cards: [threeD.id], reasoning: `[${this.difficulty.toUpperCase()}] Playing 3D as single` };
+    return { cards: [threeD.id], reasoning: `[${this._difficulty.toUpperCase()}] Playing 3D as single` };
   }
 
   /**
@@ -191,7 +196,7 @@ export class BotAI {
     }
 
     // ========== EASY DIFFICULTY: Dumb leading ==========
-    if (this.difficulty === 'easy') {
+    if (this._difficulty === 'easy') {
       // 25% chance to make a BAD play: lead with a high single (wasting good cards)
       if (Math.random() < 0.25 && sorted.length > 3) {
         const highIndex = Math.max(sorted.length - 3, Math.floor(sorted.length * 0.7));
@@ -203,7 +208,7 @@ export class BotAI {
     }
 
     // ========== HARD DIFFICULTY: Strategic leading ==========
-    if (this.difficulty === 'hard') {
+    if (this._difficulty === 'hard') {
       // If opponent is low on cards, try 5-card combo to force a pass
       if (minOpponentCards <= 4) {
         const fiveCardCombo = this.findBest5CardCombo(sorted);
@@ -299,7 +304,7 @@ export class BotAI {
     }
 
     // ========== EASY DIFFICULTY: Dumb following ==========
-    if (this.difficulty === 'easy') {
+    if (this._difficulty === 'easy') {
       // 50% chance to pass even if can beat (very passive)
       if (Math.random() < 0.5) {
         return { cards: null, reasoning: '[EASY] Randomly passing (50% pass rate)' };
@@ -329,7 +334,7 @@ export class BotAI {
     }
 
     // ========== HARD DIFFICULTY: Optimal following ==========
-    if (this.difficulty === 'hard') {
+    if (this._difficulty === 'hard') {
       const validPlays = this.findAllValidPlays(sorted, lastPlay);
       if (validPlays.length === 0) {
         return { cards: null, reasoning: '[HARD] Cannot beat last play' };

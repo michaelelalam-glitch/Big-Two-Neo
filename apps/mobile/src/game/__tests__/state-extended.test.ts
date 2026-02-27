@@ -44,13 +44,18 @@ describe('GameStateManager - Extended Coverage Tests', () => {
   });
 
   describe('AsyncStorage error handling', () => {
-    test('handles saveState AsyncStorage error gracefully', async () => {
+    test('handles saveState AsyncStorage error gracefully and logs it', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Storage full'));
       
       await manager.initializeGame({ playerName: 'Player 1', botCount: 1, botDifficulty: 'easy' });
       
       // saveState should handle errors gracefully without throwing
       await expect(manager.saveState()).resolves.toBeUndefined();
+      
+      // Verify the error was logged (not silently swallowed)
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
 
     test('handles loadState with corrupted data', async () => {

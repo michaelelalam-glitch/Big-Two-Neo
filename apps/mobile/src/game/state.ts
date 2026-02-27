@@ -597,13 +597,18 @@ export class GameStateManager {
         
         // Migration: Ensure arrays added in newer versions exist
         // This prevents "Cannot read property 'push' of undefined" errors
+        // Track whether any migration was applied to avoid unnecessary saves.
+        let needsMigration = false;
+
         if (this.state && !this.state.gameRoundHistory) {
           gameLogger.warn('[Migration] Adding missing gameRoundHistory array to loaded state');
           this.state.gameRoundHistory = [];
+          needsMigration = true;
         }
         if (this.state && !this.state.played_cards) {
           gameLogger.warn('[Migration] Adding missing played_cards array to loaded state');
           this.state.played_cards = [];
+          needsMigration = true;
         }
         // CRITICAL: Migrate matchComboStats structure for each player
         if (this.state && this.state.matchScores) {
@@ -622,13 +627,16 @@ export class GameStateManager {
                   straight_flushes: [],
                   royal_flushes: [],
                 };
+                needsMigration = true;
               }
             }
           });
         }
         
-        // Save migrated state to prevent future migrations
-        await this.saveState();
+        // Only persist if migrations were actually applied
+        if (needsMigration) {
+          await this.saveState();
+        }
         
         this.notifyListeners();
         return this.state;
