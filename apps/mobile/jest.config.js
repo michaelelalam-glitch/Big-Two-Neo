@@ -1,6 +1,10 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  // Deterministic cache path so GitHub Actions can persist the ts-jest transform
+  // cache between runs. Without this, Jest uses a temp directory that is lost on
+  // every CI run, causing a 10-15 minute cold-start recompilation of all .ts/.tsx files.
+  cacheDirectory: '<rootDir>/.jest-cache',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],

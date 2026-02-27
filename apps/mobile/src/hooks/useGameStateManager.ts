@@ -89,13 +89,13 @@ export function useGameStateManager({
     }
 
     // Prevent multiple initializations for the same room+difficulty
-    // @copilot-review-fix (Round 1): Include botDifficulty in guard key
+    // Include botDifficulty in guard key
     const initKey = `${roomCode}:${botDifficulty}`;
     if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;
     }
 
-    // @copilot-review-fix (Round 2): Capture unsubscribe in outer scope so useEffect
+    // Capture unsubscribe in outer scope so useEffect
     // can return synchronous cleanup. Previously, cleanup was returned inside async
     // initGame() and never reached React.
     let unsubscribeFn: (() => void) | null = null;
@@ -133,7 +133,7 @@ export function useGameStateManager({
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
         }
 
-        // @copilot-review-fix (Round 3): Track previous player index in a ref
+        // Track previous player index in a ref
         // instead of reading from the stale `gameState` closure.
         let prevPlayerIndex: number | null = null;
 
@@ -313,7 +313,7 @@ export function useGameStateManager({
           '❌ [useGameStateManager] Failed to initialize game:',
           error?.message || error?.code || String(error)
         );
-        // @copilot-review-fix (Round 3): Reset init guards on failure so a
+        // Reset init guards on failure so a
         // re-render can retry initialization instead of being permanently stuck.
         isInitializedRef.current = false;
         initializedRoomRef.current = null;
@@ -328,7 +328,7 @@ export function useGameStateManager({
 
     initGame();
 
-    // @copilot-review-fix (Round 2): Return synchronous cleanup from useEffect itself.
+    // Return synchronous cleanup from useEffect itself.
     // Previously, cleanup was returned inside async initGame() where React couldn't reach it,
     // leaking subscriptions, timeouts, and the game manager on unmount/re-render.
     return () => {

@@ -2,7 +2,7 @@
  * Shared utility for parsing cards from raw database format
  * Used by both player-pass and play-cards Edge Functions
  * 
- * @copilot-review-fix Extracted from duplicate implementations in player-pass/index.ts and play-cards/index.ts
+ * Extracted from duplicate implementations in player-pass/index.ts and play-cards/index.ts
  */
 
 export interface ParsedCard {

@@ -154,8 +154,17 @@ describe('Bot circuit-breaker / retry logic', () => {
       if (state.players[state.currentPlayerIndex].isBot) {
         await manager.executeBotTurn();
       } else {
-        // Human player passes
-        await manager.pass();
+        // Human player: must play a card when leading (lastPlay === null),
+        // otherwise passing is an illegal move that returns { success: false }.
+        if (state.lastPlay === null) {
+          const human = state.players[state.currentPlayerIndex];
+          if (human.hand.length > 0) {
+            // Play the first card (lowest) to advance the turn
+            await manager.playCards([human.hand[0].id]);
+          }
+        } else {
+          await manager.pass();
+        }
       }
 
       iterations++;

@@ -163,7 +163,7 @@ export function useBotCoordinator({
       
       // Prepare bot decision inputs
       const botHand: Card[] = currentPlayer.cards || [];
-      // @copilot-review-fix (Round 2): Build playerCardCounts indexed by player_index
+      // Build playerCardCounts indexed by player_index
       // to ensure correct mapping regardless of players array order
       const playerCardCounts = new Array(4).fill(0);
       players.forEach((p: any) => {

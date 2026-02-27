@@ -43,6 +43,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
       
+      - name: 💾 Setup Jest transform cache
+        uses: actions/cache@v3
+        with:
+          path: apps/mobile/.jest-cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
+      
       - name: 📦 Install dependencies
         run: |
           cd apps/mobile
@@ -58,36 +66,23 @@ jobs:
           cd apps/mobile
           npx tsc --noEmit
       
-      - name: 🧪 Run unit tests
+      - name: 🧪 Run unit tests + coverage
         run: |
           cd apps/mobile
-          # Run all unit tests WITHOUT coverage for fast feedback.
-          # Exit code is the authoritative pass/fail signal (addresses audit finding N1):
-          # 0 = all tests passed, 1 = test failure.
-          # --forceExit does NOT alter the exit code — it only forces process shutdown
-          # after tests complete (safety net for open handles mitigated in setup.ts).
+          # Single test run with coverage enabled.
+          # Previously split into two steps (unit + coverage) which doubled execution
+          # time on CI — the transform cache was cold each run, causing 15+ min compiles.
+          # Now combined: exit code is the authoritative pass/fail signal (audit N1),
+          # and coverageThreshold in jest.config.js enforces minimum coverage.
+          # --forceExit: forces shutdown after tests complete (open-handle safety net).
           # --maxWorkers=2: matches CI runner's 2 vCPUs.
           NODE_OPTIONS="--max-old-space-size=3072" npx jest \
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
             --testTimeout=15000 \
-            --no-coverage
-
-      - name: 📊 Run coverage (game logic)
-        run: |
-          cd apps/mobile
-          # Coverage run: enforces coverageThreshold from jest.config.js.
-          # Runs all tests (not just src/game/) so that collectCoverageFrom files
-          # (scoreboard, contexts, game) are properly covered by their respective tests.
-          # With isolatedModules: true in ts-jest, this completes in ~20s on CI.
-          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
-            --testPathIgnorePatterns='/integration/' \
-            --forceExit --passWithNoTests \
-            --maxWorkers=2 \
-            --testTimeout=15000 \
             --coverage
-        timeout-minutes: 5
+        timeout-minutes: 12
       
       
       - name: ⚠️ Integration tests skipped (no credentials)

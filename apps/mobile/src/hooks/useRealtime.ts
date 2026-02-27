@@ -51,7 +51,7 @@ function getPlayErrorExplanation(serverError: string): string {
   }
   
   // Invalid combination
-  // @copilot-review-fix (Round 9): Use regex for more specific pattern matching to avoid false positives
+  // Use regex for more specific pattern matching to avoid false positives
   if (/\b(invalid card combination|invalid combo)\b/i.test(serverError)) {
     return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
   }
@@ -102,8 +102,8 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
-  // @copilot-review-fix (Round 7): Add timeout to body reading to prevent hanging in critical error paths
-  // @copilot-review-fix (Round 8): Reduced timeout from 2s to 1s for better user-facing responsiveness
+  // Add timeout to body reading to prevent hanging in critical error paths
+  // Reduced timeout from 2s to 1s for better user-facing responsiveness
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     try {
       // Race against timeout to prevent hanging if body reading fails or hangs
@@ -275,7 +275,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
   const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
-  // @copilot-review-fix (Round 7): Changed to timestamp-based lock for atomic-like operation
+  // Changed to timestamp-based lock for atomic-like operation
   // Stores timestamp when lock was acquired, or null when unlocked
   const autoPassExecutionGuard = useRef<number | null>(null);
   // 🔥 CRITICAL FIX: Ref to access latest gameState inside setInterval callback (avoids stale closure)
@@ -1429,10 +1429,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
       
         // ⚡ FIXED SEQUENTIAL AUTO-PASS
-        // @copilot-review-fix: Calculate array of players UPFRONT to avoid timing issues
+        // Calculate array of players UPFRONT to avoid timing issues
         const executeAutoPasses = async () => {
           // Execution guard: Prevent multiple simultaneous auto-pass executions
-          // @copilot-review-fix (Round 7): Use timestamp-based lock for more robust atomic operation
+          // Use timestamp-based lock for more robust atomic operation
           // This prevents the race condition where two intervals could check before either sets
           const now = Date.now();
           const lockTimeout = 30000; // 30 second max lock duration
@@ -1444,7 +1444,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             return;
           }
           
-          // @copilot-review-fix (Round 8): Log when stale lock is being overridden for debugging
+          // Log when stale lock is being overridden for debugging
           if (currentLock && (now - currentLock) >= lockTimeout) {
             networkLogger.warn(`⏰ [Timer] ⚠️ Stale lock detected (age: ${now - currentLock}ms > ${lockTimeout}ms), overriding. ` +
               `Previous execution may have taken longer than expected or crashed.`);
@@ -1487,7 +1487,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            // @copilot-review-fix: Calculate the ARRAY of 3 players to pass UPFRONT
+            // Calculate the ARRAY of 3 players to pass UPFRONT
             // based on exempt player, then pass them by index with delay
             // This avoids the timing issue where querying current_turn after each pass
             // would keep returning the NEW current player instead of the 3 sequential ones
@@ -1503,14 +1503,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             }
             
             // Calculate which players need to pass (everyone except exempt)
-            // @copilot-review-fix: Use roomPlayers.length instead of hardcoded 4
+            // Use roomPlayers.length instead of hardcoded 4
             const totalPlayers = roomPlayers.length;
             
             networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
             networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
             
             // 🔄 STEP 2: Pass players using UPFRONT calculation to avoid excessive DB queries
-            // @copilot-review-fix: Fetch state ONCE before loop instead of per-iteration (Round 7)
+            // Fetch state ONCE before loop instead of per-iteration (Round 7)
             // This reduces DB queries from O(maxPasses) to O(1) while maintaining correctness
             let passedCount = 0;
             const maxPasses = totalPlayers - 1; // Maximum passes needed (everyone except exempt)
@@ -1523,14 +1523,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            // @copilot-review-fix (Round 9): Use separate turnOffset counter instead of attempt index
+            // Use separate turnOffset counter instead of attempt index
             // If a pass fails and we continue, turnOffset won't increment, keeping turn order correct
             // attempt = loop safety limit, turnOffset = actual turn progression
             let turnOffset = 0;
             
             for (let attempt = 0; attempt < maxPasses && turnOffset < maxPasses; attempt++) {
               // Calculate current turn index from starting position + turnOffset (not attempt!)
-              // @copilot-review-fix (Round 9): This ensures failed passes don't skip players
+              // This ensures failed passes don't skip players
               const currentTurnIndex = (startingTurnIndex + turnOffset) % totalPlayers;
               
               // Skip if current turn is the exempt player (they played highest, shouldn't pass)
@@ -1554,7 +1554,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // "Not your turn" errors when current_turn changes between passes.
                 // By calling the Edge Function directly, we bypass the stale closure issue.
                 // 
-                // @copilot-review-fix (Round 8): Documented differences from pass() function:
+                // Documented differences from pass() function:
                 // - pass() logs via gameLogger → we log via networkLogger (equivalent)
                 // - pass() broadcasts 'player_passed' → we broadcast 'auto_pass_executed' (intentionally different)
                 // - pass() waits 300ms for Realtime → we wait at end of loop (see below)
@@ -1572,7 +1572,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 }
                 
                 passedCount++;
-                turnOffset++; // @copilot-review-fix (Round 9): Increment turn offset on success
+                turnOffset++; // Increment turn offset on success
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
                 networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
                 
@@ -1592,7 +1592,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // Delay between consecutive auto-passes for visual feedback and Realtime sync
                 // Note: Could be made configurable via settings if needed
                 const AUTO_PASS_DELAY_MS = 300;
-                // @copilot-review-fix: Check both attempt counter and passedCount to handle errors correctly
+                // Check both attempt counter and passedCount to handle errors correctly
                 const hasRemainingAttempts = (attempt + 1 < maxPasses) && (passedCount < maxPasses);
                 if (hasRemainingAttempts) {
                   await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
@@ -1602,7 +1602,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 const errorMsg = (error as Error).message || String(error);
                 
                 // "Not your turn" means server rejected - likely already passed or turn advanced
-                // @copilot-review-fix (Round 10): Query fresh server state instead of calculating locally
+                // Query fresh server state instead of calculating locally
                 // This prevents turnOffset from drifting and skipping players
                 if (errorMsg.includes('Not your turn')) {
                   networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, querying fresh state...`);

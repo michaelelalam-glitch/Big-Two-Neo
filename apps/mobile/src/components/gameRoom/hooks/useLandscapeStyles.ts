@@ -326,5 +326,9 @@ export const useLandscapeScoreboardStyles = () => {
         color: ScoreboardColors.text.highlight,
       },
     };
+    // Intentionally depends only on isLandscape: all pixel values are hardcoded constants
+    // (not derived from width/height), so the styles only change when orientation flips.
+    // On foldables/split-screen, width may change within the same orientation, but
+    // since no style value is computed from dimensions, recalculating would be a no-op.
   }, [isLandscape]);
 };

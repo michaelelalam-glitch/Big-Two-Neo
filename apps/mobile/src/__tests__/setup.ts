@@ -65,15 +65,26 @@ jest.mock('react-native-reanimated', () => {
 });
 
 // Track real setInterval/setTimeout handles so we can clear them between tests.
-// Components like GameStateManager create real intervals/timeouts in constructors or module
-// initialization code that can keep the Jest worker alive after tests complete. This global
-// tracking is a pragmatic, test-only workaround to avoid using Jest's --forceExit option and
-// to ensure we don't leak timers across tests.
 //
-// If you introduce new components that manage long-lived timers, prefer exposing explicit
-// cleanup/dispose methods that tests can call in afterEach/afterAll hooks instead of relying
-// on this global interception. When such refactors are feasible for existing code, consider
-// migrating to that pattern and then simplifying or removing this global timer tracking.
+// WHY GLOBAL INTERCEPTION:
+// GameStateManager creates real intervals/timeouts in constructors and module
+// initialization code that keep the Jest worker alive after tests complete.
+// AutoPassTimer and bot turn scheduling also rely on real timers. Since these
+// timers originate from deep inside class methods (not easily injectable), global
+// interception is the most reliable way to ensure complete cleanup without
+// modifying production code with test-only hooks.
+//
+// COMPONENTS REQUIRING THIS:
+// - GameStateManager (bot turn timers, state save debounce)
+// - AutoPassTimer (rAF + setTimeout fallback countdown)
+// - useBotCoordinator (bot execution delay timers)
+//
+// MIGRATION PATH:
+// If you introduce new components that manage long-lived timers, prefer exposing
+// explicit cleanup/dispose methods that tests can call in afterEach/afterAll hooks
+// instead of relying on this global interception. When such refactors are feasible
+// for existing code, consider migrating to that pattern and then simplifying or
+// removing this global timer tracking.
 const _realSetInterval = global.setInterval;
 const _realClearInterval = global.clearInterval;
 const _realSetTimeout = global.setTimeout;

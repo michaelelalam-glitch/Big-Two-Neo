@@ -28,7 +28,7 @@ export interface PerformanceReport {
 
 class PerformanceMonitor {
   private enabled = __DEV__;
-  // @copilot-review-fix (Round 10): Configurable logging - defaults to __DEV__ to maintain
+  // Configurable logging - defaults to __DEV__ to maintain
   // debugging capability. Override with LOG_SLOW_RENDERS env var if needed.
   private logSlowRenders = process.env.LOG_SLOW_RENDERS != null 
     ? process.env.LOG_SLOW_RENDERS === 'true' 
@@ -67,7 +67,7 @@ class PerformanceMonitor {
     this.metrics.set(id, componentMetrics);
 
     // Log slow renders (controlled by LOG_SLOW_RENDERS env var or setLogSlowRenders())
-    // @copilot-review-fix: Made configurable instead of commented out
+    // Made configurable instead of commented out
     if (this.logSlowRenders && actualDuration > this.FRAME_BUDGET) {
       const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
       console.warn(
@@ -162,8 +162,7 @@ class PerformanceMonitor {
   }
 
   /**
-   * Enable/disable slow render logging
-   * @copilot-review-fix: Added method to enable/disable logging without code changes
+   * Enable/disable slow render logging at runtime.
    */
   setLogSlowRenders(enabled: boolean): void {
     this.logSlowRenders = enabled;
