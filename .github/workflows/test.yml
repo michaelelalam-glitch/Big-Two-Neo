@@ -77,11 +77,12 @@ jobs:
       - name: 📊 Run coverage (game logic)
         run: |
           cd apps/mobile
-          # Step 2: Coverage on game logic subset only — fast and blocking.
-          # coverageThreshold in jest.config.js is enforced here (branches 48, functions 65, etc.).
-          # Scoped to src/game/ tests to keep runtime under 3 minutes on CI.
+          # Coverage run: enforces coverageThreshold from jest.config.js.
+          # Runs all tests (not just src/game/) so that collectCoverageFrom files
+          # (scoreboard, contexts, game) are properly covered by their respective tests.
+          # With isolatedModules: true in ts-jest, this completes in ~20s on CI.
           NODE_OPTIONS="--max-old-space-size=3072" npx jest \
-            --testPathPattern='src/game/' \
+            --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
             --testTimeout=15000 \

@@ -17,10 +17,6 @@ module.exports = {
         tsconfig: {
           jsx: 'react',
         },
-        // Skip type-checking during test transforms — type safety is already
-        // enforced by the separate `tsc --noEmit` CI step. This dramatically
-        // reduces cold-start compilation time on CI runners.
-        isolatedModules: true,
       },
     ],
   },
