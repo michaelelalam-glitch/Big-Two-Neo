@@ -16,6 +16,13 @@ module.exports = {
       {
         tsconfig: {
           jsx: 'react',
+          // Skip type-checking during transforms — tsc --noEmit already enforces
+          // type safety in a separate CI step. Without this, ts-jest uses
+          // ts.createProgram (full program analysis) instead of ts.transpileModule
+          // (per-file compilation), causing 12+ minute cold-start on 2-vCPU CI runners.
+          // Must be in this inline tsconfig (not project tsconfig.json) because
+          // ts-jest uses object configs directly without extending the project file.
+          isolatedModules: true,
         },
       },
     ],
