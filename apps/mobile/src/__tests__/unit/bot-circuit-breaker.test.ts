@@ -50,51 +50,84 @@ describe('Bot circuit-breaker / retry logic', () => {
     manager.destroy();
   });
 
-  test('should advance to next player when bot is stuck after MAX_BOT_RETRIES', async () => {
+  test('should execute bot turn normally and advance player index', async () => {
     const state = manager.getState();
     if (!state) return;
 
     // Advance past human player if needed
     if (!state.players[state.currentPlayerIndex].isBot) {
-      // Play 3D if in hand, otherwise pass
       const human = state.players[state.currentPlayerIndex];
       const card3D = human.hand.find(c => c.id === '3D');
-      if (card3D) {
-        await manager.playCards([card3D.id]);
-      } else {
-        await manager.pass();
-      }
+      if (card3D) await manager.playCards([card3D.id]);
     }
 
-    // Now verify the bot turn mechanism handles failure gracefully
     const botState = manager.getState();
     if (!botState || !botState.players[botState.currentPlayerIndex].isBot) return;
 
     const playerIndexBefore = botState.currentPlayerIndex;
 
-    // Track listener notifications
     let listenerCalled = false;
-    const unsubscribe = manager.subscribe(() => {
-      listenerCalled = true;
-    });
+    const unsubscribe = manager.subscribe(() => { listenerCalled = true; });
 
-    // Execute bot turn (should succeed normally; the circuit breaker
-    // is only triggered on repeated failures, which we validate is wired correctly
-    // by checking the game can proceed).
     await manager.executeBotTurn();
+    unsubscribe();
 
     const afterState = manager.getState();
     expect(afterState).not.toBeNull();
+    if (afterState && !afterState.gameEnded) {
+      expect(afterState.currentPlayerIndex).not.toBe(playerIndexBefore);
+    }
+    expect(listenerCalled).toBe(true);
+  });
 
-    // After a successful bot turn the player index should have advanced
+  test('should force-advance and notify listeners when bot is stuck after MAX_BOT_RETRIES', async () => {
+    // Helper: advance until a bot is the current player using real methods
+    async function advanceToBotTurn(): Promise<boolean> {
+      for (let i = 0; i < 10; i++) {
+        const s = manager.getState();
+        if (!s || s.gameEnded) return false;
+        if (s.players[s.currentPlayerIndex].isBot) return true;
+        // Human player: play the 3D card to advance turn (human always starts with 3D)
+        const human = s.players[s.currentPlayerIndex];
+        const card3D = human.hand.find(c => c.id === '3D');
+        if (card3D) await manager.playCards([card3D.id]);
+      }
+      const s = manager.getState();
+      return Boolean(s && s.players[s.currentPlayerIndex].isBot);
+    }
+
+    const onBotTurn = await advanceToBotTurn();
+    if (!onBotTurn) return; // Guard: skip if couldn't reach a bot turn
+
+    const playerIndexBefore = manager.getState()!.currentPlayerIndex;
+
+    // Force playCards and pass to always fail by directly replacing the methods
+    // on the instance. This reliably intercepts `this.playCards()` / `this.pass()`
+    // calls from within executeBotTurn() and triggers the circuit-breaker.
+    const playCardsMock = jest.fn().mockResolvedValue({ success: false, error: 'forced test failure' });
+    const passMock = jest.fn().mockResolvedValue({ success: false, error: 'forced test failure' });
+    (manager as any).playCards = playCardsMock;
+    (manager as any).pass = passMock;
+
+    let listenerCallCount = 0;
+    const unsubscribe = manager.subscribe(() => { listenerCallCount++; });
+
+    await manager.executeBotTurn();
+    unsubscribe();
+
+    // (1) Circuit-breaker should have called advanceToNextPlayer() — player advances
+    const afterState = manager.getState();
+    expect(afterState).not.toBeNull();
     if (afterState && !afterState.gameEnded) {
       expect(afterState.currentPlayerIndex).not.toBe(playerIndexBefore);
     }
 
-    // Listener should have been called
-    expect(listenerCalled).toBe(true);
+    // (2) Listeners must have been notified after the forced advance
+    expect(listenerCallCount).toBeGreaterThan(0);
 
-    unsubscribe();
+    // (3) At least 4 failed calls: 1 initial + 3 retries = MAX_BOT_RETRIES + 1
+    const totalFailedCalls = playCardsMock.mock.calls.length + passMock.mock.calls.length;
+    expect(totalFailedCalls).toBeGreaterThanOrEqual(4);
   });
 
   test('should not crash when executeBotTurn is called on non-bot player', async () => {

@@ -144,9 +144,11 @@ describe('Task #288: Duplicate Bot Turn Execution Fix', () => {
     expect(playerIndices.length).toBeGreaterThan(0);
     // Verify all indices are valid player indices (0-3)
     for (const idx of playerIndices) {
-      expect(idx).toBeGreaterThanOrEqual(0);
-      expect(idx).toBeLessThan(4);
+      expect([0, 1, 2, 3]).toContain(idx); // Explicitly enumerate valid values
     }
+    // Verify at least one turn transition occurred (game progressed)
+    const turnChanges = playerIndices.filter((idx, i) => i > 0 && idx !== playerIndices[i - 1]).length;
+    expect(turnChanges).toBeGreaterThan(0);
   });
 
   test('should not execute bot turn when game has ended', async () => {
