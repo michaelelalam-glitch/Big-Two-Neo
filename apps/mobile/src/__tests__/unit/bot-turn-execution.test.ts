@@ -135,8 +135,16 @@ describe('Task #288: Duplicate Bot Turn Execution Fix', () => {
       if (state.players[state.currentPlayerIndex].isBot) {
         await manager.executeBotTurn();
       } else {
-        // Human player passes (for testing purposes)
-        await manager.pass();
+        // Human player: must play a card when leading (pass is invalid on open leads)
+        const human = state.players[state.currentPlayerIndex];
+        if (state.lastPlay === null) {
+          // Leading: play lowest card
+          if (human.hand.length > 0) {
+            await manager.playCards([human.hand[0].id]);
+          }
+        } else {
+          await manager.pass();
+        }
       }
     }
 

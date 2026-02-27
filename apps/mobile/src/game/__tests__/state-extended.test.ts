@@ -17,8 +17,25 @@ jest.mock('../../utils/soundManager', () => ({
   },
 }));
 
+// Mock logger to prevent expo-file-system transform errors
+jest.mock('../../utils/logger', () => ({
+  gameLogger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+  statsLogger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameStateManager, type GameState } from '../state';
+import { gameLogger } from '../../utils/logger';
 import type { Card } from '../types';
 
 // Mock AsyncStorage
@@ -45,7 +62,7 @@ describe('GameStateManager - Extended Coverage Tests', () => {
 
   describe('AsyncStorage error handling', () => {
     test('handles saveState AsyncStorage error gracefully and logs it', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      (gameLogger.error as jest.Mock).mockClear();
       (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Storage full'));
       
       await manager.initializeGame({ playerName: 'Player 1', botCount: 1, botDifficulty: 'easy' });
@@ -53,9 +70,11 @@ describe('GameStateManager - Extended Coverage Tests', () => {
       // saveState should handle errors gracefully without throwing
       await expect(manager.saveState()).resolves.toBeUndefined();
       
-      // Verify the error was logged (not silently swallowed)
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      // Verify the error was logged via gameLogger (not silently swallowed)
+      expect(gameLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to save game state'),
+        expect.stringContaining('Storage full')
+      );
     });
 
     test('handles loadState with corrupted data', async () => {
