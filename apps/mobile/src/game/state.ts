@@ -394,6 +394,28 @@ export class GameStateManager {
   }
 
   /**
+   * Anticlockwise turn order table: index → next player.
+   * Sequence: 0→3→1→2→0  (i.e. 0→3, 1→2, 2→0, 3→1)
+   */
+  private static readonly TURN_ORDER = [3, 2, 0, 1] as const;
+
+  /**
+   * Find the next active player (skipping players with 0 cards).
+   * Returns the player index of the next player who still has cards,
+   * or falls back to currentPlayerIndex if all others are finished.
+   */
+  private findNextActivePlayer(currentPlayerIndex: number): number {
+    const players = this.state!.players;
+    let next = GameStateManager.TURN_ORDER[currentPlayerIndex];
+    const start = next;
+    while (players[next].hand.length === 0 && next !== currentPlayerIndex) {
+      next = GameStateManager.TURN_ORDER[next];
+      if (next === start) break; // Defensive: prevent infinite loop if turn table is ever misconfigured
+    }
+    return next;
+  }
+
+  /**
    * Pass current player's turn
    */
   async pass(): Promise<{ success: boolean; error?: string }> {
@@ -408,15 +430,7 @@ export class GameStateManager {
 
     // Check "One Card Left" rule - cannot pass if next player has 1 card and you have valid single
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
-    // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
-    // Skip players who have already finished (0 cards) to find actual next player
-    const turnOrderPass = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    let nextPlayerIndex = turnOrderPass[this.state.currentPlayerIndex];
-    const startPassIdx = nextPlayerIndex;
-    while (this.state.players[nextPlayerIndex].hand.length === 0 && nextPlayerIndex !== this.state.currentPlayerIndex) {
-      nextPlayerIndex = turnOrderPass[nextPlayerIndex];
-      if (nextPlayerIndex === startPassIdx) break; // Safety: prevent infinite loop
-    }
+    const nextPlayerIndex = this.findNextActivePlayer(this.state.currentPlayerIndex);
     const nextPlayer = this.state.players[nextPlayerIndex];
     const nextPlayerCardCount = nextPlayer.hand.length;
     
@@ -794,15 +808,7 @@ export class GameStateManager {
     }
 
     // Check "One Card Left" rule
-    // Get next ACTIVE player's card count (anticlockwise, skipping finished players)
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    let nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
-    const startCheckIdx = nextPlayerIndex;
-    // Skip players who have already finished (0 cards)
-    while (this.state!.players[nextPlayerIndex].hand.length === 0 && nextPlayerIndex !== this.state!.currentPlayerIndex) {
-      nextPlayerIndex = turnOrder[nextPlayerIndex];
-      if (nextPlayerIndex === startCheckIdx) break; // Safety: prevent infinite loop
-    }
+    const nextPlayerIndex = this.findNextActivePlayer(this.state!.currentPlayerIndex);
     const nextPlayerCardCount = this.state!.players[nextPlayerIndex].hand.length;
     
     const oneCardLeftValidation = validateOneCardLeftRule(
