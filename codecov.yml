@@ -1,0 +1,54 @@
+# Codecov configuration for Big-Two-Neo
+# Docs: https://docs.codecov.com/docs/codecov-yaml
+#
+# Coverage thresholds mirror jest.config.js coverageThreshold (CI Audit Q6 Phase 2).
+# Codecov enforces these as PR status checks — PRs that drop coverage below
+# these targets will show a failing Codecov check.
+
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...90"
+
+  status:
+    # Project-level coverage: overall repo coverage must stay above targets
+    project:
+      default:
+        target: 76%
+        threshold: 2%
+        # Only check files matching collectCoverageFrom in jest.config.js
+        paths:
+          - "apps/mobile/src/game/**"
+          - "apps/mobile/src/components/scoreboard/**"
+          - "apps/mobile/src/contexts/ScoreboardContext.tsx"
+
+    # Patch coverage: new/changed lines in PRs must have reasonable coverage
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+flags:
+  unittests:
+    paths:
+      - "apps/mobile/src/"
+    carryforward: true
+
+ignore:
+  - "apps/mobile/src/**/*.test.ts"
+  - "apps/mobile/src/**/*.test.tsx"
+  - "apps/mobile/src/__tests__/**"
+  - "apps/mobile/src/**/index.ts"
+  - "apps/mobile/src/components/scoreboard/styles/**"
+  - "docs/**"
+  - "Figma/**"

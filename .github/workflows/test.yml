@@ -69,10 +69,11 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          # Run all unit tests without coverage for fast CI feedback.
-          # v8 coverage collection takes 11+ min on 2-vCPU runners, causing
-          # the step to time out. Coverage thresholds are enforced locally via
-          # jest.config.js and coverageThreshold when developers run --coverage.
+          # Run all unit tests with coverage.
+          # Coverage thresholds (branches 78, functions 76, lines 76, statements 76)
+          # are enforced in jest.config.js — Jest exits non-zero if coverage drops
+          # below thresholds. With isolatedModules: true in ts-jest config, coverage
+          # completes in ~60s on 2-vCPU CI runners (was 11+ min without isolatedModules).
           # --forceExit: forces process.exit after all tests complete if open handles
           #   remain (e.g. unclosed DB connections). It does NOT mask test failures —
           #   jest sets the exit code before the force-exit fires. Use
@@ -82,7 +83,8 @@ jobs:
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
-            --testTimeout=15000
+            --testTimeout=15000 \
+            --coverage
         timeout-minutes: 15
       
       
@@ -113,14 +115,13 @@ jobs:
           CI: true
       
       - name: 📊 Upload test coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: always()
         with:
           directory: ./apps/mobile/coverage
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-        continue-on-error: true
       
       - name: ✅ All checks passed
         run: echo "🎉 All CI checks completed successfully!"
