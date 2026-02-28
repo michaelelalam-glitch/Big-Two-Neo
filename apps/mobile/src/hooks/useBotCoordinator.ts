@@ -1,3 +1,19 @@
+/**
+ * useBotCoordinator — Host-only bot AI coordinator for multiplayer games.
+ *
+ * Only the room HOST executes bot turns to avoid duplicate plays. The host
+ * calls the play-cards / player-pass Edge Functions on behalf of bot players,
+ * and all clients receive the result via Realtime subscriptions.
+ *
+ * @param props - Configuration object
+ * @param props.roomCode - The room code to play in
+ * @param props.isCoordinator - Whether this client is the host (only hosts execute bot turns)
+ * @param props.gameState - Current multiplayer game state from Realtime subscription
+ * @param props.players - Array of players in the room (includes `is_bot` flag)
+ * @param props.playCards - Callback to invoke the play-cards Edge Function
+ * @param props.passMove - Callback to invoke the player-pass Edge Function
+ * @returns {{ checkAndExecuteBotTurn: () => void }} — Call after each state change to check if a bot should play
+ */
 import { useEffect, useRef, useCallback } from 'react';
 import { classifyCards } from '../game';
 import { BotAI, type BotDifficulty } from '../game/bot';

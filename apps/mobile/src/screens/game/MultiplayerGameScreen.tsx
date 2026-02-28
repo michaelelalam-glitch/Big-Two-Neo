@@ -7,13 +7,14 @@
  * Task #570 - Extracted from 1,366-line GameScreen.tsx
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer, Profiler } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
+import { ConnectionStatusIndicator } from '../../components/ConnectionStatusIndicator';
 import { ScoreboardContainer } from '../../components/scoreboard';
 // Match number + score action button styles imported from shared scoreDisplayStyles (Task #590)
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
@@ -38,13 +39,45 @@ import type { ScoreHistory } from '../../types/scoreboard';
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
+// Task #571: useReducer for batched UI state updates (reduces re-renders vs 3 separate useState)
+interface UIState {
+  showSettings: boolean;
+  isCardPlayInFlight: boolean;
+}
+
+type UIAction =
+  | { type: 'TOGGLE_SETTINGS'; show: boolean }
+  | { type: 'CARD_PLAY_START' }
+  | { type: 'CARD_PLAY_END' };
+
+function uiReducer(state: UIState, action: UIAction): UIState {
+  switch (action.type) {
+    case 'TOGGLE_SETTINGS':
+      return { ...state, showSettings: action.show };
+    case 'CARD_PLAY_START':
+      return { ...state, isCardPlayInFlight: true };
+    case 'CARD_PLAY_END':
+      return { ...state, isCardPlayInFlight: false };
+    default:
+      return state;
+  }
+}
+
+const INITIAL_UI_STATE: UIState = {
+  showSettings: false,
+  isCardPlayInFlight: false,
+};
+
 export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
   const { addScoreHistory, restoreScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
-  const [showSettings, setShowSettings] = useState(false);
+
+  // Task #571: useReducer consolidates UI booleans for fewer re-renders
+  const [uiState, dispatch] = useReducer(uiReducer, INITIAL_UI_STATE);
+  const { showSettings, isCardPlayInFlight } = uiState;
   
   gameLogger.info('[MultiplayerGameScreen] Initializing for room:', roomCode);
   
@@ -109,6 +142,7 @@ export function MultiplayerGameScreen() {
     gameState: multiplayerGameState, 
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady,
+    isConnected,
     players: realtimePlayers,
     playCards: multiplayerPlayCards,
     pass: multiplayerPass,
@@ -494,6 +528,7 @@ export function MultiplayerGameScreen() {
 
     try {
       isPlayingCardsRef.current = true;
+      dispatch({ type: 'CARD_PLAY_START' }); // Task #575: Show spinner
       hapticManager.playCard();
       
       const sortedCards = sortCardsForDisplay(cards);
@@ -506,6 +541,7 @@ export function MultiplayerGameScreen() {
       showError(message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
+      dispatch({ type: 'CARD_PLAY_END' }); // Task #575: Hide spinner
     }
   }, [multiplayerPlayCards, setSelectedCardIds]);
 
@@ -683,6 +719,11 @@ export function MultiplayerGameScreen() {
   // Loading state - don't render game UI until data is ready
   const isLoading = !multiplayerGameState || layoutPlayers.length === 0;
 
+  // Task #575: Card-play in-flight state now managed by uiReducer (Task #571)
+
+  // Task #575: Connection status for indicator
+  const connectionStatus = isConnected ? 'connected' as const : 'reconnecting' as const;
+
   // Memoized scoreboard data
   const memoizedCurrentScores = useMemo(() => {
     return layoutPlayers.map(p => p.score);
@@ -739,6 +780,7 @@ export function MultiplayerGameScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.white} style={{ marginBottom: SPACING.md }} />
         <Text style={styles.loadingText}>Connecting to game...</Text>
         <Text style={styles.loadingSubtext}>Room: {roomCode}</Text>
       </View>
@@ -748,6 +790,16 @@ export function MultiplayerGameScreen() {
   return (
     <Profiler id="MultiplayerGameScreen" onRender={onRenderCallback}>
       <View style={styles.container}>
+      {/* Task #575: Connection status indicator */}
+      <ConnectionStatusIndicator status={connectionStatus} style={styles.connectionIndicator} />
+
+      {/* Task #575: Card play in-flight overlay */}
+      {isCardPlayInFlight && (
+        <View style={styles.cardPlayOverlay}>
+          <ActivityIndicator size="small" color={COLORS.white} />
+          <Text style={styles.cardPlayOverlayText}>Playing...</Text>
+        </View>
+      )}
       {isLandscape ? (
         <LandscapeGameLayout
           playerNames={memoizedPlayerNames}
@@ -778,7 +830,7 @@ export function MultiplayerGameScreen() {
           onHint={handleHint}
           onPlay={() => handlePlayCards(selectedCards)}
           onPass={handlePass}
-          onSettings={() => setShowSettings(true)}
+          onSettings={() => dispatch({ type: 'TOGGLE_SETTINGS', show: true })}
           canPlay={(layoutPlayers[0]?.isActive ?? false) && hasGameState}
         />
       ) : (
@@ -832,7 +884,7 @@ export function MultiplayerGameScreen() {
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
             style={styles.menuContainer} 
-            onPress={() => setShowSettings(true)}
+            onPress={() => dispatch({ type: 'TOGGLE_SETTINGS', show: true })}
             accessibilityRole="button"
             accessibilityLabel="Open settings menu"
           >
@@ -925,7 +977,7 @@ export function MultiplayerGameScreen() {
       {/* Game Settings Modal */}
       <GameSettingsModal
         visible={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={() => dispatch({ type: 'TOGGLE_SETTINGS', show: false })}
         onLeaveGame={handleLeaveGame}
       />
       </View>
@@ -1021,5 +1073,31 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     color: COLORS.gray.light,
     fontSize: FONT_SIZES.md,
+  },
+  // Task #575: Connection status indicator positioning
+  connectionIndicator: {
+    position: 'absolute',
+    top: SPACING.xl + SPACING.md,
+    alignSelf: 'center',
+    zIndex: 200,
+  },
+  // Task #575: Card play in-flight overlay
+  cardPlayOverlay: {
+    position: 'absolute',
+    top: SPACING.xl + SPACING.lg + SPACING.md,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 16,
+    zIndex: 200,
+    gap: SPACING.xs,
+  },
+  cardPlayOverlayText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
   },
 });

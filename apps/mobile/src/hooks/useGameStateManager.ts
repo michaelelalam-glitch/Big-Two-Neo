@@ -1,3 +1,7 @@
+/**
+ * @module useGameStateManager
+ * Game state initialization, subscription, and lifecycle management for local AI games.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,9 +44,9 @@ interface UseGameStateManagerReturn {
 
 /**
  * useGameStateManager Hook
- * Handles game state initialization, subscription, and lifecycle management
- * Extracted from GameScreen.tsx to reduce complexity (Task #427)
- * 
+ * Handles game state initialization, subscription, and lifecycle management.
+ * Extracted from GameScreen.tsx to reduce complexity (Task #427).
+ *
  * Responsibilities:
  * - Create and initialize GameStateManager
  * - Subscribe to game state changes
@@ -50,6 +54,20 @@ interface UseGameStateManagerReturn {
  * - Manage score history tracking
  * - Trigger bot turns
  * - Clean up resources on unmount
+ *
+ * @param props - Configuration object
+ * @param props.roomCode - Room identifier (used for AsyncStorage key + logging)
+ * @param props.currentPlayerName - Display name of the current user
+ * @param props.forceNewGame - If true, skips saved-state restoration and starts fresh
+ * @param props.isLocalGame - When true, initializes the local game engine; false for multiplayer (server-side state)
+ * @param props.botDifficulty - AI difficulty for local games ('easy' | 'medium' | 'hard')
+ * @param props.addScoreHistory - Callback to append a new ScoreHistory entry
+ * @param props.restoreScoreHistory - Callback to bulk-restore saved ScoreHistory on mount
+ * @param props.openGameEndModal - Callback invoked when a game ends (shows winner modal)
+ * @param props.scoreHistory - Current score history array (used for match numbering)
+ * @param props.playHistoryByMatch - Play history grouped by match (passed to game-end modal)
+ * @param props.checkAndExecuteBotTurn - Callback to trigger bot AI after state changes
+ * @returns {{ gameManagerRef: React.MutableRefObject<GameStateManager | null>, gameState: GameState | null, isInitializing: boolean }}
  */
 export function useGameStateManager({
   roomCode,

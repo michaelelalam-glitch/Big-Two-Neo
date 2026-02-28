@@ -249,8 +249,14 @@ export default function HomeScreen() {
   // ── Active Game Banner handlers ──
   const handleBannerResume = useCallback((gameInfo: ActiveGameInfo) => {
     if (gameInfo.type === 'online') {
-      // Navigate to the existing online room
-      navigation.replace('Lobby', { roomCode: gameInfo.roomCode });
+      // Task #520: Route based on room status
+      if (gameInfo.roomStatus === 'playing') {
+        // Room is mid-game — go directly to GameScreen to rejoin
+        navigation.replace('Game', { roomCode: gameInfo.roomCode });
+      } else {
+        // Room is still in lobby (waiting) — go to Lobby
+        navigation.replace('Lobby', { roomCode: gameInfo.roomCode });
+      }
     } else {
       // Resume offline game (don't force new game)
       navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
