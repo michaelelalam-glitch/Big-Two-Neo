@@ -6,13 +6,16 @@
  */
 
 import { useCallback } from 'react';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { notifyGameStarted, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import type {
   Room,
   Player,
+  GameState,
   PlayerHand,
   BroadcastEvent,
+  BroadcastData,
 } from '../types/multiplayer';
 import { networkLogger } from '../utils/logger';
 
@@ -25,14 +28,14 @@ export interface UseRoomLobbyOptions {
   isHost: boolean;
   setRoom: React.Dispatch<React.SetStateAction<Room | null>>;
   setRoomPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
-  setGameState: React.Dispatch<React.SetStateAction<any>>;
+  setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
   setPlayerHands: React.Dispatch<React.SetStateAction<Map<string, PlayerHand>>>;
   setIsConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setError: React.Dispatch<React.SetStateAction<Error | null>>;
-  channelRef: React.MutableRefObject<any>;
+  channelRef: React.MutableRefObject<RealtimeChannel | null>;
   onError?: (error: Error) => void;
-  broadcastMessage: (event: BroadcastEvent, data: any) => Promise<void>;
+  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   joinChannel: (roomId: string) => Promise<void>;
 }
 
@@ -295,7 +298,7 @@ export function useRoomLobby({
         throw new Error(startError?.message || startResult?.error || 'Failed to start game');
       }
 
-      const gameStateResult = (startResult as any).game_state ?? startResult;
+      const gameStateResult = (startResult as { game_state?: GameState }).game_state ?? startResult;
       if (!gameStateResult || !gameStateResult.room_id) {
         throw new Error('Failed to start game: missing game state from RPC result');
       }

@@ -13,7 +13,7 @@
  * - Smooth entrance animation
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -143,14 +143,15 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced]);
 
   // Determine which game info to display (online takes priority)
-  const gameInfo: ActiveGameInfo | null = onlineRoomCode
+  const gameInfo = useMemo<ActiveGameInfo | null>(() => onlineRoomCode
     ? {
-        type: 'online',
+        type: 'online' as const,
         roomCode: onlineRoomCode,
         roomStatus: onlineRoomStatus,
         isActive: true,
       }
-    : offlineGameInfo;
+    : offlineGameInfo,
+  [onlineRoomCode, onlineRoomStatus, offlineGameInfo]);
 
   // Entrance animation
   useEffect(() => {

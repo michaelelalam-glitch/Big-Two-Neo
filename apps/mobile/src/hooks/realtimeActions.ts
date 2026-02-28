@@ -6,7 +6,7 @@
  */
 
 import { supabase } from '../services/supabase';
-import type { Card, GameState, Player, Room, BroadcastEvent } from '../types/multiplayer';
+import type { Card, GameState, Player, Room, BroadcastEvent, BroadcastData, ComboType } from '../types/multiplayer';
 import type {
   PlayCardsResponse,
   StartNewMatchResponse,
@@ -32,7 +32,7 @@ export interface PlayCardsParams {
   currentPlayer: Player | null;
   roomPlayers: Player[];
   room: Room | null;
-  broadcastMessage: (event: BroadcastEvent, data: any) => Promise<void>;
+  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   onMatchEnded?: (matchNumber: number, scores: PlayerMatchScoreDetail[]) => void;
   setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
 }
@@ -69,6 +69,7 @@ export async function executePlayCards({
     }
   }
   if (cards.length === 0) throw new Error('Cannot play an empty hand');
+  if (effectivePlayerIndex === undefined) throw new Error('Player index not resolved');
 
   // --- Find the player performing the play ---
   const playingPlayer = playerIndex !== undefined
@@ -130,9 +131,9 @@ export async function executePlayCards({
   }
 
   // --- Play history update ---
-  const currentPlayHistory = (gameState as any).play_history || [];
-  const currentMatchNumber = (gameState as any).match_number || 1;
-  const comboType = result.combo_type;
+  const currentPlayHistory = gameState.play_history || [];
+  const currentMatchNumber = gameState.match_number || 1;
+  const comboType: ComboType = (result.combo_type as ComboType) || 'unknown';
   const updatedPlayHistory = [
     ...currentPlayHistory,
     {
@@ -258,7 +259,7 @@ export interface PassParams {
   roomPlayers: Player[];
   room: Room | null;
   isAutoPassInProgress: boolean;
-  broadcastMessage: (event: BroadcastEvent, data: any) => Promise<void>;
+  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
 }
 

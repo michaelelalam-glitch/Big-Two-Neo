@@ -9,7 +9,7 @@ import { uiLogger } from './logger';
 
 export interface RenderMetrics {
   componentName: string;
-  phase: 'mount' | 'update';
+  phase: 'mount' | 'update' | 'nested-update';
   actualDuration: number; // Time spent rendering
   baseDuration: number; // Estimated time without memoization
   startTime: number;
@@ -43,7 +43,7 @@ class PerformanceMonitor {
    */
   logRender(
     id: string,
-    phase: 'mount' | 'update',
+    phase: 'mount' | 'update' | 'nested-update',
     actualDuration: number,
     baseDuration: number,
     startTime: number,

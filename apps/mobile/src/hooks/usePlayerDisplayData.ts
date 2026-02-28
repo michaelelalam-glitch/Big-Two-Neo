@@ -13,19 +13,32 @@
 import React from 'react';
 
 import type { AutoPassTimerState, GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
-import type { LayoutPlayer } from './useMultiplayerLayout';
+import type { GameState as LocalGameState } from '../game/state';
 import type { ScoreHistory } from '../types/scoreboard';
+import type { LayoutPlayer } from './useMultiplayerLayout';
+
+/** Common display properties shared between local (PlayerInfo) and multiplayer (LayoutPlayer) */
+interface DisplayPlayer {
+  name: string;
+  cardCount: number;
+  score: number;
+  isActive: boolean;
+  player_index?: number;
+}
 
 interface UsePlayerDisplayDataOptions {
   isLocalAIGame: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state shape differs
-  gameState: any;
+  gameState: LocalGameState | null;
   multiplayerGameState: MultiplayerGameState | null;
   multiplayerPlayers: MultiplayerPlayer[];
-  layoutPlayers: (LayoutPlayer | any)[];
+  layoutPlayers: DisplayPlayer[];
   scoreHistory: ScoreHistory[];
   playerTotalScores: number[];
   multiplayerLayoutPlayers: LayoutPlayer[];
+}
+
+interface LayoutPlayerWithScore extends DisplayPlayer {
+  totalScore: number;
 }
 
 interface UsePlayerDisplayDataReturn {
@@ -37,7 +50,7 @@ interface UsePlayerDisplayDataReturn {
   effectiveScoreboardCurrentPlayerIndex: number;
   matchNumber: number;
   isGameFinished: boolean;
-  layoutPlayersWithScores: any[];
+  layoutPlayersWithScores: LayoutPlayerWithScore[];
   displayOrderScoreHistory: ScoreHistory[];
 }
 
@@ -52,19 +65,18 @@ export function usePlayerDisplayData({
   multiplayerLayoutPlayers,
 }: UsePlayerDisplayDataOptions): UsePlayerDisplayDataReturn {
   const matchNumber = isLocalAIGame
-    ? ((gameState as any)?.currentMatch ?? 1)
+    ? (gameState?.currentMatch ?? 1)
     : (multiplayerGameState?.match_number ?? 1);
 
   const isGameFinished = isLocalAIGame
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state shape differs from multiplayer
-    ? ((gameState as any)?.gameOver ?? false)
+    ? (gameState?.gameOver ?? false)
     : (
         multiplayerGameState?.game_phase === 'finished' ||
         multiplayerGameState?.game_phase === 'game_over'
       );
 
-  const layoutPlayersWithScores = React.useMemo(() => {
-    return layoutPlayers.map((p: any, i: number) => ({
+  const layoutPlayersWithScores = React.useMemo((): LayoutPlayerWithScore[] => {
+    return layoutPlayers.map((p, i) => ({
       ...p,
       totalScore: playerTotalScores[i] ?? 0,
     }));
@@ -72,7 +84,7 @@ export function usePlayerDisplayData({
 
   const memoizedPlayerNames = React.useMemo(() => {
     return layoutPlayers.length === 4
-      ? layoutPlayers.map((p: any) => p.name)
+      ? layoutPlayers.map((p) => p.name)
       : [];
   }, [layoutPlayers]);
 
@@ -80,7 +92,7 @@ export function usePlayerDisplayData({
     if (layoutPlayers.length !== 4) return [];
 
     if (scoreHistory.length > 0) {
-      return layoutPlayers.map((p: any, index: number) => {
+      return layoutPlayers.map((p, index) => {
         const playerIdx = p.player_index !== undefined ? p.player_index : index;
         return scoreHistory.reduce(
           (sum: number, match: ScoreHistory) => sum + (match.pointsAdded[playerIdx] || 0),
@@ -89,19 +101,19 @@ export function usePlayerDisplayData({
       });
     }
 
-    return layoutPlayers.map((p: any) => p.score);
+    return layoutPlayers.map((p) => p.score);
   }, [layoutPlayers, scoreHistory]);
 
   const memoizedCardCounts = React.useMemo(() => {
     return layoutPlayers.length === 4
-      ? layoutPlayers.map((p: any) => p.cardCount)
+      ? layoutPlayers.map((p) => p.cardCount)
       : [];
   }, [layoutPlayers]);
 
   const memoizedOriginalPlayerNames = React.useMemo(() => {
     if (isLocalAIGame) {
-      return (gameState as any)?.players
-        ? (gameState as any).players.map((p: any) => p.name)
+      return gameState?.players
+        ? gameState.players.map((p) => p.name)
         : [];
     }
     return multiplayerPlayers.map(p => p.username || `Player ${p.player_index + 1}`);
@@ -111,19 +123,19 @@ export function usePlayerDisplayData({
   const multiplayerPhase = multiplayerGameState?.game_phase;
   const isMatchActive = !multiplayerPhase || (multiplayerPhase !== 'finished' && multiplayerPhase !== 'game_over');
   const effectiveAutoPassTimerState = isLocalAIGame
-    ? ((gameState as any)?.auto_pass_timer ?? undefined)
+    ? (gameState?.auto_pass_timer ?? undefined)
     : (isMatchActive ? (multiplayerGameState?.auto_pass_timer ?? undefined) : undefined);
 
   // Scoreboard current player index (layout-aware for multiplayer)
   const multiplayerCurrentTurn = multiplayerGameState?.current_turn;
 
   const getMultiplayerScoreboardIndex = (currentTurn: number): number => {
-    const idx = multiplayerLayoutPlayers.findIndex((p: any) => p.player_index === currentTurn);
+    const idx = multiplayerLayoutPlayers.findIndex((p) => p.player_index === currentTurn);
     return idx >= 0 ? idx : 0;
   };
 
   const effectiveScoreboardCurrentPlayerIndex = isLocalAIGame
-    ? ((gameState as any)?.currentPlayerIndex ?? 0)
+    ? (gameState?.currentPlayerIndex ?? 0)
     : (typeof multiplayerCurrentTurn === 'number'
         ? getMultiplayerScoreboardIndex(multiplayerCurrentTurn)
         : 0);
@@ -137,12 +149,12 @@ export function usePlayerDisplayData({
     if (isLocalAIGame) return scoreHistory;
 
     // Build mapping: displayIndex → player_index from layoutPlayers
-    const hasMapping = layoutPlayers.length === 4 && layoutPlayers.every((p: any) => p.player_index !== undefined);
+    const hasMapping = layoutPlayers.length === 4 && layoutPlayers.every((p) => p.player_index !== undefined);
     if (!hasMapping) return scoreHistory;
 
     return scoreHistory.map((match) => {
-      const reindexed = layoutPlayers.map((p: any) => match.pointsAdded[p.player_index] || 0);
-      const reindexedScores = layoutPlayers.map((p: any) => match.scores[p.player_index] || 0);
+      const reindexed = layoutPlayers.map((p) => match.pointsAdded[p.player_index ?? 0] || 0);
+      const reindexedScores = layoutPlayers.map((p) => match.scores[p.player_index ?? 0] || 0);
       return { ...match, pointsAdded: reindexed, scores: reindexedScores };
     });
   }, [isLocalAIGame, scoreHistory, layoutPlayers]);

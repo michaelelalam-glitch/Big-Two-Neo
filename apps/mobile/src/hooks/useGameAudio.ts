@@ -9,15 +9,15 @@
 
 import { useEffect, useRef } from 'react';
 
-import { soundManager, hapticManager, HapticType, SoundType } from '../utils';
+import { soundManager, hapticManager, SoundType } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { GameState as MultiplayerGameState } from '../types/multiplayer';
+import type { GameState as LocalGameState } from '../game/state';
 
 interface UseGameAudioOptions {
   isLocalAIGame: boolean;
   isMultiplayerGame: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state shape
-  gameState: any;
+  gameState: LocalGameState | null;
   multiplayerGameState: MultiplayerGameState | null;
 }
 

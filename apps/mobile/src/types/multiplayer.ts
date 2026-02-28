@@ -166,15 +166,31 @@ export type BroadcastEvent =
   | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
   | 'auto_pass_executed';  // New: Auto-pass executed after timer expired
 
+/**
+ * Score detail for a single player in a multiplayer match.
+ * Used in match_ended and game_over broadcast payloads.
+ */
+export interface MatchScoreDetail {
+  player_index: number;
+  cardsRemaining: number;
+  pointsPerCard: number;
+  matchScore: number;
+  cumulativeScore: number;
+}
+
 export type BroadcastData =
   | { user_id: string; username: string; player_index: number }  // player_joined
   | { user_id: string; player_index: number }  // player_left
   | { user_id: string; ready: boolean }  // player_ready
-  | { game_state: GameState }  // game_started
+  | { game_state: GameState }  // game_started (with state)
+  | { success: boolean; roomId: string }  // game_started (signal)
   | { player_index: number; timer: number }  // turn_changed
   | { player_index: number; cards: Card[]; combo_type: ComboType }  // cards_played
   | { player_index: number }  // player_passed
   | { winner: number }  // game_ended - FIXED: Use 'winner' column
+  | { winner_index: number; final_scores: MatchScoreDetail[] }  // game_over (with scores)
+  | { winner_index: number; match_number: number; match_scores: MatchScoreDetail[] }  // match_ended (with scores)
+  | { match_number: number; starting_player_index: number }  // new_match_started
   | { user_id: string }  // reconnected
   | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
