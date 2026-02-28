@@ -160,6 +160,31 @@ export default function LobbyScreen() {
         profiles: player.username ? { username: player.username } : undefined,
       }));
       
+      // ── Host reassignment fallback ──
+      // If no player in the room has is_host = true (e.g. original host left),
+      // promote the first human player (lowest player_index) as host.
+      // This is a client-side fallback — the SQL migration handles it server-side.
+      const hasActiveHost = players.some((p: Player) => p.is_host === true);
+      if (!hasActiveHost && players.length > 0 && user?.id) {
+        const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
+        const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
+        if (firstHuman && firstHuman.user_id === user.id) {
+          roomLogger.info('[LobbyScreen] 👑 No active host found — promoting current user as host');
+          // Update server: room_players.is_host and rooms.host_id
+          await supabase
+            .from('room_players')
+            .update({ is_host: true })
+            .eq('room_id', currentRoomId)
+            .eq('user_id', user.id);
+          await supabase
+            .from('rooms')
+            .update({ host_id: user.id })
+            .eq('id', currentRoomId);
+          // Update local state
+          firstHuman.is_host = true;
+        }
+      }
+
       setPlayers(players);
       
       // Check if current user is the host - MUST happen after data is fetched
