@@ -277,6 +277,8 @@ jobs:
       - name: 🎭 Run Maestro E2E tests
         run: |
           cd apps/mobile
+          # Create results directory (Maestro doesn't auto-create it)
+          mkdir -p e2e/results
           # Run CI-tagged flows (tests that pass without authentication).
           # Auth-dependent flows (02-08) require Google/Apple Sign-In which
           # cannot be automated in CI — they run locally or in dedicated
