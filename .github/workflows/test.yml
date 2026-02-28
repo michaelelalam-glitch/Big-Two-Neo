@@ -108,8 +108,6 @@ jobs:
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
         run: |
           cd apps/mobile
-          # Integration tests are blocking when credentials are present.
-          # Exit code is the authoritative pass/fail signal.
           NODE_OPTIONS="--max-old-space-size=3072" npx jest \
             --testPathPattern='integration/' \
             --forceExit --passWithNoTests \
