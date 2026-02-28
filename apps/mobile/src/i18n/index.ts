@@ -7,6 +7,7 @@
 
 import { I18nManager as RNI18nManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { uiLogger } from '../utils/logger';
 
 // Storage key
 const LANGUAGE_KEY = '@big2_language';
@@ -1914,7 +1915,7 @@ class I18nManager {
           RNI18nManager.forceRTL(false);
         }
       }
-      console.log('[i18n] Initialized with language:', currentLanguage);
+      uiLogger.info('[i18n] Initialized with language:', currentLanguage);
     } catch (error) {
       console.error('[i18n] Failed to load language:', error);
     }
@@ -1945,7 +1946,7 @@ class I18nManager {
         RNI18nManager.forceRTL(needsRTL);
       }
       
-      console.log('[i18n] Language changed to:', language, { requiresRestart });
+      uiLogger.info('[i18n] Language changed to:', language, { requiresRestart });
       return requiresRestart; // Return true if app restart is needed
     } catch (error) {
       console.error('[i18n] Failed to set language:', error);
@@ -1968,11 +1969,11 @@ class I18nManager {
    */
   t(path: string, vars?: Record<string, string | number>): string {
     const keys = path.split('.');
-    let value: any = currentTranslations;
+    let value: unknown = currentTranslations;
     
     for (const key of keys) {
       if (value && typeof value === 'object' && key in value) {
-        value = value[key];
+        value = (value as Record<string, unknown>)[key];
       } else {
         console.warn(`[i18n] Translation not found: ${path}`);
         return path;

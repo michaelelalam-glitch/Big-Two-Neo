@@ -3,9 +3,9 @@
  * Handles card classification, validation, and AI recommendations
  */
 
-import { RANK_VALUE, SUIT_VALUE, COMBO_STRENGTH, VALID_STRAIGHT_SEQUENCES } from './constants';
-import { findStraightSequenceIndex } from './utils';
 import type { Card, ComboType, ClassificationResult, LastPlay } from '../types';
+import { RANK_VALUE, SUIT_VALUE, COMBO_STRENGTH, VALID_STRAIGHT_SEQUENCES } from './constants';
+import { findStraightSequenceIndex, getStraightTopCard } from './utils';
 
 /**
  * Sort cards by rank and suit value (ascending)
@@ -290,7 +290,27 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
     return RANK_VALUE[newQuadRank] > RANK_VALUE[lastQuadRank];
   }
   
-  // For other combos, compare highest card
+  // For Straight and Straight Flush, compare by sequence position
+  // (A-2-3-4-5 is Lowest, 10-J-Q-K-A is Highest)
+  // Cannot compare by highest card rank because 2 has RANK_VALUE=12
+  // which would incorrectly make A-2-3-4-5 the strongest straight
+  if (newCombo === 'Straight' || newCombo === 'Straight Flush') {
+    const newSeqIdx = findStraightSequenceIndex(newSorted.map(c => c.rank));
+    const lastSeqIdx = findStraightSequenceIndex(lastSorted.map(c => c.rank));
+    if (newSeqIdx !== -1 && lastSeqIdx !== -1) {
+      if (newSeqIdx !== lastSeqIdx) {
+        return newSeqIdx > lastSeqIdx;
+      }
+      // Same sequence — tiebreak by top card suit
+      const newTopCard = getStraightTopCard(newCards, newSeqIdx);
+      const lastTopCard = getStraightTopCard(lastPlay.cards, lastSeqIdx);
+      if (newTopCard && lastTopCard) {
+        return SUIT_VALUE[newTopCard.suit] > SUIT_VALUE[lastTopCard.suit];
+      }
+    }
+  }
+  
+  // For other combos (Single, Pair, Triple, Flush), compare highest card
   const newHighest = newSorted[newSorted.length - 1];
   const lastHighest = lastSorted[lastSorted.length - 1];
   

@@ -4,6 +4,7 @@ import { BotAI, type BotDifficulty } from '../game/bot';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
+import type { GameState } from '../types/multiplayer';
 
 /**
  * Retry a function with exponential backoff
@@ -18,7 +19,7 @@ async function retryWithBackoff<T>(
   delayMs: number = 1000,
   validateBeforeRetry?: () => boolean  // ← NEW: Optional validation function
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -29,16 +30,18 @@ async function retryWithBackoff<T>(
       }
       
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
       
       // Check if it's a network error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = (error as Record<string, unknown>)?.code;
       const isNetworkError = 
-        error?.message?.includes('Network request failed') ||
-        error?.message?.includes('Failed to fetch') ||
-        error?.message?.includes('network') ||
-        error?.code === 'ECONNREFUSED' ||
-        error?.code === 'ETIMEDOUT';
+        errorMessage.includes('Network request failed') ||
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('network') ||
+        errorCode === 'ECONNREFUSED' ||
+        errorCode === 'ETIMEDOUT';
       
       if (!isNetworkError || attempt === maxAttempts) {
         // Not a network error or final attempt - throw immediately
@@ -48,7 +51,7 @@ async function retryWithBackoff<T>(
       // Wait with exponential backoff before retry
       const waitTime = delayMs * Math.pow(2, attempt - 1);
       gameLogger.warn(`[RetryLogic] Attempt ${attempt}/${maxAttempts} failed with network error, retrying in ${waitTime}ms...`, {
-        error: error?.message || String(error),
+        error: errorMessage,
       });
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
@@ -57,11 +60,25 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
+/** Player enriched with cards for bot coordinator (Player + hand data) */
+interface BotCoordinatorPlayer {
+  id: string;
+  player_id?: string;
+  user_id: string;
+  username: string;
+  player_name?: string;
+  player_index: number;
+  is_bot: boolean;
+  is_host: boolean;
+  bot_difficulty?: 'easy' | 'medium' | 'hard';
+  cards: Card[];
+}
+
 interface UseBotCoordinatorProps {
   roomCode: string | null; // Room code (not UUID)
   isCoordinator: boolean; // Only host runs bot logic
-  gameState: any; // Full game state from Realtime subscription
-  players: any[]; // All players (humans + bots) with player_id (UUID)
+  gameState: GameState | null; // Full game state from Realtime subscription
+  players: BotCoordinatorPlayer[]; // All players (humans + bots) with cards
   playCards: (cards: Card[], playerIndex?: number) => Promise<void>; // Function from useRealtime to play cards (optional playerIndex for bots)
   passMove: (playerIndex?: number) => Promise<void>; // Function from useRealtime to pass (optional playerIndex for bots)
 }
@@ -166,7 +183,7 @@ export function useBotCoordinator({
       // Build playerCardCounts indexed by player_index
       // to ensure correct mapping regardless of players array order
       const playerCardCounts = new Array(4).fill(0);
-      players.forEach((p: any) => {
+      players.forEach((p) => {
         const idx = p.player_index;
         if (idx !== undefined && idx !== null && idx >= 0 && idx < 4) {
           playerCardCounts[idx] = p.cards?.length || 0;
@@ -174,14 +191,15 @@ export function useBotCoordinator({
       });
       
       const lastPlay = gameState.last_play ? {
-        position: gameState.last_play.position,
+        position: gameState.last_play.player_index ?? gameState.last_play.position,
+        player_index: gameState.last_play.player_index ?? gameState.last_play.position,
         cards: gameState.last_play.cards,
         combo_type: gameState.last_play.combo_type,
       } : null;
       
       const isFirstPlayOfGame = gameState.game_phase === 'first_play' || 
                                 (gameState.last_play === null && 
-                                 players.every((p: any) => p.cards?.length === 13));
+                                 players.every((p) => p.cards?.length === 13));
 
       // Calculate bot decision
       // Multiplayer uses sequential turn order (0→1→2→3→0), matching the server's
@@ -258,10 +276,10 @@ export function useBotCoordinator({
           // This ensures the next bot sees the updated turn state
           gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
           await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (passError: any) {
+        } catch (passError: unknown) {
           // 🚨 CRITICAL FIX: Reset execution ref immediately on pass failure
           // This allows the bot to retry on the next useEffect trigger
-          gameLogger.error('[BotCoordinator] ❌ Bot pass failed after retries:', passError?.message || String(passError));
+          gameLogger.error('[BotCoordinator] ❌ Bot pass failed after retries:', passError instanceof Error ? passError.message : String(passError));
           isExecutingRef.current = null;
           throw passError; // Re-throw to be caught by outer catch block
         }
@@ -339,17 +357,17 @@ export function useBotCoordinator({
           // This ensures the next bot sees the updated turn state
           gameLogger.info('⏳ [BotCoordinator] Waiting 300ms for Realtime sync...');
           await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (playError: any) {
+        } catch (playError: unknown) {
           // 🚨 CRITICAL FIX: Reset execution ref immediately on play failure
           // This allows the bot to retry on the next useEffect trigger
-          gameLogger.error('[BotCoordinator] ❌ Bot play failed after retries:', playError?.message || String(playError));
+          gameLogger.error('[BotCoordinator] ❌ Bot play failed after retries:', playError instanceof Error ? playError.message : String(playError));
           isExecutingRef.current = null;
           throw playError; // Re-throw to be caught by outer catch block
         }
       }
       
-    } catch (error: any) {
-      gameLogger.error('[BotCoordinator] Error executing bot turn:', error?.message || String(error));
+    } catch (error: unknown) {
+      gameLogger.error('[BotCoordinator] Error executing bot turn:', error instanceof Error ? error.message : String(error));
       // Reset execution flag on error to allow retry
       isExecutingRef.current = null;
       // Don't throw - let game continue
@@ -492,8 +510,8 @@ export function useBotCoordinator({
             } else {
               gameLogger.info('[BotCoordinator] ✅ Game progressed before failsafe (phase:', latestState?.game_phase, ')');
             }
-          } catch (err: any) {
-            gameLogger.error('[BotCoordinator] 💥 FAILSAFE error:', err?.message || String(err));
+          } catch (err: unknown) {
+            gameLogger.error('[BotCoordinator] 💥 FAILSAFE error:', err instanceof Error ? err.message : String(err));
           }
           matchEndFailsafeRef.current = null;
         }, 5000);

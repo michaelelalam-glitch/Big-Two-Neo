@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../../components/gameEnd';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
@@ -29,8 +30,8 @@ import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
+import type { GameStateManager, Player } from '../../game/state';
 import type { Card } from '../../game/types';
-import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -46,6 +47,7 @@ export function LocalAIGameScreen() {
   const scoreboardContext = useScoreboard();
   const { 
     addScoreHistory, 
+    restoreScoreHistory,
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext;
@@ -93,7 +95,7 @@ export function LocalAIGameScreen() {
   const oneCardLeftDetectedRef = useRef(new Set<string>());
 
   // Bot turn management
-  const gameManagerRefPlaceholder = useRef<any>(null);
+  const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
     gameManagerRef: gameManagerRefPlaceholder,
   });
@@ -106,6 +108,7 @@ export function LocalAIGameScreen() {
     isLocalGame: true,
     botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
+    restoreScoreHistory,
     openGameEndModal,
     scoreHistory,
     playHistoryByMatch,
@@ -165,7 +168,7 @@ export function LocalAIGameScreen() {
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
     playerHand: effectivePlayerHand,
     lastPlay: gameState?.lastPlay || null,
-    isFirstPlay: gameState?.lastPlay === null && gameState?.players.every((p: any) => p.hand.length === 13),
+    isFirstPlay: gameState?.lastPlay === null && gameState?.players.every((p: Player) => p.hand.length === 13),
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
@@ -174,7 +177,7 @@ export function LocalAIGameScreen() {
   // Memoized scoreboard props
   const memoizedPlayerNames = useMemo(() => {
     return layoutPlayers.length === 4 
-      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.name) 
+      ? mapPlayersToScoreboardOrder(layoutPlayers, (p) => p.name) 
       : [];
   }, [layoutPlayers, mapPlayersToScoreboardOrder]);
 
@@ -183,41 +186,41 @@ export function LocalAIGameScreen() {
     
     if (scoreHistory.length > 0) {
       return mapPlayersToScoreboardOrder(
-        layoutPlayers.map((p: any) => ({
+        layoutPlayers.map((p, i) => ({
           ...p,
-          score: scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[p.player_index] || 0), 0)
+          score: scoreHistory.reduce((sum, match) => sum + (match.pointsAdded[i] || 0), 0)
         })),
-        (p: any) => p.score
+        (p) => p.score
       );
     }
     
-    return mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.score);
+    return mapPlayersToScoreboardOrder(layoutPlayers, (p) => p.score);
   }, [layoutPlayers, scoreHistory, mapPlayersToScoreboardOrder]);
 
   const memoizedCardCounts = useMemo(() => {
     return layoutPlayers.length === 4 
-      ? mapPlayersToScoreboardOrder(layoutPlayers, (p: any) => p.cardCount) 
+      ? mapPlayersToScoreboardOrder(layoutPlayers, (p) => p.cardCount) 
       : [];
   }, [layoutPlayers, mapPlayersToScoreboardOrder]);
 
   const memoizedOriginalPlayerNames = useMemo(() => {
-    return (gameState as any)?.players ? (gameState as any).players.map((p: any) => p.name) : [];
+    return gameState?.players ? gameState.players.map((p) => p.name) : [];
   }, [gameState]);
 
   const hasEffectiveGameState = !!gameState;
-  const effectiveAutoPassTimerState = (gameState as any)?.auto_pass_timer;
+  const effectiveAutoPassTimerState = gameState?.auto_pass_timer;
   const effectiveScoreboardCurrentPlayerIndex = mapGameIndexToScoreboardPosition(
-    (gameState as any)?.currentPlayerIndex ?? 0
+    gameState?.currentPlayerIndex ?? 0
   );
-  const matchNumber = (gameState as any)?.currentMatch ?? 1;
-  const isGameFinished = (gameState as any)?.gameOver ?? false;
+  const matchNumber = gameState?.currentMatch ?? 1;
+  const isGameFinished = gameState?.gameOver ?? false;
 
   // Compute per-player total scores for badges (Task #590 — shared hook)
   const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
   // Layout players with totalScore attached (Task #590)
   const layoutPlayersWithScores = useMemo(() => {
-    return layoutPlayers.map((p: any, i: number) => ({
+    return layoutPlayers.map((p, i) => ({
       ...p,
       totalScore: playerTotalScores[i] ?? 0,
     }));
@@ -282,7 +285,7 @@ export function LocalAIGameScreen() {
   // Cleanup on deliberate leave
   useEffect(() => {
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
+    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
       const actionType = e?.data?.action?.type;
       if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
         if (orientationAvailable) {
@@ -325,9 +328,9 @@ export function LocalAIGameScreen() {
       await gameManagerRef.current.playCards(cardIds);
       setSelectedCardIds(new Set());
       soundManager.playSound(SoundType.CARD_PLAY);
-    } catch (error: any) {
+    } catch (error: unknown) {
       gameLogger.error('❌ Error playing cards:', error);
-      showError(error.message || 'Failed to play cards');
+      showError(error instanceof Error ? error.message : 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
     }
@@ -351,9 +354,9 @@ export function LocalAIGameScreen() {
       await gameManagerRef.current.pass();
       setSelectedCardIds(new Set());
       soundManager.playSound(SoundType.PASS);
-    } catch (error: any) {
+    } catch (error: unknown) {
       gameLogger.error('❌ Error passing:', error);
-      showError(error.message || 'Failed to pass');
+      showError(error instanceof Error ? error.message : 'Failed to pass');
     } finally {
       isPassingRef.current = false;
     }
@@ -404,7 +407,9 @@ export function LocalAIGameScreen() {
 
   // One card left detection
   useEffect(() => {
-    const hands = (gameState as any)?.hands;
+    // 'hands' is a multiplayer-only property, not present on local GameState
+    const gameStateRecord = gameState as unknown as Record<string, unknown> | null;
+    const hands = gameStateRecord?.hands as Record<string, Card[]> | undefined;
     
     if (!hands || typeof hands !== 'object') return;
     
@@ -419,24 +424,26 @@ export function LocalAIGameScreen() {
         oneCardLeftDetectedRef.current.delete(key);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- using (gameState as any)?.hands as a dep is a complex expression; gameState (full object) intentionally excluded as we only need to react to hand content changes, not all game state mutations
-  }, [(gameState as any)?.hands, roomCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState (full object) is the dep since 'hands' is not a typed property of local GameState
+  }, [gameState, roomCode]);
 
   // Performance profiling
-  const onRenderCallback = (
-    id: string,
-    phase: 'mount' | 'update',
-    actualDuration: number,
-    baseDuration: number,
-    startTime: number,
-    commitTime: number
+  const onRenderCallback: React.ProfilerOnRenderCallback = (
+    id,
+    phase,
+    actualDuration,
+    baseDuration,
+    startTime,
+    commitTime
   ) => {
-    performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
+    if (phase === 'mount' || phase === 'update') {
+      performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
+    }
   };
 
   // Render
   return (
-    <Profiler id="LocalAIGameScreen" onRender={onRenderCallback as any}>
+    <Profiler id="LocalAIGameScreen" onRender={onRenderCallback}>
       <View style={[styles.container, { direction: 'ltr' }]}>
         {isInitializing ? (
           <View style={styles.loadingContainer}>
@@ -454,7 +461,7 @@ export function LocalAIGameScreen() {
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
-            autoPassTimerState={effectiveAutoPassTimerState}
+            autoPassTimerState={effectiveAutoPassTimerState ?? undefined}
             lastPlayedCards={lastPlayedCards}
             lastPlayedBy={lastPlayedBy ?? undefined}
             lastPlayComboType={lastPlayComboType ?? undefined}
@@ -550,12 +557,12 @@ export function LocalAIGameScreen() {
             </Pressable>
 
             <GameLayout
-              players={layoutPlayersWithScores as any}
-              lastPlayedCards={lastPlayedCards as any}
-              lastPlayedBy={lastPlayedBy as any}
-              lastPlayComboType={lastPlayComboType as any}
-              lastPlayCombo={lastPlayCombo as any}
-              autoPassTimerState={effectiveAutoPassTimerState}
+              players={layoutPlayersWithScores}
+              lastPlayedCards={lastPlayedCards}
+              lastPlayedBy={lastPlayedBy}
+              lastPlayComboType={lastPlayComboType}
+              lastPlayCombo={lastPlayCombo}
+              autoPassTimerState={effectiveAutoPassTimerState ?? undefined}
             />
 
             <View style={styles.playerInfoContainer}>
@@ -575,9 +582,9 @@ export function LocalAIGameScreen() {
                 onPlaySuccess={handlePlaySuccess}
                 onPassSuccess={handlePassSuccess}
                 isMounted={isMountedRef}
-                customCardOrder={customCardOrder as any}
-                setCustomCardOrder={setCustomCardOrder as any}
-                playerHand={effectivePlayerHand as any}
+                customCardOrder={customCardOrder}
+                setCustomCardOrder={setCustomCardOrder}
+                playerHand={effectivePlayerHand}
                 onPlayCards={handlePlayCards}
                 onPass={handlePass}
               />

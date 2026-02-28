@@ -12,6 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     
+    # Expose Supabase secrets at job level so `if:` conditions on integration
+    # test steps can evaluate them correctly. Step-level `env:` is only visible
+    # to its own step's `if:`, causing both "skipped" warning AND integration
+    # test steps to fire simultaneously (bug in run #22512987110).
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
     strategy:
       matrix:
         node-version: [20.x]
@@ -59,7 +68,7 @@ jobs:
       - name: 🔍 Run ESLint
         run: |
           cd apps/mobile
-          pnpm run lint || echo "::warning::ESLint reported warnings (non-blocking)"
+          pnpm run lint
       
       - name: 🔧 Run TypeScript type-check
         run: |
@@ -69,10 +78,11 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          # Run all unit tests without coverage for fast CI feedback.
-          # v8 coverage collection takes 11+ min on 2-vCPU runners, causing
-          # the step to time out. Coverage thresholds are enforced locally via
-          # jest.config.js and coverageThreshold when developers run --coverage.
+          # Run all unit tests with coverage.
+          # Coverage thresholds (branches 78, functions 76, lines 76, statements 76)
+          # are enforced in jest.config.js — Jest exits non-zero if coverage drops
+          # below thresholds. With isolatedModules: true in ts-jest config, coverage
+          # completes in ~60s on 2-vCPU CI runners (was 11+ min without isolatedModules).
           # --forceExit: forces process.exit after all tests complete if open handles
           #   remain (e.g. unclosed DB connections). It does NOT mask test failures —
           #   jest sets the exit code before the force-exit fires. Use
@@ -82,7 +92,8 @@ jobs:
             --testPathIgnorePatterns='/integration/' \
             --forceExit --passWithNoTests \
             --maxWorkers=2 \
-            --testTimeout=15000
+            --testTimeout=15000 \
+            --coverage
         timeout-minutes: 15
       
       
@@ -97,8 +108,6 @@ jobs:
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
         run: |
           cd apps/mobile
-          # Integration tests are blocking when credentials are present.
-          # Exit code is the authoritative pass/fail signal.
           NODE_OPTIONS="--max-old-space-size=3072" npx jest \
             --testPathPattern='integration/' \
             --forceExit --passWithNoTests \
@@ -107,20 +116,16 @@ jobs:
             --no-coverage
         timeout-minutes: 5
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
       
       - name: 📊 Upload test coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: always()
         with:
           directory: ./apps/mobile/coverage
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-        continue-on-error: true
       
       - name: ✅ All checks passed
         run: echo "🎉 All CI checks completed successfully!"

@@ -9,7 +9,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
 import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
 import { ScoreboardContainer } from '../../components/scoreboard';
@@ -30,8 +32,8 @@ import { soundManager, hapticManager, SoundType, showError } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
 import type { Card } from '../../game/types';
-import type { ScoreHistory, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
-import type { StackNavigationProp } from '@react-navigation/stack';
+import type { Player } from '../../types/multiplayer';
+import type { ScoreHistory } from '../../types/scoreboard';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -40,14 +42,14 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
+  const { addScoreHistory, restoreScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
   gameLogger.info('[MultiplayerGameScreen] Initializing for room:', roomCode);
   
   // State for multiplayer room data
-  const [multiplayerPlayers, setMultiplayerPlayers] = useState<any[]>([]);
+  const [multiplayerPlayers, setMultiplayerPlayers] = useState<Player[]>([]);
   
   // Orientation manager
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
@@ -94,8 +96,8 @@ export function MultiplayerGameScreen() {
         
         setMultiplayerPlayers(playersData || []);
         gameLogger.info(`[MultiplayerGameScreen] Loaded ${playersData?.length || 0} players from room`);
-      } catch (error: any) {
-        gameLogger.error('[MultiplayerGameScreen] Error loading room:', error?.message || String(error));
+      } catch (error: unknown) {
+        gameLogger.error('[MultiplayerGameScreen] Error loading room:', error instanceof Error ? error.message : String(error));
       }
     };
     
@@ -155,21 +157,60 @@ export function MultiplayerGameScreen() {
   useEffect(() => {
     if (!user?.id) return;
 
-    multiplayerConnectToRoom(roomCode).catch((error: any) => {
+    multiplayerConnectToRoom(roomCode).catch((error: unknown) => {
       console.error('[MultiplayerGameScreen] ❌ Failed to connect:', error);
-      gameLogger.error('[MultiplayerGameScreen] Failed to connect:', error?.message || String(error));
-      showError(error?.message || 'Failed to connect to room');
+      const message = error instanceof Error ? error.message : String(error);
+      gameLogger.error('[MultiplayerGameScreen] Failed to connect:', message);
+      showError(message || 'Failed to connect to room');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, user?.id]);
-  
+
+  // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
+  // Per-room AsyncStorage key so different rooms don't clobber each other.
+  // Restore on mount (rejoin); persist whenever scoreHistory changes.
+  const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
+  const hasRestoredScoresRef = useRef(false);
+
+  // 1. Restore score history for this room on mount
+  useEffect(() => {
+    if (hasRestoredScoresRef.current) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        if (stored) {
+          const parsed: ScoreHistory[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            gameLogger.info(`[MultiplayerGameScreen] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`);
+            restoreScoreHistory(parsed);
+          }
+        }
+      } catch (err: unknown) {
+        gameLogger.error('[MultiplayerGameScreen] Failed to restore score history:', err instanceof Error ? err.message : String(err));
+      } finally {
+        hasRestoredScoresRef.current = true;
+      }
+    })();
+  }, [ROOM_SCORE_KEY, roomCode, restoreScoreHistory]);
+
+  // 2. Persist score history for this room whenever it changes
+  const isFirstRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (scoreHistory.length > 0) {
+      AsyncStorage.setItem(ROOM_SCORE_KEY, JSON.stringify(scoreHistory)).catch((err) => {
+        gameLogger.error('[MultiplayerGameScreen] Failed to persist score history:', err?.message || String(err));
+      });
+    }
+  }, [scoreHistory, ROOM_SCORE_KEY]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Multiplayer hands memo
   const multiplayerHandsByIndex = useMemo(() => {
-    const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, { id: string; rank: string; suit: string }[]>
-      | undefined;
-    
-    return hands;
+    return multiplayerGameState?.hands;
   }, [multiplayerGameState]);
   
   // Merge player hands for bot coordinator
@@ -181,7 +222,7 @@ export function MultiplayerGameScreen() {
     const hasHands = !!multiplayerHandsByIndex;
     
     const result = multiplayerPlayers.map((player) => {
-      const playerHandKey = String(player.player_index);
+      const playerHandKey = player.player_index;
       const playerHand = hasHands ? multiplayerHandsByIndex[playerHandKey] : undefined;
       
       const withCards = {
@@ -207,35 +248,18 @@ export function MultiplayerGameScreen() {
   });
   
   // Multiplayer play history tracking
+  // Note: Play history is synced to ScoreboardContext via GameScreen's onMatchEnded callback.
+  // This effect just logs the sync count for debugging.
   useEffect(() => {
     if (!multiplayerGameState) return;
     
-    const playHistoryArray = (multiplayerGameState as any)?.play_history;
+    const playHistoryArray = multiplayerGameState?.play_history;
     
     if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) {
       return;
     }
     
     gameLogger.info(`[MultiplayerGameScreen] 📊 Syncing ${playHistoryArray.length} plays to scoreboard`);
-    
-    const playsByMatch: Record<number, PlayHistoryHand[]> = {};
-    
-    playHistoryArray.forEach((play: any) => {
-      if (play.passed || !play.cards || play.cards.length === 0) return;
-      
-      const matchNum = play.match_number || 1;
-      
-      if (!playsByMatch[matchNum]) {
-        playsByMatch[matchNum] = [];
-      }
-      
-      playsByMatch[matchNum].push({
-        by: play.position as PlayerPosition,
-        type: play.combo_type || 'single',
-        count: play.cards.length,
-        cards: play.cards,
-      });
-    });
   }, [multiplayerGameState]);
 
   // Derived game state (multiplayer uses different data structure)
@@ -248,10 +272,10 @@ export function MultiplayerGameScreen() {
 
   const effectivePlayerHand: Card[] = useMemo(() => {
     // Get hand from game state using player_index as key
-    const hands = (multiplayerGameState as any)?.hands;
+    const hands = multiplayerGameState?.hands;
     if (!hands) return [];
     
-    const playerHandKey = String(currentPlayerIndex);
+    const playerHandKey = currentPlayerIndex;
     const hand = hands[playerHandKey];
     
     gameLogger.info('[MultiplayerGameScreen] 🎴 Player hand lookup:', {
@@ -277,27 +301,28 @@ export function MultiplayerGameScreen() {
   }, [multiplayerGameState, currentPlayerIndex, customCardOrder]);
 
   const effectiveLastPlayedCards: Card[] = useMemo(() => {
-    const lastPlay = (multiplayerGameState as any)?.last_play;
+    const lastPlay = multiplayerGameState?.last_play;
     return lastPlay?.cards || [];
   }, [multiplayerGameState]);
 
   const effectiveLastPlayedBy = useMemo(() => {
-    const lastPlay = (multiplayerGameState as any)?.last_play;
-    // Edge function stores player as player_index (not 'by')
-    const playerIdx = lastPlay?.player_index;
+    const lastPlay = multiplayerGameState?.last_play;
+    // Edge function stores as `player_index`; SQL RPC also uses `player_index`.
+    // Fall back to `position` for backward compat with older `triggering_play` shapes.
+    const playerIdx = lastPlay?.player_index ?? lastPlay?.position;
     if (typeof playerIdx !== 'number') return null;
-    const player = realtimePlayers?.find((p: any) => p.player_index === playerIdx);
+    const player = realtimePlayers?.find((p) => p.player_index === playerIdx);
     return player?.username ?? `Player ${playerIdx + 1}`;
   }, [multiplayerGameState, realtimePlayers]);
 
   const effectiveLastPlayComboType = useMemo(() => {
-    const lastPlay = (multiplayerGameState as any)?.last_play;
+    const lastPlay = multiplayerGameState?.last_play;
     // Edge function stores as combo_type (not comboType)
     return lastPlay?.combo_type || null;
   }, [multiplayerGameState]);
 
   const effectiveLastPlayCombo = useMemo(() => {
-    const lastPlay = (multiplayerGameState as any)?.last_play;
+    const lastPlay = multiplayerGameState?.last_play;
     const comboType: string | null = lastPlay?.combo_type || null;
     const cards = lastPlay?.cards;
     if (!comboType) return null;
@@ -326,8 +351,8 @@ export function MultiplayerGameScreen() {
   // Scoreboard mapping (multiplayer uses realtime players)
   const layoutPlayers = useMemo(() => {
     // CRITICAL: Always return 4 players for proper GameLayout rendering
-    const currentTurn = (multiplayerGameState as any)?.current_turn ?? 0;
-    const hands = (multiplayerGameState as any)?.hands;
+    const currentTurn = multiplayerGameState?.current_turn ?? 0;
+    const hands = multiplayerGameState?.hands;
     
     if (!realtimePlayers || realtimePlayers.length === 0) {
       // Loading state - return placeholder players
@@ -366,7 +391,7 @@ export function MultiplayerGameScreen() {
     // Map realtime players to layout format
     const mappedPlayers = realtimePlayers.map((player, idx) => {
       // Get hand from game state using player_index
-      const playerHandKey = String(player.player_index ?? idx);
+      const playerHandKey = player.player_index ?? idx;
       const hand = hands?.[playerHandKey];
       const cardCount = Array.isArray(hand) ? hand.length : 13;
       
@@ -413,8 +438,8 @@ export function MultiplayerGameScreen() {
   // "fi_mat3am_hawn" plays on EVERY match start (match 1, 2, 3...) for multiplayer
   const previousMatchNumberRef = useRef<number | null>(null);
   useEffect(() => {
-    const currentMatchNumber = (multiplayerGameState as any)?.match_number ?? null;
-    const gamePhase = (multiplayerGameState as any)?.game_phase;
+    const currentMatchNumber = multiplayerGameState?.match_number ?? null;
+    const gamePhase = multiplayerGameState?.game_phase;
 
     // Only fire when the game is actively in the playing phase
     if (gamePhase !== 'playing') return;
@@ -472,12 +497,13 @@ export function MultiplayerGameScreen() {
       hapticManager.playCard();
       
       const sortedCards = sortCardsForDisplay(cards);
-      await multiplayerPlayCards(sortedCards as any);
+      await multiplayerPlayCards(sortedCards);
       setSelectedCardIds(new Set());
       soundManager.playSound(SoundType.CARD_PLAY);
-    } catch (error: any) {
-      gameLogger.error('❌ [MultiplayerGameScreen] Error playing cards:', error?.message || String(error));
-      showError(error.message || 'Failed to play cards');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      gameLogger.error('❌ [MultiplayerGameScreen] Error playing cards:', message);
+      showError(message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
     }
@@ -501,9 +527,10 @@ export function MultiplayerGameScreen() {
       await multiplayerPass();
       setSelectedCardIds(new Set());
       soundManager.playSound(SoundType.PASS);
-    } catch (error: any) {
-      gameLogger.error('❌ [MultiplayerGameScreen] Error passing:', error?.message || String(error));
-      showError(error.message || 'Failed to pass');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      gameLogger.error('❌ [MultiplayerGameScreen] Error passing:', message);
+      showError(message || 'Failed to pass');
     } finally {
       isPassingRef.current = false;
     }
@@ -606,7 +633,7 @@ export function MultiplayerGameScreen() {
     let isDeliberateLeave = false;
     
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
+    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
       const actionType = e?.data?.action?.type;
       if (
         typeof actionType === 'string' &&
@@ -683,7 +710,7 @@ export function MultiplayerGameScreen() {
 
   // Layout players with totalScore attached (Task #590)
   const layoutPlayersWithScores = useMemo(() => {
-    return layoutPlayers.map((p: any, i: number) => ({
+    return layoutPlayers.map((p, i) => ({
       ...p,
       totalScore: playerTotalScores[i] ?? 0,
     }));
@@ -705,8 +732,8 @@ export function MultiplayerGameScreen() {
 
   // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
   const isGameFinished =
-    (multiplayerGameState as any)?.game_phase === 'finished' ||
-    (multiplayerGameState as any)?.game_phase === 'game_over';
+    multiplayerGameState?.game_phase === 'finished' ||
+    (multiplayerGameState?.game_phase as string) === 'game_over';
 
   // Show loading state while connecting/loading
   if (isLoading) {
@@ -727,16 +754,16 @@ export function MultiplayerGameScreen() {
           currentScores={memoizedCurrentScores}
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-          matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+          matchNumber={multiplayerGameState?.match_number ?? 1}
           isGameFinished={isGameFinished}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}
           autoPassTimerState={effectiveAutoPassTimerState ?? undefined}
-          lastPlayedCards={effectiveLastPlayedCards as any}
-          lastPlayedBy={effectiveLastPlayedBy as any}
-          lastPlayComboType={effectiveLastPlayComboType as any}
-          lastPlayCombo={effectiveLastPlayCombo as any}
+          lastPlayedCards={effectiveLastPlayedCards}
+          lastPlayedBy={effectiveLastPlayedBy ?? undefined}
+          lastPlayComboType={effectiveLastPlayComboType ?? undefined}
+          lastPlayCombo={effectiveLastPlayCombo ?? undefined}
           playerName={layoutPlayers[0]?.name ?? currentPlayerName}
           playerCardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
           playerCards={effectivePlayerHand}
@@ -760,7 +787,7 @@ export function MultiplayerGameScreen() {
           <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
             <View style={scoreDisplayStyles.matchNumberBadge}>
               <Text style={scoreDisplayStyles.matchNumberText}>
-                {isGameFinished ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+                {isGameFinished ? 'Game Over' : `Match ${multiplayerGameState?.match_number ?? 1}`}
               </Text>
             </View>
           </View>
@@ -794,7 +821,7 @@ export function MultiplayerGameScreen() {
             currentScores={memoizedCurrentScores}
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+            matchNumber={multiplayerGameState?.match_number ?? 1}
             isGameFinished={isGameFinished}
             scoreHistory={scoreHistory}
             playHistory={playHistoryByMatch}
@@ -833,11 +860,11 @@ export function MultiplayerGameScreen() {
 
           {/* Game table layout */}
           <GameLayout
-            players={layoutPlayersWithScores as any}
-            lastPlayedCards={effectiveLastPlayedCards as any}
-            lastPlayedBy={effectiveLastPlayedBy as any}
-            lastPlayComboType={effectiveLastPlayComboType as any}
-            lastPlayCombo={effectiveLastPlayCombo as any}
+            players={layoutPlayersWithScores}
+            lastPlayedCards={effectiveLastPlayedCards}
+            lastPlayedBy={effectiveLastPlayedBy}
+            lastPlayComboType={effectiveLastPlayComboType}
+            lastPlayCombo={effectiveLastPlayCombo}
             autoPassTimerState={effectiveAutoPassTimerState ?? undefined}
           />
 

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
-import { PlayerInfo, CenterPlayArea, AutoPassTimer } from './index';
 import type { AutoPassTimerState } from '../../types/multiplayer';
+import type { Card } from '../../game/types';
+import { PlayerInfo, CenterPlayArea, AutoPassTimer } from './index';
 
 interface GameLayoutProps {
   /** Array of 4 players in display order [user, top, left, right] */
@@ -13,7 +14,7 @@ interface GameLayoutProps {
     totalScore?: number;
   }[];
   /** Last played cards to display in center area */
-  lastPlayedCards: any[];
+  lastPlayedCards: Card[];
   /** Name of player who made last play */
   lastPlayedBy: string | null;
   /** Type of last combo played */

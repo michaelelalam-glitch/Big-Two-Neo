@@ -11,6 +11,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
+import { uiLogger } from './logger';
 
 // Sound types
 export enum SoundType {
@@ -25,7 +26,7 @@ export enum SoundType {
 }
 
 // Sound file paths
-const SOUND_FILES: Record<SoundType, any> = {
+const SOUND_FILES: Record<SoundType, number> = {
   [SoundType.GAME_START]: require('../../assets/sounds/fi_mat3am_hawn.m4a'),
   [SoundType.HIGHEST_CARD]: require('../../assets/sounds/Yeyyeeyy.m4a'),
   [SoundType.CARD_PLAY]: require('../../assets/sounds/card_play.m4a'),
@@ -41,11 +42,11 @@ const AUDIO_ENABLED_KEY = '@big2_audio_enabled';
 const AUDIO_VOLUME_KEY = '@big2_audio_volume';
 
 class SoundManager {
-  private sounds: Map<SoundType, any> = new Map(); // Use 'any' since Audio can be null
+  private sounds: Map<SoundType, Audio.Sound> = new Map();
   private audioEnabled: boolean = true;
   private volume: number = 0.7; // Default 70% volume
   private initialized: boolean = false;
-  private activeSounds: Set<any> = new Set(); // Track active sound instances
+  private activeSounds: Set<Audio.Sound> = new Set(); // Track active sound instances
   private readonly MAX_CONCURRENT_SOUNDS = 5; // Limit concurrent sounds to prevent memory pressure
 
   /**
@@ -72,9 +73,9 @@ class SoundManager {
       await this.preloadSound(SoundType.HIGHEST_CARD);
 
       this.initialized = true;
-      console.log('[SoundManager] Initialized successfully');
+      uiLogger.info('[SoundManager] Initialized successfully');
     } catch (error) {
-      console.error('[SoundManager] Initialization failed:', error);
+      uiLogger.error('[SoundManager] Initialization failed:', error);
       this.initialized = true; // Mark as initialized to prevent retry loops
     }
   }
@@ -92,12 +93,12 @@ class SoundManager {
       this.audioEnabled = enabledStr !== null ? enabledStr === 'true' : true;
       this.volume = volumeStr !== null ? parseFloat(volumeStr) : 0.7;
 
-      console.log('[SoundManager] Settings loaded:', {
+      uiLogger.debug('[SoundManager] Settings loaded:', {
         enabled: this.audioEnabled,
         volume: this.volume,
       });
     } catch (error) {
-      console.error('[SoundManager] Failed to load settings:', error);
+      uiLogger.error('[SoundManager] Failed to load settings:', error);
     }
   }
 
@@ -115,9 +116,9 @@ class SoundManager {
       });
 
       this.sounds.set(type, sound);
-      console.log(`[SoundManager] Preloaded sound: ${type}`);
+      uiLogger.debug(`[SoundManager] Preloaded sound: ${type}`);
     } catch (error) {
-      console.error(`[SoundManager] Failed to preload sound ${type}:`, error);
+      uiLogger.error(`[SoundManager] Failed to preload sound ${type}:`, error);
     }
   }
 
@@ -127,20 +128,20 @@ class SoundManager {
    */
   async playSound(type: SoundType): Promise<void> {
     if (!this.audioEnabled) {
-      console.log(`[SoundManager] Audio disabled, skipping: ${type}`);
+      uiLogger.debug(`[SoundManager] Audio disabled, skipping: ${type}`);
       return;
     }
 
     try {
       const soundFile = SOUND_FILES[type];
       if (!soundFile) {
-        console.warn(`[SoundManager] No sound file for: ${type}`);
+        uiLogger.warn(`[SoundManager] No sound file for: ${type}`);
         return;
       }
 
       // Limit concurrent sounds to prevent memory pressure from rapid plays
       if (this.activeSounds.size >= this.MAX_CONCURRENT_SOUNDS) {
-        console.warn(`[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`);
+        uiLogger.warn(`[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`);
         return;
       }
 
@@ -156,7 +157,7 @@ class SoundManager {
 
       // Play the sound
       await sound.playAsync();
-      console.log(`[SoundManager] Played sound: ${type} (${this.activeSounds.size}/${this.MAX_CONCURRENT_SOUNDS} active)`);
+      uiLogger.debug(`[SoundManager] Played sound: ${type} (${this.activeSounds.size}/${this.MAX_CONCURRENT_SOUNDS} active)`);
 
       // Unload the sound after playback finishes to prevent memory leaks
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -164,12 +165,12 @@ class SoundManager {
           // Remove from active tracking
           this.activeSounds.delete(sound);
           sound.unloadAsync().catch(err => 
-            console.warn(`[SoundManager] Failed to unload sound ${type}:`, err)
+            uiLogger.warn(`[SoundManager] Failed to unload sound ${type}:`, err)
           );
         }
       });
     } catch (error) {
-      console.error(`[SoundManager] Failed to play sound ${type}:`, error);
+      uiLogger.error(`[SoundManager] Failed to play sound ${type}:`, error);
     }
   }
 
@@ -186,7 +187,7 @@ class SoundManager {
   async setAudioEnabled(enabled: boolean): Promise<void> {
     this.audioEnabled = enabled;
     await AsyncStorage.setItem(AUDIO_ENABLED_KEY, enabled.toString());
-    console.log(`[SoundManager] Audio ${enabled ? 'enabled' : 'disabled'}`);
+    uiLogger.info(`[SoundManager] Audio ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -201,11 +202,11 @@ class SoundManager {
       try {
         await sound.setVolumeAsync(this.volume);
       } catch (error) {
-        console.error('[SoundManager] Failed to update volume:', error);
+        uiLogger.error('[SoundManager] Failed to update volume:', error);
       }
     }
 
-    console.log(`[SoundManager] Volume set to: ${this.volume}`);
+    uiLogger.info(`[SoundManager] Volume set to: ${this.volume}`);
   }
 
   /**
@@ -222,14 +223,14 @@ class SoundManager {
    * Cleanup all sounds
    */
   async cleanup(): Promise<void> {
-    console.log('[SoundManager] Cleaning up sounds...');
+    uiLogger.info('[SoundManager] Cleaning up sounds...');
 
     for (const [type, sound] of this.sounds) {
       try {
         await sound.unloadAsync();
-        console.log(`[SoundManager] Unloaded sound: ${type}`);
+        uiLogger.debug(`[SoundManager] Unloaded sound: ${type}`);
       } catch (error) {
-        console.error(`[SoundManager] Failed to unload sound ${type}:`, error);
+        uiLogger.error(`[SoundManager] Failed to unload sound ${type}:`, error);
       }
     }
 

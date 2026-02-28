@@ -74,12 +74,12 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
             // Check for next bot turn
             setTimeout(checkAndExecuteBotTurn, 100);
           })
-          .catch((error: any) => {
+          .catch((error: unknown) => {
             clearTimeout(botTurnTimeoutId); // Clear timeout on error
             // Only log error message/code to avoid exposing game state internals
             gameLogger.error(
               '❌ [useBotTurnManager] Bot turn failed:',
-              error?.message || error?.code || String(error)
+              error instanceof Error ? error.message : String(error)
             );
             isExecutingBotTurnRef.current = false;
 

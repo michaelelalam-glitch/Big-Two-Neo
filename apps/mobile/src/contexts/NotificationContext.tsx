@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useRe
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
-import { useAuth } from './AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import {
   registerForPushNotificationsAsync,
@@ -12,6 +11,7 @@ import {
   clearBadgeCount,
 } from '../services/notificationService';
 import { notificationLogger } from '../utils/logger';
+import { useAuth } from './AuthContext';
 
 interface NotificationContextData {
   expoPushToken: string | null;
@@ -70,8 +70,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           notificationLogger.info('✅ Push notifications registered successfully');
         }
       }
-    } catch (error: any) {
-      notificationLogger.error('Error registering push notifications:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      notificationLogger.error('Error registering push notifications:', error instanceof Error ? error.message : String(error));
     }
   }, [user]);
 
@@ -84,9 +84,9 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       setExpoPushToken(null);
       setIsRegistered(false);
       notificationLogger.info('✅ Push notifications unregistered successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing internal error details
-      notificationLogger.error('Error unregistering push notifications:', error?.message || error?.code || String(error));
+      notificationLogger.error('Error unregistering push notifications:', error instanceof Error ? error.message : String(error));
     }
   }, [user]);
 
@@ -141,8 +141,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         notificationLogger.info('App opened from notification:', { title, type });
         handleNotificationResponse(response);
       }
-    }).catch((error: any) => {
-      notificationLogger.error('Error getting last notification response:', error?.message || error?.code || String(error));
+    }).catch((error: unknown) => {
+      notificationLogger.error('Error getting last notification response:', error instanceof Error ? error.message : String(error));
     });
 
     // Cleanup

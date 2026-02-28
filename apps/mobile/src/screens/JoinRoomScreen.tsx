@@ -112,9 +112,10 @@ export default function JoinRoomScreen() {
       // Always route to Lobby (consistent routing for all game types)
       roomLogger.info(`[JoinRoom] Routing to Lobby (match_type: ${roomData?.match_type})`);
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
-    } catch (error: any) {
-      roomLogger.error('Error joining room:', error?.message || error?.code || String(error));
-      showError(error.message || i18n.t('room.joinRoomError'));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('Error joining room:', msg);
+      showError(msg || i18n.t('room.joinRoomError'));
     } finally {
       setIsJoining(false);
     }

@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         notificationLogger.error('❌ [registerPushNotifications] Failed to save token to database');
         return false;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't throw - notification registration should not block authentication
-      notificationLogger.error('❌ [registerPushNotifications] Error during registration:', error?.message || String(error));
+      notificationLogger.error('❌ [registerPushNotifications] Error during registration:', error instanceof Error ? error.message : String(error));
       return false;
     }
   };
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { data, error } = await Promise.race([
           queryPromise,
           timeoutPromise
-        ]) as any;
+        ]) as { data: Profile[] | null; error: { message?: string; code?: string } | null };
         
         const endTime = Date.now();
         authLogger.info(`⏱️ [fetchProfile] Query completed in ${endTime - startTime}ms`);
@@ -222,20 +222,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             
             authLogger.info('✅ [fetchProfile] Profile created manually:', newProfile?.username);
             return newProfile;
-          } catch (createError: any) {
-            authLogger.error('❌ [fetchProfile] Exception during manual creation:', createError?.message);
+          } catch (createError: unknown) {
+            authLogger.error('❌ [fetchProfile] Exception during manual creation:', createError instanceof Error ? createError.message : String(createError));
             return null;
           }
         }
 
         authLogger.info('✅ [fetchProfile] Profile found:', { username: profileData?.username, id: userId });
         return profileData;
-      } catch (error: any) {
+      } catch (error: unknown) {
         const attemptNum = retryCount + 1;
         const totalAttempts = MAX_RETRIES + 1;
         
         // Check if it's a timeout
-        if (error?.message === 'QUERY_TIMEOUT') {
+        if (error instanceof Error && error.message === 'QUERY_TIMEOUT') {
           authLogger.error(`⏱️ [fetchProfile] Query TIMED OUT after ${QUERY_TIMEOUT_MS}ms! (attempt ${attemptNum}/${totalAttempts})`);
           
           if (retryCount < MAX_RETRIES) {
@@ -255,7 +255,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
         
         // Other errors
-        authLogger.error(`❌ [fetchProfile] Unexpected error (attempt ${attemptNum}/${totalAttempts}):`, error?.message || error?.code || String(error));
+        authLogger.error(`❌ [fetchProfile] Unexpected error (attempt ${attemptNum}/${totalAttempts}):`, error instanceof Error ? error.message : String(error));
         
         // Retry on any error if attempts remain
         if (retryCount < MAX_RETRIES) {
@@ -310,7 +310,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       const memberships: RoomPlayerWithRoom[] = (roomMemberships || [])
-        .map((rm: any) => {
+        .map((rm: Record<string, unknown>) => {
           const normalizedRoom = rm.rooms == null
             ? null
             : Array.isArray(rm.rooms)
@@ -360,8 +360,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           roomLogger.info(`✅ [AuthContext] Successfully cleaned up ${roomIdsToClean.length} stale room memberships (waiting/finished)`);
         }
       }
-    } catch (error: any) {
-      roomLogger.error('❌ [AuthContext] Unexpected error in cleanup:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('❌ [AuthContext] Unexpected error in cleanup:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -381,9 +381,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             hapticManager.initialize()
           ]);
           authLogger.info('✅ [AuthContext] Audio & haptic managers initialized');
-        } catch (audioError: any) {
+        } catch (audioError: unknown) {
           // Non-blocking error - app continues without audio/haptics
-          authLogger.error('⚠️ [AuthContext] Failed to initialize audio/haptic managers:', audioError?.message || String(audioError));
+          authLogger.error('⚠️ [AuthContext] Failed to initialize audio/haptic managers:', audioError instanceof Error ? audioError.message : String(audioError));
           authLogger.warn('⚠️ [AuthContext] App will continue without sound effects and vibration');
           // User will notice missing audio/haptics naturally during gameplay
           // No need for intrusive alert on startup
@@ -424,9 +424,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setIsLoading(false);
           authLogger.info('✅ [AuthContext] Initialization complete, session:', initialSession ? 'present' : 'null');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Only log error message to avoid exposing auth internals/tokens
-        authLogger.error('Error initializing auth:', error?.message || error?.code || String(error));
+        authLogger.error('Error initializing auth:', error instanceof Error ? error.message : String(error));
         if (mounted) {
           setIsLoading(false);
         }
@@ -527,8 +527,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 authLogger.error('Error registering for push notifications:', err?.message || err?.code || String(err));
               }); // Fire-and-forget with error logging
             }
-          } catch (fetchError: any) {
-            authLogger.error('❌ [AuthContext] CRITICAL: Profile fetch threw exception:', fetchError?.message);
+          } catch (fetchError: unknown) {
+            authLogger.error('❌ [AuthContext] CRITICAL: Profile fetch threw exception:', fetchError instanceof Error ? fetchError.message : String(fetchError));
             setProfile(null);
           } finally {
             // CRITICAL: ALWAYS clear loading state, even if profile fetch fails
@@ -589,8 +589,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
           authLogger.error('❌ [AuthContext] Profile NOT found! User:', session.user.id);
         }
-      } catch (error: any) {
-        authLogger.error('❌ [AuthContext] Error loading profile:', error?.message);
+      } catch (error: unknown) {
+        authLogger.error('❌ [AuthContext] Error loading profile:', error instanceof Error ? error.message : String(error));
       }
     };
 
@@ -635,9 +635,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
       
       authLogger.info('✅ [AuthContext] Sign-out successful');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message to avoid exposing auth tokens/session data
-      authLogger.error('Error signing out:', error?.message || String(error));
+      authLogger.error('Error signing out:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   };

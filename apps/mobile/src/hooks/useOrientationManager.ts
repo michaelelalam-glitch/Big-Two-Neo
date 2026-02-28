@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gameLogger } from '../utils/logger';
 
 // Lazy import to handle missing native module gracefully
-let ScreenOrientation: any = null;
+let ScreenOrientation: typeof import('expo-screen-orientation') | null = null;
 let orientationError: string | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require inside try/catch for graceful degradation when module is unavailable (e.g. Expo Go)
@@ -84,7 +84,7 @@ export function useOrientationManager(): OrientationManagerState {
     loadOrientationPreference();
     
     // Listen for orientation changes
-    const subscription = ScreenOrientation.addOrientationChangeListener((event: any) => {
+    const subscription = ScreenOrientation.addOrientationChangeListener((event: { orientationInfo: { orientation: number } }) => {
       const orientation = event.orientationInfo.orientation;
       const isLandscape = 
         orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
@@ -99,7 +99,7 @@ export function useOrientationManager(): OrientationManagerState {
       // Unlock to allow auto-rotation on other screens
       ScreenOrientation.unlockAsync().then(() => {
         gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
-      }).catch((error: any) => {
+      }).catch((error: unknown) => {
         gameLogger.error('❌ [Orientation] Failed to unlock:', error);
       });
     };

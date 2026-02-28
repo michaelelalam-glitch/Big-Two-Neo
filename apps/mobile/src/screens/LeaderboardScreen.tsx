@@ -38,6 +38,22 @@ interface LeaderboardEntry {
 type TimeFilter = 'all_time' | 'weekly' | 'daily';
 type LeaderboardType = 'global' | 'ranked';
 
+// Note: Supabase client types !inner joins as arrays, even though PostgREST
+// returns an object for to-one relationships. Array type kept for TS compat.
+interface PlayerStatsWithProfile {
+  user_id: string;
+  rank_points: number;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  longest_win_streak: number;
+  current_win_streak: number;
+  profiles: {
+    username: string;
+    avatar_url: string | null;
+  }[];
+}
+
 export default function LeaderboardScreen() {
   const navigation = useNavigation<LeaderboardScreenNavigationProp>();
   const { user } = useAuth();
@@ -117,18 +133,21 @@ export default function LeaderboardScreen() {
         transformedData = (data || []) as LeaderboardEntry[];
       } else {
         // Transform joined data to match LeaderboardEntry interface
-        transformedData = (data || []).map((item: any, index: number) => ({
-          user_id: item.user_id,
-          username: item.profiles.username,
-          avatar_url: item.profiles.avatar_url,
-          rank_points: item.rank_points,
-          games_played: item.games_played,
-          games_won: item.games_won,
-          win_rate: item.win_rate,
-          longest_win_streak: item.longest_win_streak,
-          current_win_streak: item.current_win_streak,
-          rank: startIndex + index + 1, // Calculate rank based on position
-        }));
+        transformedData = (data || []).map((item: PlayerStatsWithProfile, index: number) => {
+          const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+          return {
+            user_id: item.user_id,
+            username: profile?.username ?? 'Unknown',
+            avatar_url: profile?.avatar_url ?? null,
+            rank_points: item.rank_points,
+            games_played: item.games_played,
+            games_won: item.games_won,
+            win_rate: item.win_rate,
+            longest_win_streak: item.longest_win_streak,
+            current_win_streak: item.current_win_streak,
+            rank: startIndex + index + 1, // Calculate rank based on position
+          };
+        });
       }
 
       if (resetPagination) {
@@ -225,8 +244,8 @@ export default function LeaderboardScreen() {
           setUserRank(null);
         }
       }
-    } catch (error: any) {
-      statsLogger.error('[Leaderboard] Error fetching leaderboard:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      statsLogger.error('[Leaderboard] Error fetching leaderboard:', error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
       setRefreshing(false);

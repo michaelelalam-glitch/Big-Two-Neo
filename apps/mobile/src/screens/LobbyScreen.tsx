@@ -53,11 +53,12 @@ export default function LobbyScreen() {
     isCasual: false,
     isRanked: false,
   });
-  const [_isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
+  const [, setIsMatchmakingRoom] = useState(false);
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   
@@ -74,7 +75,7 @@ export default function LobbyScreen() {
   const getRoomId = async () => {
     const { data, error } = await supabase
       .from('rooms')
-      .select('id, is_matchmaking, is_public, ranked_mode')
+      .select('id, status, is_matchmaking, is_public, ranked_mode')
       .eq('code', roomCode)
       .single();
     
@@ -87,6 +88,11 @@ export default function LobbyScreen() {
         navigation.replace('Home');
       }
       return null;
+    }
+
+    // Track whether room is already in progress (rejoin scenario)
+    if (data.status === 'playing') {
+      setIsGameInProgress(true);
     }
     
     // Set matchmaking status (backward compatibility)
@@ -160,6 +166,41 @@ export default function LobbyScreen() {
         profiles: player.username ? { username: player.username } : undefined,
       }));
       
+      // ── Host reassignment fallback ──
+      // If no player in the room has is_host = true (e.g. original host left),
+      // promote the first human player (lowest player_index) as host.
+      // This is a client-side fallback — the SQL migration handles it server-side.
+      const hasActiveHost = players.some((p: Player) => p.is_host === true);
+      if (!hasActiveHost && players.length > 0 && user?.id) {
+        const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
+        const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
+        if (firstHuman && firstHuman.user_id === user.id) {
+          roomLogger.info('[LobbyScreen] 👑 No active host found — promoting current user as host');
+          // Update server: room_players.is_host and rooms.host_id
+          const { error: playerUpdateError } = await supabase
+            .from('room_players')
+            .update({ is_host: true })
+            .eq('room_id', currentRoomId)
+            .eq('user_id', user.id);
+          if (playerUpdateError) {
+            roomLogger.error('[LobbyScreen] ❌ Failed to update room_players.is_host:', playerUpdateError.message);
+          }
+          const { error: roomUpdateError } = await supabase
+            .from('rooms')
+            .update({ host_id: user.id })
+            .eq('id', currentRoomId);
+          if (roomUpdateError) {
+            roomLogger.error('[LobbyScreen] ❌ Failed to update rooms.host_id:', roomUpdateError.message);
+          }
+          if (!playerUpdateError && !roomUpdateError) {
+            // Update local state only on success
+            firstHuman.is_host = true;
+          } else {
+            roomLogger.warn('[LobbyScreen] ⚠️ Host reassignment partially failed — local state not updated');
+          }
+        }
+      }
+
       setPlayers(players);
       
       // Check if current user is the host - MUST happen after data is fetched
@@ -181,11 +222,13 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
       }
-    } catch (error: any) {
-      roomLogger.error('[LobbyScreen] Error loading players:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const code = error instanceof Object && 'code' in error ? String((error as Record<string, unknown>).code) : '';
+      roomLogger.error('[LobbyScreen] Error loading players:', msg);
       // Don't show alert if room was cleaned up (user left)
       // Just navigate home silently
-      if (error?.message?.includes('not found') || error?.code === 'PGRST116') {
+      if (msg.includes('not found') || code === 'PGRST116') {
         roomLogger.info('[LobbyScreen] Room no longer exists, navigating home');
         if (!isLeavingRef.current) {
           isLeavingRef.current = true;
@@ -223,7 +266,7 @@ export default function LobbyScreen() {
           table: 'rooms',
           filter: `code=eq.${roomCode}`,
         },
-        (payload: any) => {
+        (payload: { old?: { status?: string }; new?: { status?: string; code?: string } }) => {
           roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
             oldStatus: payload.old?.status,
             newStatus: payload.new?.status,
@@ -274,8 +317,8 @@ export default function LobbyScreen() {
 
       if (error) throw error;
       setIsReady(!isReady);
-    } catch (error: any) {
-      roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error toggling ready:', error instanceof Error ? error.message : String(error));
       showError(i18n.t('lobby.readyStatusError'));
     } finally {
       setIsTogglingReady(false);
@@ -297,11 +340,11 @@ export default function LobbyScreen() {
         message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
         title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // User dismissed the share dialog - this is normal behavior, don't show error
-      const errorMsg = (error?.message ? String(error.message) : '').toLowerCase();
-      const errorCode = (error?.code ? String(error.code) : '').toLowerCase();
-      const errorName = (error?.name ? String(error.name) : '').toLowerCase();
+      const errorMsg = (error instanceof Error ? error.message : '').toLowerCase();
+      const errorCode = (error instanceof Object && 'code' in error ? String((error as Record<string, unknown>).code) : '').toLowerCase();
+      const errorName = (error instanceof Error ? error.name : '').toLowerCase();
       
       if (
         errorMsg.includes('cancel') ||
@@ -315,7 +358,7 @@ export default function LobbyScreen() {
       }
       
       // Actual error occurred
-      roomLogger.error('Error sharing room code:', error?.message || error);
+      roomLogger.error('Error sharing room code:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         i18n.t('lobby.shareError') || 'Unable to share',
         i18n.t('lobby.shareErrorMessage') || 'There was a problem sharing the room code. You can copy and share it manually.'
@@ -419,9 +462,10 @@ export default function LobbyScreen() {
       // The subscription will fire when room status changes to 'playing'
       roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
       setIsStarting(false);
-    } catch (error: any) {
-      roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
-      showError(error.message || i18n.t('lobby.startGameError'));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('Error starting game:', msg);
+      showError(msg || i18n.t('lobby.startGameError'));
       // Reset immediately on error
       setIsStarting(false);
     } finally {
@@ -464,8 +508,8 @@ export default function LobbyScreen() {
       }
       
       navigation.replace('Home');
-    } catch (error: any) {
-      roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
       isLeavingRef.current = false; // Reset flag on error
       showError(i18n.t('lobby.leaveRoomError'));
     }
@@ -589,23 +633,34 @@ export default function LobbyScreen() {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
-          onPress={handleToggleReady}
-          disabled={isTogglingReady}
-        >
-          {isTogglingReady ? (
-            <ActivityIndicator color={COLORS.white} size="small" />
-          ) : (
-            <Text style={styles.readyButtonText}>
-              {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* Rejoin Game button — shown when room is already 'playing' (rejoin scenario) */}
+        {isGameInProgress ? (
+          <TouchableOpacity
+            style={styles.rejoinButton}
+            onPress={() => navigation.replace('Game', { roomCode })}
+          >
+            <Text style={styles.rejoinButtonText}>🎮 Rejoin Game</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
+            onPress={handleToggleReady}
+            disabled={isTogglingReady}
+          >
+            {isTogglingReady ? (
+              <ActivityIndicator color={COLORS.white} size="small" />
+            ) : (
+              <Text style={styles.readyButtonText}>
+                {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
+        {/* Hidden when game is already in progress (rejoin) since bots are already set */}
         {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
-        {isHost && !roomType.isRanked ? (
+        {isHost && !roomType.isRanked && !isGameInProgress ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
@@ -690,7 +745,7 @@ export default function LobbyScreen() {
         )}
         
         {/* Non-host players: show waiting message in all non-ranked rooms */}
-        {!roomType.isRanked && !isHost && (
+        {!roomType.isRanked && !isHost && !isGameInProgress && (
           <Text style={styles.waitingInfo}>
             {i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
           </Text>
@@ -882,6 +937,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   readyButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+  },
+  rejoinButton: {
+    backgroundColor: '#10B981',
+    padding: SPACING.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+  rejoinButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',

@@ -2,8 +2,8 @@
  * Utility functions for game logic
  */
 
-import { VALID_STRAIGHT_SEQUENCES } from './constants';
 import type { Card } from '../types';
+import { VALID_STRAIGHT_SEQUENCES } from './constants';
 
 /**
  * Check if two sets of cards are identical (same ranks and suits)
@@ -42,4 +42,19 @@ export function findStraightSequenceIndex(ranks: string[]): number {
     // All ranks in the sequence must be present in the input
     return seq.every(rank => rankSet.has(rank));
   });
+}
+
+/**
+ * Get the top card of a straight (the card matching the highest rank in the sequence)
+ * 
+ * Used for tiebreaking when two straights have the same sequence (compare by suit).
+ * 
+ * @param cards - Array of 5 cards forming a straight
+ * @param seqIndex - Index into VALID_STRAIGHT_SEQUENCES
+ * @returns The card matching the top rank in the sequence, or null
+ */
+export function getStraightTopCard(cards: Card[], seqIndex: number): Card | null {
+  if (seqIndex < 0 || seqIndex >= VALID_STRAIGHT_SEQUENCES.length) return null;
+  const topRank = VALID_STRAIGHT_SEQUENCES[seqIndex][4]; // Last rank in sequence = highest
+  return cards.find(c => c.rank === topRank) || null;
 }

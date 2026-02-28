@@ -1,12 +1,22 @@
 // @ts-nocheck - Test infrastructure type issues
 /**
  * Integration tests for username uniqueness validation
- * Tests the join_room_atomic RPC function and global username constraints
- * 
- * Prerequisites:
- * - Supabase test environment configured
- * - Test user accounts created
- * - Migrations applied (especially 20251206000002_fix_global_username_uniqueness.sql)
+ *
+ * Tests the join_room_atomic RPC function against the live Supabase instance:
+ *   - Global username uniqueness (case-insensitive)
+ *   - Race condition prevention via pg_advisory_xact_lock
+ *   - Empty username rejection
+ *   - Auto-generated Player_{uuid} usernames
+ *   - Idempotent rejoin behavior
+ *
+ * Schema notes (live DB as of Feb 2026):
+ *   - rooms.code has UNIQUE constraint — test codes use UUID to avoid collisions
+ *   - rooms.host_id FK → profiles(id) — profiles auto-created by on_auth_user_created trigger
+ *   - join_room_atomic uses WHERE code = UPPER(p_room_code)
+ *   - cleanup_empty_rooms trigger: deletes room when last player leaves
+ *     → each test MUST create its own rooms (cannot share across tests)
+ *
+ * Rewritten: February 28, 2026 — per-test room isolation, trigger-safe cleanup
  */
 
 // Mock soundManager to prevent .m4a file parse errors
@@ -26,99 +36,150 @@ jest.mock('../../utils/soundManager', () => ({
 }));
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
 
-// Load .env.test if it exists
-const envTestPath = path.join(__dirname, '../../../.env.test');
-if (fs.existsSync(envTestPath)) {
-  const envConfig = fs.readFileSync(envTestPath, 'utf8');
-  envConfig.split('\n').forEach((line: string) => {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      const value = valueParts.join('=');
-      if (key && value) {
-        process.env[key] = value;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const nodeCrypto = require('crypto') as { randomUUID: () => string };
+const randomUUID = (): string =>
+  (globalThis as any).crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+
+// Load .env.test if it exists (local development only)
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require('fs');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require('path');
+  const envTestPath = path.join(__dirname, '../../../.env.test');
+  if (fs.existsSync(envTestPath)) {
+    const envConfig = fs.readFileSync(envTestPath, 'utf8');
+    envConfig.split('\n').forEach((line: string) => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const [key, ...valueParts] = trimmed.split('=');
+        const value = valueParts.join('=');
+        if (key && value) {
+          process.env[key] = value;
+        }
       }
-    }
-  });
+    });
+  }
+} catch {
+  // .env.test not available — env vars should be set by CI secrets
 }
 
-// Test configuration
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase credentials. Create .env.test file with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
+/** Generate a collision-safe room code using UUID */
+function uniqueRoomCode(): string {
+  return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
 }
 
-describe.skip('Username Uniqueness - Integration Tests', () => {
+describe('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
-  let testRoomCode1: string;
-  let testRoomCode2: string;
-  let testUserId1: string;
-  let testUserId2: string;
+  let u1: string;
+  let u2: string;
+  let u3: string;
+  let u4: string;
+
+  const createdUserIds: string[] = [];
+
+  /**
+   * Room IDs created during the current test.
+   * Reset in beforeEach, cleaned in afterEach.
+   * cleanup_empty_rooms trigger will auto-delete rooms when room_players are removed.
+   */
+  let testRoomIds: string[] = [];
+
+  /** Create a test room and track it for cleanup */
+  async function createRoom(hostId: string): Promise<{ id: string; code: string }> {
+    const code = uniqueRoomCode();
+    const { data: room, error } = await supabase
+      .from('rooms')
+      .insert({ code, host_id: hostId, is_public: false, status: 'waiting' })
+      .select()
+      .single();
+    if (error || !room) {
+      throw new Error(`Failed to create test room ${code}: ${error?.message}`);
+    }
+    testRoomIds.push(room.id);
+    return { id: room.id, code };
+  }
 
   beforeAll(async () => {
-    // Initialize Supabase client
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // Use static test room codes (rooms must exist in database)
-    testRoomCode1 = 'TSTAA1';
-    testRoomCode2 = 'TSTAA2';
-    
-    // Use existing user IDs from auth.users table
-    // These are real users in the test database
-    testUserId1 = '00817b76-e3c5-4535-8f72-56df66047bb2'; // tester@big2.app
-    testUserId2 = 'a3297019-266a-4fa7-be39-39e1f4beed04'; // guest user
-    
-    // Clean up any existing data before starting tests
-    await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-  });
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        'Missing Supabase credentials. Set EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+      );
+    }
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  beforeEach(async () => {
-    // Clean up ALL data for test users BEFORE each test
-    // This ensures each test starts with a clean slate
-    await supabase.rpc('test_cleanup_user_data', { 
-      p_user_ids: [
-        testUserId1,
-        testUserId2,
-        '2eab6a51-e47b-4c37-bb29-ed998e3ed30b', // guest user 2
-        '4ce1c03a-1b49-4e94-9572-60fe13759e14'  // michael user
-      ] 
-    });
-    
-    // Wait for cleanup to propagate through database (200ms matches per-test delays)
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // Create 4 auth users via Admin API (profiles auto-created by trigger)
+    const createUser = async (label: string): Promise<string> => {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: `test-usr-${label}-${Date.now()}-${randomUUID().slice(0, 8)}@integration-test.local`,
+        password: `pwd-${randomUUID()}`,
+        email_confirm: true,
+      });
+      if (error || !data.user) {
+        throw new Error(
+          `Failed to create test auth user (${label}): ${error?.message}`
+        );
+      }
+      createdUserIds.push(data.user.id);
+      return data.user.id;
+    };
+
+    u1 = await createUser('u1');
+    u2 = await createUser('u2');
+    u3 = await createUser('u3');
+    u4 = await createUser('u4');
+  }, 30_000);
+
+  beforeEach(() => {
+    testRoomIds = [];
   });
 
   afterEach(async () => {
-    // Cleanup: Delete room_players entries for all test users
-    // This allows username changes in subsequent tests
-    await supabase.rpc('test_cleanup_user_data', { 
-      p_user_ids: [
-        testUserId1,
-        testUserId2,
-        '2eab6a51-e47b-4c37-bb29-ed998e3ed30b', // guest user 2
-        '4ce1c03a-1b49-4e94-9572-60fe13759e14'  // michael user
-      ] 
-    });
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    // Don't delete the rooms themselves - they're permanent test fixtures
+    // Delete room_players for rooms created in this test.
+    // The cleanup_empty_rooms trigger will auto-delete the rooms.
+    for (const roomId of testRoomIds) {
+      await supabase
+        .from('room_players')
+        .delete()
+        .eq('room_id', roomId)
+        .then(() => {});
+    }
+    // Brief delay for trigger propagation
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
 
+  afterAll(async () => {
+    // Belt-and-suspenders: clean up any lingering room_players by user
+    for (const userId of createdUserIds) {
+      // Supabase query builder doesn't have .catch(); just await and ignore result
+      await supabase.from('room_players').delete().eq('user_id', userId);
+    }
+    // Delete auth users (profiles cascade or are handled by Supabase)
+    for (const userId of createdUserIds) {
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }, 15_000);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 1: Two users, same username, same room
+  // ─────────────────────────────────────────────────────────────────────
   describe('Scenario 1: Two users try same username in same room', () => {
-    it('should allow first user to join with username "TestUser1"', async () => {
-      // Cleanup using SECURITY DEFINER function to bypass RLS
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
+    it('should allow first user to join', async () => {
+      const room = await createRoom(u1);
+
       const { data, error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
-        p_username: 'TestUser1',
+        p_room_code: room.code,
+        p_user_id: u1,
+        p_username: 'ScenarioOneUser',
       });
 
       expect(error).toBeNull();
@@ -127,23 +188,22 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
       expect(data).toHaveProperty('player_index');
     });
 
-    it('should reject second user trying to join same room with username "TestUser1"', async () => {
-      // Cleanup to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
+    it('should reject second user with same username', async () => {
+      const room = await createRoom(u1);
+
       // First user joins
-      await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
-        p_username: 'TestUser1',
+      const { error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room.code,
+        p_user_id: u1,
+        p_username: 'DuplicateName',
       });
+      expect(joinError).toBeNull();
 
-      // Second user tries same username
+      // Second user tries same username in same room
       const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId2,
-        p_username: 'TestUser1',
+        p_room_code: room.code,
+        p_user_id: u2,
+        p_username: 'DuplicateName',
       });
 
       expect(error).toBeDefined();
@@ -151,23 +211,26 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
     });
   });
 
-  describe('Scenario 2: Same username in different rooms (Global Uniqueness)', () => {
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 2: Same username in different rooms (Global Uniqueness)
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Scenario 2: Same username in different rooms', () => {
     it('should reject same username in different rooms due to global uniqueness', async () => {
-      // Cleanup test users WITHIN test to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
-      // User 1 joins room 1 with "GlobalTest"
-      await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
+      const room1 = await createRoom(u1);
+      const room2 = await createRoom(u2);
+
+      // User 1 joins room 1
+      const { error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room1.code,
+        p_user_id: u1,
         p_username: 'GlobalTest',
       });
+      expect(joinError).toBeNull();
 
-      // User 2 tries to join room 2 with "GlobalTest"
+      // User 2 tries room 2 with same username
       const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode2,
-        p_user_id: testUserId2,
+        p_room_code: room2.code,
+        p_user_id: u2,
         p_username: 'GlobalTest',
       });
 
@@ -176,55 +239,52 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
     });
   });
 
-  describe('Scenario 3: Bot names can duplicate', () => {
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 3: Bot name global uniqueness
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Scenario 3: Bot names enforce global uniqueness', () => {
     it('should enforce global uniqueness for bot usernames', async () => {
-      // Use different real user IDs to simulate bots
-      const botId1 = '2eab6a51-e47b-4c37-bb29-ed998e3ed30b'; // guest user 2
-      const botId2 = '4ce1c03a-1b49-4e94-9572-60fe13759e14'; // michael user
+      const room1 = await createRoom(u3);
+      const room2 = await createRoom(u4);
 
-      try {
-        // Bot 1 joins room 1
-        await supabase.rpc('join_room_atomic', {
-          p_room_code: testRoomCode1,
-          p_user_id: botId1,
-          p_username: 'Bot',
-        });
+      // Bot 1 joins room 1
+      const { error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room1.code,
+        p_user_id: u3,
+        p_username: 'BotPlayer',
+      });
+      expect(joinError).toBeNull();
 
-        // Bot 2 tries to join room 2 with same name
-        const { error } = await supabase.rpc('join_room_atomic', {
-          p_room_code: testRoomCode2,
-          p_user_id: botId2,
-          p_username: 'Bot',
-        });
+      // Bot 2 tries room 2 with same name
+      const { error } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room2.code,
+        p_user_id: u4,
+        p_username: 'BotPlayer',
+      });
 
-        // With current global uniqueness, this WILL fail
-        // If bots need duplicate names, they need special handling
-        expect(error).toBeDefined();
-        expect(error?.message).toContain('already taken');
-      } finally {
-        // Cleanup bot entries (ensure cleanup even if test fails)
-        await supabase.rpc('test_cleanup_user_data', { p_user_ids: [botId1, botId2] });
-      }
+      expect(error).toBeDefined();
+      expect(error?.message).toContain('already taken');
     });
   });
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 4: Case insensitive validation
+  // ─────────────────────────────────────────────────────────────────────
   describe('Scenario 4: Case insensitive validation', () => {
     it('should reject "casetest" when "CaseTest" already exists', async () => {
-      // Cleanup to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
-      // User 1 joins with "CaseTest"
-      await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
+      const room1 = await createRoom(u1);
+      const room2 = await createRoom(u2);
+
+      const { error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room1.code,
+        p_user_id: u1,
         p_username: 'CaseTest',
       });
+      expect(joinError).toBeNull();
 
-      // User 2 tries with lowercase "casetest"
       const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode2,
-        p_user_id: testUserId2,
+        p_room_code: room2.code,
+        p_user_id: u2,
         p_username: 'casetest',
       });
 
@@ -232,23 +292,21 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
       expect(error?.message).toContain('already taken');
     });
 
-    it('should reject "CASETEST" when "CaseTest" already exists', async () => {
-      // Cleanup to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
-      // User 1 joins with "CaseTest"
-      await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
-        p_username: 'CaseTest',
-      });
+    it('should reject "CASETEST" when "CaseCheck" already exists', async () => {
+      const room1 = await createRoom(u1);
+      const room2 = await createRoom(u2);
 
-      // User 2 tries with uppercase "CASETEST"
+      const { error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room1.code,
+        p_user_id: u1,
+        p_username: 'CaseCheck',
+      });
+      expect(joinError).toBeNull();
+
       const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode2,
-        p_user_id: testUserId2,
-        p_username: 'CASETEST',
+        p_room_code: room2.code,
+        p_user_id: u2,
+        p_username: 'CASECHECK',
       });
 
       expect(error).toBeDefined();
@@ -256,96 +314,107 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
     });
   });
 
-  describe('Scenario 5: Auto-generated username behavior', () => {
-    it('should allow users to join with auto-generated Player_{uuid} usernames', async () => {
-      // Cleanup to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
-      const autoUsername1 = `Player_${testUserId1.substring(0, 8)}`;
-      const autoUsername2 = `Player_${testUserId2.substring(0, 8)}`;
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 5: Auto-generated username behavior
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Scenario 5: Auto-generated Player_ usernames', () => {
+    it('should allow distinct auto-generated usernames', async () => {
+      const room1 = await createRoom(u1);
+      const room2 = await createRoom(u2);
 
-      // User 1 with auto-generated name
-      const { error: error1 } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
-        p_username: autoUsername1,
+      const auto1 = `Player_${u1.substring(0, 8)}`;
+      const auto2 = `Player_${u2.substring(0, 8)}`;
+
+      const { error: e1 } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room1.code,
+        p_user_id: u1,
+        p_username: auto1,
       });
+      expect(e1).toBeNull();
 
-      expect(error1).toBeNull();
-
-      // User 2 with different auto-generated name
-      const { error: error2 } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode2,
-        p_user_id: testUserId2,
-        p_username: autoUsername2,
+      const { error: e2 } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room2.code,
+        p_user_id: u2,
+        p_username: auto2,
       });
-
-      expect(error2).toBeNull();
-    });
-
-    it.skip('should allow user to change auto-generated username to custom one', async () => {
-      // Skipped: Complex test requiring room leave functionality
-      // The join_room_atomic function enforces username permanence
+      expect(e2).toBeNull();
     });
   });
 
-  describe('Scenario 6: Race condition prevention with concurrent joins', () => {
+  // ─────────────────────────────────────────────────────────────────────
+  // Scenario 6: Race condition prevention
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Scenario 6: Race condition prevention', () => {
     it('should handle concurrent join attempts with same username gracefully', async () => {
-      // Cleanup to ensure clean state
-      await supabase.rpc('test_cleanup_user_data', { p_user_ids: [testUserId1, testUserId2] });
-      await new Promise(r => setTimeout(r, 200));
-      
-      // Simulate race condition: two users try to join with same username simultaneously
+      const room = await createRoom(u1);
+
       const promises = [
         supabase.rpc('join_room_atomic', {
-          p_room_code: testRoomCode1,
-          p_user_id: testUserId1,
+          p_room_code: room.code,
+          p_user_id: u1,
           p_username: 'RaceTest',
         }),
         supabase.rpc('join_room_atomic', {
-          p_room_code: testRoomCode1,
-          p_user_id: testUserId2,
+          p_room_code: room.code,
+          p_user_id: u2,
           p_username: 'RaceTest',
         }),
       ];
 
       const results = await Promise.allSettled(promises);
 
-      // One should succeed, one should fail
-      const successes = results.filter(r => r.status === 'fulfilled' && !(r.value as any).error);
-      const failures = results.filter(r => r.status === 'fulfilled' && (r.value as any).error);
+      // Both promises resolve (Supabase returns errors in response, not rejections)
+      const fulfilled = results.filter(
+        (r): r is PromiseFulfilledResult<{ data: any; error: any }> =>
+          r.status === 'fulfilled'
+      );
+      expect(fulfilled).toHaveLength(2);
 
-      // At least one should succeed and at least one should fail
-      expect(successes.length + failures.length).toBe(2);
+      const successes = fulfilled.filter((r) => !r.value.error);
+      const failures = fulfilled.filter((r) => r.value.error);
+
+      // Exactly one should succeed and one should fail
       expect(successes.length).toBeGreaterThanOrEqual(1);
       expect(failures.length).toBeGreaterThanOrEqual(1);
     });
-
-    it.skip('should handle concurrent joins to different rooms with same username', async () => {
-      // Skipped: Complex race condition test, covered by other tests
-    });
   });
 
-  describe('Additional Edge Cases', () => {
+  // ─────────────────────────────────────────────────────────────────────
+  // Edge Cases
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Edge Cases', () => {
     it('should reject empty username', async () => {
+      const room = await createRoom(u1);
+
       const { error } = await supabase.rpc('join_room_atomic', {
-        p_room_code: testRoomCode1,
-        p_user_id: testUserId1,
+        p_room_code: room.code,
+        p_user_id: u1,
         p_username: '',
       });
 
       expect(error).toBeDefined();
+      expect(error?.message).toMatch(/empty|blank|invalid/i);
     });
 
-    it.skip('should handle special characters in usernames', async () => {
-      // Skipped: Requires fresh user ID without existing username
-      // The function enforces username permanence which conflicts with this test
-    });
+    it('should allow user to rejoin the same room (idempotent)', async () => {
+      const room = await createRoom(u1);
 
-    it.skip('should handle very long usernames', async () => {
-      // Skipped: Requires fresh user ID without existing username
-      // The function enforces username permanence which conflicts with this test
+      // First join
+      const { error: e1 } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room.code,
+        p_user_id: u1,
+        p_username: 'IdempotentUser',
+      });
+      expect(e1).toBeNull();
+
+      // Same user, same room, same username → should return already_joined
+      const { data, error: e2 } = await supabase.rpc('join_room_atomic', {
+        p_room_code: room.code,
+        p_user_id: u1,
+        p_username: 'IdempotentUser',
+      });
+      expect(e2).toBeNull();
+      expect(data).toHaveProperty('already_joined', true);
     });
   });
 });

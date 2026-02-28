@@ -25,6 +25,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
+    debug: jest.fn(),
     logRealtimeEvent: jest.fn(),
     logRealtimeError: jest.fn(),
   },
@@ -180,7 +181,7 @@ describe('useRealtime', () => {
         act(async () => {
           await result.current.pass();
         })
-      ).rejects.toThrow('Not your turn');
+      ).rejects.toThrow('Game state not loaded');
     });
 
     it('should throw when playing cards without game state', async () => {

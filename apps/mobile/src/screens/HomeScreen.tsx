@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { ActiveGameBanner, ActiveGameInfo } from '../components/home/ActiveGameBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { i18n } from '../i18n';
@@ -20,8 +22,11 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
+  const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   const [showFindGameModal, setShowFindGameModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
   
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
@@ -69,11 +74,18 @@ export default function HomeScreen() {
       const roomData = data as RoomPlayerWithRoom | null;
       if (roomData?.rooms?.code) {
         setCurrentRoom(roomData.rooms.code);
+        setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
+        // Track disconnect time for countdown (only set once when we detect an active playing room)
+        if (roomData.rooms.status === 'playing' && !disconnectTimestamp) {
+          setDisconnectTimestamp(Date.now());
+        }
       } else {
         setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
       }
-    } catch (error: any) {
-      roomLogger.error('Error in checkCurrentRoom:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
     }
   }, [user]);
 
@@ -84,7 +96,106 @@ export default function HomeScreen() {
     }, [checkCurrentRoom])
   );
 
-  const handleOfflinePractice = () => {
+  // ── Game exclusivity helper ──
+  // A user can only be in ONE game at a time (online OR offline).
+  // This helper checks for an existing game and asks to leave or re-enter it.
+  // Returns true if the user is clear to start a new game, false if blocked.
+  const checkGameExclusivity = useCallback(async (
+    targetType: 'online' | 'offline',
+  ): Promise<boolean> => {
+    // Check for active offline game
+    try {
+      const stateJson = await AsyncStorage.getItem('@big2_game_state');
+      if (stateJson) {
+        const state = JSON.parse(stateJson);
+        if (state && !state.gameOver && state.gameStarted && !state.gameEnded) {
+          // Active offline game exists
+          if (targetType === 'offline') {
+            // Starting another offline game — ask to discard current one
+            return new Promise<boolean>((resolve) => {
+              showConfirm({
+                title: 'Game In Progress',
+                message: 'You have an offline game in progress. Discard it and start a new one?',
+                confirmText: 'Discard & Start New',
+                cancelText: 'Resume Current Game',
+                destructive: true,
+                onConfirm: async () => {
+                  await AsyncStorage.removeItem('@big2_game_state');
+                  await AsyncStorage.removeItem('@big2_score_history');
+                  setBannerRefreshKey(k => k + 1);
+                  resolve(true);
+                },
+                onCancel: () => {
+                  // Resume the existing offline game
+                  navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+                  resolve(false);
+                },
+              });
+            });
+          } else {
+            // Trying to join online, but offline game active
+            return new Promise<boolean>((resolve) => {
+              showConfirm({
+                title: 'Game In Progress',
+                message: 'You have an offline game in progress. You must leave it before joining an online game.',
+                confirmText: 'Discard Offline Game',
+                cancelText: 'Resume Offline Game',
+                destructive: true,
+                onConfirm: async () => {
+                  await AsyncStorage.removeItem('@big2_game_state');
+                  await AsyncStorage.removeItem('@big2_score_history');
+                  setBannerRefreshKey(k => k + 1);
+                  resolve(true);
+                },
+                onCancel: () => {
+                  navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+                  resolve(false);
+                },
+              });
+            });
+          }
+        }
+      }
+    } catch {
+      // AsyncStorage read failed — proceed
+    }
+
+    // Check for active online room
+    if (user && targetType === 'offline' && currentRoom) {
+      return new Promise<boolean>((resolve) => {
+        showConfirm({
+          title: 'Game In Progress',
+          message: `You are in online room ${currentRoom}. You must leave it before starting an offline game.`,
+          confirmText: 'Leave Online Room',
+          cancelText: 'Go to Room',
+          destructive: true,
+          onConfirm: async () => {
+            try {
+              await supabase.from('room_players').delete().eq('user_id', user.id);
+              setCurrentRoom(null);
+              setCurrentRoomStatus(undefined);
+              setDisconnectTimestamp(null);
+              await checkCurrentRoom();
+              resolve(true);
+            } catch {
+              showError('Failed to leave the room. Try again.');
+              resolve(false);
+            }
+          },
+          onCancel: () => {
+            navigation.replace('Lobby', { roomCode: currentRoom });
+            resolve(false);
+          },
+        });
+      });
+    }
+
+    return true;
+  }, [user, currentRoom, navigation, checkCurrentRoom]);
+
+  const handleOfflinePractice = async () => {
+    const canProceed = await checkGameExclusivity('offline');
+    if (!canProceed) return;
     // Show difficulty picker modal instead of navigating directly
     setShowDifficultyModal(true);
   };
@@ -126,14 +237,57 @@ export default function HomeScreen() {
           
           // Force refresh to ensure banner is cleared
           await checkCurrentRoom();
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Only log error message/code to avoid exposing DB internals
-          roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
+          roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
           showError(i18n.t('lobby.leaveRoomError'));
         }
       }
     });
   };
+
+  // ── Active Game Banner handlers ──
+  const handleBannerResume = useCallback((gameInfo: ActiveGameInfo) => {
+    if (gameInfo.type === 'online') {
+      // Navigate to the existing online room
+      navigation.replace('Lobby', { roomCode: gameInfo.roomCode });
+    } else {
+      // Resume offline game (don't force new game)
+      navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+    }
+  }, [navigation]);
+
+  const handleBannerLeave = useCallback((gameInfo: ActiveGameInfo) => {
+    if (gameInfo.type === 'online') {
+      handleLeaveCurrentRoom();
+    } else {
+      // Discard offline game
+      showConfirm({
+        title: 'Discard Game?',
+        message: 'Your offline game progress will be lost.',
+        confirmText: 'Discard',
+        cancelText: 'Cancel',
+        destructive: true,
+        onConfirm: async () => {
+          try {
+            await AsyncStorage.removeItem('@big2_game_state');
+            setBannerRefreshKey(k => k + 1);
+            showSuccess('Offline game discarded');
+          } catch {
+            showError('Failed to discard game');
+          }
+        },
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleLeaveCurrentRoom]);
+
+  const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {
+    // Navigate back to the room - the server-side logic will handle bot → player swap
+    roomLogger.info(`🔄 Replacing bot and rejoining room: ${roomCode}`);
+    setDisconnectTimestamp(null);
+    navigation.replace('Lobby', { roomCode });
+  }, [navigation]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
@@ -143,6 +297,12 @@ export default function HomeScreen() {
     if (!user || !profile) {
       showError('You must be signed in for ranked matches');
       return;
+    }
+
+    // Check game exclusivity — can't join online if offline game active
+    if (retryCount === 0) {
+      const canProceed = await checkGameExclusivity('online');
+      if (!canProceed) return;
     }
 
     roomLogger.info(`🏆 Ranked Match started for user: ${user.id} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
@@ -240,14 +400,18 @@ export default function HomeScreen() {
       setCurrentRoom(result.room_code);
       setIsRankedSearching(false);
       navigation.replace('Lobby', { roomCode: result.room_code });
-    } catch (error: any) {
-      roomLogger.error('❌ Error with ranked match:', error?.message || String(error));
-      showError(error?.message || 'Failed to start ranked match');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('❌ Error with ranked match:', msg);
+      showError(msg || 'Failed to start ranked match');
       setIsRankedSearching(false);
     }
   };
   
-  const handleCasualMatch = () => {
+  const handleCasualMatch = async () => {
+    // Check game exclusivity — can't join online if offline game active
+    const canProceed = await checkGameExclusivity('online');
+    if (!canProceed) return;
     setShowFindGameModal(false);
     handleQuickPlay();
   };
@@ -303,7 +467,7 @@ export default function HomeScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verify cleanup succeeded
-      const { data: stillInRoom, error: _verifyError } = await supabase
+      const { data: stillInRoom } = await supabase
         .from('room_players')
         .select('room_id')
         .eq('user_id', user.id)
@@ -403,11 +567,11 @@ export default function HomeScreen() {
       roomLogger.info(`🎉 Room created successfully: ${result.room_code} (${result.attempts} attempts)`);
       setCurrentRoom(result.room_code);
       navigation.replace('Lobby', { roomCode: result.room_code });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing DB internals, auth tokens, or stack traces
-      roomLogger.error('❌ Error with quick play:', error?.message || error?.code || String(error));
-      const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to join or create room';
-      showError(errorMessage);
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('❌ Error with quick play:', msg);
+      showError(msg || 'Failed to join or create room');
     } finally {
       roomLogger.info('🏁 Quick Play finished');
       setIsQuickPlaying(false);
@@ -449,17 +613,16 @@ export default function HomeScreen() {
         <Text style={styles.title}>{i18n.t('home.title')}</Text>
         <Text style={styles.subtitle}>{i18n.t('home.welcome')}, {profile?.username || user?.email || 'Player'}!</Text>
         
-        {currentRoom && (
-          <View style={styles.currentRoomBanner}>
-            <Text style={styles.currentRoomText}>📍 {i18n.t('home.currentRoom')}: {currentRoom}</Text>
-            <TouchableOpacity
-              style={styles.leaveRoomButton}
-              onPress={handleLeaveCurrentRoom}
-            >
-              <Text style={styles.leaveRoomButtonText}>{i18n.t('home.leave')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Active Game Banner - shows for both offline and online open games */}
+        <ActiveGameBanner
+          onlineRoomCode={currentRoom}
+          onlineRoomStatus={currentRoomStatus}
+          disconnectTimestamp={disconnectTimestamp}
+          onResume={handleBannerResume}
+          onLeave={handleBannerLeave}
+          onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+          refreshTrigger={bannerRefreshKey}
+        />
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity
@@ -496,7 +659,10 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.mainButton, styles.createButton]}
-            onPress={() => navigation.navigate('CreateRoom')}
+            onPress={async () => {
+              const canProceed = await checkGameExclusivity('online');
+              if (canProceed) navigation.navigate('CreateRoom');
+            }}
           >
             <Text style={styles.mainButtonText}>{i18n.t('home.createRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.createRoomDescription')}</Text>
@@ -512,7 +678,10 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.mainButton, styles.joinButton]}
-            onPress={() => navigation.navigate('JoinRoom')}
+            onPress={async () => {
+              const canProceed = await checkGameExclusivity('online');
+              if (canProceed) navigation.navigate('JoinRoom');
+            }}
           >
             <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
