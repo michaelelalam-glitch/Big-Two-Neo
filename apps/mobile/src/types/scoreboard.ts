@@ -211,6 +211,7 @@ export interface ScoreboardContextState {
   toggleMatchCollapse: (matchNumber: number) => void;
   scoreHistory: ScoreHistory[];   // All score history
   addScoreHistory: (history: ScoreHistory) => void;
+  restoreScoreHistory: (history: ScoreHistory[]) => void; // Restore entire scoreHistory (rejoin)
   playHistoryByMatch: PlayHistoryMatch[]; // All play history
   addPlayHistory: (history: PlayHistoryMatch) => void;
   clearHistory: () => void;       // Clear all history (new game)

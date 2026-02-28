@@ -508,6 +508,66 @@ describe('ScoreboardContext', () => {
   });
 
   // --------------------------------------------------------------------------
+  // Restore Score History Tests
+  // --------------------------------------------------------------------------
+
+  describe('Restore Score History', () => {
+    it('should restore entire scoreHistory in one call', () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper });
+
+      const history: ScoreHistory[] = [
+        { matchNumber: 1, pointsAdded: [10, 20, 30, 5], scores: [10, 20, 30, 5] },
+        { matchNumber: 2, pointsAdded: [5, 15, 25, 10], scores: [15, 35, 55, 15] },
+      ];
+
+      act(() => {
+        result.current.restoreScoreHistory(history);
+      });
+
+      expect(result.current.scoreHistory).toHaveLength(2);
+      expect(result.current.scoreHistory[0].matchNumber).toBe(1);
+      expect(result.current.scoreHistory[1].matchNumber).toBe(2);
+      expect(result.current.scoreHistory[1].scores).toEqual([15, 35, 55, 15]);
+    });
+
+    it('should overwrite existing scoreHistory', () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper });
+
+      act(() => {
+        result.current.addScoreHistory(mockScoreHistory);
+      });
+
+      expect(result.current.scoreHistory).toHaveLength(1);
+
+      const restored: ScoreHistory[] = [
+        { matchNumber: 1, pointsAdded: [99, 99, 99, 99], scores: [99, 99, 99, 99] },
+        { matchNumber: 2, pointsAdded: [1, 2, 3, 4], scores: [100, 101, 102, 103] },
+      ];
+
+      act(() => {
+        result.current.restoreScoreHistory(restored);
+      });
+
+      expect(result.current.scoreHistory).toHaveLength(2);
+      expect(result.current.scoreHistory[0].pointsAdded).toEqual([99, 99, 99, 99]);
+    });
+
+    it('should handle restoring empty array', () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper });
+
+      act(() => {
+        result.current.addScoreHistory(mockScoreHistory);
+      });
+
+      act(() => {
+        result.current.restoreScoreHistory([]);
+      });
+
+      expect(result.current.scoreHistory).toHaveLength(0);
+    });
+  });
+
+  // --------------------------------------------------------------------------
   // Integration Tests
   // --------------------------------------------------------------------------
 

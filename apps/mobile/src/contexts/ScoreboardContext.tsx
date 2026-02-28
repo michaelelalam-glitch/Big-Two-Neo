@@ -12,13 +12,16 @@
  * Date: December 12, 2025
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ScoreboardContextState,
   ScoreHistory,
   PlayHistoryMatch,
 } from '../types/scoreboard';
 import { gameLogger } from '../utils/logger';
+
+const SCORE_HISTORY_KEY = '@big2_score_history';
 
 // ============================================================================
 // CONTEXT DEFINITION
@@ -59,6 +62,21 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   
   const [scoreHistory, setScoreHistory] = useState<ScoreHistory[]>([]);
   const [playHistoryByMatch, setPlayHistoryByMatch] = useState<PlayHistoryMatch[]>([]);
+
+  // Persist scoreHistory to AsyncStorage whenever it changes (skip initial empty state)
+  const isFirstRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    // Only persist non-empty scoreHistory (clearing is handled by clearHistory)
+    if (scoreHistory.length > 0) {
+      AsyncStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(scoreHistory)).catch((err) => {
+        gameLogger.error('[ScoreboardContext] Failed to persist scoreHistory:', err?.message || String(err));
+      });
+    }
+  }, [scoreHistory]);
 
   // -------------------------------------------------------------------------
   // HANDLERS - Match Collapse
@@ -126,12 +144,25 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // HANDLERS - Clear History
   // -------------------------------------------------------------------------
 
+  /**
+   * Restore scoreHistory from a persisted array (e.g. from AsyncStorage on rejoin).
+   * Replaces the entire scoreHistory state in one shot.
+   */
+  const restoreScoreHistory = useCallback((history: ScoreHistory[]) => {
+    gameLogger.info(`🔍 [ScoreboardContext] restoreScoreHistory called with ${history.length} entries`);
+    setScoreHistory(history);
+  }, []);
+
   const clearHistory = useCallback(() => {
     setScoreHistory([]);
     setPlayHistoryByMatch([]);
     setCollapsedMatches(new Set());
     setIsScoreboardExpanded(false);
     setIsPlayHistoryOpen(false);
+    // Also clear persisted scoreHistory
+    AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch((err) => {
+      gameLogger.error('[ScoreboardContext] Failed to clear persisted scoreHistory:', err?.message || String(err));
+    });
   }, []);
 
   // -------------------------------------------------------------------------
@@ -150,6 +181,7 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     // History
     scoreHistory,
     addScoreHistory,
+    restoreScoreHistory,
     playHistoryByMatch,
     addPlayHistory,
     clearHistory,
