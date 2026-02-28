@@ -76,7 +76,7 @@ export function useAutoPassTimer({
   useEffect(() => {
     const timerState = gameState?.auto_pass_timer;
 
-    networkLogger.info('⏰ [DEBUG] Timer useEffect triggered', {
+    networkLogger.debug('⏰ [DEBUG] Timer useEffect triggered', {
       gamePhase: gameState?.game_phase,
       hasAutoPassTimer: !!timerState,
       timerActive: timerState?.active,
@@ -89,7 +89,7 @@ export function useAutoPassTimer({
     // ── Cleanup helper ────────────────────────────────────────────────────────
     const cleanup = () => {
       if (activeTimerInterval.current) {
-        networkLogger.info('⏰ [DEBUG] Clearing timer interval');
+        networkLogger.debug('⏰ [DEBUG] Clearing timer interval');
         clearInterval(activeTimerInterval.current);
         activeTimerInterval.current = null;
         currentTimerId.current = null;
@@ -111,7 +111,7 @@ export function useAutoPassTimer({
     // Prevent duplicate intervals for the same timer (keyed by sequence_id)
     const newTimerId = (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id || timerState.started_at;
     if (currentTimerId.current === newTimerId && activeTimerInterval.current) {
-      networkLogger.info('⏰ [DEBUG] Timer already running for sequence_id', newTimerId);
+      networkLogger.debug('⏰ [DEBUG] Timer already running for sequence_id', newTimerId);
       return;
     }
 
@@ -119,7 +119,7 @@ export function useAutoPassTimer({
     cleanup();
     currentTimerId.current = newTimerId;
 
-    networkLogger.info('⏰ [DEBUG] Starting NEW timer polling interval', {
+    networkLogger.debug('⏰ [DEBUG] Starting NEW timer polling interval', {
       sequence_id: (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id,
       started_at: timerState.started_at,
       end_timestamp: (timerState as AutoPassTimerState & { end_timestamp?: number }).end_timestamp,
@@ -134,7 +134,7 @@ export function useAutoPassTimer({
       // Timer deactivated → stop
       if (!currentTimerState || !currentTimerState.active) {
         if (activeTimerInterval.current) {
-          networkLogger.info('⏰ [Timer] Timer deactivated, stopping interval');
+          networkLogger.debug('⏰ [Timer] Timer deactivated, stopping interval');
           clearInterval(activeTimerInterval.current);
           activeTimerInterval.current = null;
           currentTimerId.current = null;
@@ -149,13 +149,13 @@ export function useAutoPassTimer({
       if (typeof endTimestamp === 'number') {
         const correctedNow = getCorrectedNow();
         remaining = Math.max(0, endTimestamp - correctedNow);
-        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
+        networkLogger.debug(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
       } else {
         const startedAt = new Date(currentTimerState.started_at).getTime();
         const correctedNow = getCorrectedNow();
         const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
-        networkLogger.info(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
+        networkLogger.debug(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
       }
 
       // ── Timer expired → execute auto-passes ──────────────────────────────
@@ -181,7 +181,7 @@ export function useAutoPassTimer({
     // Cleanup on unmount / deps change
     return () => {
       if (activeTimerInterval.current) {
-        networkLogger.info('⏰ [DEBUG] Cleaning up timer polling interval on unmount');
+        networkLogger.debug('⏰ [DEBUG] Cleaning up timer polling interval on unmount');
         clearInterval(activeTimerInterval.current);
         activeTimerInterval.current = null;
         currentTimerId.current = null;

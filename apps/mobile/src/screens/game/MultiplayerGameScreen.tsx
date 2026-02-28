@@ -31,8 +31,8 @@ import { soundManager, hapticManager, SoundType, showError } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
 import type { Card } from '../../game/types';
-import type { Player, PlayHistoryEntry } from '../../types/multiplayer';
-import type { ScoreHistory, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
+import type { Player } from '../../types/multiplayer';
+import type { ScoreHistory } from '../../types/scoreboard';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -205,6 +205,8 @@ export function MultiplayerGameScreen() {
   });
   
   // Multiplayer play history tracking
+  // Note: Play history is synced to ScoreboardContext via GameScreen's onMatchEnded callback.
+  // This effect just logs the sync count for debugging.
   useEffect(() => {
     if (!multiplayerGameState) return;
     
@@ -215,25 +217,6 @@ export function MultiplayerGameScreen() {
     }
     
     gameLogger.info(`[MultiplayerGameScreen] 📊 Syncing ${playHistoryArray.length} plays to scoreboard`);
-    
-    const playsByMatch: Record<number, PlayHistoryHand[]> = {};
-    
-    playHistoryArray.forEach((play: PlayHistoryEntry) => {
-      if (play.passed || !play.cards || play.cards.length === 0) return;
-      
-      const matchNum = play.match_number || 1;
-      
-      if (!playsByMatch[matchNum]) {
-        playsByMatch[matchNum] = [];
-      }
-      
-      playsByMatch[matchNum].push({
-        by: play.position as PlayerPosition,
-        type: play.combo_type || 'single',
-        count: play.cards.length,
-        cards: play.cards,
-      });
-    });
   }, [multiplayerGameState]);
 
   // Derived game state (multiplayer uses different data structure)
@@ -281,7 +264,7 @@ export function MultiplayerGameScreen() {
 
   const effectiveLastPlayedBy = useMemo(() => {
     const lastPlay = multiplayerGameState?.last_play;
-    // Edge function stores player as player_index (not 'by')
+    // Edge function stores the last-play player as `position` (0-indexed seat index)
     const playerIdx = lastPlay?.position;
     if (typeof playerIdx !== 'number') return null;
     const player = realtimePlayers?.find((p) => p.player_index === playerIdx);
