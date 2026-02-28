@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
@@ -25,6 +25,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
+import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import {
   soundManager,
   hapticManager,
@@ -36,6 +37,7 @@ import {
 } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
+import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
@@ -238,111 +240,7 @@ function GameScreenContent() {
     const hands = (multiplayerGameState as any)?.hands as
       | Record<string, ({ id: string; rank: string; suit: string } | string)[]>
       | undefined;
-    
-    if (!hands) return undefined;
-    
-    // 🔧 CRITICAL FIX: Parse string cards into objects (handles old game data)
-    // Some games created before migration have cards as strings: "D10" instead of {id:"D10", rank:"10", suit:"D"}
-    const parsedHands: Record<string, { id: string; rank: string; suit: string }[]> = {};
-    
-    for (const [playerIndex, handData] of Object.entries(hands)) {
-      if (!Array.isArray(handData)) continue;
-      
-      // Map cards with index tracking for better error reporting
-      const parseResults = handData.map((card: any, index: number) => {
-        // If card is already an object with id/rank/suit, return as-is
-        if (typeof card === 'object' && card !== null && 'id' in card && 'rank' in card && 'suit' in card) {
-          return { index, raw: card, parsed: card as { id: string; rank: string; suit: string } };
-        }
-        
-        // If card is a string, parse it into object format
-        if (typeof card === 'string') {
-          // Handle double-JSON-encoded strings: "\"D10\"" -> "D10"
-          let cardStr = card;
-          /**
-           * Maximum iterations for JSON parsing loop to handle legacy nested string formats.
-           * Rationale: Legacy data may have cards with 2-3 levels of JSON nesting.
-           * Setting to 5 provides safety margin while preventing infinite loops.
-           */
-          const MAX_ITERATIONS = 5;
-          let iterations = 0;
-          try {
-            // Try to parse if it's JSON-encoded
-            while (typeof cardStr === 'string' && (cardStr.startsWith('"') || cardStr.startsWith('{')) && iterations < MAX_ITERATIONS) {
-              iterations++;
-              const parsed = JSON.parse(cardStr);
-              if (typeof parsed === 'string') {
-                // Verify parsed value actually changed (prevent subtle bugs)
-                const previousCardStr = cardStr;
-                cardStr = parsed;
-                if (cardStr === previousCardStr) {
-                  console.warn('[GameScreen] JSON.parse returned same value, breaking loop');
-                  break;
-                }
-              } else if (typeof parsed === 'object' && parsed !== null) {
-                // It's already an object
-                return { index, raw: card, parsed: parsed as { id: string; rank: string; suit: string } };
-              } else {
-                break;
-              }
-            }
-          } catch (e) {
-            // Not JSON, treat as plain string
-            gameLogger.debug('[GameScreen] JSON parse failed, treating as plain string:', { card, error: e });
-          }
-          
-          // Now cardStr should be like "D10", "C5", "HK", etc.
-          // Extract suit (first character) and rank (rest)
-          if (cardStr.length >= 2) {
-            // Validate suit is one of the four valid suits
-            const validSuits = ['D', 'C', 'H', 'S'] as const;
-            const suitChar = cardStr[0];
-            if (!validSuits.includes(suitChar as any)) {
-              gameLogger.error('[GameScreen] 🚨 Invalid suit detected while parsing card string:', {
-                rawCard: card,
-                parsedString: cardStr,
-                suitChar,
-              });
-              return { index, raw: card, parsed: null };
-            }
-            const suit = suitChar as (typeof validSuits)[number];
-            const rank = cardStr.substring(1); // '10', '5', 'K', etc.
-            return {
-              index,
-              raw: card,
-              parsed: {
-                id: cardStr,
-                rank,
-                suit,
-              },
-            };
-          }
-        }
-        
-        // Fallback: Invalid card detected - log error and return null
-        gameLogger.error('[GameScreen] 🚨 Could not parse card:', card);
-        return { index, raw: card, parsed: null };
-      });
-
-      // Check for parsing failures - fail completely if any cards couldn't be parsed
-      const failedParses = parseResults.filter(r => r.parsed === null);
-      if (failedParses.length > 0) {
-        const failedIndices = failedParses.map(f => f.index);
-        const errorMsg = `Card parsing failed for ${failedParses.length}/${handData.length} cards in hand for player ${playerIndex}. Failed indices: ${failedIndices.join(', ')}. Cannot proceed with incomplete hand.`;
-        gameLogger.error('[GameScreen] 🚨 CRITICAL: ' + errorMsg, {
-          playerIndex,
-          totalCards: handData.length,
-          failedCount: failedParses.length,
-          failedCards: failedParses.map(f => f.raw),
-        });
-        throw new Error(errorMsg);
-      }
-
-      // All cards parsed successfully
-      parsedHands[playerIndex] = parseResults.map(r => r.parsed!);
-    }
-    
-    return parsedHands;
+    return parseMultiplayerHands(hands);
   }, [multiplayerGameState]);
   
   // PHASE 6: Merge player hands into players for bot coordinator
@@ -1461,134 +1359,3 @@ export default function GameScreen() {
     </GameEndProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.primary, // Dark background outside table
-  },
-  menuContainer: {
-    position: 'absolute',
-    top: POSITIONING.menuTop,
-    right: SPACING.md,
-    zIndex: 200,
-  },
-  menuIcon: {
-    width: LAYOUT.menuIconSize,
-    height: LAYOUT.menuIconSize,
-    backgroundColor: OVERLAYS.menuBackground,
-    borderRadius: LAYOUT.menuBorderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: LAYOUT.menuLineGap,
-  },
-  orientationToggleContainer: {
-    position: 'absolute',
-    top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
-    right: SPACING.md,
-    zIndex: 200,
-    width: LAYOUT.menuIconSize,
-    height: LAYOUT.menuIconSize,
-    backgroundColor: OVERLAYS.menuBackground,
-    borderRadius: LAYOUT.menuBorderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  orientationToggleIcon: {
-    fontSize: 20,
-    textAlign: 'center',
-  },
-  menuLine: {
-    width: LAYOUT.menuLineWidth,
-    height: LAYOUT.menuLineHeight,
-    backgroundColor: COLORS.white,
-    borderRadius: POSITIONING.menuLineBorderRadius,
-  },
-  // PlayerInfo - FULLY INDEPENDENT positioning
-  playerInfoContainer: {
-    position: 'absolute',
-    bottom: POSITIONING.playerInfoBottom,
-    left: POSITIONING.playerInfoLeft,
-    zIndex: 250,
-  },
-  // Action buttons (Play/Pass) - FULLY INDEPENDENT positioning
-  actionButtonsRow: {
-    position: 'absolute',
-    bottom: POSITIONING.actionButtonsBottom,
-    right: POSITIONING.actionButtonsRight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    zIndex: 180,
-  },
-  // Helper Buttons (Sort/Smart/Hint) - FULLY INDEPENDENT positioning
-  helperButtonsRow: {
-    position: 'absolute',
-    bottom: POSITIONING.helperButtonsBottom,
-    left: POSITIONING.helperButtonsLeft,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    zIndex: 170,
-  },
-  // CARDS - FULLY INDEPENDENT positioning
-  cardHandContainer: {
-    position: 'absolute',
-    bottom: POSITIONING.cardsBottom,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-  },
-  loadingText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    marginBottom: SPACING.md,
-  },
-  loadingSubtext: {
-    color: COLORS.gray.light,
-    fontSize: FONT_SIZES.md,
-  },
-  // Spectator Mode Banner Styles
-  spectatorBanner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(33, 150, 243, 0.95)', // Blue with transparency
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 1000, // Above everything
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  spectatorEmoji: {
-    fontSize: 32,
-    marginRight: SPACING.md,
-  },
-  spectatorTextContainer: {
-    flex: 1,
-  },
-  spectatorTitle: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  spectatorDescription: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: FONT_SIZES.sm,
-    lineHeight: 18,
-  },
-});
