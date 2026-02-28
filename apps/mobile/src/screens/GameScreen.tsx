@@ -15,26 +15,27 @@ import { useBotTurnManager } from '../hooks/useBotTurnManager';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useDerivedGameState } from '../hooks/useDerivedGameState';
 import { useGameActions } from '../hooks/useGameActions';
+import { useGameAudio } from '../hooks/useGameAudio';
+import { useGameCleanup } from '../hooks/useGameCleanup';
+import { useGameEndCallbacks } from '../hooks/useGameEndCallbacks';
 import { useGameStateManager } from '../hooks/useGameStateManager';
 import { useHelperButtons } from '../hooks/useHelperButtons';
 import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
+import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
+import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
+import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { useRealtime } from '../hooks/useRealtime';
 import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { supabase } from '../services/supabase';
 import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
 import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import {
-  soundManager,
-  hapticManager,
-  HapticType,
-  SoundType,
   showError,
   performanceMonitor,
 } from '../utils';
@@ -96,46 +97,8 @@ function GameScreenContent() {
     getSelectedCards,
   } = useCardSelection();
 
-  // PHASE 6: Initialize multiplayer room data if needed
-  useEffect(() => {
-    if (!isMultiplayerGame) return;
-    
-    const loadMultiplayerRoom = async () => {
-      try {
-        const { data: roomData, error: roomError } = await supabase
-          .from('rooms')
-          .select('id')
-          .eq('code', roomCode)
-          .single();
-        
-        if (roomError || !roomData) {
-          gameLogger.error('[GameScreen] Multiplayer room not found:', roomError);
-          showError('Room not found');
-          navigation.replace('Home');
-          return;
-        }
-        
-        // Load players
-        const { data: playersData, error: playersError } = await supabase
-          .from('room_players')
-          .select('*')
-          .eq('room_id', roomData.id)
-          .order('player_index');
-        
-        if (playersError) throw playersError;
-        
-        setMultiplayerPlayers(playersData || []);
-        gameLogger.info(`[GameScreen] Loaded ${playersData?.length || 0} players from room`);
-        
-        // NOTE: Game state is loaded via useRealtime.connectToRoom()
-        // No need to manually load it here
-      } catch (error: any) {
-        gameLogger.error('[GameScreen] Error loading multiplayer room:', error?.message || String(error));
-      }
-    };
-    
-    loadMultiplayerRoom();
-  }, [isMultiplayerGame, roomCode, navigation]);
+  // PHASE 6: Initialize multiplayer room data if needed (extracted to useMultiplayerRoomLoader)
+  useMultiplayerRoomLoader({ isMultiplayerGame, roomCode, navigation, setMultiplayerPlayers });
 
   // Bot turn management hook (Task #Phase 2B) - only for LOCAL games
   const gameManagerRefPlaceholder = useRef<any>(null);
@@ -321,48 +284,8 @@ function GameScreenContent() {
     addPlayHistory,
   });
   
-  // CRITICAL FIX: One card left detection for ALL players (local + multiplayer)
-  const oneCardLeftDetectedRef = useRef(new Set<string>()); // Track which players we've alerted for
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local vs multiplayer game state have different shapes
-    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState as any;
-    const hands = effectiveGameState?.hands;
-    
-    if (!hands || typeof hands !== 'object') return;
-    
-    // Check each player's hand
-    Object.entries(hands).forEach(([playerIndex, cards]) => {
-      if (!Array.isArray(cards)) return;
-      
-      const key = `${roomCode}-${playerIndex}`;
-      
-      if (cards.length === 1 && !oneCardLeftDetectedRef.current.has(key)) {
-        // Player has one card left - first time detection
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state players shape differs from multiplayer
-        const player = isLocalAIGame 
-          ? (gameState as any)?.players?.[parseInt(playerIndex)]
-          : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
-        
-        if (player) {
-          const playerName = isLocalAIGame ? player.name : player.username;
-          gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
-          
-          // Play subtle notification without intrusive popup
-          try {
-            soundManager.playSound(SoundType.TURN_NOTIFICATION);
-            hapticManager.trigger(HapticType.WARNING);
-          } catch (error) {
-            gameLogger.error('Error showing one-card-left notification', { error, playerName, playerIndex });
-          }
-          
-          oneCardLeftDetectedRef.current.add(key);
-        }
-      } else if (cards.length > 1 && oneCardLeftDetectedRef.current.has(key)) {
-        // Player drew more cards, reset alert
-        oneCardLeftDetectedRef.current.delete(key);
-      }
-    });
-  }, [isLocalAIGame, gameState, multiplayerGameState, multiplayerPlayers, roomCode]);
+  // CRITICAL FIX: One card left detection for ALL players (extracted to useOneCardLeftAlert)
+  useOneCardLeftAlert({ isLocalAIGame, gameState, multiplayerGameState, multiplayerPlayers, roomCode });
 
   // CRITICAL FIX: Detect multiplayer game end and open modal (extracted to useMatchEndHandler)
   useMatchEndHandler({
@@ -462,161 +385,17 @@ function GameScreenContent() {
   const effectiveLastPlayComboType = isLocalAIGame ? localLastPlayComboType : multiplayerLastPlayComboType;
   const effectiveLastPlayCombo = isLocalAIGame ? localLastPlayCombo : multiplayerLastPlayCombo;
 
-  // Register Game End callbacks (Task #416, #417)
-  useEffect(() => {
-    const manager = gameManagerRef.current;
-    if (!manager) return;
-
-    setOnPlayAgain(() => async () => {
-      gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
-      try {
-        await manager.initializeGame({
-          playerName: currentPlayerName,
-          botCount: 3,
-          botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
-        });
-        // TODO: This needs to trigger a state update through the hook
-        gameLogger.info('✅ [GameScreen] Game restarted successfully');
-        soundManager.playSound(SoundType.GAME_START);
-      } catch (error) {
-        gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
-        showError('Failed to restart game. Please try again.');
-      }
-    });
-
-    setOnReturnToMenu(() => () => {
-      gameLogger.info('🏠 [GameScreen] Return to Menu requested - navigating to Home');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlayerName, navigation, gameManagerRef]);
+  // Register Game End callbacks (extracted to useGameEndCallbacks)
+  useGameEndCallbacks({ gameManagerRef, currentPlayerName, botDifficulty, navigation, setOnPlayAgain, setOnReturnToMenu });
 
 
 
   // Cleanup: Remove player from room when deliberately leaving (NOT on every unmount)
-  // CRITICAL FIX: Also unlock orientation when navigating away to prevent orientation lock from persisting
-  useEffect(() => {
-    // Track if component is being unmounted due to navigation away
-    let isDeliberateLeave = false;
-    
-    // Listen for navigation events to detect deliberate exits
-    const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
-      // Only set as deliberate leave for certain navigation actions (e.g., back, pop, custom leave)
-      const actionType = e?.data?.action?.type;
-      if (
-        typeof actionType === 'string' &&
-        allowedActionTypes.includes(actionType)
-      ) {
-        isDeliberateLeave = true;
-        
-        // CRITICAL FIX: Unlock orientation immediately when leaving GameScreen
-        // This ensures other screens can auto-rotate properly
-        if (orientationAvailable) {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
-            const ScreenOrientation = require('expo-screen-orientation');
-            await ScreenOrientation.unlockAsync();
-            gameLogger.info('🔓 [Orientation] Unlocked on navigation away from GameScreen');
-          } catch (error) {
-            gameLogger.error('❌ [Orientation] Failed to unlock on navigation:', error);
-          }
-        }
-      }
-    });
+  // Navigation cleanup + mount tracking (extracted to useGameCleanup)
+  const { isMountedRef } = useGameCleanup({ userId: user?.id, roomCode, navigation, orientationAvailable });
 
-    return () => {
-      unsubscribe();
-      
-      // Only cleanup if this is a deliberate leave (not a re-render)
-      if (isDeliberateLeave && user?.id && roomCode) {
-        gameLogger.info(`🧹 [GameScreen] Deliberate exit: Removing user ${user.id} from room ${roomCode}`);
-        
-        // Use non-blocking cleanup (don't await)
-        supabase
-          .from('room_players')
-          .delete()
-          .eq('user_id', user.id)
-          .then(({ error }) => {
-            if (error) {
-              gameLogger.error('❌ [GameScreen] Cleanup error:', error?.message || error?.code || 'Unknown error');
-            } else {
-              gameLogger.info('✅ [GameScreen] Successfully removed from room');
-            }
-          });
-      }
-    };
-  }, [user, roomCode, navigation, orientationAvailable]);
-
-  // Track component mount status for async operations
-  const isMountedRef = useRef(true);
-  
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Task #270: Auto-pass timer audio/haptic feedback
-  // NOTE: Only for LOCAL games - multiplayer uses auto_pass_deadline instead
-  const hasPlayedHighestCardSoundRef = useRef(false);
-
-  // Multiplayer match start sound tracking: detect match_number changes
-  const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
-
-  // "fi_mat3am_hawn" plays on EVERY match start (match 1, 2, 3...) for multiplayer
-  useEffect(() => {
-    if (!isMultiplayerGame || !multiplayerGameState) return;
-
-    const currentMatchNumber = multiplayerGameState?.match_number ?? null;
-    const gamePhase = multiplayerGameState?.game_phase;
-
-    // Only fire when the game is actively in the playing phase
-    if (gamePhase !== 'playing') return;
-
-    // Fire when match_number changes — covers match 1 start and all subsequent matches
-    if (currentMatchNumber !== null && currentMatchNumber !== previousMultiplayerMatchNumberRef.current) {
-      previousMultiplayerMatchNumberRef.current = currentMatchNumber;
-      soundManager.playSound(SoundType.GAME_START);
-      gameLogger.info(`🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber}`);
-    }
-  }, [isMultiplayerGame, multiplayerGameState]);
-
-  useEffect(() => {
-    // CRITICAL FIX: Support BOTH local and multiplayer auto-pass timers
-    const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
-    const timerState = effectiveGameState?.auto_pass_timer;
-
-    if (!timerState || !timerState.active) {
-      // Timer not active - reset flags for next timer activation
-      hasPlayedHighestCardSoundRef.current = false;
-      return;
-    }
-
-    // Timer just became active - play highest card sound (once per timer activation)
-    if (!hasPlayedHighestCardSoundRef.current) {
-      soundManager.playSound(SoundType.HIGHEST_CARD);
-      gameLogger.info('🎵 [Audio] Highest card sound triggered - auto-pass timer active');
-      hasPlayedHighestCardSoundRef.current = true;
-    }
-
-    // Progressive intensity vibration from 5 seconds down to 1
-    // CRITICAL: Use Math.ceil to match UI display logic (5000ms = 5 seconds)
-    const remaining_ms = timerState.remaining_ms;
-    const displaySeconds = Math.ceil(remaining_ms / 1000);
-    
-    // Vibrate with increasing frequency from 5→1 (more pulses = more intense)
-    if (displaySeconds <= 5 && displaySeconds >= 1) {
-      gameLogger.warn(`🚨 [VIBRATION] Triggering urgent countdown at ${displaySeconds}s (remaining_ms=${remaining_ms})`);
-      hapticManager.urgentCountdown(displaySeconds);
-      gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState and multiplayerGameState (full objects) intentionally excluded; subscribing to only the specific scalar that drives haptic/sound intensity prevents this firing on every unrelated state field change
-  }, [isMultiplayerGame, isLocalAIGame, gameState?.auto_pass_timer?.remaining_ms, multiplayerGameState?.auto_pass_timer?.remaining_ms]);
+  // Audio/haptic feedback (extracted to useGameAudio)
+  useGameAudio({ isLocalAIGame, isMultiplayerGame, gameState, multiplayerGameState });
 
   // CRITICAL FIX: Play/Pass action handlers (extracted to useGameActions)
   const {
@@ -646,99 +425,29 @@ function GameScreenContent() {
   // Task #590: Compute total scores per player for score badges (shared hook)
   const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
-  // Task #590: Match number and game finished state
-  const matchNumber = isLocalAIGame 
-    ? ((gameState as any)?.currentMatch ?? 1) 
-    : (multiplayerGameState?.match_number ?? 1);
-  const isGameFinished = isLocalAIGame
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state shape differs from multiplayer
-    ? ((gameState as any)?.gameOver ?? false)
-    : (
-        multiplayerGameState?.game_phase === 'finished' ||
-        multiplayerGameState?.game_phase === 'game_over'
-      );
+  // Display data: memoized arrays, scoreboard index, timer state (extracted to usePlayerDisplayData)
+  const {
+    memoizedPlayerNames,
+    memoizedCurrentScores,
+    memoizedCardCounts,
+    memoizedOriginalPlayerNames,
+    effectiveAutoPassTimerState,
+    effectiveScoreboardCurrentPlayerIndex,
+    matchNumber,
+    isGameFinished,
+    layoutPlayersWithScores,
+  } = usePlayerDisplayData({
+    isLocalAIGame,
+    gameState,
+    multiplayerGameState,
+    multiplayerPlayers,
+    layoutPlayers,
+    scoreHistory,
+    playerTotalScores,
+    multiplayerLayoutPlayers,
+  });
 
-  // Task #590: Layout players with total scores for GameLayout
-  const layoutPlayersWithScores = React.useMemo(() => {
-    return layoutPlayers.map((p: any, i: number) => ({
-      ...p,
-      totalScore: playerTotalScores[i] ?? 0,
-    }));
-  }, [layoutPlayers, playerTotalScores]);
-
-  // 🎯 PERFORMANCE: Memoize expensive props to reduce re-renders
-  // 📊 PRODUCTION FIX: Scoreboard shows TURN ORDER [0,1,2,3], not physical positions
-  // This gives clean sequential display: Steve Peterson, Bot 1, Bot 2, Bot 3
-  const memoizedPlayerNames = React.useMemo(() => {
-    return layoutPlayers.length === 4 
-      ? layoutPlayers.map((p: any) => p.name)  // ✅ Direct order: no mapping
-      : [];
-  }, [layoutPlayers]);
-
-  const memoizedCurrentScores = React.useMemo(() => {
-    if (layoutPlayers.length !== 4) return [];
-    
-    // 📊 PRODUCTION FIX: Calculate scores in TURN ORDER [0,1,2,3]
-    // Scoreboard shows game logic (who's winning), not physical positions
-    if (scoreHistory.length > 0) {
-      // For local AI games, layoutPlayers are in order [0,1,2,3]
-      // For multiplayer, we need to use player_index from the player object
-      return layoutPlayers.map((p: any, index: number) => {
-        // Use player_index if available (multiplayer), otherwise use array index (local AI)
-        const playerIdx = p.player_index !== undefined ? p.player_index : index;
-        return scoreHistory.reduce(
-          (sum, match) => sum + (match.pointsAdded[playerIdx] || 0), 
-          0
-        );
-      });
-    }
-    
-    return layoutPlayers.map((p: any) => p.score);  // ✅ Direct order: no mapping
-  }, [layoutPlayers, scoreHistory]);
-
-  const memoizedCardCounts = React.useMemo(() => {
-    return layoutPlayers.length === 4 
-      ? layoutPlayers.map((p: any) => p.cardCount)  // ✅ Direct order: no mapping
-      : [];
-  }, [layoutPlayers]);
-
-  const memoizedOriginalPlayerNames = React.useMemo(() => {
-    if (isLocalAIGame) {
-      return (gameState as any)?.players ? (gameState as any).players.map((p: any) => p.name) : [];
-    }
-    return multiplayerPlayers.map(p => p.username || `Player ${p.player_index + 1}`);
-  }, [isLocalAIGame, gameState, multiplayerPlayers]);
   const hasEffectiveGameState = isLocalAIGame ? !!gameState : !!multiplayerGameState;
-  // 🔥 FIXED Task #540: Auto-pass timer now works in BOTH local AND multiplayer!
-  // The game_state table has auto_pass_timer column for multiplayer (added Dec 28, 2025)
-  // CRITICAL FIX: Don't show auto-pass timer when game_phase='finished' or 'game_over'.
-  // When a bot plays its last card (highest play), the server may still have an active timer
-  // in the game_state. Rendering it causes rAF spam at remaining=0.
-  const multiplayerPhase = multiplayerGameState?.game_phase;
-  const isMatchActive = !multiplayerPhase || (multiplayerPhase !== 'finished' && multiplayerPhase !== 'game_over');
-  const effectiveAutoPassTimerState = isLocalAIGame
-    ? ((gameState as any)?.auto_pass_timer ?? undefined)
-    : (isMatchActive ? (multiplayerGameState?.auto_pass_timer ?? undefined) : undefined); // ✅ Suppress timer when match is over
-
-  // 📊 PRODUCTION FIX: Scoreboard currentPlayerIndex must match multiplayerLayoutPlayers array order.
-  // multiplayerLayoutPlayers array order: [me (index 0), top (index 1), left (index 2), right (index 3)].
-  // We resolve the LAYOUT ARRAY INDEX of the active player so that:
-  //   - LandscapeGameLayout's isOpponentActive(index) shows the red circle on the correct player
-  //   - LandscapeScoreboard highlights the correct row
-  // NOTE: Portrait is unaffected — it reads .isActive directly from each player object.
-  const multiplayerCurrentTurn = multiplayerGameState?.current_turn;
-
-  // Helper: map absolute player_index → layout array slot [me=0, top=1, left=2, right=3]
-  const getMultiplayerScoreboardIndex = (currentTurn: number): number => {
-    const idx = multiplayerLayoutPlayers.findIndex((p: any) => p.player_index === currentTurn);
-    return idx >= 0 ? idx : 0;
-  };
-
-  const effectiveScoreboardCurrentPlayerIndex = isLocalAIGame
-    ? ((gameState as any)?.currentPlayerIndex ?? 0)  // ✅ Local AI: direct game state index
-    : (typeof multiplayerCurrentTurn === 'number'
-        ? getMultiplayerScoreboardIndex(multiplayerCurrentTurn)  // ✅ FIX: layout-aware lookup
-        : 0);
 
   // Performance profiling callback (Task #430)
   // React 19 Profiler signature: (id, phase, actualDuration, baseDuration, startTime, commitTime)
