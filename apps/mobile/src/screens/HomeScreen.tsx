@@ -96,7 +96,106 @@ export default function HomeScreen() {
     }, [checkCurrentRoom])
   );
 
-  const handleOfflinePractice = () => {
+  // ── Game exclusivity helper ──
+  // A user can only be in ONE game at a time (online OR offline).
+  // This helper checks for an existing game and asks to leave or re-enter it.
+  // Returns true if the user is clear to start a new game, false if blocked.
+  const checkGameExclusivity = useCallback(async (
+    targetType: 'online' | 'offline',
+  ): Promise<boolean> => {
+    // Check for active offline game
+    try {
+      const stateJson = await AsyncStorage.getItem('@big2_game_state');
+      if (stateJson) {
+        const state = JSON.parse(stateJson);
+        if (state && !state.gameOver && state.gameStarted && !state.gameEnded) {
+          // Active offline game exists
+          if (targetType === 'offline') {
+            // Starting another offline game — ask to discard current one
+            return new Promise<boolean>((resolve) => {
+              showConfirm({
+                title: 'Game In Progress',
+                message: 'You have an offline game in progress. Discard it and start a new one?',
+                confirmText: 'Discard & Start New',
+                cancelText: 'Resume Current Game',
+                destructive: true,
+                onConfirm: async () => {
+                  await AsyncStorage.removeItem('@big2_game_state');
+                  await AsyncStorage.removeItem('@big2_score_history');
+                  setBannerRefreshKey(k => k + 1);
+                  resolve(true);
+                },
+                onCancel: () => {
+                  // Resume the existing offline game
+                  navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+                  resolve(false);
+                },
+              });
+            });
+          } else {
+            // Trying to join online, but offline game active
+            return new Promise<boolean>((resolve) => {
+              showConfirm({
+                title: 'Game In Progress',
+                message: 'You have an offline game in progress. You must leave it before joining an online game.',
+                confirmText: 'Discard Offline Game',
+                cancelText: 'Resume Offline Game',
+                destructive: true,
+                onConfirm: async () => {
+                  await AsyncStorage.removeItem('@big2_game_state');
+                  await AsyncStorage.removeItem('@big2_score_history');
+                  setBannerRefreshKey(k => k + 1);
+                  resolve(true);
+                },
+                onCancel: () => {
+                  navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+                  resolve(false);
+                },
+              });
+            });
+          }
+        }
+      }
+    } catch {
+      // AsyncStorage read failed — proceed
+    }
+
+    // Check for active online room
+    if (user && targetType === 'offline' && currentRoom) {
+      return new Promise<boolean>((resolve) => {
+        showConfirm({
+          title: 'Game In Progress',
+          message: `You are in online room ${currentRoom}. You must leave it before starting an offline game.`,
+          confirmText: 'Leave Online Room',
+          cancelText: 'Go to Room',
+          destructive: true,
+          onConfirm: async () => {
+            try {
+              await supabase.from('room_players').delete().eq('user_id', user.id);
+              setCurrentRoom(null);
+              setCurrentRoomStatus(undefined);
+              setDisconnectTimestamp(null);
+              await checkCurrentRoom();
+              resolve(true);
+            } catch {
+              showError('Failed to leave the room. Try again.');
+              resolve(false);
+            }
+          },
+          onCancel: () => {
+            navigation.replace('Lobby', { roomCode: currentRoom });
+            resolve(false);
+          },
+        });
+      });
+    }
+
+    return true;
+  }, [user, currentRoom, navigation, checkCurrentRoom]);
+
+  const handleOfflinePractice = async () => {
+    const canProceed = await checkGameExclusivity('offline');
+    if (!canProceed) return;
     // Show difficulty picker modal instead of navigating directly
     setShowDifficultyModal(true);
   };
@@ -198,6 +297,12 @@ export default function HomeScreen() {
     if (!user || !profile) {
       showError('You must be signed in for ranked matches');
       return;
+    }
+
+    // Check game exclusivity — can't join online if offline game active
+    if (retryCount === 0) {
+      const canProceed = await checkGameExclusivity('online');
+      if (!canProceed) return;
     }
 
     roomLogger.info(`🏆 Ranked Match started for user: ${user.id} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
@@ -303,7 +408,10 @@ export default function HomeScreen() {
     }
   };
   
-  const handleCasualMatch = () => {
+  const handleCasualMatch = async () => {
+    // Check game exclusivity — can't join online if offline game active
+    const canProceed = await checkGameExclusivity('online');
+    if (!canProceed) return;
     setShowFindGameModal(false);
     handleQuickPlay();
   };
@@ -551,7 +659,10 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.mainButton, styles.createButton]}
-            onPress={() => navigation.navigate('CreateRoom')}
+            onPress={async () => {
+              const canProceed = await checkGameExclusivity('online');
+              if (canProceed) navigation.navigate('CreateRoom');
+            }}
           >
             <Text style={styles.mainButtonText}>{i18n.t('home.createRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.createRoomDescription')}</Text>
@@ -567,7 +678,10 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.mainButton, styles.joinButton]}
-            onPress={() => navigation.navigate('JoinRoom')}
+            onPress={async () => {
+              const canProceed = await checkGameExclusivity('online');
+              if (canProceed) navigation.navigate('JoinRoom');
+            }}
           >
             <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
             <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
