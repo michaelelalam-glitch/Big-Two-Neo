@@ -1,3 +1,7 @@
+/**
+ * @module useDerivedGameState
+ * Derives display-ready UI state from the local game engine.
+ */
 import { useMemo } from 'react';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import type { GameState } from '../game/state';
@@ -22,9 +26,16 @@ interface UseDerivedGameStateParams {
 }
 
 /**
- * Custom hook to derive UI state from game engine state
- * Includes player hand, last played cards, and formatted combo displays
- * Extracted from GameScreen to reduce complexity
+ * useDerivedGameState — Derives display-ready state from the local game engine.
+ *
+ * Computes player hand (with custom ordering), last played cards, and formatted
+ * combo display strings. Uses `useMemo` for all derivations.
+ *
+ * @param props - Configuration object
+ * @param props.gameState - Current local GameState (null while initializing)
+ * @param props.customCardOrder - User's preferred card ordering (array of card IDs)
+ * @param props.setCustomCardOrder - Setter to update card ordering after re-sort
+ * @returns {{ playerHand: Card[], lastPlayedCards: Card[], lastPlayComboDisplay: string, isFirstPlay: boolean }}
  */
 export function useDerivedGameState({
   gameState,
