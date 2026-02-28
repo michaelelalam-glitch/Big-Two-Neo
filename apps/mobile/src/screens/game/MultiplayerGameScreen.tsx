@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
@@ -41,7 +42,7 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
+  const { addScoreHistory, restoreScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
@@ -164,7 +165,49 @@ export function MultiplayerGameScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, user?.id]);
-  
+
+  // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
+  // Per-room AsyncStorage key so different rooms don't clobber each other.
+  // Restore on mount (rejoin); persist whenever scoreHistory changes.
+  const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
+  const hasRestoredScoresRef = useRef(false);
+
+  // 1. Restore score history for this room on mount
+  useEffect(() => {
+    if (hasRestoredScoresRef.current) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        if (stored) {
+          const parsed: ScoreHistory[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            gameLogger.info(`[MultiplayerGameScreen] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`);
+            restoreScoreHistory(parsed);
+          }
+        }
+      } catch (err: unknown) {
+        gameLogger.error('[MultiplayerGameScreen] Failed to restore score history:', err instanceof Error ? err.message : String(err));
+      } finally {
+        hasRestoredScoresRef.current = true;
+      }
+    })();
+  }, [ROOM_SCORE_KEY, roomCode, restoreScoreHistory]);
+
+  // 2. Persist score history for this room whenever it changes
+  const isFirstRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (scoreHistory.length > 0) {
+      AsyncStorage.setItem(ROOM_SCORE_KEY, JSON.stringify(scoreHistory)).catch((err) => {
+        gameLogger.error('[MultiplayerGameScreen] Failed to persist score history:', err?.message || String(err));
+      });
+    }
+  }, [scoreHistory, ROOM_SCORE_KEY]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Multiplayer hands memo
   const multiplayerHandsByIndex = useMemo(() => {
     return multiplayerGameState?.hands;

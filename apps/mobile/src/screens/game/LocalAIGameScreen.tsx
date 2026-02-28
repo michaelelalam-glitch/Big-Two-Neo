@@ -47,6 +47,7 @@ export function LocalAIGameScreen() {
   const scoreboardContext = useScoreboard();
   const { 
     addScoreHistory, 
+    restoreScoreHistory,
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext;
@@ -107,6 +108,7 @@ export function LocalAIGameScreen() {
     isLocalGame: true,
     botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
+    restoreScoreHistory,
     openGameEndModal,
     scoreHistory,
     playHistoryByMatch,

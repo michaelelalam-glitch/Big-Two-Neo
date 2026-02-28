@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, Profiler } from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
@@ -202,7 +203,52 @@ function GameScreenContent() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMultiplayerGame, roomCode, user?.id]); // Removed multiplayerConnectToRoom to prevent infinite reconnect loop
-  
+
+  // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
+  // Per-room AsyncStorage key so different rooms don't clobber each other.
+  // Restore on mount (rejoin); persist whenever scoreHistory changes.
+  const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
+  const hasRestoredMultiplayerScoresRef = useRef(false);
+
+  // 1. Restore score history for this room on mount (multiplayer only)
+  useEffect(() => {
+    if (!isMultiplayerGame) return;
+    if (hasRestoredMultiplayerScoresRef.current) return;
+
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        if (stored) {
+          const parsed: ScoreHistory[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            gameLogger.info(`[GameScreen] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`);
+            restoreScoreHistory(parsed);
+          }
+        }
+      } catch (err: unknown) {
+        gameLogger.error('[GameScreen] Failed to restore multiplayer score history:', err instanceof Error ? err.message : String(err));
+      } finally {
+        hasRestoredMultiplayerScoresRef.current = true;
+      }
+    })();
+  }, [isMultiplayerGame, ROOM_SCORE_KEY, roomCode, restoreScoreHistory]);
+
+  // 2. Persist score history for this room whenever it changes (multiplayer only)
+  const isFirstMultiplayerRenderRef = useRef(true);
+  useEffect(() => {
+    if (!isMultiplayerGame) return;
+    if (isFirstMultiplayerRenderRef.current) {
+      isFirstMultiplayerRenderRef.current = false;
+      return;
+    }
+    if (scoreHistory.length > 0) {
+      AsyncStorage.setItem(ROOM_SCORE_KEY, JSON.stringify(scoreHistory)).catch((err) => {
+        gameLogger.error('[GameScreen] Failed to persist multiplayer score history:', err?.message || String(err));
+      });
+    }
+  }, [isMultiplayerGame, scoreHistory, ROOM_SCORE_KEY]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // MULTIPLAYER HANDS MEMO - MUST BE DEFINED BEFORE playersWithCards!!!
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = multiplayerGameState?.hands;
