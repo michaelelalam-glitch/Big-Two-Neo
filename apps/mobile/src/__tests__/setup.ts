@@ -21,7 +21,7 @@ if (typeof global.__DEV__ === 'undefined') {
 // and clearTimeout accepts both types at runtime. This is test-only infrastructure.
 if (typeof global.requestAnimationFrame === 'undefined') {
   (global as any).requestAnimationFrame = (cb: FrameRequestCallback): number =>
-    setTimeout(() => cb(Date.now()), 0) as unknown as number;
+    setTimeout(() => cb(Date.now()), 1000 / 60) as unknown as number;
   (global as any).cancelAnimationFrame = (id: number): void => clearTimeout(id);
 }
 

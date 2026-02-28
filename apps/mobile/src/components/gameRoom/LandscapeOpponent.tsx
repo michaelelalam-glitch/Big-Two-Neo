@@ -76,6 +76,8 @@ export function LandscapeOpponent({
         {totalScore !== undefined && (
           <View
             style={scoreDisplayStyles.scoreBadgePosition}
+            accessible={true}
+            accessibilityRole="text"
             accessibilityLabel={`Score: ${formatScore(totalScore)}`}
           >
             <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>

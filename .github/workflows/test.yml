@@ -36,7 +36,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: 💾 Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       
       - name: 💾 Setup Jest transform cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: apps/mobile/.jest-cache
           key: ${{ runner.os }}-jest-${{ hashFiles('apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}

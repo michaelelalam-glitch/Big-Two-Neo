@@ -104,7 +104,7 @@ describe('usePlayerTotalScores', () => {
     expect(result.current).toEqual([400, 200, 100, 300]);
   });
 
-  it('returns fallback zeros for fewer than 4 players', () => {
+  it('falls back to p.score for fewer than 4 players', () => {
     const players = [{ score: 5 }, { score: 10 }];
     const history = [makeScoreHistory(1, [1, 2], [1, 2])];
     const { result } = renderHook(() => usePlayerTotalScores(players, history));
