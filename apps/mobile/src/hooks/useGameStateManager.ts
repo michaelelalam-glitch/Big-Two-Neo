@@ -128,6 +128,42 @@ export function useGameStateManager({
           setGameState(savedState);
           setIsInitializing(false);
           
+          // 🔥 CRITICAL FIX: Reconstruct scoreHistory from persisted matchScores
+          // On rejoin, ScoreboardContext starts with empty scoreHistory.
+          // We rebuild it from savedState.matchScores which persists per-match scores.
+          if (savedState.matchScores && savedState.matchScores.length > 0) {
+            const numCompletedMatches = savedState.currentMatch - 1;
+            gameLogger.info(`📊 [useGameStateManager] Reconstructing ${numCompletedMatches} score history entries from saved state`);
+            
+            for (let matchIdx = 0; matchIdx < numCompletedMatches; matchIdx++) {
+              const pointsAdded: number[] = new Array(savedState.players.length).fill(0);
+              const cumulativeScores: number[] = new Array(savedState.players.length).fill(0);
+              
+              savedState.matchScores.forEach((playerScore) => {
+                const playerIndex = savedState.players.findIndex(p => p.id === playerScore.playerId);
+                if (playerIndex !== -1 && matchIdx < playerScore.matchScores.length) {
+                  pointsAdded[playerIndex] = playerScore.matchScores[matchIdx];
+                  // Cumulative = sum of matchScores[0..matchIdx]
+                  let cumulative = 0;
+                  for (let i = 0; i <= matchIdx; i++) {
+                    cumulative += playerScore.matchScores[i] || 0;
+                  }
+                  cumulativeScores[playerIndex] = cumulative;
+                }
+              });
+              
+              const reconstructedHistory: ScoreHistory = {
+                matchNumber: matchIdx + 1,
+                pointsAdded,
+                scores: cumulativeScores,
+                timestamp: new Date().toISOString(),
+              };
+              
+              addScoreHistory(reconstructedHistory);
+              gameLogger.info(`📊 [Score History] Reconstructed match ${matchIdx + 1}:`, reconstructedHistory);
+            }
+          }
+
           // Play notification sound
           soundManager.playSound(SoundType.TURN_NOTIFICATION);
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');

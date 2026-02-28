@@ -135,14 +135,15 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
   // Entrance animation
   useEffect(() => {
-    if (gameInfo) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: true,
-      }).start();
+    // Always animate in (even for idle/no-game state)
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      friction: 8,
+      tension: 50,
+      useNativeDriver: true,
+    }).start();
 
+    if (gameInfo) {
       // Pulse animation for countdown urgency
       Animated.loop(
         Animated.sequence([
@@ -158,12 +159,29 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           }),
         ])
       ).start();
-    } else {
-      slideAnim.setValue(-100);
     }
   }, [gameInfo, slideAnim, pulseAnim]);
 
-  if (!gameInfo) return null;
+  // No active game — show idle state
+  if (!gameInfo) {
+    return (
+      <Animated.View
+        style={[
+          styles.container,
+          styles.containerIdle,
+          { transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <Text style={styles.icon}>🃏</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>No Game in Progress</Text>
+            <Text style={styles.subtitle}>Start a new game to play!</Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
 
   const isOnline = gameInfo.type === 'online';
   const isPlaying = isOnline && onlineRoomStatus === 'playing';
@@ -192,7 +210,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           <Text style={styles.subtitle}>
             {isOnline
               ? `Room: ${gameInfo.roomCode} · ${onlineRoomStatus === 'playing' ? 'In Progress' : 'Waiting'}`
-              : `Match ${gameInfo.matchNumber || 1} · vs AI Bots`}
+              : `Match ${gameInfo.matchNumber || 1} · vs AI`}
           </Text>
         </View>
       </View>
@@ -227,19 +245,17 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
       {/* Action buttons */}
       <View style={styles.buttonRow}>
-        {/* Resume / Rejoin button */}
+        {/* Rejoin button (unified wording for online & offline) */}
         {!botHasReplaced ? (
           <TouchableOpacity
             style={[styles.button, styles.resumeButton]}
             onPress={() => onResume(gameInfo)}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>
-              {isOnline ? '🔄 Rejoin' : '▶️ Resume'}
-            </Text>
+            <Text style={styles.buttonText}>🔄 Rejoin</Text>
           </TouchableOpacity>
         ) : (
-          /* Replace bot button (after 60s) */
+          /* Replace bot button (after 60s, online only) */
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton]}
             onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
@@ -249,15 +265,13 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           </TouchableOpacity>
         )}
 
-        {/* Leave / Discard button */}
+        {/* Leave button (unified wording) */}
         <TouchableOpacity
           style={[styles.button, styles.leaveButton]}
           onPress={() => onLeave(gameInfo)}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>
-            {isOnline ? '🚪 Leave' : '🗑 Discard'}
-          </Text>
+          <Text style={styles.buttonText}>🚪 Leave</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -276,8 +290,12 @@ const styles = StyleSheet.create({
     borderColor: '#3b82f6',
   },
   containerOffline: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    borderColor: '#6366f1',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: '#3b82f6',
+  },
+  containerIdle: {
+    backgroundColor: 'rgba(107, 114, 128, 0.12)',
+    borderColor: '#6b7280',
   },
   headerRow: {
     flexDirection: 'row',
