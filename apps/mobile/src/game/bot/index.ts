@@ -620,8 +620,10 @@ export class BotAI {
   private findNextActivePlayer(currentPlayerIndex: number, playerCardCounts: number[]): number {
     // Anticlockwise turn order matching game engine (state.ts)
     const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const numPlayers = playerCardCounts.length;
     let nextIndex = turnOrder[currentPlayerIndex];
     const startIndex = nextIndex;
+    let iterations = 0;
     
     // Walk through turn order, skipping players with 0 cards (already finished)
     do {
@@ -629,7 +631,7 @@ export class BotAI {
         return nextIndex;
       }
       nextIndex = turnOrder[nextIndex];
-    } while (nextIndex !== startIndex);
+    } while (nextIndex !== startIndex && ++iterations < numPlayers);
     
     return -1; // No active player found
   }

@@ -22,7 +22,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useClockSync } from '../../hooks/useClockSync';
 import { i18n } from '../../i18n';
-import { networkLogger } from '../../utils/logger';
+import { gameLogger } from '../../utils/logger';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 
 interface AutoPassTimerProps {
@@ -103,7 +103,7 @@ export default function AutoPassTimer({
       const currentSecond = Math.ceil(remaining / 1000);
       if (remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
         lastLoggedSecondRef.current = currentSecond;
-        networkLogger.debug('[AutoPassTimer] Server-authoritative calculation:', {
+        gameLogger.debug('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
           correctedNow: new Date(correctedNow).toISOString(),
           localNow: new Date(Date.now()).toISOString(),
@@ -130,7 +130,7 @@ export default function AutoPassTimer({
     const remaining = Math.max(0, durationMs - elapsed);
     
     if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
-      networkLogger.debug('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
+      gameLogger.debug('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
         startedAt: new Date(startedAt).toISOString(),
         currentTime: new Date(currentTime).toISOString(),
         elapsed,

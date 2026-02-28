@@ -42,6 +42,7 @@ module.exports = {
     '!src/components/scoreboard/styles/**',
   ],
   // Coverage thresholds reflect current levels after the Chinese Poker feature branch merge.
+  // Tracked in: TODO(coverage-recovery) — create a GitHub Issue to track this debt.
   // Plan to incrementally increase back toward 80%:
   //   Phase 1 (next sprint): branches 55, functions 70, lines/statements 68
   //   Phase 2: branches 65, functions 75, lines/statements 75

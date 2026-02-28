@@ -13,8 +13,12 @@ if (typeof global.__DEV__ === 'undefined') {
   global.__DEV__ = process.env.NODE_ENV !== 'production';
 }
 
-// Polyfill requestAnimationFrame/cancelAnimationFrame for Node.js test environment
-// Components like AutoPassTimer use rAF for smooth countdown rendering
+// Polyfill requestAnimationFrame/cancelAnimationFrame for Node.js test environment.
+// Components like AutoPassTimer use rAF for smooth countdown rendering.
+// Note: Node.js setTimeout returns NodeJS.Timeout, but the browser API expects a
+// numeric handle. The `as unknown as number` cast is intentional — cancelAnimationFrame
+// only needs the opaque handle returned by the matching requestAnimationFrame call,
+// and clearTimeout accepts both types at runtime. This is test-only infrastructure.
 if (typeof global.requestAnimationFrame === 'undefined') {
   (global as any).requestAnimationFrame = (cb: FrameRequestCallback): number =>
     setTimeout(() => cb(Date.now()), 0) as unknown as number;

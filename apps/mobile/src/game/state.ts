@@ -406,11 +406,13 @@ export class GameStateManager {
    */
   private findNextActivePlayer(currentPlayerIndex: number): number {
     const players = this.state!.players;
+    const numPlayers = players.length;
     let next = GameStateManager.TURN_ORDER[currentPlayerIndex];
     const start = next;
+    let iterations = 0;
     while (players[next].hand.length === 0 && next !== currentPlayerIndex) {
       next = GameStateManager.TURN_ORDER[next];
-      if (next === start) break; // Defensive: prevent infinite loop if turn table is ever misconfigured
+      if (next === start || ++iterations >= numPlayers) break;
     }
     return next;
   }

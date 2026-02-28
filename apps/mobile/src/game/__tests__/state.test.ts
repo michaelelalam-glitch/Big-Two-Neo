@@ -432,10 +432,23 @@ describe('Game State Manager - Bot Turn Execution', () => {
     };
     await manager.initializeGame(config);
 
-    // Move to first bot player
+    // Must play 3D first — game rules prohibit passing on the first play.
+    // Without this, pass() returns {success:false} immediately and the while
+    // loop below becomes an infinite microtask loop when the human holds 3D.
     const state = manager.getState()!;
+    const startingPlayer = state.players[state.currentPlayerIndex];
+    const card3D = startingPlayer.hand.find(c => c.id === '3D')!;
+    await manager.playCards([card3D.id]);
+
+    // Advance to the first bot player (at most 1 pass needed since 3 of 4 are bots)
+    let safety = 0;
     while (!state.players[state.currentPlayerIndex].isBot) {
-      await manager.pass();
+      const result = await manager.pass();
+      if (!result.success || ++safety > 4) {
+        throw new Error(
+          `Failed to advance to bot player after ${safety} attempts: ${result.error}`
+        );
+      }
     }
 
     jest.clearAllMocks();

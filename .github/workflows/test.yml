@@ -73,7 +73,10 @@ jobs:
           # v8 coverage collection takes 11+ min on 2-vCPU runners, causing
           # the step to time out. Coverage thresholds are enforced locally via
           # jest.config.js and coverageThreshold when developers run --coverage.
-          # --forceExit: forces shutdown after tests complete (open-handle safety net).
+          # --forceExit: forces process.exit after all tests complete if open handles
+          #   remain (e.g. unclosed DB connections). It does NOT mask test failures —
+          #   jest sets the exit code before the force-exit fires. Use
+          #   --detectOpenHandles locally to debug any open-handle warnings.
           # --maxWorkers=2: matches CI runner's 2 vCPUs.
           NODE_OPTIONS="--max-old-space-size=3072" npx jest \
             --testPathIgnorePatterns='/integration/' \
