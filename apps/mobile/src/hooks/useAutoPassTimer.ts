@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import type { GameState, Player, AutoPassTimerState, BroadcastEvent } from '../types/multiplayer';
+import type { GameState, Player, AutoPassTimerState, BroadcastEvent, BroadcastData } from '../types/multiplayer';
 import type { PlayerPassResponse } from '../types/realtimeTypes';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
@@ -30,7 +30,7 @@ export interface UseAutoPassTimerOptions {
   /** Current list of room players. */
   roomPlayers: Player[];
   /** Broadcast a message to all connected clients. */
-  broadcastMessage: (event: BroadcastEvent, data: unknown) => Promise<void>;
+  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   /** Clock-sync corrected timestamp (ms). */
   getCorrectedNow: () => number;
 }
@@ -214,7 +214,7 @@ export function useAutoPassTimer({
 async function executeAutoPasses(
   room: { id: string; code: string } | null,
   roomPlayers: Player[],
-  broadcastMessage: (event: BroadcastEvent, data: unknown) => Promise<void>,
+  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>,
   autoPassExecutionGuard: React.MutableRefObject<number | null>,
   setIsAutoPassInProgress: (value: boolean) => void,
 ): Promise<void> {

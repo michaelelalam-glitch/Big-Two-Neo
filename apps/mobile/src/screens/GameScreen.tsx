@@ -43,6 +43,7 @@ import {
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
+import type { GameStateManager } from '../game/state';
 import type { FinalScore } from '../types/gameEnd';
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
@@ -103,7 +104,7 @@ function GameScreenContent() {
   useMultiplayerRoomLoader({ isMultiplayerGame, roomCode, navigation, setMultiplayerPlayers });
 
   // Bot turn management hook (Task #Phase 2B) - only for LOCAL games
-  const gameManagerRefPlaceholder = useRef<any>(null);
+  const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
     gameManagerRef: gameManagerRefPlaceholder,
   });
@@ -196,7 +197,7 @@ function GameScreenContent() {
     if (!isMultiplayerGame) return;
     if (!user?.id) return;
 
-    multiplayerConnectToRoom(roomCode).catch((error: any) => {
+    multiplayerConnectToRoom(roomCode).catch((error: Error) => {
       console.error('[GameScreen] ❌ Failed to connect:', error);
       gameLogger.error('[GameScreen] Failed to connect:', error?.message || String(error));
       showError(error?.message || 'Failed to connect to room');
@@ -392,7 +393,7 @@ function GameScreenContent() {
   // CRITICAL FIX Dec 27 #2: Apply customCardOrder to multiplayer hands as well!
   const effectivePlayerHand: Card[] = React.useMemo(() => {
     const hand = isLocalAIGame ? localPlayerHand : multiplayerPlayerHand;
-    let result = (hand as any) || [];
+    let result = (hand ?? []) as Card[];
     
     // Apply customCardOrder for BOTH local and multiplayer games
     if (customCardOrder.length > 0 && result.length > 0) {
@@ -416,7 +417,7 @@ function GameScreenContent() {
     playerHand: effectivePlayerHand, // FIXED: Use effective hand (local OR multiplayer)
     lastPlay: isLocalAIGame ? (gameState?.lastPlay || null) : (multiplayerLastPlay || null),
     isFirstPlay: isLocalAIGame 
-      ? (gameState?.lastPlay === null && gameState?.players.every((p: any) => p.hand.length === 13))
+      ? (gameState?.lastPlay === null && gameState?.players.every((p) => p.hand.length === 13))
       : (multiplayerLastPlay === null),
     customCardOrder,
     setCustomCardOrder,
@@ -498,19 +499,19 @@ function GameScreenContent() {
 
   // Performance profiling callback (Task #430)
   // React 19 Profiler signature: (id, phase, actualDuration, baseDuration, startTime, commitTime)
-  const onRenderCallback = (
-    id: string,
-    phase: 'mount' | 'update',
-    actualDuration: number,
-    baseDuration: number,
-    startTime: number,
-    commitTime: number
+  const onRenderCallback: React.ProfilerOnRenderCallback = (
+    id,
+    phase,
+    actualDuration,
+    baseDuration,
+    startTime,
+    commitTime
   ) => {
     performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
   };
 
   return (
-    <Profiler id="GameScreen" onRender={onRenderCallback as any}>
+    <Profiler id="GameScreen" onRender={onRenderCallback}>
       <View style={[styles.container, { direction: 'ltr' }]}>
         {/* Spectator Mode Banner - Show if player is spectating */}
         {/* TODO: Integrate with useConnectionManager to detect spectator status */}
@@ -538,7 +539,7 @@ function GameScreenContent() {
             currentScores={memoizedCurrentScores}
             cardCounts={memoizedCardCounts}
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-            matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : (multiplayerGameState?.match_number ?? 1)}
+            matchNumber={isLocalAIGame ? (gameState?.currentMatch ?? 1) : (multiplayerGameState?.match_number ?? 1)}
             isGameFinished={isGameFinished}
             scoreHistory={displayOrderScoreHistory}
             playHistory={playHistoryByMatch}
@@ -670,11 +671,11 @@ function GameScreenContent() {
 
           {/* Game table layout - extracted to GameLayout component (Task #426) */}
           <GameLayout
-            players={layoutPlayersWithScores as any}
-            lastPlayedCards={effectiveLastPlayedCards as any}
-            lastPlayedBy={effectiveLastPlayedBy as any}
-            lastPlayComboType={effectiveLastPlayComboType as any}
-            lastPlayCombo={effectiveLastPlayCombo as any}
+            players={layoutPlayersWithScores}
+            lastPlayedCards={effectiveLastPlayedCards}
+            lastPlayedBy={effectiveLastPlayedBy}
+            lastPlayComboType={effectiveLastPlayComboType}
+            lastPlayCombo={effectiveLastPlayCombo}
             autoPassTimerState={effectiveAutoPassTimerState}
           />
 

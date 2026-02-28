@@ -10,9 +10,10 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import { soundManager, SoundType, showError } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { GameStateManager } from '../game/state';
 
 interface UseGameEndCallbacksOptions {
-  gameManagerRef: React.RefObject<any>;
+  gameManagerRef: React.RefObject<GameStateManager | null>;
   currentPlayerName: string;
   botDifficulty: 'easy' | 'medium' | 'hard';
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;

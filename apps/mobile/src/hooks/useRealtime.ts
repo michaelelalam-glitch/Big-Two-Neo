@@ -25,6 +25,7 @@ import {
   Card,
   UseRealtimeReturn,
   BroadcastEvent,
+  BroadcastData,
   BroadcastPayload,
 } from '../types/multiplayer';
 import type {
@@ -81,7 +82,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   /**
    * Broadcast message to all room players
    */
-  const broadcastMessage = useCallback(async (event: BroadcastEvent, data: any) => {
+  const broadcastMessage = useCallback(async (event: BroadcastEvent, data: BroadcastData) => {
     if (!channelRef.current || !room) return;
     
     const payload: BroadcastPayload = {
@@ -205,9 +206,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
         // broadcastMessage wraps data as { event, data: {...}, timestamp }
         // Access payload.data first, fall back to top-level for robustness
-        const broadcastData = (payload as any)?.data || payload;
-        const matchScores = broadcastData?.match_scores as PlayerMatchScoreDetail[];
-        const matchNumber = broadcastData?.match_number || gameState?.match_number || 1;
+        const broadcastData = (payload as { data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number } })?.data || payload;
+        const matchScores = (broadcastData as { match_scores?: PlayerMatchScoreDetail[] })?.match_scores;
+        const matchNumber = (broadcastData as { match_number?: number })?.match_number || gameState?.match_number || 1;
         if (matchScores && onMatchEnded) {
           onMatchEnded(matchNumber, matchScores);
         }
@@ -449,7 +450,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         return result;
       })();
       
-      const timeoutPromise = new Promise<{ data: null; error: any }>((_, reject) => {
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) => {
         const timer = setTimeout(() => {
           reject(new Error('Room query timeout after 5 seconds'));
         }, 5000);
