@@ -29,233 +29,28 @@ import {
   BroadcastPayload,
   AutoPassTimerState,
 } from '../types/multiplayer';
-import { invokeWithRetry, EdgeFunctionError } from '../utils/edgeFunctionRetry';
+import type {
+  PlayCardsResponse,
+  StartNewMatchResponse,
+  PlayerPassResponse,
+  MultiplayerMatchScoreDetail,
+  UseRealtimeOptions,
+} from '../types/realtimeTypes';
+import { invokeWithRetry } from '../utils/edgeFunctionRetry';
+import {
+  getPlayErrorExplanation,
+  extractEdgeFunctionErrorAsync,
+  isValidTimerStatePayload,
+} from '../utils/edgeFunctionErrors';
 import { networkLogger, gameLogger } from '../utils/logger';
+import { useAutoPassTimer } from './useAutoPassTimer';
 import { useClockSync } from './useClockSync';
 
-/**
- * Map server error messages to user-friendly explanations
- * Provides context and guidance for why a play was rejected
- */
-function getPlayErrorExplanation(serverError: string): string {
-  const errorLower = serverError.toLowerCase();
-  
-  // Turn validation
-  if (errorLower.includes('not your turn')) {
-    return 'Not your turn. Wait for other players to complete their moves.';
-  }
-  
-  // First play 3♦ requirement
-  if (errorLower.includes('first play') && errorLower.includes('3')) {
-    return 'First play must include the 3 of Diamonds (3♦).';
-  }
-  
-  // Invalid combination
-  // Use regex for more specific pattern matching to avoid false positives
-  if (/\b(invalid card combination|invalid combo)\b/i.test(serverError)) {
-    return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
-  }
-  
-  // Cannot beat last play
-  if (errorLower.includes('cannot beat')) {
-    const match = serverError.match(/Cannot beat (\w+) with (\w+)/i);
-    if (match) {
-      return `Cannot beat ${match[1]} with ${match[2]}. Play a higher card combo or pass.`;
-    }
-    return 'Cannot beat the current play. Play higher cards or pass your turn.';
-  }
-  
-  // One Card Left Rule
-  if (errorLower.includes('one card left')) {
-    return 'One Card Left Rule: When next player has 1 card, you must play your highest single card if playing a single.';
-  }
-  
-  // Card not in hand
-  if (errorLower.includes('card not in hand')) {
-    return 'One or more selected cards are not in your hand. Please refresh and try again.';
-  }
-  
-  // Game state errors
-  if (errorLower.includes('game state not found')) {
-    return 'Game state not found. The game may have ended or been disconnected.';
-  }
-  
-  if (errorLower.includes('room not found')) {
-    return 'Room not found. The game session may have expired.';
-  }
-  
-  // Default: return original server error
-  return serverError;
-}
+// Re-export types for backward compatibility
+export type { UseRealtimeOptions } from '../types/realtimeTypes';
 
-/**
- * Extract detailed error message from Supabase Edge Function response
- * When an Edge Function returns a non-2xx status, the actual error details
- * are in error.context, not just error.message
- */
-async function extractEdgeFunctionErrorAsync(error: EdgeFunctionError | null, result: { error?: string } | null, fallback: string): Promise<string> {
-  // Priority 1: Check if result has error field (from Edge Function response body)
-  // This works when the Edge Function returns a successful response with error details
-  if (result?.error) {
-    return result.error;
-  }
-  
-  // Priority 2: Try to read the response body from error.context
-  // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
-  // Add timeout to body reading to prevent hanging in critical error paths
-  // Reduced timeout from 2s to 1s for better user-facing responsiveness
-  if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
-    try {
-      // Race against timeout to prevent hanging if body reading fails or hangs
-      const bodyTextPromise = error.context.text();
-      const timeoutPromise = new Promise<string>((_, reject) => 
-        setTimeout(() => reject(new Error('Body read timeout')), 1000)
-      );
-      
-      const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
-      const parsed = JSON.parse(bodyText);
-      if (parsed?.error) {
-        gameLogger.info('[extractEdgeFunctionError] ✅ Extracted error from response body:', parsed.error);
-        return parsed.error;
-      }
-    } catch (e) {
-      // Body may already be consumed, timed out, or contain invalid JSON - fall through to Priority 3
-      gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
-    }
-  }
-  
-  // Priority 3: Check if error.context already has parsed fields (body already consumed above)
-  if (error?.context) {
-    // Try to get error from parsed body
-    if (error.context.error) {
-      return error.context.error;
-    }
-    
-    // Try to parse JSON body string if present
-    if (error.context.body) {
-      try {
-        const parsed = typeof error.context.body === 'string' 
-          ? JSON.parse(error.context.body) 
-          : error.context.body;
-        if (parsed?.error) {
-          return parsed.error;
-        }
-      } catch (e) {
-        gameLogger.warn('[extractEdgeFunctionError] Failed to parse error.context.body:', e);
-      }
-    }
-    
-    // If we have status code but no error message, return generic status
-    if (error.context.status) {
-      const status = error.context.status;
-      const statusText = error.context.statusText || '';
-      return `HTTP ${status}${statusText ? ': ' + statusText : ''}`;
-    }
-  }
-  
-  // Priority 4: Use error.message (usually "Edge Function returned a non-2xx status code")
-  if (error?.message && error.message !== 'Edge Function returned a non-2xx status code') {
-    return error.message;
-  }
-  
-  // Fallback
-  return fallback;
-}
-
-// ── Edge Function Response Types ──────────────────────────────────────────────
-// These interfaces type the JSON bodies returned by Supabase Edge Functions so
-// that callers of invokeWithRetry<T> get proper type-checking.
-
-interface PlayCardsResponse {
-  success: boolean;
-  debug?: Record<string, unknown>;
-  match_ended?: boolean;
-  match_scores?: PlayerMatchScoreDetail[];
-  game_over?: boolean;
-  final_winner_index?: number;
-  combo_type?: string;
-  auto_pass_timer?: AutoPassTimerState | null;
-  highest_play_detected?: boolean;
-  next_turn?: number;
-  passes?: number;
-  trick_cleared?: boolean;
-  error?: string;
-}
-
-interface StartNewMatchResponse {
-  match_number: number;
-  starting_player_index: number;
-}
-
-interface PlayerPassResponse {
-  success: boolean;
-  error?: string;
-  next_turn: number;
-  passes: number;
-  trick_cleared: boolean;
-  auto_pass_timer?: AutoPassTimerState | null;
-}
-
-interface UseRealtimeOptions {
-  userId: string;
-  username: string;
-  onError?: (error: Error) => void;
-  onDisconnect?: () => void;
-  onReconnect?: () => void;
-  onMatchEnded?: (matchNumber: number, matchScores: PlayerMatchScoreDetail[]) => void;
-}
-
-export type { UseRealtimeOptions };
-
-interface PlayerMatchScoreDetail {
-  player_index: number;
-  cardsRemaining: number;
-  pointsPerCard: number;
-  matchScore: number;
-  cumulativeScore: number;
-}
-
-/**
- * Type guard to validate auto-pass timer broadcast payload
- */
-function isValidTimerStatePayload(
-  payload: unknown
-): payload is { timer_state: AutoPassTimerState } {
-  if (typeof payload !== 'object' || payload === null || !('timer_state' in payload)) {
-    return false;
-  }
-  
-  const timerState = (payload as { timer_state: unknown }).timer_state;
-  
-  if (typeof timerState !== 'object' || timerState === null) {
-    return false;
-  }
-  
-  const state = timerState as Record<string, unknown>;
-  
-  // Validate basic timer fields
-  if (
-    typeof state.active !== 'boolean' ||
-    typeof state.started_at !== 'string' ||
-    typeof state.duration_ms !== 'number' ||
-    typeof state.remaining_ms !== 'number'
-  ) {
-    return false;
-  }
-  
-  // Validate triggering_play structure
-  const triggeringPlay = state.triggering_play;
-  if (typeof triggeringPlay !== 'object' || triggeringPlay === null) {
-    return false;
-  }
-  
-  const play = triggeringPlay as Record<string, unknown>;
-  return (
-    typeof play.position === 'number' &&
-    Array.isArray(play.cards) &&
-    typeof play.combo_type === 'string'
-  );
-}
+// Alias for internal use (replaces old `PlayerMatchScoreDetail`)
+type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded } = options;
@@ -272,15 +67,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // Refs
   const channelRef = useRef<RealtimeChannel | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  
-  // 🔥 CRITICAL: Track active timer interval to prevent duplicates
-  const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentTimerId = useRef<string | null>(null);
-  // Changed to timestamp-based lock for atomic-like operation
-  // Stores timestamp when lock was acquired, or null when unlocked
-  const autoPassExecutionGuard = useRef<number | null>(null);
-  // 🔥 CRITICAL FIX: Ref to access latest gameState inside setInterval callback (avoids stale closure)
-  const gameStateRef = useRef<GameState | null>(null);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -290,11 +76,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
   const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
-
-  // 🔥 CRITICAL: Keep gameStateRef synced with latest gameState for setInterval access
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
   // Returns true ONLY when:
@@ -340,6 +121,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
   }, [room]);
   
+  // ⏰ Auto-pass timer (extracted hook — manages its own refs/intervals)
+  const { isAutoPassInProgress } = useAutoPassTimer({
+    gameState,
+    room,
+    roomPlayers,
+    broadcastMessage,
+    getCorrectedNow,
+  });
+
   /**
    * Create a new game room
    */
@@ -887,7 +677,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // FIX: If the auto-pass timer is currently executing, silently skip.
     // This prevents race conditions where pass() fires from a stale handler
     // while executeAutoPasses() has already handled the turn via direct Edge Function call.
-    if (autoPassExecutionGuard.current) {
+    if (isAutoPassInProgress) {
       gameLogger.info('[useRealtime] ⚠️ Skipping pass() — auto-pass execution in progress');
       return;
     }
@@ -1302,409 +1092,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
     };
   }, []);
-  
-  /**
-   * Auto-pass timer: Server-authoritative design
-   * 
-   * NEW ARCHITECTURE (Dec 29, 2025 - CRITICAL FIX v2):
-   * - Timer state is stored in database (game_state.auto_pass_timer)
-   * - Contains started_at timestamp and duration_ms
-   * - ALL clients calculate remaining_ms independently from the SAME server timestamp
-   * - 🔥 FIX: Use useRef to prevent multiple intervals for same timer
-   * - 🔥 FIX: Only start interval ONCE per timer (track by started_at)
-   * - ALL clients execute auto-pass for redundancy (backend validates turns)
-   * 
-   * CORRECT AUTO-PASS LOGIC:
-   * - When timer expires, pass ALL players EXCEPT the one who played the highest card
-   * - The player who played the highest card is stored in auto_pass_timer.player_id
-   * - Loop through all 4 players and pass each one that:
-   *   1. Is NOT the player who played the highest card
-   *   2. Has NOT already manually passed
-   */
-  useEffect(() => {
-    const timerState = gameState?.auto_pass_timer;
-    
-    networkLogger.info('⏰ [DEBUG] Timer useEffect triggered', {
-      gamePhase: gameState?.game_phase,
-      hasAutoPassTimer: !!timerState,
-      timerActive: timerState?.active,
-      timerStartedAt: timerState?.started_at,
-      currentTimerId: currentTimerId.current,
-      hasActiveInterval: !!activeTimerInterval.current,
-      roomId: room?.id,
-    });
-    
-    // Cleanup function
-    const cleanup = () => {
-      if (activeTimerInterval.current) {
-        networkLogger.info('⏰ [DEBUG] Clearing timer interval');
-        clearInterval(activeTimerInterval.current);
-        activeTimerInterval.current = null;
-        currentTimerId.current = null;
-      }
-    };
-    
-    // Skip if game has finished
-    if (gameState?.game_phase === 'finished') {
-      cleanup();
-      return;
-    }
-    
-    // Skip if no timer or timer is inactive
-    if (!timerState || !timerState.active) {
-      cleanup();
-      return;
-    }
-    
-    // ⏰ CRITICAL: Check if this is the SAME timer using sequence_id (prevent duplicate intervals)
-    const newTimerId = (timerState as any).sequence_id || timerState.started_at;
-    if (currentTimerId.current === newTimerId && activeTimerInterval.current) {
-      networkLogger.info('⏰ [DEBUG] Timer already running for sequence_id', newTimerId);
-      return; // Already polling this timer!
-    }
-    
-    // Clear old interval if switching to new timer
-    cleanup();
-    
-    // Store new timer ID
-    currentTimerId.current = newTimerId;
-    
-    networkLogger.info('⏰ [DEBUG] Starting NEW timer polling interval', {
-      sequence_id: (timerState as any).sequence_id,
-      started_at: timerState.started_at,
-      end_timestamp: (timerState as any).end_timestamp,
-      duration_ms: timerState.duration_ms,
-      player_id: timerState.player_id,
-    });
-    
-    // ⏰ CRITICAL FIX: Use setInterval to poll for timer expiration every 100ms
-    // Uses SERVER-AUTHORITATIVE end_timestamp with clock sync
-    activeTimerInterval.current = setInterval(() => {
-      // 🔥 CRITICAL FIX: Use gameStateRef.current instead of gameState (avoids stale closure)
-      // The gameState from useEffect closure is captured once and never updates inside setInterval
-      // gameStateRef.current is kept in sync via a separate useEffect
-      const currentTimerState = gameStateRef.current?.auto_pass_timer;
-      
-      // If timer was cleared or deactivated, stop interval
-      if (!currentTimerState || !currentTimerState.active) {
-        if (activeTimerInterval.current) {
-          networkLogger.info('⏰ [Timer] Timer deactivated, stopping interval');
-          clearInterval(activeTimerInterval.current);
-          activeTimerInterval.current = null;
-          currentTimerId.current = null;
-        }
-        return;
-      }
-      
-      // ⏰ CRITICAL FIX: Calculate remaining time from server-authoritative end_timestamp
-      // MUST use getCorrectedNow() (clock sync) to match AutoPassTimer component
-      let remaining: number;
-      const endTimestamp = (currentTimerState as any).end_timestamp;
-      
-      if (typeof endTimestamp === 'number') {
-        // Use end_timestamp with clock-corrected time (matches AutoPassTimer)
-        const correctedNow = getCorrectedNow();
-        remaining = Math.max(0, endTimestamp - correctedNow);
-        
-        networkLogger.info(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
-      } else {
-        // Fallback: calculate from started_at (old architecture)
-        const startedAt = new Date(currentTimerState.started_at).getTime();
-        const correctedNow = getCorrectedNow();
-        const elapsed = correctedNow - startedAt;
-        remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
-        
-        networkLogger.info(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
-      }
-      
-      // If timer has expired, auto-pass ALL players except the one who played highest card
-      if (remaining <= 0) {
-        // Clear interval and refs
-        if (activeTimerInterval.current) {
-          clearInterval(activeTimerInterval.current);
-          activeTimerInterval.current = null;
-          currentTimerId.current = null;
-        }
-        
-        const exemptPlayerId = currentTimerState.player_id; // Player who played the highest card
-        networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
-      
-        // ⚡ FIXED SEQUENTIAL AUTO-PASS
-        // Calculate array of players UPFRONT to avoid timing issues
-        const executeAutoPasses = async () => {
-          // Execution guard: Prevent multiple simultaneous auto-pass executions
-          // Use timestamp-based lock for more robust atomic operation
-          // This prevents the race condition where two intervals could check before either sets
-          const now = Date.now();
-          const lockTimeout = 30000; // 30 second max lock duration
-          const currentLock = autoPassExecutionGuard.current;
-          
-          // Check if lock is held and not stale (prevents deadlock from crashed executions)
-          if (currentLock && (now - currentLock) < lockTimeout) {
-            networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress (lock age: ${now - currentLock}ms), skipping`);
-            return;
-          }
-          
-          // Log when stale lock is being overridden for debugging
-          if (currentLock && (now - currentLock) >= lockTimeout) {
-            networkLogger.warn(`⏰ [Timer] ⚠️ Stale lock detected (age: ${now - currentLock}ms > ${lockTimeout}ms), overriding. ` +
-              `Previous execution may have taken longer than expected or crashed.`);
-          }
-          
-          // Acquire lock with timestamp (atomic-like operation)
-          autoPassExecutionGuard.current = now;
-          
-          try {
-            // 🔍 STEP 1: Query FRESH game state to get starting position
-            const { data: currentGameState, error: stateError } = await supabase
-              .from('game_state')
-              .select('current_turn, passes, last_play, auto_pass_timer')
-              .eq('room_id', room?.id)
-              .single();
-            
-            if (stateError || !currentGameState) {
-              networkLogger.error(`⏰ [Timer] Failed to fetch game state:`, stateError);
-              return;
-            }
-            
-            // Check if trick already completed
-            if (currentGameState.last_play === null && currentGameState.passes === 0) {
-              networkLogger.info(`⏰ [Timer] ✅ Trick already completed, no auto-pass needed`);
-              return;
-            }
-            
-            // Check if timer still active
-            if (!currentGameState.auto_pass_timer || !currentGameState.auto_pass_timer.active) {
-              networkLogger.info(`⏰ [Timer] Timer manually cleared, no auto-pass needed`);
-              return;
-            }
-            
-            // Calculate remaining passes needed
-            const currentPassCount = currentGameState.passes || 0;
-            const remainingPasses = 3 - currentPassCount;
-            
-            if (remainingPasses <= 0) {
-              networkLogger.info(`⏰ [Timer] No passes needed (already ${currentPassCount}/3)`);
-              return;
-            }
-            
-            // Calculate the ARRAY of 3 players to pass UPFRONT
-            // based on exempt player, then pass them by index with delay
-            // This avoids the timing issue where querying current_turn after each pass
-            // would keep returning the NEW current player instead of the 3 sequential ones
-            // BUG FIX: Server sets `triggering_play.position`, not `player_index`
-            const timerState = currentGameState.auto_pass_timer as {
-              triggering_play?: { position?: number };
-              player_index?: number; // Legacy fallback
-            } | null;
-            const exemptPlayerIndex = timerState?.triggering_play?.position ?? timerState?.player_index;
-            if (typeof exemptPlayerIndex !== 'number') {
-              networkLogger.error(`⏰ [Timer] No exempt player index found in timer state:`, JSON.stringify(timerState));
-              return;
-            }
-            
-            // Calculate which players need to pass (everyone except exempt)
-            // Use roomPlayers.length instead of hardcoded 4
-            const totalPlayers = roomPlayers.length;
-            
-            networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
-            networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
-            
-            // 🔄 STEP 2: Pass players using UPFRONT calculation to avoid excessive DB queries
-            // Fetch state ONCE before loop instead of per-iteration (Round 7)
-            // This reduces DB queries from O(maxPasses) to O(1) while maintaining correctness
-            let passedCount = 0;
-            const maxPasses = totalPlayers - 1; // Maximum passes needed (everyone except exempt)
-            
-            // 🗃️ Use the already-fetched state for the starting point
-            // Instead of re-querying each iteration, we derive turn indices from initial snapshot
-            const startingTurnIndex = currentGameState.current_turn;
-            if (typeof startingTurnIndex !== 'number') {
-              networkLogger.error(`⏰ [Timer] ❌ No current_turn in initial state`);
-              return;
-            }
-            
-            // Use separate turnOffset counter instead of attempt index
-            // If a pass fails and we continue, turnOffset won't increment, keeping turn order correct
-            // attempt = loop safety limit, turnOffset = actual turn progression
-            let turnOffset = 0;
-            
-            for (let attempt = 0; attempt < maxPasses && turnOffset < maxPasses; attempt++) {
-              // Calculate current turn index from starting position + turnOffset (not attempt!)
-              // This ensures failed passes don't skip players
-              const currentTurnIndex = (startingTurnIndex + turnOffset) % totalPlayers;
-              
-              // Skip if current turn is the exempt player (they played highest, shouldn't pass)
-              if (currentTurnIndex === exemptPlayerIndex) {
-                networkLogger.info(`⏰ [Timer] Current turn is exempt player ${exemptPlayerIndex}, round complete`);
-                break;
-              }
-              
-              // Get the player info for current turn
-              const playerToPass = roomPlayers.find(p => p.player_index === currentTurnIndex);
-              if (!playerToPass) {
-                networkLogger.error(`⏰ [Timer] ❌ No player found at index ${currentTurnIndex}`);
-                continue;
-              }
-              
-              try {
-                networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurnIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
-                
-                // 🔥 CRITICAL FIX: Call Edge Function DIRECTLY instead of using pass() 
-                // The pass() function uses stale gameState from React closure, causing
-                // "Not your turn" errors when current_turn changes between passes.
-                // By calling the Edge Function directly, we bypass the stale closure issue.
-                // 
-                // Documented differences from pass() function:
-                // - pass() logs via gameLogger → we log via networkLogger (equivalent)
-                // - pass() broadcasts 'player_passed' → we broadcast 'auto_pass_executed' (intentionally different)
-                // - pass() waits 300ms for Realtime → we wait at end of loop (see below)
-                // - pass() sets error state → not needed for auto-pass (errors logged, don't block UI)
-                const { data: passResult, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
-                  body: {
-                    room_code: room?.code,
-                    player_id: playerToPass.user_id,
-                  }
-                });
-                
-                if (passError || !passResult?.success) {
-                  const errorMsg = passResult?.error || passError?.message || 'Unknown error';
-                  throw new Error(errorMsg);
-                }
-                
-                passedCount++;
-                turnOffset++; // Increment turn offset on success
-                networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
-                networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
-                
-                // Broadcast auto-pass event (non-blocking)
-                void broadcastMessage('auto_pass_executed', {
-                  player_index: currentTurnIndex,
-                }).catch((broadcastError) => {
-                  networkLogger.error('[Timer] Broadcast failed:', broadcastError);
-                });
-                
-                // If trick was cleared (3rd pass), we're done
-                if (passResult.trick_cleared) {
-                  networkLogger.info(`⏰ [Timer] 🎯 Trick cleared after 3 passes, stopping auto-pass`);
-                  break;
-                }
-                
-                // Delay between consecutive auto-passes for visual feedback and Realtime sync
-                // Note: Could be made configurable via settings if needed
-                const AUTO_PASS_DELAY_MS = 300;
-                // Check both attempt counter and passedCount to handle errors correctly
-                const hasRemainingAttempts = (attempt + 1 < maxPasses) && (passedCount < maxPasses);
-                if (hasRemainingAttempts) {
-                  await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
-                }
-                
-              } catch (error) {
-                const errorMsg = (error as Error).message || String(error);
-                
-                // "Not your turn" means server rejected - likely already passed or turn advanced
-                // Query fresh server state instead of calculating locally
-                // This prevents turnOffset from drifting and skipping players
-                if (errorMsg.includes('Not your turn')) {
-                  networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, querying fresh state...`);
-                  
-                  // Query server for actual current turn state
-                  try {
-                    const { data: freshState } = await supabase
-                      .from('game_state')
-                      .select('current_turn, auto_pass_timer')
-                      .eq('room_id', room?.id)
-                      .single();
-                    
-                    if (freshState) {
-                      // Calculate correct turnOffset based on actual server state
-                      // turnOffset = how many positions ahead the server's turn is from our expected turn
-                      const expectedTurn = (startingTurnIndex + attempt) % totalPlayers;
-                      const actualTurn = freshState.current_turn;
-                      if (expectedTurn !== actualTurn) {
-                        // Server turn has advanced - calculate offset
-                        turnOffset = (actualTurn - startingTurnIndex + totalPlayers) % totalPlayers - attempt;
-                        networkLogger.info(`⏰ [Timer] Synced with server: actualTurn=${actualTurn}, adjusted turnOffset=${turnOffset}`);
-                      }
-                      
-                      // Check if timer was cleared by another action
-                      if (!freshState.auto_pass_timer?.active) {
-                        networkLogger.info('⏰ [Timer] Timer no longer active on server, stopping execution');
-                        break;
-                      }
-                    }
-                  } catch (error) {
-                    // If we cannot query fresh state, do not speculate by adjusting turnOffset.
-                    // Abort the auto-pass loop to avoid drifting out of sync with the server.
-                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync', error);
-                    break;
-                  }
-                  continue;
-                }
-                
-                // Other errors are unexpected - log and break to prevent further issues
-                networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${currentTurnIndex}:`, errorMsg);
-                break; // Stop on unexpected error to prevent cascading failures
-              }
-            }
-            
-            networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${maxPasses} players passed`);
-            
-            // Delay for Realtime sync before clearing timer
-            networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
-            await new Promise(resolve => setTimeout(resolve, 250));
-            
-            // Clear timer if we passed any players
-            if (passedCount > 0) {
-              networkLogger.info('⏰ [Timer] Clearing timer state from database...');
-              try {
-                await supabase
-                  .from('game_state')
-                  .update({ auto_pass_timer: null })
-                  .eq('room_id', room?.id);
-                networkLogger.info('⏰ [Timer] ✅ Timer cleared from database');
-              } catch (error) {
-                networkLogger.error('[Timer] Failed to clear timer:', error);
-              }
-            } else {
-              networkLogger.info('⏰ [Timer] No passes executed, timer likely already cleared');
-            }
-            
-          } catch (error) {
-            networkLogger.error(`⏰ [Timer] ❌ Fatal error in auto-pass execution:`, error);
-          } finally {
-            // Always release lock by clearing timestamp (using ref now)
-            autoPassExecutionGuard.current = null;
-          }
-        };
-        
-        // Execute auto-pass immediately
-        void executeAutoPasses();
-      }
-    }, 100); // Check every 100ms
-    
-    // Cleanup interval on unmount or when timer changes
-    return () => {
-      if (activeTimerInterval.current) {
-        networkLogger.info('⏰ [DEBUG] Cleaning up timer polling interval on unmount');
-        clearInterval(activeTimerInterval.current);
-        activeTimerInterval.current = null;
-        currentTimerId.current = null;
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer, getCorrectedNow, and room?.code intentionally excluded: these are read inside the interval callback via ref-based patterns; including them would destroy/recreate the interval on every game state broadcast
-  }, [
-    gameState?.auto_pass_timer?.active,
-    gameState?.auto_pass_timer?.started_at,
-    gameState?.game_phase,
-    room?.id,
-    roomPlayers,
-    // NOTE: `pass` intentionally omitted — executeAutoPasses() calls invokeWithRetry
-    // directly, not pass(). Including `pass` caused the timer interval to be destroyed
-    // and recreated on every gameState change (since pass depends on gameState),
-    // resulting in massive log churn and potential race conditions.
-    broadcastMessage,
-  ]);
 
   // NOTE: Timer display is handled by AutoPassTimer component
   // It recalculates remaining_ms from started_at every render
