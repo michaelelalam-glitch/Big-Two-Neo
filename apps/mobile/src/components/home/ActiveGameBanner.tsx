@@ -17,6 +17,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
@@ -52,6 +53,8 @@ interface ActiveGameBannerProps {
   onReplaceBotAndRejoin?: (roomCode: string) => void;
   /** Timestamp when the user left the online game (for countdown) */
   disconnectTimestamp?: number | null;
+  /** Increment to force re-check of offline game state (e.g. after discard) */
+  refreshTrigger?: number;
 }
 
 export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
@@ -62,6 +65,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   onBotReplaced,
   onReplaceBotAndRejoin,
   disconnectTimestamp,
+  refreshTrigger,
 }) => {
   const [offlineGameInfo, setOfflineGameInfo] = useState<ActiveGameInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -92,9 +96,20 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     }
   }, []);
 
+  // Re-check offline game every time the screen gains focus
+  // (React Navigation keeps screens alive — useEffect only runs on mount)
+  useFocusEffect(
+    useCallback(() => {
+      checkOfflineGame();
+    }, [checkOfflineGame])
+  );
+
+  // Also re-check when parent increments refreshTrigger (e.g. after discard)
   useEffect(() => {
-    checkOfflineGame();
-  }, [checkOfflineGame]);
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      checkOfflineGame();
+    }
+  }, [refreshTrigger, checkOfflineGame]);
 
   // Calculate countdown for online games
   useEffect(() => {

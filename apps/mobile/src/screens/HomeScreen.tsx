@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   const [showFindGameModal, setShowFindGameModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
   
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
@@ -171,6 +172,7 @@ export default function HomeScreen() {
         onConfirm: async () => {
           try {
             await AsyncStorage.removeItem('@big2_game_state');
+            setBannerRefreshKey(k => k + 1);
             showSuccess('Offline game discarded');
           } catch {
             showError('Failed to discard game');
@@ -511,6 +513,7 @@ export default function HomeScreen() {
           onResume={handleBannerResume}
           onLeave={handleBannerLeave}
           onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+          refreshTrigger={bannerRefreshKey}
         />
         
         <View style={styles.buttonContainer}>
