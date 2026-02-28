@@ -144,6 +144,119 @@ describe('Game Logic - Additional Coverage Tests', () => {
     });
   });
 
+  describe('canBeatPlay - Straight ordering edge cases', () => {
+    test('5-high straight (A-2-3-4-5) CANNOT beat 7-high straight (3-4-5-6-7)', () => {
+      const fiveHighStraight: Card[] = [
+        { id: 'AD', rank: 'A', suit: 'D' },
+        { id: '2C', rank: '2', suit: 'C' },
+        { id: '3H', rank: '3', suit: 'H' },
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5S', rank: '5', suit: 'S' },
+      ];
+      const sevenHighStraight: LastPlay = {
+        position: 0,
+        cards: [
+          { id: '3C', rank: '3', suit: 'C' },
+          { id: '4C', rank: '4', suit: 'C' },
+          { id: '5C', rank: '5', suit: 'C' },
+          { id: '6C', rank: '6', suit: 'C' },
+          { id: '7S', rank: '7', suit: 'S' },
+        ],
+        combo_type: 'Straight',
+      };
+      expect(canBeatPlay(fiveHighStraight, sevenHighStraight)).toBe(false);
+    });
+
+    test('7-high straight (3-4-5-6-7) beats 5-high straight (A-2-3-4-5)', () => {
+      const sevenHighStraight: Card[] = [
+        { id: '3C', rank: '3', suit: 'C' },
+        { id: '4C', rank: '4', suit: 'C' },
+        { id: '5H', rank: '5', suit: 'H' },
+        { id: '6C', rank: '6', suit: 'C' },
+        { id: '7S', rank: '7', suit: 'S' },
+      ];
+      const fiveHighStraight: LastPlay = {
+        position: 0,
+        cards: [
+          { id: 'AD', rank: 'A', suit: 'D' },
+          { id: '2C', rank: '2', suit: 'C' },
+          { id: '3S', rank: '3', suit: 'S' },
+          { id: '4H', rank: '4', suit: 'H' },
+          { id: '5D', rank: '5', suit: 'D' },
+        ],
+        combo_type: 'Straight',
+      };
+      expect(canBeatPlay(sevenHighStraight, fiveHighStraight)).toBe(true);
+    });
+
+    test('6-high straight (2-3-4-5-6) beats 5-high straight (A-2-3-4-5)', () => {
+      const sixHighStraight: Card[] = [
+        { id: '2C', rank: '2', suit: 'C' },
+        { id: '3H', rank: '3', suit: 'H' },
+        { id: '4C', rank: '4', suit: 'C' },
+        { id: '5D', rank: '5', suit: 'D' },
+        { id: '6S', rank: '6', suit: 'S' },
+      ];
+      const fiveHighStraight: LastPlay = {
+        position: 0,
+        cards: [
+          { id: 'AD', rank: 'A', suit: 'D' },
+          { id: '2H', rank: '2', suit: 'H' },
+          { id: '3D', rank: '3', suit: 'D' },
+          { id: '4S', rank: '4', suit: 'S' },
+          { id: '5S', rank: '5', suit: 'S' },
+        ],
+        combo_type: 'Straight',
+      };
+      expect(canBeatPlay(sixHighStraight, fiveHighStraight)).toBe(true);
+    });
+
+    test('A-high straight (10-J-Q-K-A) beats all other straights', () => {
+      const aceHighStraight: Card[] = [
+        { id: '10S', rank: '10', suit: 'S' },
+        { id: 'JH', rank: 'J', suit: 'H' },
+        { id: 'QD', rank: 'Q', suit: 'D' },
+        { id: 'KC', rank: 'K', suit: 'C' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+      ];
+      const kingHighStraight: LastPlay = {
+        position: 0,
+        cards: [
+          { id: '9D', rank: '9', suit: 'D' },
+          { id: '10C', rank: '10', suit: 'C' },
+          { id: 'JD', rank: 'J', suit: 'D' },
+          { id: 'QH', rank: 'Q', suit: 'H' },
+          { id: 'KS', rank: 'K', suit: 'S' },
+        ],
+        combo_type: 'Straight',
+      };
+      expect(canBeatPlay(aceHighStraight, kingHighStraight)).toBe(true);
+    });
+
+    test('same-rank straight with higher top suit wins', () => {
+      const straightSpades: Card[] = [
+        { id: '3D', rank: '3', suit: 'D' },
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5D', rank: '5', suit: 'D' },
+        { id: '6D', rank: '6', suit: 'D' },
+        { id: '7S', rank: '7', suit: 'S' },
+      ];
+      const straightHearts: LastPlay = {
+        position: 0,
+        cards: [
+          { id: '3C', rank: '3', suit: 'C' },
+          { id: '4C', rank: '4', suit: 'C' },
+          { id: '5C', rank: '5', suit: 'C' },
+          { id: '6C', rank: '6', suit: 'C' },
+          { id: '7H', rank: '7', suit: 'H' },
+        ],
+        combo_type: 'Straight',
+      };
+      // 7♠ beats 7♥ (Spades > Hearts)
+      expect(canBeatPlay(straightSpades, straightHearts)).toBe(true);
+    });
+  });
+
   describe('findRecommendedPlay - comprehensive coverage', () => {
     test('finds pair when following pair', () => {
       const hand: Card[] = [

@@ -286,6 +286,28 @@ function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolean {
     return RANK_VALUE[newQuadRank] > RANK_VALUE[lastQuadRank];
   }
   
+  // For Straight and Straight Flush, compare by sequence position
+  // (A-2-3-4-5 is lowest, 10-J-Q-K-A is highest)
+  // Cannot compare by highest card rank because 2 has RANK_VALUE=12
+  // which would incorrectly make A-2-3-4-5 the strongest straight
+  if (newCombo === 'Straight' || newCombo === 'Straight Flush') {
+    const newSeqIdx = findStraightSequenceIndex(newSorted.map((c: Card) => c.rank));
+    const lastSeqIdx = findStraightSequenceIndex(lastSorted.map((c: Card) => c.rank));
+    if (newSeqIdx !== -1 && lastSeqIdx !== -1) {
+      if (newSeqIdx !== lastSeqIdx) {
+        return newSeqIdx > lastSeqIdx;
+      }
+      // Same sequence — tiebreak by top card suit
+      const topRank = VALID_STRAIGHT_SEQUENCES[newSeqIdx][4];
+      const newTopCard = newCards.find((c: Card) => c.rank === topRank);
+      const lastTopCard = lastPlay.cards.find((c: Card) => c.rank === topRank);
+      if (newTopCard && lastTopCard) {
+        return SUIT_VALUE[newTopCard.suit] > SUIT_VALUE[lastTopCard.suit];
+      }
+    }
+  }
+  
+  // For other combos (Single, Pair, Triple, Flush), compare highest card
   const newHighest = newSorted[newSorted.length - 1];
   const lastHighest = lastSorted[lastSorted.length - 1];
   
