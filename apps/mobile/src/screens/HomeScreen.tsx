@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { ActiveGameBanner, ActiveGameInfo } from '../components/home/ActiveGameBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { i18n } from '../i18n';
@@ -20,6 +22,8 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
+  const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   const [showFindGameModal, setShowFindGameModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   
@@ -69,8 +73,15 @@ export default function HomeScreen() {
       const roomData = data as RoomPlayerWithRoom | null;
       if (roomData?.rooms?.code) {
         setCurrentRoom(roomData.rooms.code);
+        setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
+        // Track disconnect time for countdown (only set once when we detect an active playing room)
+        if (roomData.rooms.status === 'playing' && !disconnectTimestamp) {
+          setDisconnectTimestamp(Date.now());
+        }
       } else {
         setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
       }
     } catch (error: unknown) {
       roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
@@ -134,6 +145,48 @@ export default function HomeScreen() {
       }
     });
   };
+
+  // ── Active Game Banner handlers ──
+  const handleBannerResume = useCallback((gameInfo: ActiveGameInfo) => {
+    if (gameInfo.type === 'online') {
+      // Navigate to the existing online room
+      navigation.replace('Lobby', { roomCode: gameInfo.roomCode });
+    } else {
+      // Resume offline game (don't force new game)
+      navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
+    }
+  }, [navigation]);
+
+  const handleBannerLeave = useCallback((gameInfo: ActiveGameInfo) => {
+    if (gameInfo.type === 'online') {
+      handleLeaveCurrentRoom();
+    } else {
+      // Discard offline game
+      showConfirm({
+        title: 'Discard Game?',
+        message: 'Your offline game progress will be lost.',
+        confirmText: 'Discard',
+        cancelText: 'Cancel',
+        destructive: true,
+        onConfirm: async () => {
+          try {
+            await AsyncStorage.removeItem('@big2_game_state');
+            showSuccess('Offline game discarded');
+          } catch {
+            showError('Failed to discard game');
+          }
+        },
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleLeaveCurrentRoom]);
+
+  const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {
+    // Navigate back to the room - the server-side logic will handle bot → player swap
+    roomLogger.info(`🔄 Replacing bot and rejoining room: ${roomCode}`);
+    setDisconnectTimestamp(null);
+    navigation.replace('Lobby', { roomCode });
+  }, [navigation]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
@@ -450,17 +503,15 @@ export default function HomeScreen() {
         <Text style={styles.title}>{i18n.t('home.title')}</Text>
         <Text style={styles.subtitle}>{i18n.t('home.welcome')}, {profile?.username || user?.email || 'Player'}!</Text>
         
-        {currentRoom && (
-          <View style={styles.currentRoomBanner}>
-            <Text style={styles.currentRoomText}>📍 {i18n.t('home.currentRoom')}: {currentRoom}</Text>
-            <TouchableOpacity
-              style={styles.leaveRoomButton}
-              onPress={handleLeaveCurrentRoom}
-            >
-              <Text style={styles.leaveRoomButtonText}>{i18n.t('home.leave')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Active Game Banner - shows for both offline and online open games */}
+        <ActiveGameBanner
+          onlineRoomCode={currentRoom}
+          onlineRoomStatus={currentRoomStatus}
+          disconnectTimestamp={disconnectTimestamp}
+          onResume={handleBannerResume}
+          onLeave={handleBannerLeave}
+          onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+        />
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity
