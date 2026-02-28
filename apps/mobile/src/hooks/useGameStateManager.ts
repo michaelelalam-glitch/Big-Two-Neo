@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
 import { i18n } from '../i18n';
 import { soundManager, SoundType, showError, showInfo } from '../utils';
@@ -8,6 +9,8 @@ import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 
+const SCORE_HISTORY_KEY = '@big2_score_history';
+
 interface UseGameStateManagerProps {
   roomCode: string;
   currentPlayerName: string;
@@ -15,6 +18,7 @@ interface UseGameStateManagerProps {
   isLocalGame?: boolean; // NEW: Only initialize game engine for local games
   botDifficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty for local games (Task #596)
   addScoreHistory: (history: ScoreHistory) => void;
+  restoreScoreHistory: (history: ScoreHistory[]) => void;
   openGameEndModal: (
     winnerName: string,
     winnerPosition: number,
@@ -54,6 +58,7 @@ export function useGameStateManager({
   isLocalGame = true, // Default true for backwards compatibility
   botDifficulty = 'medium', // Default medium for backwards compatibility (Task #596)
   addScoreHistory,
+  restoreScoreHistory,
   openGameEndModal,
   scoreHistory,
   playHistoryByMatch,
@@ -116,6 +121,8 @@ export function useGameStateManager({
         if (forceNewGame) {
           gameLogger.info('🧹 [useGameStateManager] Clearing saved game state (forceNewGame=true)...');
           await manager.clearState();
+          // Also clear persisted scoreHistory
+          await AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch(() => {});
           gameLogger.info('✅ [useGameStateManager] Saved state cleared - starting fresh game');
         }
 
@@ -128,13 +135,35 @@ export function useGameStateManager({
           setGameState(savedState);
           setIsInitializing(false);
           
-          // 🔥 CRITICAL FIX: Reconstruct scoreHistory from persisted matchScores
-          // On rejoin, ScoreboardContext starts with empty scoreHistory.
-          // We rebuild it from savedState.matchScores which persists per-match scores.
-          if (savedState.matchScores && savedState.matchScores.length > 0) {
-            const numCompletedMatches = savedState.currentMatch - 1;
-            gameLogger.info(`📊 [useGameStateManager] Reconstructing ${numCompletedMatches} score history entries from saved state`);
+          // 🔥 FIX: Restore scoreHistory from AsyncStorage (primary mechanism).
+          // The old reconstruction from matchScores was fragile and had edge cases.
+          // Now we persist scoreHistory to a separate key whenever it changes
+          // and restore it directly on rejoin.
+          let scoreRestored = false;
+          try {
+            const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
+            if (persistedHistory) {
+              const parsed: ScoreHistory[] = JSON.parse(persistedHistory);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                gameLogger.info(`📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`);
+                restoreScoreHistory(parsed);
+                scoreRestored = true;
+              }
+            }
+          } catch (err) {
+            gameLogger.error('[useGameStateManager] Failed to load persisted scoreHistory:', err instanceof Error ? err.message : String(err));
+          }
+
+          // Fallback: Reconstruct scoreHistory from persisted matchScores
+          // (handles case where scoreHistory key was cleared but game state survived)
+          if (!scoreRestored && savedState.matchScores && savedState.matchScores.length > 0) {
+            // If gameEnded is true, the current match has ALSO completed — include it
+            const numCompletedMatches = savedState.gameEnded && !savedState.gameOver
+              ? savedState.currentMatch
+              : savedState.currentMatch - 1;
+            gameLogger.info(`📊 [useGameStateManager] Fallback: Reconstructing ${numCompletedMatches} score history entries from matchScores`);
             
+            const reconstructed: ScoreHistory[] = [];
             for (let matchIdx = 0; matchIdx < numCompletedMatches; matchIdx++) {
               const pointsAdded: number[] = new Array(savedState.players.length).fill(0);
               const cumulativeScores: number[] = new Array(savedState.players.length).fill(0);
@@ -152,16 +181,25 @@ export function useGameStateManager({
                 }
               });
               
-              const reconstructedHistory: ScoreHistory = {
+              reconstructed.push({
                 matchNumber: matchIdx + 1,
                 pointsAdded,
                 scores: cumulativeScores,
                 timestamp: new Date().toISOString(),
-              };
-              
-              addScoreHistory(reconstructedHistory);
-              gameLogger.info(`📊 [Score History] Reconstructed match ${matchIdx + 1}:`, reconstructedHistory);
+              });
+              gameLogger.info(`📊 [Score History] Reconstructed match ${matchIdx + 1}:`, { pointsAdded, scores: cumulativeScores });
             }
+            
+            if (reconstructed.length > 0) {
+              restoreScoreHistory(reconstructed);
+            }
+          }
+
+          // 🔥 FIX: If the saved state has gameEnded=true (user left during the
+          // inter-match window), auto-start the next match now.
+          if (savedState.gameEnded && !savedState.gameOver) {
+            gameLogger.info('🔄 [useGameStateManager] Saved state has gameEnded=true, auto-starting next match...');
+            // We need to subscribe FIRST so the startNewMatch notifyListeners triggers the subscriber
           }
 
           // Play notification sound
@@ -325,6 +363,30 @@ export function useGameStateManager({
 
         // Capture unsubscribe for synchronous cleanup
         unsubscribeFn = unsubscribe;
+
+        // 🔥 FIX: Handle edge cases after subscriber is registered
+        if (savedState) {
+          // Case 1: User left during inter-match window (gameEnded=true, !gameOver)
+          // Auto-start the next match now that subscriber is listening
+          if (savedState.gameEnded && !savedState.gameOver) {
+            gameLogger.info('🔄 [useGameStateManager] Auto-starting next match (saved state had gameEnded=true)...');
+            autoStartMatchTimeoutRef.current = setTimeout(async () => {
+              const result = await manager.startNewMatch();
+              if (result.success) {
+                gameLogger.info('✅ [useGameStateManager] Next match started after rejoin');
+              } else {
+                gameLogger.error('❌ [useGameStateManager] Failed to start next match after rejoin:', result.error);
+              }
+              autoStartMatchTimeoutRef.current = null;
+            }, 500);
+          } else if (!savedState.gameEnded && !savedState.gameOver) {
+            // Case 2: Normal rejoin mid-match — trigger bot turn check
+            // The subscriber only fires on notifyListeners(), but loadState() already
+            // called notifyListeners() before the subscriber was registered.
+            // We need to manually kick off the bot turn loop.
+            setTimeout(() => checkAndExecuteBotTurn(), 200);
+          }
+        }
 
         // Only initialize NEW game if no saved state was loaded
         if (!savedState) {

@@ -289,6 +289,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.lg,

@@ -57,6 +57,7 @@ function GameScreenContent() {
   const { 
     addScoreHistory, 
     addPlayHistory,
+    restoreScoreHistory,
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
@@ -114,6 +115,7 @@ function GameScreenContent() {
     isLocalGame: isLocalAIGame, // CRITICAL: Only init for local games, not multiplayer!
     botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
+    restoreScoreHistory,
     openGameEndModal: (winnerName: string, winnerPosition: number, finalScores: FinalScore[], playerNames: string[], scoreHistory: ScoreHistory[], playHistory: PlayHistoryMatch[]) => {
       openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, scoreHistory, playHistory);
     },
