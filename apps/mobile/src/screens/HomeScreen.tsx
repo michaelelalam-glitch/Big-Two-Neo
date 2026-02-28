@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -87,7 +87,7 @@ export default function HomeScreen() {
     } catch (error: unknown) {
       roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
     }
-  }, [user]);
+  }, [user, disconnectTimestamp]);
 
   // Check current room on screen focus
   useFocusEffect(
@@ -210,7 +210,7 @@ export default function HomeScreen() {
     });
   };
 
-  const handleLeaveCurrentRoom = async () => {
+  const handleLeaveCurrentRoom = useCallback(async () => {
     if (!user || !currentRoom) return;
 
     showConfirm({
@@ -244,7 +244,7 @@ export default function HomeScreen() {
         }
       }
     });
-  };
+  }, [user, currentRoom, checkCurrentRoom]);
 
   // ── Active Game Banner handlers ──
   const handleBannerResume = useCallback((gameInfo: ActiveGameInfo) => {
@@ -279,7 +279,6 @@ export default function HomeScreen() {
         },
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleLeaveCurrentRoom]);
 
   const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {

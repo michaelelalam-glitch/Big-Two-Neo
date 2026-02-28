@@ -7,7 +7,6 @@ import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, G
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ScoreboardContainer } from '../components/scoreboard';
-import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
@@ -369,7 +368,6 @@ function GameScreenContent() {
   // MULTIPLAYER UI DERIVED STATE (extracted to useMultiplayerLayout)
   // -------------------------------
   const {
-    multiplayerSeatIndex,
     multiplayerPlayerHand,
     multiplayerLastPlay,
     multiplayerLastPlayedCards,

@@ -15,7 +15,7 @@
  * `auto_pass_timer.triggering_play.position`).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import type { GameState, Player, AutoPassTimerState, BroadcastEvent, BroadcastData } from '../types/multiplayer';
 import type { PlayerPassResponse } from '../types/realtimeTypes';

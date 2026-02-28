@@ -14,8 +14,8 @@ import React from 'react';
 
 import type { AutoPassTimerState, GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { GameState as LocalGameState } from '../game/state';
-import type { LayoutPlayer } from './useMultiplayerLayout';
 import type { ScoreHistory } from '../types/scoreboard';
+import type { LayoutPlayer } from './useMultiplayerLayout';
 
 /** Common display properties shared between local (PlayerInfo) and multiplayer (LayoutPlayer) */
 interface DisplayPlayer {
