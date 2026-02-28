@@ -48,6 +48,9 @@ function generateRoomCode(): string {
   return code;
 }
 
+/** Max attempts to insert a room before giving up on code collision */
+const MAX_ROOM_CREATE_ATTEMPTS = 3;
+
 export function useRoomLobby({
   userId,
   username,
@@ -75,20 +78,40 @@ export function useRoomLobby({
     setError(null);
 
     try {
-      const code = generateRoomCode();
+      // Retry with fresh codes on unique-constraint collision (rooms_code_unique).
+      let newRoom: Room | null = null;
+      for (let attempt = 0; attempt < MAX_ROOM_CREATE_ATTEMPTS; attempt++) {
+        const code = generateRoomCode();
 
-      const { data: newRoom, error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          code,
-          host_id: userId,
-          status: 'waiting',
-          max_players: 4,
-        })
-        .select()
-        .single();
+        const { data, error: roomError } = await supabase
+          .from('rooms')
+          .insert({
+            code,
+            host_id: userId,
+            status: 'waiting',
+            max_players: 4,
+          })
+          .select()
+          .single();
 
-      if (roomError) throw roomError;
+        if (roomError) {
+          // 23505 = unique_violation — retry with a new code
+          const isUniqueViolation =
+            roomError.code === '23505' || roomError.message?.includes('duplicate');
+          if (isUniqueViolation && attempt < MAX_ROOM_CREATE_ATTEMPTS - 1) {
+            networkLogger.warn(
+              `[useRoomLobby] Room code collision (attempt ${attempt + 1}/${MAX_ROOM_CREATE_ATTEMPTS}), retrying`,
+            );
+            continue;
+          }
+          throw roomError;
+        }
+
+        newRoom = data as Room;
+        break;
+      }
+
+      if (!newRoom) throw new Error('Failed to create room after max attempts');
 
       const { error: playerError } = await supabase
         .from('room_players')
