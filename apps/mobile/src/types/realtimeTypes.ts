@@ -51,10 +51,9 @@ export interface UseRealtimeOptions {
 
 /**
  * Per-player score breakdown returned by multiplayer Edge Functions.
- * Extends the shared MatchScoreDetail from multiplayer.ts.
+ * Re-exported from the shared MatchScoreDetail in multiplayer.ts.
  *
  * NOTE: This is distinct from `PlayerMatchScoreDetail` in `game/types/index.ts`,
  * which is used for local (offline) game scoring.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface -- Re-export with distinct name for backward compatibility
-export interface MultiplayerMatchScoreDetail extends MatchScoreDetail {}
+export type MultiplayerMatchScoreDetail = MatchScoreDetail;
