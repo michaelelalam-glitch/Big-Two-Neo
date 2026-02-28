@@ -23,7 +23,6 @@ tags:
 - extendedWaitUntil:
     visible: "How to Play"
     timeout: 10000
-    optional: true
 
 # Step 3: Take screenshot
 - takeScreenshot: "08_how_to_play"
@@ -39,7 +38,6 @@ tags:
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 10000
-    optional: true
 
 # Step 6: Take screenshot
 - takeScreenshot: "08_settings"

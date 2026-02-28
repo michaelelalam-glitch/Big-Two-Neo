@@ -2,8 +2,9 @@
 # Validates: After auth, user sees game selection with Chinese Poker and Lebanese Deal
 # Tags: smoke, navigation
 #
-# Prerequisites: User must be authenticated (requires pre-seeded auth state
-# or manual sign-in). This flow uses runFlow to chain from auth.
+# Prerequisites: User must already be authenticated (for example, via pre-seeded
+# auth state or a prior auth flow). This flow starts from an authenticated session
+# and launches the app directly.
 
 appId: com.big2mobile.app
 tags:

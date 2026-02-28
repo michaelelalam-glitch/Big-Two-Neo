@@ -220,6 +220,8 @@ jobs:
           xcrun simctl boot "$DEVICE_ID" || true
           # Wait for simulator to be ready
           xcrun simctl bootstatus "$DEVICE_ID" -b
+          # Export DEVICE_ID for subsequent steps
+          echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       
       - name: 📦 Install dependencies
         run: |
@@ -235,7 +237,7 @@ jobs:
             -scheme big2mobile \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,id=${{ env.DEVICE_ID }}' \
             -derivedDataPath build \
             build \
             CODE_SIGNING_ALLOWED=NO \

@@ -39,7 +39,6 @@ tags:
 - extendedWaitUntil:
     visible: "Profile"
     timeout: 10000
-    optional: true
 
 # Step 6: Take screenshot of profile
 - takeScreenshot: "07_profile"

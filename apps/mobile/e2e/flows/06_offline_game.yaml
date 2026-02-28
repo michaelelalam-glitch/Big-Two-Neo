@@ -12,13 +12,7 @@ tags:
   - game
   - critical-path
 ---
-# Step 1: Launch and navigate to Home
-- launchApp:
-    clearState: true
-# Note: clearState will log user out. If testing with auth, remove clearState
-# and ensure the user has a valid session.
-
-# For authenticated flow, skip clearState:
+# Step 1: Launch and navigate to Home (authenticated session assumed)
 - launchApp
 - extendedWaitUntil:
     visible: "Choose a game to play"
@@ -37,18 +31,10 @@ tags:
     timeout: 5000
 - tapOn: "Easy"
 
-# Step 4: Verify game screen loads
-- extendedWaitUntil:
-    visible:
-      id: "play-button"
-    timeout: 20000
-    optional: true
-
-# Alternative: Wait for any game-related text
+# Step 4: Verify game screen loads (non-optional — must fail if game doesn't start)
 - extendedWaitUntil:
     visible: "Pass"
     timeout: 20000
-    optional: true
 
 # Step 5: Take screenshot of game board
 - takeScreenshot: "06_game_board_initial"
@@ -56,11 +42,7 @@ tags:
 # Step 6: Verify game controls are visible
 # The game screen should show Play and Pass buttons
 - assertVisible:
-    id: "play-button"
-    optional: true
-- assertVisible:
     id: "pass-button"
-    optional: true
 
 # Step 7: Take final screenshot
 - takeScreenshot: "06_game_in_progress"
