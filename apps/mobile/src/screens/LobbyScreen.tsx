@@ -177,17 +177,27 @@ export default function LobbyScreen() {
         if (firstHuman && firstHuman.user_id === user.id) {
           roomLogger.info('[LobbyScreen] 👑 No active host found — promoting current user as host');
           // Update server: room_players.is_host and rooms.host_id
-          await supabase
+          const { error: playerUpdateError } = await supabase
             .from('room_players')
             .update({ is_host: true })
             .eq('room_id', currentRoomId)
             .eq('user_id', user.id);
-          await supabase
+          if (playerUpdateError) {
+            roomLogger.error('[LobbyScreen] ❌ Failed to update room_players.is_host:', playerUpdateError.message);
+          }
+          const { error: roomUpdateError } = await supabase
             .from('rooms')
             .update({ host_id: user.id })
             .eq('id', currentRoomId);
-          // Update local state
-          firstHuman.is_host = true;
+          if (roomUpdateError) {
+            roomLogger.error('[LobbyScreen] ❌ Failed to update rooms.host_id:', roomUpdateError.message);
+          }
+          if (!playerUpdateError && !roomUpdateError) {
+            // Update local state only on success
+            firstHuman.is_host = true;
+          } else {
+            roomLogger.warn('[LobbyScreen] ⚠️ Host reassignment partially failed — local state not updated');
+          }
         }
       }
 

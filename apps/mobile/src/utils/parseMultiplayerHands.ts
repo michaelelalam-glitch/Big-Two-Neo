@@ -36,9 +36,18 @@ export function parseMultiplayerHands(
 
     // Map cards with index tracking for better error reporting
     const parseResults = handData.map((card: ParsedCard | string, index: number) => {
-      // If card is already an object with id/rank/suit, return as-is
+      // If card is already an object with id/rank/suit, validate shape and return
       if (typeof card === 'object' && card !== null && 'id' in card && 'rank' in card && 'suit' in card) {
-        return { index, raw: card, parsed: card as ParsedCard };
+        const obj = card as unknown as Record<string, unknown>;
+        if (
+          typeof obj.id === 'string' && obj.id.length > 0 &&
+          typeof obj.rank === 'string' && obj.rank.length > 0 &&
+          typeof obj.suit === 'string' && obj.suit.length > 0
+        ) {
+          return { index, raw: card, parsed: card as ParsedCard };
+        }
+        gameLogger.error('[parseMultiplayerHands] 🚨 Object has id/rank/suit keys but invalid values:', { card });
+        return { index, raw: card, parsed: null };
       }
 
       // If card is a string, parse it into object format
@@ -68,7 +77,17 @@ export function parseMultiplayerHands(
                 break;
               }
             } else if (typeof parsed === 'object' && parsed !== null) {
-              return { index, raw: card, parsed: parsed as ParsedCard };
+              // Validate parsed object has non-empty string id/rank/suit
+              const obj = parsed as Record<string, unknown>;
+              if (
+                typeof obj.id === 'string' && obj.id.length > 0 &&
+                typeof obj.rank === 'string' && obj.rank.length > 0 &&
+                typeof obj.suit === 'string' && obj.suit.length > 0
+              ) {
+                return { index, raw: card, parsed: parsed as ParsedCard };
+              }
+              gameLogger.error('[parseMultiplayerHands] 🚨 JSON-parsed object missing valid id/rank/suit:', { card, parsed });
+              return { index, raw: card, parsed: null };
             } else {
               break;
             }

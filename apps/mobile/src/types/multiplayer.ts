@@ -89,9 +89,14 @@ export interface PlayHistoryEntry {
 }
 
 export interface LastPlay {
-  position: number;
+  /** @deprecated Use `player_index` — kept for backward compatibility with `triggering_play` */
+  position?: number;
+  /** Seat index of the player who made this play (0-indexed). Written by Edge Function + SQL RPC. */
+  player_index?: number;
   cards: Card[];
   combo_type: ComboType;
+  /** Epoch-ms timestamp set by the Edge Function. */
+  timestamp?: number;
 }
 
 export interface Card {

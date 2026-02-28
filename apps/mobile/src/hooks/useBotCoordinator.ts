@@ -191,7 +191,8 @@ export function useBotCoordinator({
       });
       
       const lastPlay = gameState.last_play ? {
-        position: gameState.last_play.position,
+        position: gameState.last_play.player_index ?? gameState.last_play.position,
+        player_index: gameState.last_play.player_index ?? gameState.last_play.position,
         cards: gameState.last_play.cards,
         combo_type: gameState.last_play.combo_type,
       } : null;

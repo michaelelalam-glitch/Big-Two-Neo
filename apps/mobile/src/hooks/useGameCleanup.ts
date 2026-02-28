@@ -48,7 +48,7 @@ export function useGameCleanup({
     let isDeliberateLeave = false;
 
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
+    const unsubscribe = navigation.addListener('beforeRemove', async (e: { data: { action: { type: string } }; preventDefault: () => void }) => {
       const actionType = e?.data?.action?.type;
       if (
         typeof actionType === 'string' &&
