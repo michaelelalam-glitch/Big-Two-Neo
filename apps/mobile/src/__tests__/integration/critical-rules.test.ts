@@ -47,6 +47,10 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
   let testUserId: string;
   let testPlayerIds: string[];
 
+  // Auth user IDs created via Admin API — reused across tests to satisfy FK
+  // constraints on rooms.host_id and room_players.user_id.
+  const authUserIds: string[] = [];
+
   beforeAll(async () => {
     if (!SUPABASE_ANON_KEY) {
       throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY not set in environment');
@@ -58,14 +62,38 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
     }
     // Use service role key so inserts bypass RLS (test data, not production users)
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Create a pool of test auth users (1 host + 3 bots).
+    // Required because rooms.host_id and room_players.user_id have FK
+    // constraints referencing auth.users.
+    for (let i = 0; i < 4; i++) {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: `test-critical-${i}-${Date.now()}@integration-test.local`,
+        password: `pwd-${randomUUID()}`,
+        email_confirm: true,
+      });
+      if (error || !data.user) {
+        throw new Error(`Failed to create test auth user ${i}: ${error?.message}`);
+      }
+      authUserIds.push(data.user.id);
+    }
+  });
+
+  afterAll(async () => {
+    // Delete auth users created for this test suite
+    for (const userId of authUserIds) {
+      await supabase.auth.admin.deleteUser(userId).catch(() => {
+        // Best-effort cleanup — don't fail tests if auth user deletion fails
+      });
+    }
   });
 
   beforeEach(async () => {
     // Create a test room and game state
     testRoomCode = `TEST${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
-    // Use proper UUIDs — Supabase host_id/user_id columns are UUID type
-    testUserId = randomUUID();
+    // Use auth user IDs from the pool — required for FK constraints
+    testUserId = authUserIds[0];
     
     // Create room
     const { data: room, error: roomError } = await supabase
@@ -84,12 +112,12 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
     }
     testRoomId = room.id;
 
-    // Create 4 players (1 human, 3 bots)
+    // Create 4 players (1 human, 3 bots) using auth user pool
     const players = [
-      { room_id: testRoomId, user_id: testUserId, username: 'TestPlayer', player_index: 0, is_bot: false },
-      { room_id: testRoomId, user_id: randomUUID(), username: 'Bot 1', player_index: 1, is_bot: true },
-      { room_id: testRoomId, user_id: randomUUID(), username: 'Bot 2', player_index: 2, is_bot: true },
-      { room_id: testRoomId, user_id: randomUUID(), username: 'Bot 3', player_index: 3, is_bot: true },
+      { room_id: testRoomId, user_id: authUserIds[0], username: 'TestPlayer', player_index: 0, is_bot: false },
+      { room_id: testRoomId, user_id: authUserIds[1], username: 'Bot 1', player_index: 1, is_bot: true },
+      { room_id: testRoomId, user_id: authUserIds[2], username: 'Bot 2', player_index: 2, is_bot: true },
+      { room_id: testRoomId, user_id: authUserIds[3], username: 'Bot 3', player_index: 3, is_bot: true },
     ];
 
     const { data: createdPlayers, error: playersError } = await supabase
