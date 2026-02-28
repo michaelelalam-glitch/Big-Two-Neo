@@ -19,6 +19,7 @@ import {
   PlayHistoryMatch,
 } from '../types/gameEnd';
 import type { ScoreHistory as ScoreboardScoreHistory, PlayHistoryMatch as ScoreboardPlayHistory } from '../types/scoreboard';
+import { gameLogger } from '../utils/logger';
 
 // ============================================================================
 // CONTEXT STATE INTERFACE
@@ -156,7 +157,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
     scoreHist: ScoreHistory[] | ScoreboardScoreHistory[],
     playHist: PlayHistoryMatch[] | ScoreboardPlayHistory[]
   ) => {
-    console.log('🔍 [GameEndContext] openGameEndModal called with:', {
+    gameLogger.info('🔍 [GameEndContext] openGameEndModal called with:', {
       winnerName,
       winnerIndex,
       scoresCount: scores.length,
@@ -183,7 +184,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
     setPlayHistory(playHist as PlayHistoryMatch[]);
     setShowGameEndModal(true);
     
-    console.log('✅ [GameEndContext] State updated, modal opening with valid data');
+    gameLogger.info('✅ [GameEndContext] State updated, modal opening with valid data');
   }, []);
 
   // -------------------------------------------------------------------------

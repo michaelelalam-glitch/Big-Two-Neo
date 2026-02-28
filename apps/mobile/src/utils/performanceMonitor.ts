@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { uiLogger } from './logger';
 
 export interface RenderMetrics {
   componentName: string;
@@ -13,7 +14,7 @@ export interface RenderMetrics {
   baseDuration: number; // Estimated time without memoization
   startTime: number;
   commitTime: number;
-  interactions: Set<any>;
+  interactions: Set<unknown>;
 }
 
 export interface PerformanceReport {
@@ -47,7 +48,7 @@ class PerformanceMonitor {
     baseDuration: number,
     startTime: number,
     commitTime: number,
-    interactions: Set<any>
+    interactions: Set<unknown>
   ): void {
     if (!this.enabled) return;
 
@@ -70,7 +71,7 @@ class PerformanceMonitor {
     // Made configurable instead of commented out
     if (this.logSlowRenders && actualDuration > this.FRAME_BUDGET) {
       const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
-      console.warn(
+      uiLogger.warn(
         `${severity} Slow render detected: ${id} (${phase})`,
         `\n  Duration: ${actualDuration.toFixed(2)}ms`,
         `\n  Base: ${baseDuration.toFixed(2)}ms`,
@@ -122,29 +123,29 @@ class PerformanceMonitor {
 
     const reports = this.getAllReports();
     if (reports.length === 0) {
-      console.log('📊 No performance data collected');
+      uiLogger.info('📊 No performance data collected');
       return;
     }
 
-    console.log('\n📊 Performance Summary');
-    console.log('━'.repeat(70));
-    console.log(
+    uiLogger.info('\n📊 Performance Summary');
+    uiLogger.info('━'.repeat(70));
+    uiLogger.info(
       `${'Component'.padEnd(30)} ${'Avg (ms)'.padStart(10)} ${'Max (ms)'.padStart(10)} ${'Slow'.padStart(8)} ${'Drops'.padStart(8)}`
     );
-    console.log('━'.repeat(70));
+    uiLogger.info('━'.repeat(70));
 
     reports.forEach((r) => {
       const avgIcon = r.avgRenderTime > this.FRAME_BUDGET ? '🟡' : '🟢';
       const maxIcon = r.maxRenderTime > this.FRAME_DROP_THRESHOLD ? '🔴' : r.maxRenderTime > this.FRAME_BUDGET ? '🟡' : '🟢';
       
-      console.log(
+      uiLogger.info(
         `${r.component.padEnd(30)} ${avgIcon} ${r.avgRenderTime.toFixed(2).padStart(8)} ${maxIcon} ${r.maxRenderTime.toFixed(2).padStart(8)} ${r.slowRenders.toString().padStart(8)} ${r.frameDrops.toString().padStart(8)}`
       );
     });
 
-    console.log('━'.repeat(70));
-    console.log(`Legend: 🟢 Good (<${this.FRAME_BUDGET}ms) | 🟡 Slow (>${this.FRAME_BUDGET}ms) | 🔴 Frame Drop (>${this.FRAME_DROP_THRESHOLD}ms)`);
-    console.log('\n');
+    uiLogger.info('━'.repeat(70));
+    uiLogger.info(`Legend: 🟢 Good (<${this.FRAME_BUDGET}ms) | 🟡 Slow (>${this.FRAME_BUDGET}ms) | 🔴 Frame Drop (>${this.FRAME_DROP_THRESHOLD}ms)`);
+    uiLogger.info('\n');
   }
 
   /**
@@ -180,11 +181,11 @@ export const useRenderCount = (componentName: string): void => {
   React.useEffect(() => {
     if (!__DEV__) return;
     renderCount.current += 1;
-    console.log(`🔄 ${componentName} render #${renderCount.current}`);
+    uiLogger.debug(`🔄 ${componentName} render #${renderCount.current}`);
   });
 };
 
 // Export for development console access
 if (__DEV__) {
-  (globalThis as any).performanceMonitor = performanceMonitor;
+  (globalThis as Record<string, unknown>).performanceMonitor = performanceMonitor;
 }

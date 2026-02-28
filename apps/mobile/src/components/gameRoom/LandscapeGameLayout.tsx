@@ -15,18 +15,16 @@
 import React from 'react';
 import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LandscapeControlBar as _LandscapeControlBar } from './LandscapeControlBar';
-import { LandscapeOpponent } from './LandscapeOpponent';
-import { LandscapeOvalTable } from './LandscapeOvalTable';
-import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
-import { LandscapeYourPosition } from './LandscapeYourPosition';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
-import { gameLogger as _gameLogger } from '../../utils/logger';
 import { AutoPassTimer } from '../game';
-import { HelperButtons as _HelperButtons } from '../game/HelperButtons';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
+import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
+import { LandscapeYourPosition } from './LandscapeYourPosition';
+import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
+import { LandscapeOvalTable } from './LandscapeOvalTable';
+import { LandscapeOpponent } from './LandscapeOpponent';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -40,8 +38,8 @@ export interface LandscapeGameLayoutProps {
   currentPlayerIndex: number;
   matchNumber: number;
   isGameFinished: boolean;
-  scoreHistory?: any[];
-  playHistory?: any[];
+  scoreHistory?: ScoreHistory[];
+  playHistory?: PlayHistoryMatch[];
   originalPlayerNames?: string[]; // Original player names for play history (game state order)
   autoPassTimerState?: AutoPassTimerState;
   /** Total cumulative scores per player (Task #590) */

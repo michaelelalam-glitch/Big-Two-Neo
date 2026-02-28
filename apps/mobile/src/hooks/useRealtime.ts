@@ -16,7 +16,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { useClockSync } from './useClockSync';
 import { notifyGameStarted, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import {
@@ -30,8 +29,9 @@ import {
   BroadcastPayload,
   AutoPassTimerState,
 } from '../types/multiplayer';
-import { invokeWithRetry } from '../utils/edgeFunctionRetry';
+import { invokeWithRetry, EdgeFunctionError } from '../utils/edgeFunctionRetry';
 import { networkLogger, gameLogger } from '../utils/logger';
+import { useClockSync } from './useClockSync';
 
 /**
  * Map server error messages to user-friendly explanations
@@ -93,7 +93,7 @@ function getPlayErrorExplanation(serverError: string): string {
  * When an Edge Function returns a non-2xx status, the actual error details
  * are in error.context, not just error.message
  */
-async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: string): Promise<string> {
+async function extractEdgeFunctionErrorAsync(error: EdgeFunctionError | null, result: { error?: string } | null, fallback: string): Promise<string> {
   // Priority 1: Check if result has error field (from Edge Function response body)
   // This works when the Edge Function returns a successful response with error details
   if (result?.error) {
@@ -168,17 +168,18 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
 
 interface PlayCardsResponse {
   success: boolean;
-  debug?: any;
+  debug?: Record<string, unknown>;
   match_ended?: boolean;
   match_scores?: PlayerMatchScoreDetail[];
   game_over?: boolean;
   final_winner_index?: number;
   combo_type?: string;
-  auto_pass_timer?: any;
+  auto_pass_timer?: AutoPassTimerState | null;
   highest_play_detected?: boolean;
   next_turn?: number;
   passes?: number;
   trick_cleared?: boolean;
+  error?: string;
 }
 
 interface StartNewMatchResponse {
@@ -192,7 +193,7 @@ interface PlayerPassResponse {
   next_turn: number;
   passes: number;
   trick_cleared: boolean;
-  auto_pass_timer?: any;
+  auto_pass_timer?: AutoPassTimerState | null;
 }
 
 interface UseRealtimeOptions {
@@ -1156,7 +1157,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         table: 'room_players',
         filter: `room_id=eq.${roomId}`,
       }, async (payload) => {
-        console.log('[useRealtime] 👥 room_players change:', payload.eventType);
+        networkLogger.debug('[useRealtime] 👥 room_players change:', payload.eventType);
         // Refetch players to ensure we have latest is_host status
         await fetchPlayers(roomId);
       });
@@ -1166,12 +1167,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const timeout = setTimeout(() => reject(new Error('Subscription timeout after 10s')), 10000);
       
       channel.subscribe(async (status) => {
-        console.log('[useRealtime] 📡 joinChannel subscription status:', status);
+        networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           clearTimeout(timeout);
           setIsConnected(true);
-          console.log('[useRealtime] ✅ Channel subscribed successfully');
+          networkLogger.info('[useRealtime] ✅ Channel subscribed successfully');
           
           // Track presence
           await channel.track({
@@ -1180,7 +1181,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             online_at: new Date().toISOString(),
           });
           
-          console.log('[useRealtime] ✅ Presence tracked, resolving joinChannel promise');
+          networkLogger.info('[useRealtime] ✅ Presence tracked, resolving joinChannel promise');
           resolve(); // BULLETPROOF: Signal that subscription is complete
         } else if (status === 'CLOSED') {
           clearTimeout(timeout);

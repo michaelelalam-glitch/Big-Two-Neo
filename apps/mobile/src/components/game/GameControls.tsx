@@ -78,9 +78,9 @@ export function GameControls({
       }
 
       onPlaySuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameControls] Failed to play cards:', error?.message || error?.code || String(error));
+      gameLogger.error('❌ [GameControls] Failed to play cards:', error instanceof Error ? error.message : String(error));
 
       // Show user-friendly error
       soundManager.playSound(SoundType.INVALID_MOVE);
@@ -114,9 +114,9 @@ export function GameControls({
       gameLogger.info('✅ [GameControls] Pass successful');
       soundManager.playSound(SoundType.PASS);
       onPassSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameControls] Failed to pass:', error?.message || error?.code || String(error));
+      gameLogger.error('❌ [GameControls] Failed to pass:', error instanceof Error ? error.message : String(error));
 
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
       Alert.alert('Cannot Pass', errorMessage);

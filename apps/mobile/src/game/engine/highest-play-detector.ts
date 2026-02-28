@@ -10,9 +10,9 @@
  * @module highest-play-detector
  */
 
+import type { Card, ComboType } from '../types';
 import { RANKS, SUITS, VALID_STRAIGHT_SEQUENCES, COMBO_STRENGTH, RANK_VALUE, SUIT_VALUE } from './constants';
 import { sortHand, classifyCards, isStraight } from './game-logic';
-import type { Card, ComboType } from '../types';
 
 /**
  * Generate full 52-card deck for comparison

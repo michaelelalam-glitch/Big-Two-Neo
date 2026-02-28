@@ -5,8 +5,8 @@
  * card/combo is played. Automatically passes for players who don't respond in time.
  */
 
-import { isHighestPossiblePlay } from './highest-play-detector';
 import type { Card, LastPlay, AutoPassTimerState } from '../types';
+import { isHighestPossiblePlay } from './highest-play-detector';
 
 /**
  * Timer configuration

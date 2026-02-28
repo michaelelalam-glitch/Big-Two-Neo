@@ -6,6 +6,7 @@
  */
 
 import { ImageSourcePropType } from 'react-native';
+import { gameLogger } from './logger';
 
 export interface CardAssetMapping {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -179,5 +180,5 @@ export function getCardMapping(rank: string, suit: string): CardAssetMapping | n
 export function preloadCardAssets(): void {
   // Assets are already loaded via require() - this is a no-op
   // Kept for API compatibility if needed in the future
-  console.log('Card assets preloaded (52 cards)');
+  gameLogger.info('Card assets preloaded (52 cards)');
 }

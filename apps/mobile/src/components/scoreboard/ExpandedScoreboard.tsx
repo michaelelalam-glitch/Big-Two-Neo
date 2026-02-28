@@ -16,9 +16,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { ExpandedScoreboardProps } from '../../types/scoreboard';
 import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
-import { ExpandedScoreboardProps } from '../../types/scoreboard';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   playerNames,

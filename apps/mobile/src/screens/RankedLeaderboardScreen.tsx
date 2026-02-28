@@ -22,6 +22,14 @@ interface RankedPlayer {
 
 type TimeFilter = 'allTime' | 'weekly' | 'daily';
 
+interface RankedProfileRow {
+  user_id: string;
+  username: string;
+  elo_rating: number;
+  ranked_matches_played: number;
+  ranked_wins: number;
+}
+
 /**
  * Ranked Leaderboard Screen
  * 
@@ -57,7 +65,7 @@ export default function RankedLeaderboardScreen() {
       if (error) throw error;
 
       // Calculate win rates
-      const rankedPlayers: RankedPlayer[] = (data || []).map((player: any) => ({
+      const rankedPlayers: RankedPlayer[] = (data || []).map((player: RankedProfileRow) => ({
         ...player,
         ranked_win_rate: player.ranked_matches_played > 0 
           ? (player.ranked_wins / player.ranked_matches_played) * 100 
@@ -65,9 +73,9 @@ export default function RankedLeaderboardScreen() {
       }));
 
       setPlayers(rankedPlayers);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading ranked leaderboard:', error);
-      showError(error?.message || 'Failed to load leaderboard');
+      showError(error instanceof Error ? error.message : 'Failed to load leaderboard');
     } finally {
       setLoading(false);
     }

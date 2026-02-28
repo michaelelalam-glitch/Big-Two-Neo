@@ -72,8 +72,8 @@ export default function HomeScreen() {
       } else {
         setCurrentRoom(null);
       }
-    } catch (error: any) {
-      roomLogger.error('Error in checkCurrentRoom:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
     }
   }, [user]);
 
@@ -126,9 +126,9 @@ export default function HomeScreen() {
           
           // Force refresh to ensure banner is cleared
           await checkCurrentRoom();
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Only log error message/code to avoid exposing DB internals
-          roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
+          roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
           showError(i18n.t('lobby.leaveRoomError'));
         }
       }
@@ -240,9 +240,10 @@ export default function HomeScreen() {
       setCurrentRoom(result.room_code);
       setIsRankedSearching(false);
       navigation.replace('Lobby', { roomCode: result.room_code });
-    } catch (error: any) {
-      roomLogger.error('❌ Error with ranked match:', error?.message || String(error));
-      showError(error?.message || 'Failed to start ranked match');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('❌ Error with ranked match:', msg);
+      showError(msg || 'Failed to start ranked match');
       setIsRankedSearching(false);
     }
   };
@@ -303,7 +304,7 @@ export default function HomeScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verify cleanup succeeded
-      const { data: stillInRoom, error: _verifyError } = await supabase
+      const { data: stillInRoom } = await supabase
         .from('room_players')
         .select('room_id')
         .eq('user_id', user.id)
@@ -403,11 +404,11 @@ export default function HomeScreen() {
       roomLogger.info(`🎉 Room created successfully: ${result.room_code} (${result.attempts} attempts)`);
       setCurrentRoom(result.room_code);
       navigation.replace('Lobby', { roomCode: result.room_code });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing DB internals, auth tokens, or stack traces
-      roomLogger.error('❌ Error with quick play:', error?.message || error?.code || String(error));
-      const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to join or create room';
-      showError(errorMessage);
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('❌ Error with quick play:', msg);
+      showError(msg || 'Failed to join or create room');
     } finally {
       roomLogger.info('🏁 Quick Play finished');
       setIsQuickPlaying(false);

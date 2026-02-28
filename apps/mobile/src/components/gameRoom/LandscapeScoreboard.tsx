@@ -22,9 +22,9 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { useLandscapeScoreboardStyles } from './hooks/useLandscapeStyles';
 import { ScoreboardProps } from '../../types/scoreboard';
 import { ExpandedScoreboard as PortraitExpandedScoreboard } from '../scoreboard/ExpandedScoreboard';
+import { useLandscapeScoreboardStyles } from './hooks/useLandscapeStyles';
 
 // Re-export PlayHistoryModal from scoreboard (identical in landscape)
 export { default as PlayHistoryModal } from '../scoreboard/PlayHistoryModal';

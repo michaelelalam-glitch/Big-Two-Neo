@@ -2,9 +2,9 @@ import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Card from './Card';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 import type { Card as CardType } from '../../game/types';
+import Card from './Card';
 
 // PORTRAIT vs LANDSCAPE CARD SPACING (separate constants for each orientation)
 // PORTRAIT: EXACT ORIGINAL VALUES FROM BEFORE LANDSCAPE MODE

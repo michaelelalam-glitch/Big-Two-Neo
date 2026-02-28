@@ -11,15 +11,16 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import EmptyState from '../components/EmptyState';
 import { RankBadge, Rank } from '../components/RankBadge';
 import { COLORS, SPACING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm } from '../utils';
 import { statsLogger, authLogger } from '../utils/logger';
-import type { StackNavigationProp } from '@react-navigation/stack';
 
 interface PlayerStats {
   games_played: number;
@@ -34,7 +35,7 @@ interface PlayerStats {
 }
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<any>>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { user, profile, isLoading, signOut } = useAuth();
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -61,8 +62,8 @@ const ProfileScreen = () => {
       } else {
         setStats(data);
       }
-    } catch (error: any) {
-      statsLogger.error('[Profile] Error fetching stats:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      statsLogger.error('[Profile] Error fetching stats:', error instanceof Error ? error.message : String(error));
     } finally {
       if (loadingType === 'initial') {
         setStatsLoading(false);
@@ -89,8 +90,8 @@ const ProfileScreen = () => {
       onConfirm: async () => {
         try {
           await signOut();
-        } catch (error: any) {
-          authLogger.error('Error signing out:', error?.message || String(error));
+        } catch (error: unknown) {
+          authLogger.error('Error signing out:', error instanceof Error ? error.message : String(error));
           showError(i18n.t('profile.signOutError'));
         }
       }

@@ -3,9 +3,9 @@
  * Handles card classification, validation, and AI recommendations
  */
 
+import type { Card, ComboType, ClassificationResult, LastPlay } from '../types';
 import { RANK_VALUE, SUIT_VALUE, COMBO_STRENGTH, VALID_STRAIGHT_SEQUENCES } from './constants';
 import { findStraightSequenceIndex } from './utils';
-import type { Card, ComboType, ClassificationResult, LastPlay } from '../types';
 
 /**
  * Sort cards by rank and suit value (ascending)

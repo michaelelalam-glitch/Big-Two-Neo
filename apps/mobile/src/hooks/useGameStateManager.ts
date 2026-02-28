@@ -214,7 +214,7 @@ export function useGameStateManager({
                 if (result.success) {
                   gameLogger.info('✅ [useGameStateManager] Next match started automatically');
                 } else {
-                  const errorMsg = (result.error as any)?.message || String(result.error);
+                  const errorMsg = result.error ?? 'Unknown error';
                   gameLogger.error('❌ [useGameStateManager] Failed to start new match:', errorMsg);
                   showError('Failed to start next match. Please try leaving and rejoining the game.');
                 }
@@ -308,10 +308,10 @@ export function useGameStateManager({
           soundManager.playSound(SoundType.GAME_START);
           gameLogger.info('🎵 [Audio] Game start sound triggered');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         gameLogger.error(
           '❌ [useGameStateManager] Failed to initialize game:',
-          error?.message || error?.code || String(error)
+          error instanceof Error ? error.message : String(error)
         );
         // Reset init guards on failure so a
         // re-render can retry initialization instead of being permanently stuck.

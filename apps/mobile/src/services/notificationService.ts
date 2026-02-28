@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { supabase } from './supabase';
 import { notificationLogger } from '../utils/logger';
+import { supabase } from './supabase';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
 // CRITICAL FIX: Removed deprecated shouldShowAlert - use shouldShowBanner and shouldShowList instead
@@ -111,9 +111,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     return token;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details (DB connections, stack traces, etc.)
-    notificationLogger.error('Error registering for push notifications:', error?.message || error?.code || String(error));
+    notificationLogger.error('Error registering for push notifications:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -152,9 +152,9 @@ export async function savePushTokenToDatabase(
 
     notificationLogger.info('✅ [savePushToken] Push token saved successfully to database!');
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details
-    notificationLogger.error('Error saving push token to database:', error?.message || error?.code || String(error));
+    notificationLogger.error('Error saving push token to database:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }
@@ -176,9 +176,9 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
 
     notificationLogger.info('Push token removed successfully');
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details
-    notificationLogger.error('Error removing push token from database:', error?.message || error?.code || String(error));
+    notificationLogger.error('Error removing push token from database:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }

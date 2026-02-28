@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { uiLogger } from './logger';
 
 // Haptic feedback types
 export enum HapticType {
@@ -39,11 +40,11 @@ class HapticManager {
       this.hapticsEnabled = enabledStr !== null ? enabledStr === 'true' : true;
 
       this.initialized = true;
-      console.log('[HapticManager] Initialized successfully', {
+      uiLogger.info('[HapticManager] Initialized successfully', {
         enabled: this.hapticsEnabled,
       });
     } catch (error) {
-      console.error('[HapticManager] Initialization failed:', error);
+      uiLogger.error('[HapticManager] Initialization failed:', error);
     }
   }
 
@@ -86,10 +87,10 @@ class HapticManager {
           break;
 
         default:
-          console.warn(`[HapticManager] Unknown haptic type: ${type}`);
+          uiLogger.warn(`[HapticManager] Unknown haptic type: ${type}`);
       }
     } catch (error) {
-      console.error(`[HapticManager] Failed to trigger haptic ${type}:`, error);
+      uiLogger.error(`[HapticManager] Failed to trigger haptic ${type}:`, error);
     }
   }
 
@@ -106,7 +107,7 @@ class HapticManager {
   async setHapticsEnabled(enabled: boolean): Promise<void> {
     this.hapticsEnabled = enabled;
     await AsyncStorage.setItem(HAPTICS_ENABLED_KEY, enabled.toString());
-    console.log(`[HapticManager] Haptics ${enabled ? 'enabled' : 'disabled'}`);
+    uiLogger.info(`[HapticManager] Haptics ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -211,9 +212,9 @@ class HapticManager {
         }
       }
       
-      console.log(`[HapticManager] Urgent countdown: ${secondsRemaining}s (${pulseCount} pulses)`);
+      uiLogger.debug(`[HapticManager] Urgent countdown: ${secondsRemaining}s (${pulseCount} pulses)`);
     } catch (error) {
-      console.error(`[HapticManager] Failed to trigger urgent countdown:`, error);
+      uiLogger.error(`[HapticManager] Failed to trigger urgent countdown:`, error);
     }
   }
 }

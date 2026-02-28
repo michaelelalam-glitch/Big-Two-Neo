@@ -14,9 +14,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { CompactScoreboardProps } from '../../types/scoreboard';
 import { useCompactScoreboardStyles } from './hooks/useResponsiveStyles';
 import { getPlayerNameColor, getScoreColor } from './styles/colors';
-import { CompactScoreboardProps } from '../../types/scoreboard';
 
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   playerNames,

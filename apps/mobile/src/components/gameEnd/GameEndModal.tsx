@@ -31,10 +31,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Fireworks } from './Fireworks';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
+import { Fireworks } from './Fireworks';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -657,6 +657,37 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 // PLAY HISTORY TAB (Tasks #411, #412, #397)
 // ============================================================================
 
+/** Card shape in play history — may have full or abbreviated property names */
+interface PlayHistoryCard {
+  id?: string;
+  rank?: string;
+  suit?: string;
+  r?: string;
+  s?: string;
+}
+
+interface PlayHistoryHeaderData {
+  matchNumber: number;
+  handCount: number;
+  isExpanded: boolean;
+  isLatestMatch: boolean;
+}
+
+interface PlayHistoryHandData {
+  by: number;
+  type: string;
+  count: number;
+  cards: PlayHistoryCard[];
+  handIndex: number;
+  matchNumber: number;
+  isLatestHand: boolean;
+  timestamp?: string;
+}
+
+type FlattenedPlayHistoryItem =
+  | { type: 'header'; data: PlayHistoryHeaderData }
+  | { type: 'hand'; data: PlayHistoryHandData };
+
 interface PlayHistoryTabProps {
   playHistory: {
     matchNumber: number;
@@ -664,7 +695,7 @@ interface PlayHistoryTabProps {
       by: number;
       type: string;
       count: number;
-      cards: any[];
+      cards: PlayHistoryCard[];
     }[];
   }[];
   playerNames: string[];
@@ -708,7 +739,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     const isLatestMatch = match.matchNumber === playHistory[playHistory.length - 1].matchNumber;
     
     // Always include match header
-    const items: { type: 'header' | 'hand'; data: any }[] = [
+    const items: FlattenedPlayHistoryItem[] = [
       {
         type: 'header',
         data: {
@@ -738,7 +769,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     return items;
   });
 
-  const renderItem = ({ item }: { item: { type: 'header' | 'hand'; data: any } }) => {
+  const renderItem = ({ item }: { item: FlattenedPlayHistoryItem }) => {
     if (item.type === 'header') {
       return (
         <TouchableOpacity
@@ -791,11 +822,11 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         {/* Card Images (Task #412) */}
         <View style={styles.playHistoryCards}>
           {hand.cards && hand.cards.length > 0 ? (
-            hand.cards.map((card: any, cardIndex: number) => (
+            hand.cards.map((card: PlayHistoryCard, cardIndex: number) => (
               <CardImage
                 key={cardIndex}
-                rank={card.rank || card.r}
-                suit={card.suit || card.s}
+                rank={card.rank ?? card.r ?? ''}
+                suit={card.suit ?? card.s ?? ''}
                 width={35}
                 height={51}
               />

@@ -19,7 +19,7 @@ const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/send-push-notification`;
 interface NotificationData {
   type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request';
   roomCode?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface SendNotificationOptions {
@@ -66,8 +66,8 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
     const result = await response.json();
     notificationLogger.info(`✅ Sent ${result.sent} notification(s)`);
     return true;
-  } catch (error: any) {
-    notificationLogger.error('Error sending push notifications:', error?.message || error?.code || String(error));
+  } catch (error: unknown) {
+    notificationLogger.error('Error sending push notifications:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }

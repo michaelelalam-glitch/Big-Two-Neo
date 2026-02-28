@@ -16,11 +16,11 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import LandscapeCard from './LandscapeCard';
 import { COLORS } from '../../constants';
 import { i18n } from '../../i18n';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import type { Card as CardType } from '../../game/types';
+import LandscapeCard from './LandscapeCard';
 
 // ============================================================================
 // TYPE DEFINITIONS

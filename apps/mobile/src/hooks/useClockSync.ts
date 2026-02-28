@@ -42,7 +42,7 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
     }
 
     // Check if timer has server_time_at_creation (new architecture)
-    const serverTime = (timerState as any).server_time_at_creation;
+    const serverTime = timerState.server_time_at_creation;
     if (typeof serverTime === 'number') {
       // Calculate offset: how much to ADD to local time to get server time
       // Example: if server=1000 and local=900, offset=+100 (client is 100ms behind)
@@ -66,7 +66,7 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
       networkLogger.warn('[Clock Sync] ⚠️ No server time in timer state - using local time');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- full timerState excluded intentionally; only the two scalar fields that indicate a new server time sync are needed as triggers; adding timerState would re-sync the clock offset on every timer tick
-  }, [timerState?.active, (timerState as any)?.server_time_at_creation]);
+  }, [timerState?.active, timerState?.server_time_at_creation]);
 
   const getCorrectedNow = (): number => {
     return Date.now() + offsetMs;

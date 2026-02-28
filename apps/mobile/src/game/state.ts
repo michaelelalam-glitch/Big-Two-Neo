@@ -4,14 +4,14 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
-import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
-import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { API } from '../constants';
 import { supabase } from '../services/supabase';
 import { type AutoPassTimerState } from '../types/multiplayer';
 import { showError, soundManager, SoundType } from '../utils';
 import { gameLogger, statsLogger } from '../utils/logger';
+import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
+import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
+import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -657,8 +657,8 @@ export class GameStateManager {
         this.notifyListeners();
         return this.state;
       }
-    } catch (error: any) {
-      gameLogger.error('Failed to load game state:', error?.message || String(error));
+    } catch (error: unknown) {
+      gameLogger.error('Failed to load game state:', error instanceof Error ? error.message : String(error));
     }
     return null;
   }
@@ -672,9 +672,11 @@ export class GameStateManager {
     try {
       const stateJson = JSON.stringify(this.state);
       await AsyncStorage.setItem(GAME_STATE_KEY, stateJson);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing storage internals
-      gameLogger.error('Failed to save game state:', error?.message || error?.code || String(error));
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errCode = (error as Record<string, unknown>)?.code;
+      gameLogger.error('Failed to save game state:', errCode ? String(errCode) : errMsg);
     }
   }
 
@@ -686,8 +688,8 @@ export class GameStateManager {
       await AsyncStorage.removeItem(GAME_STATE_KEY);
       this.state = null;
       this.notifyListeners();
-    } catch (error: any) {
-      gameLogger.error('Failed to clear game state:', error?.message || String(error));
+    } catch (error: unknown) {
+      gameLogger.error('Failed to clear game state:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -1204,12 +1206,13 @@ export class GameStateManager {
           const errorData = await response.json();
           throw new Error(errorData.error || `Server returned ${response.status}`);
         }
-      } catch (edgeError: any) {
+      } catch (edgeError: unknown) {
         // Edge Function failed - try fallback RPC
-        if (edgeError?.message?.includes('503') || edgeError?.message?.includes('404')) {
+        const edgeMsg = edgeError instanceof Error ? edgeError.message : String(edgeError);
+        if (edgeMsg.includes('503') || edgeMsg.includes('404')) {
           statsLogger.warn('⚠️ [Stats] Edge Function unavailable, using fallback RPC');
         } else {
-          statsLogger.warn('⚠️ [Stats] Edge Function error, using fallback RPC:', edgeError?.message);
+          statsLogger.warn('⚠️ [Stats] Edge Function error, using fallback RPC:', edgeMsg);
         }
       }
 
@@ -1233,14 +1236,17 @@ export class GameStateManager {
 
         statsLogger.info('✅ [Stats] Game completed via RPC fallback:', rpcResult);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Suppress 503 errors (Edge Function not deployed/cold start)
       // Game still works - this only affects stats tracking
-      const statusCode = error?.status || error?.statusCode || error?.code;
-      if (statusCode === 503 || statusCode === '503' || error?.message?.includes('503')) {
+      const errRecord = error as Record<string, unknown>;
+      const statusCode = errRecord?.status || errRecord?.statusCode || errRecord?.code;
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (statusCode === 503 || statusCode === '503' || errMsg.includes('503')) {
         statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
       } else {
-        statsLogger.error('❌ [Stats] Exception saving stats:', error?.message || error?.code || String(error));
+        const errCode = errRecord?.code;
+        statsLogger.error('❌ [Stats] Exception saving stats:', errCode ? String(errCode) : errMsg);
       }
     }
   }

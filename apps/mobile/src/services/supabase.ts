@@ -2,6 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { API } from '../constants';
 
+/** Matches Supabase auth's SupportedStorage interface (not exported from @supabase/supabase-js) */
+interface SupabaseAuthStorage {
+  getItem: (key: string) => Promise<string | null> | string | null;
+  setItem: (key: string, value: string) => Promise<void> | void;
+  removeItem: (key: string) => Promise<void> | void;
+}
+
 const supabaseUrl = API.SUPABASE_URL;
 const supabaseAnonKey = API.SUPABASE_ANON_KEY;
 
@@ -22,7 +29,7 @@ const AsyncStorageAdapter = {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorageAdapter as any,
+    storage: AsyncStorageAdapter as SupabaseAuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

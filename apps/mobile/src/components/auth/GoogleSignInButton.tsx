@@ -94,8 +94,8 @@ const GoogleSignInButton = () => {
       } else {
         authLogger.info('OAuth flow cancelled or failed');
       }
-    } catch (error: any) {
-      authLogger.error('Error during Google sign in:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      authLogger.error('Error during Google sign in:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   };

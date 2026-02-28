@@ -21,6 +21,7 @@ import RankedLeaderboardScreen from '../screens/RankedLeaderboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import StatsScreen from '../screens/StatsScreen';
+import { authLogger } from '../utils/logger';
 
 export type RootStackParamList = {
   GameSelection: undefined;
@@ -57,12 +58,12 @@ export default function AppNavigator() {
 
   // Log navigation state for debugging
   React.useEffect(() => {
-    console.log('📱 [AppNavigator] State:', { isLoading, isLoggedIn });
-    console.log('📱 [AppNavigator] Will render:', isLoggedIn ? 'App Stack (Home)' : 'Auth Stack (SignIn)');
+    authLogger.info('📱 [AppNavigator] State:', { isLoading, isLoggedIn });
+    authLogger.info('📱 [AppNavigator] Will render:', isLoggedIn ? 'App Stack (Home)' : 'Auth Stack (SignIn)');
   }, [isLoading, isLoggedIn]);
 
   if (isLoading) {
-    console.log('⏳ [AppNavigator] Loading...');
+    authLogger.info('⏳ [AppNavigator] Loading...');
     return <LoadingScreen />;
   }
 

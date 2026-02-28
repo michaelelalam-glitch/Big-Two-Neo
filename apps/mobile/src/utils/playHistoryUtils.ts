@@ -3,9 +3,9 @@
  * Used by both GameScreen and usePlayHistoryTracking hook to maintain consistency.
  */
 
-import { gameLogger } from './logger';
 import type { GameState } from '../game/state';
 import type { PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
+import { gameLogger } from './logger';
 
 /**
  * Builds the final play history from game state, including the current match.
