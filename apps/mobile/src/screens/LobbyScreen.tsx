@@ -58,6 +58,7 @@ export default function LobbyScreen() {
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   
@@ -74,7 +75,7 @@ export default function LobbyScreen() {
   const getRoomId = async () => {
     const { data, error } = await supabase
       .from('rooms')
-      .select('id, is_matchmaking, is_public, ranked_mode')
+      .select('id, status, is_matchmaking, is_public, ranked_mode')
       .eq('code', roomCode)
       .single();
     
@@ -87,6 +88,11 @@ export default function LobbyScreen() {
         navigation.replace('Home');
       }
       return null;
+    }
+
+    // Track whether room is already in progress (rejoin scenario)
+    if (data.status === 'playing') {
+      setIsGameInProgress(true);
     }
     
     // Set matchmaking status (backward compatibility)
@@ -617,23 +623,34 @@ export default function LobbyScreen() {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
-          onPress={handleToggleReady}
-          disabled={isTogglingReady}
-        >
-          {isTogglingReady ? (
-            <ActivityIndicator color={COLORS.white} size="small" />
-          ) : (
-            <Text style={styles.readyButtonText}>
-              {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* Rejoin Game button — shown when room is already 'playing' (rejoin scenario) */}
+        {isGameInProgress ? (
+          <TouchableOpacity
+            style={styles.rejoinButton}
+            onPress={() => navigation.replace('Game', { roomCode })}
+          >
+            <Text style={styles.rejoinButtonText}>🎮 Rejoin Game</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
+            onPress={handleToggleReady}
+            disabled={isTogglingReady}
+          >
+            {isTogglingReady ? (
+              <ActivityIndicator color={COLORS.white} size="small" />
+            ) : (
+              <Text style={styles.readyButtonText}>
+                {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
+        {/* Hidden when game is already in progress (rejoin) since bots are already set */}
         {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
-        {isHost && !roomType.isRanked ? (
+        {isHost && !roomType.isRanked && !isGameInProgress ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
@@ -718,7 +735,7 @@ export default function LobbyScreen() {
         )}
         
         {/* Non-host players: show waiting message in all non-ranked rooms */}
-        {!roomType.isRanked && !isHost && (
+        {!roomType.isRanked && !isHost && !isGameInProgress && (
           <Text style={styles.waitingInfo}>
             {i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
           </Text>
@@ -910,6 +927,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   readyButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+  },
+  rejoinButton: {
+    backgroundColor: '#10B981',
+    padding: SPACING.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+  rejoinButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
