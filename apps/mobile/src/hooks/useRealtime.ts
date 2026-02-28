@@ -2,10 +2,10 @@
  * useRealtime - Real-time multiplayer game hook with Supabase Realtime
  * 
  * Features:
- * - Room creation and joining with unique codes
- * - Real-time player presence tracking via Supabase Presence (ephemeral online/offline status)
+ * - Room creation and joining with unique codes (via useRoomLobby)
+ * - Real-time player presence tracking via Supabase Presence
  * - Game state synchronization across all clients
- * - Turn-based logic with optimistic updates
+ * - Turn-based logic delegated to server Edge Functions (via realtimeActions)
  * - Automatic reconnection handling
  * - 4-player multiplayer support
  * 
@@ -16,7 +16,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { notifyGameStarted, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import {
   Room,
@@ -27,29 +26,24 @@ import {
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
-  AutoPassTimerState,
 } from '../types/multiplayer';
 import type {
-  PlayCardsResponse,
-  StartNewMatchResponse,
-  PlayerPassResponse,
   MultiplayerMatchScoreDetail,
   UseRealtimeOptions,
 } from '../types/realtimeTypes';
-import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import {
-  getPlayErrorExplanation,
-  extractEdgeFunctionErrorAsync,
   isValidTimerStatePayload,
 } from '../utils/edgeFunctionErrors';
 import { networkLogger, gameLogger } from '../utils/logger';
+import { executePlayCards, executePass } from './realtimeActions';
 import { useAutoPassTimer } from './useAutoPassTimer';
 import { useClockSync } from './useClockSync';
+import { useRoomLobby } from './useRoomLobby';
 
 // Re-export types for backward compatibility
 export type { UseRealtimeOptions } from '../types/realtimeTypes';
 
-// Alias for internal use (replaces old `PlayerMatchScoreDetail`)
+// Alias for internal use
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
@@ -78,12 +72,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
   
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
-  // Returns true ONLY when:
-  // 1. Not currently loading
-  // 2. Game state exists
-  // 3. Game state has hands object
-  // 4. Hands object has at least one player's hand
-  // 5. Players array is populated
   const isDataReady = !loading && 
     !!gameState && 
     !!gameState.hands && 
@@ -91,19 +79,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     roomPlayers.length > 0;
   
   /**
-   * Generate a unique 6-character room code
-   */
-  const generateRoomCode = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  };
-  
-  /**
-   * Broadcast message to all room players in the lobby
+   * Broadcast message to all room players
    */
   const broadcastMessage = useCallback(async (event: BroadcastEvent, data: any) => {
     if (!channelRef.current || !room) return;
@@ -130,637 +106,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     getCorrectedNow,
   });
 
-  /**
-   * Create a new game room
-   */
-  const createRoom = useCallback(async (): Promise<Room> => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const code = generateRoomCode();
-      
-      // Create room in database
-      const { data: newRoom, error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          code,
-          host_id: userId,
-          status: 'waiting',
-          max_players: 4,
-        })
-        .select()
-        .single();
-      
-      if (roomError) throw roomError;
-      
-      // Create player record
-      const { error: playerError } = await supabase
-        .from('room_players')
-        .insert({
-          room_id: newRoom.id,
-          user_id: userId,
-          username,
-          player_index: 0,
-          is_host: true,
-          is_ready: false,
-          is_bot: false,
-        });
-      
-      if (playerError) throw playerError;
-      
-      setRoom(newRoom);
-      
-      // Join the realtime channel
-      await joinChannel(newRoom.id);
-      
-      return newRoom;
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded: including it causes circular dependency (joinChannel → createRoom → joinChannel); joinChannel is guaranteed stable via useCallback with its own stable deps
-  }, [userId, username, onError]);
-  
-  /**
-   * Join an existing room by code
-   */
-  const joinRoom = useCallback(async (code: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Find room by code
-      const { data: existingRoom, error: roomError } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('status', 'waiting')
-        .single();
-      
-      if (roomError) throw new Error('Room not found or already started');
-      
-      // Check player count
-      const { count } = await supabase
-        .from('room_players')
-        .select('*', { count: 'exact', head: true })
-        .eq('room_id', existingRoom.id);
-      
-      if (count && count >= existingRoom.max_players) {
-        throw new Error('Room is full');
-      }
-      
-      // Determine next available player_index
-      const { data: existingPlayers } = await supabase
-        .from('room_players')
-        .select('player_index')
-        .eq('room_id', existingRoom.id)
-        .order('player_index');
-      
-      const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
-      let player_index = 0;
-      while (takenPositions.has(player_index) && player_index < 4) player_index++;
-      
-      // Create player record
-      const { error: playerError } = await supabase
-        .from('room_players')
-        .insert({
-          room_id: existingRoom.id,
-          user_id: userId,
-          username,
-          player_index,
-          is_host: false,
-          is_ready: false,
-          is_bot: false,
-        });
-      
-      if (playerError) throw playerError;
-      
-      setRoom(existingRoom);
-      
-      // Join the realtime channel
-      await joinChannel(existingRoom.id);
-      
-      // Broadcast join event
-      await broadcastMessage('player_joined', { user_id: userId, username, player_index });
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded (same circular dependency reason as createRoom above)
-  }, [userId, username, onError, broadcastMessage]);
-  
-  /**
-   * Leave the current room
-   */
-  const leaveRoom = useCallback(async (): Promise<void> => {
-    if (!room || !currentPlayer) return;
-    
-    try {
-      // Delete player from room
-      await supabase
-        .from('room_players')
-        .delete()
-        .eq('id', currentPlayer.id);
-      
-      // Broadcast leave event
-      await broadcastMessage('player_left', { user_id: userId, player_index: currentPlayer.player_index });
-      
-      // Unsubscribe from channel
-      if (channelRef.current) {
-        await channelRef.current.unsubscribe();
-        await supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      
-      // Clear state
-      setRoom(null);
-      setRoomPlayers([]);
-      setGameState(null);
-      setPlayerHands(new Map());
-      setIsConnected(false);
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-    }
-  }, [room, currentPlayer, userId, onError, broadcastMessage]);
-  
-  /**
-   * Set player ready status
-   */
-  const setReady = useCallback(async (ready: boolean): Promise<void> => {
-    if (!currentPlayer) return;
-    
-    try {
-      await supabase
-        .from('room_players')
-        .update({ is_ready: ready })
-        .eq('id', currentPlayer.id);
-      
-      await broadcastMessage('player_ready', { user_id: userId, ready });
-      
-      // Check if all players are now ready and notify host
-      if (ready && room) {
-        const updatedPlayers = await supabase
-          .from('room_players')
-          .select('is_ready, user_id')
-          .eq('room_id', room.id);
-        
-        const allReady = updatedPlayers.data?.every(p => p.is_ready) ?? false;
-        const hostPlayer = roomPlayers.find(p => p.is_host);
-        
-        if (allReady && hostPlayer && hostPlayer.user_id) {
-          notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
-            console.error('Failed to send all players ready notification:', err)
-          );
-        }
-      }
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-    }
-  }, [currentPlayer, userId, onError, broadcastMessage, room, roomPlayers]);
-  
-  /**
-   * Start the game (host only)
-   * @param botDifficulty - Difficulty level for bot players (default: 'medium')
-   */
-  const startGame = useCallback(async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
-    if (!isHost || !room) return;
-    
-    // Check if all room players are ready
-    const allReady = roomPlayers.every(p => p.is_ready);
-    if (!allReady) {
-      throw new Error('All players must be ready');
-    }
-    
-    if (roomPlayers.length < 2) {
-      throw new Error('Need at least 2 players to start');
-    }
-    
-    try {
-      // ✅ CRITICAL FIX: Use start_game_with_bots RPC to ensure consistent turn order
-      // This RPC correctly finds the player with 3♦ and sets them as starting player.
-      // Uses anticlockwise turn order (indices [3,2,0,1] → sequence depends on starting player).
-      const botCount = Math.max(0, 4 - roomPlayers.length);
-      const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
-        p_room_id: room.id,
-        p_bot_count: botCount,
-        p_bot_difficulty: botDifficulty,
-      });
-
-      if (startError || !startResult?.success) {
-        throw new Error(startError?.message || startResult?.error || 'Failed to start game');
-      }
-
-      // ✅ CRITICAL: Validate RPC returned valid game state
-      const gameState = (startResult as any).game_state ?? startResult;
-      if (!gameState || !gameState.room_id) {
-        throw new Error('Failed to start game: missing game state from RPC result');
-      }
-
-      // CRITICAL FIX: Send push notifications AFTER RPC success (prevents notifications for failed games)
-      // Use fire-and-forget pattern with error logging only
-      notifyGameStarted(room.id, room.code).catch(err => 
-        networkLogger.error('❌ Failed to send game start notifications:', err)
-      );
-
-      // Game state is created by RPC with correct starting player (who has 3♦)
-      // Broadcast ONLY metadata - clients will fetch game state via realtime subscription
-      // This prevents broadcasting stale/incorrect game state structure
-      await broadcastMessage('game_started', { success: true, roomId: room.id });
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      throw error;
-    }
-  }, [isHost, room, roomPlayers, onError, broadcastMessage]);
-  
-  /**
-   * ✅ Phase 2: Play cards using server-side Edge Function
-   * @param cards - Cards to play
-   * @param playerIndex - Optional: Specify player index for bot coordinator
-   */
-  const playCards = useCallback(async (cards: Card[], playerIndex?: number): Promise<void> => {
-    const effectivePlayerIndex = playerIndex ?? currentPlayer?.player_index;
-    
-    // Validate game state exists
-    if (!gameState) {
-      throw new Error('Game state not loaded');
-    }
-    
-    // Basic turn validation before calling server
-    if (playerIndex === undefined) {
-      if (!currentPlayer) {
-        throw new Error('Player not found');
-      }
-      if (gameState.current_turn !== currentPlayer.player_index) {
-        throw new Error('Not your turn');
-      }
-    } else {
-      if (gameState.current_turn !== playerIndex) {
-        throw new Error(`Not player ${playerIndex}'s turn (current turn: ${gameState.current_turn})`);
-      }
-    }
-    
-    try {
-      if (cards.length === 0) {
-        throw new Error('Cannot play an empty hand');
-      }
-
-      // matchWillEnd is now determined by server response (result.match_ended)
-
-      // 📡 CRITICAL: Call Edge Function for server-side validation
-      // When playerIndex is provided (bot coordinator), find the bot's player_id
-      const playingPlayer = playerIndex !== undefined
-        ? roomPlayers.find(p => p.player_index === playerIndex)
-        : currentPlayer;
-      
-      if (!playingPlayer) {
-        throw new Error(`Player with index ${playerIndex} not found`);
-      }
-      
-      gameLogger.info('[useRealtime] 📡 Calling play-cards Edge Function...', {
-        player_id: playingPlayer.user_id,
-        player_index: effectivePlayerIndex,
-        is_bot: playerIndex !== undefined,
-      });
-      
-      const { data: result, error: playError } = await invokeWithRetry<PlayCardsResponse>('play-cards', {
-        body: {
-          room_code: room!.code,
-          player_id: playingPlayer.user_id, // ✅ FIX: Use bot's user_id (not record id)
-          cards: cards.map(c => ({
-            id: c.id,
-            rank: c.rank,
-            suit: c.suit
-          }))
-        }
-      });
-
-      if (playError || !result?.success) {
-        // Debug logging: Log full error structure to understand what we're receiving
-        gameLogger.error('[useRealtime] 🔍 Full error object structure:', {
-          hasError: !!playError,
-          hasResult: !!result,
-          errorKeys: playError ? Object.keys(playError) : [],
-          errorContext: playError?.context,
-          errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
-          resultKeys: result ? Object.keys(result) : [],
-          result: result,
-        });
-        
-        const errorMessage = await extractEdgeFunctionErrorAsync(playError, result, 'Server validation failed');
-        const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
-        const statusCode = playError?.context?.status || 'unknown';
-        
-        gameLogger.error('[useRealtime] ❌ Server validation failed:', {
-          message: errorMessage,
-          status: statusCode,
-          debug: debugInfo,
-        });
-        gameLogger.error('[useRealtime] 📦 Full error context:', {
-          error: playError,
-          result: result,
-        });
-        
-        // Enhance error message with user-friendly explanation
-        const userFriendlyError = getPlayErrorExplanation(errorMessage);
-        throw new Error(userFriendlyError);
-      }
-
-      gameLogger.info('[useRealtime] ✅ Server validation passed:', result);
-
-      // PHASE 1: Handle match end (use server-calculated scores)
-      const matchWillEnd = result.match_ended || false;
-      let matchScores: PlayerMatchScoreDetail[] | null = null;
-      let gameOver = false;
-      let finalWinnerIndex: number | null = null;
-
-      if (matchWillEnd && result.match_scores) {
-        gameLogger.info('[useRealtime] 🏁 Match ended! Using server-calculated scores');
-        
-        // Server has already calculated scores and updated room_players
-        matchScores = result.match_scores;
-        gameOver = result.game_over || false;
-        finalWinnerIndex = result.final_winner_index !== undefined ? result.final_winner_index : null;
-
-        gameLogger.info('[useRealtime] 📊 Server scores:', {
-          matchScores,
-          gameOver,
-          finalWinnerIndex,
-        });
-      }
-
-      // PHASE 2: Append to play_history
-      const currentPlayHistory = (gameState as any).play_history || [];
-      const currentMatchNumber = (gameState as any).match_number || 1;
-      const comboType = result.combo_type;
-      const updatedPlayHistory = [
-        ...currentPlayHistory,
-        {
-          match_number: currentMatchNumber,
-          position: effectivePlayerIndex,
-          cards,
-          combo_type: comboType,
-          passed: false,
-        },
-      ];
-
-      // PHASE 3: Use auto-pass timer from server response
-      // Server now detects highest play and creates timer
-      const autoPassTimerState = result.auto_pass_timer || null;
-      const isHighestPlay = result.highest_play_detected || false;
-
-      gameLogger.info('[useRealtime] ⏰ Server timer state:', {
-        isHighestPlay,
-        timerState: autoPassTimerState,
-      });
-
-      // ✅ PHASE 2 FIX: Server already updated game_state (hands, last_play, current_turn, auto_pass_timer)
-      // Client should NOT update game_state - only update play_history if needed
-      // Note: play_history is cosmetic and not critical for game logic
-      if (updatedPlayHistory.length > 0) {
-        const { error: historyError } = await supabase
-          .from('game_state')
-          .update({
-            play_history: updatedPlayHistory,
-          })
-          .eq('id', gameState.id);
-
-        if (historyError) {
-          // Non-fatal: play_history is cosmetic
-          gameLogger.warn('[useRealtime] ⚠️ Failed to update play_history (non-fatal):', historyError);
-        } else {
-          gameLogger.info('[useRealtime] ✅ Play history updated');
-        }
-      }
-
-      // Broadcast cards played
-      await broadcastMessage('cards_played', {
-        player_index: effectivePlayerIndex,
-        cards,
-        combo_type: comboType,
-      });
-
-      // Broadcast auto-pass timer if highest play
-      if (isHighestPlay && autoPassTimerState) {
-        try {
-          await broadcastMessage('auto_pass_timer_started', {
-            timer_state: autoPassTimerState,
-            triggering_player_index: effectivePlayerIndex,
-          });
-          gameLogger.info('[useRealtime] ⏰ Auto-pass timer broadcasted:', autoPassTimerState);
-        } catch (timerBroadcastError) {
-          gameLogger.error('[useRealtime] ⚠️ Auto-pass timer broadcast failed (non-fatal):', timerBroadcastError);
-        }
-      }
-
-      // Wait for Realtime sync
-      gameLogger.info('[useRealtime] ⏳ Waiting 300ms for Realtime sync...');
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Broadcast match end or game over
-      if (matchWillEnd && matchScores) {
-        if (gameOver && finalWinnerIndex !== null) {
-          await broadcastMessage('game_over', {
-            winner_index: finalWinnerIndex,
-            final_scores: matchScores,
-          });
-          gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
-        } else {
-          await broadcastMessage('match_ended', {
-            winner_index: effectivePlayerIndex,
-            match_number: currentMatchNumber,
-            match_scores: matchScores,
-          });
-          gameLogger.info('[useRealtime] 📡 Broadcast: MATCH ENDED');
-
-          if (onMatchEnded) {
-            gameLogger.info('[useRealtime] 📊 Calling onMatchEnded callback directly');
-            onMatchEnded(currentMatchNumber, matchScores);
-          }
-
-          // Start next match (fire-and-forget to prevent bot coordinator interference)
-          // CRITICAL FIX: Use IIFE so bot actions during transition don't interrupt match start
-          (async () => {
-            try {
-              gameLogger.info('[useRealtime] 🔄 Starting next match in 2 seconds...');
-              await new Promise(resolve => setTimeout(resolve, 2000));
-
-              gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
-              const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
-                body: { room_id: room!.id },
-              });
-
-              if (newMatchError || !newMatchData) {
-                gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
-              } else {
-                gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
-                await broadcastMessage('new_match_started', {
-                  match_number: newMatchData.match_number,
-                  starting_player_index: newMatchData.starting_player_index,
-                });
-              }
-            } catch (matchStartError) {
-              gameLogger.error('[useRealtime] 💥 Match start failed (non-fatal):', matchStartError);
-            }
-          })().catch((unhandledError) => {
-            // Ensure any unexpected rejection from the match start flow is logged
-            gameLogger.error('[useRealtime] 💥 Unhandled error in match start flow:', unhandledError);
-          }); // Fire-and-forget: don't await (but handle rejections)
-        }
-      }
-
-      // DISABLED: Turn notifications are too spammy
-      // const nextPlayerIndex = result.next_turn;
-      // const nextPlayer = roomPlayers[nextPlayerIndex];
-      // if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id && room) {
-      //   notifyPlayerTurn(nextPlayer.user_id, room.code, room.id, nextPlayer.username).catch(err =>
-      //     console.error('Failed to send turn notification:', err)
-      //   );
-      // }
-      
-      // If there was an active timer, broadcast cancellation
-      // 🎯 PERFORMANCE FIX: Non-blocking cancellation - don't await, timer cancellation is cosmetic
-      const hadPreviousTimer = gameState.auto_pass_timer !== null && gameState.auto_pass_timer !== undefined;
-      if (hadPreviousTimer) {
-        broadcastMessage('auto_pass_timer_cancelled', {
-          player_index: effectivePlayerIndex,
-          reason: 'new_play' as const,
-        }).catch((cancelError) => {
-          gameLogger.warn('[useRealtime] ⚠️ Timer cancellation broadcast failed (non-fatal):', cancelError);
-        });
-      }
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
-      // by BotCoordinator's own catch block. Calling onError here would show a confusing
-      // Alert to the user for something they didn't do (e.g., "Not your turn" race condition
-      // after a FunctionsFetchError retry for a previous bot's play).
-      if (playerIndex === undefined) {
-        onError?.(error);
-      } else {
-        gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
-      }
-      throw error;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded: onMatchEnded is a stable callback prop ref; room is read via room?.code but including the full room object would cause playCards to become a new function reference on every subscription update
-  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
-  
-  /**
-   * Pass turn
-   * @param playerIndex - Optional player index for bot moves (when host plays on behalf of bot)
-   */
-  const pass = useCallback(async (playerIndex?: number): Promise<void> => {
-    // Determine which player is passing
-    const passingPlayer = playerIndex !== undefined 
-      ? roomPlayers.find(p => p.player_index === playerIndex)
-      : currentPlayer;
-    
-    if (!gameState || !passingPlayer || gameState.current_turn !== passingPlayer.player_index) {
-      throw new Error('Not your turn');
-    }
-    
-    // FIX: If the auto-pass timer is currently executing, silently skip.
-    // This prevents race conditions where pass() fires from a stale handler
-    // while executeAutoPasses() has already handled the turn via direct Edge Function call.
-    if (isAutoPassInProgress) {
-      gameLogger.info('[useRealtime] ⚠️ Skipping pass() — auto-pass execution in progress');
-      return;
-    }
-    
-    if (!room?.code) {
-      throw new Error('Room code not available');
-    }
-    
-    try {
-      gameLogger.info('[useRealtime] 📡 Calling player-pass Edge Function...', {
-        player_id: passingPlayer.user_id,
-        player_index: passingPlayer.player_index,
-        is_bot: playerIndex !== undefined,
-      });
-
-      // ✅ UNIFIED ARCHITECTURE: Use Edge Function (matches play-cards pattern)
-      // This ensures consistent state management and preserves auto_pass_timer
-      const { data: result, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
-        body: {
-          room_code: room.code,
-          player_id: passingPlayer.user_id, // ✅ Use user_id (consistent with play-cards)
-        }
-      });
-
-      if (passError || !result?.success) {
-        const errorMessage = await extractEdgeFunctionErrorAsync(passError, result, 'Pass validation failed');
-        const statusCode = passError?.context?.status || 'unknown';
-        
-        gameLogger.error('[useRealtime] ❌ Pass failed:', {
-          message: errorMessage,
-          status: statusCode,
-          fullError: passError,
-          result: result,
-        });
-        
-        throw new Error(errorMessage);
-      }
-
-      gameLogger.info('[useRealtime] ✅ Pass successful:', {
-        next_turn: result.next_turn,
-        passes: result.passes, // DB column and response field are both 'passes' (previously 'pass_count', renamed for consistency)
-        trick_cleared: result.trick_cleared,
-        timer_preserved: !!result.auto_pass_timer,
-      });
-      
-      // FIX: Immediately clear local timer state when the trick cleared (timer not preserved).
-      // Without this, the timer polling interval keeps running on stale state until the
-      // Realtime subscription propagates, which can trigger a duplicate executeAutoPasses().
-      if (!result.auto_pass_timer) {
-        setGameState(prevState => {
-          if (!prevState) return prevState;
-          return { ...prevState, auto_pass_timer: null };
-        });
-      }
-      
-      // Broadcast manual pass event
-      await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
-      
-      // CRITICAL: Wait for Realtime to propagate before bot coordinator checks turn
-      gameLogger.info('[useRealtime] ⏳ Waiting 300ms for Realtime sync after pass...');
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // DISABLED: Turn notifications are too spammy
-      // const nextPlayerIndex = result.next_turn;
-      // const nextPlayer = roomPlayers[nextPlayerIndex];
-      // if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id && room) {
-      //   notifyPlayerTurn(nextPlayer.user_id, room.code, room.id, nextPlayer.username).catch(err =>
-      //     console.error('Failed to send turn notification:', err)
-      //   );
-      // }
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
-      if (playerIndex === undefined) {
-        onError?.(error);
-      } else {
-        gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
-      }
-      throw error;
-    }
-  }, [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]);
-  
   /**
    * Fetch all room players from room_players table
    */
@@ -808,29 +153,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   }, []);
 
   /**
-   * Reconnect to the room
-   */
-  const reconnect = useCallback(async (): Promise<void> => {
-    if (!room || reconnectAttemptsRef.current >= maxReconnectAttempts) return;
-    
-    reconnectAttemptsRef.current++;
-    
-    try {
-      await joinChannel(room.id);
-      reconnectAttemptsRef.current = 0;
-      onReconnect?.();
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      
-      // Retry with exponential backoff
-      setTimeout(() => reconnect(), Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, onError, onReconnect]); // joinChannel intentionally omitted to avoid circular dependency
-  
-  /**
    * Join a realtime channel for the room
    */
   const joinChannel = useCallback(async (roomId: string): Promise<void> => {
@@ -877,18 +199,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       })
       .on('broadcast', { event: 'game_ended' }, (payload) => {
         networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
-        // Fetch updated game state which will trigger modal in GameScreen
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
-        // Notify GameScreen to add score history
         const matchScores = (payload as any).match_scores as PlayerMatchScoreDetail[];
         const matchNumber = (payload as any).match_number || gameState?.match_number || 1;
         if (matchScores && onMatchEnded) {
           onMatchEnded(matchNumber, matchScores);
         }
-        // Fetch updated game state to sync new match
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
@@ -948,7 +267,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         filter: `room_id=eq.${roomId}`,
       }, async (payload) => {
         networkLogger.debug('[useRealtime] 👥 room_players change:', payload.eventType);
-        // Refetch players to ensure we have latest is_host status
         await fetchPlayers(roomId);
       });
     
@@ -972,7 +290,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           });
           
           networkLogger.info('[useRealtime] ✅ Presence tracked, resolving joinChannel promise');
-          resolve(); // BULLETPROOF: Signal that subscription is complete
+          resolve();
         } else if (status === 'CLOSED') {
           clearTimeout(timeout);
           setIsConnected(false);
@@ -988,6 +306,123 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     channelRef.current = channel;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded from joinChannel; reading it inside the channel callbacks would capture a stale closure — gameState is read dynamically from the latest broadcast events instead
   }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
+
+  // 🏠 Room lobby operations (extracted hook)
+  const {
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    setReady,
+    startGame,
+  } = useRoomLobby({
+    userId,
+    username,
+    room,
+    roomPlayers,
+    currentPlayer,
+    isHost,
+    setRoom,
+    setRoomPlayers,
+    setGameState,
+    setPlayerHands,
+    setIsConnected,
+    setLoading,
+    setError,
+    channelRef,
+    onError,
+    broadcastMessage,
+    joinChannel,
+  });
+
+  /**
+   * Play cards — thin wrapper around executePlayCards (server Edge Function call)
+   */
+  const playCards = useCallback(async (cards: Card[], playerIndex?: number): Promise<void> => {
+    if (!gameState) {
+      throw new Error('Game state not loaded');
+    }
+    
+    try {
+      await executePlayCards({
+        cards,
+        playerIndex,
+        gameState,
+        currentPlayer,
+        roomPlayers,
+        room,
+        broadcastMessage,
+        onMatchEnded,
+        setGameState,
+      });
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
+      // by BotCoordinator's own catch block.
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
+      }
+      throw error;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded
+  }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
+  
+  /**
+   * Pass turn — thin wrapper around executePass (server Edge Function call)
+   */
+  const pass = useCallback(async (playerIndex?: number): Promise<void> => {
+    if (!gameState) {
+      throw new Error('Game state not loaded');
+    }
+    
+    try {
+      await executePass({
+        playerIndex,
+        gameState,
+        currentPlayer,
+        roomPlayers,
+        room,
+        isAutoPassInProgress,
+        broadcastMessage,
+        setGameState,
+      });
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
+      }
+      throw error;
+    }
+  }, [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage, isAutoPassInProgress]);
+
+  /**
+   * Reconnect to the room
+   */
+  const reconnect = useCallback(async (): Promise<void> => {
+    if (!room || reconnectAttemptsRef.current >= maxReconnectAttempts) return;
+    
+    reconnectAttemptsRef.current++;
+    
+    try {
+      await joinChannel(room.id);
+      reconnectAttemptsRef.current = 0;
+      onReconnect?.();
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      onError?.(error);
+      
+      // Retry with exponential backoff
+      setTimeout(() => reconnect(), Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, onError, onReconnect]); // joinChannel intentionally omitted to avoid circular dependency
   
   /**
    * Connect to an existing room (called when navigating from Lobby -> Game).
@@ -1002,7 +437,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const normalizedCode = code.toUpperCase();
       
       // CRITICAL FIX: Use promise wrapper with aggressive timeout
-      // The .single() query was hanging indefinitely, blocking all data loading
       const queryPromise = (async () => {
         const result = await supabase
           .from('rooms')
@@ -1046,7 +480,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       setRoom(existingRoom);
 
       // CRITICAL FIX: Fetch data BEFORE joining channel
-      // This ensures we have initial state even if channel subscription lags
       try {
         await fetchPlayers(existingRoom.id);
       } catch (error) {
@@ -1085,16 +518,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref); stale-value ref-in-cleanup warning is not applicable for interval refs
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref)
       if (timerIntervalRef.current) {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- same ref, same reason
         clearInterval(timerIntervalRef.current);
       }
     };
   }, []);
-
-  // NOTE: Timer display is handled by AutoPassTimer component
-  // It recalculates remaining_ms from started_at every render
 
   return {
     room,
