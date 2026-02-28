@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, Profiler } from 'react';
-import { View, Text, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
+import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
 import { ScoreboardContainer } from '../components/scoreboard';
 import { useAuth } from '../contexts/AuthContext';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
@@ -137,6 +138,7 @@ function GameScreenContent() {
     gameState: multiplayerGameState, 
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady, // BULLETPROOF: Game state fully loaded
+    isConnected,
     players: realtimePlayers,
     playCards: multiplayerPlayCards,
     pass: multiplayerPass,
@@ -522,10 +524,19 @@ function GameScreenContent() {
             </View>
           </View>
         )}
+
+        {/* Task #575: Connection status indicator for multiplayer */}
+        {isMultiplayerGame && (
+          <ConnectionStatusIndicator
+            status={isConnected ? 'connected' : 'reconnecting'}
+            style={{ position: 'absolute', top: 50, alignSelf: 'center', zIndex: 200 }}
+          />
+        )}
         
         {isInitializing ? (
           // Loading state
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 12 }} />
             <Text style={styles.loadingText}>Initializing game...</Text>
             <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
           </View>

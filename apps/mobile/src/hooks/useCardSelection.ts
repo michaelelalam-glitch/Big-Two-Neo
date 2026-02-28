@@ -1,12 +1,19 @@
+/**
+ * @module useCardSelection
+ * Manages card selection state and drag-to-reorder for the game hand.
+ */
 import { useState } from 'react';
 import type { Card } from '../game/types';
 
 /**
- * Custom hook to manage card selection state and reordering
- * Extracted from GameScreen to reduce complexity
- * 
- * Task #431: Removed unnecessary useMemo from getSelectedCards - filter operation is O(n) which is fast enough
- * The memoization overhead was actually slower than just filtering on each call
+ * useCardSelection — Manages card selection state and drag-to-reorder.
+ *
+ * Extracted from GameScreen to reduce complexity.
+ *
+ * Task #431: Removed unnecessary useMemo from getSelectedCards — filter is O(n)
+ * on at most 13 cards, so the memoization overhead was counterproductive.
+ *
+ * @returns {{ selectedCardIds: Set<string>, setSelectedCardIds: (ids: Set<string>) => void, customCardOrder: string[], setCustomCardOrder: (order: string[]) => void, handleCardsReorder: (cards: Card[]) => void, getSelectedCards: (hand: Card[]) => Card[] }}
  */
 export function useCardSelection() {
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());

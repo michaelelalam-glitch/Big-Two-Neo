@@ -1,3 +1,7 @@
+/**
+ * @module useHelperButtons
+ * Provides Sort, Smart Sort, and Hint button handlers for the game screen.
+ */
 import { Platform, ToastAndroid, Alert } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
@@ -14,8 +18,18 @@ interface UseHelperButtonsParams {
 }
 
 /**
- * Custom hook to manage Sort, Smart Sort, and Hint button functionality
- * Extracted from GameScreen to reduce complexity
+ * useHelperButtons — Provides Sort, Smart Sort, and Hint button handlers.
+ *
+ * Extracted from GameScreen to reduce complexity.
+ *
+ * @param props - Configuration object
+ * @param props.playerHand - The current player's hand of cards
+ * @param props.lastPlay - The last played combo (null if starting a new round)
+ * @param props.isFirstPlay - Whether this is the very first play of the match
+ * @param props.customCardOrder - Current custom card ordering
+ * @param props.setCustomCardOrder - Setter for custom card ordering
+ * @param props.setSelectedCardIds - Setter for selected card IDs
+ * @returns {{ handleSort: () => void, handleSmartSort: () => void, handleHint: () => void }}
  */
 export function useHelperButtons({
   playerHand,
