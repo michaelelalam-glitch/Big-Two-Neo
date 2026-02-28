@@ -41,7 +41,8 @@ CREATE POLICY "No direct inserts on game_state" ON game_state
 
 -- 6) Block UPDATE from clients (SECURITY DEFINER functions bypass RLS)
 CREATE POLICY "No direct updates on game_state" ON game_state
-  FOR UPDATE USING (false);
+  FOR UPDATE USING (false)
+  WITH CHECK (false);
 
 -- Verify RLS is enabled (idempotent)
 ALTER TABLE game_state ENABLE ROW LEVEL SECURITY;

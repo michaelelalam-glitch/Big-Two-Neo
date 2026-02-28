@@ -37,7 +37,7 @@ interface Logger {
 export interface HandleErrorOptions {
   /**
    * A short label describing where the error occurred.
-   * Appears in the log entry and (optionally) in the user-facing alert title.
+   * Appears in the log entry prefix (e.g. `[PlayCards] ...`).
    * @example 'PlayCards', 'JoinRoom', 'SaveStats'
    */
   context?: string;
@@ -75,16 +75,40 @@ export interface HandleErrorOptions {
  * @returns A non-empty string message
  */
 export function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  const fallback = 'An unknown error occurred';
+
+  if (error instanceof Error) {
+    const msg = typeof error.message === 'string' ? error.message.trim() : '';
+    return msg.length > 0 ? error.message : fallback;
+  }
 
   if (error !== null && typeof error === 'object') {
     const obj = error as Record<string, unknown>;
-    if (typeof obj.message === 'string' && obj.message.length > 0) return obj.message;
-    if (typeof obj.error === 'string' && obj.error.length > 0) return obj.error;
+    if (typeof obj.message === 'string') {
+      const msg = obj.message.trim();
+      if (msg.length > 0) return obj.message;
+      // message field exists but is empty/whitespace; check .error before falling back
+      if (typeof obj.error === 'string') {
+        const errMsg = obj.error.trim();
+        if (errMsg.length > 0) return obj.error;
+      }
+      return fallback;
+    }
+    if (typeof obj.error === 'string') {
+      const msg = obj.error.trim();
+      if (msg.length > 0) return obj.error;
+      return fallback;
+    }
   }
 
   const str = String(error);
-  return str === 'undefined' || str === 'null' ? 'An unknown error occurred' : str;
+  const trimmed = str.trim();
+
+  if (trimmed.length === 0 || trimmed === 'undefined' || trimmed === 'null') {
+    return fallback;
+  }
+
+  return str;
 }
 
 /**

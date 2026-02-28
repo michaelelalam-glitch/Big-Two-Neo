@@ -39,7 +39,7 @@ import type { ScoreHistory } from '../../types/scoreboard';
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
-// Task #571: useReducer for batched UI state updates (reduces re-renders vs 3 separate useState)
+// Task #571: useReducer for batched UI state updates (consolidates 2 boolean useState calls)
 interface UIState {
   showSettings: boolean;
   isCardPlayInFlight: boolean;

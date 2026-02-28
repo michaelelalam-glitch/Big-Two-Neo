@@ -1,4 +1,5 @@
 /**
+ * @module useBotCoordinator
  * useBotCoordinator — Host-only bot AI coordinator for multiplayer games.
  *
  * Only the room HOST executes bot turns to avoid duplicate plays. The host
