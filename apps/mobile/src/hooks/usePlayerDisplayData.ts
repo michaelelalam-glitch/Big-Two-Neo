@@ -38,6 +38,7 @@ interface UsePlayerDisplayDataReturn {
   matchNumber: number;
   isGameFinished: boolean;
   layoutPlayersWithScores: any[];
+  displayOrderScoreHistory: ScoreHistory[];
 }
 
 export function usePlayerDisplayData({
@@ -127,6 +128,25 @@ export function usePlayerDisplayData({
         ? getMultiplayerScoreboardIndex(multiplayerCurrentTurn)
         : 0);
 
+  // Reindex scoreHistory.pointsAdded from player_index order to display order.
+  // For multiplayer, layoutPlayers use relative positioning (current user = bottom)
+  // so display index ≠ player_index. The scoreboard columns use display order names
+  // but pointsAdded is stored in player_index order — we must remap.
+  const displayOrderScoreHistory = React.useMemo((): ScoreHistory[] => {
+    // For local AI games, layoutPlayers are already in player_index order — no remap needed
+    if (isLocalAIGame) return scoreHistory;
+
+    // Build mapping: displayIndex → player_index from layoutPlayers
+    const hasMapping = layoutPlayers.length === 4 && layoutPlayers.every((p: any) => p.player_index !== undefined);
+    if (!hasMapping) return scoreHistory;
+
+    return scoreHistory.map((match) => {
+      const reindexed = layoutPlayers.map((p: any) => match.pointsAdded[p.player_index] || 0);
+      const reindexedScores = layoutPlayers.map((p: any) => match.scores[p.player_index] || 0);
+      return { ...match, pointsAdded: reindexed, scores: reindexedScores };
+    });
+  }, [isLocalAIGame, scoreHistory, layoutPlayers]);
+
   return {
     memoizedPlayerNames,
     memoizedCurrentScores,
@@ -137,5 +157,6 @@ export function usePlayerDisplayData({
     matchNumber,
     isGameFinished,
     layoutPlayersWithScores,
+    displayOrderScoreHistory,
   };
 }

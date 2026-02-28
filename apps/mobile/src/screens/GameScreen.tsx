@@ -436,6 +436,7 @@ function GameScreenContent() {
     matchNumber,
     isGameFinished,
     layoutPlayersWithScores,
+    displayOrderScoreHistory,
   } = usePlayerDisplayData({
     isLocalAIGame,
     gameState,
@@ -493,7 +494,7 @@ function GameScreenContent() {
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={isLocalAIGame ? ((gameState as any)?.currentMatch ?? 1) : (multiplayerGameState?.match_number ?? 1)}
             isGameFinished={isGameFinished}
-            scoreHistory={scoreHistory}
+            scoreHistory={displayOrderScoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
@@ -585,7 +586,7 @@ function GameScreenContent() {
             currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
             matchNumber={matchNumber}
             isGameFinished={isGameFinished}
-            scoreHistory={scoreHistory}
+            scoreHistory={displayOrderScoreHistory}
             playHistory={playHistoryByMatch}
             originalPlayerNames={memoizedOriginalPlayerNames}
           />
