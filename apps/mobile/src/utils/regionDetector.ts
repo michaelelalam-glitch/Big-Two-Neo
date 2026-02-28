@@ -16,6 +16,8 @@
  * - global: Fallback/Unknown
  */
 
+import { networkLogger } from './logger';
+
 export type Region = 'us-east' | 'us-west' | 'eu-west' | 'eu-central' | 'ap-south' | 'sa-east' | 'global';
 
 interface IPApiResponse {
@@ -85,7 +87,7 @@ const US_WEST_STATES = ['CA', 'WA', 'OR', 'NV', 'AZ', 'UT', 'ID', 'MT', 'WY', 'C
  */
 export async function detectRegion(): Promise<Region> {
   try {
-    console.log('[RegionDetector] Fetching IP geolocation...');
+    networkLogger.info('[RegionDetector] Fetching IP geolocation...');
     
     const response = await fetch('https://ipapi.co/json/', {
       method: 'GET',
@@ -96,12 +98,12 @@ export async function detectRegion(): Promise<Region> {
     });
 
     if (!response.ok) {
-      console.warn('[RegionDetector] API returned status:', response.status);
+      networkLogger.warn('[RegionDetector] API returned status:', response.status);
       return 'global';
     }
 
     const data: IPApiResponse = await response.json();
-    console.log('[RegionDetector] Detected country:', data.country_code, data.country_name);
+    networkLogger.info('[RegionDetector] Detected country:', data.country_code, data.country_name);
 
     // Check if country is in our mapping
     let region = REGION_MAP[data.country_code];
@@ -111,21 +113,21 @@ export async function detectRegion(): Promise<Region> {
       const stateCode = data.region.split('-')[1] || data.region; // Extract state code
       if (US_WEST_STATES.includes(stateCode)) {
         region = 'us-west';
-        console.log('[RegionDetector] US state detected:', stateCode, '→ us-west');
+        networkLogger.debug('[RegionDetector] US state detected:', stateCode, '→ us-west');
       } else {
-        console.log('[RegionDetector] US state detected:', stateCode, '→ us-east');
+        networkLogger.debug('[RegionDetector] US state detected:', stateCode, '→ us-east');
       }
     }
 
     if (!region) {
-      console.log('[RegionDetector] Country not mapped, using global:', data.country_code);
+      networkLogger.info('[RegionDetector] Country not mapped, using global:', data.country_code);
       return 'global';
     }
 
-    console.log('[RegionDetector] Final region:', region);
+    networkLogger.info('[RegionDetector] Final region:', region);
     return region;
-  } catch (error: any) {
-    console.error('[RegionDetector] Detection failed:', error?.message || String(error));
+  } catch (error: unknown) {
+    networkLogger.error('[RegionDetector] Detection failed:', error instanceof Error ? error.message : String(error));
     return 'global';
   }
 }

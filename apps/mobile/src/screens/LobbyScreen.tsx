@@ -53,7 +53,7 @@ export default function LobbyScreen() {
     isCasual: false,
     isRanked: false,
   });
-  const [_isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
+  const [, setIsMatchmakingRoom] = useState(false);
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
@@ -181,11 +181,13 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
       }
-    } catch (error: any) {
-      roomLogger.error('[LobbyScreen] Error loading players:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const code = error instanceof Object && 'code' in error ? String((error as Record<string, unknown>).code) : '';
+      roomLogger.error('[LobbyScreen] Error loading players:', msg);
       // Don't show alert if room was cleaned up (user left)
       // Just navigate home silently
-      if (error?.message?.includes('not found') || error?.code === 'PGRST116') {
+      if (msg.includes('not found') || code === 'PGRST116') {
         roomLogger.info('[LobbyScreen] Room no longer exists, navigating home');
         if (!isLeavingRef.current) {
           isLeavingRef.current = true;
@@ -223,7 +225,7 @@ export default function LobbyScreen() {
           table: 'rooms',
           filter: `code=eq.${roomCode}`,
         },
-        (payload: any) => {
+        (payload: { old?: { status?: string }; new?: { status?: string; code?: string } }) => {
           roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
             oldStatus: payload.old?.status,
             newStatus: payload.new?.status,
@@ -274,8 +276,8 @@ export default function LobbyScreen() {
 
       if (error) throw error;
       setIsReady(!isReady);
-    } catch (error: any) {
-      roomLogger.error('Error toggling ready:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error toggling ready:', error instanceof Error ? error.message : String(error));
       showError(i18n.t('lobby.readyStatusError'));
     } finally {
       setIsTogglingReady(false);
@@ -297,11 +299,11 @@ export default function LobbyScreen() {
         message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
         title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // User dismissed the share dialog - this is normal behavior, don't show error
-      const errorMsg = (error?.message ? String(error.message) : '').toLowerCase();
-      const errorCode = (error?.code ? String(error.code) : '').toLowerCase();
-      const errorName = (error?.name ? String(error.name) : '').toLowerCase();
+      const errorMsg = (error instanceof Error ? error.message : '').toLowerCase();
+      const errorCode = (error instanceof Object && 'code' in error ? String((error as Record<string, unknown>).code) : '').toLowerCase();
+      const errorName = (error instanceof Error ? error.name : '').toLowerCase();
       
       if (
         errorMsg.includes('cancel') ||
@@ -315,7 +317,7 @@ export default function LobbyScreen() {
       }
       
       // Actual error occurred
-      roomLogger.error('Error sharing room code:', error?.message || error);
+      roomLogger.error('Error sharing room code:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         i18n.t('lobby.shareError') || 'Unable to share',
         i18n.t('lobby.shareErrorMessage') || 'There was a problem sharing the room code. You can copy and share it manually.'
@@ -419,9 +421,10 @@ export default function LobbyScreen() {
       // The subscription will fire when room status changes to 'playing'
       roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
       setIsStarting(false);
-    } catch (error: any) {
-      roomLogger.error('Error starting game:', error?.message || error?.code || String(error));
-      showError(error.message || i18n.t('lobby.startGameError'));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      roomLogger.error('Error starting game:', msg);
+      showError(msg || i18n.t('lobby.startGameError'));
       // Reset immediately on error
       setIsStarting(false);
     } finally {
@@ -464,8 +467,8 @@ export default function LobbyScreen() {
       }
       
       navigation.replace('Home');
-    } catch (error: any) {
-      roomLogger.error('Error leaving room:', error?.message || error?.code || String(error));
+    } catch (error: unknown) {
+      roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
       isLeavingRef.current = false; // Reset flag on error
       showError(i18n.t('lobby.leaveRoomError'));
     }

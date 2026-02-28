@@ -35,8 +35,9 @@ module.exports = {
     // React Hooks rules
     'react-hooks/exhaustive-deps': 'warn', // Warn on missing deps; intentional exclusions use eslint-disable-next-line
     
-    // Console rules — app uses structured logger; console is acceptable in dev/debug paths
-    'no-console': 'off',
+    // Console rules — app uses structured logger (gameLogger, networkLogger, etc.)
+    // console.warn and console.error are allowed; console.log/info/debug should use the logger
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
     
     // Import rules — warn so CI surfaces ordering issues without blocking merges
     'import/order': 'warn',

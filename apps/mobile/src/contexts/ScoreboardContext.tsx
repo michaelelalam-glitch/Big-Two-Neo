@@ -18,6 +18,7 @@ import {
   ScoreHistory,
   PlayHistoryMatch,
 } from '../types/scoreboard';
+import { gameLogger } from '../utils/logger';
 
 // ============================================================================
 // CONTEXT DEFINITION
@@ -80,7 +81,7 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // -------------------------------------------------------------------------
 
   const addScoreHistory = useCallback((history: ScoreHistory) => {
-    console.log('🔍 [ScoreboardContext] addScoreHistory called, match:', history.matchNumber);
+    gameLogger.info('🔍 [ScoreboardContext] addScoreHistory called, match:', history.matchNumber);
     setScoreHistory((prev) => {
       // Check if this match already exists
       const existingIndex = prev.findIndex((h) => h.matchNumber === history.matchNumber);
@@ -89,12 +90,12 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
         // Update existing match
         const updated = [...prev];
         updated[existingIndex] = history;
-        console.log('🔍 [ScoreboardContext] Updated match, total count:', updated.length);
+        gameLogger.info('🔍 [ScoreboardContext] Updated match, total count:', updated.length);
         return updated;
       } else {
         // Add new match
         const newHistory = [...prev, history];
-        console.log('🔍 [ScoreboardContext] Added new match, total count:', newHistory.length);
+        gameLogger.info('🔍 [ScoreboardContext] Added new match, total count:', newHistory.length);
         return newHistory;
       }
     });

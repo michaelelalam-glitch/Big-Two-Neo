@@ -5,14 +5,21 @@
  * Uses the send-push-notification Edge Function to deliver notifications.
  */
 
-import { supabase } from './supabase';
 import { notificationLogger } from '../utils/logger';
+import { supabase } from './supabase';
+
+interface ExpoPushTicket {
+  status: 'ok' | 'error';
+  id?: string;
+  message?: string;
+  details?: { error?: string };
+}
 
 interface NotificationPayload {
   user_ids: string[];
   title: string;
   body: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   sound?: 'default' | null;
   badge?: number;
 }
@@ -71,20 +78,20 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
 
     // Check individual ticket results from Expo Push API
     if (data?.results && Array.isArray(data.results)) {
-      const errors = data.results.filter((r: any) => r.status === 'error');
+      const errors = data.results.filter((r: ExpoPushTicket) => r.status === 'error');
       
       if (errors.length > 0) {
         notificationLogger.error('❌ [sendPushNotification] Expo Push API errors:', {
           total: data.results.length,
           failed: errors.length,
-          errors: errors.map((e: any) => ({
+          errors: errors.map((e: ExpoPushTicket) => ({
             error: e.details?.error,
             message: e.message
           }))
         });
         
         // Log specific error details
-        errors.forEach((err: any, idx: number) => {
+        errors.forEach((err: ExpoPushTicket, idx: number) => {
           if (err.details?.error === 'InvalidCredentials') {
             notificationLogger.error(
               `🔐 [sendPushNotification] FCM Configuration Missing!\n` +
@@ -104,11 +111,11 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
 
     notificationLogger.info('✅ [sendPushNotification] Success!', {
       sent: data?.sent || 0,
-      successful: data?.results?.filter((r: any) => r.status === 'ok').length || 0
+      successful: data?.results?.filter((r: ExpoPushTicket) => r.status === 'ok').length || 0
     });
     return true;
-  } catch (error: any) {
-    notificationLogger.error('❌ [sendPushNotification] Exception:', error?.message || String(error));
+  } catch (error: unknown) {
+    notificationLogger.error('❌ [sendPushNotification] Exception:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }
@@ -136,8 +143,8 @@ async function getRoomPlayerIds(roomId: string, excludeUserId?: string): Promise
     }
 
     return (data || []).map(p => p.user_id).filter(Boolean);
-  } catch (error: any) {
-    notificationLogger.error('Error fetching room players:', error?.message || String(error));
+  } catch (error: unknown) {
+    notificationLogger.error('Error fetching room players:', error instanceof Error ? error.message : String(error));
     return [];
   }
 }

@@ -2,8 +2,8 @@
  * Utility functions for game logic
  */
 
-import { VALID_STRAIGHT_SEQUENCES } from './constants';
 import type { Card } from '../types';
+import { VALID_STRAIGHT_SEQUENCES } from './constants';
 
 /**
  * Check if two sets of cards are identical (same ranks and suits)

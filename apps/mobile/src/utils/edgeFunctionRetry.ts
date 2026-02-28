@@ -8,8 +8,8 @@
  * This utility wraps the invoke call with exponential backoff retry logic.
  */
 
-import { networkLogger } from './logger';
 import { supabase } from '../services/supabase';
+import { networkLogger } from './logger';
 
 /** Maximum number of retry attempts after the initial call fails */
 const MAX_RETRIES = 2;
@@ -37,11 +37,29 @@ function isRetryableError(error: unknown): boolean {
  * @param options - The invoke options (body, headers, etc.)
  * @returns The result from supabase.functions.invoke()
  */
+
+/**
+ * Represents a Supabase Edge Function error with optional Response context.
+ * Supabase stores the HTTP Response details in error.context when a function returns non-2xx.
+ */
+export interface EdgeFunctionError {
+  name?: string;
+  message?: string;
+  context?: {
+    status?: number;
+    statusText?: string;
+    text?: () => Promise<string>;
+    bodyUsed?: boolean;
+    body?: string;
+    error?: string;
+  };
+}
+
 export async function invokeWithRetry<T = unknown>(
   functionName: string,
   options: { body: Record<string, unknown> },
-): Promise<{ data: T | null; error: any }> {
-  let lastError: any = null;
+): Promise<{ data: T | null; error: EdgeFunctionError | null }> {
+  let lastError: EdgeFunctionError | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -66,11 +84,11 @@ export async function invokeWithRetry<T = unknown>(
       }
     } catch (err) {
       // Unexpected exception from invoke() itself (very rare)
-      lastError = err;
+      lastError = err as EdgeFunctionError;
 
       if (!isRetryableError(err) || attempt >= MAX_RETRIES) {
         networkLogger.error(`[EdgeFn] ❌ ${functionName} failed with non-retryable error:`, err);
-        return { data: null, error: err };
+        return { data: null, error: err as EdgeFunctionError };
       }
 
       const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);

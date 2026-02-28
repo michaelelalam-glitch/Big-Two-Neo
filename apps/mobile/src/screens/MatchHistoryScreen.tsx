@@ -43,6 +43,18 @@ export default function MatchHistoryScreen() {
   
   const PAGE_SIZE = 20;
 
+  interface MatchParticipantRow {
+    match_id: string;
+    final_position: number;
+    elo_change: number | null;
+    match_history: {
+      room_code: string;
+      match_type: 'casual' | 'ranked';
+      created_at: string;
+      player_count: number;
+    }[];
+  }
+
   useEffect(() => {
     loadMatches();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMatches intentionally excluded; it is defined in the component body without useCallback; user is the correct trigger (load history when the authenticated user changes)
@@ -74,14 +86,14 @@ export default function MatchHistoryScreen() {
 
       if (error) throw error;
 
-      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: any) => ({
+      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: MatchParticipantRow) => ({
         match_id: item.match_id,
-        room_code: item.match_history.room_code,
-        match_type: item.match_history.match_type,
+        room_code: item.match_history[0].room_code,
+        match_type: item.match_history[0].match_type,
         final_position: item.final_position,
         elo_change: item.elo_change,
-        created_at: item.match_history.created_at,
-        player_count: item.match_history.player_count,
+        created_at: item.match_history[0].created_at,
+        player_count: item.match_history[0].player_count,
       }));
 
       if (pageNum === 0) {
@@ -92,9 +104,9 @@ export default function MatchHistoryScreen() {
       
       setHasMore(formattedMatches.length === PAGE_SIZE);
       setPage(pageNum);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading match history:', error);
-      showError(error?.message || 'Failed to load match history');
+      showError(error instanceof Error ? error.message : 'Failed to load match history');
     } finally {
       setLoading(false);
     }

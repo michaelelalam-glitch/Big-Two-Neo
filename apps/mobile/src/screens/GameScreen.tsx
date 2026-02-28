@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
 import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
@@ -38,7 +39,6 @@ import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
-import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -51,7 +51,6 @@ function GameScreenContent() {
   const { 
     addScoreHistory, 
     addPlayHistory,
-    setIsScoreboardExpanded: _setIsScoreboardExpanded, 
     scoreHistory, 
     playHistoryByMatch 
   } = scoreboardContext; // Task #351 & #352 & #355
@@ -289,7 +288,7 @@ function GameScreenContent() {
             }
           } catch (e) {
             // Not JSON, treat as plain string
-            console.debug('[GameScreen] JSON parse failed, treating as plain string:', { card, error: e });
+            gameLogger.debug('[GameScreen] JSON parse failed, treating as plain string:', { card, error: e });
           }
           
           // Now cardStr should be like "D10", "C5", "HK", etc.

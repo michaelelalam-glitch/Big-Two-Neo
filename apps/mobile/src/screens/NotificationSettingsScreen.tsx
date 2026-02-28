@@ -88,9 +88,9 @@ export default function NotificationSettingsScreen() {
       });
 
       showInfo('You should receive a notification in 2 seconds!', 'Test Notification Sent');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing notification service internals
-      notificationLogger.error('Error sending test notification:', error?.message || error?.code || String(error));
+      notificationLogger.error('Error sending test notification:', error instanceof Error ? error.message : String(error));
       showError('Failed to send test notification.');
     }
   };

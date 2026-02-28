@@ -145,9 +145,9 @@ export default function StatsScreen() {
         setGameHistory(historyData || []);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log error message/code to avoid exposing DB internals
-      statsLogger.error('[Stats] Error fetching data:', error?.message || error?.code || String(error));
+      statsLogger.error('[Stats] Error fetching data:', error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
       setRefreshing(false);

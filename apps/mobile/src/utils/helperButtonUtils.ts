@@ -36,11 +36,6 @@ export const findHintPlay = findRecommendedPlay;
 // SMART SORT UTILITIES (Task #383-384)
 // ============================================================================
 
-interface _ComboCards {
-  cards: Card[];
-  type: 'single' | 'pair' | 'triple' | 'straight' | 'flush' | 'fullHouse' | 'fourOfAKind' | 'straightFlush';
-}
-
 /**
  * Check if cards form a flush (all same suit)
  */

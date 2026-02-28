@@ -41,11 +41,11 @@ export interface GameState {
   turn_timer: number; // seconds remaining in turn
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
-  game_phase: 'dealing' | 'playing' | 'finished';
+  game_phase: 'dealing' | 'first_play' | 'playing' | 'finished';
   winner: number | null; // FIXED: Use 'winner' to match database column
   match_number: number; // Current match number (starts at 1, increments when match ends)
   hands: Record<number, Card[]>; // Player hands indexed by player_index
-  play_history: any[]; // Array of all plays made in the game
+  play_history: PlayHistoryEntry[]; // Array of all plays made in the game
   
   // Auto-pass timer state (for highest play detection)
   auto_pass_timer: AutoPassTimerState | null;
@@ -75,6 +75,15 @@ export interface AutoPassTimerState {
   end_timestamp?: number; // Server epoch ms when timer expires (CRITICAL for sync)
   sequence_id?: number; // Monotonic sequence for conflict resolution
   server_time_at_creation?: number; // Server epoch ms when created (for clock sync)
+}
+
+/** A single play entry recorded in the game's play_history array */
+export interface PlayHistoryEntry {
+  match_number: number;
+  position: number;
+  cards: Card[];
+  combo_type: ComboType | string;
+  passed: boolean;
 }
 
 export interface LastPlay {
