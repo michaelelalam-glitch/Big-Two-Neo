@@ -43,6 +43,9 @@ export default function MatchHistoryScreen() {
   
   const PAGE_SIZE = 20;
 
+  // Note: Supabase client types !inner joins as arrays, even though PostgREST
+  // returns an object for to-one relationships. We keep the array type for
+  // TypeScript compatibility and access [0] with a defensive fallback.
   interface MatchParticipantRow {
     match_id: string;
     final_position: number;
@@ -86,15 +89,18 @@ export default function MatchHistoryScreen() {
 
       if (error) throw error;
 
-      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: MatchParticipantRow) => ({
-        match_id: item.match_id,
-        room_code: item.match_history[0].room_code,
-        match_type: item.match_history[0].match_type,
-        final_position: item.final_position,
-        elo_change: item.elo_change,
-        created_at: item.match_history[0].created_at,
-        player_count: item.match_history[0].player_count,
-      }));
+      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: MatchParticipantRow) => {
+        const history = Array.isArray(item.match_history) ? item.match_history[0] : item.match_history;
+        return {
+          match_id: item.match_id,
+          room_code: history?.room_code ?? '',
+          match_type: history?.match_type ?? 'casual',
+          final_position: item.final_position,
+          elo_change: item.elo_change,
+          created_at: history?.created_at ?? '',
+          player_count: history?.player_count ?? 4,
+        };
+      });
 
       if (pageNum === 0) {
         setMatches(formattedMatches);
