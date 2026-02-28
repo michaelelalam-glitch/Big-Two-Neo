@@ -3,6 +3,8 @@
 # Tags: navigation
 #
 # Prerequisites: User is authenticated
+# Source: HomeScreen.tsx, HowToPlayScreen.tsx, SettingsScreen.tsx
+# — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -13,15 +15,15 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 2: Navigate to How to Play
+# Step 2: Navigate to How to Play (button: "📖 How to Play")
 - tapOn: "How to Play"
 - extendedWaitUntil:
-    visible: "How to Play"
+    visible: "How to Play Big Two"
     timeout: 10000
 
 # Step 3: Take screenshot
@@ -33,16 +35,21 @@ tags:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 5: Navigate to Settings (gear icon)
+# Step 5: Navigate to Settings (gear icon ⚙️ in top bar)
+# The gear renders as a visual glyph, tap by the unicode character
 - tapOn: "⚙️"
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 10000
 
-# Step 6: Take screenshot
+# Step 6: Verify settings sections
+- assertVisible: "Game Settings"
+- assertVisible: "Card Sort Order"
+
+# Step 7: Take screenshot
 - takeScreenshot: "08_settings"
 
-# Step 7: Go back
+# Step 8: Go back
 - back
 - extendedWaitUntil:
     visible: "Big2 Mobile"

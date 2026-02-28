@@ -237,7 +237,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cocoapods-
 
-      - name: 📦 Install dependencies
+      - name: � Cache DerivedData (xcodebuild)
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/ios/build
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/ios/Podfile', 'apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+
+      - name: �📦 Install dependencies
         run: |
           cd apps/mobile
           pnpm install --frozen-lockfile

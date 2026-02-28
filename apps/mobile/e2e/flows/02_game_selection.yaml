@@ -5,6 +5,8 @@
 # Prerequisites: User must already be authenticated (for example, via pre-seeded
 # auth state or a prior auth flow). This flow starts from an authenticated session
 # and launches the app directly.
+#
+# Source: GameSelectionScreen.tsx — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -25,12 +27,14 @@ tags:
 - assertVisible: "Lebanese Deal"
 - assertVisible: "PLAY →"
 - assertVisible: "Coming Soon"
+- assertVisible: "SOON"
+- assertVisible: "More games coming in future updates"
 
 # Step 4: Take screenshot
 - takeScreenshot: "02_game_selection"
 
 # Step 5: Tap Chinese Poker to navigate to Home
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 
 # Step 6: Verify navigation to Home screen
 - extendedWaitUntil:

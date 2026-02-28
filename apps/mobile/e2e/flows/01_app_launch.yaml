@@ -6,9 +6,8 @@
 # the authentication screen for unauthenticated users.
 # Runs in CI without authentication (ci tag).
 #
-# Note: Uses text-based selectors rather than testID because SafeAreaView
-# and container components may not expose testID in the iOS accessibility
-# hierarchy that Maestro inspects.
+# Uses testID-based selectors (id:) for reliable matching in Release builds.
+# Text matching can fail in Release/Hermes due to accessibility tree differences.
 
 appId: com.big2mobile.app
 tags:
@@ -20,18 +19,26 @@ tags:
 - launchApp:
     clearState: true
 
-# Step 2: Wait for app to fully load (splash screen → sign-in)
-# Use text selector — most reliable on first cold launch
+# Step 2: Wait for sign-in screen to load (testID on SafeAreaView container)
 - extendedWaitUntil:
-    visible: "Welcome to Big2"
+    visible:
+      id: "sign-in-screen"
     timeout: 45000
 
-# Step 3: Verify sign-in screen content
-- assertVisible: "Welcome to Big2"
-- assertVisible: "Sign in to play with friends"
+# Step 3: Verify sign-in screen content via testIDs
+- assertVisible:
+    id: "sign-in-title"
 
-# Step 4: Verify sign-in buttons are present
-- assertVisible: "Sign in with Google"
+- assertVisible:
+    id: "sign-in-subtitle"
 
-# Step 5: Take screenshot for visual regression
+# Step 4: Verify Google sign-in button is present
+- assertVisible:
+    id: "google-sign-in-button"
+
+# Step 5: Verify footer text
+- assertVisible:
+    id: "sign-in-footer"
+
+# Step 6: Take screenshot for visual regression
 - takeScreenshot: "01_sign_in_screen"
