@@ -30,8 +30,19 @@ export function useOneCardLeftAlert({
   const oneCardLeftDetectedRef = useRef(new Set<string>());
 
   useEffect(() => {
-    // Only multiplayer GameState has a 'hands' object; local AI exits early
-    const hands = !isLocalAIGame ? multiplayerGameState?.hands : undefined;
+    // Derive hands map from either local or multiplayer game state
+    let hands: Record<string, unknown[]> | undefined;
+
+    if (isLocalAIGame) {
+      const players = gameState?.players;
+      if (!players || !Array.isArray(players)) return;
+      hands = players.reduce<Record<string, unknown[]>>((acc, player, index) => {
+        acc[String(index)] = Array.isArray(player.hand) ? player.hand : [];
+        return acc;
+      }, {});
+    } else {
+      hands = multiplayerGameState?.hands as Record<string, unknown[]> | undefined;
+    }
 
     if (!hands || typeof hands !== 'object') return;
 
@@ -46,7 +57,7 @@ export function useOneCardLeftAlert({
           : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
 
         if (player) {
-          const playerName = 'name' in player ? player.name : player.username;
+          const playerName = 'name' in player ? player.name : ('username' in player ? player.username : 'Unknown');
           gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
 
           try {

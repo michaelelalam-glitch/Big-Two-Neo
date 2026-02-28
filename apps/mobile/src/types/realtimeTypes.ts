@@ -4,7 +4,7 @@
  * Extracted from useRealtime.ts to reduce file size and improve reusability.
  */
 
-import type { AutoPassTimerState } from './multiplayer';
+import type { AutoPassTimerState, MatchScoreDetail } from './multiplayer';
 
 // ── Edge Function Response Types ──────────────────────────────────────────────
 // These interfaces type the JSON bodies returned by Supabase Edge Functions so
@@ -51,14 +51,10 @@ export interface UseRealtimeOptions {
 
 /**
  * Per-player score breakdown returned by multiplayer Edge Functions.
+ * Extends the shared MatchScoreDetail from multiplayer.ts.
  *
  * NOTE: This is distinct from `PlayerMatchScoreDetail` in `game/types/index.ts`,
  * which is used for local (offline) game scoring.
  */
-export interface MultiplayerMatchScoreDetail {
-  player_index: number;
-  cardsRemaining: number;
-  pointsPerCard: number;
-  matchScore: number;
-  cumulativeScore: number;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface -- Re-export with distinct name for backward compatibility
+export interface MultiplayerMatchScoreDetail extends MatchScoreDetail {}
