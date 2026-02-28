@@ -16,9 +16,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
 import { ExpandedScoreboardProps } from '../../types/scoreboard';
-import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   playerNames,
@@ -30,13 +30,13 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   scoreHistory,
   onToggleExpand,
   onTogglePlayHistory,
-  isExpanded,
+  isExpanded: _isExpanded,
 }) => {
   // Use responsive styles
   const styles = useExpandedScoreboardStyles();
 
   return (
-    <View style={styles.expandedContainer}>
+    <View pointerEvents={styles.expandedContainerPointerEvents} style={styles.expandedContainer}>
       {/* Header */}
       <View style={styles.expandedHeader}>
         <Text style={styles.expandedTitle}>
@@ -204,6 +204,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
                   </View>
                 );
               });
+            // eslint-disable-next-line react-hooks/exhaustive-deps -- styles.tableCell etc. come from useExpandedScoreboardStyles() (stable memoized result); including them would add noise without functional benefit since style changes will be captured whenever the parent re-renders
             }, [scoreHistory, currentScores, isGameFinished])}
           </View>
         </ScrollView>

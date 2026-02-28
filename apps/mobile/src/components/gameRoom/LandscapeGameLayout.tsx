@@ -13,19 +13,20 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable } from 'react-native';
+import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
-import { LandscapeOvalTable } from './LandscapeOvalTable';
-import { LandscapeYourPosition } from './LandscapeYourPosition';
-import { LandscapeControlBar } from './LandscapeControlBar';
+import { LandscapeControlBar as _LandscapeControlBar } from './LandscapeControlBar';
 import { LandscapeOpponent } from './LandscapeOpponent';
+import { LandscapeOvalTable } from './LandscapeOvalTable';
+import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
+import { LandscapeYourPosition } from './LandscapeYourPosition';
+import { i18n } from '../../i18n';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { gameLogger as _gameLogger } from '../../utils/logger';
 import { AutoPassTimer } from '../game';
-import { HelperButtons } from '../game/HelperButtons';
+import { HelperButtons as _HelperButtons } from '../game/HelperButtons';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
-import { gameLogger } from '../../utils/logger';
-import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -43,6 +44,8 @@ export interface LandscapeGameLayoutProps {
   playHistory?: any[];
   originalPlayerNames?: string[]; // Original player names for play history (game state order)
   autoPassTimerState?: AutoPassTimerState;
+  /** Total cumulative scores per player (Task #590) */
+  totalScores?: number[];
   
   /** Table data */
   lastPlayedCards?: CardType[];
@@ -94,6 +97,7 @@ export function LandscapeGameLayout({
   playHistory = [],
   originalPlayerNames,
   autoPassTimerState,
+  totalScores = [0, 0, 0, 0],
   
   // Table
   lastPlayedCards,
@@ -113,7 +117,7 @@ export function LandscapeGameLayout({
   
   // Controls
   onOrientationToggle,
-  onHelp,
+  onHelp: _onHelp,
   onSort,
   onSmartSort,
   onPlay,
@@ -152,7 +156,40 @@ export function LandscapeGameLayout({
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.contentContainer}>
-        {/* Scoreboard - top left */}
+        {/* Task #590: Match number pill - far left corner */}
+        <View style={styles.matchNumberContainer}>
+          <View style={scoreDisplayStyles.matchNumberBadge}>
+            <Text style={scoreDisplayStyles.matchNumberText}>
+              {isGameFinished ? i18n.t('game.gameOver') : `${i18n.t('gameEnd.match')} ${matchNumber}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Task #590: Score action buttons - below Match N pill */}
+        <View style={styles.scoreActionContainer}>
+          <TouchableOpacity
+            style={scoreDisplayStyles.scoreActionButton}
+            onPress={() => setShowPlayHistory(prev => !prev)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="View play history"
+            accessibilityHint="Opens the list of plays for this match"
+          >
+            <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={scoreDisplayStyles.scoreActionButton}
+            onPress={() => setIsScoreboardExpanded(prev => !prev)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle scoreboard"
+            accessibilityHint="Expands or collapses the scoreboard"
+          >
+            <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Scoreboard - expanded only (Task #590: collapsed removed) */}
         <View style={styles.scoreboardContainer}>
           <LandscapeScoreboard
             playerNames={playerNames}
@@ -194,6 +231,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[1] || 0}
             isActive={isOpponentActive(1)}
             layout="horizontal"
+            totalScore={totalScores[1]}
           />
         </View>
 
@@ -203,6 +241,7 @@ export function LandscapeGameLayout({
             name={playerNames[2] || 'Opponent 2'}
             cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
+            totalScore={totalScores[2]}
           />
         </View>
 
@@ -212,6 +251,7 @@ export function LandscapeGameLayout({
             name={playerNames[3] || 'Opponent 3'}
             cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
+            totalScore={totalScores[3]}
           />
         </View>
 
@@ -268,6 +308,7 @@ export function LandscapeGameLayout({
             cardCount={playerCardCount}
             isActive={isPlayerActive}
             layout="vertical"
+            totalScore={totalScores[0]}
           />
         </View>
         
@@ -365,8 +406,27 @@ const styles = StyleSheet.create({
   scoreboardContainer: {
     position: 'absolute',
     top: 0,
-    left: -30, // EXTREME LEFT as requested
+    left: -30,
     zIndex: 10,
+  },
+  // Task #590: Match number pill — landscape override
+  // Landscape uses fixed top/left because SafeAreaView already handles insets at the edges.
+  // Portrait uses POSITIONING.menuTop via scoreDisplayStyles to account for the status bar
+  // (no SafeAreaView wrapper there). The values intentionally differ between orientations.
+  matchNumberContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 150,
+  },
+  // Task #590: Score action buttons — landscape override
+  scoreActionContainer: {
+    position: 'absolute',
+    top: 46,
+    left: 8,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 150,
   },
   
   // Opponent positions around table
@@ -381,14 +441,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 60, // Move CLOSER TO TABLE (away from scoreboard)
     top: '50%',
-    transform: [{ translateY: -40 }], // Move LOWER (was -50, now +10)
+    transform: [{ translateY: -58 }], // Raised (from -40) to prevent overlap with the new total-score badge below avatars
     zIndex: 5,
   },
   rightOpponent: {
     position: 'absolute',
     right: 60,
     top: '50%',
-    transform: [{ translateY: -40 }],
+    transform: [{ translateY: -58 }], // Raised (from -40) to match left opponent
     zIndex: 5,
   },
   

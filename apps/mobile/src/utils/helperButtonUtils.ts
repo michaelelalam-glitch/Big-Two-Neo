@@ -8,7 +8,6 @@
  * Date: December 13, 2025
  */
 
-import { Card } from '../types/multiplayer';
 import {
   RANK_VALUE,
   SUIT_VALUE,
@@ -19,7 +18,7 @@ import {
   findRecommendedPlay,
   isStraight,
 } from '../game/engine/game-logic';
-import type { LastPlay } from '../game/types';
+import { Card } from '../types/multiplayer';
 
 /**
  * Sort hand from lowest to highest (Task #382)
@@ -37,7 +36,7 @@ export const findHintPlay = findRecommendedPlay;
 // SMART SORT UTILITIES (Task #383-384)
 // ============================================================================
 
-interface ComboCards {
+interface _ComboCards {
   cards: Card[];
   type: 'single' | 'pair' | 'triple' | 'straight' | 'flush' | 'fullHouse' | 'fourOfAKind' | 'straightFlush';
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 import { PlayerInfo, CenterPlayArea, AutoPassTimer } from './index';
 import type { AutoPassTimerState } from '../../types/multiplayer';
-import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 
 interface GameLayoutProps {
   /** Array of 4 players in display order [user, top, left, right] */
@@ -10,6 +10,7 @@ interface GameLayoutProps {
     name: string;
     cardCount: number;
     isActive: boolean;
+    totalScore?: number;
   }[];
   /** Last played cards to display in center area */
   lastPlayedCards: any[];
@@ -51,6 +52,7 @@ export function GameLayout({
           name={players[1].name}
           cardCount={players[1].cardCount}
           isActive={players[1].isActive}
+          totalScore={players[1].totalScore}
         />
       </View>
 
@@ -64,6 +66,7 @@ export function GameLayout({
               name={players[2].name}
               cardCount={players[2].cardCount}
               isActive={players[2].isActive}
+              totalScore={players[2].totalScore}
             />
           </View>
 
@@ -71,9 +74,9 @@ export function GameLayout({
           <View style={styles.centerPlayArea}>
             <CenterPlayArea
               lastPlayed={lastPlayedCards}
-              lastPlayedBy={lastPlayedBy || 'Waiting...'}
+              lastPlayedBy={lastPlayedBy || null}
               combinationType={lastPlayComboType}
-              comboDisplayText={lastPlayCombo || 'No plays yet'}
+              comboDisplayText={lastPlayCombo || undefined}
             />
 
             {/* Auto-Pass Timer Display */}
@@ -91,6 +94,7 @@ export function GameLayout({
               name={players[3].name}
               cardCount={players[3].cardCount}
               isActive={players[3].isActive}
+              totalScore={players[3].totalScore}
             />
           </View>
         </View>
@@ -103,7 +107,7 @@ const styles = StyleSheet.create({
   topPlayerAboveTable: {
     alignItems: 'center',
     paddingTop: LAYOUT.topPlayerSpacing,
-    paddingLeft: LAYOUT.leftPlayerOffset,
+    // Task #590: Removed leftPlayerOffset since compact scoreboard no longer occupies top-left
     marginBottom: LAYOUT.topPlayerOverlap,
     zIndex: 50,
   },

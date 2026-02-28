@@ -42,8 +42,9 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
           const errorText = await fetch(`data:application/json;base64,${btoa(JSON.stringify(blob))}`).catch(() => null);
           errorBody = errorText;
         }
-      } catch (e) {
-        // Ignore blob parsing errors
+} catch (error) {
+        // Ignore blob parsing errors — logged for diagnostics
+        notificationLogger.warn('⚠️ [sendPushNotification] Blob parsing failed:', error);
       }
       
       notificationLogger.error('❌ [sendPushNotification] Edge Function error:', {
@@ -184,7 +185,7 @@ export async function notifyPlayerTurn(
   userId: string,
   roomCode: string,
   roomId: string,
-  playerName?: string
+  _playerName?: string
 ): Promise<void> {
   await sendPushNotification({
     user_ids: [userId],

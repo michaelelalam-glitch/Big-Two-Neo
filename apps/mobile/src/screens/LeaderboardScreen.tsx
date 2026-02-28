@@ -9,16 +9,16 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { statsLogger } from '../utils/logger';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
+import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
+import { statsLogger } from '../utils/logger';
 
 type LeaderboardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Leaderboard'>;
 
@@ -332,7 +332,7 @@ export default function LeaderboardScreen() {
     </View>
   );
 
-  const renderItem = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
+  const renderItem = ({ item, index: _index }: { item: LeaderboardEntry; index: number }) => {
     const isCurrentUser = user && item.user_id === user.id;
     const rankColor = 
       item.rank === 1 ? COLORS.gold : 

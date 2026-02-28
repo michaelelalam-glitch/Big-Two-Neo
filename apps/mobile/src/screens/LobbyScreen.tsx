@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Clipboard, Share, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { roomLogger } from '../utils/logger';
-import { showError } from '../utils';
-import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { notifyGameStarted } from '../services/pushNotificationTriggers';
+import { supabase } from '../services/supabase';
+import { showError } from '../utils';
+import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -53,7 +53,7 @@ export default function LobbyScreen() {
     isCasual: false,
     isRanked: false,
   });
-  const [isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
+  const [_isMatchmakingRoom, setIsMatchmakingRoom] = useState(false); // Keep for backward compatibility
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeavingState] = useState(false);
@@ -68,6 +68,7 @@ export default function LobbyScreen() {
   useEffect(() => {
     loadPlayers();
     return subscribeToPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlayers and subscribeToPlayers intentionally excluded; they are defined in the component body without useCallback; adding them would cause the subscription to tear down and re-create on every render; roomCode is the correct trigger
   }, [roomCode]);
 
   const getRoomId = async () => {
@@ -361,10 +362,9 @@ export default function LobbyScreen() {
         return;
       }
 
-      // Host check:
-      // - Casual games: anyone can start (RPC picks coordinator as first human)
-      // - Private/Ranked: host-only
-      if (!roomType.isCasual && !roomPlayerData.is_host) {
+      // Host check: Only the host can start the game in ALL room types
+      // Server-side RPC also enforces this (coordinator = first human player = host)
+      if (!roomPlayerData.is_host) {
         showError(i18n.t('lobby.onlyHostCanStart'));
         return;
       }
@@ -471,7 +471,7 @@ export default function LobbyScreen() {
     }
   };
 
-  const renderPlayer = ({ item, index }: { item: Player | null; index: number }) => {
+  const renderPlayer = ({ item, index: _index }: { item: Player | null; index: number }) => {
     if (!item) {
       return (
         <View style={[styles.playerCard, styles.emptySlot]}>
@@ -603,9 +603,9 @@ export default function LobbyScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Bot Filling Controls - Only for Casual/Private (NOT Ranked) */}
+        {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
         {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
-        {(isHost || isMatchmakingRoom) && !roomType.isRanked ? (
+        {isHost && !roomType.isRanked ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
@@ -670,10 +670,7 @@ export default function LobbyScreen() {
             )}
             
             <Text style={styles.hostInfo}>
-              {roomType.isCasual 
-                ? i18n.t('lobby.casualRoomInfo') || 'Anyone can start this casual game'
-                : i18n.t('lobby.hostInfo')
-              }
+              {i18n.t('lobby.hostInfo') || 'Only the host can start the game'}
             </Text>
           </>
         ) : null}
@@ -692,10 +689,10 @@ export default function LobbyScreen() {
           </View>
         )}
         
-        {/* Non-host in private room */}
-        {!roomType.isRanked && !isHost && !isMatchmakingRoom && (
+        {/* Non-host players: show waiting message in all non-ranked rooms */}
+        {!roomType.isRanked && !isHost && (
           <Text style={styles.waitingInfo}>
-            {i18n.t('lobby.waitingForHost')}
+            {i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
           </Text>
         )}
       </View>

@@ -23,6 +23,7 @@ export interface BotPlayOptions {
   matchNumber?: number; // Current match number (1, 2, 3, etc.)
   playerCardCounts: number[];
   currentPlayerIndex: number; // Index of the current bot player
+  nextPlayerIndex?: number; // Pre-computed next player index (for multiplayer where turn order differs)
   difficulty?: BotDifficulty;
 }
 
@@ -40,17 +41,22 @@ export interface BotPlayResult {
  * - Hard: Optimal play using game theory
  */
 export class BotAI {
-  private difficulty: BotDifficulty;
+  private readonly _difficulty: BotDifficulty;
 
   constructor(difficulty: BotDifficulty = 'medium') {
-    this.difficulty = difficulty;
+    this._difficulty = difficulty;
+  }
+
+  /** Read-only access to the bot's difficulty level. */
+  get difficulty(): BotDifficulty {
+    return this._difficulty;
   }
 
   /**
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex } = options;
+    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex, nextPlayerIndex } = options;
     
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
@@ -59,7 +65,6 @@ export class BotAI {
     // First play of MATCH 1 ONLY - must include 3D
     // Match 2+ can start with any valid play
     // Tests: See bot-matchNumber.test.ts for comprehensive unit test coverage
-    // @copilot-review-fix (Round 9): Separate warnings for different invalid matchNumber types
     const MAX_MATCH_NUMBER = 1000; // Reasonable upper bound for match count
     let currentMatch: number;
     if (typeof matchNumber === 'number') {
@@ -84,11 +89,11 @@ export class BotAI {
 
     // Leading (no last play) - Match 2+ or after trick cleared
     if (!lastPlay) {
-      return this.handleLeading(hand, playerCardCounts, currentPlayerIndex);
+      return this.handleLeading(hand, playerCardCounts, currentPlayerIndex, nextPlayerIndex);
     }
 
     // Following - try to beat last play
-    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex);
+    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex, nextPlayerIndex);
   }
 
   /**
@@ -102,103 +107,192 @@ export class BotAI {
       return { cards: null, reasoning: 'No 3D found' };
     }
 
-    // Try to find combo with 3D
-    if (this.difficulty === 'hard') {
+    // Hard: Always search for best combo with 3D (pair/triple)
+    if (this._difficulty === 'hard') {
       const comboWith3D = this.findBestComboWith3D(sorted, threeD);
       if (comboWith3D) {
         return { 
           cards: comboWith3D, 
-          reasoning: `Playing combo with 3D: ${comboWith3D.length} cards` 
+          reasoning: `[HARD] Playing combo with 3D: ${comboWith3D.length} cards` 
         };
       }
     }
 
-    // Just play 3D as single
-    return { cards: [threeD.id], reasoning: 'Playing 3D as single' };
+    // Medium: 50% chance to search for pair with 3D
+    // Use sorted hand index to pick lowest-strength pair with 3D
+    if (this._difficulty === 'medium' && Math.random() < 0.5) {
+      const pairs = this.findAllPairs(sorted);
+      const candidatePairs = pairs.filter(pair => pair.includes(threeD.id));
+
+      if (candidatePairs.length > 0) {
+        // Build lookup from card id to its index in the Big Two-sorted hand
+        const idToIndex = new Map<string, number>();
+        for (let i = 0; i < sorted.length; i++) {
+          idToIndex.set(sorted[i].id, i);
+        }
+
+        // Choose the "lowest" pair by Big Two order, based on positions in `sorted`
+        let bestPair = candidatePairs[0];
+        let bestStrength = Math.max(
+          idToIndex.get(bestPair[0]) ?? Number.MAX_SAFE_INTEGER,
+          idToIndex.get(bestPair[1]) ?? Number.MAX_SAFE_INTEGER
+        );
+
+        for (let i = 1; i < candidatePairs.length; i++) {
+          const pair = candidatePairs[i];
+          const strength = Math.max(
+            idToIndex.get(pair[0]) ?? Number.MAX_SAFE_INTEGER,
+            idToIndex.get(pair[1]) ?? Number.MAX_SAFE_INTEGER
+          );
+
+          if (strength < bestStrength) {
+            bestStrength = strength;
+            bestPair = pair;
+          }
+        }
+
+        return {
+          cards: bestPair,
+          reasoning: `[MEDIUM] Playing pair with 3D`
+        };
+      }
+    }
+
+    // Easy: Always just play 3D as single (no combo search)
+    // Medium fallback: play 3D as single
+    return { cards: [threeD.id], reasoning: `[${this._difficulty.toUpperCase()}] Playing 3D as single` };
   }
 
   /**
    * Handle leading (no previous play to beat)
+   * 
+   * Difficulty behavior:
+   * - EASY: Always leads with lowest single. No strategy. Sometimes leads with HIGHEST single (bad play).
+   * - MEDIUM: Occasionally leads with pairs (40%). Basic strategy.
+   * - HARD: Strategic combo play. Leads with pairs/triples to preserve singles. 5-card combos when opponent is low.
    */
-  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number): BotPlayResult {
+  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number, nextPlayerIndex?: number): BotPlayResult {
     const sorted = sortHand(hand);
-    const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+    // Compute opponent card counts by index, excluding the current player and empty hands
+    const activeOpponentCounts = playerCardCounts
+      .filter((count, index) => index !== currentPlayerIndex && count > 0);
+    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // CRITICAL: Check "One Card Left" rule when leading
-    // Find the next player's card count (player after current bot)
-    // Use counterclockwise turn order: for each player index i, turnOrder[i] gives the next player.
-    // Counterclockwise: 0→1→2→3→0, so sequence maps to: 0→1, 1→2, 2→3, 3→0
-    const turnOrder = [1, 2, 3, 0]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[currentPlayerIndex];
-    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
+    // otherwise fall back to anticlockwise turn order (local games).
+    const nextActivePlayer = nextPlayerIndex !== undefined
+      ? nextPlayerIndex
+      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // If next player has 1 card, MUST lead with highest single to block them
     if (nextPlayerCardCount === 1) {
-      const highestSingle = sorted[sorted.length - 1]; // Last card is highest
+      const highestSingle = sorted[sorted.length - 1];
       return {
         cards: [highestSingle.id],
         reasoning: `One Card Left rule (leading): must play highest single (${highestSingle.rank}${highestSingle.suit}) - next player has 1 card`
       };
     }
 
-    // Hard difficulty: strategic leading
-    if (this.difficulty === 'hard') {
+    // ========== EASY DIFFICULTY: Dumb leading ==========
+    if (this._difficulty === 'easy') {
+      // 25% chance to make a BAD play: lead with a high single (wasting good cards)
+      if (Math.random() < 0.25 && sorted.length > 3) {
+        const highIndex = Math.max(sorted.length - 3, Math.floor(sorted.length * 0.7));
+        const badCard = sorted[highIndex];
+        return { cards: [badCard.id], reasoning: `[EASY] Wastefully leading with high single (${badCard.rank}${badCard.suit})` };
+      }
+      // Default: always lead with lowest single (no pair/combo strategy)
+      return { cards: [sorted[0].id], reasoning: '[EASY] Leading with lowest single (no combo awareness)' };
+    }
+
+    // ========== HARD DIFFICULTY: Strategic leading ==========
+    if (this._difficulty === 'hard') {
       // If opponent is low on cards, try 5-card combo to force a pass
-      if (minOpponentCards <= 3) {
+      if (minOpponentCards <= 4) {
         const fiveCardCombo = this.findBest5CardCombo(sorted);
         if (fiveCardCombo) {
           return { 
             cards: fiveCardCombo, 
-            reasoning: 'Opponent low on cards, playing 5-card combo' 
+            reasoning: `[HARD] Opponent has ${minOpponentCards} cards, playing 5-card combo to force pass` 
           };
         }
       }
 
-      // Try to lead with pairs to preserve singles
+      // If we have many cards, try to lead with triples to shed cards fast
+      if (sorted.length > 8) {
+        const triples = this.findAllTriples(sorted);
+        if (triples.length > 0) {
+          return { cards: triples[0], reasoning: '[HARD] Leading with triple to shed cards fast' };
+        }
+      }
+
+      // Try to lead with pairs to preserve singles for endgame
       const lowestPair = this.findLowestPair(sorted);
-      if (lowestPair && sorted.length > 5) {
-        return { cards: lowestPair, reasoning: 'Leading with lowest pair' };
+      if (lowestPair && sorted.length > 4) {
+        return { cards: lowestPair, reasoning: '[HARD] Leading with lowest pair (preserving singles)' };
+      }
+
+      // If low on cards, play lowest single
+      return { cards: [sorted[0].id], reasoning: '[HARD] Leading with lowest single' };
+    }
+
+    // ========== MEDIUM DIFFICULTY: Balanced leading ==========
+    // 40% chance to lead with pairs
+    if (Math.random() < 0.4) {
+      const lowestPair = this.findLowestPair(sorted);
+      if (lowestPair) {
+        return { cards: lowestPair, reasoning: '[MEDIUM] Leading with pair' };
       }
     }
 
-    // Medium difficulty: occasionally lead with pairs
-    if (this.difficulty === 'medium' && Math.random() < 0.3) {
-      const lowestPair = this.findLowestPair(sorted);
-      if (lowestPair) {
-        return { cards: lowestPair, reasoning: 'Leading with pair' };
+    // 15% chance to try 5-card combo
+    if (Math.random() < 0.15 && sorted.length >= 5) {
+      const fiveCardCombo = this.findBest5CardCombo(sorted);
+      if (fiveCardCombo) {
+        return { cards: fiveCardCombo, reasoning: '[MEDIUM] Leading with 5-card combo' };
       }
     }
 
     // Default: lead with lowest single
-    return { cards: [sorted[0].id], reasoning: 'Leading with lowest single' };
+    return { cards: [sorted[0].id], reasoning: '[MEDIUM] Leading with lowest single' };
   }
 
   /**
    * Handle following (trying to beat last play)
+   * 
+   * Difficulty behavior:
+   * - EASY: 50% pass rate. When plays, picks weakest valid play. Sometimes plays random.
+   * - MEDIUM: 12% pass rate. Uses recommended (optimal lowest) play.
+   * - HARD: 0% random pass. Plays optimally. Saves high cards. Exploits low-card opponents.
    */
   private handleFollowing(
     hand: Card[], 
     lastPlay: LastPlay, 
     playerCardCounts: number[],
-    currentPlayerIndex: number
+    currentPlayerIndex: number,
+    nextPlayerIndex?: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
-    const minOpponentCards = Math.min(...playerCardCounts.filter(c => c > 0 && c !== hand.length));
+    // Compute opponent card counts by index, excluding the current player and empty hands
+    const activeOpponentCounts = playerCardCounts
+      .filter((count, index) => index !== currentPlayerIndex && count > 0);
+    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // Check "One Card Left" rule
-    // Find the next player's card count (player after current bot)
-    // Use counterclockwise turn order: 0→1→2→3→0 (sequence: 0→1→2→3→0)
-    const turnOrder = [1, 2, 3, 0]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[currentPlayerIndex];
-    const nextPlayerCardCount = playerCardCounts[nextPlayerIndex];
+    // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
+    // otherwise fall back to anticlockwise turn order (local games).
+    const nextActivePlayer = nextPlayerIndex !== undefined
+      ? nextPlayerIndex
+      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
-    // If so, don't apply One Card Left rule (they already won, no need to block them)
     const lastPlayPlayerCardCount = playerCardCounts[lastPlay.position];
     const lastPlayerHasWon = lastPlayPlayerCardCount === 0;
     
     // If next player has 1 card and last play was a single, MUST play highest single
-    // UNLESS the lastPlay player already won (has 0 cards), then bot can play normally
     if (!lastPlayerHasWon && nextPlayerCardCount === 1 && lastPlay.cards.length === 1) {
       const highestSingle = findHighestBeatingSingle(sorted, lastPlay);
       if (highestSingle) {
@@ -207,67 +301,91 @@ export class BotAI {
           reasoning: `One Card Left rule: must play highest single (${highestSingle.rank}${highestSingle.suit}) - opponent has 1 card`
         };
       }
-      // If no valid single, can pass (but shouldn't happen often)
     }
 
-    // Easy difficulty: random decisions
-    if (this.difficulty === 'easy') {
-      // 40% chance to pass even if can beat
-      if (Math.random() < 0.4) {
-        return { cards: null, reasoning: 'Easy bot randomly passing' };
+    // ========== EASY DIFFICULTY: Dumb following ==========
+    if (this._difficulty === 'easy') {
+      // 50% chance to pass even if can beat (very passive)
+      if (Math.random() < 0.5) {
+        return { cards: null, reasoning: '[EASY] Randomly passing (50% pass rate)' };
       }
 
       const validPlays = this.findAllValidPlays(sorted, lastPlay);
       if (validPlays.length === 0) {
-        return { cards: null, reasoning: 'Cannot beat last play' };
+        return { cards: null, reasoning: '[EASY] Cannot beat last play' };
       }
 
-      // Play random valid play
-      const randomPlay = validPlays[Math.floor(Math.random() * validPlays.length)];
-      return { 
-        cards: randomPlay, 
-        reasoning: 'Easy bot playing random valid play' 
-      };
+      // Easy: 60% play the LOWEST valid play, 40% play random valid play
+      // This means easy bots sometimes waste high cards, sometimes play too conservatively
+      if (Math.random() < 0.6) {
+        // Play lowest (weakest) valid play
+        return { 
+          cards: validPlays[0], 
+          reasoning: '[EASY] Playing lowest valid play (no optimization)' 
+        };
+      } else {
+        // Play random valid play (could be wastefully high)
+        const randomPlay = validPlays[Math.floor(Math.random() * validPlays.length)];
+        return { 
+          cards: randomPlay, 
+          reasoning: '[EASY] Playing random valid play' 
+        };
+      }
     }
 
-    // Medium/Hard: use recommended play logic
-    const recommended = findRecommendedPlay(hand, lastPlay, false);
-
-    if (!recommended) {
-      return { cards: null, reasoning: 'Cannot beat last play' };
-    }
-
-    // Hard difficulty: strategic passing
-    if (this.difficulty === 'hard') {
-      // If opponent has many cards and we're playing high value, consider passing
-      if (minOpponentCards > 7 && this.isHighValuePlay(recommended, sorted)) {
-        // 30% chance to pass and save high cards
-        if (Math.random() < 0.3) {
-          return { cards: null, reasoning: 'Saving high cards for later' };
-        }
+    // ========== HARD DIFFICULTY: Optimal following ==========
+    if (this._difficulty === 'hard') {
+      const validPlays = this.findAllValidPlays(sorted, lastPlay);
+      if (validPlays.length === 0) {
+        return { cards: null, reasoning: '[HARD] Cannot beat last play' };
       }
 
-      // If opponent is low on cards, play highest possible
+      // If opponent is about to win (1-2 cards), play highest possible to block
       if (minOpponentCards <= 2) {
-        const validPlays = this.findAllValidPlays(sorted, lastPlay);
-        if (validPlays.length > 0) {
-          const highestPlay = validPlays[validPlays.length - 1];
-          return { 
-            cards: highestPlay, 
-            reasoning: 'Opponent low on cards, playing highest' 
-          };
-        }
+        const highestPlay = validPlays[validPlays.length - 1];
+        return { 
+          cards: highestPlay, 
+          reasoning: `[HARD] Opponent has ${minOpponentCards} cards - playing highest to block` 
+        };
       }
+
+      // Strategic card saving: if we have high value cards and opponent has lots of cards,
+      // save them and play the LOWEST valid play
+      if (minOpponentCards > 6) {
+        // Always play lowest valid play when opponents have many cards (save high cards)
+        return { 
+          cards: validPlays[0], 
+          reasoning: '[HARD] Playing lowest valid - saving high cards (opponents have many)' 
+        };
+      }
+
+      // Mid-game: use recommended play (engine's optimal choice)
+      const recommended = findRecommendedPlay(hand, lastPlay, false);
+      if (recommended) {
+        return { 
+          cards: recommended, 
+          reasoning: '[HARD] Playing engine-recommended optimal play' 
+        };
+      }
+
+      // Fallback to lowest valid
+      return { cards: validPlays[0], reasoning: '[HARD] Playing lowest valid play' };
     }
 
-    // Medium difficulty: occasional strategic passing
-    if (this.difficulty === 'medium' && Math.random() < 0.15) {
-      return { cards: null, reasoning: 'Medium bot strategically passing' };
+    // ========== MEDIUM DIFFICULTY: Balanced following ==========
+    // 12% chance to strategically pass
+    if (Math.random() < 0.12) {
+      return { cards: null, reasoning: '[MEDIUM] Strategically passing' };
+    }
+
+    const recommended = findRecommendedPlay(hand, lastPlay, false);
+    if (!recommended) {
+      return { cards: null, reasoning: '[MEDIUM] Cannot beat last play' };
     }
 
     return { 
       cards: recommended, 
-      reasoning: `Playing recommended: ${recommended.length} cards` 
+      reasoning: `[MEDIUM] Playing recommended: ${recommended.length} cards` 
     };
   }
 
@@ -295,18 +413,31 @@ export class BotAI {
   }
 
   /**
-   * Find best 5-card combo in hand
+   * Find a valid 5-card combo in hand (returns weakest available).
+   * Search all C(n,5) combinations, not just contiguous slices, so
+   * non-contiguous combos like flushes are found. Because the hand is sorted by Big Two
+   * rank order and we iterate from lowest indices, the first valid combo found uses the
+   * weakest cards, conserving stronger cards for later plays and making an explicit
+   * bestCombo accumulator unnecessary.
    */
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
 
-    // Try combinations from lowest cards first
-    for (let i = 0; i <= hand.length - 5; i++) {
-      const fiveCards = hand.slice(i, i + 5);
-      const combo = classifyCards(fiveCards);
-      
-      if (this.is5CardCombo(combo)) {
-        return fiveCards.map(c => c.id);
+    const n = hand.length;
+    for (let a = 0; a < n - 4; a++) {
+      for (let b = a + 1; b < n - 3; b++) {
+        for (let c = b + 1; c < n - 2; c++) {
+          for (let d = c + 1; d < n - 1; d++) {
+            for (let e = d + 1; e < n; e++) {
+              const fiveCards = [hand[a], hand[b], hand[c], hand[d], hand[e]];
+              const combo = classifyCards(fiveCards);
+              if (this.is5CardCombo(combo)) {
+                // Return first valid combo found (hand is sorted, so lowest-indexed cards are weakest)
+                return fiveCards.map(c => c.id);
+              }
+            }
+          }
+        }
       }
     }
 
@@ -430,16 +561,79 @@ export class BotAI {
         }
       }
     } else if (numCards === 5) {
-      // 5-card combos
-      for (let i = 0; i <= hand.length - 5; i++) {
-        const fiveCards = hand.slice(i, i + 5);
-        if (canBeatPlay(fiveCards, lastPlay)) {
-          validPlays.push(fiveCards.map(c => c.id));
+      // 5-card combos — search all C(n,5) combinations.
+      // With a max hand of 13 cards this is C(13,5) = 1287 iterations, which completes
+      // in <1ms on mobile devices. The safety cap below prevents degenerate performance
+      // for unexpectedly large hands.
+      const n = hand.length;
+      if (n > 13) return validPlays; // Safety cap: skip combo search for unexpectedly large hands
+      for (let a = 0; a < n - 4; a++) {
+        for (let b = a + 1; b < n - 3; b++) {
+          for (let c = b + 1; c < n - 2; c++) {
+            for (let d = c + 1; d < n - 1; d++) {
+              for (let e = d + 1; e < n; e++) {
+                const fiveCards = [hand[a], hand[b], hand[c], hand[d], hand[e]];
+                if (canBeatPlay(fiveCards, lastPlay)) {
+                  validPlays.push(fiveCards.map(c => c.id));
+                }
+              }
+            }
+          }
         }
+      }
+      // Sort 5-card combos by strength so validPlays[0] is the weakest
+      // and validPlays[validPlays.length - 1] is the strongest.
+      // Uses a strict weak ordering by comparing in both directions to handle ties correctly.
+      if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
+          const classA = classifyCards(cardsA);
+          const classB = classifyCards(cardsB);
+          const aBeatsB = canBeatPlay(cardsA, {
+            position: 0,
+            cards: cardsB,
+            combo_type: classB,
+          });
+          const bBeatsA = canBeatPlay(cardsB, {
+            position: 0,
+            cards: cardsA,
+            combo_type: classA,
+          });
+          if (aBeatsB && !bBeatsA) return 1;   // A stronger, sort later
+          if (!aBeatsB && bBeatsA) return -1;  // A weaker, sort earlier
+          return 0;                             // Equal strength
+        });
       }
     }
 
     return validPlays;
+  }
+
+  /**
+   * Find the next active player (with cards > 0) in anticlockwise turn order.
+   * Matches the game engine's turn order: 0→3→1→2→0
+   * Skips players who have already finished (0 cards).
+   * Returns -1 if no active player found.
+   */
+  private findNextActivePlayer(currentPlayerIndex: number, playerCardCounts: number[]): number {
+    // Anticlockwise turn order matching game engine (state.ts)
+    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
+    const numPlayers = playerCardCounts.length;
+    let nextIndex = turnOrder[currentPlayerIndex];
+    const startIndex = nextIndex;
+    let iterations = 0;
+    
+    // Walk through turn order, skipping players with 0 cards (already finished)
+    do {
+      if (playerCardCounts[nextIndex] > 0) {
+        return nextIndex;
+      }
+      nextIndex = turnOrder[nextIndex];
+    } while (nextIndex !== startIndex && ++iterations < numPlayers);
+    
+    return -1; // No active player found
   }
 
   /**

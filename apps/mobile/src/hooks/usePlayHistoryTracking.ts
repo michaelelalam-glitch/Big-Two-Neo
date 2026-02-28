@@ -15,9 +15,9 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useScoreboard } from '../contexts/ScoreboardContext';
 import { type GameState, type RoundHistoryEntry } from '../game/state';
 import { type PlayHistoryMatch, type PlayHistoryHand, type PlayerPosition } from '../types/scoreboard';
-import { useScoreboard } from '../contexts/ScoreboardContext';
 
 /**
  * Convert RoundHistoryEntry to PlayHistoryHand
@@ -43,7 +43,7 @@ function convertToPlayHistoryHand(entry: RoundHistoryEntry, playerIndex: number)
 function convertToPlayHistoryMatch(
   matchNumber: number,
   roundHistory: RoundHistoryEntry[],
-  players: Array<{ id: string; name: string }>,
+  players: { id: string; name: string }[],
   winnerId?: string,
   startTime?: number,
   endTime?: number

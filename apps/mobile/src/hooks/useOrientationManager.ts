@@ -22,11 +22,12 @@ import { gameLogger } from '../utils/logger';
 let ScreenOrientation: any = null;
 let orientationError: string | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require inside try/catch for graceful degradation when module is unavailable (e.g. Expo Go)
   ScreenOrientation = require('expo-screen-orientation');
   gameLogger.info('✅ [Orientation] expo-screen-orientation module loaded successfully');
 } catch (error) {
   orientationError = 'Module not available. Make sure you are using a development build (not Expo Go).';
-  gameLogger.warn('⚠️ [Orientation] expo-screen-orientation not available - orientation toggle disabled');
+  gameLogger.warn('⚠️ [Orientation] expo-screen-orientation not available - orientation toggle disabled', error);
   gameLogger.warn('   This feature requires a development build. Run: npm run prebuild && npm run ios');
 }
 
@@ -102,6 +103,7 @@ export function useOrientationManager(): OrientationManagerState {
         gameLogger.error('❌ [Orientation] Failed to unlock:', error);
       });
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect; loadOrientationPreference is defined below in the file; adding it would require hoisting or useCallback, neither of which is warranted for a one-time AsyncStorage read
   }, []);
 
   /**

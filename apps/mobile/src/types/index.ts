@@ -43,11 +43,40 @@ export interface RoomPlayerWithRoom {
   };
 }
 
-// Export multiplayer types
-export * from './multiplayer';
+// Export multiplayer types (excluding Card which is defined locally above)
+export type {
+  Room as MultiplayerRoom,
+  Player as MultiplayerPlayer,
+  GameState as MultiplayerGameState,
+  AutoPassTimerState,
+  LastPlay,
+  ComboType,
+  PlayerHand,
+  GameAction,
+  GameActionPayload,
+  PlayerPresence,
+  BroadcastPayload,
+  BroadcastEvent,
+  BroadcastData,
+  UseRealtimeReturn,
+  RealtimeChannelEvents,
+} from './multiplayer';
+// Also re-export Card from multiplayer as MultiplayerCard for explicit usage
+export type { Card as MultiplayerCard } from './multiplayer';
 
 // Export scoreboard types explicitly to avoid conflicts
 export type { PlayHistoryHand, PlayHistoryMatch, ScoreHistory, HandCardProps } from './scoreboard';
 
-// Export game end types
-export * from './gameEnd';
+// Export game end types (excluding types already exported above)
+export type {
+  FinalScore,
+  GameEndModalProps,
+  GameEndedEventData,
+  FireworksProps,
+  WinnerAnnouncementProps,
+  FinalStandingsProps,
+  ScoreHistoryTabProps,
+  PlayHistoryTabProps,
+  ActionButtonsProps,
+  CardImageProps,
+} from './gameEnd';

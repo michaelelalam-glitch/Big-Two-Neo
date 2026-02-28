@@ -13,7 +13,7 @@
  */
 
 import { Dimensions } from 'react-native';
-import { LANDSCAPE_BASE, BREAKPOINTS, getDeviceCategory } from '../constants/landscape';
+import { LANDSCAPE_BASE, getDeviceCategory } from '../constants/landscape';
 
 // ============================================================================
 // BASE DIMENSIONS

@@ -10,6 +10,7 @@ jobs:
   test:
     name: Lint, Type-Check, and Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     
     strategy:
       matrix:
@@ -35,12 +36,20 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: 💾 Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+      
+      - name: 💾 Setup Jest transform cache
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/.jest-cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
       
       - name: 📦 Install dependencies
         run: |
@@ -50,8 +59,7 @@ jobs:
       - name: 🔍 Run ESLint
         run: |
           cd apps/mobile
-          pnpm run lint || echo "::warning::ESLint found issues"
-        continue-on-error: true
+          pnpm run lint || echo "::warning::ESLint reported warnings (non-blocking)"
       
       - name: 🔧 Run TypeScript type-check
         run: |
@@ -61,16 +69,47 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile
-          pnpm run test:unit --passWithNoTests
-        continue-on-error: true
+          # Run all unit tests without coverage for fast CI feedback.
+          # v8 coverage collection takes 11+ min on 2-vCPU runners, causing
+          # the step to time out. Coverage thresholds are enforced locally via
+          # jest.config.js and coverageThreshold when developers run --coverage.
+          # --forceExit: forces process.exit after all tests complete if open handles
+          #   remain (e.g. unclosed DB connections). It does NOT mask test failures —
+          #   jest sets the exit code before the force-exit fires. Use
+          #   --detectOpenHandles locally to debug any open-handle warnings.
+          # --maxWorkers=2: matches CI runner's 2 vCPUs.
+          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
+            --testPathIgnorePatterns='/integration/' \
+            --forceExit --passWithNoTests \
+            --maxWorkers=2 \
+            --testTimeout=15000
+        timeout-minutes: 15
       
+      
+      - name: ⚠️ Integration tests skipped (no credentials)
+        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == '' || env.SUPABASE_SERVICE_ROLE_KEY == ''
+        run: |
+          echo "::warning::Integration tests cannot run because EXPO_PUBLIC_SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY are not configured as GitHub secrets."
+          echo "Add these secrets to the repository to enable integration tests."
+          echo "Skipping integration tests — they are non-blocking until secrets are configured."
+
       - name: 🧪 Run integration tests
+        if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
         run: |
           cd apps/mobile
-          pnpm run test:integration --passWithNoTests
-        continue-on-error: true
+          # Integration tests are blocking when credentials are present.
+          # Exit code is the authoritative pass/fail signal.
+          NODE_OPTIONS="--max-old-space-size=3072" npx jest \
+            --testPathPattern='integration/' \
+            --forceExit --passWithNoTests \
+            --maxWorkers=2 \
+            --testTimeout=30000 \
+            --no-coverage
+        timeout-minutes: 5
         env:
-          # Add test environment variables if needed
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
       
       - name: 📊 Upload test coverage

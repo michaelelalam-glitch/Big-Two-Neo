@@ -5,8 +5,8 @@
  * Supports: English (EN), Arabic (AR), German (DE)
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { I18nManager as RNI18nManager } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Storage key
 const LANGUAGE_KEY = '@big2_language';

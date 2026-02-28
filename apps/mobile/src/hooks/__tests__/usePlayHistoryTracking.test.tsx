@@ -14,7 +14,7 @@
 import { renderHook, act } from '@testing-library/react-native';
 import React from 'react';
 import { usePlayHistoryTracking } from '../usePlayHistoryTracking';
-import { ScoreboardProvider } from '../../contexts/ScoreboardContext';
+import { ScoreboardProvider, useScoreboard } from '../../contexts/ScoreboardContext';
 import type { GameState, RoundHistoryEntry } from '../../game/state';
 import type { Card } from '../../types/multiplayer';
 
@@ -85,6 +85,13 @@ const wrapper = ({ children }: { children: React.ReactNode }): React.ReactElemen
   <ScoreboardProvider>{children}</ScoreboardProvider>
 );
 
+// Helper hook that combines tracking with reading context state
+function usePlayHistoryTrackingWithState(gameState: GameState | null, enabled?: boolean) {
+  usePlayHistoryTracking(gameState, enabled);
+  const { playHistoryByMatch } = useScoreboard();
+  return { playHistoryByMatch };
+}
+
 describe('usePlayHistoryTracking', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -131,50 +138,46 @@ describe('usePlayHistoryTracking', () => {
   });
 
   test('should convert roundHistory to PlayHistoryMatch', () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState();
 
-    renderHook(
-      () => usePlayHistoryTracking(gameState),
+    const { result } = renderHook(
+      () => usePlayHistoryTrackingWithState(gameState),
       { wrapper }
     );
 
-    // Check that update was logged
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[PlayHistory] Updated match 1 with 2 hands')
-    );
-
-    consoleLogSpy.mockRestore();
+    // Should have added match 1 with 2 hands (pass entry filtered)
+    const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
+    expect(match1).toBeDefined();
+    expect(match1!.hands.length).toBe(2);
   });
 
   test('should filter out passed entries (no cards played)', () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState();
 
-    renderHook(
-      () => usePlayHistoryTracking(gameState),
+    const { result } = renderHook(
+      () => usePlayHistoryTrackingWithState(gameState),
       { wrapper }
     );
 
     // Should log 2 hands (1 single + 1 pair), not 3 (pass entry filtered out)
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[PlayHistory] Updated match 1 with 2 hands')
-    );
-
-    consoleLogSpy.mockRestore();
+    const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
+    expect(match1).toBeDefined();
+    expect(match1!.hands.length).toBe(2);
   });
 
   test('should update when new plays are added', () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState();
 
-    const { rerender } = renderHook<void, { state: GameState }>(
-      ({ state }: { state: GameState }) => usePlayHistoryTracking(state),
+    const { result, rerender } = renderHook(
+      ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
       { 
         wrapper,
         initialProps: { state: gameState }
       }
     );
+
+    // Initial: 2 hands
+    expect(result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length).toBe(2);
 
     // Add new play
     const newHistory: RoundHistoryEntry = {
@@ -194,20 +197,15 @@ describe('usePlayHistoryTracking', () => {
       rerender({ state: updatedGameState });
     });
 
-    // Should log update with 3 hands now
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[PlayHistory] Updated match 1 with 3 hands')
-    );
-
-    consoleLogSpy.mockRestore();
+    // Should now have 3 hands
+    expect(result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length).toBe(3);
   });
 
   test('should update when match number changes', () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState({ currentMatch: 1 });
 
-    const { rerender } = renderHook<void, { state: GameState }>(
-      ({ state }: { state: GameState }) => usePlayHistoryTracking(state),
+    const { result, rerender } = renderHook(
+      ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
       { 
         wrapper,
         initialProps: { state: gameState }
@@ -235,32 +233,28 @@ describe('usePlayHistoryTracking', () => {
       rerender({ state: updatedGameState });
     });
 
-    // Should log update for match 2
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[PlayHistory] Updated match 2 with 1 hands')
-    );
-
-    consoleLogSpy.mockRestore();
+    // Should have match 2 with 1 hand
+    const match2 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 2);
+    expect(match2).toBeDefined();
+    expect(match2!.hands.length).toBe(1);
   });
 
   test('should handle match end (winnerId set)', () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState({
       gameEnded: true,
       winnerId: 'p1',
     });
 
-    renderHook(
-      () => usePlayHistoryTracking(gameState),
+    const { result } = renderHook(
+      () => usePlayHistoryTrackingWithState(gameState),
       { wrapper }
     );
 
-    // Should still update (will include winner info)
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[PlayHistory] Updated match 1 with 2 hands')
-    );
-
-    consoleLogSpy.mockRestore();
+    // Should still update and include winner info
+    const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
+    expect(match1).toBeDefined();
+    expect(match1!.hands.length).toBe(2);
+    expect(match1!.winner).toBe(0); // p1 = index 0
   });
 
   test('should respect enabled flag', () => {

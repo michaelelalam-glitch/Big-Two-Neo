@@ -1,7 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
 import { API } from '../constants';
-import { networkLogger } from '../utils/logger';
 
 const supabaseUrl = API.SUPABASE_URL;
 const supabaseAnonKey = API.SUPABASE_ANON_KEY;

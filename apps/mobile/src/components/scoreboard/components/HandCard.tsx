@@ -14,10 +14,10 @@
 
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { HandCardProps } from '../../../types/scoreboard';
 import { CardImage } from './CardImage';
-import { usePlayHistoryModalStyles } from '../hooks/useResponsiveStyles';
+import { HandCardProps } from '../../../types/scoreboard';
 import { sortCardsForDisplay } from '../../../utils/cardSorting';
+import { usePlayHistoryModalStyles } from '../hooks/useResponsiveStyles';
 
 export const HandCard: React.FC<HandCardProps> = ({
   hand,

@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
-import type { Card } from '../../game/types';
-import type { GameStateManager } from '../../game/state';
 import { COLORS, SPACING, FONT_SIZES, OPACITIES } from '../../constants';
+import { i18n } from '../../i18n';
 import { soundManager, hapticManager, SoundType } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
-import { i18n } from '../../i18n';
+import type { GameStateManager } from '../../game/state';
+import type { Card } from '../../game/types';
 
 interface GameControlsProps {
   gameManager: GameStateManager | null;
@@ -28,7 +28,7 @@ interface GameControlsProps {
  * Extracted from GameScreen.tsx to reduce complexity (Task #425)
  */
 export function GameControls({
-  gameManager,
+  gameManager: _gameManager,
   isPlayerActive,
   selectedCards,
   onPlaySuccess,

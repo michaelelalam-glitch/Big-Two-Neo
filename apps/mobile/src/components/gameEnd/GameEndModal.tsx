@@ -31,10 +31,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useGameEnd } from '../../contexts/GameEndContext';
 import { Fireworks } from './Fireworks';
-import { CardImage } from '../scoreboard/components/CardImage';
+import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
+import { CardImage } from '../scoreboard/components/CardImage';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -80,6 +80,7 @@ export const GameEndModal: React.FC = () => {
     } else {
       setShowFireworks(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startPulseAnimation is an inline function defined in the component body; adding it to deps would require useCallback wrapping; its identity changes every render but the effect only needs to call it when showGameEndModal flips
   }, [showGameEndModal]);
 
   // Pulsing animation for winner text
@@ -417,12 +418,12 @@ const WinnerAnnouncement: React.FC<WinnerAnnouncementProps> = ({
 // ============================================================================
 
 interface FinalStandingsProps {
-  finalScores: Array<{
+  finalScores: {
     player_name: string;
     cumulative_score: number;
     player_index: number;
     points_added: number;
-  }>;
+  }[];
   winnerIndex: number;
 }
 
@@ -550,11 +551,11 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
 // ============================================================================
 
 interface ScoreHistoryTabProps {
-  scoreHistory: Array<{
+  scoreHistory: {
     matchNumber: number;
     pointsAdded: number[];
     scores: number[];
-  }>;
+  }[];
   playerNames: string[];
 }
 
@@ -657,15 +658,15 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 // ============================================================================
 
 interface PlayHistoryTabProps {
-  playHistory: Array<{
+  playHistory: {
     matchNumber: number;
-    hands: Array<{
+    hands: {
       by: number;
       type: string;
       count: number;
       cards: any[];
-    }>;
-  }>;
+    }[];
+  }[];
   playerNames: string[];
 }
 
@@ -707,7 +708,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     const isLatestMatch = match.matchNumber === playHistory[playHistory.length - 1].matchNumber;
     
     // Always include match header
-    const items: Array<{ type: 'header' | 'hand'; data: any }> = [
+    const items: { type: 'header' | 'hand'; data: any }[] = [
       {
         type: 'header',
         data: {

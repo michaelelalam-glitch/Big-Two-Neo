@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
-import { roomLogger } from '../utils/logger';
 import { showError, showConfirm } from '../utils';
-import { i18n } from '../i18n';
+import { roomLogger } from '../utils/logger';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -18,15 +18,6 @@ export default function CreateRoomScreen() {
   const navigation = useNavigation<CreateRoomNavigationProp>();
   const { user, profile } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
-
-  const generateRoomCode = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude O, I, 0, 1 to avoid confusion
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  };
 
   const handleCreateRoom = async () => {
     if (!user) {

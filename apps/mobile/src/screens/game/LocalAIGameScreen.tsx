@@ -5,30 +5,32 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
+import { GameEndModal, GameEndErrorBoundary } from '../../components/gameEnd';
+import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
 import { ScoreboardContainer } from '../../components/scoreboard';
-import type { Card } from '../../game/types';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
-import { useGameStateManager } from '../../hooks/useGameStateManager';
-import { gameLogger } from '../../utils/logger';
-import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { usePlayHistoryTracking } from '../../hooks/usePlayHistoryTracking';
-import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
 import { useGameEnd } from '../../contexts/GameEndContext';
-import { GameEndModal, GameEndErrorBoundary } from '../../components/gameEnd';
+import { useScoreboard } from '../../contexts/ScoreboardContext';
 import { useBotTurnManager } from '../../hooks/useBotTurnManager';
-import { useHelperButtons } from '../../hooks/useHelperButtons';
-import { useDerivedGameState } from '../../hooks/useDerivedGameState';
-import { useScoreboardMapping } from '../../hooks/useScoreboardMapping';
 import { useCardSelection } from '../../hooks/useCardSelection';
+import { useDerivedGameState } from '../../hooks/useDerivedGameState';
+import { useGameStateManager } from '../../hooks/useGameStateManager';
+import { useHelperButtons } from '../../hooks/useHelperButtons';
 import { useOrientationManager } from '../../hooks/useOrientationManager';
-import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
+import { usePlayHistoryTracking } from '../../hooks/usePlayHistoryTracking';
+import { useScoreboardMapping } from '../../hooks/useScoreboardMapping';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { soundManager, hapticManager, SoundType, showError, performanceMonitor } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
+import { gameLogger } from '../../utils/logger';
+import type { Card } from '../../game/types';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -48,7 +50,7 @@ export function LocalAIGameScreen() {
     playHistoryByMatch 
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
-  const { roomCode, forceNewGame = false } = route.params;
+  const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
   gameLogger.info(`🎮 [LocalAIGameScreen] Starting local AI game`);
@@ -86,8 +88,6 @@ export function LocalAIGameScreen() {
   // Race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
 
   // One card left detection
   const oneCardLeftDetectedRef = useRef(new Set<string>());
@@ -104,6 +104,7 @@ export function LocalAIGameScreen() {
     currentPlayerName,
     forceNewGame,
     isLocalGame: true,
+    botDifficulty, // Task #596: Pass difficulty from route params
     addScoreHistory,
     openGameEndModal,
     scoreHistory,
@@ -211,6 +212,17 @@ export function LocalAIGameScreen() {
   const matchNumber = (gameState as any)?.currentMatch ?? 1;
   const isGameFinished = (gameState as any)?.gameOver ?? false;
 
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
+
   // Selected cards for controls
   const selectedCards = useMemo(() => {
     return effectivePlayerHand.filter((card) => selectedCardIds.has(card.id));
@@ -248,7 +260,7 @@ export function LocalAIGameScreen() {
         await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
-          botDifficulty: 'medium',
+          botDifficulty: botDifficulty, // Task #596: Reuse selected difficulty on Play Again
         });
         soundManager.playSound(SoundType.GAME_START);
       } catch (error) {
@@ -264,20 +276,18 @@ export function LocalAIGameScreen() {
         routes: [{ name: 'Home' }],
       });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- botDifficulty intentionally excluded from the game-end callback setup effect; the callbacks only need to re-register when the player name or navigation ref changes; botDifficulty is read at call-time inside the async callback
   }, [currentPlayerName, navigation, gameManagerRef, setOnPlayAgain, setOnReturnToMenu]);
 
   // Cleanup on deliberate leave
   useEffect(() => {
-    let isDeliberateLeave = false;
-    
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
     const unsubscribe = navigation.addListener('beforeRemove', async (e: any) => {
       const actionType = e?.data?.action?.type;
       if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
-        isDeliberateLeave = true;
-        
         if (orientationAvailable) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
             const ScreenOrientation = require('expo-screen-orientation');
             await ScreenOrientation.unlockAsync();
             gameLogger.info('🔓 Unlocked orientation on navigation away');
@@ -307,7 +317,6 @@ export function LocalAIGameScreen() {
 
     try {
       isPlayingCardsRef.current = true;
-      setIsPlayingCards(true);
       hapticManager.playCard();
 
       const sortedCards = sortCardsForDisplay(cards);
@@ -321,7 +330,6 @@ export function LocalAIGameScreen() {
       showError(error.message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
-      setIsPlayingCards(false);
     }
   }, [gameManagerRef, setSelectedCardIds]);
 
@@ -338,7 +346,6 @@ export function LocalAIGameScreen() {
 
     try {
       isPassingRef.current = true;
-      setIsPassing(true);
       hapticManager.pass();
 
       await gameManagerRef.current.pass();
@@ -349,7 +356,6 @@ export function LocalAIGameScreen() {
       showError(error.message || 'Failed to pass');
     } finally {
       isPassingRef.current = false;
-      setIsPassing(false);
     }
   }, [gameManagerRef, setSelectedCardIds]);
 
@@ -393,6 +399,7 @@ export function LocalAIGameScreen() {
     if (displaySeconds <= 5 && displaySeconds >= 1) {
       hapticManager.urgentCountdown(displaySeconds);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer (full object) intentionally excluded; only remaining_ms drives the haptic intensity; subscribing to the full timer object would retrigger on started_at / active changes unrelated to countdown display
   }, [gameState?.auto_pass_timer?.remaining_ms]);
 
   // One card left detection
@@ -412,6 +419,7 @@ export function LocalAIGameScreen() {
         oneCardLeftDetectedRef.current.delete(key);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- using (gameState as any)?.hands as a dep is a complex expression; gameState (full object) intentionally excluded as we only need to react to hand content changes, not all game state mutations
   }, [(gameState as any)?.hands, roomCode]);
 
   // Performance profiling
@@ -473,6 +481,40 @@ export function LocalAIGameScreen() {
           />
         ) : (
           <>
+            {/* Match number display - top center (Task #590) */}
+            <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
+              <View style={scoreDisplayStyles.matchNumberBadge}>
+                <Text style={scoreDisplayStyles.matchNumberText}>
+                  {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Score action buttons - top left (Task #590) */}
+            <View style={scoreDisplayStyles.scoreActionContainer} pointerEvents="box-none">
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsPlayHistoryOpen(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="View play history"
+                accessibilityHint="Opens the list of plays for this match"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={scoreDisplayStyles.scoreActionButton}
+                onPress={() => scoreboardContext.setIsScoreboardExpanded(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle scoreboard"
+                accessibilityHint="Expands or collapses the scoreboard"
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scoreboard: expanded view + play history modal (Task #590) */}
             <ScoreboardContainer
               playerNames={memoizedPlayerNames}
               currentScores={memoizedCurrentScores}
@@ -508,7 +550,7 @@ export function LocalAIGameScreen() {
             </Pressable>
 
             <GameLayout
-              players={layoutPlayers as any}
+              players={layoutPlayersWithScores as any}
               lastPlayedCards={lastPlayedCards as any}
               lastPlayedBy={lastPlayedBy as any}
               lastPlayComboType={lastPlayComboType as any}
@@ -521,6 +563,7 @@ export function LocalAIGameScreen() {
                 name={layoutPlayers[0]?.name ?? currentPlayerName}
                 cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
                 isActive={layoutPlayers[0]?.isActive ?? false}
+                totalScore={playerTotalScores[0] ?? 0}
               />
             </View>
 
@@ -588,7 +631,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
   },
   menuIcon: {
     width: LAYOUT.menuIconSize,
@@ -603,7 +646,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
     width: LAYOUT.menuIconSize,
     height: LAYOUT.menuIconSize,
     backgroundColor: OVERLAYS.menuBackground,

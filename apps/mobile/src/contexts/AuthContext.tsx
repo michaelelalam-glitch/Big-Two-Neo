@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
-import { RoomPlayerWithRoom } from '../types';
-import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { 
   registerForPushNotificationsAsync, 
   savePushTokenToDatabase,
   removePushTokenFromDatabase 
 } from '../services/notificationService';
+import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
+import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { detectRegion } from '../utils/regionDetector';
 
 /**
@@ -558,6 +558,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       mounted = false;
       subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProfile and profile intentionally excluded from mount-only auth listener; this effect sets up a long-lived subscription that must not be torn down and re-created; fetchProfile is called inside the async handler which always captures the latest via direct call
   }, []);
 
   // 🚨 CRITICAL FIX: Fetch profile when session changes (after SIGNED_IN event)
@@ -594,7 +595,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     loadProfile();
-  }, [session, profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProfile and profile intentionally excluded: including profile would cause an infinite loop (setProfile → profile changes → effect re-runs → fetchProfile again); session is the only trigger we want
+  }, [session]);
 
   // Sign out function
   // ENHANCED: Clean up room_players entries on sign-out to prevent username conflicts

@@ -15,9 +15,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 
 // ============================================================================
@@ -54,7 +54,7 @@ export interface LandscapeControlBarProps {
 // ============================================================================
 
 export function LandscapeControlBar({
-  onHelp,
+  onHelp: _onHelp,
   onOrientationToggle,
   onSort,
   onSmartSort,

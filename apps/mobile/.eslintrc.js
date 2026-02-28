@@ -24,46 +24,22 @@ module.exports = {
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    // TEMPORARY: keep this as 'warn' while we migrate away from `any`.
+    // - New and modified code should avoid `any` and use precise types (or generics/unknown) instead.
+    // - Existing `any` usages in legacy modules should be either refactored or explicitly documented
+    //   with eslint-disable comments tied to tech-debt tasks.
+    // - Once the outstanding `any` usage backlog is cleared, tighten this rule to 'error'.
     '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-require-imports': 'error', // Prefer static imports; callsites using require() for graceful-degradation have inline disables
     
-    // React Hooks rules (with auto-fix)
-    'react-hooks/exhaustive-deps': ['error', {
-      additionalHooks: '(useMemo|useCallback)'
-    }],
+    // React Hooks rules
+    'react-hooks/exhaustive-deps': 'warn', // Warn on missing deps; intentional exclusions use eslint-disable-next-line
     
-    // Console rules
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    // Console rules — app uses structured logger; console is acceptable in dev/debug paths
+    'no-console': 'off',
     
-    // Import rules
-    'import/order': ['warn', {
-      'groups': [
-        'builtin',
-        'external',
-        'internal',
-        ['parent', 'sibling'],
-        'index',
-        'object',
-        'type'
-      ],
-      'pathGroups': [
-        {
-          'pattern': 'react',
-          'group': 'external',
-          'position': 'before'
-        },
-        {
-          'pattern': 'react-native',
-          'group': 'external',
-          'position': 'before'
-        }
-      ],
-      'pathGroupsExcludedImportTypes': ['react', 'react-native'],
-      'newlines-between': 'never',
-      'alphabetize': {
-        'order': 'asc',
-        'caseInsensitive': true
-      }
-    }],
+    // Import rules — warn so CI surfaces ordering issues without blocking merges
+    'import/order': 'warn',
     'import/no-duplicates': 'warn',
   },
   settings: {
@@ -71,4 +47,13 @@ module.exports = {
       version: 'detect',
     },
   },
+  overrides: [
+    {
+      // Jest test files use require() extensively for jest.mock() and jest.requireActual() patterns
+      files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', 'src/__tests__/setup.ts'],
+      rules: {
+        '@typescript-eslint/no-require-imports': 'off',
+      },
+    },
+  ],
 };

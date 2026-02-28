@@ -48,6 +48,11 @@ jest.mock('react-native', () => {
 });
 
 describe('Fireworks Component', () => {
+  // Use fake timers so the component's internal setTimeout (5000ms duration)
+  // doesn't keep the Jest process alive and hang CI.
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
   describe('Basic Rendering', () => {
     it('returns null when inactive', () => {
       const { toJSON } = render(<Fireworks active={false} />);

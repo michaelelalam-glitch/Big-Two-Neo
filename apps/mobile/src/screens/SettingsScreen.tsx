@@ -9,18 +9,17 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import { soundManager, hapticManager, HapticType } from '../utils';
-import { showConfirm, showSuccess, showError } from '../utils';
-import { supabase } from '../services/supabase';
 import { i18n, LANGUAGES, Language } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
+import { showConfirm, showSuccess, showError , soundManager, hapticManager, HapticType } from '../utils';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 

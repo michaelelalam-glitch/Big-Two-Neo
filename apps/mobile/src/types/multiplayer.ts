@@ -30,6 +30,7 @@ export interface Player {
   is_host: boolean;
   is_ready: boolean;
   is_bot: boolean;
+  bot_difficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty level (only for bot players)
   joined_at: string;
 }
 
@@ -188,7 +189,7 @@ export interface UseRealtimeReturn {
   
   // Game actions
   setReady: (ready: boolean) => Promise<void>;
-  startGame: () => Promise<void>;
+  startGame: (botDifficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
   playCards: (cards: Card[], playerIndex?: number) => Promise<void>; // Optional playerIndex for bot coordinator
   pass: () => Promise<void>;
   

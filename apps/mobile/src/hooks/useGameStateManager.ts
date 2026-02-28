@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
+import { i18n } from '../i18n';
 import { soundManager, SoundType, showError, showInfo } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
-import { i18n } from '../i18n';
-import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { FinalScore } from '../types/gameEnd';
+import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 
 interface UseGameStateManagerProps {
   roomCode: string;
   currentPlayerName: string;
   forceNewGame?: boolean;
   isLocalGame?: boolean; // NEW: Only initialize game engine for local games
+  botDifficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty for local games (Task #596)
   addScoreHistory: (history: ScoreHistory) => void;
   openGameEndModal: (
     winnerName: string,
@@ -51,6 +52,7 @@ export function useGameStateManager({
   currentPlayerName,
   forceNewGame = false,
   isLocalGame = true, // Default true for backwards compatibility
+  botDifficulty = 'medium', // Default medium for backwards compatibility (Task #596)
   addScoreHistory,
   openGameEndModal,
   scoreHistory,
@@ -86,10 +88,17 @@ export function useGameStateManager({
       return;
     }
 
-    // Prevent multiple initializations for the same room
-    if (isInitializedRef.current && initializedRoomRef.current === roomCode) {
+    // Prevent multiple initializations for the same room+difficulty
+    // Include botDifficulty in guard key
+    const initKey = `${roomCode}:${botDifficulty}`;
+    if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;
     }
+
+    // Capture unsubscribe in outer scope so useEffect
+    // can return synchronous cleanup. Previously, cleanup was returned inside async
+    // initGame() and never reached React.
+    let unsubscribeFn: (() => void) | null = null;
 
     const initGame = async () => {
       try {
@@ -97,7 +106,7 @@ export function useGameStateManager({
 
         // Mark as initializing
         isInitializedRef.current = true;
-        initializedRoomRef.current = roomCode;
+        initializedRoomRef.current = initKey;
 
         // Create game manager
         const manager = createGameStateManager();
@@ -124,18 +133,22 @@ export function useGameStateManager({
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
         }
 
+        // Track previous player index in a ref
+        // instead of reading from the stale `gameState` closure.
+        let prevPlayerIndex: number | null = null;
+
         // Subscribe to state changes
         const unsubscribe = manager.subscribe((state: GameState) => {
           // Play turn notification when it becomes player's turn
-          const previousState = gameState;
           if (
-            previousState &&
+            prevPlayerIndex !== null &&
             state.currentPlayerIndex === 0 &&
-            previousState.currentPlayerIndex !== 0
+            prevPlayerIndex !== 0
           ) {
             soundManager.playSound(SoundType.TURN_NOTIFICATION);
             gameLogger.info('🎵 [Audio] Turn notification sound triggered - player turn started');
           }
+          prevPlayerIndex = state.currentPlayerIndex;
 
           setGameState(state);
 
@@ -274,14 +287,17 @@ export function useGameStateManager({
           setTimeout(() => checkAndExecuteBotTurn(), 100);
         });
 
+        // Capture unsubscribe for synchronous cleanup
+        unsubscribeFn = unsubscribe;
+
         // Only initialize NEW game if no saved state was loaded
         if (!savedState) {
           gameLogger.info('🆕 [useGameStateManager] No saved game found - starting new game');
-          // Initialize game with 3 bots
+          // Initialize game with 3 bots using configured difficulty (Task #596)
           const initialState = await manager.initializeGame({
             playerName: currentPlayerName,
             botCount: 3,
-            botDifficulty: 'medium',
+            botDifficulty: botDifficulty,
           });
 
           setGameState(initialState);
@@ -292,33 +308,44 @@ export function useGameStateManager({
           soundManager.playSound(SoundType.GAME_START);
           gameLogger.info('🎵 [Audio] Game start sound triggered');
         }
-
-        return () => {
-          unsubscribe();
-          if (gameManagerRef.current) {
-            gameManagerRef.current.destroy();
-          }
-          if (autoStartMatchTimeoutRef.current) {
-            clearTimeout(autoStartMatchTimeoutRef.current);
-            autoStartMatchTimeoutRef.current = null;
-          }
-          soundManager.cleanup().catch((err) => {
-            gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
-          });
-        };
       } catch (error: any) {
         gameLogger.error(
           '❌ [useGameStateManager] Failed to initialize game:',
           error?.message || error?.code || String(error)
         );
+        // Reset init guards on failure so a
+        // re-render can retry initialization instead of being permanently stuck.
+        isInitializedRef.current = false;
+        initializedRoomRef.current = null;
+        if (gameManagerRef.current) {
+          gameManagerRef.current.destroy();
+          gameManagerRef.current = null;
+        }
         setIsInitializing(false);
         Alert.alert(i18n.t('common.error'), 'Failed to initialize game. Please try again.');
       }
     };
 
     initGame();
+
+    // Return synchronous cleanup from useEffect itself.
+    // Previously, cleanup was returned inside async initGame() where React couldn't reach it,
+    // leaking subscriptions, timeouts, and the game manager on unmount/re-render.
+    return () => {
+      unsubscribeFn?.();
+      if (gameManagerRef.current) {
+        gameManagerRef.current.destroy();
+      }
+      if (autoStartMatchTimeoutRef.current) {
+        clearTimeout(autoStartMatchTimeoutRef.current);
+        autoStartMatchTimeoutRef.current = null;
+      }
+      soundManager.cleanup().catch((err) => {
+        gameLogger.error('Failed to cleanup audio:', err?.message || String(err));
+      });
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode, currentPlayerName, isLocalGame]);
+  }, [roomCode, currentPlayerName, isLocalGame, botDifficulty]);
 
   return {
     gameManagerRef,

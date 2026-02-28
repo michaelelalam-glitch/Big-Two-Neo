@@ -8,27 +8,30 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Profiler } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, BackHandler, TouchableOpacity } from 'react-native';
 import { useRoute, RouteProp, useNavigation, CommonActions } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../navigation/AppNavigator';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../../components/game';
+import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
 import { ScoreboardContainer } from '../../components/scoreboard';
-import type { Card } from '../../game/types';
-import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
+// Match number + score action button styles imported from shared scoreDisplayStyles (Task #590)
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../services/supabase';
-import { useBotCoordinator } from '../../hooks/useBotCoordinator';
-import { useRealtime } from '../../hooks/useRealtime';
-import { gameLogger } from '../../utils/logger';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { soundManager, hapticManager, SoundType, showError } from '../../utils';
-import { useHelperButtons } from '../../hooks/useHelperButtons';
+import { useBotCoordinator } from '../../hooks/useBotCoordinator';
 import { useCardSelection } from '../../hooks/useCardSelection';
+import { useHelperButtons } from '../../hooks/useHelperButtons';
 import { useOrientationManager } from '../../hooks/useOrientationManager';
-import { LandscapeGameLayout } from '../../components/gameRoom/LandscapeGameLayout';
+import { usePlayerTotalScores } from '../../hooks/usePlayerTotalScores';
+import { useRealtime } from '../../hooks/useRealtime';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { supabase } from '../../services/supabase';
+import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { soundManager, hapticManager, SoundType, showError } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
+import { gameLogger } from '../../utils/logger';
+import type { Card } from '../../game/types';
+import type { ScoreHistory, PlayHistoryHand, PlayerPosition } from '../../types/scoreboard';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -37,7 +40,7 @@ export function MultiplayerGameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<GameScreenNavigationProp>();
   const { user, profile } = useAuth();
-  const { addScoreHistory, scoreHistory, playHistoryByMatch } = useScoreboard();
+  const { addScoreHistory, scoreHistory, playHistoryByMatch, setIsScoreboardExpanded, setIsPlayHistoryOpen } = useScoreboard();
   const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
   
@@ -163,7 +166,7 @@ export function MultiplayerGameScreen() {
   // Multiplayer hands memo
   const multiplayerHandsByIndex = useMemo(() => {
     const hands = (multiplayerGameState as any)?.hands as
-      | Record<string, Array<{ id: string; rank: string; suit: string }>>
+      | Record<string, { id: string; rank: string; suit: string }[]>
       | undefined;
     
     return hands;
@@ -280,17 +283,44 @@ export function MultiplayerGameScreen() {
 
   const effectiveLastPlayedBy = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.by || null;
-  }, [multiplayerGameState]);
+    // Edge function stores player as player_index (not 'by')
+    const playerIdx = lastPlay?.player_index;
+    if (typeof playerIdx !== 'number') return null;
+    const player = realtimePlayers?.find((p: any) => p.player_index === playerIdx);
+    return player?.username ?? `Player ${playerIdx + 1}`;
+  }, [multiplayerGameState, realtimePlayers]);
 
   const effectiveLastPlayComboType = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.comboType || null;
+    // Edge function stores as combo_type (not comboType)
+    return lastPlay?.combo_type || null;
   }, [multiplayerGameState]);
 
   const effectiveLastPlayCombo = useMemo(() => {
     const lastPlay = (multiplayerGameState as any)?.last_play;
-    return lastPlay?.combo || null;
+    const comboType: string | null = lastPlay?.combo_type || null;
+    const cards = lastPlay?.cards;
+    if (!comboType) return null;
+    if (!Array.isArray(cards) || cards.length === 0) return comboType;
+    if (comboType === 'Single') return `Single ${cards[0].rank}`;
+    if (comboType === 'Pair') return `Pair of ${cards[0].rank}s`;
+    if (comboType === 'Triple') return `Triple ${cards[0].rank}s`;
+    if (comboType === 'Straight') {
+      const sorted = sortCardsForDisplay(cards, 'Straight');
+      const high = sorted[0];
+      return high ? `Straight to ${high.rank}` : 'Straight';
+    }
+    if (comboType === 'Flush') {
+      const sorted = sortCardsForDisplay(cards, 'Flush');
+      const high = sorted[0];
+      return high ? `Flush (${high.rank} high)` : 'Flush';
+    }
+    if (comboType === 'Straight Flush') {
+      const sorted = sortCardsForDisplay(cards, 'Straight Flush');
+      const high = sorted[0];
+      return high ? `Straight Flush to ${high.rank}` : 'Straight Flush';
+    }
+    return comboType;
   }, [multiplayerGameState]);
 
   // Scoreboard mapping (multiplayer uses realtime players)
@@ -380,6 +410,23 @@ export function MultiplayerGameScreen() {
   // Auto-pass timer audio/haptic feedback
   const hasPlayedHighestCardSoundRef = useRef(false);
 
+  // "fi_mat3am_hawn" plays on EVERY match start (match 1, 2, 3...) for multiplayer
+  const previousMatchNumberRef = useRef<number | null>(null);
+  useEffect(() => {
+    const currentMatchNumber = (multiplayerGameState as any)?.match_number ?? null;
+    const gamePhase = (multiplayerGameState as any)?.game_phase;
+
+    // Only fire when the game is actively in the playing phase
+    if (gamePhase !== 'playing') return;
+
+    // Fire when match_number changes — covers match 1 start and all subsequent matches
+    if (currentMatchNumber !== null && currentMatchNumber !== previousMatchNumberRef.current) {
+      previousMatchNumberRef.current = currentMatchNumber;
+      soundManager.playSound(SoundType.GAME_START);
+      gameLogger.info(`🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber}`);
+    }
+  }, [multiplayerGameState]);
+
   useEffect(() => {
     const timerState = multiplayerGameState?.auto_pass_timer;
 
@@ -402,13 +449,12 @@ export function MultiplayerGameScreen() {
       hapticManager.urgentCountdown(displaySeconds);
       gameLogger.info(`📳 [Haptic] Progressive vibration: ${displaySeconds}s`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState?.auto_pass_timer (full object) intentionally excluded; only remaining_ms drives haptic intensity; see LocalAIGameScreen for same pattern
   }, [multiplayerGameState?.auto_pass_timer?.remaining_ms]);
 
   // Play/Pass action handlers with race condition guards
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
-  const [isPlayingCards, setIsPlayingCards] = useState(false);
-  const [isPassing, setIsPassing] = useState(false);
 
   const handlePlayCards = useCallback(async (cards: Card[]) => {
     if (isPlayingCardsRef.current) {
@@ -423,7 +469,6 @@ export function MultiplayerGameScreen() {
 
     try {
       isPlayingCardsRef.current = true;
-      setIsPlayingCards(true);
       hapticManager.playCard();
       
       const sortedCards = sortCardsForDisplay(cards);
@@ -435,7 +480,6 @@ export function MultiplayerGameScreen() {
       showError(error.message || 'Failed to play cards');
     } finally {
       isPlayingCardsRef.current = false;
-      setIsPlayingCards(false);
     }
   }, [multiplayerPlayCards, setSelectedCardIds]);
 
@@ -452,7 +496,6 @@ export function MultiplayerGameScreen() {
 
     try {
       isPassingRef.current = true;
-      setIsPassing(true);
       hapticManager.pass();
 
       await multiplayerPass();
@@ -463,7 +506,6 @@ export function MultiplayerGameScreen() {
       showError(error.message || 'Failed to pass');
     } finally {
       isPassingRef.current = false;
-      setIsPassing(false);
     }
   }, [multiplayerPass, setSelectedCardIds]);
 
@@ -575,6 +617,7 @@ export function MultiplayerGameScreen() {
         // Unlock orientation
         if (orientationAvailable) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
             const ScreenOrientation = require('expo-screen-orientation');
             await ScreenOrientation.unlockAsync();
             gameLogger.info('🔓 [Orientation] Unlocked on navigation away');
@@ -635,6 +678,17 @@ export function MultiplayerGameScreen() {
     return activeIndex >= 0 ? activeIndex : 0;
   }, [layoutPlayers]);
 
+  // Compute per-player total scores for badges (Task #590 — shared hook)
+  const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
+
+  // Layout players with totalScore attached (Task #590)
+  const layoutPlayersWithScores = useMemo(() => {
+    return layoutPlayers.map((p: any, i: number) => ({
+      ...p,
+      totalScore: playerTotalScores[i] ?? 0,
+    }));
+  }, [layoutPlayers, playerTotalScores]);
+
   // Render based on orientation
   const isLandscape = currentOrientation?.includes('LANDSCAPE');
 
@@ -648,6 +702,11 @@ export function MultiplayerGameScreen() {
       gameLogger.warn(`[Performance] ${id} render took ${actualDuration.toFixed(2)}ms`);
     }
   }, []);
+
+  // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
+  const isGameFinished =
+    (multiplayerGameState as any)?.game_phase === 'finished' ||
+    (multiplayerGameState as any)?.game_phase === 'game_over';
 
   // Show loading state while connecting/loading
   if (isLoading) {
@@ -669,7 +728,7 @@ export function MultiplayerGameScreen() {
           cardCounts={memoizedCardCounts}
           currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
           matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-          isGameFinished={false}
+          isGameFinished={isGameFinished}
           scoreHistory={scoreHistory}
           playHistory={playHistoryByMatch}
           originalPlayerNames={memoizedOriginalPlayerNames}
@@ -697,20 +756,51 @@ export function MultiplayerGameScreen() {
         />
       ) : (
         <>
-          {/* Scoreboard (top-left, outside table) */}
-          <View style={styles.scoreboardContainer}>
-            <ScoreboardContainer
-              currentScores={memoizedCurrentScores}
-              cardCounts={memoizedCardCounts}
-              currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-              matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
-              isGameFinished={false}
-              scoreHistory={scoreHistory}
-              playHistory={playHistoryByMatch}
-              originalPlayerNames={memoizedOriginalPlayerNames}
-              playerNames={memoizedPlayerNames}
-            />
+          {/* Match number display - top center (Task #590 inlined) */}
+          <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
+            <View style={scoreDisplayStyles.matchNumberBadge}>
+              <Text style={scoreDisplayStyles.matchNumberText}>
+                {isGameFinished ? 'Game Over' : `Match ${(multiplayerGameState as any)?.match_number ?? 1}`}
+              </Text>
+            </View>
           </View>
+
+          {/* Score action buttons - top left (Task #590 inlined) */}
+          <View style={scoreDisplayStyles.scoreActionContainer} pointerEvents="box-none">
+            <TouchableOpacity
+              style={scoreDisplayStyles.scoreActionButton}
+              onPress={() => setIsPlayHistoryOpen(prev => !prev)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="View play history"
+              accessibilityHint="Opens the list of plays for this match"
+            >
+              <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={scoreDisplayStyles.scoreActionButton}
+              onPress={() => setIsScoreboardExpanded(prev => !prev)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle scoreboard"
+              accessibilityHint="Expands or collapses the scoreboard"
+            >
+              <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Scoreboard: expanded view + play history modal (Task #590: no more compact) */}
+          <ScoreboardContainer
+            currentScores={memoizedCurrentScores}
+            cardCounts={memoizedCardCounts}
+            currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+            matchNumber={(multiplayerGameState as any)?.match_number ?? 1}
+            isGameFinished={isGameFinished}
+            scoreHistory={scoreHistory}
+            playHistory={playHistoryByMatch}
+            originalPlayerNames={memoizedOriginalPlayerNames}
+            playerNames={memoizedPlayerNames}
+          />
 
           {/* Hamburger menu (top-right, outside table) */}
           <Pressable 
@@ -743,7 +833,7 @@ export function MultiplayerGameScreen() {
 
           {/* Game table layout */}
           <GameLayout
-            players={layoutPlayers as any}
+            players={layoutPlayersWithScores as any}
             lastPlayedCards={effectiveLastPlayedCards as any}
             lastPlayedBy={effectiveLastPlayedBy as any}
             lastPlayComboType={effectiveLastPlayComboType as any}
@@ -757,6 +847,7 @@ export function MultiplayerGameScreen() {
               name={layoutPlayers[0]?.name ?? currentPlayerName}
               cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
               isActive={layoutPlayers[0]?.isActive ?? false}
+              totalScore={playerTotalScores[0] ?? 0}
             />
           </View>
           
@@ -820,17 +911,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.primary,
   },
-  scoreboardContainer: {
-    position: 'absolute',
-    top: POSITIONING.scoreboardTop,
-    left: POSITIONING.scoreboardLeft,
-    zIndex: 100,
-  },
   menuContainer: {
     position: 'absolute',
     top: POSITIONING.menuTop,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
   },
   menuIcon: {
     width: LAYOUT.menuIconSize,
@@ -845,7 +930,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: POSITIONING.menuTop + LAYOUT.menuIconSize + SPACING.sm,
     right: SPACING.md,
-    zIndex: 100,
+    zIndex: 200,
     width: LAYOUT.menuIconSize,
     height: LAYOUT.menuIconSize,
     backgroundColor: OVERLAYS.menuBackground,

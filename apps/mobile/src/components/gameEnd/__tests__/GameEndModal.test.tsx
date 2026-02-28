@@ -37,9 +37,17 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: 'SafeAreaProvider',
 }));
 
-// Mock Dimensions and Animated
+// Mock Dimensions and Animated — fully mock all Animated methods
+// to prevent real timers from keeping Jest alive in CI.
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
+
+  const createMockAnimation = (): any => ({
+    start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),
+    stop: jest.fn(),
+    reset: jest.fn(),
+  });
+
   return {
     ...RN,
     Dimensions: {
@@ -51,16 +59,15 @@ jest.mock('react-native', () => {
       ...RN.Animated,
       Value: jest.fn(() => ({
         setValue: jest.fn(),
-        interpolate: jest.fn(() => ({
-          _value: 0,
-        })),
+        interpolate: jest.fn(() => ({ _value: 0 })),
         stopAnimation: jest.fn(),
         _value: 0,
       })),
-      timing: jest.fn(() => ({
-        start: jest.fn(),
-        stop: jest.fn(),
-      })),
+      timing: jest.fn(() => createMockAnimation()),
+      delay: jest.fn(() => createMockAnimation()),
+      sequence: jest.fn(() => createMockAnimation()),
+      parallel: jest.fn(() => createMockAnimation()),
+      loop: jest.fn(() => createMockAnimation()),
     },
   };
 });

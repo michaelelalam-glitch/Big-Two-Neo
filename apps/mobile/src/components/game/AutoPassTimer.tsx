@@ -17,12 +17,13 @@
  * - Late joins or reconnections
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import type { AutoPassTimerState } from '../../types/multiplayer';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
-import { i18n } from '../../i18n';
 import { useClockSync } from '../../hooks/useClockSync';
+import { i18n } from '../../i18n';
+import { gameLogger } from '../../utils/logger';
+import type { AutoPassTimerState } from '../../types/multiplayer';
 
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
@@ -31,54 +32,85 @@ interface AutoPassTimerProps {
 
 export default function AutoPassTimer({
   timerState,
-  currentPlayerIndex,
+  currentPlayerIndex: _currentPlayerIndex,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
   const [currentTime, setCurrentTime] = useState(Date.now());
+  // Throttle debug logs to once per whole-second transition.
+  // Component-scoped ref (not module-scoped) so multiple instances and test cases stay isolated.
+  const lastLoggedSecondRef = useRef(-1);
   
   // ⏱️ CRITICAL: Clock sync with server
   const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
 
   // Update current time every frame for smooth countdown
+  // CRITICAL FIX: Stop the rAF loop once remaining reaches 0 to prevent
+  // infinite log spam and unnecessary CPU usage when timer has expired.
   useEffect(() => {
     if (!timerState || !timerState.active) {
       return;
     }
 
     let animationFrameId: number;
+    let stopped = false;
     const updateTime = () => {
-      setCurrentTime(Date.now());
+      if (stopped) return;
+      const now = Date.now();
+      // Check if timer has expired — if so, do one final update and stop the loop
+      const endTimestamp = timerState.end_timestamp;
+      if (typeof endTimestamp === 'number') {
+        const correctedNow = now + (offsetMs || 0);
+        if (correctedNow >= endTimestamp) {
+          setCurrentTime(now);
+          stopped = true;
+          return; // Don't schedule another frame
+        }
+      } else {
+        // Fallback path: stop when started_at + duration_ms has elapsed
+        const startedAt = new Date(timerState.started_at).getTime();
+        const durationMs = timerState.duration_ms || 10000;
+        if (!isNaN(startedAt) && now >= startedAt + durationMs) {
+          setCurrentTime(now);
+          stopped = true;
+          return; // Don't schedule another frame
+        }
+      }
+      setCurrentTime(now);
       animationFrameId = requestAnimationFrame(updateTime);
     };
     
     animationFrameId = requestAnimationFrame(updateTime);
     
     return () => {
+      stopped = true;
       cancelAnimationFrame(animationFrameId);
     };
-  }, [timerState?.active, (timerState as any)?.end_timestamp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- full timerState intentionally excluded: deps are the specific scalar fields that trigger rescheduling; including the whole object would restart the rAF loop on every render
+  }, [timerState?.active, timerState?.end_timestamp, offsetMs]);
 
   // ⏰ CRITICAL: Calculate remaining time from server-authoritative endTimestamp
   const calculateRemainingMs = (): number => {
     if (!timerState) return 0;
     
     // NEW ARCHITECTURE: Use end_timestamp if available (server-authoritative)
-    const endTimestamp = (timerState as any).end_timestamp;
+    const endTimestamp = timerState.end_timestamp;
     if (typeof endTimestamp === 'number') {
       // Use clock-corrected current time
       const correctedNow = getCorrectedNow();
       const remaining = Math.max(0, endTimestamp - correctedNow);
       
-      // Debug logging (only log once per second to avoid spam)
-      if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
-        console.log('[AutoPassTimer] Server-authoritative calculation:', {
+      // Debug: log once per whole-second transition (not every frame).
+      const currentSecond = Math.ceil(remaining / 1000);
+      if (remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
+        lastLoggedSecondRef.current = currentSecond;
+        gameLogger.debug('[AutoPassTimer] Server-authoritative calculation:', {
           endTimestamp: new Date(endTimestamp).toISOString(),
           correctedNow: new Date(correctedNow).toISOString(),
           localNow: new Date(Date.now()).toISOString(),
           offsetMs,
           isSynced,
           remaining,
-          seconds: Math.ceil(remaining / 1000),
+          seconds: currentSecond,
         });
       }
       
@@ -87,12 +119,18 @@ export default function AutoPassTimer({
     
     // FALLBACK: Old architecture (calculate from started_at)
     const startedAt = new Date(timerState.started_at).getTime();
+    
+    // Guard against invalid dates
+    if (isNaN(startedAt)) {
+      return 0;
+    }
+    
     const elapsed = currentTime - startedAt;
     const durationMs = timerState.duration_ms || 10000;
     const remaining = Math.max(0, durationMs - elapsed);
     
     if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
-      console.log('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
+      gameLogger.debug('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
         startedAt: new Date(startedAt).toISOString(),
         currentTime: new Date(currentTime).toISOString(),
         elapsed,
@@ -108,14 +146,26 @@ export default function AutoPassTimer({
   const remainingMs = calculateRemainingMs();
   const currentSeconds = Math.ceil(remainingMs / 1000);
 
+  // Ref to hold the current pulse loop so we can stop it before starting a new one
+  // or during cleanup. Without this, every re-render that triggers the effect would
+  // start an additional concurrent loop, leaking animations.
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
+    // Stop any prior loop before deciding whether to start a new one
+    if (pulseLoopRef.current) {
+      pulseLoopRef.current.stop();
+      pulseLoopRef.current = null;
+    }
+
     if (!timerState || !timerState.active || remainingMs <= 0) {
+      pulseAnim.setValue(1);
       return;
     }
 
     // Start pulse animation when timer is active and below 5 seconds
     if (currentSeconds <= 5) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.15,
@@ -128,10 +178,20 @@ export default function AutoPassTimer({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoopRef.current = loop;
+      loop.start();
     } else {
       pulseAnim.setValue(1);
     }
+
+    return () => {
+      if (pulseLoopRef.current) {
+        pulseLoopRef.current.stop();
+        pulseLoopRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState intentionally excluded: only the derived values (currentSeconds, remainingMs, timerState?.active) are needed to gate the animation; full timerState object not required
   }, [currentSeconds, timerState?.active, remainingMs, pulseAnim]);
 
   // Don't render if timer is not active or has expired

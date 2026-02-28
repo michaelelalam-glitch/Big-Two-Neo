@@ -10,18 +10,18 @@ import {
   FlatList,
   Image,
 } from 'react-native';
-import { formatDistanceToNow, format } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { statsLogger } from '../utils/logger';
+import { formatDistanceToNow, format } from 'date-fns';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
-import { i18n } from '../i18n';
 import StreakGraph from '../components/stats/StreakGraph';
+import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
+import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
+import { statsLogger } from '../utils/logger';
 
 type StatsScreenRouteProp = RouteProp<RootStackParamList, 'Stats'>;
 type StatsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Stats'>;
@@ -225,7 +225,8 @@ export default function StatsScreen() {
   const getTimeAgo = (date: Date): string => {
     try {
       return formatDistanceToNow(date, { addSuffix: true });
-    } catch {
+    } catch (error) {
+      console.warn('[StatsScreen] getTimeAgo fallback:', error);
       return format(date, 'MMM d, yyyy');
     }
   };

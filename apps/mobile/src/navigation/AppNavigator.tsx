@@ -1,26 +1,26 @@
 import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
-import HomeScreen from '../screens/HomeScreen';
-import GameSelectionScreen from '../screens/GameSelectionScreen';
-import SignInScreen from '../screens/SignInScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
-import JoinRoomScreen from '../screens/JoinRoomScreen';
-import LobbyScreen from '../screens/LobbyScreen';
 import GameScreen from '../screens/GameScreen';
-import LeaderboardScreen from '../screens/LeaderboardScreen';
-import StatsScreen from '../screens/StatsScreen';
-import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+import GameSelectionScreen from '../screens/GameSelectionScreen';
+import HomeScreen from '../screens/HomeScreen';
 import HowToPlayScreen from '../screens/HowToPlayScreen';
-import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
-import MatchmakingScreen from '../screens/MatchmakingScreen';
+import JoinRoomScreen from '../screens/JoinRoomScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import LobbyScreen from '../screens/LobbyScreen';
 import MatchHistoryScreen from '../screens/MatchHistoryScreen';
+import MatchmakingScreen from '../screens/MatchmakingScreen';
+import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import RankedLeaderboardScreen from '../screens/RankedLeaderboardScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import SignInScreen from '../screens/SignInScreen';
+import StatsScreen from '../screens/StatsScreen';
 
 export type RootStackParamList = {
   GameSelection: undefined;
@@ -32,7 +32,7 @@ export type RootStackParamList = {
   MatchTypeSelection: undefined;
   Matchmaking: { matchType?: 'casual' | 'ranked' };
   Lobby: { roomCode: string };
-  Game: { roomCode: string; forceNewGame?: boolean };
+  Game: { roomCode: string; forceNewGame?: boolean; botDifficulty?: 'easy' | 'medium' | 'hard' };
   Leaderboard: undefined;
   RankedLeaderboard: undefined;
   MatchHistory: undefined;

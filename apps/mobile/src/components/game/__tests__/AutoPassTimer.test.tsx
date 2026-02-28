@@ -11,19 +11,26 @@ import AutoPassTimer from '../AutoPassTimer';
 import type { AutoPassTimerState } from '../../../types/multiplayer';
 
 describe('AutoPassTimer Component', () => {
-  const createTimerState = (overrides?: Partial<AutoPassTimerState>): AutoPassTimerState => ({
-    active: true,
-    started_at: new Date().toISOString(),
-    duration_ms: 10000,
-    remaining_ms: 10000,
-    triggering_play: {
-      position: 0,
-      cards: [{ id: '2S', rank: '2' as const, suit: 'S' as const }],
-      combo_type: 'Single',
-    },
-    player_id: 'test-player',
-    ...overrides,
-  });
+  const createTimerState = (overrides?: Partial<AutoPassTimerState>): AutoPassTimerState => {
+    const duration = overrides?.duration_ms ?? 10000;
+    const remaining = overrides?.remaining_ms ?? duration;
+    // Calculate started_at so the fallback calculation yields the correct remaining time:
+    // remaining = duration_ms - (now - started_at)  →  started_at = now - (duration - remaining)
+    const elapsed = duration - remaining;
+    return {
+      active: true,
+      started_at: new Date(Date.now() - elapsed).toISOString(),
+      duration_ms: duration,
+      remaining_ms: remaining,
+      triggering_play: {
+        position: 0,
+        cards: [{ id: '2S', rank: '2' as const, suit: 'S' as const }],
+        combo_type: 'Single',
+      },
+      player_id: 'test-player',
+      ...overrides,
+    };
+  };
 
   describe('Rendering', () => {
     it('should render timer when active', () => {
@@ -169,6 +176,10 @@ describe('AutoPassTimer Component', () => {
     });
 
     it('should update message when time changes', () => {
+      // Freeze Date.now so createTimerState and useState(Date.now()) use the
+      // exact same timestamp — avoids Math.ceil rounding drift across calls
+      jest.useFakeTimers({ now: new Date('2025-01-01T00:00:00Z') });
+
       const timerState = createTimerState({ remaining_ms: 3000 });
       const { getByText, rerender } = render(
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
@@ -181,6 +192,8 @@ describe('AutoPassTimer Component', () => {
       rerender(<AutoPassTimer timerState={updatedTimerState} currentPlayerIndex={0} />);
 
       expect(getByText('No one can beat this play - 2s to pass')).toBeTruthy();
+
+      jest.useRealTimers();
     });
   });
 

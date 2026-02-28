@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-// @copilot-review-fix: Use shared parseCards utility to reduce duplication
+// Use shared parseCards utility to reduce duplication
 import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
@@ -139,18 +139,18 @@ Deno.serve(async (req) => {
     const currentHands = gameState.hands || {};
     
     // Calculate total players from hands object
-    // @copilot-review-fix (Round 7): Validate totalPlayers > 1 before proceeding
+    // Validate totalPlayers > 1 before proceeding
     // This prevents incorrect turn calculations when hands object is empty or malformed
     const totalPlayers = Object.keys(currentHands).length;
     
     // Only proceed with One Card Left check if we have valid player count
     if (totalPlayers > 1) {
     // Calculate next player index (counterclockwise: 0→1→2→3→0)
-    // @copilot-review-fix: Use modulo arithmetic to support variable player counts
+    // Use modulo arithmetic to support variable player counts
     const nextPlayerIndex = (player.player_index + 1) % totalPlayers;
     const nextPlayerHandRaw = currentHands[nextPlayerIndex] || [];
     
-    // @copilot-review-fix: Using shared parseCards utility from _shared/parseCards.ts
+    // Using shared parseCards utility from _shared/parseCards.ts
     const nextPlayerHand = parseCards(nextPlayerHandRaw);
     const playerHandRaw = currentHands[player.player_index] || [];
     const playerHand = parseCards(playerHandRaw);
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
         lastPlayCards: lastPlay.cards.length,
       });
 
-      // @copilot-review-fix (Round 7): Improved timeout cleanup - clear timeout BEFORE rejection
+      // Improved timeout cleanup - clear timeout BEFORE rejection
       // This prevents the issue where rejection happens before flag is set
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       let timeoutCleared = false; // Track if timeout was externally cleared
@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       
       try {
         // Create a timeout promise (5 seconds max) with improved cleanup
-        // @copilot-review-fix: Check if timeout was externally cleared before rejecting
+        // Check if timeout was externally cleared before rejecting
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => {
             // Only reject if timeout wasn't cleared externally (race was still pending)
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
           });
 
         // Race between validation and timeout
-        // @copilot-review-fix: Always clear timeout in finally block to prevent memory leaks
+        // Always clear timeout in finally block to prevent memory leaks
         let raceResult: any;
         try {
           raceResult = await Promise.race([validationPromise, timeoutPromise]);
@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
         // Don't block gameplay if validation throws - log and continue
       }
     }
-    } // End of if (totalPlayers > 1) - @copilot-review-fix (Round 7)
+    } // End of if (totalPlayers > 1)
 
     // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
     // Turn order mapping: [0→1, 1→2, 2→3, 3→0]

@@ -16,11 +16,11 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import type { Card as CardType } from '../../game/types';
 import LandscapeCard from './LandscapeCard';
-import { sortCardsForDisplay } from '../../utils/cardSorting';
-import { i18n } from '../../i18n';
 import { COLORS } from '../../constants';
+import { i18n } from '../../i18n';
+import { sortCardsForDisplay } from '../../utils/cardSorting';
+import type { Card as CardType } from '../../game/types';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -73,13 +73,6 @@ export function LandscapeOvalTable({
   // Active state (cards displayed)
   const renderPlayedCards = () => (
     <>
-      {/* Last play info text */}
-      {lastPlayedBy && (
-        <Text style={styles.lastPlayInfo} numberOfLines={1}>
-          {i18n.t('game.lastPlayedBy')} {lastPlayedBy}
-        </Text>
-      )}
-
       {/* Cards container */}
       <View style={styles.cardsContainer}>
         {displayCards.map((card, index) => (
@@ -98,10 +91,14 @@ export function LandscapeOvalTable({
         ))}
       </View>
 
-      {/* Combo type text */}
-      {comboDisplayText && (
-        <Text style={styles.comboText} numberOfLines={1}>
-          {comboDisplayText}
+      {/* Combined last play info: "Last played by {player}: {combo}" in white */}
+      {(lastPlayedBy || comboDisplayText) && (
+        <Text style={styles.lastPlayInfo} numberOfLines={1}>
+          {lastPlayedBy
+            ? comboDisplayText
+              ? `${i18n.t('game.lastPlayedBy')} ${lastPlayedBy}: ${comboDisplayText}`
+              : `${i18n.t('game.lastPlayedBy')} ${lastPlayedBy}`
+            : comboDisplayText}
         </Text>
       )}
     </>
@@ -169,12 +166,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Last play info
+  // Last play info (combined player + combo, white)
   lastPlayInfo: {
-    fontSize: 15, // Bigger (was 12)
-    fontWeight: '700', // Bolder
-    color: 'rgba(255, 255, 255, 0.95)', // Less faint (was 0.7)
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.white,
+    marginTop: 6,
     textAlign: 'center',
   },
 
@@ -193,12 +190,5 @@ const styles = StyleSheet.create({
     // Positioning handled by marginLeft and zIndex
   },
 
-  // Combo type text
-  comboText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fbbf24', // Gold color for combo
-    marginTop: 8,
-    textAlign: 'center',
-  },
 });
+

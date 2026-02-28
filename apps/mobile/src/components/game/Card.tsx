@@ -1,15 +1,15 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import * as Haptics from 'expo-haptics';
-import type { Card as CardType } from '../../game/types';
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
+import type { Card as CardType } from '../../game/types';
 
 interface CardProps {
   card: CardType;
@@ -39,7 +39,6 @@ const TABLE_CARD_WIDTH = 47;
 const TABLE_CARD_HEIGHT = 72;
 
 const SELECTED_OFFSET = -20; // Offset for selected card elevation
-const DRAG_TO_PLAY_THRESHOLD = -80; // Drag distance to trigger play
 const DEFAULT_CARD_OVERLAP_MARGIN = -40; // Default overlap (original portrait value)
 
 // Touch target improvements (30px touch target - balanced for fitting 13 cards while improving UX)

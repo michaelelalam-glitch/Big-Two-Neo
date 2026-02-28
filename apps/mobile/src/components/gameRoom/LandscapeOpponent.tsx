@@ -18,6 +18,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
+import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 
 // ============================================================================
@@ -35,6 +36,8 @@ interface LandscapeOpponentProps {
   photoUrl?: string | null;
   /** Layout direction: 'vertical' (name below avatar) or 'horizontal' (name to right of avatar) */
   layout?: 'vertical' | 'horizontal';
+  /** Total cumulative score (Task #590) */
+  totalScore?: number;
 }
 
 // ============================================================================
@@ -47,6 +50,7 @@ export function LandscapeOpponent({
   isActive,
   photoUrl,
   layout = 'vertical',
+  totalScore,
 }: LandscapeOpponentProps) {
   
   return (
@@ -68,6 +72,19 @@ export function LandscapeOpponent({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
+        {totalScore !== undefined && (
+          <View
+            style={scoreDisplayStyles.scoreBadgePosition}
+            accessible={true}
+            accessibilityRole="text"
+            accessibilityLabel={`Score: ${formatScore(totalScore)}`}
+          >
+            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
+              <Text style={scoreDisplayStyles.scoreBadgeText}>{formatScore(totalScore)}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Player Name Badge */}

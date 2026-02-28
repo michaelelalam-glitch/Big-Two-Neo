@@ -4,7 +4,7 @@
  * 
  * Tests for landscape-optimized scoreboard
  * Verifies:
- * - Collapsed state rendering (120pt height)
+ * - Collapsed state rendering (empty container after Task #590)
  * - Expanded state rendering (344pt max height)
  * - Button interactions (expand, collapse, play history)
  * - Player list rendering with current player highlight
@@ -12,6 +12,7 @@
  * - Identical functionality to portrait mode
  * 
  * Created as part of Task #454: Landscape scoreboard tests
+ * Updated for Task #590: Collapsed scoreboard removed (renders empty View)
  * Date: December 19, 2025
  */
 
@@ -68,7 +69,8 @@ const mockPlayHistory = [
 
 describe('LandscapeScoreboard - Collapsed State', () => {
   it('should render collapsed scoreboard with correct structure', () => {
-    const { getByText, getAllByText } = render(
+    // Task #590: Collapsed state now renders an empty container (no content)
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -82,18 +84,17 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    // Header (component renders 'Match 2' not '🃏 Match 2')
-    expect(getByText('Match 2')).toBeTruthy();
-    
-    // All players should be visible
-    expect(getByText('Alice')).toBeTruthy();
-    expect(getByText('Bob')).toBeTruthy();
-    expect(getByText('Carol')).toBeTruthy();
-    expect(getByText('Dave')).toBeTruthy();
+    // Collapsed state renders empty container - no content visible
+    expect(queryByText('Match 2')).toBeNull();
+    expect(queryByText('Alice')).toBeNull();
+    expect(queryByText('Bob')).toBeNull();
+    expect(queryByText('Carol')).toBeNull();
+    expect(queryByText('Dave')).toBeNull();
   });
 
   it('should render player scores correctly', () => {
-    const { getByText } = render(
+    // Task #590: Collapsed state renders empty container - no scores visible
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -107,18 +108,16 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    // Scores
-    expect(getByText('15 pts')).toBeTruthy(); // Alice
-    expect(getByText('23 pts')).toBeTruthy(); // Bob
-    expect(getByText('0 pts')).toBeTruthy();  // Carol
-    expect(getByText('12 pts')).toBeTruthy(); // Dave
+    // No scores rendered in collapsed state
+    expect(queryByText('15 pts')).toBeNull();
+    expect(queryByText('23 pts')).toBeNull();
+    expect(queryByText('0 pts')).toBeNull();
+    expect(queryByText('12 pts')).toBeNull();
   });
 
   it('should render card counts during active game', () => {
-    // Card counts were intentionally removed from landscape scoreboard
-    // Component only displays scores, not card counts
-    // Skipping this test as the feature is not implemented
-    const { getByText } = render(
+    // Task #590: Collapsed state renders empty container - no card counts visible
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -132,8 +131,8 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    // Verify component renders - score display works
-    expect(getByText('Alice')).toBeTruthy();
+    // Collapsed state renders empty container
+    expect(queryByText('Alice')).toBeNull();
   });
 
   it('should NOT render card counts when game is finished', () => {
@@ -157,7 +156,8 @@ describe('LandscapeScoreboard - Collapsed State', () => {
   });
 
   it('should show "Game Over" title when game is finished', () => {
-    const { getByText } = render(
+    // Task #590: Collapsed state renders empty container even when game is finished
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -171,12 +171,14 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    expect(getByText('🏁 Game Over')).toBeTruthy();
+    // Collapsed state renders empty container - no Game Over text
+    expect(queryByText('🏁 Game Over')).toBeNull();
   });
 
   it('should render expand button when onToggleExpand is provided', () => {
+    // Task #590: Collapsed state renders empty container - no expand button
     const onToggleExpandMock = jest.fn();
-    const { getByLabelText } = render(
+    const { queryByLabelText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -191,13 +193,14 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    const expandButton = getByLabelText('Expand scoreboard');
-    expect(expandButton).toBeTruthy();
+    // No expand button in collapsed state (empty container)
+    expect(queryByLabelText('Expand scoreboard')).toBeNull();
   });
 
   it('should render play history button when onTogglePlayHistory is provided', () => {
+    // Task #590: Collapsed state renders empty container - no play history button
     const onTogglePlayHistoryMock = jest.fn();
-    const { getByLabelText } = render(
+    const { queryByLabelText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -212,13 +215,14 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    const playHistoryButton = getByLabelText('Open play history');
-    expect(playHistoryButton).toBeTruthy();
+    // No play history button in collapsed state (empty container)
+    expect(queryByLabelText('Open play history')).toBeNull();
   });
 
   it('should call onToggleExpand when expand button is pressed', () => {
+    // Task #590: Collapsed state renders empty container - no expand button to press
     const onToggleExpandMock = jest.fn();
-    const { getByLabelText } = render(
+    const { queryByLabelText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -233,15 +237,15 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    const expandButton = getByLabelText('Expand scoreboard');
-    fireEvent.press(expandButton);
-
-    expect(onToggleExpandMock).toHaveBeenCalledTimes(1);
+    // No expand button in collapsed state
+    expect(queryByLabelText('Expand scoreboard')).toBeNull();
+    expect(onToggleExpandMock).not.toHaveBeenCalled();
   });
 
   it('should call onTogglePlayHistory when play history button is pressed', () => {
+    // Task #590: Collapsed state renders empty container - no play history button to press
     const onTogglePlayHistoryMock = jest.fn();
-    const { getByLabelText } = render(
+    const { queryByLabelText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -256,10 +260,9 @@ describe('LandscapeScoreboard - Collapsed State', () => {
       />
     );
 
-    const playHistoryButton = getByLabelText('Open play history');
-    fireEvent.press(playHistoryButton);
-
-    expect(onTogglePlayHistoryMock).toHaveBeenCalledTimes(1);
+    // No play history button in collapsed state
+    expect(queryByLabelText('Open play history')).toBeNull();
+    expect(onTogglePlayHistoryMock).not.toHaveBeenCalled();
   });
 });
 
@@ -451,11 +454,10 @@ describe('LandscapeScoreboard - Expanded State', () => {
 
 describe('LandscapeScoreboard - Dimensions', () => {
   it('should apply landscape-specific dimensions from migration plan', () => {
-    // This test verifies that the landscape dimensions are applied
-    // Actual dimension testing would require integration tests
-    // Here we just ensure the component renders without errors
+    // Task #590: Collapsed state renders empty container
+    // Verify component renders without errors in collapsed state
     
-    const { getByText } = render(
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -469,15 +471,15 @@ describe('LandscapeScoreboard - Dimensions', () => {
       />
     );
 
-    // Verify component renders successfully
-    expect(getByText('Match 2')).toBeTruthy();
+    // Collapsed state renders empty container - no content
+    expect(queryByText('Match 2')).toBeNull();
   });
 
   it('should maintain max width of 280pt for collapsed state', () => {
-    // Component uses maxWidth: 280pt from styles
-    // This test ensures the component renders with landscape styles
+    // Task #590: Collapsed state renders empty container
+    // Component still uses maxWidth from styles but renders no content
     
-    const { getByText } = render(
+    const { queryByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -491,7 +493,8 @@ describe('LandscapeScoreboard - Dimensions', () => {
       />
     );
 
-    expect(getByText('Alice')).toBeTruthy();
+    // Collapsed state renders empty container
+    expect(queryByText('Alice')).toBeNull();
   });
 
   it('should maintain max height of 344pt for expanded state', () => {
@@ -543,11 +546,11 @@ describe('PlayHistoryModal - Re-exported from portrait', () => {
 describe('LandscapeScoreboard - Integration', () => {
   it('should toggle between collapsed and expanded states', () => {
     let isExpanded = false;
-    const onToggleExpand = () => {
+    const onToggleExpand = jest.fn(() => {
       isExpanded = !isExpanded;
-    };
+    });
 
-    const { rerender, getByLabelText, getByText } = render(
+    const { rerender, queryByText, getByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
         currentScores={mockCurrentScores}
@@ -562,12 +565,9 @@ describe('LandscapeScoreboard - Integration', () => {
       />
     );
 
-    // Initially collapsed
-    expect(getByText('Match 2')).toBeTruthy();
-    
-    // Expand
-    const expandButton = getByLabelText('Expand scoreboard');
-    fireEvent.press(expandButton);
+    // Initially collapsed - empty container, no content
+    expect(queryByText('Match 2')).toBeNull();
+    expect(queryByText('Match 2 History')).toBeNull();
     
     // Rerender with expanded state
     rerender(
@@ -590,6 +590,8 @@ describe('LandscapeScoreboard - Integration', () => {
   });
 
   it('should handle multiple players correctly', () => {
+    // Task #590: Collapsed state renders empty container
+    // Test multiple players in expanded state instead
     const { getByText } = render(
       <LandscapeScoreboard
         playerNames={mockPlayerNames}
@@ -600,11 +602,11 @@ describe('LandscapeScoreboard - Integration', () => {
         isGameFinished={false}
         scoreHistory={mockScoreHistory}
         playHistory={mockPlayHistory}
-        isExpanded={false}
+        isExpanded={true}
       />
     );
 
-    // All 4 players should be visible
+    // All 4 players should be visible in expanded state
     mockPlayerNames.forEach((name) => {
       expect(getByText(name)).toBeTruthy();
     });

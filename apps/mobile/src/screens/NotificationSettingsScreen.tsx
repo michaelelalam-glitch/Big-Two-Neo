@@ -9,13 +9,13 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { notificationLogger } from '../utils/logger';
+import { useNotifications } from '../contexts/NotificationContext';
 import { showError, showSuccess, showConfirm, showInfo } from '../utils';
+import { notificationLogger } from '../utils/logger';
 
 export default function NotificationSettingsScreen() {
   const { expoPushToken, isRegistered, registerPushNotifications, unregisterPushNotifications } =
@@ -124,7 +124,7 @@ export default function NotificationSettingsScreen() {
               <View style={styles.divider} />
               <Text style={styles.subsectionTitle}>About Notifications</Text>
               <Text style={styles.infoText}>
-                You'll receive notifications for game invites, your turn, game start, and friend requests.
+                You&apos;ll receive notifications for game invites, your turn, game start, and friend requests.
                 {'\n\n'}
                 Granular notification preferences (choose which types to receive) will be available in a future update.
               </Text>

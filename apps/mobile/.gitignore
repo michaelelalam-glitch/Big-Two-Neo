@@ -40,6 +40,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Jest transform cache (persisted in CI via actions/cache)
+.jest-cache/
+
 # build logs (may contain sensitive data)
 build.log
 *.build.log

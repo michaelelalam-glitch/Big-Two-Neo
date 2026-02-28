@@ -93,6 +93,7 @@ export const Fireworks: React.FC<FireworksProps> = ({
     return () => {
       animations.current.forEach(anim => anim.stopAnimation());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- config.burstCount intentionally excluded: changing burstCount mid-flight would tear down and restart animations, causing a visual flash; the burst count is only read at animation start
   }, [active, duration]);
   
   if (!active) return null;

@@ -9,17 +9,17 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { COLORS, SPACING } from '../constants';
-import { statsLogger, authLogger } from '../utils/logger';
-import { showError, showConfirm } from '../utils';
+import { format } from 'date-fns';
 import EmptyState from '../components/EmptyState';
 import { RankBadge, Rank } from '../components/RankBadge';
+import { COLORS, SPACING } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
+import { supabase } from '../services/supabase';
+import { showError, showConfirm } from '../utils';
+import { statsLogger, authLogger } from '../utils/logger';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 interface PlayerStats {
   games_played: number;

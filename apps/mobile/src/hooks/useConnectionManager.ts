@@ -254,7 +254,9 @@ export function useConnectionManager({
   useEffect(() => {
     return () => {
       stopHeartbeat();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnectTimeoutRef.current is a plain mutable ref (not a DOM ref); stale-value ref-in-cleanup warning is not applicable
       if (reconnectTimeoutRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- same ref, same reason
         clearTimeout(reconnectTimeoutRef.current);
       }
     };

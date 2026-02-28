@@ -1,0 +1,13 @@
+fix: multiplayer bot One Card Left turn order mismatch
+
+Root cause: Bot AI used anticlockwise turn order [3,2,0,1] (for local
+games) to detect the One Card Left rule, but the multiplayer server uses
+sequential turn order (current+1)%numPlayers. This caused bots to miss
+that the next player had 1 card, leading to server-rejected passes shown
+as error alerts to the human player.
+
+Fix: Add nextPlayerIndex to BotPlayOptions. useBotCoordinator now computes
+the next active player using sequential order (matching server Edge
+Functions) and passes it to the bot AI. When provided, bot AI uses it
+directly instead of computing from anticlockwise turn order. Local games
+still use anticlockwise order via findNextActivePlayer fallback.

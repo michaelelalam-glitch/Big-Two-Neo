@@ -14,3 +14,5 @@ apps/mobile/Big2Mobile.app/
 
 # Backup files
 *.bak
+.vscode/mcp.json
+coverage/

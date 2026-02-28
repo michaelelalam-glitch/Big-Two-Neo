@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-// @copilot-review-fix (Round 9): parseCards IS used at lines 718, 777, 800 for parsing card arrays
+// parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
 
 const corsHeaders = {
@@ -155,7 +155,7 @@ function parseCard(cardData: any): Card | null {
   return null;
 }
 
-// @copilot-review-fix (Round 10): parseCards() was moved to the shared utility module (imported at top).
+// parseCards() was moved to the shared utility module (imported at top).
 // parseCard() remains defined locally above for single-card parsing within this function.
 
 // ==================== GAME LOGIC ====================
@@ -962,7 +962,7 @@ Deno.serve(async (req) => {
     const updatedPlayedCards = [...played_cards, ...cards];
 
     // 13. Detect highest play and create auto-pass timer
-    // @copilot-review-fix (Round 10): We pass played_cards (BEFORE current cards), not updatedPlayedCards.
+    // We pass played_cards (BEFORE current cards), not updatedPlayedCards.
     // WHY: isHighestPossiblePlay() checks if ANY unplayed cards can beat the current play.
     // - played_cards = cards already played in previous turns (unavailable to beat current play)
     // - cards = the current play being evaluated
@@ -979,7 +979,12 @@ Deno.serve(async (req) => {
       playedCardsBeforeCurrent: played_cards.length,
     });
 
-    if (isHighestPlay) {
+    // CRITICAL FIX: Do NOT create auto-pass timer when match has ended.
+    // When a player plays their last card (matchEnded=true), the match is over —
+    // there's no one left to auto-pass. Creating a timer here causes the client-side
+    // AutoPassTimer to loop at remaining=0 indefinitely, spamming logs and potentially
+    // blocking the start_new_match transition.
+    if (isHighestPlay && !matchEnded) {
       const serverTimeMs = Date.now();
       const durationMs = 10000; // 10 seconds
       const endTimestamp = serverTimeMs + durationMs;
@@ -1011,6 +1016,8 @@ Deno.serve(async (req) => {
         cards: cards.map(c => c.id),
         comboType,
       });
+    } else if (matchEnded) {
+      console.log('ℹ️ Auto-pass timer NOT created - match ended (player played last card)');
     } else {
       console.log('ℹ️ Auto-pass timer NOT created - not highest play');
     }

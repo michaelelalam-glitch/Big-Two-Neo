@@ -1,8 +1,8 @@
 import { Platform, ToastAndroid, Alert } from 'react-native';
-import type { Card, LastPlay } from '../game/types';
-import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { hapticManager, HapticType } from '../utils';
+import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
+import type { Card, LastPlay } from '../game/types';
 
 interface UseHelperButtonsParams {
   playerHand: Card[];
@@ -21,7 +21,7 @@ export function useHelperButtons({
   playerHand,
   lastPlay,
   isFirstPlay,
-  customCardOrder,
+  customCardOrder: _customCardOrder,
   setCustomCardOrder,
   setSelectedCardIds,
 }: UseHelperButtonsParams) {

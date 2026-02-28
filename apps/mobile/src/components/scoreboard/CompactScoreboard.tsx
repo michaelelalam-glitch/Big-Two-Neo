@@ -12,23 +12,23 @@
  * Date: December 12, 2025
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useCompactScoreboardStyles } from './hooks/useResponsiveStyles';
 import { getPlayerNameColor, getScoreColor } from './styles/colors';
 import { CompactScoreboardProps } from '../../types/scoreboard';
-import { useCompactScoreboardStyles, useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 
 export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   playerNames,
   currentScores,
-  cardCounts,
+  cardCounts: _cardCounts,
   currentPlayerIndex,
   matchNumber,
   isGameFinished,
-  scoreHistory,
+  scoreHistory: _scoreHistory,
   onToggleExpand,
   onTogglePlayHistory,
-  isExpanded,
+  isExpanded: _isExpanded,
 }) => {
   // Use responsive styles
   const styles = useCompactScoreboardStyles();
@@ -37,7 +37,7 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
   // Auto-expansion on game finish was removed to give user full control.
 
   return (
-    <View style={styles.compactContainer}>
+    <View pointerEvents={styles.compactContainerPointerEvents} style={styles.compactContainer}>
       {/* Header with match number and action buttons */}
       <View style={styles.compactHeader}>
         <Text style={styles.matchTitle}>
@@ -80,7 +80,6 @@ export const CompactScoreboard: React.FC<CompactScoreboardProps> = ({
         {playerNames.map((name, index) => {
           const isCurrentPlayer = index === currentPlayerIndex;
           const score = currentScores[index] || 0;
-          const cardCount = cardCounts[index] || 0;
           const scoreColor = getScoreColor(score, isGameFinished, currentScores);
           const nameColor = getPlayerNameColor(isCurrentPlayer);
 

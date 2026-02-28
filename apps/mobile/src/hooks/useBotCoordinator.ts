@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../services/supabase';
-import { BotAI, type BotDifficulty } from '../game/bot';
-import type { Card } from '../game/types';
 import { classifyCards } from '../game';
+import { BotAI, type BotDifficulty } from '../game/bot';
+import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
+import type { Card } from '../game/types';
 
 /**
  * Retry a function with exponential backoff
@@ -148,16 +148,30 @@ export function useBotCoordinator({
       });
       
       // Get or create bot AI for this player
+      // CRITICAL FIX (Task #596): Validate cached bot difficulty matches player's actual difficulty
+      // Previously, once a BotAI was cached, it was never recreated even if difficulty changed
+      const expectedDifficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
       let botAI = botAICache.current.get(currentPlayerIndex);
-      if (!botAI) {
-        const difficulty = (currentPlayer.bot_difficulty || 'medium') as BotDifficulty;
-        botAI = new BotAI(difficulty);
+      if (!botAI || botAI.difficulty !== expectedDifficulty) {
+        if (botAI) {
+          gameLogger.info(`[BotCoordinator] ♻️ Recreating BotAI for player ${currentPlayerIndex} - difficulty changed to '${expectedDifficulty}'`);
+        }
+        botAI = new BotAI(expectedDifficulty);
         botAICache.current.set(currentPlayerIndex, botAI);
+        gameLogger.info(`[BotCoordinator] 🎯 Created BotAI for player ${currentPlayerIndex} with difficulty='${expectedDifficulty}'`);
       }
       
       // Prepare bot decision inputs
       const botHand: Card[] = currentPlayer.cards || [];
-      const playerCardCounts = players.map((p: any) => p.cards?.length || 0);
+      // Build playerCardCounts indexed by player_index
+      // to ensure correct mapping regardless of players array order
+      const playerCardCounts = new Array(4).fill(0);
+      players.forEach((p: any) => {
+        const idx = p.player_index;
+        if (idx !== undefined && idx !== null && idx >= 0 && idx < 4) {
+          playerCardCounts[idx] = p.cards?.length || 0;
+        }
+      });
       
       const lastPlay = gameState.last_play ? {
         position: gameState.last_play.position,
@@ -170,6 +184,18 @@ export function useBotCoordinator({
                                  players.every((p: any) => p.cards?.length === 13));
 
       // Calculate bot decision
+      // Multiplayer uses sequential turn order (0→1→2→3→0), matching the server's
+      // Edge Function logic. Compute nextPlayerIndex so bot AI's One Card Left
+      // detection matches the server's validation.
+      const numPlayers = players.length;
+      let nextPlayerIdx = (currentPlayerIndex + 1) % numPlayers;
+      // Skip players with 0 cards (already finished)
+      const maxSteps = numPlayers;
+      for (let step = 0; step < maxSteps; step++) {
+        if (playerCardCounts[nextPlayerIdx] > 0) break;
+        nextPlayerIdx = (nextPlayerIdx + 1) % numPlayers;
+      }
+
       const botDecision = botAI.getPlay({
         hand: botHand,
         lastPlay,
@@ -177,6 +203,7 @@ export function useBotCoordinator({
         matchNumber, // Pass match number so bot knows if 3D is required
         playerCardCounts,
         currentPlayerIndex,
+        nextPlayerIndex: nextPlayerIdx,
       });
       
       gameLogger.info(`[BotCoordinator] Bot decision:`, {
@@ -339,6 +366,7 @@ export function useBotCoordinator({
    * Monitor game state and trigger bot turns
    * CRITICAL: Only depend on current_turn and game_phase to prevent infinite re-execution
    */
+  const hasGameHands = !!gameState?.hands; // Extract for stable dep (avoids !! complex expression lint warning)
   useEffect(() => {
     gameLogger.info('[BotCoordinator] useEffect triggered', {
       isCoordinator,
@@ -400,25 +428,106 @@ export function useBotCoordinator({
     } else if (currentPlayer?.is_bot && gameState.game_phase === 'finished') {
       gameLogger.info('[BotCoordinator] ⏸️ Bot turn skipped - match ended (phase=finished)');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState (full object) intentionally excluded; only granular fields subscribed to prevent re-triggering on every state mutation; executeBotTurn excluded to avoid infinite loop (stable via useCallback)
   }, [
     gameState?.current_turn, // Only trigger when turn changes
     gameState?.game_phase, // Only trigger when phase changes
     isCoordinator, // CRITICAL: Re-run when coordinator status changes (false -> true)
     roomCode,
-    !!gameState?.hands, // Only trigger when hands existence changes (undefined -> object), not when hands content changes
+    hasGameHands, // Only trigger when hands existence changes (undefined -> object), not when hands content changes
     players.length, // Re-run when players count changes (0 -> 4 at game start)
     // NOTE: Intentionally omitting executeBotTurn to prevent infinite loop
     // executeBotTurn is stable via useCallback
   ]);
   
   /**
+   * FAILSAFE: Retry start_new_match if game is stuck in 'finished' phase.
+   * 
+   * When a bot plays its last card (highest card), the play-cards edge function
+   * sets game_phase='finished' and the useRealtime playCards flow fires
+   * start_new_match as a fire-and-forget IIFE. If that call fails silently
+   * (network error, timeout, etc.), the game gets permanently stuck.
+   * 
+   * This failsafe detects when the coordinator sees 'finished' for >5 seconds
+   * and retries the start_new_match edge function call to unstick the game.
+   */
+  const matchEndFailsafeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  useEffect(() => {
+    // Only the coordinator should retry start_new_match
+    if (!isCoordinator || !gameState || !gameState.room_id) {
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+      return;
+    }
+
+    const phase = gameState.game_phase;
+    
+    if (phase === 'finished') {
+      // Game is in 'finished' state — start a 5-second failsafe timer
+      if (!matchEndFailsafeRef.current) {
+        gameLogger.info('[BotCoordinator] ⏱️ Match finished — starting 5s failsafe for start_new_match');
+        matchEndFailsafeRef.current = setTimeout(async () => {
+          // Double-check we're still in 'finished' phase
+          try {
+            const { data: latestState } = await supabase
+              .from('game_state')
+              .select('game_phase')
+              .eq('room_id', gameState.room_id)
+              .single();
+            
+            if (latestState?.game_phase === 'finished') {
+              gameLogger.warn('[BotCoordinator] ⚠️ FAILSAFE: Game still stuck in finished after 5s — retrying start_new_match');
+              const { data, error } = await supabase.functions.invoke('start_new_match', {
+                body: { room_id: gameState.room_id },
+              });
+              
+              if (error) {
+                gameLogger.error('[BotCoordinator] ❌ FAILSAFE start_new_match failed:', error);
+              } else {
+                gameLogger.info('[BotCoordinator] ✅ FAILSAFE start_new_match succeeded:', data);
+              }
+            } else {
+              gameLogger.info('[BotCoordinator] ✅ Game progressed before failsafe (phase:', latestState?.game_phase, ')');
+            }
+          } catch (err: any) {
+            gameLogger.error('[BotCoordinator] 💥 FAILSAFE error:', err?.message || String(err));
+          }
+          matchEndFailsafeRef.current = null;
+        }, 5000);
+      }
+    } else {
+      // Game is NOT in 'finished' — clear any pending failsafe
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (matchEndFailsafeRef.current) {
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchEndFailsafeRef.current ref value intentionally read during cleanup; copied into local variable not possible here since it's set inside the timeout callback, which runs asynchronously
+  }, [isCoordinator, gameState?.game_phase, gameState?.room_id]);
+
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- botAICache.current is a plain mutable ref (not a DOM ref); stale-value warning is not applicable for plain data refs
       botAICache.current.clear();
       isExecutingRef.current = null;
+      if (matchEndFailsafeRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- botAICache.current and matchEndFailsafeRef.current are non-React-rendered refs; ref-in-cleanup warning is a false positive for plain data refs (not DOM refs)
+        clearTimeout(matchEndFailsafeRef.current);
+        matchEndFailsafeRef.current = null;
+      }
     };
   }, []);
 }

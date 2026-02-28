@@ -33,12 +33,16 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
 }));
 
-describe.skip('Game State Manager - Initialization', () => {
+describe('Game State Manager - Initialization', () => {
   let manager: GameStateManager;
 
   beforeEach(() => {
     manager = createGameStateManager();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('creates manager instance', () => {
@@ -104,7 +108,7 @@ describe.skip('Game State Manager - Initialization', () => {
   });
 });
 
-describe.skip('Game State Manager - Play Cards', () => {
+describe('Game State Manager - Play Cards', () => {
   let manager: GameStateManager;
 
   beforeEach(async () => {
@@ -116,6 +120,10 @@ describe.skip('Game State Manager - Play Cards', () => {
     };
     await manager.initializeGame(config);
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('allows valid single card play', async () => {
@@ -204,7 +212,7 @@ describe.skip('Game State Manager - Play Cards', () => {
   });
 });
 
-describe.skip('Game State Manager - Pass', () => {
+describe('Game State Manager - Pass', () => {
   let manager: GameStateManager;
 
   beforeEach(async () => {
@@ -223,6 +231,10 @@ describe.skip('Game State Manager - Pass', () => {
     await manager.playCards([card3D.id]);
 
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('allows pass when not leading', async () => {
@@ -274,12 +286,16 @@ describe.skip('Game State Manager - Pass', () => {
   });
 });
 
-describe.skip('Game State Manager - Persistence', () => {
+describe('Game State Manager - Persistence', () => {
   let manager: GameStateManager;
 
   beforeEach(() => {
     manager = createGameStateManager();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('saves state to AsyncStorage', async () => {
@@ -299,15 +315,26 @@ describe.skip('Game State Manager - Persistence', () => {
       players: [],
       currentPlayerIndex: 0,
       lastPlay: null,
+      lastPlayPlayerIndex: 0,
       consecutivePasses: 0,
       isFirstPlayOfGame: true,
       gameStarted: true,
       gameEnded: false,
       winnerId: null,
       roundHistory: [],
+      gameRoundHistory: [],
+      currentMatch: 1,
+      matchScores: [],
+      lastMatchWinnerId: null,
+      gameOver: false,
+      finalWinnerId: null,
+      startedAt: Date.now(),
+      auto_pass_timer: null,
+      played_cards: [],
     };
 
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockState));
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
     const loadedState = await manager.loadState();
 
@@ -330,11 +357,15 @@ describe.skip('Game State Manager - Persistence', () => {
   });
 });
 
-describe.skip('Game State Manager - State Listeners', () => {
+describe('Game State Manager - State Listeners', () => {
   let manager: GameStateManager;
 
   beforeEach(() => {
     manager = createGameStateManager();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('notifies listeners on state change', async () => {
@@ -389,7 +420,7 @@ describe.skip('Game State Manager - State Listeners', () => {
   });
 });
 
-describe.skip('Game State Manager - Bot Turn Execution', () => {
+describe('Game State Manager - Bot Turn Execution', () => {
   let manager: GameStateManager;
 
   beforeEach(async () => {
@@ -401,13 +432,30 @@ describe.skip('Game State Manager - Bot Turn Execution', () => {
     };
     await manager.initializeGame(config);
 
-    // Move to first bot player
+    // Must play 3D first — game rules prohibit passing on the first play.
+    // Without this, pass() returns {success:false} immediately and the while
+    // loop below becomes an infinite microtask loop when the human holds 3D.
     const state = manager.getState()!;
+    const startingPlayer = state.players[state.currentPlayerIndex];
+    const card3D = startingPlayer.hand.find(c => c.id === '3D')!;
+    await manager.playCards([card3D.id]);
+
+    // Advance to the first bot player (at most 1 pass needed since 3 of 4 are bots)
+    let safety = 0;
     while (!state.players[state.currentPlayerIndex].isBot) {
-      await manager.pass();
+      const result = await manager.pass();
+      if (!result.success || ++safety > 4) {
+        throw new Error(
+          `Failed to advance to bot player after ${safety} attempts: ${result.error}`
+        );
+      }
     }
 
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
   });
 
   test('executes bot turn automatically', async () => {

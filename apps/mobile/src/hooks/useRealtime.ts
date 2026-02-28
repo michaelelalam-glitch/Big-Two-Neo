@@ -16,24 +16,22 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
 import { useClockSync } from './useClockSync';
-import { notifyGameStarted, notifyPlayerTurn, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
+import { notifyGameStarted, notifyAllPlayersReady } from '../services/pushNotificationTriggers';
+import { supabase } from '../services/supabase';
 import {
   Room,
   Player,
   GameState,
   PlayerHand,
   Card,
-  ComboType,
   UseRealtimeReturn,
   BroadcastEvent,
   BroadcastPayload,
-  PlayerPresence,
   AutoPassTimerState,
 } from '../types/multiplayer';
+import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger, gameLogger } from '../utils/logger';
-import { canBeatPlay } from '../game/engine/game-logic';
 
 /**
  * Map server error messages to user-friendly explanations
@@ -53,7 +51,7 @@ function getPlayErrorExplanation(serverError: string): string {
   }
   
   // Invalid combination
-  // @copilot-review-fix (Round 9): Use regex for more specific pattern matching to avoid false positives
+  // Use regex for more specific pattern matching to avoid false positives
   if (/\b(invalid card combination|invalid combo)\b/i.test(serverError)) {
     return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
   }
@@ -104,8 +102,8 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
-  // @copilot-review-fix (Round 7): Add timeout to body reading to prevent hanging in critical error paths
-  // @copilot-review-fix (Round 8): Reduced timeout from 2s to 1s for better user-facing responsiveness
+  // Add timeout to body reading to prevent hanging in critical error paths
+  // Reduced timeout from 2s to 1s for better user-facing responsiveness
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     try {
       // Race against timeout to prevent hanging if body reading fails or hangs
@@ -164,25 +162,37 @@ async function extractEdgeFunctionErrorAsync(error: any, result: any, fallback: 
   return fallback;
 }
 
-/**
- * Get server time from Supabase for clock synchronization
- * CRITICAL: This ensures all clients use the same time reference
- */
-async function getServerTimeMs(): Promise<number> {
-  try {
-    const { data, error } = await supabase.functions.invoke('server-time', {
-      body: {},
-    });
-    if (error || !data?.timestamp) {
-      networkLogger.error('[Clock Sync] Failed to get server time:', error);
-      // Fallback to local time if server call fails
-      return Date.now();
-    }
-    return Number(data.timestamp);
-  } catch (err) {
-    networkLogger.error('[Clock Sync] Exception getting server time:', err);
-    return Date.now();
-  }
+// ── Edge Function Response Types ──────────────────────────────────────────────
+// These interfaces type the JSON bodies returned by Supabase Edge Functions so
+// that callers of invokeWithRetry<T> get proper type-checking.
+
+interface PlayCardsResponse {
+  success: boolean;
+  debug?: any;
+  match_ended?: boolean;
+  match_scores?: PlayerMatchScoreDetail[];
+  game_over?: boolean;
+  final_winner_index?: number;
+  combo_type?: string;
+  auto_pass_timer?: any;
+  highest_play_detected?: boolean;
+  next_turn?: number;
+  passes?: number;
+  trick_cleared?: boolean;
+}
+
+interface StartNewMatchResponse {
+  match_number: number;
+  starting_player_index: number;
+}
+
+interface PlayerPassResponse {
+  success: boolean;
+  error?: string;
+  next_turn: number;
+  passes: number;
+  trick_cleared: boolean;
+  auto_pass_timer?: any;
 }
 
 interface UseRealtimeOptions {
@@ -196,179 +206,12 @@ interface UseRealtimeOptions {
 
 export type { UseRealtimeOptions };
 
-// ============================================================================
-// MATCH SCORING SYSTEM (Phase 1 - ported from local game)
-// ============================================================================
-
 interface PlayerMatchScoreDetail {
   player_index: number;
   cardsRemaining: number;
   pointsPerCard: number;
   matchScore: number;
   cumulativeScore: number;
-}
-
-/**
- * Calculate score for a single player based on cards remaining
- * Scoring rules:
- * - 1-4 cards: 1 point per card
- * - 5-9 cards: 2 points per card
- * - 10-13 cards: 3 points per card
- * - Winner (0 cards): 0 points
- */
-function calculatePlayerMatchScore(
-  cardsRemaining: number,
-  currentScore: number
-): PlayerMatchScoreDetail {
-  let pointsPerCard: number;
-  
-  if (cardsRemaining >= 1 && cardsRemaining <= 4) {
-    pointsPerCard = 1;
-  } else if (cardsRemaining >= 5 && cardsRemaining <= 9) {
-    pointsPerCard = 2;
-  } else if (cardsRemaining >= 10 && cardsRemaining <= 13) {
-    pointsPerCard = 3;
-  } else {
-    pointsPerCard = 0; // Winner or invalid
-  }
-  
-  const matchScore = cardsRemaining * pointsPerCard;
-  const cumulativeScore = currentScore + matchScore;
-  
-  return {
-    player_index: -1, // Will be set by caller
-    cardsRemaining,
-    pointsPerCard,
-    matchScore,
-    cumulativeScore,
-  };
-}
-
-/**
- * Check if game should end (any player >= 101 points)
- */
-function shouldGameEnd(scores: PlayerMatchScoreDetail[]): boolean {
-  return scores.some(score => score.cumulativeScore >= 101);
-}
-
-/**
- * Find final winner (player with lowest cumulative score)
- */
-function findFinalWinner(scores: PlayerMatchScoreDetail[]): number {
-  let lowestScore = Infinity;
-  let winnerIndex = scores[0].player_index;
-  
-  scores.forEach(score => {
-    if (score.cumulativeScore < lowestScore) {
-      lowestScore = score.cumulativeScore;
-      winnerIndex = score.player_index;
-    }
-  });
-  
-  return winnerIndex;
-}
-
-/**
- * Determines the type of 5-card combination in Big Two (e.g., Straight, Flush, Full House, Four of a Kind, Straight Flush).
- *
- * @param {Card[]} cards - An array of exactly 5 Card objects. Each card should have a `rank` and `suit` property.
- * @returns {ComboType} The type of 5-card combo: 'Straight', 'Flush', 'Full House', 'Four of a Kind', or 'Straight Flush'.
- * @throws {Error} If the input array does not contain exactly 5 cards, or if the cards do not form a valid 5-card combination.
- *
- * Logic:
- * - Sorts cards by rank value.
- * - Checks for flush (all cards of the same suit).
- * - Checks for straight (consecutive ranks following Big Two rules).
- * - Counts rank frequencies to identify four of a kind and full house.
- * - Returns the appropriate ComboType based on Big Two rules:
- *   - 'Straight Flush': both straight and flush.
- *   - 'Four of a Kind': four cards of the same rank.
- *   - 'Full House': three cards of one rank and two of another.
- *   - 'Flush': all cards of the same suit.
- *   - 'Straight': five consecutive ranks.
- *   - Throws error if none of the above.
- */
-function determine5CardCombo(cards: Card[]): ComboType {
-  if (cards.length !== 5) {
-    throw new Error('determine5CardCombo expects exactly 5 cards');
-  }
-
-  // Sort cards by rank value for easier analysis
-  const rankValues: Record<string, number> = {
-    '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
-    'J': 11, 'Q': 12, 'K': 13, 'A': 14, '2': 15
-  };
-  
-  const sortedCards = [...cards].sort((a, b) => rankValues[a.rank] - rankValues[b.rank]);
-  
-  // Check for flush (all same suit)
-  const isFlush = sortedCards.every(card => card.suit === sortedCards[0].suit);
-  
-  // All valid Big Two straight sequences
-  // Note: A-2-3-4-5 and 2-3-4-5-6 are valid wraparounds (A or 2 acting as low card)
-  // But sequences like J-Q-K-A-2, Q-K-A-2-3, K-A-2-3-4 are INVALID (2 cannot be high in a straight)
-  const VALID_STRAIGHT_SEQUENCES: string[][] = [
-    ['3', '4', '5', '6', '7'],
-    ['4', '5', '6', '7', '8'],
-    ['5', '6', '7', '8', '9'],
-    ['6', '7', '8', '9', '10'],
-    ['7', '8', '9', '10', 'J'],
-    ['8', '9', '10', 'J', 'Q'],
-    ['9', '10', 'J', 'Q', 'K'],
-    ['10', 'J', 'Q', 'K', 'A'],
-    ['A', '2', '3', '4', '5'],  // Wraparound: Ace acts as low
-    ['2', '3', '4', '5', '6'],  // Wraparound: 2 acts as low
-  ];
-  
-  // Check for straight (Big Two rules)
-  // For wraparound sequences (A-2-3-4-5 and 2-3-4-5-6), sorting breaks the pattern
-  // So we need to check against both sorted and original rank orders
-  const handRanks = sortedCards.map(card => card.rank);
-  const originalHandRanks = cards.map(card => card.rank);
-  
-  let isStraight = VALID_STRAIGHT_SEQUENCES.some(seq =>
-    seq.every((rank, idx) => rank === handRanks[idx])
-  );
-  
-  // Explicitly check for wraparound straights in original order
-  // These patterns won't match after sorting due to high rank values of A and 2
-  if (!isStraight) {
-    // Check A-2-3-4-5 pattern
-    const a2345Pattern: string[] = ['A', '2', '3', '4', '5'];
-    // Check 2-3-4-5-6 pattern  
-    const t23456Pattern: string[] = ['2', '3', '4', '5', '6'];
-    
-    // Create a set of original ranks for order-independent matching
-    const rankSet = new Set<string>(originalHandRanks);
-    
-    if (a2345Pattern.every(rank => rankSet.has(rank)) ||
-        t23456Pattern.every(rank => rankSet.has(rank))) {
-      isStraight = true;
-    }
-  }
-  
-  // Count rank frequencies
-  const rankCounts = sortedCards.reduce((acc, card) => {
-    acc[card.rank] = (acc[card.rank] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const counts = Object.values(rankCounts).sort((a, b) => b - a);
-  
-  // Determine combo type
-  if (isFlush && isStraight) {
-    return 'Straight Flush';
-  } else if (counts[0] === 4) {
-    return 'Four of a Kind';
-  } else if (counts[0] === 3 && counts[1] === 2) {
-    return 'Full House';
-  } else if (isFlush) {
-    return 'Flush';
-  } else if (isStraight) {
-    return 'Straight';
-  } else {
-    throw new Error('Invalid 5-card combination');
-  }
 }
 
 /**
@@ -432,7 +275,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 🔥 CRITICAL: Track active timer interval to prevent duplicates
   const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTimerId = useRef<string | null>(null);
-  // @copilot-review-fix (Round 7): Changed to timestamp-based lock for atomic-like operation
+  // Changed to timestamp-based lock for atomic-like operation
   // Stores timestamp when lock was acquired, or null when unlocked
   const autoPassExecutionGuard = useRef<number | null>(null);
   // 🔥 CRITICAL FIX: Ref to access latest gameState inside setInterval callback (avoids stale closure)
@@ -549,6 +392,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded: including it causes circular dependency (joinChannel → createRoom → joinChannel); joinChannel is guaranteed stable via useCallback with its own stable deps
   }, [userId, username, onError]);
   
   /**
@@ -620,6 +464,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally excluded (same circular dependency reason as createRoom above)
   }, [userId, username, onError, broadcastMessage]);
   
   /**
@@ -697,8 +542,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   
   /**
    * Start the game (host only)
+   * @param botDifficulty - Difficulty level for bot players (default: 'medium')
    */
-  const startGame = useCallback(async (): Promise<void> => {
+  const startGame = useCallback(async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
     if (!isHost || !room) return;
     
     // Check if all room players are ready
@@ -719,7 +565,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
         p_room_id: room.id,
         p_bot_count: botCount,
-        p_bot_difficulty: 'medium',
+        p_bot_difficulty: botDifficulty,
       });
 
       if (startError || !startResult?.success) {
@@ -782,12 +628,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error('Cannot play an empty hand');
       }
 
-      // Get current hands to check for match end locally (for UI responsiveness)
-      const currentHands = gameState.hands || {};
-      const myHandKey = String(effectivePlayerIndex);
-      const myHand = currentHands[myHandKey as unknown as number] || [];
-      const cardIdsToRemove = new Set(cards.map(c => c.id));
-      const cardsRemainingAfterPlay = myHand.filter((c: Card) => !cardIdsToRemove.has(c.id)).length;
       // matchWillEnd is now determined by server response (result.match_ended)
 
       // 📡 CRITICAL: Call Edge Function for server-side validation
@@ -806,7 +646,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         is_bot: playerIndex !== undefined,
       });
       
-      const { data: result, error: playError } = await supabase.functions.invoke('play-cards', {
+      const { data: result, error: playError } = await invokeWithRetry<PlayCardsResponse>('play-cards', {
         body: {
           room_code: room!.code,
           player_id: playingPlayer.user_id, // ✅ FIX: Use bot's user_id (not record id)
@@ -969,11 +809,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               await new Promise(resolve => setTimeout(resolve, 2000));
 
               gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
-              const { data: newMatchData, error: newMatchError } = await supabase.functions.invoke('start_new_match', {
+              const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
                 body: { room_id: room!.id },
               });
 
-              if (newMatchError) {
+              if (newMatchError || !newMatchData) {
                 gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
               } else {
                 gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
@@ -1015,9 +855,18 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
+      // by BotCoordinator's own catch block. Calling onError here would show a confusing
+      // Alert to the user for something they didn't do (e.g., "Not your turn" race condition
+      // after a FunctionsFetchError retry for a previous bot's play).
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
+      }
       throw error;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded: onMatchEnded is a stable callback prop ref; room is read via room?.code but including the full room object would cause playCards to become a new function reference on every subscription update
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**
@@ -1034,6 +883,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       throw new Error('Not your turn');
     }
     
+    // FIX: If the auto-pass timer is currently executing, silently skip.
+    // This prevents race conditions where pass() fires from a stale handler
+    // while executeAutoPasses() has already handled the turn via direct Edge Function call.
+    if (autoPassExecutionGuard.current) {
+      gameLogger.info('[useRealtime] ⚠️ Skipping pass() — auto-pass execution in progress');
+      return;
+    }
+    
     if (!room?.code) {
       throw new Error('Room code not available');
     }
@@ -1047,7 +904,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       // ✅ UNIFIED ARCHITECTURE: Use Edge Function (matches play-cards pattern)
       // This ensures consistent state management and preserves auto_pass_timer
-      const { data: result, error: passError } = await supabase.functions.invoke('player-pass', {
+      const { data: result, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
         body: {
           room_code: room.code,
           player_id: passingPlayer.user_id, // ✅ Use user_id (consistent with play-cards)
@@ -1075,6 +932,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         timer_preserved: !!result.auto_pass_timer,
       });
       
+      // FIX: Immediately clear local timer state when the trick cleared (timer not preserved).
+      // Without this, the timer polling interval keeps running on stale state until the
+      // Realtime subscription propagates, which can trigger a duplicate executeAutoPasses().
+      if (!result.auto_pass_timer) {
+        setGameState(prevState => {
+          if (!prevState) return prevState;
+          return { ...prevState, auto_pass_timer: null };
+        });
+      }
+      
       // Broadcast manual pass event
       await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
       
@@ -1093,7 +960,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      onError?.(error);
+      // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
+      if (playerIndex === undefined) {
+        onError?.(error);
+      } else {
+        gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
+      }
       throw error;
     }
   }, [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]);
@@ -1189,27 +1061,27 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // Subscribe to presence events (logging disabled to reduce console noise)
     channel
       .on('presence', { event: 'sync' }, () => {})
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {})
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {});
+      .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {})
+      .on('presence', { event: 'leave' }, ({ key: _key2, leftPresences: _leftPresences }) => {});
     
     // Subscribe to broadcast events
     channel
-      .on('broadcast', { event: 'player_joined' }, (payload) => {
+      .on('broadcast', { event: 'player_joined' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'player_left' }, (payload) => {
+      .on('broadcast', { event: 'player_left' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'player_ready' }, (payload) => {
+      .on('broadcast', { event: 'player_ready' }, (_payload) => {
         fetchPlayers(roomId);
       })
-      .on('broadcast', { event: 'game_started' }, (payload) => {
+      .on('broadcast', { event: 'game_started' }, (_payload) => {
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'cards_played' }, (payload) => {
+      .on('broadcast', { event: 'cards_played' }, (_payload) => {
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'player_passed' }, (payload) => {
+      .on('broadcast', { event: 'player_passed' }, (_payload) => {
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'game_ended' }, (payload) => {
@@ -1242,14 +1114,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         }
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'auto_pass_timer_cancelled' }, (payload) => {
+      .on('broadcast', { event: 'auto_pass_timer_cancelled' }, (_payload) => {
         setGameState(prevState => {
           if (!prevState) return prevState;
           return { ...prevState, auto_pass_timer: null };
         });
         fetchGameState(roomId);
       })
-      .on('broadcast', { event: 'auto_pass_executed' }, (payload) => {
+      .on('broadcast', { event: 'auto_pass_executed' }, (_payload) => {
         setGameState(prevState => {
           if (!prevState) return prevState;
           return { ...prevState, auto_pass_timer: null };
@@ -1323,7 +1195,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-    // eslint-disable-next-line react-hooks/exhaustive-deps  
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded from joinChannel; reading it inside the channel callbacks would capture a stale closure — gameState is read dynamically from the latest broadcast events instead
   }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
   
   /**
@@ -1386,16 +1258,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // This ensures we have initial state even if channel subscription lags
       try {
         await fetchPlayers(existingRoom.id);
-      } catch (playerError: any) {
-        networkLogger.warn('[connectToRoom] Retrying fetch players...');
+      } catch (error) {
+        networkLogger.warn('[connectToRoom] Retrying fetch players...', error);
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchPlayers(existingRoom.id);
       }
       
       try {
         await fetchGameState(existingRoom.id);
-      } catch (stateError) {
-        networkLogger.warn('[connectToRoom] Retrying fetch state...');
+      } catch (error) {
+        networkLogger.warn('[connectToRoom] Retrying fetch state...', error);
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchGameState(existingRoom.id);
       }
@@ -1422,8 +1294,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
       }
-      // Cleanup timer interval
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref); stale-value ref-in-cleanup warning is not applicable for interval refs
       if (timerIntervalRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- same ref, same reason
         clearInterval(timerIntervalRef.current);
       }
     };
@@ -1556,10 +1429,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
       
         // ⚡ FIXED SEQUENTIAL AUTO-PASS
-        // @copilot-review-fix: Calculate array of players UPFRONT to avoid timing issues
+        // Calculate array of players UPFRONT to avoid timing issues
         const executeAutoPasses = async () => {
           // Execution guard: Prevent multiple simultaneous auto-pass executions
-          // @copilot-review-fix (Round 7): Use timestamp-based lock for more robust atomic operation
+          // Use timestamp-based lock for more robust atomic operation
           // This prevents the race condition where two intervals could check before either sets
           const now = Date.now();
           const lockTimeout = 30000; // 30 second max lock duration
@@ -1571,7 +1444,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             return;
           }
           
-          // @copilot-review-fix (Round 8): Log when stale lock is being overridden for debugging
+          // Log when stale lock is being overridden for debugging
           if (currentLock && (now - currentLock) >= lockTimeout) {
             networkLogger.warn(`⏰ [Timer] ⚠️ Stale lock detected (age: ${now - currentLock}ms > ${lockTimeout}ms), overriding. ` +
               `Previous execution may have taken longer than expected or crashed.`);
@@ -1614,7 +1487,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            // @copilot-review-fix: Calculate the ARRAY of 3 players to pass UPFRONT
+            // Calculate the ARRAY of 3 players to pass UPFRONT
             // based on exempt player, then pass them by index with delay
             // This avoids the timing issue where querying current_turn after each pass
             // would keep returning the NEW current player instead of the 3 sequential ones
@@ -1630,14 +1503,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             }
             
             // Calculate which players need to pass (everyone except exempt)
-            // @copilot-review-fix: Use roomPlayers.length instead of hardcoded 4
+            // Use roomPlayers.length instead of hardcoded 4
             const totalPlayers = roomPlayers.length;
             
             networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
             networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
             
             // 🔄 STEP 2: Pass players using UPFRONT calculation to avoid excessive DB queries
-            // @copilot-review-fix: Fetch state ONCE before loop instead of per-iteration (Round 7)
+            // Fetch state ONCE before loop instead of per-iteration (Round 7)
             // This reduces DB queries from O(maxPasses) to O(1) while maintaining correctness
             let passedCount = 0;
             const maxPasses = totalPlayers - 1; // Maximum passes needed (everyone except exempt)
@@ -1650,14 +1523,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               return;
             }
             
-            // @copilot-review-fix (Round 9): Use separate turnOffset counter instead of attempt index
+            // Use separate turnOffset counter instead of attempt index
             // If a pass fails and we continue, turnOffset won't increment, keeping turn order correct
             // attempt = loop safety limit, turnOffset = actual turn progression
             let turnOffset = 0;
             
             for (let attempt = 0; attempt < maxPasses && turnOffset < maxPasses; attempt++) {
               // Calculate current turn index from starting position + turnOffset (not attempt!)
-              // @copilot-review-fix (Round 9): This ensures failed passes don't skip players
+              // This ensures failed passes don't skip players
               const currentTurnIndex = (startingTurnIndex + turnOffset) % totalPlayers;
               
               // Skip if current turn is the exempt player (they played highest, shouldn't pass)
@@ -1681,12 +1554,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // "Not your turn" errors when current_turn changes between passes.
                 // By calling the Edge Function directly, we bypass the stale closure issue.
                 // 
-                // @copilot-review-fix (Round 8): Documented differences from pass() function:
+                // Documented differences from pass() function:
                 // - pass() logs via gameLogger → we log via networkLogger (equivalent)
                 // - pass() broadcasts 'player_passed' → we broadcast 'auto_pass_executed' (intentionally different)
                 // - pass() waits 300ms for Realtime → we wait at end of loop (see below)
                 // - pass() sets error state → not needed for auto-pass (errors logged, don't block UI)
-                const { data: passResult, error: passError } = await supabase.functions.invoke('player-pass', {
+                const { data: passResult, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
                   body: {
                     room_code: room?.code,
                     player_id: playerToPass.user_id,
@@ -1699,7 +1572,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 }
                 
                 passedCount++;
-                turnOffset++; // @copilot-review-fix (Round 9): Increment turn offset on success
+                turnOffset++; // Increment turn offset on success
                 networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
                 networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
                 
@@ -1719,7 +1592,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // Delay between consecutive auto-passes for visual feedback and Realtime sync
                 // Note: Could be made configurable via settings if needed
                 const AUTO_PASS_DELAY_MS = 300;
-                // @copilot-review-fix: Check both attempt counter and passedCount to handle errors correctly
+                // Check both attempt counter and passedCount to handle errors correctly
                 const hasRemainingAttempts = (attempt + 1 < maxPasses) && (passedCount < maxPasses);
                 if (hasRemainingAttempts) {
                   await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
@@ -1729,7 +1602,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 const errorMsg = (error as Error).message || String(error);
                 
                 // "Not your turn" means server rejected - likely already passed or turn advanced
-                // @copilot-review-fix (Round 10): Query fresh server state instead of calculating locally
+                // Query fresh server state instead of calculating locally
                 // This prevents turnOffset from drifting and skipping players
                 if (errorMsg.includes('Not your turn')) {
                   networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, querying fresh state...`);
@@ -1759,10 +1632,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                         break;
                       }
                     }
-                  } catch (queryError) {
+                  } catch (error) {
                     // If we cannot query fresh state, do not speculate by adjusting turnOffset.
                     // Abort the auto-pass loop to avoid drifting out of sync with the server.
-                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync');
+                    networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync', error);
                     break;
                   }
                   continue;
@@ -1818,13 +1691,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         currentTimerId.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer, getCorrectedNow, and room?.code intentionally excluded: these are read inside the interval callback via ref-based patterns; including them would destroy/recreate the interval on every game state broadcast
   }, [
     gameState?.auto_pass_timer?.active,
     gameState?.auto_pass_timer?.started_at,
     gameState?.game_phase,
     room?.id,
     roomPlayers,
-    pass,
+    // NOTE: `pass` intentionally omitted — executeAutoPasses() calls invokeWithRetry
+    // directly, not pass(). Including `pass` caused the timer interval to be destroyed
+    // and recreated on every gameState change (since pass depends on gameState),
+    // resulting in massive log churn and potential race conditions.
     broadcastMessage,
   ]);
 

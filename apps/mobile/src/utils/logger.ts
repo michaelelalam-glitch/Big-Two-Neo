@@ -22,14 +22,14 @@ import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs'
 // This is standard practice for React Native optional dependencies (static bundlers handle this)
 let FileSystem: typeof import('expo-file-system') | undefined;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- graceful degradation: optional peer dep; static import would cause build failure when module is absent
   FileSystem = require('expo-file-system');
-} catch (e) {
+} catch (error) {
   // FileSystem not available - will use console transport even in production
   // This is acceptable for environments where file system access is not available
   FileSystem = undefined;
   if (__DEV__) {
-    console.warn('[Logger] expo-file-system not available - using console transport');
+    console.warn('[Logger] expo-file-system not available - using console transport', error);
   }
 }
 

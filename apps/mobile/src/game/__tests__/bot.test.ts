@@ -113,7 +113,18 @@ describe('Bot AI - Leading (no last play)', () => {
 });
 
 describe('Bot AI - Following (beating last play)', () => {
-  test.skip('bot finds valid play to beat single', () => {
+  let randomSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // Pin Math.random to avoid non-deterministic pass decisions in medium difficulty
+    randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+  });
+
+  afterEach(() => {
+    randomSpy.mockRestore();
+  });
+
+  test('bot finds valid play to beat single', () => {
     const hand: Card[] = [
       { id: '3D', rank: '3', suit: 'D' },
       { id: '5C', rank: '5', suit: 'C' },
@@ -167,7 +178,7 @@ describe('Bot AI - Following (beating last play)', () => {
     expect(result.cards).toBeNull();
   });
 
-  test.skip('bot handles pair beating', () => {
+  test('bot handles pair beating', () => {
     const hand: Card[] = [
       { id: '5D', rank: '5', suit: 'D' },
       { id: '5C', rank: '5', suit: 'C' },
@@ -190,7 +201,7 @@ describe('Bot AI - Following (beating last play)', () => {
       isFirstPlayOfGame: false,
       playerCardCounts: [4, 10, 10, 10],
       currentPlayerIndex: 0,
-      difficulty: 'medium',
+      difficulty: 'hard',
     };
 
     const result = getBotPlay(options);

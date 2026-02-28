@@ -19,7 +19,7 @@ DECLARE
   v_last_play_card JSONB;
   v_last_play_value INTEGER;
 BEGIN
-  -- @copilot-review-fix: Return NULL early if p_hand is NULL or empty
+  -- Return NULL early if p_hand is NULL or empty
   IF p_hand IS NULL OR jsonb_array_length(p_hand) = 0 THEN
     RETURN NULL;
   END IF;
@@ -61,7 +61,7 @@ END;
 $$;
 
 -- Function to get card value (rank * 10 + suit)
--- @copilot-review-fix (Round 10): IMMUTABLE is valid because the rank-to-value and suit-to-value
+-- IMMUTABLE is valid because the rank-to-value and suit-to-value
 -- mappings are constant (e.g., '3'=0, '2'=12 for ranks; 'D'=0, 'S'=3 for suits).
 -- For any given JSONB card input, the computed value will always be the same.
 CREATE OR REPLACE FUNCTION get_card_value(p_card JSONB)
@@ -75,7 +75,7 @@ DECLARE
   v_rank_value INTEGER;
   v_suit_value INTEGER;
 BEGIN
-  -- @copilot-review-fix (Round 8): Changed sentinel from -1 to -999 for clearer invalid marker
+  -- Changed sentinel from -1 to -999 for clearer invalid marker
   -- This avoids any theoretical collision with valid card values (range: 11-134)
   IF p_card IS NULL THEN
     RETURN -999;
@@ -84,7 +84,7 @@ BEGIN
   v_rank := p_card->>'rank';
   v_suit := p_card->>'suit';
 
-  -- @copilot-review-fix: Return -999 if required fields are missing
+  -- Return -999 if required fields are missing
   IF v_rank IS NULL OR v_suit IS NULL THEN
     RETURN -999;
   END IF;
@@ -104,7 +104,7 @@ BEGIN
     WHEN 'K' THEN 11
     WHEN 'A' THEN 12
     WHEN '2' THEN 13
-    -- @copilot-review-fix (Round 8): Return -999 for unknown rank (distinctive invalid marker)
+    -- Return -999 for unknown rank (distinctive invalid marker)
     ELSE -999
   END;
   
@@ -114,11 +114,11 @@ BEGIN
     WHEN 'C' THEN 2
     WHEN 'H' THEN 3
     WHEN 'S' THEN 4
-    -- @copilot-review-fix (Round 8): Return -999 for unknown suit (distinctive invalid marker)
+    -- Return -999 for unknown suit (distinctive invalid marker)
     ELSE -999
   END;
   
-  -- @copilot-review-fix (Round 8): Check for -999 sentinel value
+  -- Check for -999 sentinel value
   IF v_rank_value < 0 OR v_suit_value < 0 THEN
     RETURN -999;
   END IF;
@@ -149,7 +149,7 @@ BEGIN
     RETURN jsonb_build_object('valid', true);
   END IF;
   
-  -- @copilot-review-fix: Handle NULL p_selected_cards (jsonb_array_length returns NULL for NULL)
+  -- Handle NULL p_selected_cards (jsonb_array_length returns NULL for NULL)
   IF p_selected_cards IS NULL OR jsonb_array_length(p_selected_cards) != 1 THEN
     RETURN jsonb_build_object('valid', true);
   END IF;

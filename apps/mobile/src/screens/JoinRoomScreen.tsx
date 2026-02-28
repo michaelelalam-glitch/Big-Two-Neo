@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
-import { RoomPlayerWithRoom } from '../types';
-import { roomLogger } from '../utils/logger';
-import { showError, showConfirm } from '../utils';
 import { i18n } from '../i18n';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { notifyPlayerJoined } from '../services/pushNotificationTriggers';
+import { supabase } from '../services/supabase';
+import { RoomPlayerWithRoom } from '../types';
+import { showError, showConfirm } from '../utils';
+import { roomLogger } from '../utils/logger';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 

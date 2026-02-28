@@ -4,14 +4,14 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay } from './engine';
-import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
-import { type AutoPassTimerState } from '../types/multiplayer';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
-import { supabase } from '../services/supabase';
+import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
+import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { API } from '../constants';
-import { gameLogger, statsLogger } from '../utils/logger';
+import { supabase } from '../services/supabase';
+import { type AutoPassTimerState } from '../types/multiplayer';
 import { showError, soundManager, SoundType } from '../utils';
+import { gameLogger, statsLogger } from '../utils/logger';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
@@ -394,6 +394,30 @@ export class GameStateManager {
   }
 
   /**
+   * Anticlockwise turn order table: index → next player.
+   * Sequence: 0→3→1→2→0  (i.e. 0→3, 1→2, 2→0, 3→1)
+   */
+  private static readonly TURN_ORDER = [3, 2, 0, 1] as const;
+
+  /**
+   * Find the next active player (skipping players with 0 cards).
+   * Returns the player index of the next player who still has cards,
+   * or falls back to currentPlayerIndex if all others are finished.
+   */
+  private findNextActivePlayer(currentPlayerIndex: number): number {
+    const players = this.state!.players;
+    const numPlayers = players.length;
+    let next = GameStateManager.TURN_ORDER[currentPlayerIndex];
+    const start = next;
+    let iterations = 0;
+    while (players[next].hand.length === 0 && next !== currentPlayerIndex) {
+      next = GameStateManager.TURN_ORDER[next];
+      if (next === start || ++iterations >= numPlayers) break;
+    }
+    return next;
+  }
+
+  /**
    * Pass current player's turn
    */
   async pass(): Promise<{ success: boolean; error?: string }> {
@@ -408,9 +432,7 @@ export class GameStateManager {
 
     // Check "One Card Left" rule - cannot pass if next player has 1 card and you have valid single
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
-    // Anticlockwise turn order: 0→3, 1→2, 2→0, 3→1 (sequence: 0→3→1→2→0)
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[this.state.currentPlayerIndex];
+    const nextPlayerIndex = this.findNextActivePlayer(this.state.currentPlayerIndex);
     const nextPlayer = this.state.players[nextPlayerIndex];
     const nextPlayerCardCount = nextPlayer.hand.length;
     
@@ -513,11 +535,65 @@ export class GameStateManager {
       botPlay.reasoning ? `(${botPlay.reasoning})` : ''
     );
 
-    // Execute bot decision
+    // Execute bot decision with circuit breaker to prevent infinite loops
+    const MAX_BOT_RETRIES = 3;
+    let retryCount = 0;
+    let result: { success: boolean; error?: string };
+
     if (botPlay.cards === null) {
-      await this.pass();
+      result = await this.pass();
     } else {
-      await this.playCards(botPlay.cards);
+      result = await this.playCards(botPlay.cards);
+    }
+
+    // If play was rejected, retry with fallback logic
+    while (!result.success && retryCount < MAX_BOT_RETRIES) {
+      retryCount++;
+      gameLogger.warn(`⚠️ [GameStateManager] Bot ${currentPlayer.name} play rejected (attempt ${retryCount}/${MAX_BOT_RETRIES}): ${result.error}`);
+
+      // Broaden One Card Left error matching.
+      // pass() rewrites the message with player names, so also check for
+      // "Cannot pass" + "1 card left" to catch all variants.
+      const errorMsg = result.error ?? '';
+      if (
+        errorMsg.includes('Must play highest single') ||
+        errorMsg.includes('opponent has 1 card') ||
+        (errorMsg.includes('Cannot pass') && errorMsg.includes('1 card left'))
+      ) {
+        const sorted = sortHand(currentPlayer.hand);
+        if (this.state.lastPlay) {
+          const highestSingle = findHighestBeatingSingle(sorted, this.state.lastPlay);
+          if (highestSingle) {
+            gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: playing highest single ${highestSingle.rank}${highestSingle.suit}`);
+            result = await this.playCards([highestSingle.id]);
+            continue;
+          }
+        }
+        // When leading, play highest card in hand
+        const highestCard = sorted[sorted.length - 1];
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: leading with highest single ${highestCard.rank}${highestCard.suit}`);
+        result = await this.playCards([highestCard.id]);
+        continue;
+      }
+
+      // Generic fallback: try to pass
+      if (this.state.lastPlay && !this.state.isFirstPlayOfGame) {
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: attempting pass`);
+        result = await this.pass();
+      } else {
+        // Can't pass when leading - play lowest card
+        const sorted = sortHand(currentPlayer.hand);
+        gameLogger.info(`🔧 [GameStateManager] Bot ${currentPlayer.name} fallback: playing lowest card`);
+        result = await this.playCards([sorted[0].id]);
+      }
+    }
+
+    if (!result.success) {
+      gameLogger.error(`❌ [GameStateManager] Bot ${currentPlayer.name} STUCK after ${MAX_BOT_RETRIES} retries: ${result.error}. Force-passing.`);
+      // Last resort: force advance to prevent infinite loop
+      this.advanceToNextPlayer();
+      await this.saveState();
+      this.notifyListeners();
     }
     
     gameLogger.debug(`✅ [GameStateManager] Bot ${currentPlayer.name} turn complete. Next player: ${this.state.players[this.state.currentPlayerIndex].name}`);
@@ -537,17 +613,21 @@ export class GameStateManager {
         
         // Migration: Ensure arrays added in newer versions exist
         // This prevents "Cannot read property 'push' of undefined" errors
+        // Track whether any migration was applied to avoid unnecessary saves.
+        let needsMigration = false;
+
         if (this.state && !this.state.gameRoundHistory) {
           gameLogger.warn('[Migration] Adding missing gameRoundHistory array to loaded state');
           this.state.gameRoundHistory = [];
+          needsMigration = true;
         }
         if (this.state && !this.state.played_cards) {
           gameLogger.warn('[Migration] Adding missing played_cards array to loaded state');
           this.state.played_cards = [];
+          needsMigration = true;
         }
         // CRITICAL: Migrate matchComboStats structure for each player
         if (this.state && this.state.matchScores) {
-          let needsMigration = false;
           this.state.matchScores.forEach(matchScore => {
             if (!matchScore?.matchComboStats) {
               gameLogger.warn(`[Migration] Adding missing matchComboStats for player ${matchScore?.playerId}`);
@@ -569,8 +649,10 @@ export class GameStateManager {
           });
         }
         
-        // Save migrated state to prevent future migrations
-        await this.saveState();
+        // Only persist if migrations were actually applied
+        if (needsMigration) {
+          await this.saveState();
+        }
         
         this.notifyListeners();
         return this.state;
@@ -728,9 +810,7 @@ export class GameStateManager {
     }
 
     // Check "One Card Left" rule
-    // Get next player's card count (anticlockwise turn order: 0→3→1→2→0)
-    const turnOrder = [3, 2, 0, 1]; // Next player for indices [0,1,2,3]
-    const nextPlayerIndex = turnOrder[this.state!.currentPlayerIndex];
+    const nextPlayerIndex = this.findNextActivePlayer(this.state!.currentPlayerIndex);
     const nextPlayerCardCount = this.state!.players[nextPlayerIndex].hand.length;
     
     const oneCardLeftValidation = validateOneCardLeftRule(

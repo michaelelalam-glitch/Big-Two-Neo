@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from 'react';
-import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import * as Notifications from 'expo-notifications';
+import { useAuth } from './AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { notificationLogger } from '../utils/logger';
 import {
   registerForPushNotificationsAsync,
   savePushTokenToDatabase,
@@ -11,7 +11,7 @@ import {
   getLastNotificationResponse,
   clearBadgeCount,
 } from '../services/notificationService';
-import { useAuth } from './AuthContext';
+import { notificationLogger } from '../utils/logger';
 
 interface NotificationContextData {
   expoPushToken: string | null;
@@ -154,6 +154,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         responseListener.current.remove();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation intentionally excluded: React Navigation's navigation object is stable across renders; adding it would add noise and risk re-subscribing to notification listeners unnecessarily
   }, [handleNotificationResponse]);
 
   // Auto-register when user logs in

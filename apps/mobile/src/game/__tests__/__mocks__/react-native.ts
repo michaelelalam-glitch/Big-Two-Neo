@@ -21,21 +21,33 @@ export const TouchableOpacity = 'TouchableOpacity';
 export const ScrollView = 'ScrollView';
 export const Modal = 'Modal';
 
+const createMockAnimation = () => {
+  const anim: any = {
+    start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),
+    stop: jest.fn(),
+    reset: jest.fn(),
+  };
+  return anim;
+};
+
 export const Animated = {
   Value: jest.fn(() => ({
     setValue: jest.fn(),
+    interpolate: jest.fn(() => ({ _value: 0 })),
+    stopAnimation: jest.fn(),
+    _value: 0,
   })),
   View: 'Animated.View',
   Text: 'Animated.Text',
-  timing: jest.fn(() => ({
-    start: jest.fn(),
-  })),
-  sequence: jest.fn((animations) => ({
-    start: jest.fn(),
-  })),
-  loop: jest.fn((animation) => ({
-    start: jest.fn(),
-  })),
+  timing: jest.fn(() => createMockAnimation()),
+  delay: jest.fn(() => createMockAnimation()),
+  sequence: jest.fn(() => createMockAnimation()),
+  parallel: jest.fn(() => createMockAnimation()),
+  loop: jest.fn(() => createMockAnimation()),
+  spring: jest.fn(() => createMockAnimation()),
+  decay: jest.fn(() => createMockAnimation()),
+  event: jest.fn(),
+  createAnimatedComponent: jest.fn((component: any) => component),
 };
 
 // Mock useWindowDimensions hook
