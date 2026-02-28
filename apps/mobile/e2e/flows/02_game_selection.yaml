@@ -1,0 +1,43 @@
+# Flow 02: Game Selection Screen
+# Validates: After auth, user sees game selection with Chinese Poker and Lebanese Deal
+# Tags: smoke, navigation
+#
+# Prerequisites: User must already be authenticated (for example, via pre-seeded
+# auth state or a prior auth flow). This flow starts from an authenticated session
+# and launches the app directly.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - navigation
+---
+# Step 1: Launch app (assumes user is authenticated from prior session)
+- launchApp
+
+# Step 2: Wait for game selection screen
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+
+# Step 3: Verify game selection screen elements
+- assertVisible: "Choose a game to play"
+- assertVisible: "Chinese Poker"
+- assertVisible: "Lebanese Deal"
+- assertVisible: "PLAY →"
+- assertVisible: "Coming Soon"
+
+# Step 4: Take screenshot
+- takeScreenshot: "02_game_selection"
+
+# Step 5: Tap Chinese Poker to navigate to Home
+- tapOn: "Chinese Poker"
+
+# Step 6: Verify navigation to Home screen
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- assertVisible: "Big2 Mobile"
+
+# Step 7: Take screenshot of home screen
+- takeScreenshot: "02_home_screen"

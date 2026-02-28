@@ -1,0 +1,49 @@
+# Flow 08: Settings & How to Play
+# Validates: Settings and How to Play screens are accessible
+# Tags: navigation
+#
+# Prerequisites: User is authenticated
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to How to Play
+- tapOn: "How to Play"
+- extendedWaitUntil:
+    visible: "How to Play"
+    timeout: 10000
+
+# Step 3: Take screenshot
+- takeScreenshot: "08_how_to_play"
+
+# Step 4: Go back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 5: Navigate to Settings (gear icon)
+- tapOn: "⚙️"
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 10000
+
+# Step 6: Take screenshot
+- takeScreenshot: "08_settings"
+
+# Step 7: Go back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

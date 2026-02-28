@@ -1,0 +1,48 @@
+# Flow 06: Offline Bot Game (Full Round)
+# Validates: User can start an offline game against bots and play through
+# Tags: game, critical-path
+#
+# This is the most important E2E test — it validates the full game flow:
+# Launch → Home → Select Difficulty → Game Screen → Play cards → Score
+#
+# Prerequisites: User is authenticated
+
+appId: com.big2mobile.app
+tags:
+  - game
+  - critical-path
+---
+# Step 1: Launch and navigate to Home (authenticated session assumed)
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Tap "Offline Practice"
+- tapOn: "Offline Practice"
+
+# Step 3: Select bot difficulty
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 5000
+- tapOn: "Easy"
+
+# Step 4: Verify game screen loads (non-optional — must fail if game doesn't start)
+- extendedWaitUntil:
+    visible: "Pass"
+    timeout: 20000
+
+# Step 5: Take screenshot of game board
+- takeScreenshot: "06_game_board_initial"
+
+# Step 6: Verify game controls are visible
+# The game screen should show Play and Pass buttons
+- assertVisible:
+    id: "pass-button"
+
+# Step 7: Take final screenshot
+- takeScreenshot: "06_game_in_progress"

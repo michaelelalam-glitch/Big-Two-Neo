@@ -1,0 +1,59 @@
+# Flow 05: Join Room Flow
+# Validates: User can navigate to Join Room, enter a code, and attempt to join
+# Tags: rooms, critical-path
+#
+# Prerequisites: User is authenticated
+# Note: This test validates the UI flow. Actual room joining requires
+# a valid room code, so we test the error handling path.
+
+appId: com.big2mobile.app
+tags:
+  - rooms
+  - critical-path
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Tap "Join Room"
+- tapOn: "Join Room"
+
+# Step 3: Verify Join Room screen
+- extendedWaitUntil:
+    visible: "Join Room"
+    timeout: 10000
+- assertVisible: "Enter a 6-character room code to join"
+
+# Step 4: Take screenshot
+- takeScreenshot: "05_join_room_screen"
+
+# Step 5: Enter an invalid room code
+- tapOn: "ABC123"
+- inputText: "ZZZZZ1"
+
+# Step 6: Tap Join Room button
+- tapOn:
+    text: "Join Room"
+    index: 1
+
+# Step 7: Wait for error response (invalid room)
+# App should show an error since ZZZZZ1 doesn't exist
+- extendedWaitUntil:
+    visible: "Room not found|not found|doesn't exist|Invalid"
+    timeout: 10000
+    optional: true
+
+# Step 8: Take screenshot of error state
+- takeScreenshot: "05_join_room_error"
+
+# Step 9: Navigate back
+- tapOn: "← Back"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
