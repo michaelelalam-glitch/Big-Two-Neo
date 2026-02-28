@@ -59,7 +59,7 @@ jobs:
       - name: 🔍 Run ESLint
         run: |
           cd apps/mobile
-          pnpm run lint || echo "::warning::ESLint reported warnings (non-blocking)"
+          pnpm run lint
       
       - name: 🔧 Run TypeScript type-check
         run: |

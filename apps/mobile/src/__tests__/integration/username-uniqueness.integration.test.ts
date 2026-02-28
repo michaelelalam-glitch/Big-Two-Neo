@@ -49,11 +49,7 @@ if (fs.existsSync(envTestPath)) {
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase credentials. Create .env.test file with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
-}
-
-describe.skip('Username Uniqueness - Integration Tests', () => {
+describe('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
   let testRoomCode1: string;
   let testRoomCode2: string;
@@ -61,6 +57,11 @@ describe.skip('Username Uniqueness - Integration Tests', () => {
   let testUserId2: string;
 
   beforeAll(async () => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      throw new Error(
+        'Missing Supabase credentials. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY environment variables.'
+      );
+    }
     // Initialize Supabase client
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     

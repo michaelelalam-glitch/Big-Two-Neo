@@ -467,3 +467,195 @@ After sessions 1 and 2, CI began hanging consistently. Unit tests completed all 
 > **Never use `--json` with `--coverage` on CI.** Jest's `--json` flag serializes the full Istanbul coverage map into the JSON output stream, adding 10× overhead. This is safe without coverage, but with `--coverage` it causes deadlocks on resource-constrained CI runners. Use `tee` + text parsing instead.
 
 *Remediation session 3 completed February 26, 2026*
+
+---
+
+## Post-Audit Follow-Up Queries — February 28, 2026
+
+Six follow-up queries were raised against the CI pipeline after the Copilot review on PR #83 and CI run #22511821038 (all gates passed: 866 tests, 0 TS errors, 0 ESLint errors, 73 warnings). Each query is analyzed below with findings and actionable items.
+
+---
+
+### Q1. ESLint `|| echo "::warning::..."` — Dead Code in Lint Step
+
+**Query:** Why does the ESLint step use `|| echo "::warning::ESLint reported warnings (non-blocking)"` and should it be removed?
+
+**Current code (test.yml line 67):**
+```yaml
+pnpm run lint || echo "::warning::ESLint reported warnings (non-blocking)"
+```
+
+**Finding:** This `|| echo` clause is **dead code**. ESLint exits `0` when it produces only warnings (no errors). The `||` branch only executes when the left side exits non-zero. Since ESLint currently has 0 errors and 73 warnings, it always exits `0` — the `echo` never fires.
+
+The clause would only trigger if ESLint itself crashed (e.g., config parse error), in which case it would **swallow** the crash and make it non-blocking — the opposite of the intended behavior.
+
+**Action:** Remove `|| echo "::warning::..."` from the lint step. The bare `pnpm run lint` is the correct hard gate: exits `0` on warnings-only, exits non-zero on errors.
+
+**Status:** 🔴 **Action required** — dead code that could mask ESLint crashes.
+
+---
+
+### Q2. Coverage Thresholds — Local-Only Enforcement
+
+**Query:** Are coverage thresholds enforced in CI?
+
+**Finding:** Coverage thresholds are defined in `jest.config.js` (`branches: 78, functions: 76, lines: 76, statements: 76`) but are **only enforced locally**. The CI unit test step runs:
+
+```yaml
+npx jest --testPathIgnorePatterns='/integration/' --forceExit --passWithNoTests --maxWorkers=2 --testTimeout=15000
+```
+
+Note: **no `--coverage` flag**. The comment in `test.yml` explains why:
+
+> v8 coverage collection takes 11+ min on 2-vCPU runners, causing the step to time out. Coverage thresholds are enforced locally via jest.config.js and coverageThreshold when developers run --coverage.
+
+This is a **regression** from Remediation Session 1, which originally merged coverage into the unit test step. The coverage flag was later removed due to the 11+ minute runtime on CI runners.
+
+**Action:** Re-enable coverage in CI once one of:
+- (a) A faster coverage subset targeting `src/game/` is configured as a separate step, or
+- (b) CI runners are upgraded, or
+- (c) Coverage is run only on the `src/game/` subset that matches `collectCoverageFrom`.
+
+**Status:** 🟡 **Known gap** — thresholds exist but are only developer-enforced, not CI-enforced.
+
+---
+
+### Q3. Coverage Upload — `continue-on-error: true` (Dormant)
+
+**Query:** Is the Codecov upload step functional?
+
+**Current code (test.yml lines 122–130):**
+```yaml
+- name: 📊 Upload test coverage
+  uses: codecov/codecov-action@v3
+  if: always()
+  with:
+    directory: ./apps/mobile/coverage
+    flags: unittests
+    name: codecov-umbrella
+    fail_ci_if_error: false
+  continue-on-error: true
+```
+
+**Finding:** This step is **dormant**. Since the unit test step runs without `--coverage`, no coverage files are generated in `./apps/mobile/coverage/`. The Codecov action finds nothing to upload and silently succeeds (exit 0). The `continue-on-error: true` is correct for an optional upload step but is currently moot.
+
+**Action:** Either:
+- (a) Remove the step entirely until coverage is re-enabled in CI, or
+- (b) Keep it as a no-op placeholder (current state) — it adds ~2s to CI and is harmless.
+
+**Status:** 🟡 **Dormant** — not harmful, not useful. Will become active when Q2 is resolved.
+
+---
+
+### Q4. `react-test-renderer` — Unused Dependency Generating Deprecation Warnings
+
+**Query:** Should the 15 deprecation warnings from `react-test-renderer` be addressed?
+
+**Finding:** `react-test-renderer` is listed as a `devDependency` in `package.json` but **no test file in the codebase imports it**. The package generates 15 deprecation warnings during `pnpm install` because React 19 deprecated it in favor of `@testing-library/react`.
+
+- `grep -r "react-test-renderer" src/` → **0 matches**
+- Only reference is in `package.json` `devDependencies`
+
+**Action:** Remove `react-test-renderer` from `devDependencies`:
+```bash
+cd apps/mobile && pnpm remove react-test-renderer
+```
+This eliminates 15 install-time deprecation warnings with zero risk (nothing imports it).
+
+**Status:** 🔴 **Action required** — trivial removal, no test impact.
+
+---
+
+### Q5. Supabase GitHub Secrets — `SUPABASE_SERVICE_ROLE_KEY` Missing
+
+**Query:** Are all required Supabase secrets configured for CI integration tests?
+
+**Finding:** `gh secret list` shows:
+| Secret | Status |
+|--------|--------|
+| `EXPO_PUBLIC_SUPABASE_URL` | ✅ Set (~1 day ago) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ Set (~1 day ago) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ❌ **Missing** |
+
+The integration test file `critical-rules.test.ts` requires all three secrets. Without `SUPABASE_SERVICE_ROLE_KEY`, the `if` condition on the integration test step evaluates to false and the tests are skipped — the "⚠️ Integration tests skipped" warning fires instead.
+
+**Note:** The audit report (Remediation Session 2) states all 3 secrets were configured, but the service role key is no longer present. It may have been removed, expired, or set on a different repo.
+
+**Action:** Re-set the service role key:
+1. Supabase Dashboard → Settings → API → `service_role` key (the `secret` one, not `anon`)
+2. `gh secret set SUPABASE_SERVICE_ROLE_KEY --repo michaelelalam-glitch/Big-Two-Neo`
+
+This activates 6 integration tests in CI immediately.
+
+**Status:** 🔴 **Action required** — single highest-impact action (2 minutes → activates integration tests).
+
+---
+
+### Q6. Full E2E Validation Plan — 5-Phase Roadmap
+
+**Query:** Build a plan from current state to full end-to-end validation.
+
+**Current state:** 866 unit tests passing, 0 integration tests running (blocked by Q5), no E2E tests, no coverage in CI (Q2), Codecov dormant (Q3).
+
+**5-Phase Plan:**
+
+#### Phase 1 — Quick Wins (1-2 hours)
+| Task | Effort | Impact |
+|------|--------|--------|
+| Set `SUPABASE_SERVICE_ROLE_KEY` secret (Q5) | 2 min | Activates 6 integration tests |
+| Remove `react-test-renderer` (Q4) | 2 min | Eliminates 15 deprecation warnings |
+| Remove `\|\| echo` from lint step (Q1) | 1 min | Fixes dead code that could mask crashes |
+| Remove or keep dormant Codecov step (Q3) | 1 min | Cleanup |
+| Unskip `username-uniqueness.integration.test.ts` | 10 min | Activates additional integration tests |
+
+#### Phase 2 — Coverage in CI (half day)
+| Task | Effort | Impact |
+|------|--------|--------|
+| Add separate `--coverage` step targeting `src/game/` subset | 2 hr | Re-enables CI coverage enforcement |
+| Configure Codecov as PR status check | 30 min | Coverage regressions visible in PR |
+| Set Codecov target to current thresholds | 15 min | Prevents coverage drops |
+
+#### Phase 3 — Type Safety & Lint Cleanup (2-3 days)
+| Task | Effort | Impact |
+|------|--------|--------|
+| Fix 73 remaining ESLint warnings (mostly `no-explicit-any`) | 2-3 days | Type safety improvement |
+| Migrate 48 `console.log` calls to structured logger | 1 day | Re-enable `no-console` rule |
+
+#### Phase 4 — E2E Tests (1-2 weeks)
+| Task | Effort | Impact |
+|------|--------|--------|
+| Choose E2E framework (Detox vs Maestro) | 1 day | Foundation for E2E |
+| Write E2E tests for critical game flow | 1 week | Full user-path validation |
+| Add E2E job to CI (macOS runner) | 1 day | Automated E2E in pipeline |
+
+#### Phase 5 — Production Hardening (ongoing)
+| Task | Effort | Impact |
+|------|--------|--------|
+| Branch protection rules on `main` | 30 min | Prevent direct pushes |
+| CODEOWNERS file | 15 min | Required reviewers |
+| Bundle size monitoring | 2 hr | Catch size regressions |
+| Ratchet coverage +2% per sprint → 80%+ | Ongoing | Continuous improvement |
+
+**Status:** 🔵 **Plan documented** — Phase 1 items are immediate action items.
+
+---
+
+### Updated Remaining Action Items (Post Follow-Up Queries)
+
+| # | Action | Source | Effort | Priority | Status |
+|---|--------|--------|--------|----------|--------|
+| 1 | Remove `\|\| echo "::warning::..."` from lint step | Q1 | 1 min | 🔴 High | Not started |
+| 2 | Set `SUPABASE_SERVICE_ROLE_KEY` GitHub secret | Q5 | 2 min | 🔴 High | Not started |
+| 3 | Remove `react-test-renderer` from devDependencies | Q4 | 2 min | 🔴 High | Not started |
+| 4 | Unskip `username-uniqueness.integration.test.ts` | Q6-P1 | 10 min | 🟡 Medium | Not started |
+| 5 | Add CI coverage step for `src/game/` subset | Q2/Q6-P2 | 2 hr | 🟡 Medium | Not started |
+| 6 | Configure Codecov PR status check | Q3/Q6-P2 | 30 min | 🟡 Medium | Not started |
+| 7 | Migrate 48 `console.log` to structured logger | L2/Q6-P3 | 1 day | 🔵 Low | Not started |
+| 8 | Fix 73 ESLint warnings (`no-explicit-any`) | Q6-P3 | 2-3 days | 🔵 Low | Not started |
+| 9 | Decompose `useRealtime.ts` (1,733→<500 lines) | Tech debt | 1-2 days | 🔵 Low | Not started |
+| 10 | Decompose `GameScreen.tsx` (~1,590→<500 lines) | Tech debt | 1-2 days | 🔵 Low | Not started |
+| 11 | Ratchet coverage thresholds +2% per sprint | Q6-P5 | Ongoing | 🔵 Ongoing | Not started |
+| 12 | Add E2E tests (Detox/Maestro) | Q6-P4 | 1-2 weeks | 🔵 Future | Not started |
+| 13 | Branch protection + CODEOWNERS | Q6-P5 | 1 hr | 🔵 Future | Not started |
+
+*Follow-up queries documented February 28, 2026*
