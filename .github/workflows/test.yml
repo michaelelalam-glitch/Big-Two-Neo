@@ -12,6 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     
+    # Expose Supabase secrets at job level so `if:` conditions on integration
+    # test steps can evaluate them correctly. Step-level `env:` is only visible
+    # to its own step's `if:`, causing both "skipped" warning AND integration
+    # test steps to fire simultaneously (bug in run #22512987110).
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
     strategy:
       matrix:
         node-version: [20.x]
@@ -109,9 +118,6 @@ jobs:
             --no-coverage
         timeout-minutes: 5
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
       
       - name: 📊 Upload test coverage
