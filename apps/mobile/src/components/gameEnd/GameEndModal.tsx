@@ -71,12 +71,21 @@ export const GameEndModal: React.FC = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
   const tabContentOpacity = useRef(new Animated.Value(1)).current; // Task #419: Tab fade transition
+  const modalSlideAnim = useRef(new Animated.Value(0)).current; // Entrance slide-up
 
-  // Start fireworks when modal opens (entrance animation removed for reliability)
+  // Start fireworks and entrance animation when modal opens
   useEffect(() => {
     if (showGameEndModal) {
       setShowFireworks(true);
       startPulseAnimation();
+      // Smooth entrance: slide up + fade in
+      modalSlideAnim.setValue(0);
+      Animated.spring(modalSlideAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
     } else {
       setShowFireworks(false);
     }
@@ -318,8 +327,8 @@ export const GameEndModal: React.FC = () => {
           {/* Semi-transparent backdrop */}
           <View style={styles.backdrop}>
             
-            {/* Modal container with gradient - Task #421: Responsive sizing (scale animation removed for reliability) */}
-            <View 
+            {/* Modal container with gradient - Task #421: Responsive sizing + smooth entrance */}
+            <Animated.View 
               style={[
                 styles.modalContainer,
                 {
@@ -328,6 +337,11 @@ export const GameEndModal: React.FC = () => {
                   height: isLandscape ? windowHeight * 0.95 : windowHeight * 0.85,
                   maxWidth: 600,
                   maxHeight: isLandscape ? windowHeight * 0.95 : windowHeight * 0.85,
+                  opacity: modalSlideAnim,
+                  transform: [
+                    { translateY: modalSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) },
+                    { scale: modalSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) },
+                  ],
                 }
               ]}
             >
@@ -357,19 +371,20 @@ export const GameEndModal: React.FC = () => {
                     tabIndicatorAnim={tabIndicatorAnim}
                   />
                   
-                  {/* Tab Content - Task #419: Fade transition */}
+                  {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none' */}
                   <Animated.View style={{ opacity: tabContentOpacity }}>
-                    {activeTab === 'score' ? (
+                    <View style={activeTab !== 'score' ? { display: 'none' } : undefined}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
                       />
-                    ) : (
+                    </View>
+                    <View style={activeTab !== 'play' ? { display: 'none' } : undefined}>
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
                       />
-                    )}
+                    </View>
                   </Animated.View>
                   
                   {/* Action Buttons */}
@@ -380,7 +395,7 @@ export const GameEndModal: React.FC = () => {
                   />
                 </ScrollView>
               </View>
-            </View>
+            </Animated.View>
           </View>
         </View>
       </Modal>
@@ -563,6 +578,55 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   scoreHistory,
   playerNames,
 }) => {
+  // Start with only the latest match expanded (minimized by default)
+  const [expandedScoreMatches, setExpandedScoreMatches] = useState<Set<number>>(() => {
+    if (scoreHistory.length > 0) {
+      return new Set([scoreHistory[scoreHistory.length - 1].matchNumber]);
+    }
+    return new Set();
+  });
+
+  // Toggle score match expansion
+  const toggleScoreExpansion = (matchNumber: number) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (_) { /* haptics optional */ }
+    setExpandedScoreMatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(matchNumber)) {
+        newSet.delete(matchNumber);
+      } else {
+        newSet.add(matchNumber);
+      }
+      return newSet;
+    });
+  };
+
+  // Expand / collapse all
+  const toggleAll = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (_) { /* haptics optional */ }
+    if (expandedScoreMatches.size === scoreHistory.length) {
+      // All expanded → collapse all
+      setExpandedScoreMatches(new Set());
+    } else {
+      // Expand all
+      setExpandedScoreMatches(new Set(scoreHistory.map(m => m.matchNumber)));
+    }
+  };
+
+  // Calculate cumulative totals for the summary bar
+  const cumulativeTotals = React.useMemo(() => {
+    const totals: number[] = new Array(playerNames.length).fill(0);
+    scoreHistory.forEach(match => {
+      match.pointsAdded.forEach((pts, idx) => {
+        if (idx < totals.length) totals[idx] += pts;
+      });
+    });
+    return totals;
+  }, [scoreHistory, playerNames.length]);
+
   if (scoreHistory.length === 0) {
     return (
       <View style={styles.tabContent}>
@@ -575,71 +639,122 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
     );
   }
 
+  const allExpanded = expandedScoreMatches.size === scoreHistory.length;
+
   return (
     <ScrollView 
       style={styles.tabContent}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.tabScrollContent}
     >
-      <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
+      {/* Header row with title + expand/collapse toggle */}
+      <View style={styles.scoreHistoryHeaderRow}>
+        <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
+        <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
+          <Text style={styles.expandAllText}>
+            {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Cumulative totals summary bar */}
+      <View style={styles.scoreSummaryBar}>
+        <Text style={styles.scoreSummaryTitle}>Totals</Text>
+        <View style={styles.scoreSummaryPlayers}>
+          {playerNames.map((name, idx) => (
+            <View key={idx} style={styles.scoreSummaryItem}>
+              <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
+              <Text style={[
+                styles.scoreSummaryScore,
+                cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText
+              ]}>
+                {cumulativeTotals[idx]}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
       
       {scoreHistory.map((match, matchIndex) => {
-        // Calculate if any player busted (>100) in this match
         const hasBustedPlayer = match.scores.some(score => score > 100);
+        const isExpanded = expandedScoreMatches.has(match.matchNumber);
+        const isLatest = matchIndex === scoreHistory.length - 1;
         
         return (
-          <View 
-            key={match.matchNumber} 
-            style={[
-              styles.scoreHistoryCard,
-              hasBustedPlayer && styles.scoreHistoryCardBusted,
-              matchIndex === scoreHistory.length - 1 && styles.scoreHistoryCardLatest
-            ]}
-          >
-            <View style={styles.scoreHistoryHeader}>
-              <Text style={styles.matchNumber}>
-                {i18n.t('gameEnd.match')} {match.matchNumber}
-              </Text>
-              {matchIndex === scoreHistory.length - 1 && (
-                <View style={styles.latestBadge}>
-                  <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
+          <View key={match.matchNumber}>
+            {/* Collapsible header */}
+            <TouchableOpacity
+              style={[
+                styles.scoreHistoryCard,
+                hasBustedPlayer && styles.scoreHistoryCardBusted,
+                isLatest && styles.scoreHistoryCardLatest,
+                !isExpanded && styles.scoreHistoryCardCollapsed,
+              ]}
+              onPress={() => toggleScoreExpansion(match.matchNumber)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.scoreHistoryHeader}>
+                <View style={styles.scoreHistoryHeaderLeft}>
+                  <Text style={styles.matchNumber}>
+                    {i18n.t('gameEnd.match')} {match.matchNumber}
+                  </Text>
+                  {!isExpanded && (
+                    <Text style={styles.scoreHistoryCollapsedSummary}>
+                      {playerNames.map((name, pi) => 
+                        `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
+                      ).join(' · ')}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.playHistoryMatchHeaderRight}>
+                  {isLatest && (
+                    <View style={styles.latestBadge}>
+                      <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.expandIcon}>
+                    {isExpanded ? '▼' : '▶'}
+                  </Text>
+                </View>
+              </View>
+            
+              {/* Expanded detail */}
+              {isExpanded && (
+                <View style={styles.scoreHistoryGrid}>
+                  {playerNames.map((name, playerIndex) => {
+                    const score = match.scores[playerIndex] || 0;
+                    const pointsAdded = match.pointsAdded[playerIndex] || 0;
+                    const isBusted = score > 100;
+                    
+                    return (
+                      <View key={playerIndex} style={styles.scoreHistoryRow}>
+                        <View style={styles.scoreHistoryPlayerInfo}>
+                          <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
+                          <View style={styles.scoreHistoryPoints}>
+                            <Text 
+                              style={[
+                                styles.scoreHistoryCumulativeScore,
+                                isBusted && styles.scoreHistoryBustedText
+                              ]}
+                            >
+                              {score} {i18n.t('gameEnd.points')}
+                            </Text>
+                            <Text 
+                              style={[
+                                styles.scoreHistoryPointsAdded,
+                                pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive
+                              ]}
+                            >
+                              {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
-            </View>
-            
-            <View style={styles.scoreHistoryGrid}>
-              {playerNames.map((name, playerIndex) => {
-                const score = match.scores[playerIndex] || 0;
-                const pointsAdded = match.pointsAdded[playerIndex] || 0;
-                const isBusted = score > 100;
-                
-                return (
-                  <View key={playerIndex} style={styles.scoreHistoryRow}>
-                    <View style={styles.scoreHistoryPlayerInfo}>
-                      <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
-                      <View style={styles.scoreHistoryPoints}>
-                        <Text 
-                          style={[
-                            styles.scoreHistoryCumulativeScore,
-                            isBusted && styles.scoreHistoryBustedText
-                          ]}
-                        >
-                          {score} {i18n.t('gameEnd.points')}
-                        </Text>
-                        <Text 
-                          style={[
-                            styles.scoreHistoryPointsAdded,
-                            pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive
-                          ]}
-                        >
-                          {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+            </TouchableOpacity>
           </View>
         );
       })}
@@ -705,7 +820,26 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   playHistory,
   playerNames,
 }) => {
-  const [expandedMatches, setExpandedMatches] = useState<Set<number>>(new Set());
+  // Auto-expand the latest match on mount so content is visible immediately
+  const [expandedMatches, setExpandedMatches] = useState<Set<number>>(() => {
+    if (playHistory.length > 0) {
+      return new Set([playHistory[playHistory.length - 1].matchNumber]);
+    }
+    return new Set();
+  });
+  
+  // Auto-expand latest match when new history arrives
+  useEffect(() => {
+    if (playHistory.length > 0) {
+      const latestMatchNumber = playHistory[playHistory.length - 1].matchNumber;
+      setExpandedMatches(prev => {
+        if (prev.has(latestMatchNumber)) return prev;
+        const newSet = new Set(prev);
+        newSet.add(latestMatchNumber);
+        return newSet;
+      });
+    }
+  }, [playHistory.length]);
   
   // Toggle match expansion
   const toggleMatchExpansion = (matchNumber: number) => {
@@ -1101,6 +1235,75 @@ const styles = StyleSheet.create({
   },
   
   // Score History Tab (Task #410)
+  scoreHistoryHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  expandAllButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+  },
+  expandAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#60a5fa',
+  },
+  scoreSummaryBar: {
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.25)',
+  },
+  scoreSummaryTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#60a5fa',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  scoreSummaryPlayers: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  scoreSummaryItem: {
+    flex: 1,
+    minWidth: 70,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  scoreSummaryName: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  scoreSummaryScore: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f3f4f6',
+  },
+  scoreHistoryHeaderLeft: {
+    flex: 1,
+  },
+  scoreHistoryCollapsedSummary: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 3,
+  },
+  scoreHistoryCardCollapsed: {
+    paddingBottom: 14,
+  },
   scoreHistoryCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
