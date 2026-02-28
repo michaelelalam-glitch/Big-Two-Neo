@@ -9,14 +9,13 @@ import { useEffect, useRef } from 'react';
 
 import { soundManager, hapticManager, HapticType, SoundType } from '../utils';
 import { gameLogger } from '../utils/logger';
-import type { Player as MultiplayerPlayer } from '../types/multiplayer';
+import type { Player as MultiplayerPlayer, GameState as MultiplayerGameState } from '../types/multiplayer';
+import type { GameState as LocalGameState } from '../game/state';
 
 interface UseOneCardLeftAlertOptions {
   isLocalAIGame: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state shape differs from multiplayer
-  gameState: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multiplayer game state shape
-  multiplayerGameState: any;
+  gameState: LocalGameState | null;
+  multiplayerGameState: MultiplayerGameState | null;
   multiplayerPlayers: MultiplayerPlayer[];
   roomCode: string;
 }
@@ -31,9 +30,19 @@ export function useOneCardLeftAlert({
   const oneCardLeftDetectedRef = useRef(new Set<string>());
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local vs multiplayer game state have different shapes
-    const effectiveGameState = isLocalAIGame ? gameState : (multiplayerGameState as any);
-    const hands = effectiveGameState?.hands;
+    // Derive hands map from either local or multiplayer game state
+    let hands: Record<string, unknown[]> | undefined;
+
+    if (isLocalAIGame) {
+      const players = gameState?.players;
+      if (!players || !Array.isArray(players)) return;
+      hands = players.reduce<Record<string, unknown[]>>((acc, player, index) => {
+        acc[String(index)] = Array.isArray(player.hand) ? player.hand : [];
+        return acc;
+      }, {});
+    } else {
+      hands = multiplayerGameState?.hands as Record<string, unknown[]> | undefined;
+    }
 
     if (!hands || typeof hands !== 'object') return;
 
@@ -43,13 +52,12 @@ export function useOneCardLeftAlert({
       const key = `${roomCode}-${playerIndex}`;
 
       if (cards.length === 1 && !oneCardLeftDetectedRef.current.has(key)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local game state players shape differs from multiplayer
         const player = isLocalAIGame
-          ? (gameState as any)?.players?.[parseInt(playerIndex)]
+          ? gameState?.players?.[parseInt(playerIndex)]
           : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
 
         if (player) {
-          const playerName = isLocalAIGame ? player.name : player.username;
+          const playerName = 'name' in player ? player.name : ('username' in player ? player.username : 'Unknown');
           gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
 
           try {

@@ -590,7 +590,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   const toggleScoreExpansion = (matchNumber: number) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (_) { /* haptics optional */ }
+    } catch { /* haptics optional */ }
     setExpandedScoreMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -606,7 +606,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   const toggleAll = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (_) { /* haptics optional */ }
+    } catch { /* haptics optional */ }
     if (expandedScoreMatches.size === scoreHistory.length) {
       // All expanded → collapse all
       setExpandedScoreMatches(new Set());
@@ -839,7 +839,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         return newSet;
       });
     }
-  }, [playHistory.length]);
+  }, [playHistory]);
   
   // Toggle match expansion
   const toggleMatchExpansion = (matchNumber: number) => {
