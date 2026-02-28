@@ -1,6 +1,10 @@
 /**
- * ActiveGameBanner - Shows a banner when the user has an open game (offline or online)
- * 
+ * ActiveGameBanner - Always rendered on the Home screen.
+ *
+ * When the user has an active game (offline or online) it shows game info with
+ * rejoin/resume/leave actions.  When no game is active it renders a lightweight
+ * "No Game in Progress" idle banner so the layout is stable.
+ *
  * Features:
  * - Detects offline games via AsyncStorage (@big2_game_state)
  * - Detects online games via Supabase room_players query

@@ -10,21 +10,17 @@ import { useEffect } from 'react';
 
 import { gameLogger } from '../utils/logger';
 import type { PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
-import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
+import type { GameState as MultiplayerGameState } from '../types/multiplayer';
 
 interface UseMultiplayerPlayHistoryOptions {
   isMultiplayerGame: boolean;
   multiplayerGameState: MultiplayerGameState | null;
-  multiplayerPlayers: MultiplayerPlayer[];
-  roomCode: string;
   addPlayHistory: (match: PlayHistoryMatch) => void;
 }
 
 export function useMultiplayerPlayHistory({
   isMultiplayerGame,
   multiplayerGameState,
-  multiplayerPlayers,
-  roomCode,
   addPlayHistory,
 }: UseMultiplayerPlayHistoryOptions): void {
   useEffect(() => {
@@ -63,5 +59,5 @@ export function useMultiplayerPlayHistory({
       );
       addPlayHistory(matchData);
     });
-  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, roomCode, addPlayHistory]);
+  }, [isMultiplayerGame, multiplayerGameState, addPlayHistory]);
 }

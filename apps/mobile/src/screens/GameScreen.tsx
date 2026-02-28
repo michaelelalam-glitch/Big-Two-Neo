@@ -327,8 +327,6 @@ function GameScreenContent() {
   useMultiplayerPlayHistory({
     isMultiplayerGame,
     multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
-    multiplayerPlayers,
-    roomCode,
     addPlayHistory,
   });
   

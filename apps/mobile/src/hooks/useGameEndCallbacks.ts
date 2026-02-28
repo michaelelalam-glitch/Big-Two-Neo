@@ -55,6 +55,7 @@ export function useGameEndCallbacks({
         routes: [{ name: 'Home' }],
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlayerName, navigation, gameManagerRef]);
+    // botDifficulty included so "Play Again" always uses the latest difficulty.
+    // setOnPlayAgain / setOnReturnToMenu are stable setters — safe to include.
+  }, [currentPlayerName, navigation, gameManagerRef, botDifficulty, setOnPlayAgain, setOnReturnToMenu]);
 }
