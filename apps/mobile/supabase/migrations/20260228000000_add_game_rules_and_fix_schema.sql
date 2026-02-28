@@ -80,7 +80,7 @@ BEGIN
   END IF;
 
   v_next_turn := v_turn_order[v_player.player_index + 1];
-  v_new_pass_count := v_game_state.passes + 1;
+  v_new_pass_count := COALESCE(v_game_state.passes, 0) + 1;
 
   IF v_new_pass_count >= 3 THEN
     UPDATE game_state
@@ -151,6 +151,15 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Player not found');
   END IF;
 
+  -- SECURITY: Verify caller owns this player seat.
+  -- auth.uid() is NULL for service_role calls (intentional bypass for auto-pass).
+  IF v_player.user_id != auth.uid() THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Unauthorized: You can only play for your own player'
+    );
+  END IF;
+
   IF v_game_state.current_turn != v_player.player_index THEN
     RETURN json_build_object(
       'success', false,
@@ -174,6 +183,25 @@ BEGIN
   END IF;
 
   v_player_hand := v_game_state.hands->v_player.player_index::text;
+
+  -- SECURITY: Validate every card in p_cards exists in the player's hand.
+  -- Prevents fabricated or duplicate card IDs from being injected.
+  DECLARE
+    v_played_card JSONB;
+  BEGIN
+    FOR v_played_card IN SELECT * FROM jsonb_array_elements(p_cards)
+    LOOP
+      IF NOT EXISTS (
+        SELECT 1 FROM jsonb_array_elements(v_player_hand) AS hand_card
+        WHERE hand_card->>'id' = v_played_card->>'id'
+      ) THEN
+        RETURN json_build_object(
+          'success', false,
+          'error', 'Card not in hand: ' || (v_played_card->>'id')
+        );
+      END IF;
+    END LOOP;
+  END;
 
   v_new_hand := '[]'::jsonb;
   FOR v_card IN SELECT * FROM jsonb_array_elements(v_player_hand)
@@ -200,7 +228,7 @@ BEGIN
     ),
     current_turn = v_next_turn,
     passes = 0,
-    played_cards = played_cards || p_cards,
+    played_cards = COALESCE(played_cards, '[]'::jsonb) || p_cards,
     game_phase = CASE WHEN game_phase = 'first_play' THEN 'playing' ELSE game_phase END,
     updated_at = NOW()
   WHERE room_id = v_room_id;

@@ -14,7 +14,6 @@ import type {
   PlayerHand,
   BroadcastEvent,
 } from '../types/multiplayer';
-import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
 
 export interface UseRoomLobbyOptions {

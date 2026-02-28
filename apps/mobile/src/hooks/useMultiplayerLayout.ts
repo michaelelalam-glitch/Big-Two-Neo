@@ -60,7 +60,7 @@ export function useMultiplayerLayout({
   }, [multiplayerLastPlay]);
 
   const multiplayerLastPlayedBy = React.useMemo(() => {
-    const playerIdx = (multiplayerLastPlay as { player_index?: number } | null)?.player_index;
+    const playerIdx = multiplayerLastPlay?.player_index ?? multiplayerLastPlay?.position;
     if (typeof playerIdx !== 'number') return null;
     const p = multiplayerPlayers.find((pl) => pl.player_index === playerIdx);
     return p?.username ?? `Player ${playerIdx + 1}`;

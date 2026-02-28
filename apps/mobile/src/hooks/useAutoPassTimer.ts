@@ -15,7 +15,7 @@
  * `auto_pass_timer.triggering_play.position`).
  */
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import type { GameState, Player, AutoPassTimerState, BroadcastEvent } from '../types/multiplayer';
 import type { PlayerPassResponse } from '../types/realtimeTypes';
@@ -61,6 +61,12 @@ export function useAutoPassTimer({
    * or `null` when unlocked.
    */
   const autoPassExecutionGuard = useRef<number | null>(null);
+  /**
+   * Reactive state that mirrors autoPassExecutionGuard so consumers
+   * (e.g., useRealtime gating `pass()`) observe changes via re-render
+   * rather than reading a potentially stale ref value.
+   */
+  const [isAutoPassInProgressState, setIsAutoPassInProgressState] = useState(false);
   /**
    * Mutable ref kept in sync with the latest `gameState` so that
    * `setInterval` callbacks never read stale closure values.
@@ -174,6 +180,7 @@ export function useAutoPassTimer({
           roomPlayers,
           broadcastMessage,
           autoPassExecutionGuard,
+          setIsAutoPassInProgressState,
         );
       }
     }, 100);
@@ -197,7 +204,7 @@ export function useAutoPassTimer({
     broadcastMessage,
   ]);
 
-  return { isAutoPassInProgress: autoPassExecutionGuard.current !== null };
+  return { isAutoPassInProgress: isAutoPassInProgressState };
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -209,6 +216,7 @@ async function executeAutoPasses(
   roomPlayers: Player[],
   broadcastMessage: (event: BroadcastEvent, data: unknown) => Promise<void>,
   autoPassExecutionGuard: React.MutableRefObject<number | null>,
+  setIsAutoPassInProgress: (value: boolean) => void,
 ): Promise<void> {
   const now = Date.now();
   const lockTimeout = 30000; // 30 s max lock duration
@@ -229,6 +237,7 @@ async function executeAutoPasses(
 
   // Acquire lock
   autoPassExecutionGuard.current = now;
+  setIsAutoPassInProgress(true);
 
   try {
     // STEP 1: Query FRESH game state
@@ -397,5 +406,6 @@ async function executeAutoPasses(
     networkLogger.error('⏰ [Timer] ❌ Fatal error in auto-pass execution:', fatalError);
   } finally {
     autoPassExecutionGuard.current = null;
+    setIsAutoPassInProgress(false);
   }
 }

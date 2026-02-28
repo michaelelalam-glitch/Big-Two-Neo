@@ -289,7 +289,8 @@ export class BotAI {
     const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
     
     // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
-    const lastPlayPlayerCardCount = playerCardCounts[lastPlay.position];
+    const lastPlayPosition = lastPlay.position ?? lastPlay.player_index ?? 0;
+    const lastPlayPlayerCardCount = playerCardCounts[lastPlayPosition];
     const lastPlayerHasWon = lastPlayPlayerCardCount === 0;
     
     // If next player has 1 card and last play was a single, MUST play highest single

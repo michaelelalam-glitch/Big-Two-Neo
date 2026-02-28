@@ -307,8 +307,9 @@ export function MultiplayerGameScreen() {
 
   const effectiveLastPlayedBy = useMemo(() => {
     const lastPlay = multiplayerGameState?.last_play;
-    // Edge function stores the last-play player as `position` (0-indexed seat index)
-    const playerIdx = lastPlay?.position;
+    // Edge function stores as `player_index`; SQL RPC also uses `player_index`.
+    // Fall back to `position` for backward compat with older `triggering_play` shapes.
+    const playerIdx = lastPlay?.player_index ?? lastPlay?.position;
     if (typeof playerIdx !== 'number') return null;
     const player = realtimePlayers?.find((p) => p.player_index === playerIdx);
     return player?.username ?? `Player ${playerIdx + 1}`;
