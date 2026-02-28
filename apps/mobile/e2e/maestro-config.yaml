@@ -1,0 +1,23 @@
+# Maestro E2E Configuration
+# Big2 Mobile App - Chinese Poker
+#
+# Usage:
+#   maestro test e2e/flows/          # Run all flows
+#   maestro test e2e/flows/01_*.yaml # Run specific flow
+#   maestro test -c e2e/flows/       # Continuous mode (re-run on save)
+#
+# Prerequisites:
+#   - Maestro CLI installed: brew tap mobile-dev-inc/tap && brew install maestro
+#   - iOS Simulator or Android Emulator running
+#   - App installed on device (via EAS build or expo run:ios/android)
+#
+# CI Usage:
+#   See .github/workflows/test.yml e2e job
+
+# Default app configuration
+appId: com.big2mobile.app
+
+# Global settings applied to all flows in this directory
+tags:
+  - smoke
+  - critical-path

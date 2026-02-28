@@ -1,0 +1,49 @@
+# Flow 04: Create Room Flow
+# Validates: User can navigate to Create Room and create a private room
+# Tags: rooms, critical-path
+#
+# Prerequisites: User is authenticated
+
+appId: com.big2mobile.app
+tags:
+  - rooms
+  - critical-path
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Tap "Create Room"
+- tapOn: "Create Room"
+
+# Step 3: Verify Create Room screen
+- extendedWaitUntil:
+    visible: "Create Room"
+    timeout: 10000
+- assertVisible: "Create a private room and invite your friends"
+- assertVisible: "Up to 4 players can join"
+
+# Step 4: Take screenshot
+- takeScreenshot: "04_create_room_screen"
+
+# Step 5: Tap "Create Room" button
+- tapOn:
+    text: "Create Room"
+    index: 1
+
+# Step 6: Verify navigation to Lobby
+- extendedWaitUntil:
+    visible: "Game Lobby"
+    timeout: 15000
+- assertVisible: "Game Lobby"
+- assertVisible: "Private Room"
+- assertVisible: "Room Code:"
+
+# Step 7: Take screenshot of lobby
+- takeScreenshot: "04_lobby_created"

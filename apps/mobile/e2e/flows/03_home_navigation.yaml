@@ -1,0 +1,59 @@
+# Flow 03: Home Screen Navigation
+# Validates: All main navigation buttons are visible and functional
+# Tags: smoke, navigation
+#
+# Prerequisites: User is authenticated and on the Home screen
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - navigation
+---
+# Step 1: Launch app
+- launchApp
+
+# Step 2: Navigate to Home (tap Chinese Poker from game selection)
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+
+# Step 3: Verify Home screen main elements
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 4: Verify all main navigation buttons exist
+- assertVisible: "Find a Game"
+- assertVisible: "Create Room"
+- assertVisible: "Offline Practice"
+- assertVisible: "Join Room"
+- assertVisible: "How to Play"
+
+# Step 5: Take screenshot
+- takeScreenshot: "03_home_screen_buttons"
+
+# Step 6: Test "Find a Game" modal opens
+- tapOn: "Find a Game"
+- extendedWaitUntil:
+    visible: "Casual Match"
+    timeout: 5000
+- assertVisible: "Casual Match"
+- assertVisible: "Ranked Match"
+- takeScreenshot: "03_find_game_modal"
+
+# Step 7: Dismiss modal
+- tapOn: "Cancel"
+
+# Step 8: Test "Offline Practice" → Bot Difficulty modal
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 5000
+- assertVisible: "Easy"
+- assertVisible: "Medium"
+- assertVisible: "Hard"
+- takeScreenshot: "03_bot_difficulty_modal"
+
+# Step 9: Dismiss modal
+- tapOn: "Cancel"

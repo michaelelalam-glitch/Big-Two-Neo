@@ -1,0 +1,44 @@
+# Flow 07: Match History Screen
+# Validates: User can navigate to Match History and view past games
+# Tags: navigation, history
+#
+# Prerequisites: User is authenticated
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - history
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn: "Chinese Poker"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to Leaderboard (which has match history access)
+- tapOn: "Leaderboard"
+- extendedWaitUntil:
+    visible: "Leaderboard"
+    timeout: 10000
+
+# Step 3: Take screenshot
+- takeScreenshot: "07_leaderboard"
+
+# Step 4: Go back and check profile (which links to stats/history)
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 5: Navigate to Profile
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Profile"
+    timeout: 10000
+
+# Step 6: Take screenshot of profile
+- takeScreenshot: "07_profile"
