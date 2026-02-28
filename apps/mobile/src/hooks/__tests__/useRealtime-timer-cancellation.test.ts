@@ -83,6 +83,8 @@ describe('useRealtime - Timer Cancellation', () => {
     match_number: 1,
     hands: { '0': [{ id: 'AH', suit: 'H', rank: 'A' }] },
     play_history: [],
+    scores: [],
+    final_scores: null,
     auto_pass_timer: mockAutoPassTimer,
     played_cards: [],
     created_at: new Date().toISOString(),

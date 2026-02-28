@@ -41,16 +41,18 @@ export interface GameState {
   turn_timer: number; // seconds remaining in turn
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
-  game_phase: 'dealing' | 'first_play' | 'playing' | 'finished';
+  game_phase: 'dealing' | 'first_play' | 'playing' | 'finished' | 'game_over';
   winner: number | null; // FIXED: Use 'winner' to match database column
   match_number: number; // Current match number (starts at 1, increments when match ends)
-  hands: Record<number, Card[]>; // Player hands indexed by player_index
+  hands: Record<string, Card[]>; // Player hands indexed by player_index (string keys from JSON)
   play_history: PlayHistoryEntry[]; // Array of all plays made in the game
-  
+  scores: number[]; // Cumulative scores per player [p0, p1, p2, p3]
+  final_scores: Record<string, number> | null; // Final scores when game_phase='finished', keyed by player_index
+
   // Auto-pass timer state (for highest play detection)
   auto_pass_timer: AutoPassTimerState | null;
   played_cards: Card[]; // All cards played this game (for highest play detection)
-  
+
   created_at: string;
   updated_at: string;
 }
