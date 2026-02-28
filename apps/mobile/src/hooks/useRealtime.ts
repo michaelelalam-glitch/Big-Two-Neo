@@ -203,8 +203,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
-        const matchScores = (payload as any).match_scores as PlayerMatchScoreDetail[];
-        const matchNumber = (payload as any).match_number || gameState?.match_number || 1;
+        // broadcastMessage wraps data as { event, data: {...}, timestamp }
+        // Access payload.data first, fall back to top-level for robustness
+        const broadcastData = (payload as any)?.data || payload;
+        const matchScores = broadcastData?.match_scores as PlayerMatchScoreDetail[];
+        const matchNumber = broadcastData?.match_number || gameState?.match_number || 1;
         if (matchScores && onMatchEnded) {
           onMatchEnded(matchNumber, matchScores);
         }

@@ -162,16 +162,10 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     }
   }, [gameInfo, slideAnim, pulseAnim]);
 
-  // No active game — show idle state
+  // No active game — show idle state (plain View, no animation needed)
   if (!gameInfo) {
     return (
-      <Animated.View
-        style={[
-          styles.container,
-          styles.containerIdle,
-          { transform: [{ translateY: slideAnim }] },
-        ]}
-      >
+      <View style={[styles.container, styles.containerIdle]}>
         <View style={styles.headerRow}>
           <Text style={styles.icon}>🃏</Text>
           <View style={styles.headerText}>
@@ -179,7 +173,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             <Text style={styles.subtitle}>Start a new game to play!</Text>
           </View>
         </View>
-      </Animated.View>
+      </View>
     );
   }
 
