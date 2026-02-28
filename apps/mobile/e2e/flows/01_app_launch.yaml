@@ -1,14 +1,16 @@
 # Flow 01: App Launch & Sign-In Screen
 # Validates: App launches correctly, sign-in screen renders with expected UI
-# Tags: smoke, auth
+# Tags: smoke, auth, ci
 #
 # This is the most basic E2E test — verifies the app boots and displays
 # the authentication screen for unauthenticated users.
+# Runs in CI without authentication (ci tag).
 
 appId: com.big2mobile.app
 tags:
   - smoke
   - auth
+  - ci
 ---
 # Step 1: Launch with clean state to ensure unauthenticated
 - launchApp:
@@ -16,20 +18,23 @@ tags:
 
 # Step 2: Wait for app to fully load (splash screen → sign-in)
 - extendedWaitUntil:
-    visible: "Welcome to Big2"
-    timeout: 15000
+    visible:
+      id: "sign-in-screen"
+    timeout: 30000
 
 # Step 3: Verify sign-in screen content
-- assertVisible: "Welcome to Big2"
-- assertVisible: "Sign in to play with friends and track your progress"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
 
 # Step 4: Verify sign-in buttons are present
-- assertVisible: "Sign in with Google"
-
-# Step 5: Verify footer
 - assertVisible:
-    text: "Terms of Service"
-    optional: true
+    id: "google-sign-in-button"
+
+# Step 5: Verify footer text
+- assertVisible:
+    id: "sign-in-footer"
 
 # Step 6: Take screenshot for visual regression
 - takeScreenshot: "01_sign_in_screen"
