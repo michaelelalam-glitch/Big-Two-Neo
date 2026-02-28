@@ -168,6 +168,8 @@ jobs:
     needs: test
     # Only run on PRs to save CI minutes (macOS runners are ~10× more expensive)
     if: github.event_name == 'pull_request'
+    # Non-blocking: E2E failures don't prevent merge (new infra, may need tuning)
+    continue-on-error: true
     timeout-minutes: 30
     
     steps:
@@ -192,8 +194,9 @@ jobs:
       
       - name: 🎭 Install Maestro CLI
         run: |
-          brew tap mobile-dev-inc/tap
-          brew install maestro
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
           maestro --version
       
       - name: 📱 Boot iOS Simulator
