@@ -156,11 +156,16 @@ describe('Username Uniqueness - Integration Tests', () => {
   afterAll(async () => {
     // Belt-and-suspenders: clean up any lingering room_players by user
     for (const userId of createdUserIds) {
-      await supabase.from('room_players').delete().eq('user_id', userId).catch(() => {});
+      // Supabase query builder doesn't have .catch(); just await and ignore result
+      await supabase.from('room_players').delete().eq('user_id', userId);
     }
     // Delete auth users (profiles cascade or are handled by Supabase)
     for (const userId of createdUserIds) {
-      await supabase.auth.admin.deleteUser(userId).catch(() => {});
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   }, 15_000);
 
