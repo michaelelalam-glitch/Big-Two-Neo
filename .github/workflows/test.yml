@@ -249,10 +249,12 @@ jobs:
           # Prebuild WITHOUT --no-install so CocoaPods runs → generates .xcworkspace
           npx expo prebuild --clean --platform ios
           cd ios
-          # Expo generates project name "Big2Mobile" from app.json name "Big2 Mobile"
+          # Build RELEASE so JavaScript bundle is embedded in the app binary.
+          # Debug builds load JS from Metro dev server which isn't available in CI,
+          # causing the Expo Dev Client launcher to appear instead of the app.
           xcodebuild -workspace Big2Mobile.xcworkspace \
             -scheme Big2Mobile \
-            -configuration Debug \
+            -configuration Release \
             -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=${{ env.DEVICE_ID }}" \
             -derivedDataPath build \
@@ -264,8 +266,8 @@ jobs:
       - name: 📲 Install app on Simulator
         run: |
           # xcodebuild with -derivedDataPath build outputs to:
-          #   build/Build/Products/<Configuration>-iphonesimulator/<AppName>.app
-          APP_PATH=$(find apps/mobile/ios/build/Build/Products -name "*.app" -type d | head -1)
+          #   build/Build/Products/Release-iphonesimulator/<AppName>.app
+          APP_PATH=$(find apps/mobile/ios/build/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No .app bundle found in derived data. Build may have failed."
             find apps/mobile/ios/build -type d -maxdepth 4 2>/dev/null || echo "Build directory doesn't exist"
