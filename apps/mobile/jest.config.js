@@ -41,19 +41,16 @@ module.exports = {
     '!src/components/scoreboard/**/index.ts',
     '!src/components/scoreboard/styles/**',
   ],
-  // Coverage thresholds reflect current levels after the Chinese Poker feature branch merge.
-  // Tracked in: TODO(coverage-recovery) — create a GitHub Issue to track this debt.
-  // Plan to incrementally increase back toward 80%:
-  //   Phase 1 (next sprint): branches 55, functions 70, lines/statements 68
-  //   Phase 2: branches 65, functions 75, lines/statements 75
-  //   Phase 3 (target): all categories ≥ 80
-  // New code should always include tests to avoid further regression.
+  // Coverage thresholds ratcheted to actuals (Feb 2026 CI audit).
+  // Actual: Stmts 78.64 | Branch 80.87 | Funcs 79.43 | Lines 78.64
+  // Thresholds set ~3 pts below actuals as a safety margin.
+  // Target: all categories ≥ 80 — almost there!
   coverageThreshold: {
     global: {
-      branches: 48,
-      functions: 65,
-      lines: 63,
-      statements: 63,
+      branches: 78,
+      functions: 76,
+      lines: 76,
+      statements: 76,
     },
   },
   transformIgnorePatterns: [
