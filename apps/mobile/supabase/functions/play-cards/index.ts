@@ -1096,9 +1096,17 @@ Deno.serve(async (req) => {
     }
 
     // 15. Trigger bot-coordinator if next player is a bot (Task #551)
-    // Skip if this call originated from the coordinator itself (x-bot-coordinator header)
-    // and skip if match/game just ended (coordinator not needed)
-    if (req.headers.get('x-bot-coordinator') !== 'true' && !matchEnded && !gameOver) {
+    // Only suppress the trigger when this call came from the coordinator itself.
+    // Verify BOTH the custom header AND that the request used the service_role key —
+    // clients can set arbitrary headers, but they cannot forge the service_role JWT.
+    const serviceKeyForCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const authHeaderForCheck = req.headers.get('authorization') ?? '';
+    const isInternalCoordinatorCall =
+      req.headers.get('x-bot-coordinator') === 'true' &&
+      serviceKeyForCheck !== '' &&
+      authHeaderForCheck === `Bearer ${serviceKeyForCheck}`;
+
+    if (!isInternalCoordinatorCall && !matchEnded && !gameOver) {
       try {
         const { data: nextPlayer } = await supabaseClient
           .from('room_players')

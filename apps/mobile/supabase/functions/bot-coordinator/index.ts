@@ -195,9 +195,16 @@ Deno.serve(async (req) => {
     // 3. Try to acquire an advisory lock to prevent concurrent coordinators
     // Use room.id hash as the lock key
     const lockKey = Math.abs(hashCode(room.id)) % 2147483647; // Postgres int4 range
-    const { data: lockResult } = await supabaseClient
-      .rpc('acquire_bot_coordinator_lock', { lock_key: lockKey })
-      .single();
+    const { data: lockResult, error: lockError } = await supabaseClient
+      .rpc('acquire_bot_coordinator_lock', { lock_key: lockKey });
+
+    if (lockError) {
+      console.error('[bot-coordinator] Failed to acquire coordinator lock:', lockError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to acquire coordinator lock' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     // acquire_bot_coordinator_lock returns true if lock acquired, false if another session holds it
     const lockAcquired = lockResult === true;
@@ -344,10 +351,15 @@ Deno.serve(async (req) => {
       }
     } finally {
       // 5. Release advisory lock
-      await supabaseClient
-        .rpc('release_bot_coordinator_lock', { lock_key: lockKey })
-        .single()
-        .catch((err: any) => console.error('[bot-coordinator] Lock release error:', err));
+      try {
+        const { error: releaseError } = await supabaseClient
+          .rpc('release_bot_coordinator_lock', { lock_key: lockKey });
+        if (releaseError) {
+          console.error('[bot-coordinator] Lock release error:', releaseError);
+        }
+      } catch (err: any) {
+        console.error('[bot-coordinator] Lock release exception:', err);
+      }
     }
 
     const elapsed = Date.now() - startTime;

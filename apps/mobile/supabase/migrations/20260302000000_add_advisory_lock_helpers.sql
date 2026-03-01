@@ -11,7 +11,7 @@
 CREATE OR REPLACE FUNCTION acquire_bot_coordinator_lock(lock_key bigint)
 RETURNS boolean
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 BEGIN
   RETURN pg_try_advisory_lock(lock_key);
@@ -23,17 +23,15 @@ $$;
 CREATE OR REPLACE FUNCTION release_bot_coordinator_lock(lock_key bigint)
 RETURNS boolean
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 BEGIN
   RETURN pg_advisory_unlock(lock_key);
 END;
 $$;
 
--- Grant execute to the service role (used by Edge Functions)
+-- Grant execute to the service role only (used by Edge Functions)
+-- Authenticated/anon users must NOT be able to acquire advisory locks,
+-- as they could hold the room lock and stall bot coordination.
 GRANT EXECUTE ON FUNCTION acquire_bot_coordinator_lock(bigint) TO service_role;
 GRANT EXECUTE ON FUNCTION release_bot_coordinator_lock(bigint) TO service_role;
-
--- Optionally allow anon/authenticated to call them too (harmless, no data access)
-GRANT EXECUTE ON FUNCTION acquire_bot_coordinator_lock(bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION release_bot_coordinator_lock(bigint) TO authenticated;
