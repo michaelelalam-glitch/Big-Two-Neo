@@ -63,8 +63,16 @@ export function useMatchTransition({
   /** Track the match_number we're transitioning FROM to prevent double-fires */
   const transitionedMatchRef = useRef<number | null>(null);
 
+  // Store gameState in a ref so triggerNewMatch does not need it in its useCallback deps.
+  // Without this, every Realtime update recreates triggerNewMatch (because gameState is a
+  // new object reference), which in turn causes the scheduling useEffect to re-run and
+  // cancel the pending fallback timer — potentially preventing start_new_match from firing.
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
   const triggerNewMatch = useCallback(async () => {
-    if (!room?.id || !gameState) return;
+    const gs = gameStateRef.current;
+    if (!room?.id || !gs) return;
     if (isTransitioningRef.current) {
       networkLogger.debug('[MatchTransition] Already transitioning, skipping');
       return;
@@ -76,7 +84,7 @@ export function useMatchTransition({
       return;
     }
 
-    const currentMatchNumber = gameState.match_number || 1;
+    const currentMatchNumber = gs.match_number || 1;
 
     // Don't fire twice for the same match
     if (transitionedMatchRef.current === currentMatchNumber) {
@@ -92,10 +100,11 @@ export function useMatchTransition({
     for (let attempt = 0; attempt < MAX_TRANSITION_RETRIES; attempt++) {
       try {
         // Re-check: is the game still in 'finished'? Another client/coordinator might have fixed it.
+        const roomId = room.id; // captured from outer scope (room is a dep, so this is stable)
         const { data: freshState, error: fetchErr } = await supabase
           .from('game_state')
           .select('game_phase, match_number')
-          .eq('room_id', room.id)
+          .eq('room_id', roomId)
           .single();
 
         if (fetchErr) {
@@ -120,7 +129,7 @@ export function useMatchTransition({
           starting_player_index?: number;
           error?: string;
         }>('start_new_match', {
-          body: { room_id: room.id },
+          body: { room_id: roomId },
         });
 
         if (newMatchError || !newMatchData?.success) {
@@ -152,7 +161,8 @@ export function useMatchTransition({
     }
 
     isTransitioningRef.current = false;
-  }, [room, gameState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded; stored in gameStateRef to prevent timer cancellation on unrelated Realtime updates
+  }, [room]);
 
   useEffect(() => {
     // Clear timer if disabled or no context
