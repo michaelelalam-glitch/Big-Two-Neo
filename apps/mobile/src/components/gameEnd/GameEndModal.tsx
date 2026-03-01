@@ -22,6 +22,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   Animated,
   StyleSheet,
   Platform,
@@ -640,131 +641,139 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   }
 
   const allExpanded = expandedScoreMatches.size === scoreHistory.length;
+  const scoreHistoryLastIndex = scoreHistory.length - 1;
 
-  return (
-    <ScrollView 
-      style={styles.tabContent}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.tabScrollContent}
-    >
-      {/* Header row with title + expand/collapse toggle */}
-      <View style={styles.scoreHistoryHeaderRow}>
-        <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
-        <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
-          <Text style={styles.expandAllText}>
-            {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Cumulative totals summary bar */}
-      <View style={styles.scoreSummaryBar}>
-        <Text style={styles.scoreSummaryTitle}>Totals</Text>
-        <View style={styles.scoreSummaryPlayers}>
-          {playerNames.map((name, idx) => (
-            <View key={idx} style={styles.scoreSummaryItem}>
-              <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
-              <Text style={[
-                styles.scoreSummaryScore,
-                cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText
-              ]}>
-                {cumulativeTotals[idx]}
+  const renderScoreItem = ({ item: match, index: matchIndex }: { item: typeof scoreHistory[0]; index: number }) => {
+    const hasBustedPlayer = match.scores.some(score => score > 100);
+    const isExpanded = expandedScoreMatches.has(match.matchNumber);
+    const isLatest = matchIndex === scoreHistoryLastIndex;
+    return (
+      <View>
+        {/* Collapsible header */}
+        <TouchableOpacity
+          style={[
+            styles.scoreHistoryCard,
+            hasBustedPlayer && styles.scoreHistoryCardBusted,
+            isLatest && styles.scoreHistoryCardLatest,
+            !isExpanded && styles.scoreHistoryCardCollapsed,
+          ]}
+          onPress={() => toggleScoreExpansion(match.matchNumber)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.scoreHistoryHeader}>
+            <View style={styles.scoreHistoryHeaderLeft}>
+              <Text style={styles.matchNumber}>
+                {i18n.t('gameEnd.match')} {match.matchNumber}
               </Text>
+              {!isExpanded && (
+                <Text style={styles.scoreHistoryCollapsedSummary}>
+                  {playerNames.map((name, pi) =>
+                    `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
+                  ).join(' · ')}
+                </Text>
+              )}
             </View>
-          ))}
-        </View>
-      </View>
-      
-      {scoreHistory.map((match, matchIndex) => {
-        const hasBustedPlayer = match.scores.some(score => score > 100);
-        const isExpanded = expandedScoreMatches.has(match.matchNumber);
-        const isLatest = matchIndex === scoreHistory.length - 1;
-        
-        return (
-          <View key={match.matchNumber}>
-            {/* Collapsible header */}
-            <TouchableOpacity
-              style={[
-                styles.scoreHistoryCard,
-                hasBustedPlayer && styles.scoreHistoryCardBusted,
-                isLatest && styles.scoreHistoryCardLatest,
-                !isExpanded && styles.scoreHistoryCardCollapsed,
-              ]}
-              onPress={() => toggleScoreExpansion(match.matchNumber)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.scoreHistoryHeader}>
-                <View style={styles.scoreHistoryHeaderLeft}>
-                  <Text style={styles.matchNumber}>
-                    {i18n.t('gameEnd.match')} {match.matchNumber}
-                  </Text>
-                  {!isExpanded && (
-                    <Text style={styles.scoreHistoryCollapsedSummary}>
-                      {playerNames.map((name, pi) => 
-                        `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
-                      ).join(' · ')}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.playHistoryMatchHeaderRight}>
-                  {isLatest && (
-                    <View style={styles.latestBadge}>
-                      <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.expandIcon}>
-                    {isExpanded ? '▼' : '▶'}
-                  </Text>
-                </View>
-              </View>
-            
-              {/* Expanded detail */}
-              {isExpanded && (
-                <View style={styles.scoreHistoryGrid}>
-                  {playerNames.map((name, playerIndex) => {
-                    const score = match.scores[playerIndex] || 0;
-                    const pointsAdded = match.pointsAdded[playerIndex] || 0;
-                    const isBusted = score > 100;
-                    
-                    return (
-                      <View key={playerIndex} style={styles.scoreHistoryRow}>
-                        <View style={styles.scoreHistoryPlayerInfo}>
-                          <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
-                          <View style={styles.scoreHistoryPoints}>
-                            <Text 
-                              style={[
-                                styles.scoreHistoryCumulativeScore,
-                                isBusted && styles.scoreHistoryBustedText
-                              ]}
-                            >
-                              {score} {i18n.t('gameEnd.points')}
-                            </Text>
-                            <Text 
-                              style={[
-                                styles.scoreHistoryPointsAdded,
-                                pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive
-                              ]}
-                            >
-                              {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
+            <View style={styles.playHistoryMatchHeaderRight}>
+              {isLatest && (
+                <View style={styles.latestBadge}>
+                  <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
                 </View>
               )}
+              <Text style={styles.expandIcon}>
+                {isExpanded ? '▼' : '▶'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Expanded detail */}
+          {isExpanded && (
+            <View style={styles.scoreHistoryGrid}>
+              {playerNames.map((name, playerIndex) => {
+                const score = match.scores[playerIndex] || 0;
+                const pointsAdded = match.pointsAdded[playerIndex] || 0;
+                const isBusted = score > 100;
+                return (
+                  <View key={playerIndex} style={styles.scoreHistoryRow}>
+                    <View style={styles.scoreHistoryPlayerInfo}>
+                      <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
+                      <View style={styles.scoreHistoryPoints}>
+                        <Text
+                          style={[
+                            styles.scoreHistoryCumulativeScore,
+                            isBusted && styles.scoreHistoryBustedText,
+                          ]}
+                        >
+                          {score} {i18n.t('gameEnd.points')}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.scoreHistoryPointsAdded,
+                            pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive,
+                          ]}
+                        >
+                          {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <FlatList
+      style={styles.tabContent}
+      contentContainerStyle={styles.tabScrollContent}
+      showsVerticalScrollIndicator={false}
+      data={scoreHistory}
+      keyExtractor={(item) => item.matchNumber.toString()}
+      renderItem={renderScoreItem}
+      extraData={expandedScoreMatches}
+      nestedScrollEnabled
+      ListHeaderComponent={
+        <>
+          {/* Header row with title + expand/collapse toggle */}
+          <View style={styles.scoreHistoryHeaderRow}>
+            <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
+            <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
+              <Text style={styles.expandAllText}>
+                {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+              </Text>
             </TouchableOpacity>
           </View>
-        );
-      })}
-      
-      <View style={styles.tabContentFooter}>
-        <Text style={styles.tabContentFooterText}>
-          {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
-        </Text>
-      </View>
-    </ScrollView>
+
+          {/* Cumulative totals summary bar */}
+          <View style={styles.scoreSummaryBar}>
+            <Text style={styles.scoreSummaryTitle}>Totals</Text>
+            <View style={styles.scoreSummaryPlayers}>
+              {playerNames.map((name, idx) => (
+                <View key={idx} style={styles.scoreSummaryItem}>
+                  <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
+                  <Text style={[
+                    styles.scoreSummaryScore,
+                    cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
+                  ]}>
+                    {cumulativeTotals[idx]}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      }
+      ListFooterComponent={
+        <View style={styles.tabContentFooter}>
+          <Text style={styles.tabContentFooterText}>
+            {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
+          </Text>
+        </View>
+      }
+    />
   );
 };
 
@@ -976,25 +985,30 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   };
 
   return (
-    <ScrollView 
+    <FlatList
       style={styles.tabContent}
-      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.tabScrollContent}
-    >
-      <Text style={styles.historyTitle}>Card Play History</Text>
-      
-      {flattenedData.map((item, index) => (
-        <React.Fragment key={`${item.type}-${index}`}>
-          {renderItem({ item })}
-        </React.Fragment>
-      ))}
-      
-      <View style={styles.tabContentFooter}>
-        <Text style={styles.tabContentFooterText}>
-          {i18n.t('gameEnd.tapToExpand')}
-        </Text>
-      </View>
-    </ScrollView>
+      showsVerticalScrollIndicator={false}
+      data={flattenedData}
+      keyExtractor={(item, index) =>
+        item.type === 'header'
+          ? `header-${item.data.matchNumber}`
+          : `hand-${item.data.matchNumber}-${(item.data as PlayHistoryHandData).handIndex}-${index}`
+      }
+      renderItem={renderItem}
+      extraData={expandedMatches}
+      nestedScrollEnabled
+      ListHeaderComponent={
+        <Text style={styles.historyTitle}>Card Play History</Text>
+      }
+      ListFooterComponent={
+        <View style={styles.tabContentFooter}>
+          <Text style={styles.tabContentFooterText}>
+            {i18n.t('gameEnd.tapToExpand')}
+          </Text>
+        </View>
+      }
+    />
   );
 };
 
