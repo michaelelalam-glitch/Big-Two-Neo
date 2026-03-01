@@ -216,16 +216,27 @@ Deno.serve(async (req) => {
         if (roomRow?.code) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json',
-              'x-bot-coordinator': 'true',
-            },
-            body: JSON.stringify({ room_code: roomRow.code }),
-          }).catch((err) => console.error('[start_new_match] ⚠️ Bot coordinator trigger failed:', err));
-          console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
+          // Await with a short timeout — fire-and-forget is unreliable in Deno Edge Functions
+          // because the runtime may terminate dangling promises once the handler returns.
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+                'x-bot-coordinator': 'true',
+              },
+              body: JSON.stringify({ room_code: roomRow.code }),
+              signal: controller.signal,
+            });
+            console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
+          } catch (err) {
+            console.error('[start_new_match] ⚠️ Bot coordinator trigger failed:', err);
+          } finally {
+            clearTimeout(timeoutId);
+          }
         }
       }
     } catch (err) {

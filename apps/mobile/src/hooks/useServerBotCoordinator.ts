@@ -54,6 +54,10 @@ export function useServerBotCoordinator({
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track per-turn trigger attempts: allow re-triggering after cooldown if the turn is still stuck
   const triggeredForTurnRef = useRef<{ turn: number; lastAttemptAt: number } | null>(null);
+  // Store players in a ref so the effect does not re-run (and cancel the timer) on every
+  // Realtime update that produces a new players array reference without changing the turn.
+  const playersRef = useRef(players);
+  useEffect(() => { playersRef.current = players; }, [players]);
 
   const triggerBotCoordinator = useCallback(async () => {
     const now = Date.now();
@@ -105,8 +109,10 @@ export function useServerBotCoordinator({
       return;
     }
 
-    // Find the current player
-    const currentPlayer = players.find(p => p.player_index === currentTurn);
+    // Find the current player — read from ref so this effect is not re-run (and the
+    // cooldown timer not cancelled) when an unrelated Realtime update produces a new
+    // players array reference without changing current_turn or game_phase.
+    const currentPlayer = playersRef.current.find(p => p.player_index === currentTurn);
     if (!currentPlayer?.is_bot) {
       // Human turn — cancel any lingering bot-turn timer
       if (fallbackTimerRef.current) {
@@ -164,16 +170,17 @@ export function useServerBotCoordinator({
         fallbackTimerRef.current = null;
       }
     };
-  }, [enabled, gameState?.current_turn, gameState?.game_phase, players, roomCode, triggerBotCoordinator]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- players intentionally excluded; stored in playersRef so timer is not cancelled on every Realtime update that recreates the array
+  }, [enabled, gameState?.current_turn, gameState?.game_phase, roomCode, triggerBotCoordinator]);
 
-  // Reset triggered turn when the turn actually advances
+  // Reset triggered turn when the turn actually advances to a human player
   useEffect(() => {
     if (gameState?.current_turn !== undefined) {
-      const currentPlayer = players.find(p => p.player_index === gameState.current_turn);
+      const currentPlayer = playersRef.current.find(p => p.player_index === gameState.current_turn);
       if (!currentPlayer?.is_bot) {
-        // Turn is now a human — reset the trigger tracker entirely
         triggeredForTurnRef.current = null;
       }
     }
-  }, [gameState?.current_turn, players]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- players excluded (use ref); only re-run when current_turn changes
+  }, [gameState?.current_turn]);
 }
