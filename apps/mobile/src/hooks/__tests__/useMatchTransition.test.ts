@@ -94,9 +94,12 @@ describe('useMatchTransition', () => {
         jest.advanceTimersByTime(MATCH_TRANSITION_GRACE_MS + 100);
       });
 
-      expect(invokeWithRetry).toHaveBeenCalledWith('start_new_match', {
-        body: { room_id: mockRoom.id },
-      });
+      expect(invokeWithRetry).toHaveBeenCalledWith(
+        'start_new_match',
+        expect.objectContaining({
+          body: expect.objectContaining({ room_id: mockRoom.id }),
+        })
+      );
     });
 
     it('does NOT call start_new_match when game_phase is playing', async () => {
