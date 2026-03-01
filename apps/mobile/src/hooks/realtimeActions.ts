@@ -130,40 +130,15 @@ export async function executePlayCards({
     gameLogger.info('[useRealtime] 📊 Server scores:', { matchScores, gameOver, finalWinnerIndex });
   }
 
-  // --- Play history update ---
-  const currentPlayHistory = gameState.play_history || [];
-  const currentMatchNumber = gameState.match_number || 1;
+  // --- combo type (used for broadcast below) ---
+  // play_history is now updated server-side in the play-cards Edge Function so that
+  // bot plays (which never go through this client path) are also recorded.
   const comboType: ComboType = (result.combo_type as ComboType) || 'unknown';
-  const updatedPlayHistory = [
-    ...currentPlayHistory,
-    {
-      match_number: currentMatchNumber,
-      position: effectivePlayerIndex,
-      cards,
-      combo_type: comboType,
-      passed: false,
-    },
-  ];
 
   // Auto-pass timer from server response
   const autoPassTimerState = result.auto_pass_timer || null;
   const isHighestPlay = result.highest_play_detected || false;
   gameLogger.info('[useRealtime] ⏰ Server timer state:', { isHighestPlay, timerState: autoPassTimerState });
-
-  // Server already updated game_state (hands, last_play, current_turn, auto_pass_timer)
-  // Client only updates play_history (cosmetic)
-  if (updatedPlayHistory.length > 0) {
-    const { error: historyError } = await supabase
-      .from('game_state')
-      .update({ play_history: updatedPlayHistory })
-      .eq('id', gameState.id);
-
-    if (historyError) {
-      gameLogger.warn('[useRealtime] ⚠️ Failed to update play_history (non-fatal):', historyError);
-    } else {
-      gameLogger.info('[useRealtime] ✅ Play history updated');
-    }
-  }
 
   // --- Broadcasting ---
   await broadcastMessage('cards_played', {
