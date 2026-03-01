@@ -67,6 +67,11 @@ export async function executePlayCards({
   const effectivePlayerIndex = playerIndex ?? currentPlayer?.player_index;
 
   // --- Validation ---
+  // Reject play attempts when the match/game has already ended (prevents stale requests)
+  if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+    throw new Error('Match has ended — waiting for next match to start');
+  }
+
   if (playerIndex === undefined) {
     if (!currentPlayer) throw new Error('Player not found');
     if (gameState.current_turn !== currentPlayer.player_index) throw new Error('Not your turn');
@@ -274,6 +279,11 @@ export async function executePass({
   const passingPlayer = playerIndex !== undefined
     ? roomPlayers.find(p => p.player_index === playerIndex)
     : currentPlayer;
+
+  // Reject pass attempts when the match/game has already ended
+  if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+    throw new Error('Match has ended — waiting for next match to start');
+  }
 
   if (!passingPlayer || gameState.current_turn !== passingPlayer.player_index) {
     throw new Error('Not your turn');

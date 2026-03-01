@@ -20,6 +20,7 @@ import { ScoreboardContainer } from '../../components/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
+import { useMatchTransition } from '../../hooks/useMatchTransition';
 import { useServerBotCoordinator } from '../../hooks/useServerBotCoordinator';
 import { useCardSelection } from '../../hooks/useCardSelection';
 import { useHelperButtons } from '../../hooks/useHelperButtons';
@@ -140,6 +141,7 @@ export function MultiplayerGameScreen() {
   // Server-side multiplayer game state
   const { 
     gameState: multiplayerGameState, 
+    room: multiplayerRoom,
     isHost: isMultiplayerHost,
     isDataReady: isMultiplayerDataReady,
     isConnected,
@@ -279,6 +281,15 @@ export function MultiplayerGameScreen() {
     enabled: isMultiplayerDataReady && playersWithCards.length > 0,
     gameState: multiplayerGameState,
     players: playersWithCards,
+  });
+
+  // Match transition fallback: ensures game progresses to next match when game_phase='finished'.
+  // Primary triggers are in realtimeActions.ts (human wins) and bot-coordinator (bot wins).
+  // This hook fires a fallback start_new_match if the game stays stuck in 'finished'.
+  useMatchTransition({
+    gameState: multiplayerGameState,
+    room: multiplayerRoom,
+    enabled: isMultiplayerDataReady && isConnected,
   });
   
   // Multiplayer play history tracking
