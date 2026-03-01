@@ -28,7 +28,7 @@ const corsHeaders = {
 };
 
 /** Delay between bot moves (ms) — allows Realtime to propagate for smooth client animations */
-const BOT_MOVE_DELAY_MS = 500;
+const BOT_MOVE_DELAY_MS = 300;
 
 /** Maximum bot moves per invocation — prevents infinite loops */
 const MAX_BOT_MOVES = 20;
@@ -77,7 +77,7 @@ async function callPlayCards(
   roomCode: string,
   playerId: string,
   cards: Card[],
-): Promise<{ success: boolean; error?: string; match_ended?: boolean; game_over?: boolean }> {
+): Promise<{ success: boolean; error?: string; match_ended?: boolean; game_over?: boolean; match_scores?: any[]; final_winner_index?: number | null }> {
   const url = `${supabaseUrl}/functions/v1/play-cards`;
   const res = await fetch(url, {
     method: 'POST',
@@ -111,6 +111,8 @@ async function callPlayCards(
     success: true,
     match_ended: data.match_ended,
     game_over: data.game_over,
+    match_scores: data.match_scores,
+    final_winner_index: data.final_winner_index,
   };
 }
 
@@ -281,6 +283,13 @@ Deno.serve(async (req) => {
     // 4. Bot turn execution loop
     let movesExecuted = 0;
     let lastError: string | null = null;
+    // Track whether a match/game ended during bot play so we can start the next match
+    let matchEndedData: {
+      match_ended: boolean;
+      game_over: boolean;
+      match_scores?: any[];
+      final_winner_index?: number | null;
+    } | null = null;
 
     try {
       for (let iteration = 0; iteration < MAX_BOT_MOVES; iteration++) {
@@ -391,7 +400,13 @@ Deno.serve(async (req) => {
 
           // If match ended or game over, stop
           if (result.match_ended || result.game_over) {
-            console.log(`[bot-coordinator] 🏁 Match/game ended after bot play`);
+            matchEndedData = {
+              match_ended: !!result.match_ended,
+              game_over: !!result.game_over,
+              match_scores: result.match_scores,
+              final_winner_index: result.final_winner_index,
+            };
+            console.log(`[bot-coordinator] 🏁 Match/game ended after bot play (game_over=${result.game_over})`);
             break;
           }
         } else {
@@ -423,6 +438,58 @@ Deno.serve(async (req) => {
         }
       } catch (err: any) {
         console.error('[bot-coordinator] Lease release exception:', err);
+      }
+    }
+
+    // ─── Post-loop: handle match / game end triggered by a bot play ───────────
+    if (matchEndedData?.match_ended && !matchEndedData.game_over) {
+      // A bot won the match (but the overall game continues).
+      // The client-side coordinator (useServerBotCoordinator) stops when it sees
+      // game_phase='finished', so nobody calls start_new_match.  We must do it here.
+      console.log('[bot-coordinator] 🔄 Bot won match — triggering start_new_match in 500ms...');
+      await delay(500); // Let the final play-cards update propagate via Realtime
+
+      // Fire-and-forget: start next match
+      fetch(`${supabaseUrl}/functions/v1/start_new_match`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ room_id: room.id }),
+      }).catch((err: any) => console.error('[bot-coordinator] ⚠️ start_new_match fire failed:', err));
+
+      // Broadcast match_ended so all clients update their local scoreboards
+      try {
+        const winnerIdx = matchEndedData.match_scores?.find((s: any) => s.matchScore === 0)?.player_index ?? null;
+        await supabaseClient.channel(`room:${room.id}`).send({
+          type: 'broadcast',
+          event: 'match_ended',
+          payload: {
+            winner_index: winnerIdx,
+            match_scores: matchEndedData.match_scores ?? [],
+          },
+        } as any);
+        console.log('[bot-coordinator] 📡 Broadcast: match_ended (winner=' + winnerIdx + ')');
+      } catch (bcastErr: any) {
+        console.warn('[bot-coordinator] ⚠️ match_ended broadcast failed (non-critical):', bcastErr?.message);
+      }
+    } else if (matchEndedData?.game_over) {
+      // The entire game is over (someone reached 101+).
+      // Broadcast game_over so clients open the game-end modal.
+      console.log('[bot-coordinator] 🎉 Game over — broadcasting to clients...');
+      try {
+        await supabaseClient.channel(`room:${room.id}`).send({
+          type: 'broadcast',
+          event: 'game_over',
+          payload: {
+            winner_index: matchEndedData.final_winner_index ?? null,
+            final_scores: matchEndedData.match_scores ?? [],
+          },
+        } as any);
+        console.log('[bot-coordinator] 📡 Broadcast: game_over');
+      } catch (bcastErr: any) {
+        console.warn('[bot-coordinator] ⚠️ game_over broadcast failed (non-critical):', bcastErr?.message);
       }
     }
 

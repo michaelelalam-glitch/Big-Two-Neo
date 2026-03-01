@@ -772,8 +772,9 @@ export function MultiplayerGameScreen() {
   }, []);
 
   // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
+  // Only show "Game Over" for the true game-over phase (someone reached 101+).
+  // The 'finished' phase is a transient state while the next match is being prepared.
   const isGameFinished =
-    multiplayerGameState?.game_phase === 'finished' ||
     (multiplayerGameState?.game_phase as string) === 'game_over';
 
   // Show loading state while connecting/loading
