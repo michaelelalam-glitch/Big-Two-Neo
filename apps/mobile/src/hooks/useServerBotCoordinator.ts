@@ -111,19 +111,27 @@ export function useServerBotCoordinator({
 
     // Self-rescheduling retry: fires after grace period, then retries every
     // TRIGGER_COOLDOWN_MS while the turn is still stuck on this bot.
-    // Effect cleanup (return fn) cancels pending timers when the turn advances.
+    // A `cancelled` flag is set in the cleanup function and checked both before
+    // re-scheduling and before invoking, so timers stop reliably on unmount
+    // and when `enabled` becomes false or the turn advances.
+    let cancelled = false;
+
     const scheduleAttempt = (delayMs: number): void => {
       fallbackTimerRef.current = setTimeout(async () => {
+        if (cancelled) return;
         triggeredForTurnRef.current = { turn: currentTurn, lastAttemptAt: Date.now() };
         await triggerBotCoordinator();
-        // Schedule next retry — effect cleanup will cancel if turn advances
-        scheduleAttempt(TRIGGER_COOLDOWN_MS);
+        // Only re-schedule if unmount/disable hasn't been signalled
+        if (!cancelled) {
+          scheduleAttempt(TRIGGER_COOLDOWN_MS);
+        }
       }, delayMs);
     };
 
     scheduleAttempt(FALLBACK_GRACE_PERIOD_MS);
 
     return () => {
+      cancelled = true;
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
         fallbackTimerRef.current = null;

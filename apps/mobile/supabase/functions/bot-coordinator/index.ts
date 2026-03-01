@@ -93,7 +93,16 @@ async function callPlayCards(
     }),
   });
 
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await res.json();
+  } catch (_e) {
+    let rawBody = '';
+    try { rawBody = await res.text(); } catch { /* ignore */ }
+    console.error(`[bot-coordinator] ❌ play-cards returned non-JSON body (HTTP ${res.status}):`, rawBody);
+    return { success: false, error: `Non-JSON response from play-cards (HTTP ${res.status})` };
+  }
+
   if (!res.ok || !data.success) {
     console.error(`[bot-coordinator] ❌ play-cards failed:`, data);
     return { success: false, error: data.error || `HTTP ${res.status}` };
@@ -128,7 +137,16 @@ async function callPlayerPass(
     }),
   });
 
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await res.json();
+  } catch (_e) {
+    let rawBody = '';
+    try { rawBody = await res.text(); } catch { /* ignore */ }
+    console.error(`[bot-coordinator] ❌ player-pass returned non-JSON body (HTTP ${res.status}):`, rawBody);
+    return { success: false, error: `Non-JSON response from player-pass (HTTP ${res.status})` };
+  }
+
   if (!res.ok || !data.success) {
     console.error(`[bot-coordinator] ❌ player-pass failed:`, data);
     return { success: false, error: data.error || `HTTP ${res.status}` };
@@ -148,6 +166,30 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // ── Authorization check ──────────────────────────────────────────────────
+    // Allow calls from:
+    //   a) Internal Edge Function triggers (service-role JWT)
+    //   b) Authenticated users — validated as a room member below (after parsing room_code)
+    const authHeader = req.headers.get('authorization') ?? '';
+    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    let callerUserId: string | null = null;
+
+    if (!isServiceRole) {
+      // Validate the user JWT using Supabase auth (anon/authenticated callers)
+      const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: authError } = await userClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      callerUserId = user.id;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
@@ -177,6 +219,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 1b. For authenticated (non-service-role) callers, confirm they are in this room.
+    if (!isServiceRole && callerUserId) {
+      const { data: membership, error: memberError } = await supabaseClient
+        .from('room_players')
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('user_id', callerUserId)
+        .maybeSingle();
+
+      if (memberError || !membership) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Forbidden: not a member of this room' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     // 2. Get all room players (including bots)
     const { data: roomPlayers, error: playersError } = await supabaseClient
       .from('room_players')
@@ -192,24 +251,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Try to acquire an advisory lock to prevent concurrent coordinators
-    // Use room.id hash as the lock key
-    const lockKey = Math.abs(hashCode(room.id)) % 2147483647; // Postgres int4 range
-    const { data: lockResult, error: lockError } = await supabaseClient
-      .rpc('acquire_bot_coordinator_lock', { lock_key: lockKey });
+    // 3. Acquire a row-based coordinator lease to prevent concurrent bot coordinators.
+    //    Row-based leases work reliably across all PgBouncer/pooled connections,
+    //    unlike pg_advisory_lock which is session-scoped and can leak across pools.
+    const coordinatorId = crypto.randomUUID();
+    const { data: leaseAcquired, error: leaseError } = await supabaseClient
+      .rpc('try_acquire_bot_coordinator_lease', {
+        p_room_code: room_code,
+        p_coordinator_id: coordinatorId,
+        p_timeout_seconds: Math.ceil(LOCK_TIMEOUT_MS / 1000),
+      });
 
-    if (lockError) {
-      console.error('[bot-coordinator] Failed to acquire coordinator lock:', lockError);
+    if (leaseError) {
+      console.error('[bot-coordinator] Failed to acquire coordinator lease:', leaseError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to acquire coordinator lock' }),
+        JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    // acquire_bot_coordinator_lock returns true if lock acquired, false if another session holds it
-    const lockAcquired = lockResult === true;
-
-    if (!lockAcquired) {
+    if (leaseAcquired !== true) {
       console.log('[bot-coordinator] ⏳ Another coordinator is already running for this room, skipping');
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: 'concurrent_coordinator' }),
@@ -350,15 +411,18 @@ Deno.serve(async (req) => {
         await delay(BOT_MOVE_DELAY_MS);
       }
     } finally {
-      // 5. Release advisory lock
+      // 5. Release coordinator lease
       try {
         const { error: releaseError } = await supabaseClient
-          .rpc('release_bot_coordinator_lock', { lock_key: lockKey });
+          .rpc('release_bot_coordinator_lease', {
+            p_room_code: room_code,
+            p_coordinator_id: coordinatorId,
+          });
         if (releaseError) {
-          console.error('[bot-coordinator] Lock release error:', releaseError);
+          console.error('[bot-coordinator] Lease release error:', releaseError);
         }
       } catch (err: any) {
-        console.error('[bot-coordinator] Lock release exception:', err);
+        console.error('[bot-coordinator] Lease release exception:', err);
       }
     }
 
@@ -383,18 +447,3 @@ Deno.serve(async (req) => {
   }
 });
 
-// ==================== UTILITY ====================
-
-/**
- * Simple string hash (Java-style) for advisory lock keys.
- * Produces a deterministic int32 from a string.
- */
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0; // Convert to 32-bit integer
-  }
-  return hash;
-}
