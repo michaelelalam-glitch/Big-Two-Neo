@@ -642,12 +642,43 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
 
     const { room_code, player_id, cards } = await req.json();
+
+    // ── Authorization check ─────────────────────────────────────────────────
+    // Service-role callers (bot-coordinator) may act for any player_id.
+    // Non-service-role callers (clients) must present a valid user JWT and the
+    // player_id in the body must match the authenticated user's ID, preventing
+    // a client from submitting plays on behalf of another player.
+    const authHeader = req.headers.get('authorization') ?? '';
+    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+
+    if (!isServiceRole) {
+      const anonClient = createClient(
+        supabaseUrl,
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user }, error: authError } = await anonClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (user.id !== player_id) {
+        console.warn('[play-cards] 🔒 Forbidden: JWT user', user.id?.substring(0, 8), '≠ player_id', player_id?.substring(0, 8));
+        return new Response(
+          JSON.stringify({ success: false, error: 'Forbidden: player_id does not match authenticated user' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     console.log('🎮 [play-cards] Request received:', {
       room_code,
