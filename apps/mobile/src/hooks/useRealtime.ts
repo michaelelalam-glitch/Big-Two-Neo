@@ -366,6 +366,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         room,
         broadcastMessage,
         onMatchEnded,
+        onGameOver,
         setGameState,
       });
     } catch (err) {
