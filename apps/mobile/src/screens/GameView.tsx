@@ -236,9 +236,13 @@ export function GameView(props: GameViewProps) {
                 gameLogger.error('❌ [Landscape] Play button failed to play cards', { error });
               }
             }}
-            onPass={() => {
+            onPass={async () => {
               gameLogger.info('🎴 [Landscape] Pass button pressed');
-              handlePass();
+              try {
+                await handlePass();
+              } catch (error) {
+                gameLogger.error('❌ [Landscape] Pass action failed', error);
+              }
             }}
             onHint={handleHint}
             onSettings={() => setShowSettings(true)}
