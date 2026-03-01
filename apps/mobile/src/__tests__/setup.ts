@@ -81,7 +81,7 @@ jest.mock('react-native-reanimated', () => {
 // COMPONENTS REQUIRING THIS:
 // - GameStateManager (bot turn timers, state save debounce)
 // - AutoPassTimer (rAF + setTimeout fallback countdown)
-// - useBotCoordinator (bot execution delay timers)
+// - useServerBotCoordinator (server fallback, grace period timeout)
 //
 // MIGRATION PATH:
 // If you introduce new components that manage long-lived timers, prefer exposing
