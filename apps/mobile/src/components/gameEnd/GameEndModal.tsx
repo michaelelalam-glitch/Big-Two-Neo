@@ -21,7 +21,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   FlatList,
   Animated,
   StyleSheet,
@@ -348,53 +347,61 @@ export const GameEndModal: React.FC = () => {
             >
               {/* Gradient background using View - LinearGradient requires native rebuild */}
               <View style={styles.gradient}>
-                <ScrollView 
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {/* Winner Announcement */}
-                  <WinnerAnnouncement
-                    winnerName={gameWinnerName}
-                    pulseAnim={pulseAnim}
-                  />
-                  
-                  {/* Final Standings */}
-                  <FinalStandings
-                    finalScores={finalScores}
-                    winnerIndex={gameWinnerIndex}
-                  />
-                  
-                  {/* Tab Interface */}
-                  <TabInterface
-                    activeTab={activeTab}
-                    onTabChange={switchTab}
-                    tabIndicatorAnim={tabIndicatorAnim}
-                  />
-                  
-                  {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none' */}
-                  <Animated.View style={{ opacity: tabContentOpacity }}>
-                    <View style={activeTab !== 'score' ? { display: 'none' } : undefined}>
+                {/*
+                 * Replaced outer ScrollView with a plain View so that each tab's FlatList
+                 * handles its own scrolling independently. Nesting VirtualizedList/FlatList
+                 * inside a same-orientation ScrollView disables windowing and triggers the
+                 * "VirtualizedLists should never be nested inside plain ScrollViews" warning.
+                 */}
+                <View style={styles.scrollView}>
+                  {/* Fixed, non-scrollable header */}
+                  <View style={styles.scrollContent}>
+                    {/* Winner Announcement */}
+                    <WinnerAnnouncement
+                      winnerName={gameWinnerName}
+                      pulseAnim={pulseAnim}
+                    />
+
+                    {/* Final Standings */}
+                    <FinalStandings
+                      finalScores={finalScores}
+                      winnerIndex={gameWinnerIndex}
+                    />
+
+                    {/* Tab Interface */}
+                    <TabInterface
+                      activeTab={activeTab}
+                      onTabChange={switchTab}
+                      tabIndicatorAnim={tabIndicatorAnim}
+                    />
+                  </View>
+
+                  {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none'.
+                      flex: 1 lets the active FlatList expand to fill remaining vertical space. */}
+                  <Animated.View style={{ flex: 1, opacity: tabContentOpacity }}>
+                    <View style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
                       />
                     </View>
-                    <View style={activeTab !== 'play' ? { display: 'none' } : undefined}>
+                    <View style={activeTab !== 'play' ? { display: 'none' } : { flex: 1 }}>
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
                       />
                     </View>
                   </Animated.View>
-                  
-                  {/* Action Buttons */}
-                  <ActionButtons
-                    onShare={handleShare}
-                    onPlayAgain={handlePlayAgain}
-                    onReturnToMenu={handleReturnToMenu}
-                  />
-                </ScrollView>
+
+                  {/* Fixed, non-scrollable footer */}
+                  <View style={styles.scrollContent}>
+                    <ActionButtons
+                      onShare={handleShare}
+                      onPlayAgain={handlePlayAgain}
+                      onReturnToMenu={handleReturnToMenu}
+                    />
+                  </View>
+                </View>
               </View>
             </Animated.View>
           </View>
@@ -734,7 +741,6 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       keyExtractor={(item) => item.matchNumber.toString()}
       renderItem={renderScoreItem}
       extraData={expandedScoreMatches}
-      nestedScrollEnabled
       ListHeaderComponent={
         <>
           {/* Header row with title + expand/collapse toggle */}
@@ -990,14 +996,13 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       contentContainerStyle={styles.tabScrollContent}
       showsVerticalScrollIndicator={false}
       data={flattenedData}
-      keyExtractor={(item, index) =>
+      keyExtractor={(item) =>
         item.type === 'header'
           ? `header-${item.data.matchNumber}`
-          : `hand-${item.data.matchNumber}-${(item.data as PlayHistoryHandData).handIndex}-${index}`
+          : `hand-${item.data.matchNumber}-${(item.data as PlayHistoryHandData).handIndex}`
       }
       renderItem={renderItem}
       extraData={expandedMatches}
-      nestedScrollEnabled
       ListHeaderComponent={
         <Text style={styles.historyTitle}>Card Play History</Text>
       }
