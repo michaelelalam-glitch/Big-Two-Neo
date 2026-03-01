@@ -54,7 +54,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { room_id, expected_match_number } = await req.json();
+    const { room_id, expected_match_number: rawExpectedMatchNumber } = await req.json();
+    // Coerce to a number so string callers (e.g. HTTP tools) don't break the strict === comparison.
+    const expected_match_number = rawExpectedMatchNumber != null ? Number(rawExpectedMatchNumber) : undefined;
 
     if (!room_id) {
       return new Response(
