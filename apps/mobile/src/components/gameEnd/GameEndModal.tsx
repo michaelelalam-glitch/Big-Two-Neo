@@ -353,9 +353,9 @@ export const GameEndModal: React.FC = () => {
                  * inside a same-orientation ScrollView disables windowing and triggers the
                  * "VirtualizedLists should never be nested inside plain ScrollViews" warning.
                  */}
-                <View style={styles.scrollView}>
+                <View style={styles.container}>
                   {/* Fixed, non-scrollable header */}
-                  <View style={styles.scrollContent}>
+                  <View style={styles.modalSection}>
                     {/* Winner Announcement */}
                     <WinnerAnnouncement
                       winnerName={gameWinnerName}
@@ -383,24 +383,33 @@ export const GameEndModal: React.FC = () => {
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
+                        actionButtonsSlot={
+                          <View style={styles.modalSection}>
+                            <ActionButtons
+                              onShare={handleShare}
+                              onPlayAgain={handlePlayAgain}
+                              onReturnToMenu={handleReturnToMenu}
+                            />
+                          </View>
+                        }
                       />
                     </View>
                     <View style={activeTab !== 'play' ? { display: 'none' } : { flex: 1 }}>
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
+                        actionButtonsSlot={
+                          <View style={styles.modalSection}>
+                            <ActionButtons
+                              onShare={handleShare}
+                              onPlayAgain={handlePlayAgain}
+                              onReturnToMenu={handleReturnToMenu}
+                            />
+                          </View>
+                        }
                       />
                     </View>
                   </Animated.View>
-
-                  {/* Fixed, non-scrollable footer */}
-                  <View style={styles.scrollContent}>
-                    <ActionButtons
-                      onShare={handleShare}
-                      onPlayAgain={handlePlayAgain}
-                      onReturnToMenu={handleReturnToMenu}
-                    />
-                  </View>
                 </View>
               </View>
             </Animated.View>
@@ -580,11 +589,14 @@ interface ScoreHistoryTabProps {
     scores: number[];
   }[];
   playerNames: string[];
+  /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
+  actionButtonsSlot?: React.ReactNode;
 }
 
 const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   scoreHistory,
   playerNames,
+  actionButtonsSlot,
 }) => {
   // Start with only the latest match expanded (minimized by default)
   const [expandedScoreMatches, setExpandedScoreMatches] = useState<Set<number>>(() => {
@@ -650,7 +662,9 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   const allExpanded = expandedScoreMatches.size === scoreHistory.length;
   const scoreHistoryLastIndex = scoreHistory.length - 1;
 
-  const renderScoreItem = ({ item: match, index: matchIndex }: { item: typeof scoreHistory[0]; index: number }) => {
+  type ScoreHistoryItem = ScoreHistoryTabProps['scoreHistory'][number];
+
+  const renderScoreItem = ({ item: match, index: matchIndex }: { item: ScoreHistoryItem; index: number }) => {
     const hasBustedPlayer = match.scores.some(score => score > 100);
     const isExpanded = expandedScoreMatches.has(match.matchNumber);
     const isLatest = matchIndex === scoreHistoryLastIndex;
@@ -773,11 +787,14 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
         </>
       }
       ListFooterComponent={
-        <View style={styles.tabContentFooter}>
-          <Text style={styles.tabContentFooterText}>
-            {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
-          </Text>
-        </View>
+        <>
+          <View style={styles.tabContentFooter}>
+            <Text style={styles.tabContentFooterText}>
+              {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
+            </Text>
+          </View>
+          {actionButtonsSlot}
+        </>
       }
     />
   );
@@ -829,11 +846,14 @@ interface PlayHistoryTabProps {
     }[];
   }[];
   playerNames: string[];
+  /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
+  actionButtonsSlot?: React.ReactNode;
 }
 
 const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   playHistory,
   playerNames,
+  actionButtonsSlot,
 }) => {
   // Auto-expand the latest match on mount so content is visible immediately
   const [expandedMatches, setExpandedMatches] = useState<Set<number>>(() => {
@@ -1007,11 +1027,14 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         <Text style={styles.historyTitle}>Card Play History</Text>
       }
       ListFooterComponent={
-        <View style={styles.tabContentFooter}>
-          <Text style={styles.tabContentFooterText}>
-            {i18n.t('gameEnd.tapToExpand')}
-          </Text>
-        </View>
+        <>
+          <View style={styles.tabContentFooter}>
+            <Text style={styles.tabContentFooterText}>
+              {i18n.t('gameEnd.tapToExpand')}
+            </Text>
+          </View>
+          {actionButtonsSlot}
+        </>
       }
     />
   );
@@ -1097,10 +1120,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e', // Rich dark blue-purple background (matches intended gradient top color)
   },
-  scrollView: {
+  container: {
     flex: 1,
   },
-  scrollContent: {
+  modalSection: {
     padding: 20,
   },
   

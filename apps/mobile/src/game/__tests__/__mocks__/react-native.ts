@@ -57,3 +57,46 @@ export const useWindowDimensions = jest.fn(() => ({
   scale: 2,
   fontScale: 1,
 }));
+
+export const Dimensions = {
+  get: jest.fn(() => ({ width: 375, height: 812 })),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+/**
+ * Functional FlatList mock — renders header, all items, and footer so that
+ * text-based assertions work in tests without requiring virtualization infra.
+ */
+export const FlatList = ({
+  data,
+  renderItem,
+  keyExtractor,
+  ListHeaderComponent,
+  ListFooterComponent,
+  style,
+  contentContainerStyle,
+  ...rest
+}: any) => {
+  const React = require('react');
+  const header =
+    ListHeaderComponent == null
+      ? null
+      : typeof ListHeaderComponent === 'function'
+      ? React.createElement(ListHeaderComponent)
+      : React.createElement('View', { testID: 'flatlist-header' }, ListHeaderComponent);
+
+  const items = (data ?? []).map((item: any, index: number) => {
+    const key = keyExtractor ? keyExtractor(item, index) : String(index);
+    return renderItem ? React.createElement('View', { key }, renderItem({ item, index })) : null;
+  });
+
+  const footer =
+    ListFooterComponent == null
+      ? null
+      : typeof ListFooterComponent === 'function'
+      ? React.createElement(ListFooterComponent)
+      : React.createElement('View', { testID: 'flatlist-footer' }, ListFooterComponent);
+
+  return React.createElement('View', rest, header, ...items, footer);
+};

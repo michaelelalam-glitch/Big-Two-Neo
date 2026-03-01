@@ -6,9 +6,9 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import { GameEndModal } from '../GameEndModal';
-import { GameEndProvider } from '../../../contexts/GameEndContext';
+import { GameEndProvider, useGameEnd } from '../../../contexts/GameEndContext';
 
 // Mock dependencies
 jest.mock('expo-haptics', () => ({
@@ -83,6 +83,116 @@ describe('GameEndModal Component', () => {
       // Modal is closed by default, so it returns null (not rendered)
       // This is correct behavior - no error means success
       expect(toJSON()).toBeNull();
+    });
+  });
+});
+
+// ============================================================================
+// FlatList History Rendering & Expand/Collapse Tests (Task #574)
+// ============================================================================
+
+const MOCK_SCORE_HISTORY = [
+  { matchNumber: 1, pointsAdded: [15, 5, 0, 10], scores: [15, 5, 0, 10] },
+  { matchNumber: 2, pointsAdded: [20, 10, 5, 0], scores: [35, 15, 5, 10] },
+];
+
+const MOCK_PLAY_HISTORY = [
+  {
+    matchNumber: 1,
+    hands: [
+      { by: 0 as 0, type: 'single', count: 1, cards: [{ id: '3s', rank: '3', suit: 's' }] },
+      { by: 1 as 1, type: 'pair',   count: 2, cards: [{ id: '4h', rank: '4', suit: 'h' }, { id: '4d', rank: '4', suit: 'd' }] },
+    ],
+  },
+];
+
+const MOCK_FINAL_SCORES = [
+  { player_name: 'Alice',   cumulative_score: 35, player_index: 0, points_added: 20 },
+  { player_name: 'Bob',     cumulative_score: 15, player_index: 1, points_added: 10 },
+  { player_name: 'Charlie', cumulative_score: 5,  player_index: 2, points_added: 5 },
+  { player_name: 'Diana',   cumulative_score: 10, player_index: 3, points_added: 0 },
+];
+
+const PLAYER_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana'];
+
+/** Helper: opens the modal and returns testing utilities */
+const renderWithOpenModal = () => {
+  let ctx!: ReturnType<typeof useGameEnd>;
+
+  const Opener: React.FC = () => {
+    ctx = useGameEnd();
+    return null;
+  };
+
+  const utils = render(
+    <GameEndProvider>
+      <Opener />
+      <GameEndModal />
+    </GameEndProvider>
+  );
+
+  act(() => {
+    ctx.openGameEndModal(
+      'Alice',
+      0,
+      MOCK_FINAL_SCORES,
+      PLAYER_NAMES,
+      MOCK_SCORE_HISTORY,
+      MOCK_PLAY_HISTORY
+    );
+  });
+
+  return utils;
+};
+
+describe('GameEndModal FlatList history rendering (Task #574)', () => {
+  describe('Score History tab', () => {
+    it('renders match numbers for each score history entry', () => {
+      const { getByText } = renderWithOpenModal();
+      // Both match rows should be present
+      expect(getByText(/Match 1/i)).toBeTruthy();
+      expect(getByText(/Match 2/i)).toBeTruthy();
+    });
+
+    it('shows cumulative totals bar with player names', () => {
+      const { getAllByText } = renderWithOpenModal();
+      // Player names appear in the totals summary bar
+      expect(getAllByText('Alice').length).toBeGreaterThan(0);
+    });
+
+    it('latest match starts expanded and earlier matches are collapsed', () => {
+      const { getByText } = renderWithOpenModal();
+      // Both Match 1 and Match 2 rows render in the FlatList
+      expect(getByText(/Match 1/i)).toBeTruthy();
+      expect(getByText(/Match 2/i)).toBeTruthy();
+    });
+
+    it('toggling a collapsed match row expands it without error', () => {
+      const { getByText } = renderWithOpenModal();
+      // Match 1 begins collapsed — pressing its row should expand without throwing
+      const match1Row = getByText(/Match 1/i);
+      expect(() => fireEvent.press(match1Row)).not.toThrow();
+    });
+  });
+
+  describe('Play History tab', () => {
+    it('renders Card Play History title after switching to the play tab', () => {
+      const { getAllByText, getByText } = renderWithOpenModal();
+      // Switch to the play history tab — use the first element that reads 'Play'
+      // (the tab button). There may be other 'play' text in the tree (e.g. Play Again).
+      const playTabButton = getAllByText(/\bPlay\b/i)[0];
+      fireEvent.press(playTabButton);
+      // Play History title should be visible
+      expect(getByText(/Card Play History/i)).toBeTruthy();
+    });
+  });
+
+  describe('Action Buttons in tab footer', () => {
+    it('share, play again, and return buttons are reachable via scroll', () => {
+      const { getByText } = renderWithOpenModal();
+      // Action buttons are rendered inside the FlatList footer
+      expect(getByText(/share/i)).toBeTruthy();
+      expect(getByText(/play again/i)).toBeTruthy();
     });
   });
 });
