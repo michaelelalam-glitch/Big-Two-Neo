@@ -572,18 +572,27 @@ Deno.serve(async (req) => {
       // CRITICAL: await the start_new_match call — fire-and-forget is unreliable in
       // Deno Edge Functions because the runtime may terminate dangling promises once
       // the handler returns a Response.  Awaiting ensures the next match actually starts.
+      // Bounded by FETCH_TIMEOUT_MS so a hung start_new_match doesn't block indefinitely.
       try {
-        const snmRes = await fetch(`${supabaseUrl}/functions/v1/start_new_match`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            room_id: room.id,
-            expected_match_number: matchEndedData.match_number,
-          }),
-        });
+        const snmController = new AbortController();
+        const snmTimeoutId = setTimeout(() => snmController.abort(), FETCH_TIMEOUT_MS);
+        let snmRes: Response;
+        try {
+          snmRes = await fetch(`${supabaseUrl}/functions/v1/start_new_match`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              room_id: room.id,
+              expected_match_number: matchEndedData.match_number,
+            }),
+            signal: snmController.signal,
+          });
+        } finally {
+          clearTimeout(snmTimeoutId);
+        }
         if (!snmRes.ok) {
           const errBody = await snmRes.text().catch(() => '(unreadable)');
           console.error(`[bot-coordinator] ⚠️ start_new_match failed (${snmRes.status}):`, errBody);
