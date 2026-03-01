@@ -647,15 +647,13 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
-    const { room_code, player_id, cards } = await req.json();
-
-    // ── Authorization check ─────────────────────────────────────────────────
+    // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
     // Service-role callers (bot-coordinator) may act for any player_id.
-    // Non-service-role callers (clients) must present a valid user JWT and the
-    // player_id in the body must match the authenticated user's ID, preventing
-    // a client from submitting plays on behalf of another player.
+    // Non-service-role callers (clients) must present a valid user JWT; the resolved
+    // user.id is compared against player_id after the body is parsed below.
     const authHeader = req.headers.get('authorization') ?? '';
     const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
       const anonClient = createClient(
@@ -670,15 +668,33 @@ Deno.serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (user.id !== player_id) {
-        console.warn('[play-cards] 🔒 Forbidden: JWT user', user.id?.substring(0, 8), '≠ player_id', player_id?.substring(0, 8));
-        return new Response(
-          JSON.stringify({ success: false, error: 'Forbidden: player_id does not match authenticated user' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      callerJwtUserId = user.id;
     }
     // ────────────────────────────────────────────────────────────────────────
+
+    // Parse body AFTER auth so unauthenticated callers with a bad JSON body get
+    // a 401/403 rather than leaking a 500 before auth even runs.
+    let room_code: string, player_id: string, cards: any[];
+    try {
+      const body = await req.json();
+      room_code = body.room_code;
+      player_id = body.player_id;
+      cards     = body.cards;
+    } catch (_e) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Now that we have player_id, complete the identity check for client callers.
+    if (!isServiceRole && callerJwtUserId !== player_id) {
+      console.warn('[play-cards] 🔒 Forbidden: JWT user', callerJwtUserId?.substring(0, 8), '≠ player_id', player_id?.substring(0, 8));
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden: player_id does not match authenticated user' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('🎮 [play-cards] Request received:', {
       room_code,
