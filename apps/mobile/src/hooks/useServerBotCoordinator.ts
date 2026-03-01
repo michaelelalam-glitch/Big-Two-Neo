@@ -100,7 +100,11 @@ export function useServerBotCoordinator({
     const currentTurn = gameState.current_turn;
     const phase = gameState.game_phase;
 
-    // Don't trigger for finished/game_over phases
+    // Don't trigger bot-coordinator for finished/game_over phases.
+    // 'finished' is a transient state while start_new_match is being called;
+    // 'game_over' means the entire game has ended.
+    // Recovery from a stuck 'finished' phase is the responsibility of useMatchTransition,
+    // which calls start_new_match after MATCH_TRANSITION_GRACE_MS (5s) as a safety net.
     if (phase === 'finished' || phase === 'game_over') {
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
