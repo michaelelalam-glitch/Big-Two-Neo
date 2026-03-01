@@ -384,7 +384,8 @@ export const GameEndModal: React.FC = () => {
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
                         actionButtonsSlot={
-                          <View style={styles.modalSection}>
+                          // paddingTop only — horizontal padding already comes from tabScrollContent
+                          <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
                               onPlayAgain={handlePlayAgain}
@@ -399,7 +400,8 @@ export const GameEndModal: React.FC = () => {
                         playHistory={playHistory}
                         playerNames={playerNames}
                         actionButtonsSlot={
-                          <View style={styles.modalSection}>
+                          // paddingTop only — horizontal padding already comes from tabScrollContent
+                          <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
                               onPlayAgain={handlePlayAgain}
@@ -655,6 +657,8 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
           <Text style={styles.emptyText}>{i18n.t('gameEnd.noScoreHistory')}</Text>
           <Text style={styles.emptySubtext}>{i18n.t('gameEnd.scoresWillAppear')}</Text>
         </View>
+        {/* Action buttons must always be reachable, even with empty history */}
+        {actionButtonsSlot}
       </View>
     );
   }
@@ -898,6 +902,8 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
           <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
           <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
         </View>
+        {/* Action buttons must always be reachable, even with empty history */}
+        {actionButtonsSlot}
       </View>
     );
   }
