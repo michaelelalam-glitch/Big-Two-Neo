@@ -211,11 +211,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('broadcast', { event: 'game_over' }, (payload) => {
         networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
         fetchGameState(roomId);
-        if (onGameOver) {
+        // Use onGameOverRef.current so the latest callback is always invoked
+        // without needing to re-subscribe the channel when the prop changes.
+        const handler = onGameOverRef.current;
+        if (handler) {
           const broadcastData = (payload as any)?.data || payload;
           const winnerIndex = (broadcastData as any)?.winner_index ?? null;
           const finalScores = (broadcastData as any)?.final_scores ?? [];
-          onGameOver(winnerIndex, finalScores);
+          handler(winnerIndex, finalScores);
         }
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
@@ -324,8 +327,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded from joinChannel; reading it inside the channel callbacks would capture a stale closure — gameState is read dynamically from the latest broadcast events instead
-  }, [userId, username, onDisconnect, onMatchEnded, onGameOver, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure); onGameOver intentionally excluded (read via onGameOverRef.current inside the broadcast handler so the channel never needs to re-subscribe when the callback prop changes)
+  }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)
   const {

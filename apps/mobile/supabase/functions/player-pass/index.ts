@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
             try {
-              await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+              const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${serviceKey}`,
@@ -361,7 +361,12 @@ Deno.serve(async (req) => {
                 body: JSON.stringify({ room_code }),
                 signal: controller.signal,
               });
-              console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
+              if (res.ok) {
+                console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
+              } else {
+                const body = await res.text().catch(() => '(unreadable)');
+                console.error(`[player-pass] ⚠️ Bot coordinator (trick clear) non-2xx: ${res.status}`, body);
+              }
             } catch (err) {
               console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err);
             } finally {
@@ -432,7 +437,7 @@ Deno.serve(async (req) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 2000);
           try {
-            await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${serviceKey}`,
@@ -442,7 +447,12 @@ Deno.serve(async (req) => {
               body: JSON.stringify({ room_code }),
               signal: controller.signal,
             });
-            console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
+            if (res.ok) {
+              console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
+            } else {
+              const body = await res.text().catch(() => '(unreadable)');
+              console.error(`[player-pass] ⚠️ Bot coordinator (normal pass) non-2xx: ${res.status}`, body);
+            }
           } catch (err) {
             console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err);
           } finally {

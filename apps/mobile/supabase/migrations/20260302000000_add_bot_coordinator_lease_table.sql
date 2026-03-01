@@ -1,12 +1,12 @@
 -- Migration: Row-based bot-coordinator lease table + atomic helper functions
 -- Task #551: Server-side bot coordinator
 --
--- NOTE: This file is named "add_advisory_lock_helpers" for historical reasons
--- (an earlier draft used pg_advisory_lock wrappers). The actual implementation
--- uses a row-based lease table (bot_coordinator_locks) which works correctly
--- across all PgBouncer/Supabase pooled connections.
+-- Concurrency mechanism: row-based lease table (bot_coordinator_locks).
+-- This approach is safe under PgBouncer/Supabase connection pooling:
+--   acquire and release always target the same table row regardless of which
+--   backend connection is used.
 --
--- Why row-based instead of advisory locks:
+-- Why NOT advisory locks:
 -- Session-level advisory locks (pg_advisory_lock) are unreliable with connection
 -- pooling — acquire and release may run on different backend sessions, leaking
 -- locks indefinitely. Row-based leases store state in a table row and are pool-safe.

@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 2000);
           try {
-            await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${serviceKey}`,
@@ -231,7 +231,12 @@ Deno.serve(async (req) => {
               body: JSON.stringify({ room_code: roomRow.code }),
               signal: controller.signal,
             });
-            console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
+            if (res.ok) {
+              console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
+            } else {
+              const body = await res.text().catch(() => '(unreadable)');
+              console.error(`[start_new_match] ⚠️ Bot coordinator non-2xx: ${res.status}`, body);
+            }
           } catch (err) {
             console.error('[start_new_match] ⚠️ Bot coordinator trigger failed:', err);
           } finally {

@@ -1152,7 +1152,7 @@ Deno.serve(async (req) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 2000);
           try {
-            await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${serviceKey}`,
@@ -1162,7 +1162,12 @@ Deno.serve(async (req) => {
               body: JSON.stringify({ room_code }),
               signal: controller.signal,
             });
-            console.log(`🤖 [play-cards] Bot coordinator triggered for next player ${nextTurn}`);
+            if (res.ok) {
+              console.log(`🤖 [play-cards] Bot coordinator triggered for next player ${nextTurn}`);
+            } else {
+              const body = await res.text().catch(() => '(unreadable)');
+              console.error(`[play-cards] ⚠️ Bot coordinator non-2xx: ${res.status}`, body);
+            }
           } catch (err) {
             console.error('[play-cards] ⚠️ Bot coordinator trigger failed:', err);
           } finally {
