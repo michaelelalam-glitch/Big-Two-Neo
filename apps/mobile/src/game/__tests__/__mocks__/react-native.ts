@@ -67,8 +67,15 @@ export const Dimensions = {
 /**
  * Functional FlatList mock — renders header, all items (or ListEmptyComponent
  * when data is empty), and footer so that text-based assertions work in tests
- * without requiring virtualization infra. style/contentContainerStyle are
- * forwarded for closer parity with the real React Native FlatList.
+ * without requiring virtualization infra.
+ *
+ * Structure mirrors real FlatList:
+ *   <outer View style={style} testID=… accessibility…>
+ *     <inner View style={contentContainerStyle}>
+ *       {header} {content} {footer}
+ *     </inner>
+ *   </outer>
+ * Only safe/known props are forwarded to avoid noisy unknown-prop warnings.
  */
 export const FlatList = ({
   data,
@@ -79,9 +86,30 @@ export const FlatList = ({
   ListEmptyComponent,
   style,
   contentContainerStyle,
-  ...rest
+  testID,
+  accessibilityLabel,
+  accessibilityRole,
+  accessibilityHint,
+  accessibilityState,
+  accessibilityValue,
+  accessible,
+  importantForAccessibility,
+  // Remaining FlatList-specific props intentionally ignored in mock
+  ...rest // eslint-disable-line @typescript-eslint/no-unused-vars
 }: any) => {
   const React = require('react');
+
+  const containerProps = {
+    testID,
+    accessibilityLabel,
+    accessibilityRole,
+    accessibilityHint,
+    accessibilityState,
+    accessibilityValue,
+    accessible,
+    importantForAccessibility,
+  };
+
   const header =
     ListHeaderComponent == null
       ? null
@@ -112,9 +140,13 @@ export const FlatList = ({
 
   return React.createElement(
     'View',
-    { style: [style, contentContainerStyle], ...rest },
-    header,
-    ...(Array.isArray(content) ? content : [content]),
-    footer,
+    { style, ...containerProps },
+    React.createElement(
+      'View',
+      { style: contentContainerStyle },
+      header,
+      ...(Array.isArray(content) ? content : [content]),
+      footer,
+    ),
   );
 };

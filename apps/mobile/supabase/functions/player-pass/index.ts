@@ -19,6 +19,14 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
+    if (!supabaseUrl || !serviceKey) {
+      console.error('[player-pass] Server misconfigured: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing or empty');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server misconfigured: missing Supabase credentials' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
     // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
@@ -52,6 +60,8 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       room_code = body.room_code;
+      // NOTE: body.player_id is the caller's auth user.id (Supabase JWT subject),
+      //       not the room_players.id row UUID from the database.
       player_id = body.player_id;
     } catch (_e) {
       return new Response(
