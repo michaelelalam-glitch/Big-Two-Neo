@@ -535,7 +535,12 @@ describe('useRealtime - Timer Cancellation', () => {
   });
 
   describe('Database State Updates', () => {
-    it('should update play_history in database when playing cards', async () => {
+    it('delegates play_history tracking to the play-cards Edge Function (server-side)', async () => {
+      // play_history is no longer written client-side. It is updated server-side
+      // inside the play-cards Edge Function so that bot plays (which never route
+      // through this client hook) are also recorded in the history. The client
+      // only needs to confirm that invokeWithRetry was called — the server owns
+      // the authoritative state update.
       const mockUpdateFn = jest.fn().mockReturnValue({
         eq: jest.fn().mockResolvedValue({ error: null }),
       });
@@ -564,16 +569,18 @@ describe('useRealtime - Timer Cancellation', () => {
         await playPromise;
       });
 
-      expect(mockUpdateFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          play_history: expect.arrayContaining([
-            expect.objectContaining({
-              cards: [mockCard],
-              passed: false,
-            }),
-          ]),
-        })
-      );
+      // Server-side: invokeWithRetry was called with the play-cards Edge Function
+      expect(invokeWithRetry).toHaveBeenCalledWith('play-cards', expect.anything());
+
+      // Client-side: the local DB update must NOT include play_history
+      // (server owns that field)
+      if (mockUpdateFn.mock.calls.length > 0) {
+        mockUpdateFn.mock.calls.forEach((call: any[]) => {
+          if (call[0] && typeof call[0] === 'object') {
+            expect(call[0]).not.toHaveProperty('play_history');
+          }
+        });
+      }
     });
 
     it('should broadcast cards_played event when playing cards', async () => {
