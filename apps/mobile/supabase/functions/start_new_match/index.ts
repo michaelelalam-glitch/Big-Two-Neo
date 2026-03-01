@@ -277,33 +277,27 @@ Deno.serve(async (req) => {
         if (roomRow?.code) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Await with a bounded timeout — fire-and-forget is unreliable in Deno Edge Functions
-          // because the runtime may terminate dangling promises once the handler returns.
-          // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10_000);
-          try {
-            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-                'x-bot-coordinator': 'true',
-              },
-              body: JSON.stringify({ room_code: roomRow.code }),
-              signal: controller.signal,
-            });
+          // Fire-and-forget via EdgeRuntime.waitUntil: the new-match response returns
+          // immediately to the client while bot-coordinator runs in the background.
+          // This prevents start_new_match from blocking on cold-start + bot turn execution.
+          const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code: roomRow.code }),
+          }).then(res => {
             if (res.ok) {
               console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
             } else {
-              const body = await res.text().catch(() => '(unreadable)');
-              console.error(`[start_new_match] ⚠️ Bot coordinator non-2xx: ${res.status}`, body);
+              res.text().then(body => console.error(`[start_new_match] ⚠️ Bot coordinator non-2xx: ${res.status}`, body)).catch(() => {});
             }
-          } catch (err) {
+          }).catch(err => {
             console.error('[start_new_match] ⚠️ Bot coordinator trigger failed:', err);
-          } finally {
-            clearTimeout(timeoutId);
-          }
+          });
+          try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
         }
       }
     } catch (err) {

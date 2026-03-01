@@ -1188,33 +1188,29 @@ Deno.serve(async (req) => {
         if (nextPlayer?.is_bot) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Await with a bounded timeout — fire-and-forget via .catch() is unreliable in
-          // Deno Edge Functions because the runtime may terminate dangling promises once
-          // the handler returns its Response.
-          // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10_000);
-          try {
-            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-                'x-bot-coordinator': 'true',
-              },
-              body: JSON.stringify({ room_code }),
-              signal: controller.signal,
-            });
+          // Use EdgeRuntime.waitUntil so the response returns immediately to the client
+          // and bot-coordinator executes as a background task. This prevents the player's
+          // play-cards call from blocking while all consecutive bot turns execute (~1–10 s),
+          // which was causing the spinner to stay on and bots to appear slow.
+          const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code }),
+          }).then(res => {
             if (res.ok) {
               console.log(`🤖 [play-cards] Bot coordinator triggered for next player ${nextTurn}`);
             } else {
-              const body = await res.text().catch(() => '(unreadable)');
-              console.error(`[play-cards] ⚠️ Bot coordinator non-2xx: ${res.status}`, body);
+              res.text().then(body => console.error(`[play-cards] ⚠️ Bot coordinator non-2xx: ${res.status}`, body)).catch(() => {});
             }
-          } catch (err) {
+          }).catch(err => {
             console.error('[play-cards] ⚠️ Bot coordinator trigger failed:', err);
-          } finally {
-            clearTimeout(timeoutId);
+          });
+          try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {
+            // EdgeRuntime.waitUntil not available in test/local environments
           }
         }
       } catch (err) {

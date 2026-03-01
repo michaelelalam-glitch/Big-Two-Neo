@@ -36,6 +36,13 @@ export function findStraightSequenceIndex(ranks: string[]): number {
   
   // Ensure all ranks are unique (no duplicates)
   if (rankSet.size !== 5) return -1;
+
+  // Explicit guard: reject wrap-around straights (e.g. J-Q-K-A-2 / 2AKQJ).
+  // In Big Two, 2 can only be LOW (A-2-3-4-5 and 2-3-4-5-6).
+  // Any hand containing 2 AND A AND (J or Q or K) is a wrap-around and is INVALID.
+  if (rankSet.has('2') && rankSet.has('A') && (rankSet.has('J') || rankSet.has('Q') || rankSet.has('K'))) {
+    return -1;
+  }
   
   // Check each valid sequence
   return VALID_STRAIGHT_SEQUENCES.findIndex(seq => {

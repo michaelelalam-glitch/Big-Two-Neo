@@ -347,32 +347,26 @@ Deno.serve(async (req) => {
           if (nextPlayer?.is_bot) {
             const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
             const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-            // Await with a bounded timeout — fire-and-forget is unreliable in Deno Edge Functions.
-            // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10_000);
-            try {
-              const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${serviceKey}`,
-                  'Content-Type': 'application/json',
-                  'x-bot-coordinator': 'true',
-                },
-                body: JSON.stringify({ room_code }),
-                signal: controller.signal,
-              });
+            // Fire-and-forget via EdgeRuntime.waitUntil: response returns immediately to client;
+            // bot-coordinator runs in background so the pass call doesn't block on bot turns.
+            const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+                'x-bot-coordinator': 'true',
+              },
+              body: JSON.stringify({ room_code }),
+            }).then(res => {
               if (res.ok) {
                 console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
               } else {
-                const body = await res.text().catch(() => '(unreadable)');
-                console.error(`[player-pass] ⚠️ Bot coordinator (trick clear) non-2xx: ${res.status}`, body);
+                res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (trick clear) non-2xx: ${res.status}`, body)).catch(() => {});
               }
-            } catch (err) {
+            }).catch(err => {
               console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err);
-            } finally {
-              clearTimeout(timeoutId);
-            }
+            });
+            try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
           }
         } catch (err) {
           console.error('[player-pass] ⚠️ Bot next-player check (trick clear) failed (non-critical):', err);
@@ -434,32 +428,26 @@ Deno.serve(async (req) => {
         if (nextPlayer?.is_bot) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Await with a bounded timeout — fire-and-forget is unreliable in Deno Edge Functions.
-          // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10_000);
-          try {
-            const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-                'x-bot-coordinator': 'true',
-              },
-              body: JSON.stringify({ room_code }),
-              signal: controller.signal,
-            });
+          // Fire-and-forget via EdgeRuntime.waitUntil: response returns immediately to client;
+          // bot-coordinator runs in background so the pass call doesn't block on bot turns.
+          const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code }),
+          }).then(res => {
             if (res.ok) {
               console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
             } else {
-              const body = await res.text().catch(() => '(unreadable)');
-              console.error(`[player-pass] ⚠️ Bot coordinator (normal pass) non-2xx: ${res.status}`, body);
+              res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (normal pass) non-2xx: ${res.status}`, body)).catch(() => {});
             }
-          } catch (err) {
+          }).catch(err => {
             console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err);
-          } finally {
-            clearTimeout(timeoutId);
-          }
+          });
+          try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
         }
       } catch (err) {
         console.error('[player-pass] ⚠️ Bot next-player check (normal pass) failed (non-critical):', err);
