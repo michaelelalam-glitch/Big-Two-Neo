@@ -18,8 +18,8 @@ import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
+import type { AutoPassTimerState } from '../types/multiplayer';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface GameViewProps {
   // Mode
   isLocalAIGame: boolean;
@@ -49,7 +49,7 @@ export interface GameViewProps {
   effectiveLastPlayedCards: Card[];
   effectiveLastPlayedBy: string | null;
   effectiveLastPlayComboType: string | null;
-  effectiveLastPlayCombo: any;
+  effectiveLastPlayCombo: string | null;
 
   // Layout players
   layoutPlayers: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number }>;
@@ -66,7 +66,7 @@ export interface GameViewProps {
   memoizedCurrentScores: number[];
   memoizedCardCounts: number[];
   memoizedOriginalPlayerNames: string[];
-  effectiveAutoPassTimerState: any;
+  effectiveAutoPassTimerState: AutoPassTimerState | undefined;
   effectiveScoreboardCurrentPlayerIndex: number;
   matchNumber: number;
   isGameFinished: boolean;
@@ -92,7 +92,6 @@ export interface GameViewProps {
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
   isMountedRef: React.MutableRefObject<boolean>;
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export function GameView(props: GameViewProps) {
   const {
@@ -216,18 +215,26 @@ export function GameView(props: GameViewProps) {
             onSelectionChange={setSelectedCardIds}
             onCardsReorder={handleCardsReorder}
             // Drag-to-play callback
-            onPlayCards={(cards: Card[]) => {
+            onPlayCards={async (cards: Card[]) => {
               gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
-              handlePlayCards(cards);
+              try {
+                await handlePlayCards(cards);
+              } catch (error) {
+                gameLogger.error('❌ [Landscape] Drag-to-play failed', error);
+              }
             }}
             // Control callbacks
             onOrientationToggle={toggleOrientation}
             onHelp={() => gameLogger.info('Help requested')}
             onSort={handleSort}
             onSmartSort={handleSmartSort}
-            onPlay={() => {
+            onPlay={async () => {
               gameLogger.info('🎴 [Landscape] Play button pressed with selected cards:', selectedCards.length);
-              handlePlayCards(selectedCards);
+              try {
+                await handlePlayCards(selectedCards);
+              } catch (error) {
+                gameLogger.error('❌ [Landscape] Play button failed to play cards', { error });
+              }
             }}
             onPass={() => {
               gameLogger.info('🎴 [Landscape] Pass button pressed');

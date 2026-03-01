@@ -60,7 +60,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Now that we have player_id, complete the identity check for client callers.
+    // Validate required fields before the identity check so a missing/empty
+    // player_id returns 400 (Bad Request) instead of a misleading 403 (Forbidden).
+    if (!room_code || !player_id) {
+      console.log('❌ [player-pass] Missing required fields');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Now that we have a valid player_id, complete the identity check for client callers.
     if (!isServiceRole && callerJwtUserId !== player_id) {
       console.warn('[player-pass] 🔒 Forbidden: JWT user', callerJwtUserId?.substring(0, 8), '≠ player_id', player_id?.substring(0, 8));
       return new Response(
@@ -73,14 +83,6 @@ Deno.serve(async (req) => {
       room_code,
       player_id: player_id?.substring(0, 8),
     });
-
-    if (!room_code || !player_id) {
-      console.log('❌ [player-pass] Missing required fields');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // 1. Get room
     const { data: room, error: roomError } = await supabaseClient
