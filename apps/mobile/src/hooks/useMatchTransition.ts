@@ -125,19 +125,35 @@ export function useMatchTransition({
 
         const { data: newMatchData, error: newMatchError } = await invokeWithRetry<{
           success?: boolean;
+          already_advanced?: boolean;
           match_number?: number;
           starting_player_index?: number;
           error?: string;
         }>('start_new_match', {
-          body: { room_id: roomId },
+          // Pass the match we believe is 'finished' so the server can apply a conditional
+          // update: only advance if match_number is unchanged and phase is still 'finished'.
+          // This prevents concurrent useMatchTransition calls (running on every client) from
+          // dealing a second shuffled deck and corrupting game state.
+          body: { room_id: roomId, expected_match_number: currentMatchNumber },
         });
+
+        // Treat already_advanced as a success — another client/coordinator beat us to it
+        if (newMatchData?.already_advanced) {
+          gameLogger.info('[MatchTransition] ✅ Match already advanced by another client, stopping retries');
+          transitionedMatchRef.current = currentMatchNumber;
+          break;
+        }
 
         if (newMatchError || !newMatchData?.success) {
           const errMsg = newMatchData?.error || newMatchError?.message || 'Unknown error';
           gameLogger.error(`[MatchTransition] ❌ start_new_match failed (attempt ${attempt + 1}):`, errMsg);
 
           // If the error indicates the match already started, we're done
-          if (errMsg.includes('Game state not found') || errMsg.includes('No winner found')) {
+          if (
+            errMsg.includes('Game state not found') ||
+            errMsg.includes('No winner found') ||
+            errMsg.includes('Match already advanced')
+          ) {
             gameLogger.warn('[MatchTransition] Match may have already started, stopping retries');
             break;
           }

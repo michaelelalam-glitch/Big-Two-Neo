@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { room_id } = await req.json();
+    const { room_id, expected_match_number } = await req.json();
 
     if (!room_id) {
       return new Response(
@@ -75,6 +75,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Game state not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 1b. Idempotency guard: if caller supplied expected_match_number, verify the game is
+    //     still in the 'finished' phase for that match. Multiple clients (useMatchTransition
+    //     runs on every connected client) may call this simultaneously — the first writer
+    //     advances match_number, so subsequent calls should be treated as no-ops instead
+    //     of dealing a second shuffled deck and corrupting the game state.
+    if (expected_match_number !== undefined && expected_match_number !== null) {
+      if (gameState.game_phase !== 'finished' || gameState.match_number !== expected_match_number) {
+        console.log(
+          `[start_new_match] ✅ Idempotency: match already advanced ` +
+          `(expected match=${expected_match_number}, current match=${gameState.match_number}, phase=${gameState.game_phase})`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_advanced: true,
+            match_number: gameState.match_number,
+            error: 'Match already advanced',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // 2. Get winner from last_match_winner_index column (set by play-cards when match ends)

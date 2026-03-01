@@ -349,7 +349,7 @@ function GameScreenContent() {
   // PHASE 6: Server-side bot coordinator fallback (Tasks #551/#552)
   // Primary trigger is in Edge Functions (play-cards, player-pass, start_new_match).
   // This hook fires a fallback if the server trigger missed after 3s grace period.
-  // No HOST requirement — any client can trigger; advisory lock prevents duplication.
+  // No HOST requirement — any client can trigger; server-side lease table (bot_coordinator_locks) prevents duplication.
   useServerBotCoordinator({
     roomCode: roomCode, // room code string, not UUID
     enabled: isMultiplayerGame && isMultiplayerDataReady && playersWithCards.length > 0,

@@ -312,27 +312,55 @@ Deno.serve(async (req) => {
     // 3. Acquire a row-based coordinator lease to prevent concurrent bot coordinators.
     //    Row-based leases work reliably across all PgBouncer/pooled connections,
     //    unlike pg_advisory_lock which is session-scoped and can leak across pools.
+    //    Retry up to 3× with 500 ms backoff so transient contention (two Edge Function
+    //    invocations landing within milliseconds of each other) doesn't cause a missed
+    //    bot turn. Each retry is still well within the LOCK_TIMEOUT_MS budget.
+    const MAX_LEASE_RETRIES = 3;
+    const LEASE_RETRY_DELAY_MS = 500;
     const coordinatorId = crypto.randomUUID();
-    const { data: leaseAcquired, error: leaseError } = await supabaseClient
-      .rpc('try_acquire_bot_coordinator_lease', {
-        p_room_code: room_code,
-        p_coordinator_id: coordinatorId,
-        // Use 1.5× the loop budget so the lease outlives even a worst-case run.
-        // If p_timeout_seconds == LOCK_TIMEOUT_MS and an HTTP call stalls near the
-        // deadline, the lease can expire mid-run allowing a second coordinator to overlap.
-        p_timeout_seconds: Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000),
-      });
+    const leaseTimeoutSeconds = Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000);
 
-    if (leaseError) {
-      console.error('[bot-coordinator] Failed to acquire coordinator lease:', leaseError);
+    let leaseAcquired = false;
+    const leaseErrors: string[] = [];
+
+    for (let leaseAttempt = 0; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
+      // Bail out early if overall timeout has been hit
+      if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
+
+      const { data, error } = await supabaseClient
+        .rpc('try_acquire_bot_coordinator_lease', {
+          p_room_code: room_code,
+          p_coordinator_id: coordinatorId,
+          // Use 1.5× the loop budget so the lease outlives even a worst-case run.
+          // If p_timeout_seconds == LOCK_TIMEOUT_MS and an HTTP call stalls near the
+          // deadline, the lease can expire mid-run allowing a second coordinator to overlap.
+          p_timeout_seconds: leaseTimeoutSeconds,
+        });
+
+      if (error) {
+        leaseErrors.push(error.message);
+        break; // DB error — don't retry
+      }
+
+      if (data === true) {
+        leaseAcquired = true;
+        break;
+      }
+
+      console.log(`[bot-coordinator] ⏳ Lease contention (attempt ${leaseAttempt + 1}/${MAX_LEASE_RETRIES}), retrying in ${LEASE_RETRY_DELAY_MS}ms...`);
+      await delay(LEASE_RETRY_DELAY_MS);
+    }
+
+    if (leaseErrors.length > 0) {
+      console.error('[bot-coordinator] Failed to acquire coordinator lease:', leaseErrors);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    if (leaseAcquired !== true) {
-      console.log('[bot-coordinator] ⏳ Another coordinator is already running for this room, skipping');
+    if (!leaseAcquired) {
+      console.log('[bot-coordinator] ⏳ Another coordinator is already running for this room after retries, skipping');
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: 'concurrent_coordinator' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
