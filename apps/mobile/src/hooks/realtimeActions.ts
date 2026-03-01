@@ -212,8 +212,8 @@ export async function executePlayCards({
       // Start next match (fire-and-forget)
       (async () => {
         try {
-          gameLogger.info('[useRealtime] 🔄 Starting next match in 2 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          gameLogger.info('[useRealtime] 🔄 Starting next match in 1.5 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 1500));
 
           gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
           const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {

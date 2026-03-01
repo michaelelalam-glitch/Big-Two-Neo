@@ -190,6 +190,36 @@ function GameScreenContent() {
       gameLogger.info('[GameScreen] 📊 Adding score history entry:', scoreHistoryEntry);
       addScoreHistory(scoreHistoryEntry);
     },
+    onGameOver: (winnerIndex, finalScores) => {
+      gameLogger.info(`[GameScreen] 🎉 Game Over! Winner: Player ${winnerIndex}, scores:`, finalScores);
+
+      const winnerIdx = winnerIndex ?? 0;
+      const winnerPlayer = multiplayerPlayers.find(p => p.player_index === winnerIdx);
+      const formattedScores: FinalScore[] = [...finalScores]
+        .sort((a, b) => a.cumulativeScore - b.cumulativeScore)
+        .map((s, index) => ({
+          player_index: s.player_index,
+          player_name:
+            multiplayerPlayers.find(p => p.player_index === s.player_index)?.username ||
+            `Player ${s.player_index + 1}`,
+          cumulative_score: s.cumulativeScore,
+          points_added: s.matchScore,
+          rank: index + 1,
+          is_busted: s.cumulativeScore >= 101,
+        }));
+      const playerNames = [...multiplayerPlayers]
+        .sort((a, b) => a.player_index - b.player_index)
+        .map(p => p.username);
+
+      openGameEndModal(
+        winnerPlayer?.username || `Player ${winnerIdx + 1}`,
+        winnerIdx,
+        formattedScores,
+        playerNames,
+        scoreHistory || [],
+        playHistoryByMatch || [],
+      );
+    },
   });
 
   // PHASE 6: Ensure multiplayer realtime channel is joined when entering the Game screen.
