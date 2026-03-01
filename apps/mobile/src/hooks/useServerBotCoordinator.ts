@@ -52,7 +52,8 @@ export function useServerBotCoordinator({
 }: UseServerBotCoordinatorProps): void {
   const lastTriggerTimeRef = useRef<number>(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const triggeredForTurnRef = useRef<number | null>(null);
+  // Track per-turn trigger attempts: allow re-triggering after cooldown if the turn is still stuck
+  const triggeredForTurnRef = useRef<{ turn: number; lastAttemptAt: number } | null>(null);
 
   const triggerBotCoordinator = useCallback(async () => {
     const now = Date.now();
@@ -97,16 +98,30 @@ export function useServerBotCoordinator({
     const currentPlayer = players.find(p => p.player_index === currentTurn);
     if (!currentPlayer?.is_bot) return;
 
-    // Don't re-trigger for the same turn
-    if (triggeredForTurnRef.current === currentTurn) return;
+    // Allow re-triggering the same turn after the cooldown expires.
+    // If the first fallback attempt failed (or the server didn't respond),
+    // we want to retry rather than leaving the game stuck on a bot turn.
+    const nowForCheck = Date.now();
+    const prevTrigger = triggeredForTurnRef.current;
+    if (
+      prevTrigger !== null &&
+      prevTrigger.turn === currentTurn &&
+      nowForCheck - prevTrigger.lastAttemptAt < TRIGGER_COOLDOWN_MS
+    ) return;
 
-    // Schedule fallback trigger after grace period
-    // The server-side trigger should handle this, but if it doesn't,
-    // the fallback kicks in.
-    fallbackTimerRef.current = setTimeout(() => {
-      triggeredForTurnRef.current = currentTurn;
-      triggerBotCoordinator();
-    }, FALLBACK_GRACE_PERIOD_MS);
+    // Self-rescheduling retry: fires after grace period, then retries every
+    // TRIGGER_COOLDOWN_MS while the turn is still stuck on this bot.
+    // Effect cleanup (return fn) cancels pending timers when the turn advances.
+    const scheduleAttempt = (delayMs: number): void => {
+      fallbackTimerRef.current = setTimeout(async () => {
+        triggeredForTurnRef.current = { turn: currentTurn, lastAttemptAt: Date.now() };
+        await triggerBotCoordinator();
+        // Schedule next retry — effect cleanup will cancel if turn advances
+        scheduleAttempt(TRIGGER_COOLDOWN_MS);
+      }, delayMs);
+    };
+
+    scheduleAttempt(FALLBACK_GRACE_PERIOD_MS);
 
     return () => {
       if (fallbackTimerRef.current) {
@@ -114,14 +129,14 @@ export function useServerBotCoordinator({
         fallbackTimerRef.current = null;
       }
     };
-  }, [enabled, gameState?.current_turn, gameState?.game_phase, players, roomCode, triggerBotCoordinator, gameState]);
+  }, [enabled, gameState?.current_turn, gameState?.game_phase, players, roomCode, triggerBotCoordinator]);
 
   // Reset triggered turn when the turn actually advances
   useEffect(() => {
     if (gameState?.current_turn !== undefined) {
       const currentPlayer = players.find(p => p.player_index === gameState.current_turn);
       if (!currentPlayer?.is_bot) {
-        // Turn is now a human — reset the trigger tracker
+        // Turn is now a human — reset the trigger tracker entirely
         triggeredForTurnRef.current = null;
       }
     }

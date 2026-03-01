@@ -314,7 +314,15 @@ Deno.serve(async (req) => {
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      if (req.headers.get('x-bot-coordinator') !== 'true') {
+      // Verify header + service_role auth — clients can forge headers but not the service_role JWT.
+      const skForTrickClear = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const authForTrickClear = req.headers.get('authorization') ?? '';
+      const isInternalCallTrickClear =
+        req.headers.get('x-bot-coordinator') === 'true' &&
+        skForTrickClear !== '' &&
+        authForTrickClear === `Bearer ${skForTrickClear}`;
+
+      if (!isInternalCallTrickClear) {
         try {
           const { data: nextPlayer } = await supabaseClient
             .from('room_players')
@@ -377,7 +385,15 @@ Deno.serve(async (req) => {
     console.log('✅ [player-pass] Pass processed successfully');
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    if (req.headers.get('x-bot-coordinator') !== 'true') {
+    // Verify header + service_role auth — clients can forge headers but not the service_role JWT.
+    const skForPass = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const authForPass = req.headers.get('authorization') ?? '';
+    const isInternalCallPass =
+      req.headers.get('x-bot-coordinator') === 'true' &&
+      skForPass !== '' &&
+      authForPass === `Bearer ${skForPass}`;
+
+    if (!isInternalCallPass) {
       try {
         const { data: nextPlayer } = await supabaseClient
           .from('room_players')
