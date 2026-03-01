@@ -166,11 +166,18 @@ jobs:
     name: E2E Tests (Maestro)
     runs-on: macos-latest
     needs: test
-    # Only run on PRs to save CI minutes (macOS runners are ~10× more expensive)
-    if: github.event_name == 'pull_request'
-    # Non-blocking: E2E failures don't prevent merge (new infra, may need tuning)
-    continue-on-error: true
+    # Only run on PRs from non-fork branches to save CI minutes (macOS
+    # runners are ~10× more expensive) and because fork PRs don't have access
+    # to repository secrets which the app needs to boot without crashing.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 30
+
+    env:
+      # App needs Supabase env vars to initialize without crashing.
+      # Fork PRs are excluded via the `if:` condition above since they
+      # cannot access these secrets.
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
     
     steps:
       - name: 📥 Checkout code
@@ -226,6 +233,26 @@ jobs:
           # Export DEVICE_ID for subsequent steps
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       
+      - name: 💾 Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          # ios/Podfile doesn't exist until expo prebuild runs, so key off
+          # package.json + lockfile + app.json which determine pod dependencies.
+          key: ${{ runner.os }}-cocoapods-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          restore-keys: |
+            ${{ runner.os }}-cocoapods-
+
+      - name: 💾 Cache DerivedData (xcodebuild)
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/ios/build
+          # Key on dependency files + source hash. Podfile doesn't exist until
+          # prebuild, so use package.json/lockfile/app.json as proxy.
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json', 'apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+
       - name: 📦 Install dependencies
         run: |
           cd apps/mobile
@@ -233,41 +260,51 @@ jobs:
       
       - name: 🏗️ Build iOS app for Simulator
         run: |
+          set -o pipefail
           cd apps/mobile
-          npx expo prebuild --no-install --clean --platform ios
+          # Prebuild WITHOUT --no-install so CocoaPods runs → generates .xcworkspace
+          npx expo prebuild --clean --platform ios
           cd ios
-          xcodebuild -workspace big2mobile.xcworkspace \
-            -scheme big2mobile \
-            -configuration Debug \
+          # Build RELEASE so JavaScript bundle is embedded in the app binary.
+          # Debug builds load JS from Metro dev server which isn't available in CI,
+          # causing the Expo Dev Client launcher to appear instead of the app.
+          xcodebuild -workspace Big2Mobile.xcworkspace \
+            -scheme Big2Mobile \
+            -configuration Release \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,id=${{ env.DEVICE_ID }}' \
+            -destination "platform=iOS Simulator,id=${{ env.DEVICE_ID }}" \
             -derivedDataPath build \
             build \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tail -20
-        timeout-minutes: 15
+            2>&1 | tail -50
+        timeout-minutes: 20
       
       - name: 📲 Install app on Simulator
         run: |
-          APP_PATH=$(find apps/mobile/ios/build -name "*.app" -type d | head -1)
+          # xcodebuild with -derivedDataPath build outputs to:
+          #   build/Build/Products/Release-iphonesimulator/<AppName>.app
+          APP_PATH=$(find apps/mobile/ios/build/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No .app bundle found in derived data. Build may have failed."
+            find apps/mobile/ios/build -type d -maxdepth 4 2>/dev/null || echo "Build directory doesn't exist"
+            exit 1
+          fi
           echo "Installing app: $APP_PATH"
           xcrun simctl install booted "$APP_PATH"
       
       - name: 🎭 Run Maestro E2E tests
         run: |
           cd apps/mobile
-          # Run smoke tests first (fast feedback)
-          maestro test --include-tags smoke e2e/flows/ \
+          # Create results directory (Maestro doesn't auto-create it)
+          mkdir -p e2e/results
+          # Run CI-tagged flows (tests that pass without authentication).
+          # Auth-dependent flows (02-08) require Google/Apple Sign-In which
+          # cannot be automated in CI — they run locally or in dedicated
+          # integration environments with test credentials.
+          maestro test --include-tags ci e2e/flows/ \
             --format junit \
-            --output e2e/results/smoke-results.xml \
-            2>&1 || true
-          
-          # Run all E2E flows
-          maestro test e2e/flows/ \
-            --format junit \
-            --output e2e/results/all-results.xml \
-            2>&1
-        timeout-minutes: 15
+            --output e2e/results/results.xml
+        timeout-minutes: 10
       
       - name: 📸 Upload E2E screenshots & results
         uses: actions/upload-artifact@v4

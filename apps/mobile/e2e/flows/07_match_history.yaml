@@ -1,8 +1,9 @@
-# Flow 07: Match History Screen
-# Validates: User can navigate to Match History and view past games
+# Flow 07: Leaderboard & Profile Navigation
+# Validates: User can navigate to Leaderboard and Profile screens
 # Tags: navigation, history
 #
 # Prerequisites: User is authenticated
+# Source: HomeScreen.tsx — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -14,12 +15,12 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 2: Navigate to Leaderboard (which has match history access)
+# Step 2: Navigate to Leaderboard (top bar button: "🏆 Leaderboard")
 - tapOn: "Leaderboard"
 - extendedWaitUntil:
     visible: "Leaderboard"
@@ -28,13 +29,13 @@ tags:
 # Step 3: Take screenshot
 - takeScreenshot: "07_leaderboard"
 
-# Step 4: Go back and check profile (which links to stats/history)
+# Step 4: Go back
 - back
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 5: Navigate to Profile
+# Step 5: Navigate to Profile (top bar button)
 - tapOn: "Profile"
 - extendedWaitUntil:
     visible: "Profile"

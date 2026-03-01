@@ -5,6 +5,7 @@
 # Prerequisites: User is authenticated
 # Note: This test validates the UI flow. Actual room joining requires
 # a valid room code, so we test the error handling path.
+# Source: JoinRoomScreen.tsx — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -16,7 +17,7 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -26,18 +27,18 @@ tags:
 
 # Step 3: Verify Join Room screen
 - extendedWaitUntil:
-    visible: "Join Room"
+    visible: "Enter a 6-character room code to join"
     timeout: 10000
-- assertVisible: "Enter a 6-character room code to join"
 
 # Step 4: Take screenshot
 - takeScreenshot: "05_join_room_screen"
 
-# Step 5: Enter an invalid room code
-- tapOn: "ABC123"
+# Step 5: Enter an invalid room code into the input field
+- tapOn:
+    text: "ABC123"
 - inputText: "ZZZZZ1"
 
-# Step 6: Tap Join Room button
+# Step 6: Tap Join Room button (the action button, index 1 to skip header)
 - tapOn:
     text: "Join Room"
     index: 1

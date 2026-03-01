@@ -6,6 +6,7 @@
 # Launch → Home → Select Difficulty → Game Screen → Play cards → Score
 #
 # Prerequisites: User is authenticated
+# Source: HomeScreen.tsx + Game components — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -17,7 +18,7 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -25,7 +26,7 @@ tags:
 # Step 2: Tap "Offline Practice"
 - tapOn: "Offline Practice"
 
-# Step 3: Select bot difficulty
+# Step 3: Select bot difficulty (modal shows "🤖 Bot Difficulty")
 - extendedWaitUntil:
     visible: "Bot Difficulty"
     timeout: 5000
