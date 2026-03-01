@@ -1045,6 +1045,20 @@ Deno.serve(async (req) => {
     }
 
     // 14. Update game state (including timer and match winner)
+    // Append this play to play_history server-side so bot plays (which bypass the client)
+    // are also captured. The client-side play_history write in realtimeActions.ts has been
+    // removed to avoid duplicates — the EF is now the single source of truth.
+    const updatedPlayHistory = [
+      ...(Array.isArray(gameState.play_history) ? gameState.play_history : []),
+      {
+        match_number: gameState.match_number || 1,
+        position: player.player_index,
+        cards,
+        combo_type: comboType,
+        passed: false,
+      },
+    ];
+
     const updateData: any = {
       hands: updatedHands,
       last_play: {
@@ -1057,6 +1071,7 @@ Deno.serve(async (req) => {
       passes: 0,
       played_cards: updatedPlayedCards,
       auto_pass_timer: autoPassTimerState,
+      play_history: updatedPlayHistory,
       updated_at: new Date().toISOString(),
     };
 
@@ -1095,7 +1110,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 15. Success response (includes timer state and match scores)
+    // 15. Trigger bot-coordinator if next player is a bot (Task #551)
+    // Only suppress the trigger when this call came from the coordinator itself.
+    // Verify BOTH the custom header AND that the request used the service_role key —
+    // clients can set arbitrary headers, but they cannot forge the service_role JWT.
+    const serviceKeyForCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const authHeaderForCheck = req.headers.get('authorization') ?? '';
+    const isInternalCoordinatorCall =
+      req.headers.get('x-bot-coordinator') === 'true' &&
+      serviceKeyForCheck !== '' &&
+      authHeaderForCheck === `Bearer ${serviceKeyForCheck}`;
+
+    if (!isInternalCoordinatorCall && !matchEnded && !gameOver) {
+      try {
+        const { data: nextPlayer } = await supabaseClient
+          .from('room_players')
+          .select('is_bot')
+          .eq('room_id', room.id)
+          .eq('player_index', nextTurn)
+          .single();
+
+        if (nextPlayer?.is_bot) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code }),
+          }).catch((err) => console.error('[play-cards] ⚠️ Bot coordinator trigger failed:', err));
+          console.log(`🤖 [play-cards] Bot coordinator triggered for next player ${nextTurn}`);
+        }
+      } catch (err) {
+        console.error('[play-cards] ⚠️ Bot next-player check failed (non-critical):', err);
+      }
+    }
+
+    // 16. Success response (includes timer state and match scores)
     return new Response(
       JSON.stringify({
         success: true,

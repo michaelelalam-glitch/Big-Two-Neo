@@ -71,7 +71,8 @@ export function usePlayerDisplayData({
   const isGameFinished = isLocalAIGame
     ? (gameState?.gameOver ?? false)
     : (
-        multiplayerGameState?.game_phase === 'finished' ||
+        // Only show "Game Over" for the true game-over phase (someone reached 101+).
+        // The 'finished' phase is transient—the next match starts automatically.
         multiplayerGameState?.game_phase === 'game_over'
       );
 

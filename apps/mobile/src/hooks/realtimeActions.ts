@@ -34,6 +34,12 @@ export interface PlayCardsParams {
   room: Room | null;
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   onMatchEnded?: (matchNumber: number, scores: PlayerMatchScoreDetail[]) => void;
+  /**
+   * Called when the game fully ends (someone reaches 101+). Invoked directly here
+   * because Supabase Realtime does not echo broadcasts back to the sender — without
+   * this the player who triggers game-over would never see the end-game modal.
+   */
+  onGameOver?: (winnerIndex: number | null, finalScores: PlayerMatchScoreDetail[]) => void;
   setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
 }
 
@@ -55,6 +61,7 @@ export async function executePlayCards({
   room,
   broadcastMessage,
   onMatchEnded,
+  onGameOver,
   setGameState: _setGameState,
 }: PlayCardsParams): Promise<void> {
   const effectivePlayerIndex = playerIndex ?? currentPlayer?.player_index;
@@ -121,6 +128,7 @@ export async function executePlayCards({
   let matchScores: PlayerMatchScoreDetail[] | null = null;
   let gameOver = false;
   let finalWinnerIndex: number | null = null;
+  const currentMatchNumber = gameState.match_number || 1;
 
   if (matchWillEnd && result.match_scores) {
     gameLogger.info('[useRealtime] 🏁 Match ended! Using server-calculated scores');
@@ -130,40 +138,15 @@ export async function executePlayCards({
     gameLogger.info('[useRealtime] 📊 Server scores:', { matchScores, gameOver, finalWinnerIndex });
   }
 
-  // --- Play history update ---
-  const currentPlayHistory = gameState.play_history || [];
-  const currentMatchNumber = gameState.match_number || 1;
+  // --- combo type (used for broadcast below) ---
+  // play_history is now updated server-side in the play-cards Edge Function so that
+  // bot plays (which never go through this client path) are also recorded.
   const comboType: ComboType = (result.combo_type as ComboType) || 'unknown';
-  const updatedPlayHistory = [
-    ...currentPlayHistory,
-    {
-      match_number: currentMatchNumber,
-      position: effectivePlayerIndex,
-      cards,
-      combo_type: comboType,
-      passed: false,
-    },
-  ];
 
   // Auto-pass timer from server response
   const autoPassTimerState = result.auto_pass_timer || null;
   const isHighestPlay = result.highest_play_detected || false;
   gameLogger.info('[useRealtime] ⏰ Server timer state:', { isHighestPlay, timerState: autoPassTimerState });
-
-  // Server already updated game_state (hands, last_play, current_turn, auto_pass_timer)
-  // Client only updates play_history (cosmetic)
-  if (updatedPlayHistory.length > 0) {
-    const { error: historyError } = await supabase
-      .from('game_state')
-      .update({ play_history: updatedPlayHistory })
-      .eq('id', gameState.id);
-
-    if (historyError) {
-      gameLogger.warn('[useRealtime] ⚠️ Failed to update play_history (non-fatal):', historyError);
-    } else {
-      gameLogger.info('[useRealtime] ✅ Play history updated');
-    }
-  }
 
   // --- Broadcasting ---
   await broadcastMessage('cards_played', {
@@ -196,6 +179,13 @@ export async function executePlayCards({
         final_scores: matchScores,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
+
+      // Supabase Realtime does NOT echo broadcasts back to the sender.
+      // Call onGameOver directly so the player who triggered the game-over
+      // also sees the end-game modal (other clients open it via the broadcast listener).
+      if (onGameOver) {
+        onGameOver(finalWinnerIndex, matchScores);
+      }
     } else {
       await broadcastMessage('match_ended', {
         winner_index: effectivePlayerIndex,
@@ -212,8 +202,8 @@ export async function executePlayCards({
       // Start next match (fire-and-forget)
       (async () => {
         try {
-          gameLogger.info('[useRealtime] 🔄 Starting next match in 2 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          gameLogger.info('[useRealtime] 🔄 Starting next match in 1.5 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 1500));
 
           gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
           const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {

@@ -3,7 +3,7 @@
  * 
  * Handles: 2-4 human players + optional AI bots with server-side game state
  * State Management: useRealtime (Supabase Realtime sync)
- * Bot Management: useBotCoordinator (HOST only)
+ * Bot Management: useServerBotCoordinator (server-side via Edge Functions, Tasks #551/#552)
  * Task #570 - Extracted from 1,366-line GameScreen.tsx
  */
 
@@ -20,7 +20,7 @@ import { ScoreboardContainer } from '../../components/scoreboard';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, POSITIONING } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { useBotCoordinator } from '../../hooks/useBotCoordinator';
+import { useServerBotCoordinator } from '../../hooks/useServerBotCoordinator';
 import { useCardSelection } from '../../hooks/useCardSelection';
 import { useHelperButtons } from '../../hooks/useHelperButtons';
 import { useOrientationManager } from '../../hooks/useOrientationManager';
@@ -271,14 +271,14 @@ export function MultiplayerGameScreen() {
     return result;
   }, [multiplayerHandsByIndex, multiplayerPlayers]);
   
-  // Bot coordinator (HOST only)
-  useBotCoordinator({
+  // Bot coordinator: server-side fallback (Tasks #551/#552)
+  // Primary trigger is in play-cards/player-pass/start_new_match Edge Functions.
+  // This hook fires a fallback if the server trigger missed after 3s grace period.
+  useServerBotCoordinator({
     roomCode: roomCode,
-    isCoordinator: isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0,
+    enabled: isMultiplayerDataReady && playersWithCards.length > 0,
     gameState: multiplayerGameState,
     players: playersWithCards,
-    playCards: multiplayerPlayCards,
-    passMove: multiplayerPass,
   });
   
   // Multiplayer play history tracking
@@ -772,8 +772,9 @@ export function MultiplayerGameScreen() {
   }, []);
 
   // Task #590: Derive game-finished state once for match badge + ScoreboardContainer
+  // Only show "Game Over" for the true game-over phase (someone reached 101+).
+  // The 'finished' phase is a transient state while the next match is being prepared.
   const isGameFinished =
-    multiplayerGameState?.game_phase === 'finished' ||
     (multiplayerGameState?.game_phase as string) === 'game_over';
 
   // Show loading state while connecting/loading

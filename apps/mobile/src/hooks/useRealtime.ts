@@ -48,7 +48,7 @@ export type { UseRealtimeOptions } from '../types/realtimeTypes';
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
-  const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded } = options;
+  const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded, onGameOver } = options;
   
   // State
   const [room, setRoom] = useState<Room | null>(null);
@@ -202,6 +202,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
         fetchGameState(roomId);
       })
+      .on('broadcast', { event: 'game_over' }, (payload) => {
+        networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
+        fetchGameState(roomId);
+        if (onGameOver) {
+          const broadcastData = (payload as any)?.data || payload;
+          const winnerIndex = (broadcastData as any)?.winner_index ?? null;
+          const finalScores = (broadcastData as any)?.final_scores ?? [];
+          onGameOver(winnerIndex, finalScores);
+        }
+      })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
         // broadcastMessage wraps data as { event, data: {...}, timestamp }
@@ -309,7 +319,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     
     channelRef.current = channel;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded from joinChannel; reading it inside the channel callbacks would capture a stale closure — gameState is read dynamically from the latest broadcast events instead
-  }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
+  }, [userId, username, onDisconnect, onMatchEnded, onGameOver, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)
   const {
@@ -356,6 +366,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         room,
         broadcastMessage,
         onMatchEnded,
+        onGameOver,
         setGameState,
       });
     } catch (err) {
