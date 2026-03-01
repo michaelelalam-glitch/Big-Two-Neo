@@ -53,7 +53,7 @@ export function MultiplayerGame() {
     playHistoryByMatch,
   } = scoreboardContext;
   const { openGameEndModal } = useGameEnd();
-  const { roomCode, botDifficulty = 'medium' } = route.params;
+  const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
 
   // State for multiplayer room data

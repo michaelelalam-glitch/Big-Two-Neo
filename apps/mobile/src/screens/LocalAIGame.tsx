@@ -4,7 +4,7 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -98,12 +98,9 @@ export function LocalAIGame() {
     checkAndExecuteBotTurn,
   });
 
-  // Update placeholder ref once gameManagerRef is available
-  useEffect(() => {
-    if (gameManagerRef.current) {
-      gameManagerRefPlaceholder.current = gameManagerRef.current;
-    }
-  }, [gameManagerRef]);
+  // Keep placeholder ref in sync with the internal gameManagerRef synchronously
+  // (useEffect + stable ref dependency would only run once and miss the initial value)
+  gameManagerRefPlaceholder.current = gameManagerRef.current;
 
   // Derived game state (player hand, last play info)
   const {
