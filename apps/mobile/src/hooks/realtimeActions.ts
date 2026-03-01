@@ -122,6 +122,39 @@ export async function executePlayCards({
     gameLogger.error('[useRealtime] ❌ Server validation failed:', { message: errorMessage, status: statusCode, debug: debugInfo });
     gameLogger.error('[useRealtime] 📦 Full error context:', { error: playError, result });
 
+    // ── "Lost response" recovery ──────────────────────────────────────────────
+    // Scenario: the server processed our play (match ended) but the HTTP response
+    // was dropped in transit. invokeWithRetry retried and got HTTP 400 "Game already
+    // ended (phase: finished)".  Without intervention, start_new_match is NEVER
+    // called and the game freezes between matches.
+    //
+    // Fix: when we get this specific error, fire start_new_match silently in the
+    // background so the transition still happens.  start_new_match is idempotent —
+    // if the match already advanced it returns `already_advanced: true` harmlessly.
+    // We suppress the error dialog so the user sees a clean next-match transition
+    // instead of a confusing "Game already ended" toast.
+    if (errorMessage.includes('Game already ended') && errorMessage.includes('finished')) {
+      const recoveryMatchNumber = gameState.match_number ?? 1;
+      gameLogger.warn(
+        `[useRealtime] ⚡ "Game already ended" on play-cards — likely lost-response retry. ` +
+        `Silently calling start_new_match for match ${recoveryMatchNumber} as safety net.`
+      );
+      (async () => {
+        await new Promise(r => setTimeout(r, 500));
+        const { data: snmData, error: snmError } = await invokeWithRetry<StartNewMatchResponse>(
+          'start_new_match',
+          { body: { room_id: room!.id, expected_match_number: recoveryMatchNumber } }
+        );
+        if (snmError) {
+          gameLogger.warn('[useRealtime] start_new_match (lost-response recovery) failed:', snmError);
+        } else {
+          gameLogger.info('[useRealtime] ✅ start_new_match (lost-response recovery):', snmData);
+        }
+      })().catch(e => gameLogger.error('[useRealtime] start_new_match recovery threw:', e));
+      return; // Don't show error dialog — Realtime subscription will update the UI
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const userFriendlyError = getPlayErrorExplanation(errorMessage);
     throw new Error(userFriendlyError);
   }
@@ -130,6 +163,7 @@ export async function executePlayCards({
 
   // --- Match end detection ---
   const matchWillEnd = result.match_ended || false;
+  const alreadyFinished = result.already_finished || false; // Idempotent winner retry
   let matchScores: PlayerMatchScoreDetail[] | null = null;
   let gameOver = false;
   let finalWinnerIndex: number | null = null;
@@ -154,21 +188,25 @@ export async function executePlayCards({
   gameLogger.info('[useRealtime] ⏰ Server timer state:', { isHighestPlay, timerState: autoPassTimerState });
 
   // --- Broadcasting ---
-  await broadcastMessage('cards_played', {
-    player_index: effectivePlayerIndex,
-    cards,
-    combo_type: comboType,
-  });
+  // Skip cards_played broadcast on an already_finished retry — the original play was
+  // already broadcast when it actually happened; re-broadcasting would confuse clients.
+  if (!alreadyFinished) {
+    await broadcastMessage('cards_played', {
+      player_index: effectivePlayerIndex,
+      cards,
+      combo_type: comboType,
+    });
 
-  if (isHighestPlay && autoPassTimerState) {
-    try {
-      await broadcastMessage('auto_pass_timer_started', {
-        timer_state: autoPassTimerState,
-        triggering_player_index: effectivePlayerIndex,
-      });
-      gameLogger.info('[useRealtime] ⏰ Auto-pass timer broadcasted:', autoPassTimerState);
-    } catch (timerBroadcastError) {
-      gameLogger.error('[useRealtime] ⚠️ Auto-pass timer broadcast failed (non-fatal):', timerBroadcastError);
+    if (isHighestPlay && autoPassTimerState) {
+      try {
+        await broadcastMessage('auto_pass_timer_started', {
+          timer_state: autoPassTimerState,
+          triggering_player_index: effectivePlayerIndex,
+        });
+        gameLogger.info('[useRealtime] ⏰ Auto-pass timer broadcasted:', autoPassTimerState);
+      } catch (timerBroadcastError) {
+        gameLogger.error('[useRealtime] ⚠️ Auto-pass timer broadcast failed (non-fatal):', timerBroadcastError);
+      }
     }
   }
 
@@ -177,7 +215,7 @@ export async function executePlayCards({
   await new Promise(resolve => setTimeout(resolve, 300));
 
   // --- Match end / game over broadcasting ---
-  if (matchWillEnd && matchScores) {
+  if (matchWillEnd && matchScores && !alreadyFinished) {
     if (gameOver && finalWinnerIndex !== null) {
       await broadcastMessage('game_over', {
         winner_index: finalWinnerIndex,
@@ -231,6 +269,34 @@ export async function executePlayCards({
         gameLogger.error('[useRealtime] 💥 Unhandled error in match start flow:', unhandledError);
       });
     }
+  }
+
+  // --- Already-finished winner retry: kick off start_new_match without re-broadcasting ---
+  // This handles the scenario where our match-winning play succeeded on the server but
+  // the HTTP response was lost. The server-side play-cards idempotency guard returns
+  // match_ended=true + already_finished=true. We must still call start_new_match or
+  // the game will be stuck in 'finished' phase permanently (useMatchTransition is a
+  // 5-second fallback but the user may close the app before it fires).
+  if (alreadyFinished && matchWillEnd) {
+    gameLogger.warn(
+      `[useRealtime] ⚡ already_finished=true — winner retry confirmed. ` +
+      `Calling start_new_match for match ${currentMatchNumber} silently.`
+    );
+    (async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
+          body: { room_id: room!.id, expected_match_number: currentMatchNumber },
+        });
+        if (newMatchError || !newMatchData) {
+          gameLogger.error('[useRealtime] ❌ start_new_match (already-finished) failed:', newMatchError);
+        } else {
+          gameLogger.info('[useRealtime] ✅ start_new_match (already-finished) succeeded:', newMatchData);
+        }
+      } catch (err) {
+        gameLogger.error('[useRealtime] 💥 start_new_match (already-finished) threw:', err);
+      }
+    })().catch((e) => gameLogger.error('[useRealtime] 💥 Unhandled start_new_match (already-finished):', e));
   }
 
   // Auto-pass timer cancellation (non-blocking)

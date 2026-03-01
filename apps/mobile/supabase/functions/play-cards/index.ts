@@ -720,8 +720,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4a. Reject plays when game is already finished/game_over
+    // 4a. Reject plays when game is already finished/game_over.
+    //
+    // IDEMPOTENCY EXCEPTION — "lost response" retry:
+    // When a player plays their last card the server sets game_phase='finished'.
+    // If the HTTP response is lost in transit (FunctionsFetchError on client), the
+    // client retries via invokeWithRetry.  On the retry, game_phase is already
+    // 'finished', so without this guard the client would receive a 400 error and
+    // NEVER call start_new_match — leaving the game permanently stuck.
+    //
+    // Fix: if the requester IS the match winner AND the match ended within the last
+    // 60 seconds, return a synthetic match_ended=true success so the client can
+    // proceed to call start_new_match normally.
     if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+      const matchEndedAt  = gameState.match_ended_at ? new Date(gameState.match_ended_at as string).getTime() : 0;
+      const isRecentEnd   = (Date.now() - matchEndedAt) < 60_000; // within last 60 s
+      const isMatchWinner =
+        gameState.game_phase === 'finished' &&
+        (gameState as any).last_match_winner_index !== null &&
+        (gameState as any).last_match_winner_index !== undefined &&
+        player.player_index === (gameState as any).last_match_winner_index &&
+        isRecentEnd;
+
+      if (isMatchWinner) {
+        console.log(
+          `[play-cards] ✅ Idempotency: winner retry — player ${player.player_index} ` +
+          `already won match ${gameState.match_number}. Returning match_ended=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            match_ended: true,
+            already_finished: true,  // Tells client the phase was already 'finished'
+            game_over: false,
+            cards_remaining: 0,
+            next_turn: gameState.current_turn,
+            combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
+            match_scores: null,      // Scores were already committed; client reads from Realtime
+            highest_play_detected: false,
+            auto_pass_timer: null,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('❌ [play-cards] Game already ended:', { game_phase: gameState.game_phase });
       return new Response(
         JSON.stringify({

@@ -14,6 +14,11 @@ export interface PlayCardsResponse {
   success: boolean;
   debug?: Record<string, unknown>;
   match_ended?: boolean;
+  /** True when game_phase was already 'finished' and this player is the winner
+   *  (idempotent retry after a lost HTTP response). Client should still call
+   *  start_new_match as if the play just ended the match. */
+  already_finished?: boolean;
+  cards_remaining?: number;
   match_scores?: MultiplayerMatchScoreDetail[];
   game_over?: boolean;
   final_winner_index?: number;
