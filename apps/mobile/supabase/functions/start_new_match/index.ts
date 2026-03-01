@@ -196,11 +196,43 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 9. Trigger bot-coordinator if the starting player (winner) is a bot (Task #551)
+    try {
+      const { data: startingPlayer } = await supabaseClient
+        .from('room_players')
+        .select('is_bot')
+        .eq('room_id', room_id)
+        .eq('player_index', winner_index)
+        .single();
+
+      if (startingPlayer?.is_bot) {
+        // Need room_code to invoke bot-coordinator
+        const { data: roomRow } = await supabaseClient
+          .from('rooms')
+          .select('code')
+          .eq('id', room_id)
+          .single();
+
+        if (roomRow?.code) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code: roomRow.code }),
+          }).catch((err) => console.error('[start_new_match] ⚠️ Bot coordinator trigger failed:', err));
+          console.log(`🤖 [start_new_match] Bot coordinator triggered — starting player ${winner_index} is a bot`);
+        }
+      }
+    } catch (err) {
+      console.error('[start_new_match] ⚠️ Bot starting check failed (non-critical):', err);
+    }
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        match_number: newMatchNumber,
-        starting_player_index: winner_index,
         message: `Match ${newMatchNumber} started! Player ${winner_index} leads.`,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

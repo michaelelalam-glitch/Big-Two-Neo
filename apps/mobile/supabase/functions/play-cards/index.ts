@@ -1095,7 +1095,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 15. Success response (includes timer state and match scores)
+    // 15. Trigger bot-coordinator if next player is a bot (Task #551)
+    // Skip if this call originated from the coordinator itself (x-bot-coordinator header)
+    // and skip if match/game just ended (coordinator not needed)
+    if (req.headers.get('x-bot-coordinator') !== 'true' && !matchEnded && !gameOver) {
+      try {
+        const { data: nextPlayer } = await supabaseClient
+          .from('room_players')
+          .select('is_bot')
+          .eq('room_id', room.id)
+          .eq('player_index', nextTurn)
+          .single();
+
+        if (nextPlayer?.is_bot) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code }),
+          }).catch((err) => console.error('[play-cards] ⚠️ Bot coordinator trigger failed:', err));
+          console.log(`🤖 [play-cards] Bot coordinator triggered for next player ${nextTurn}`);
+        }
+      } catch (err) {
+        console.error('[play-cards] ⚠️ Bot next-player check failed (non-critical):', err);
+      }
+    }
+
+    // 16. Success response (includes timer state and match scores)
     return new Response(
       JSON.stringify({
         success: true,

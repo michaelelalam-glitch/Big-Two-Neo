@@ -11,7 +11,7 @@ import { ScoreboardContainer } from '../components/scoreboard';
 import { useAuth } from '../contexts/AuthContext';
 import { GameEndProvider, useGameEnd } from '../contexts/GameEndContext';
 import { ScoreboardProvider, useScoreboard } from '../contexts/ScoreboardContext';
-import { useBotCoordinator } from '../hooks/useBotCoordinator';
+import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
 import { useBotTurnManager } from '../hooks/useBotTurnManager';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useDerivedGameState } from '../hooks/useDerivedGameState';
@@ -268,7 +268,7 @@ function GameScreenContent() {
     
     // CRITICAL FIX: Always return players with cards property (even if empty)
     // Don't return early when hands are missing - just use empty arrays
-    // This ensures useBotCoordinator always receives consistent player structure
+    // This ensures useServerBotCoordinator always receives consistent player structure
     const hasHands = !!multiplayerHandsByIndex;
     
     const result = multiplayerPlayers.map((player) => {
@@ -305,18 +305,15 @@ function GameScreenContent() {
     });
   }, [isMultiplayerGame, isMultiplayerDataReady, isMultiplayerHost, realtimePlayers, multiplayerGameState, playersWithCards]);
   
-  // PHASE 6: Bot coordinator hook (MULTIPLAYER games with bots, HOST only)
-  // BULLETPROOF: Only enable when:
-  // 1. Game state is fully loaded with hands (isMultiplayerDataReady)
-  // 2. Current user is the host (isMultiplayerHost)
-  // 3. Players array is populated (playersWithCards.length > 0)
-  useBotCoordinator({
-    roomCode: roomCode, // Pass room code (string) not room ID (UUID)
-    isCoordinator: isMultiplayerGame && isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0,
+  // PHASE 6: Server-side bot coordinator fallback (Tasks #551/#552)
+  // Primary trigger is in Edge Functions (play-cards, player-pass, start_new_match).
+  // This hook fires a fallback if the server trigger missed after 3s grace period.
+  // No HOST requirement — any client can trigger; advisory lock prevents duplication.
+  useServerBotCoordinator({
+    roomCode: roomCode, // room code string, not UUID
+    enabled: isMultiplayerGame && isMultiplayerDataReady && playersWithCards.length > 0,
     gameState: multiplayerGameState,
     players: playersWithCards,
-    playCards: multiplayerPlayCards,
-    passMove: multiplayerPass,
   });
   
   // PHASE 6: Unified game state (LOCAL only). Multiplayer uses server state shape.

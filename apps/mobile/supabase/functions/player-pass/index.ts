@@ -313,6 +313,35 @@ Deno.serve(async (req) => {
 
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
+      // Trigger bot-coordinator if next player is a bot (Task #551)
+      if (req.headers.get('x-bot-coordinator') !== 'true') {
+        try {
+          const { data: nextPlayer } = await supabaseClient
+            .from('room_players')
+            .select('is_bot')
+            .eq('room_id', room.id)
+            .eq('player_index', finalNextTurn)
+            .single();
+
+          if (nextPlayer?.is_bot) {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+            fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+                'x-bot-coordinator': 'true',
+              },
+              body: JSON.stringify({ room_code }),
+            }).catch((err) => console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err));
+            console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
+          }
+        } catch (err) {
+          console.error('[player-pass] ⚠️ Bot next-player check (trick clear) failed (non-critical):', err);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -346,6 +375,35 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ [player-pass] Pass processed successfully');
+
+    // Trigger bot-coordinator if next player is a bot (Task #551)
+    if (req.headers.get('x-bot-coordinator') !== 'true') {
+      try {
+        const { data: nextPlayer } = await supabaseClient
+          .from('room_players')
+          .select('is_bot')
+          .eq('room_id', room.id)
+          .eq('player_index', nextTurn)
+          .single();
+
+        if (nextPlayer?.is_bot) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code }),
+          }).catch((err) => console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err));
+          console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
+        }
+      } catch (err) {
+        console.error('[player-pass] ⚠️ Bot next-player check (normal pass) failed (non-critical):', err);
+      }
+    }
 
     return new Response(
       JSON.stringify({
