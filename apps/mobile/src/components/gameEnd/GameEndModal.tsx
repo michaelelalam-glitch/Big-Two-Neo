@@ -649,20 +649,6 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
     return totals;
   }, [scoreHistory, playerNames.length]);
 
-  if (scoreHistory.length === 0) {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateIcon}>📊</Text>
-          <Text style={styles.emptyText}>{i18n.t('gameEnd.noScoreHistory')}</Text>
-          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.scoresWillAppear')}</Text>
-        </View>
-        {/* Action buttons must always be reachable, even with empty history */}
-        {actionButtonsSlot}
-      </View>
-    );
-  }
-
   const allExpanded = expandedScoreMatches.size === scoreHistory.length;
   const scoreHistoryLastIndex = scoreHistory.length - 1;
 
@@ -760,43 +746,54 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       renderItem={renderScoreItem}
       extraData={expandedScoreMatches}
       ListHeaderComponent={
-        <>
-          {/* Header row with title + expand/collapse toggle */}
-          <View style={styles.scoreHistoryHeaderRow}>
-            <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
-            <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
-              <Text style={styles.expandAllText}>
-                {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Cumulative totals summary bar */}
-          <View style={styles.scoreSummaryBar}>
-            <Text style={styles.scoreSummaryTitle}>Totals</Text>
-            <View style={styles.scoreSummaryPlayers}>
-              {playerNames.map((name, idx) => (
-                <View key={idx} style={styles.scoreSummaryItem}>
-                  <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
-                  <Text style={[
-                    styles.scoreSummaryScore,
-                    cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
-                  ]}>
-                    {cumulativeTotals[idx]}
-                  </Text>
-                </View>
-              ))}
+        scoreHistory.length > 0 ? (
+          <>
+            {/* Header row with title + expand/collapse toggle */}
+            <View style={styles.scoreHistoryHeaderRow}>
+              <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
+              <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
+                <Text style={styles.expandAllText}>
+                  {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        </>
+
+            {/* Cumulative totals summary bar */}
+            <View style={styles.scoreSummaryBar}>
+              <Text style={styles.scoreSummaryTitle}>Totals</Text>
+              <View style={styles.scoreSummaryPlayers}>
+                {playerNames.map((name, idx) => (
+                  <View key={idx} style={styles.scoreSummaryItem}>
+                    <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
+                    <Text style={[
+                      styles.scoreSummaryScore,
+                      cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
+                    ]}>
+                      {cumulativeTotals[idx]}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyStateIcon}>📊</Text>
+          <Text style={styles.emptyText}>{i18n.t('gameEnd.noScoreHistory')}</Text>
+          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.scoresWillAppear')}</Text>
+        </View>
       }
       ListFooterComponent={
         <>
-          <View style={styles.tabContentFooter}>
-            <Text style={styles.tabContentFooterText}>
-              {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
-            </Text>
-          </View>
+          {scoreHistory.length > 0 && (
+            <View style={styles.tabContentFooter}>
+              <Text style={styles.tabContentFooterText}>
+                {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
+              </Text>
+            </View>
+          )}
           {actionButtonsSlot}
         </>
       }
@@ -894,20 +891,6 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     });
   };
   
-  if (playHistory.length === 0) {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateIcon}>🃏</Text>
-          <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
-          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
-        </View>
-        {/* Action buttons must always be reachable, even with empty history */}
-        {actionButtonsSlot}
-      </View>
-    );
-  }
-
   // Flatten all hands for FlatList virtualization (Task #397)
   const flattenedData = playHistory.flatMap((match) => {
     const isExpanded = expandedMatches.has(match.matchNumber);
@@ -1032,13 +1015,22 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       ListHeaderComponent={
         <Text style={styles.historyTitle}>Card Play History</Text>
       }
+      ListEmptyComponent={
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyStateIcon}>🃏</Text>
+          <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
+          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
+        </View>
+      }
       ListFooterComponent={
         <>
-          <View style={styles.tabContentFooter}>
-            <Text style={styles.tabContentFooterText}>
-              {i18n.t('gameEnd.tapToExpand')}
-            </Text>
-          </View>
+          {flattenedData.length > 0 && (
+            <View style={styles.tabContentFooter}>
+              <Text style={styles.tabContentFooterText}>
+                {i18n.t('gameEnd.tapToExpand')}
+              </Text>
+            </View>
+          )}
           {actionButtonsSlot}
         </>
       }
