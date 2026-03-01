@@ -238,7 +238,16 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
-    const { room_code } = await req.json();
+    let body: { room_code?: string };
+    try {
+      body = await req.json();
+    } catch (_e) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    const { room_code } = body;
 
     if (!room_code) {
       return new Response(

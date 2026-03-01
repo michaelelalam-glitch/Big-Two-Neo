@@ -347,16 +347,26 @@ Deno.serve(async (req) => {
           if (nextPlayer?.is_bot) {
             const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
             const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-            fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-                'x-bot-coordinator': 'true',
-              },
-              body: JSON.stringify({ room_code }),
-            }).catch((err) => console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err));
-            console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
+            // Await with a short timeout — fire-and-forget is unreliable in Deno Edge Functions.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${serviceKey}`,
+                  'Content-Type': 'application/json',
+                  'x-bot-coordinator': 'true',
+                },
+                body: JSON.stringify({ room_code }),
+                signal: controller.signal,
+              });
+              console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
+            } catch (err) {
+              console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err);
+            } finally {
+              clearTimeout(timeoutId);
+            }
           }
         } catch (err) {
           console.error('[player-pass] ⚠️ Bot next-player check (trick clear) failed (non-critical):', err);
@@ -418,16 +428,26 @@ Deno.serve(async (req) => {
         if (nextPlayer?.is_bot) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json',
-              'x-bot-coordinator': 'true',
-            },
-            body: JSON.stringify({ room_code }),
-          }).catch((err) => console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err));
-          console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
+          // Await with a short timeout — fire-and-forget is unreliable in Deno Edge Functions.
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+                'x-bot-coordinator': 'true',
+              },
+              body: JSON.stringify({ room_code }),
+              signal: controller.signal,
+            });
+            console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
+          } catch (err) {
+            console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err);
+          } finally {
+            clearTimeout(timeoutId);
+          }
         }
       } catch (err) {
         console.error('[player-pass] ⚠️ Bot next-player check (normal pass) failed (non-critical):', err);
