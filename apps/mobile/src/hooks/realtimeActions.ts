@@ -212,7 +212,7 @@ export async function executePlayCards({
 
           gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
           const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
-            body: { room_id: room!.id },
+            body: { room_id: room!.id, expected_match_number: currentMatchNumber },
           });
 
           if (newMatchError || !newMatchData) {

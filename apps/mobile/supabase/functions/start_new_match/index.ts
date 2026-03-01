@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
           success: true,
           already_advanced: true,
           match_number: gameState.match_number,
-          error: 'Match already advanced',
+          message: 'Match already advanced',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
           success: true,
           already_advanced: true,
           match_number: gameState.match_number,
-          error: 'Match already advanced',
+          message: 'Match already advanced',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -207,8 +207,12 @@ Deno.serve(async (req) => {
     const existingPlayHistory = (gameState as any).play_history || [];
 
     // 8. Update game state for new match (preserve cumulative scores AND play_history)
-    // Reset match-specific fields but keep game-level tracking
-    const { error: updateError } = await supabaseClient
+    // Reset match-specific fields but keep game-level tracking.
+    // The WHERE clause includes game_phase='finished' AND match_number=<current> so the
+    // UPDATE is atomic with the idempotency guard: two concurrent callers that both pass
+    // the soft checks above will race on this write and only the first will match rows.
+    // 0 rows updated → the other caller already advanced the match — safe no-op.
+    const { data: updatedRows, error: updateError } = await supabaseClient
       .from('game_state')
       .update({
         hands: handsObject, // ✅ FIX: Use object format, not array
@@ -224,13 +228,30 @@ Deno.serve(async (req) => {
         auto_pass_timer: null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', gameState.id);
+      .eq('id', gameState.id)
+      .eq('game_phase', 'finished')           // Atomic guard: only update if still 'finished'
+      .eq('match_number', gameState.match_number) // Atomic guard: only update if match unchanged
+      .select('id');
 
     if (updateError) {
       console.error('Failed to update game state:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to start new match', details: updateError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 0 rows updated — a concurrent caller already advanced this match; no-op safely.
+    if (!updatedRows || updatedRows.length === 0) {
+      console.log('[start_new_match] ✅ Atomic idempotency: match already advanced by concurrent caller');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          already_advanced: true,
+          match_number: gameState.match_number,
+          message: 'Match already advanced by concurrent caller',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -254,10 +275,11 @@ Deno.serve(async (req) => {
         if (roomRow?.code) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Await with a short timeout — fire-and-forget is unreliable in Deno Edge Functions
+          // Await with a bounded timeout — fire-and-forget is unreliable in Deno Edge Functions
           // because the runtime may terminate dangling promises once the handler returns.
+          // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          const timeoutId = setTimeout(() => controller.abort(), 10_000);
           try {
             const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
               method: 'POST',

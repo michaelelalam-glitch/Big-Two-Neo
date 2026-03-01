@@ -1146,11 +1146,12 @@ Deno.serve(async (req) => {
         if (nextPlayer?.is_bot) {
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Await with a short timeout — fire-and-forget via .catch() is unreliable in
+          // Await with a bounded timeout — fire-and-forget via .catch() is unreliable in
           // Deno Edge Functions because the runtime may terminate dangling promises once
           // the handler returns its Response.
+          // 10 s gives bot-coordinator enough headroom to survive a cold-start (~1–3 s).
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          const timeoutId = setTimeout(() => controller.abort(), 10_000);
           try {
             const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
               method: 'POST',
