@@ -93,12 +93,13 @@ async function callPlayCards(
     }),
   });
 
+  // Read the body once as text, then parse — avoids the double-consume issue where
+  // res.json() consumes the body stream and a subsequent res.text() call returns empty.
+  const rawBody = await res.text().catch(() => '');
   let data: any;
   try {
-    data = await res.json();
+    data = JSON.parse(rawBody);
   } catch (_e) {
-    let rawBody = '';
-    try { rawBody = await res.text(); } catch { /* ignore */ }
     console.error(`[bot-coordinator] ❌ play-cards returned non-JSON body (HTTP ${res.status}):`, rawBody);
     return { success: false, error: `Non-JSON response from play-cards (HTTP ${res.status})` };
   }
@@ -139,12 +140,12 @@ async function callPlayerPass(
     }),
   });
 
+  // Read the body once as text, then parse — avoids the double-consume issue.
+  const rawBody = await res.text().catch(() => '');
   let data: any;
   try {
-    data = await res.json();
+    data = JSON.parse(rawBody);
   } catch (_e) {
-    let rawBody = '';
-    try { rawBody = await res.text(); } catch { /* ignore */ }
     console.error(`[bot-coordinator] ❌ player-pass returned non-JSON body (HTTP ${res.status}):`, rawBody);
     return { success: false, error: `Non-JSON response from player-pass (HTTP ${res.status})` };
   }
@@ -449,18 +450,30 @@ Deno.serve(async (req) => {
       // A bot won the match (but the overall game continues).
       // The client-side coordinator (useServerBotCoordinator) stops when it sees
       // game_phase='finished', so nobody calls start_new_match.  We must do it here.
-      console.log('[bot-coordinator] 🔄 Bot won match — triggering start_new_match in 500ms...');
+      console.log('[bot-coordinator] 🔄 Bot won match — calling start_new_match in 500ms...');
       await delay(500); // Let the final play-cards update propagate via Realtime
 
-      // Fire-and-forget: start next match
-      fetch(`${supabaseUrl}/functions/v1/start_new_match`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ room_id: room.id }),
-      }).catch((err: any) => console.error('[bot-coordinator] ⚠️ start_new_match fire failed:', err));
+      // CRITICAL: await the start_new_match call — fire-and-forget is unreliable in
+      // Deno Edge Functions because the runtime may terminate dangling promises once
+      // the handler returns a Response.  Awaiting ensures the next match actually starts.
+      try {
+        const snmRes = await fetch(`${supabaseUrl}/functions/v1/start_new_match`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ room_id: room.id }),
+        });
+        if (!snmRes.ok) {
+          const errBody = await snmRes.text().catch(() => '(unreadable)');
+          console.error(`[bot-coordinator] ⚠️ start_new_match failed (${snmRes.status}):`, errBody);
+        } else {
+          console.log('[bot-coordinator] ✅ start_new_match succeeded — next match started');
+        }
+      } catch (snmErr: any) {
+        console.error('[bot-coordinator] ⚠️ start_new_match fetch error:', snmErr?.message);
+      }
 
       // Broadcast match_ended so all clients update their local scoreboards
       try {

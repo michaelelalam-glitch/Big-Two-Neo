@@ -34,6 +34,12 @@ export interface PlayCardsParams {
   room: Room | null;
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   onMatchEnded?: (matchNumber: number, scores: PlayerMatchScoreDetail[]) => void;
+  /**
+   * Called when the game fully ends (someone reaches 101+). Invoked directly here
+   * because Supabase Realtime does not echo broadcasts back to the sender — without
+   * this the player who triggers game-over would never see the end-game modal.
+   */
+  onGameOver?: (winnerIndex: number | null, finalScores: PlayerMatchScoreDetail[]) => void;
   setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
 }
 
@@ -55,6 +61,7 @@ export async function executePlayCards({
   room,
   broadcastMessage,
   onMatchEnded,
+  onGameOver,
   setGameState: _setGameState,
 }: PlayCardsParams): Promise<void> {
   const effectivePlayerIndex = playerIndex ?? currentPlayer?.player_index;
@@ -121,6 +128,7 @@ export async function executePlayCards({
   let matchScores: PlayerMatchScoreDetail[] | null = null;
   let gameOver = false;
   let finalWinnerIndex: number | null = null;
+  const currentMatchNumber = gameState.match_number || 1;
 
   if (matchWillEnd && result.match_scores) {
     gameLogger.info('[useRealtime] 🏁 Match ended! Using server-calculated scores');
@@ -171,6 +179,13 @@ export async function executePlayCards({
         final_scores: matchScores,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
+
+      // Supabase Realtime does NOT echo broadcasts back to the sender.
+      // Call onGameOver directly so the player who triggered the game-over
+      // also sees the end-game modal (other clients open it via the broadcast listener).
+      if (onGameOver) {
+        onGameOver(finalWinnerIndex, matchScores);
+      }
     } else {
       await broadcastMessage('match_ended', {
         winner_index: effectivePlayerIndex,
