@@ -193,7 +193,18 @@ function GameScreenContent() {
     onGameOver: (winnerIndex, finalScores) => {
       gameLogger.info(`[GameScreen] 🎉 Game Over! Winner: Player ${winnerIndex}, scores:`, finalScores);
 
-      const winnerIdx = winnerIndex ?? 0;
+      // Derive winner index — prefer the explicit value; fall back to the player
+      // with the lowest cumulative score when winnerIndex is not provided.
+      let winnerIdx: number;
+      if (winnerIndex !== null && winnerIndex !== undefined) {
+        winnerIdx = winnerIndex;
+      } else if (finalScores.length > 0) {
+        const minScore = Math.min(...finalScores.map(s => s.cumulativeScore));
+        const derivedWinner = finalScores.find(s => s.cumulativeScore === minScore);
+        winnerIdx = derivedWinner !== undefined ? derivedWinner.player_index : 0;
+      } else {
+        winnerIdx = 0;
+      }
       const winnerPlayer = multiplayerPlayers.find(p => p.player_index === winnerIdx);
       const formattedScores: FinalScore[] = [...finalScores]
         .sort((a, b) => a.cumulativeScore - b.cumulativeScore)

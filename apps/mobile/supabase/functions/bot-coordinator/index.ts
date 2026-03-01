@@ -68,6 +68,48 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
+ * Broadcasts an event to a Supabase Realtime room channel.
+ * Uses the subscribe → send → removeChannel pattern required by supabase-js v2
+ * for reliable broadcast delivery from Edge Functions.
+ * A 5-second safety timeout ensures the function always resolves even if the
+ * channel subscription never completes (e.g., cold WebSocket path).
+ */
+async function broadcastToRoom(
+  supabaseClient: ReturnType<typeof createClient>,
+  roomId: string,
+  event: string,
+  payload: Record<string, any>,
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const channel = supabaseClient.channel(`room:${roomId}`);
+    let settled = false;
+
+    const finish = (): void => {
+      if (!settled) {
+        settled = true;
+        supabaseClient.removeChannel(channel).catch(() => {});
+        resolve();
+      }
+    };
+
+    // Safety net: always resolve after 5 s to avoid blocking the EF indefinitely
+    const safetyTimeout = setTimeout(finish, 5000);
+
+    channel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') {
+        channel
+          .send({ type: 'broadcast', event, payload } as any)
+          .then(() => { clearTimeout(safetyTimeout); finish(); })
+          .catch(() => { clearTimeout(safetyTimeout); finish(); });
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        clearTimeout(safetyTimeout);
+        finish();
+      }
+    });
+  });
+}
+
+/**
  * Call the play-cards Edge Function to execute a bot's card play.
  * Uses HTTP fetch to reuse all existing validation logic.
  */
@@ -293,6 +335,7 @@ Deno.serve(async (req) => {
       game_over: boolean;
       match_scores?: any[];
       final_winner_index?: number | null;
+      match_number?: number;
     } | null = null;
 
     try {
@@ -409,6 +452,7 @@ Deno.serve(async (req) => {
               game_over: !!result.game_over,
               match_scores: result.match_scores,
               final_winner_index: result.final_winner_index,
+              match_number: gs.match_number || 1,
             };
             console.log(`[bot-coordinator] 🏁 Match/game ended after bot play (game_over=${result.game_over})`);
             break;
@@ -475,18 +519,15 @@ Deno.serve(async (req) => {
         console.error('[bot-coordinator] ⚠️ start_new_match fetch error:', snmErr?.message);
       }
 
-      // Broadcast match_ended so all clients update their local scoreboards
+      // Broadcast match_ended so all clients update their local scoreboards.
+      // Uses subscribe → send → removeChannel as required by supabase-js v2 Realtime.
       try {
-        const winnerIdx = matchEndedData.match_scores?.find((s: any) => s.matchScore === 0)?.player_index ?? null;
-        await supabaseClient.channel(`room:${room.id}`).send({
-          type: 'broadcast',
-          event: 'match_ended',
-          payload: {
-            winner_index: winnerIdx,
-            match_scores: matchEndedData.match_scores ?? [],
-          },
-        } as any);
-        console.log('[bot-coordinator] 📡 Broadcast: match_ended (winner=' + winnerIdx + ')');
+        await broadcastToRoom(supabaseClient, room.id, 'match_ended', {
+          winner_index: matchEndedData.final_winner_index ?? null,
+          match_number: matchEndedData.match_number ?? 1,
+          match_scores: matchEndedData.match_scores ?? [],
+        });
+        console.log('[bot-coordinator] 📡 Broadcast: match_ended (winner=' + (matchEndedData.final_winner_index ?? null) + ')');
       } catch (bcastErr: any) {
         console.warn('[bot-coordinator] ⚠️ match_ended broadcast failed (non-critical):', bcastErr?.message);
       }
@@ -495,14 +536,10 @@ Deno.serve(async (req) => {
       // Broadcast game_over so clients open the game-end modal.
       console.log('[bot-coordinator] 🎉 Game over — broadcasting to clients...');
       try {
-        await supabaseClient.channel(`room:${room.id}`).send({
-          type: 'broadcast',
-          event: 'game_over',
-          payload: {
-            winner_index: matchEndedData.final_winner_index ?? null,
-            final_scores: matchEndedData.match_scores ?? [],
-          },
-        } as any);
+        await broadcastToRoom(supabaseClient, room.id, 'game_over', {
+          winner_index: matchEndedData.final_winner_index ?? null,
+          final_scores: matchEndedData.match_scores ?? [],
+        });
         console.log('[bot-coordinator] 📡 Broadcast: game_over');
       } catch (bcastErr: any) {
         console.warn('[bot-coordinator] ⚠️ game_over broadcast failed (non-critical):', bcastErr?.message);
