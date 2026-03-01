@@ -234,6 +234,9 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        success: true,
+        match_number: newMatchNumber,
+        starting_player_index: winner_index,
         message: `Match ${newMatchNumber} started! Player ${winner_index} leads.`,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
