@@ -1,13 +1,20 @@
 -- Migration: Row-based bot-coordinator lease table + atomic helper functions
 -- Task #551: Server-side bot coordinator
 --
--- Replaces pg_advisory_lock wrappers. Session-level advisory locks are unreliable
--- across PgBouncer/Supabase pooled connections: acquire and release may run on
--- different backend sessions, leaking locks indefinitely.
+-- NOTE: This file is named "add_advisory_lock_helpers" for historical reasons
+-- (an earlier draft used pg_advisory_lock wrappers). The actual implementation
+-- uses a row-based lease table (bot_coordinator_locks) which works correctly
+-- across all PgBouncer/Supabase pooled connections.
 --
--- This row-based approach works across all pooled connections because the lease
--- state is stored in a table row, not a DB session variable. The acquire function
--- atomically cleans up expired leases and inserts a new one in a single DB session.
+-- Why row-based instead of advisory locks:
+-- Session-level advisory locks (pg_advisory_lock) are unreliable with connection
+-- pooling — acquire and release may run on different backend sessions, leaking
+-- locks indefinitely. Row-based leases store state in a table row and are pool-safe.
+--
+-- Functions provided:
+--   try_acquire_bot_coordinator_lease(room_code, coordinator_id, timeout_seconds)
+--   release_bot_coordinator_lease(room_code, coordinator_id)
+-- Both are SECURITY INVOKER and granted only to service_role.
 
 -- ─── Lease table ────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS bot_coordinator_locks (
@@ -40,7 +47,7 @@ BEGIN
   -- Clean up any expired lease for this specific room first.
   DELETE FROM bot_coordinator_locks
   WHERE room_code = p_room_code
-    AND expires_at < now();
+    AND expires_at <= now();
 
   -- Try to insert our lease. Unique conflict means another live lease exists.
   BEGIN

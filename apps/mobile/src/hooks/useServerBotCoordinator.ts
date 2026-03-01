@@ -80,23 +80,41 @@ export function useServerBotCoordinator({
   }, [roomCode]);
 
   useEffect(() => {
-    // Clear any existing timer
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
+    // Only clear the timer when we are definitively stopping (disabled, no context,
+    // non-bot turn, or end-of-game phase). Do NOT clear unconditionally at the top —
+    // re-renders during a cooldown window would cancel the scheduled retry with nothing
+    // replacing it, leaving the game stuck on a bot turn.
 
-    if (!enabled || !gameState || !roomCode) return;
+    if (!enabled || !gameState || !roomCode) {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      return;
+    }
 
     const currentTurn = gameState.current_turn;
     const phase = gameState.game_phase;
 
     // Don't trigger for finished/game_over phases
-    if (phase === 'finished' || phase === 'game_over') return;
+    if (phase === 'finished' || phase === 'game_over') {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      return;
+    }
 
     // Find the current player
     const currentPlayer = players.find(p => p.player_index === currentTurn);
-    if (!currentPlayer?.is_bot) return;
+    if (!currentPlayer?.is_bot) {
+      // Human turn — cancel any lingering bot-turn timer
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      return;
+    }
 
     // Allow re-triggering the same turn after the cooldown expires.
     // If the first fallback attempt failed (or the server didn't respond),
@@ -107,7 +125,16 @@ export function useServerBotCoordinator({
       prevTrigger !== null &&
       prevTrigger.turn === currentTurn &&
       nowForCheck - prevTrigger.lastAttemptAt < TRIGGER_COOLDOWN_MS
-    ) return;
+    ) {
+      // Cooldown still active — leave the existing retry timer running; do NOT cancel it.
+      return;
+    }
+
+    // A new bot turn (or cooldown expired): cancel any stale timer before scheduling.
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
 
     // Self-rescheduling retry: fires after grace period, then retries every
     // TRIGGER_COOLDOWN_MS while the turn is still stuck on this bot.
