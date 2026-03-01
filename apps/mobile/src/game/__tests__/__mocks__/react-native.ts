@@ -65,8 +65,10 @@ export const Dimensions = {
 };
 
 /**
- * Functional FlatList mock — renders header, all items, and footer so that
- * text-based assertions work in tests without requiring virtualization infra.
+ * Functional FlatList mock — renders header, all items (or ListEmptyComponent
+ * when data is empty), and footer so that text-based assertions work in tests
+ * without requiring virtualization infra. style/contentContainerStyle are
+ * forwarded for closer parity with the real React Native FlatList.
  */
 export const FlatList = ({
   data,
@@ -74,6 +76,7 @@ export const FlatList = ({
   keyExtractor,
   ListHeaderComponent,
   ListFooterComponent,
+  ListEmptyComponent,
   style,
   contentContainerStyle,
   ...rest
@@ -86,10 +89,19 @@ export const FlatList = ({
       ? React.createElement(ListHeaderComponent)
       : React.createElement('View', { testID: 'flatlist-header' }, ListHeaderComponent);
 
-  const items = (data ?? []).map((item: any, index: number) => {
-    const key = keyExtractor ? keyExtractor(item, index) : String(index);
-    return renderItem ? React.createElement('View', { key }, renderItem({ item, index })) : null;
-  });
+  const resolvedData = data ?? [];
+
+  const content =
+    resolvedData.length === 0
+      ? ListEmptyComponent == null
+        ? null
+        : typeof ListEmptyComponent === 'function'
+        ? React.createElement(ListEmptyComponent)
+        : React.createElement('View', { testID: 'flatlist-empty' }, ListEmptyComponent)
+      : resolvedData.map((item: any, index: number) => {
+          const key = keyExtractor ? keyExtractor(item, index) : String(index);
+          return renderItem ? React.createElement('View', { key }, renderItem({ item, index })) : null;
+        });
 
   const footer =
     ListFooterComponent == null
@@ -98,5 +110,11 @@ export const FlatList = ({
       ? React.createElement(ListFooterComponent)
       : React.createElement('View', { testID: 'flatlist-footer' }, ListFooterComponent);
 
-  return React.createElement('View', rest, header, ...items, footer);
+  return React.createElement(
+    'View',
+    { style: [style, contentContainerStyle], ...rest },
+    header,
+    ...(Array.isArray(content) ? content : [content]),
+    footer,
+  );
 };
