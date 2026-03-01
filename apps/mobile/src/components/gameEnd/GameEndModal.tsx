@@ -680,7 +680,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                 </Text>
               )}
             </View>
-            <View style={styles.playHistoryMatchHeaderRight}>
+            <View style={styles.historyHeaderRight}>
               {isLatest && (
                 <View style={styles.latestBadge}>
                   <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
@@ -1221,6 +1221,7 @@ const styles = StyleSheet.create({
     minHeight: 250,
   },
   tabScrollContent: {
+    paddingHorizontal: 20,
     paddingBottom: 16,
   },
   historyTitle: {
@@ -1427,6 +1428,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playHistoryMatchHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  historyHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
