@@ -114,6 +114,7 @@ const GoogleSignInButton = () => {
       onPress={onSignInButtonPress}
       style={styles.button}
       activeOpacity={0.8}
+      testID="google-sign-in-button"
     >
       <View style={styles.buttonContent}>
         <Image

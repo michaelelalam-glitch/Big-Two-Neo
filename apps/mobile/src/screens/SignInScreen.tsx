@@ -12,12 +12,12 @@ import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 
 const SignInScreen = () => {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="sign-in-screen">
       <StatusBar barStyle="light-content" />
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to Big2</Text>
-          <Text style={styles.subtitle}>
+          <Text style={styles.title} testID="sign-in-title">Welcome to Big2</Text>
+          <Text style={styles.subtitle} testID="sign-in-subtitle">
             Sign in to play with friends and track your progress
           </Text>
         </View>
@@ -35,7 +35,7 @@ const SignInScreen = () => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={styles.footerText} testID="sign-in-footer">
             By signing in, you agree to our Terms of Service and Privacy Policy
           </Text>
         </View>

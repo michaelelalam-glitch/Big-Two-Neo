@@ -3,6 +3,7 @@
 # Tags: rooms, critical-path
 #
 # Prerequisites: User is authenticated
+# Source: CreateRoomScreen.tsx — verified against real UI screenshots
 
 appId: com.big2mobile.app
 tags:
@@ -14,7 +15,7 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "Chinese Poker"
+- tapOn: "PLAY →"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -24,15 +25,15 @@ tags:
 
 # Step 3: Verify Create Room screen
 - extendedWaitUntil:
-    visible: "Create Room"
+    visible: "Create a private room and invite your friends"
     timeout: 10000
-- assertVisible: "Create a private room and invite your friends"
 - assertVisible: "Up to 4 players can join"
+- assertVisible: "Fill empty slots with bots"
 
 # Step 4: Take screenshot
 - takeScreenshot: "04_create_room_screen"
 
-# Step 5: Tap "Create Room" button
+# Step 5: Tap "Create Room" button (the action button, not the header)
 - tapOn:
     text: "Create Room"
     index: 1
@@ -42,8 +43,9 @@ tags:
     visible: "Game Lobby"
     timeout: 15000
 - assertVisible: "Game Lobby"
-- assertVisible: "Private Room"
 - assertVisible: "Room Code:"
+- assertVisible: "Players"
+- assertVisible: "Empty Slot"
 
 # Step 7: Take screenshot of lobby
 - takeScreenshot: "04_lobby_created"
