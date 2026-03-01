@@ -49,7 +49,13 @@ type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded, onGameOver } = options;
-  
+
+  // Store onGameOver in a ref so the playCards useCallback can always call the latest
+  // handler without including it in the deps array (which would recreate the callback
+  // on every render and cause stale-closure issues for callers that pass an inline fn).
+  const onGameOverRef = useRef(onGameOver);
+  useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
+
   // State
   const [room, setRoom] = useState<Room | null>(null);
   const [roomPlayers, setRoomPlayers] = useState<Player[]>([]); // Players in room_players table (lobby)
@@ -366,7 +372,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         room,
         broadcastMessage,
         onMatchEnded,
-        onGameOver,
+        // Use ref so the callback always calls the latest handler without needing
+        // onGameOver in the deps array (avoids stale-closure churn on every render).
+        onGameOver: onGameOverRef.current,
         setGameState,
       });
     } catch (err) {
@@ -381,7 +389,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       throw error;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room, onMatchEnded, and onGameOver intentionally excluded (stable by construction in callers; including them causes stale-closure churn without benefit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded (stable by construction); onGameOver read via ref (onGameOverRef) to avoid stale closure
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**

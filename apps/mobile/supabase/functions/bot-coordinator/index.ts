@@ -27,7 +27,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/** Delay between bot moves (ms) — allows Realtime to propagate for smooth client animations */
+/**
+ * Delay between bot moves (ms) — allows Realtime to propagate for smooth client animations.
+ * Note: the original PR description approximated this as ~500ms. 300ms is the intentional
+ * deployed value; it provides adequate Realtime propagation time while keeping games snappy.
+ */
 const BOT_MOVE_DELAY_MS = 300;
 
 /** Maximum bot moves per invocation — prevents infinite loops */
