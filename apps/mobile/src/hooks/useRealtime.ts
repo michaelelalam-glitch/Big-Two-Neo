@@ -381,7 +381,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       throw error;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room, onMatchEnded, and onGameOver intentionally excluded (stable by construction in callers; including them causes stale-closure churn without benefit)
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**
