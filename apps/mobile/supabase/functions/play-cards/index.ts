@@ -642,26 +642,75 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-    const { room_code, player_id, cards } = await req.json();
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
 
-    console.log('🎮 [play-cards] Request received:', {
-      room_code,
-      player_id: player_id?.substring(0, 8),
-      cards_count: Array.isArray(cards) ? cards.length : 'not array',
-    });
+    // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
+    // Service-role callers (bot-coordinator) may act for any player_id.
+    // Non-service-role callers (clients) must present a valid user JWT; the resolved
+    // user.id is compared against player_id after the body is parsed below.
+    const authHeader = req.headers.get('authorization') ?? '';
+    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    let callerJwtUserId: string | null = null;
 
-    if (!room_code || !player_id || !cards || cards.length === 0) {
+    if (!isServiceRole) {
+      const anonClient = createClient(
+        supabaseUrl,
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user }, error: authError } = await anonClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      callerJwtUserId = user.id;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Parse body AFTER auth so unauthenticated callers with a bad JSON body get
+    // a 401/403 rather than leaking a 500 before auth even runs.
+    let room_code: string, player_id: string, cards: any[];
+    try {
+      const body = await req.json();
+      room_code = body.room_code;
+      player_id = body.player_id;
+      cards     = body.cards;
+    } catch (_e) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate required fields before the identity check so a missing/empty
+    // player_id returns 400 (Bad Request) instead of a misleading 403 (Forbidden).
+    if (!room_code || !player_id || !Array.isArray(cards) || cards.length === 0) {
       console.log('❌ [play-cards] Missing required fields');
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Now that we have a valid player_id, complete the identity check for client callers.
+    if (!isServiceRole && callerJwtUserId !== player_id) {
+      console.warn('[play-cards] 🔒 Forbidden: JWT user', callerJwtUserId?.substring(0, 8), '≠ player_id', player_id?.substring(0, 8));
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden: player_id does not match authenticated user' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('🎮 [play-cards] Request received:', {
+      room_code,
+      player_id: player_id?.substring(0, 8),
+      cards_count: cards.length,
+    });
 
     // 1. Get room ID
     const { data: room, error: roomError } = await supabaseClient
