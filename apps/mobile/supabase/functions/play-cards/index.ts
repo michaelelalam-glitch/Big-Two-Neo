@@ -720,7 +720,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Verify it's this player's turn
+    // 4a. Reject plays when game is already finished/game_over
+    if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+      console.log('❌ [play-cards] Game already ended:', { game_phase: gameState.game_phase });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Game already ended (phase: ${gameState.game_phase})`,
+          game_phase: gameState.game_phase,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4b. Verify it's this player's turn
     if (gameState.current_turn !== player.player_index) {
       return new Response(
         JSON.stringify({
