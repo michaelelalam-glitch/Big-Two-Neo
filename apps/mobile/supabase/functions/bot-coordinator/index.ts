@@ -12,7 +12,7 @@
  * 1. Triggered after play-cards / player-pass / start_new_match when next turn is a bot
  * 2. Loops through consecutive bot turns, calling play-cards/player-pass via HTTP
  * 3. Adds configurable delays between moves for Realtime animation sync
- * 4. Uses Postgres advisory lock to prevent concurrent coordinators
+ * 4. Uses a Postgres row-based lease (via try_acquire_bot_coordinator_lease) to prevent concurrent coordinators
  *
  * @module bot-coordinator
  */
@@ -261,7 +261,10 @@ Deno.serve(async (req) => {
       .rpc('try_acquire_bot_coordinator_lease', {
         p_room_code: room_code,
         p_coordinator_id: coordinatorId,
-        p_timeout_seconds: Math.ceil(LOCK_TIMEOUT_MS / 1000),
+        // Use 1.5× the loop budget so the lease outlives even a worst-case run.
+        // If p_timeout_seconds == LOCK_TIMEOUT_MS and an HTTP call stalls near the
+        // deadline, the lease can expire mid-run allowing a second coordinator to overlap.
+        p_timeout_seconds: Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000),
       });
 
     if (leaseError) {
