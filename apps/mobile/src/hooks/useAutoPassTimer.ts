@@ -243,12 +243,18 @@ async function executeAutoPasses(
     // STEP 1: Query FRESH game state
     const { data: currentGameState, error: stateError } = await supabase
       .from('game_state')
-      .select('current_turn, passes, last_play, auto_pass_timer')
+      .select('current_turn, passes, last_play, auto_pass_timer, game_phase')
       .eq('room_id', room?.id)
       .single();
 
     if (stateError || !currentGameState) {
       networkLogger.error('⏰ [Timer] Failed to fetch game state:', stateError);
+      return;
+    }
+
+    // Game already ended — don't auto-pass
+    if (currentGameState.game_phase === 'finished' || currentGameState.game_phase === 'game_over') {
+      networkLogger.info('⏰ [Timer] ✅ Game already ended (phase=' + currentGameState.game_phase + '), no auto-pass needed');
       return;
     }
 
