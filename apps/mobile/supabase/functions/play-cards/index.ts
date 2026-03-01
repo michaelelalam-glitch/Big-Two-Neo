@@ -1045,6 +1045,20 @@ Deno.serve(async (req) => {
     }
 
     // 14. Update game state (including timer and match winner)
+    // Append this play to play_history server-side so bot plays (which bypass the client)
+    // are also captured. The client-side play_history write in realtimeActions.ts has been
+    // removed to avoid duplicates — the EF is now the single source of truth.
+    const updatedPlayHistory = [
+      ...(Array.isArray(gameState.play_history) ? gameState.play_history : []),
+      {
+        match_number: gameState.match_number || 1,
+        position: player.player_index,
+        cards,
+        combo_type: comboType,
+        passed: false,
+      },
+    ];
+
     const updateData: any = {
       hands: updatedHands,
       last_play: {
@@ -1057,6 +1071,7 @@ Deno.serve(async (req) => {
       passes: 0,
       played_cards: updatedPlayedCards,
       auto_pass_timer: autoPassTimerState,
+      play_history: updatedPlayHistory,
       updated_at: new Date().toISOString(),
     };
 
