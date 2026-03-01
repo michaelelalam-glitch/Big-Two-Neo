@@ -117,6 +117,9 @@ async function broadcastToRoom(
  * Call the play-cards Edge Function to execute a bot's card play.
  * Uses HTTP fetch to reuse all existing validation logic.
  */
+/** Fetch timeout — well within LOCK_TIMEOUT_MS (30 s) so the lease is always released. */
+const FETCH_TIMEOUT_MS = 10_000;
+
 async function callPlayCards(
   supabaseUrl: string,
   serviceKey: string,
@@ -125,19 +128,33 @@ async function callPlayCards(
   cards: Card[],
 ): Promise<{ success: boolean; error?: string; match_ended?: boolean; game_over?: boolean; match_scores?: any[]; final_winner_index?: number | null }> {
   const url = `${supabaseUrl}/functions/v1/play-cards`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      'x-bot-coordinator': 'true', // Signal to skip recursive bot trigger
-    },
-    body: JSON.stringify({
-      room_code: roomCode,
-      player_id: playerId,
-      cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        'x-bot-coordinator': 'true', // Signal to skip recursive bot trigger
+      },
+      body: JSON.stringify({
+        room_code: roomCode,
+        player_id: playerId,
+        cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
+      }),
+      signal: controller.signal,
+    });
+  } catch (fetchErr: any) {
+    if (fetchErr?.name === 'AbortError') {
+      console.error('[bot-coordinator] ❌ play-cards timed out after 10 s');
+      return { success: false, error: 'Request timed out after 10s' };
+    }
+    return { success: false, error: fetchErr?.message ?? 'fetch error' };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Read the body once as text, then parse — avoids the double-consume issue where
   // res.json() consumes the body stream and a subsequent res.text() call returns empty.
@@ -173,18 +190,32 @@ async function callPlayerPass(
   playerId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const url = `${supabaseUrl}/functions/v1/player-pass`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      'x-bot-coordinator': 'true',
-    },
-    body: JSON.stringify({
-      room_code: roomCode,
-      player_id: playerId,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        'x-bot-coordinator': 'true',
+      },
+      body: JSON.stringify({
+        room_code: roomCode,
+        player_id: playerId,
+      }),
+      signal: controller.signal,
+    });
+  } catch (fetchErr: any) {
+    if (fetchErr?.name === 'AbortError') {
+      console.error('[bot-coordinator] ❌ player-pass timed out after 10 s');
+      return { success: false, error: 'Request timed out after 10s' };
+    }
+    return { success: false, error: fetchErr?.message ?? 'fetch error' };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Read the body once as text, then parse — avoids the double-consume issue.
   const rawBody = await res.text().catch(() => '');
@@ -548,7 +579,10 @@ Deno.serve(async (req) => {
             'Authorization': `Bearer ${serviceKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ room_id: room.id }),
+          body: JSON.stringify({
+            room_id: room.id,
+            expected_match_number: matchEndedData.match_number,
+          }),
         });
         if (!snmRes.ok) {
           const errBody = await snmRes.text().catch(() => '(unreadable)');

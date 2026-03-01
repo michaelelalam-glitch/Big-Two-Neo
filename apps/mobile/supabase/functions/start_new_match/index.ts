@@ -77,27 +77,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 1b. Idempotency guard: if caller supplied expected_match_number, verify the game is
-    //     still in the 'finished' phase for that match. Multiple clients (useMatchTransition
-    //     runs on every connected client) may call this simultaneously — the first writer
-    //     advances match_number, so subsequent calls should be treated as no-ops instead
-    //     of dealing a second shuffled deck and corrupting the game state.
-    if (expected_match_number !== undefined && expected_match_number !== null) {
-      if (gameState.game_phase !== 'finished' || gameState.match_number !== expected_match_number) {
-        console.log(
-          `[start_new_match] ✅ Idempotency: match already advanced ` +
-          `(expected match=${expected_match_number}, current match=${gameState.match_number}, phase=${gameState.game_phase})`
-        );
-        return new Response(
-          JSON.stringify({
-            success: true,
-            already_advanced: true,
-            match_number: gameState.match_number,
-            error: 'Match already advanced',
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // 1b. Idempotency guard — two-step:
+    //   Step 1 (unconditional): if game_phase is not 'finished' the match has already been
+    //     advanced by a concurrent caller.  This covers ALL callers regardless of whether
+    //     they supply expected_match_number (e.g. realtimeActions, bot-coordinator).
+    //   Step 2 (conditional): if expected_match_number is supplied and doesn't match the
+    //     current match_number, we're also out of sync — treat as a no-op.
+    if (gameState.game_phase !== 'finished') {
+      console.log(
+        `[start_new_match] ✅ Idempotency (phase): match already advanced ` +
+        `(current match=${gameState.match_number}, phase=${gameState.game_phase})`
+      );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          already_advanced: true,
+          match_number: gameState.match_number,
+          error: 'Match already advanced',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (expected_match_number !== undefined && expected_match_number !== null &&
+        gameState.match_number !== expected_match_number) {
+      console.log(
+        `[start_new_match] ✅ Idempotency (match_number): match already advanced ` +
+        `(expected match=${expected_match_number}, current match=${gameState.match_number})`
+      );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          already_advanced: true,
+          match_number: gameState.match_number,
+          error: 'Match already advanced',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 2. Get winner from last_match_winner_index column (set by play-cards when match ends)
