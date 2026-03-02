@@ -6,6 +6,17 @@
  * used only by Edge Functions for game logic.
  */
 
+/** Per-match score entry persisted in game_state.scores_history by play-cards EF */
+export interface ScoresHistoryEntry {
+  match_number: number;
+  scores: Array<{
+    player_index: number;
+    matchScore: number;
+    cumulativeScore: number;
+    cardsRemaining: number;
+  }>;
+}
+
 export interface Room {
   id: string;
   code: string;
@@ -42,12 +53,14 @@ export interface GameState {
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
   game_phase: 'dealing' | 'first_play' | 'playing' | 'finished' | 'game_over';
-  winner: number | null; // FIXED: Use 'winner' to match database column
+  winner: number | null; // Legacy alias — DB column is game_winner_index
+  game_winner_index: number | null; // Actual DB column: game winner (lowest cumulative score)
   match_number: number; // Current match number (starts at 1, increments when match ends)
   hands: Record<string, Card[]>; // Player hands indexed by player_index (string keys from JSON)
   play_history: PlayHistoryEntry[]; // Array of all plays made in the game
   scores: number[]; // Cumulative scores per player [p0, p1, p2, p3]
-  final_scores: Record<string, number> | null; // Final scores when game_phase='finished', keyed by player_index
+  final_scores: Record<string, number> | null; // Final scores when game_phase='game_over'
+  scores_history: ScoresHistoryEntry[]; // Per-match score history (persisted by play-cards EF)
 
   // Auto-pass timer state (for highest play detection)
   auto_pass_timer: AutoPassTimerState | null;

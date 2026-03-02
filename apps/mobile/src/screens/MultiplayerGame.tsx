@@ -21,6 +21,7 @@ import { useGameStatsUploader } from '../hooks/useGameStatsUploader';
 import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
+import { useMultiplayerScoreHistory } from '../hooks/useMultiplayerScoreHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
 import type { RoomInfo } from '../hooks/useMultiplayerRoomLoader';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
@@ -317,6 +318,15 @@ export function MultiplayerGame() {
     isMultiplayerGame: true,
     multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
     addPlayHistory,
+  });
+
+  // Multiplayer score history tracking (from game_state.scores_history)
+  // This ensures scoreboard is populated even for bot-triggered match ends
+  // where no HTTP response or broadcast reaches the human client.
+  useMultiplayerScoreHistory({
+    isMultiplayerGame: true,
+    multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
+    addScoreHistory,
   });
 
   // One card left alert

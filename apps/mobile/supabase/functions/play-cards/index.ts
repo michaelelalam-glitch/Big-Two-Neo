@@ -1187,12 +1187,42 @@ Deno.serve(async (req) => {
       updateData.last_match_winner_index = player.player_index; // Store match winner
       updateData.match_ended_at = new Date().toISOString(); // Record match end time
       console.log(`✅ Match ended! Player ${player.player_index} won. Game frozen (phase=finished)`);
+
+      // Persist match scores to scores_history so clients can reconstruct the
+      // scoreboard from game_state alone — critical for bot-triggered match ends
+      // where no HTTP response/broadcast reaches the human client.
+      if (matchScores) {
+        const existingHistory = Array.isArray(gameState.scores_history) ? gameState.scores_history : [];
+        updateData.scores_history = [
+          ...existingHistory,
+          {
+            match_number: gameState.match_number || 1,
+            scores: matchScores.map((s: any) => ({
+              player_index: s.player_index,
+              matchScore: s.matchScore,
+              cumulativeScore: s.cumulativeScore,
+              cardsRemaining: s.cardsRemaining,
+            })),
+          },
+        ];
+        console.log(`📊 Persisted match ${gameState.match_number || 1} scores to scores_history`);
+      }
       
       // If game is over (someone >= 101), also record game end
       if (gameOver && finalWinnerIndex !== null) {
         updateData.game_phase = 'game_over'; // Game completely finished
         updateData.game_winner_index = finalWinnerIndex; // Store game winner (lowest score)
+        updateData.winner = finalWinnerIndex; // Legacy alias used by client stats uploader
         updateData.game_ended_at = new Date().toISOString(); // Record game end time
+
+        // Build final_scores map for client consumption (keyed by player_index string)
+        if (matchScores) {
+          const finalScoresMap: Record<string, number> = {};
+          for (const s of matchScores) {
+            finalScoresMap[String(s.player_index)] = s.cumulativeScore;
+          }
+          updateData.final_scores = finalScoresMap;
+        }
         console.log(`🎉 GAME OVER recorded! Winner: Player ${finalWinnerIndex}`);
       }
     }

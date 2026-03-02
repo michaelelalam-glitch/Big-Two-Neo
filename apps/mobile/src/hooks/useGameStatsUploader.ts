@@ -53,9 +53,32 @@ export function useGameStatsUploader({
     if (hasUploadedRef.current) return;
     if (uploadingRef.current) return;
 
-    const { winner, final_scores, hands } = multiplayerGameState;
+    const { hands } = multiplayerGameState;
 
-    if (winner == null || !final_scores) return;
+    // Resolve winner — try 'winner' column first, fall back to 'game_winner_index'
+    const resolvedWinner = multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
+
+    // Resolve final_scores — try DB column first, fall back to last scores_history entry
+    let resolvedFinalScores: Record<string, number> | null = multiplayerGameState.final_scores ?? null;
+    if (!resolvedFinalScores && Array.isArray(multiplayerGameState.scores_history) && multiplayerGameState.scores_history.length > 0) {
+      const lastEntry = multiplayerGameState.scores_history[multiplayerGameState.scores_history.length - 1];
+      if (lastEntry?.scores) {
+        resolvedFinalScores = {};
+        for (const s of lastEntry.scores) {
+          resolvedFinalScores[String(s.player_index)] = s.cumulativeScore;
+        }
+        statsLogger.info('[GameStats] Derived final_scores from scores_history fallback');
+      }
+    }
+
+    if (resolvedWinner == null || !resolvedFinalScores) {
+      statsLogger.warn('[GameStats] Missing winner or final_scores, skipping upload', {
+        winner: resolvedWinner,
+        hasFinalScores: !!resolvedFinalScores,
+        hasScoresHistory: Array.isArray(multiplayerGameState.scores_history) && multiplayerGameState.scores_history.length > 0,
+      });
+      return;
+    }
 
     uploadingRef.current = true;
     hasUploadedRef.current = true;
@@ -92,7 +115,7 @@ export function useGameStatsUploader({
         statsLogger.info(`[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`);
 
         // Get final scores sorted by cumulative score (ascending = best)
-        const finalScoresEntries = Object.entries(final_scores).map(([idxStr, score]) => ({
+        const finalScoresEntries = Object.entries(resolvedFinalScores!).map(([idxStr, score]) => ({
           player_index: parseInt(idxStr, 10),
           cumulative_score: score as number,
         })).sort((a, b) => a.cumulative_score - b.cumulative_score);
@@ -121,7 +144,7 @@ export function useGameStatsUploader({
           return {
             user_id: userId,
             username: player.username,
-            score: final_scores[String(player.player_index)] ?? 0,
+            score: resolvedFinalScores![String(player.player_index)] ?? 0,
             finish_position: finishPosition,
             cards_left: cardsLeft,
             was_bot: player.is_bot,
@@ -142,7 +165,7 @@ export function useGameStatsUploader({
         });
 
         // Determine winner_id
-        const winnerPlayer = multiplayerPlayers.find(p => p.player_index === winner);
+        const winnerPlayer = multiplayerPlayers.find(p => p.player_index === resolvedWinner);
         let winnerId: string;
         if (!winnerPlayer) {
           // Fallback: winner is the player with finish_position 1
