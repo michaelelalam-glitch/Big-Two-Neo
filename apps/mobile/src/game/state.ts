@@ -1082,16 +1082,6 @@ export class GameStateManager {
 
     statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
 
-    // ============================================================================
-    // ITEM 1: Block offline/local games from saving to leaderboard or player stats.
-    // Local AI games (no room_id, room_code='LOCAL') are intentionally ephemeral.
-    // ============================================================================
-    const isLocalGame = !this.state.players.some(p => !p.isBot && p.id !== this.state?.players[0]?.id);
-    // All games started through the local GameManager are offline/local by design
-    statsLogger.info('🚫 [Stats] Local/offline game detected — stats will NOT be saved to leaderboard or player profile.');
-    statsLogger.info('📊 [Stats] Game result: Winner = ' + (this.state.finalWinnerId || 'unknown'));
-    return; // Early return — never save local game stats
-
     try {
       // Get current user
       statsLogger.debug('📊 [Stats] Getting current user...');
@@ -1160,6 +1150,10 @@ export class GameStateManager {
           username: player.name,
           score: playerScore?.score || 0,
           finish_position: finishPosition,
+          cards_left: player.hand.length, // 0 for winner, remaining cards for others
+          was_bot: player.isBot,
+          disconnected: false, // Local games never have disconnects
+          original_username: null, // No bot replacements in local games
           combos_played: comboCounts,
         };
       });
@@ -1177,13 +1171,15 @@ export class GameStateManager {
       const winnerUserId = winnerPlayer.isBot ? winnerPlayer.id : user.id;
 
       const gameCompletionData = {
-        room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
-        room_code: 'LOCAL', // TODO: Real room code in multiplayer
+        room_id: null, // Casual local games don't have a room_id
+        room_code: 'CASUAL', // Distinguishes human+bot games from multiplayer rooms
+        game_type: 'casual' as const, // Always casual for local games with bots
         players: playersData,
         winner_id: winnerUserId,
         game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
         started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
         finished_at: new Date().toISOString(),
+        game_completed: true, // Always a natural completion for local games
       };
 
       statsLogger.info(`📊 [Stats] Calling complete-game edge function`);

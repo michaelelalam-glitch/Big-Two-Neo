@@ -81,11 +81,12 @@ Deno.serve(async (req: Request) => {
     // STEP 1: VALIDATE GAME DATA
     // ============================================================================
 
-    // ITEM 1: Reject local/offline games — they should never save to leaderboard
-    if (gameData.room_code === 'LOCAL' && gameData.room_id === null) {
-      console.log('[Complete Game] Rejected: local/offline game — stats not saved');
+    // ITEM 1: 'CASUAL' games (human + bots, room_id=null) are valid and should save stats.
+    // Only reject if room_code is exactly 'LOCAL' (legacy test/debug games with no human player).
+    if (gameData.room_code === 'LOCAL') {
+      console.log('[Complete Game] Rejected: LOCAL game code — stats not saved');
       return new Response(
-        JSON.stringify({ error: 'Local/offline games cannot save stats', code: 'LOCAL_GAME_REJECTED' }),
+        JSON.stringify({ error: 'LOCAL game code is reserved for test/debug only', code: 'LOCAL_GAME_REJECTED' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
