@@ -379,7 +379,7 @@ export const GameEndModal: React.FC = () => {
                   {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none'.
                       flex: 1 lets the active FlatList expand to fill remaining vertical space. */}
                   <Animated.View style={{ flex: 1, opacity: tabContentOpacity }}>
-                    <View style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
+                    <View testID="tab-score-content" style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
@@ -395,7 +395,7 @@ export const GameEndModal: React.FC = () => {
                         }
                       />
                     </View>
-                    <View style={activeTab !== 'play' ? { display: 'none' } : { flex: 1 }}>
+                    <View testID="tab-play-content" style={activeTab !== 'play' ? { display: 'none' } : { flex: 1 }}>
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
@@ -554,6 +554,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
         </TouchableOpacity>
         
         <TouchableOpacity
+          testID="tab-play-button"
           style={[styles.tabButton, activeTab === 'play' && styles.tabButtonActive]}
           onPress={() => onTabChange('play')}
           activeOpacity={0.7}

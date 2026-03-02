@@ -4,7 +4,7 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,7 +53,10 @@ export function LocalAIGame() {
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  gameLogger.info('🎮 [LocalAIGame] Game mode: LOCAL AI (client-side)');
+  // Log once on mount to avoid spamming on every re-render
+  useEffect(() => {
+    gameLogger.info('🎮 [LocalAIGame] Game mode: LOCAL AI (client-side)');
+  }, []);
 
   // Card selection hook
   const {

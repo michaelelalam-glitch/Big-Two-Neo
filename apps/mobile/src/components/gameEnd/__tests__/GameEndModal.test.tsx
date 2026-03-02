@@ -177,12 +177,18 @@ describe('GameEndModal FlatList history rendering (Task #574)', () => {
 
   describe('Play History tab', () => {
     it('renders Card Play History title after switching to the play tab', () => {
-      const { getAllByText, getByText } = renderWithOpenModal();
-      // Switch to the play history tab — use the first element that reads 'Play'
-      // (the tab button). There may be other 'play' text in the tree (e.g. Play Again).
-      const playTabButton = getAllByText(/\bPlay\b/i)[0];
-      fireEvent.press(playTabButton);
-      // Play History title should be visible
+      const { getByTestId, getByText, queryByTestId } = renderWithOpenModal();
+      // Press the Play History tab button via its testID (pressing the inner
+      // Text node via getAllByText would target a non-pressable element and the
+      // assertion could pass even without a real tab switch because the inactive
+      // tab is still mounted with display:'none').
+      fireEvent.press(getByTestId('tab-play-button'));
+      // The play tab content wrapper must now be active (flex: 1)
+      expect(getByTestId('tab-play-content').props.style).toEqual({ flex: 1 });
+      // Score tab must now be hidden — RNTL excludes display:'none' elements
+      // from normal queries, so queryByTestId returns null when it is hidden.
+      expect(queryByTestId('tab-score-content')).toBeNull();
+      // Play History title is present in the (now-active) play tab
       expect(getByText(/Card Play History/i)).toBeTruthy();
     });
   });

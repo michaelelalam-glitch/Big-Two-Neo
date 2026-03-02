@@ -64,7 +64,10 @@ export function MultiplayerGame() {
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  // Log once on mount to avoid spamming on every re-render
+  useEffect(() => {
+    gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  }, []);
 
   // Card selection hook
   const {
