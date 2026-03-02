@@ -151,7 +151,9 @@ Deno.serve(async (req: Request) => {
     // Bot user_ids like "bot_player-1" don't exist in auth.users and would violate FK constraints
     // NOTE: This results in NULL values for bot player_id columns in game_history, which is expected
     // behavior since bots don't have auth.users records. Usernames are still preserved for all players.
-    const realPlayers = gameData.players.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
+    // Sort by finish_position so player_1 = 1st place, player_2 = 2nd place, etc.
+    const sortedByPosition = [...gameData.players].sort((a, b) => a.finish_position - b.finish_position);
+    const realPlayers = sortedByPosition.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
 
     const { error: historyError } = await supabaseAdmin
       .from('game_history')
@@ -162,14 +164,14 @@ Deno.serve(async (req: Request) => {
         player_2_id: realPlayers[1] ?? null,
         player_3_id: realPlayers[2] ?? null,
         player_4_id: realPlayers[3] ?? null,
-        player_1_username: gameData.players[0]?.username ?? null,
-        player_2_username: gameData.players[1]?.username ?? null,
-        player_3_username: gameData.players[2]?.username ?? null,
-        player_4_username: gameData.players[3]?.username ?? null,
-        player_1_score: gameData.players[0]?.score ?? null,
-        player_2_score: gameData.players[1]?.score ?? null,
-        player_3_score: gameData.players[2]?.score ?? null,
-        player_4_score: gameData.players[3]?.score ?? null,
+        player_1_username: sortedByPosition[0]?.username ?? null,
+        player_2_username: sortedByPosition[1]?.username ?? null,
+        player_3_username: sortedByPosition[2]?.username ?? null,
+        player_4_username: sortedByPosition[3]?.username ?? null,
+        player_1_score: sortedByPosition[0]?.score ?? null,
+        player_2_score: sortedByPosition[1]?.score ?? null,
+        player_3_score: sortedByPosition[2]?.score ?? null,
+        player_4_score: sortedByPosition[3]?.score ?? null,
         winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,
         game_duration_seconds: gameData.game_duration_seconds,
         started_at: gameData.started_at,

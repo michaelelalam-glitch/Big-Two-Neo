@@ -22,7 +22,6 @@ import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
 import { supabase } from '../services/supabase';
-import { API } from '../constants';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
@@ -189,7 +188,6 @@ export function MultiplayerGame() {
 
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.access_token) return;
-
           // Only send human players — bots do not have real Supabase user accounts
           const humanPlayers = multiplayerPlayers.filter(p => !p.is_bot);
           if (humanPlayers.length === 0) return;
@@ -228,31 +226,24 @@ export function MultiplayerGame() {
             : undefined;
           const winnerId = winnerHuman?.user_id ?? (user?.id ?? '');
 
-          const response = await fetch(
-            `${API.SUPABASE_URL}/functions/v1/complete-game`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                room_id: roomId,
-                room_code: roomCode,
-                players: playersData,
-                winner_id: winnerId,
-                game_duration_seconds: Math.floor((nowTs - gameStartedAtRef.current) / 1000),
-                started_at: new Date(gameStartedAtRef.current).toISOString(),
-                finished_at: new Date(nowTs).toISOString(),
-              }),
-            }
-          );
+          // Use supabase.functions.invoke so the apikey + Authorization headers
+          // are set correctly by the Supabase client (raw fetch() only sent Authorization)
+          const { error: invokeError } = await supabase.functions.invoke('complete-game', {
+            body: {
+              room_id: roomId,
+              room_code: roomCode,
+              players: playersData,
+              winner_id: winnerId,
+              game_duration_seconds: Math.floor((nowTs - gameStartedAtRef.current) / 1000),
+              started_at: new Date(gameStartedAtRef.current).toISOString(),
+              finished_at: new Date(nowTs).toISOString(),
+            },
+          });
 
-          if (response.ok) {
+          if (!invokeError) {
             gameLogger.info('[MultiplayerGame] ✅ Online game stats saved successfully');
           } else {
-            const errBody = await response.json().catch(() => ({}));
-            gameLogger.warn('[MultiplayerGame] ⚠️ Stats save failed:', errBody);
+            gameLogger.warn('[MultiplayerGame] ⚠️ Stats save failed:', invokeError);
           }
         } catch (statsErr) {
           // Non-blocking — game still ends even if stats fail to save
