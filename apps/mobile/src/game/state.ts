@@ -1080,7 +1080,13 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
-    statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
+    // ✅ DECISION (Task #509/#511/#584): Local AI games do not save stats to the
+    // database. Offline games are ephemeral — only multiplayer game stats are
+    // persisted server-side via the complete-game Edge Function.
+    // Returning early also prevents the bot-UUID error that occurred when bot
+    // player IDs (e.g. "bot_1") were passed to RPC columns expecting real UUIDs.
+    statsLogger.info('ℹ️ [Stats] Local AI game — stats not saved (offline games are ephemeral by design)');
+    return;
 
     try {
       // Get current user
