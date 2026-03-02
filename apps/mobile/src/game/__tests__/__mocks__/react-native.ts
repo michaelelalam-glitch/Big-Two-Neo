@@ -57,3 +57,96 @@ export const useWindowDimensions = jest.fn(() => ({
   scale: 2,
   fontScale: 1,
 }));
+
+export const Dimensions = {
+  get: jest.fn(() => ({ width: 375, height: 812 })),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+/**
+ * Functional FlatList mock — renders header, all items (or ListEmptyComponent
+ * when data is empty), and footer so that text-based assertions work in tests
+ * without requiring virtualization infra.
+ *
+ * Structure mirrors real FlatList:
+ *   <outer View style={style} testID=… accessibility…>
+ *     <inner View style={contentContainerStyle}>
+ *       {header} {content} {footer}
+ *     </inner>
+ *   </outer>
+ * Only safe/known props are forwarded to avoid noisy unknown-prop warnings.
+ */
+export const FlatList = ({
+  data,
+  renderItem,
+  keyExtractor,
+  ListHeaderComponent,
+  ListFooterComponent,
+  ListEmptyComponent,
+  style,
+  contentContainerStyle,
+  testID,
+  accessibilityLabel,
+  accessibilityRole,
+  accessibilityHint,
+  accessibilityState,
+  accessibilityValue,
+  accessible,
+  importantForAccessibility,
+  // Remaining FlatList-specific props intentionally ignored in mock
+  ...rest // eslint-disable-line @typescript-eslint/no-unused-vars
+}: any) => {
+  const React = require('react');
+
+  const containerProps = {
+    testID,
+    accessibilityLabel,
+    accessibilityRole,
+    accessibilityHint,
+    accessibilityState,
+    accessibilityValue,
+    accessible,
+    importantForAccessibility,
+  };
+
+  const header =
+    ListHeaderComponent == null
+      ? null
+      : typeof ListHeaderComponent === 'function'
+      ? React.createElement(ListHeaderComponent)
+      : React.createElement('View', { testID: 'flatlist-header' }, ListHeaderComponent);
+
+  const resolvedData = data ?? [];
+
+  const content =
+    resolvedData.length === 0
+      ? ListEmptyComponent == null
+        ? null
+        : typeof ListEmptyComponent === 'function'
+        ? React.createElement(ListEmptyComponent)
+        : React.createElement('View', { testID: 'flatlist-empty' }, ListEmptyComponent)
+      : resolvedData.map((item: any, index: number) => {
+          const key = keyExtractor ? keyExtractor(item, index) : String(index);
+          return renderItem ? React.createElement('View', { key }, renderItem({ item, index })) : null;
+        });
+
+  const footer =
+    ListFooterComponent == null
+      ? null
+      : typeof ListFooterComponent === 'function'
+      ? React.createElement(ListFooterComponent)
+      : React.createElement('View', { testID: 'flatlist-footer' }, ListFooterComponent);
+
+  return React.createElement(
+    'View',
+    { style, ...containerProps },
+    React.createElement(
+      'View',
+      { style: contentContainerStyle },
+      header,
+      ...(Array.isArray(content) ? content : [content]),
+      footer,
+    ),
+  );
+};

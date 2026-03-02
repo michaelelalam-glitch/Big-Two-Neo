@@ -21,7 +21,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   Animated,
   StyleSheet,
   Platform,
@@ -347,53 +347,72 @@ export const GameEndModal: React.FC = () => {
             >
               {/* Gradient background using View - LinearGradient requires native rebuild */}
               <View style={styles.gradient}>
-                <ScrollView 
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {/* Winner Announcement */}
-                  <WinnerAnnouncement
-                    winnerName={gameWinnerName}
-                    pulseAnim={pulseAnim}
-                  />
-                  
-                  {/* Final Standings */}
-                  <FinalStandings
-                    finalScores={finalScores}
-                    winnerIndex={gameWinnerIndex}
-                  />
-                  
-                  {/* Tab Interface */}
-                  <TabInterface
-                    activeTab={activeTab}
-                    onTabChange={switchTab}
-                    tabIndicatorAnim={tabIndicatorAnim}
-                  />
-                  
-                  {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none' */}
-                  <Animated.View style={{ opacity: tabContentOpacity }}>
-                    <View style={activeTab !== 'score' ? { display: 'none' } : undefined}>
+                {/*
+                 * Replaced outer ScrollView with a plain View so that each tab's FlatList
+                 * handles its own scrolling independently. Nesting VirtualizedList/FlatList
+                 * inside a same-orientation ScrollView disables windowing and triggers the
+                 * "VirtualizedLists should never be nested inside plain ScrollViews" warning.
+                 */}
+                <View style={styles.container}>
+                  {/* Fixed, non-scrollable header */}
+                  <View style={styles.modalSection}>
+                    {/* Winner Announcement */}
+                    <WinnerAnnouncement
+                      winnerName={gameWinnerName}
+                      pulseAnim={pulseAnim}
+                    />
+
+                    {/* Final Standings */}
+                    <FinalStandings
+                      finalScores={finalScores}
+                      winnerIndex={gameWinnerIndex}
+                    />
+
+                    {/* Tab Interface */}
+                    <TabInterface
+                      activeTab={activeTab}
+                      onTabChange={switchTab}
+                      tabIndicatorAnim={tabIndicatorAnim}
+                    />
+                  </View>
+
+                  {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none'.
+                      flex: 1 lets the active FlatList expand to fill remaining vertical space. */}
+                  <Animated.View style={{ flex: 1, opacity: tabContentOpacity }}>
+                    <View testID="tab-score-content" style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
+                        actionButtonsSlot={
+                          // paddingTop only — horizontal padding already comes from tabScrollContent
+                          <View style={{ paddingTop: 8 }}>
+                            <ActionButtons
+                              onShare={handleShare}
+                              onPlayAgain={handlePlayAgain}
+                              onReturnToMenu={handleReturnToMenu}
+                            />
+                          </View>
+                        }
                       />
                     </View>
-                    <View style={activeTab !== 'play' ? { display: 'none' } : undefined}>
+                    <View testID="tab-play-content" style={activeTab !== 'play' ? { display: 'none' } : { flex: 1 }}>
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
+                        actionButtonsSlot={
+                          // paddingTop only — horizontal padding already comes from tabScrollContent
+                          <View style={{ paddingTop: 8 }}>
+                            <ActionButtons
+                              onShare={handleShare}
+                              onPlayAgain={handlePlayAgain}
+                              onReturnToMenu={handleReturnToMenu}
+                            />
+                          </View>
+                        }
                       />
                     </View>
                   </Animated.View>
-                  
-                  {/* Action Buttons */}
-                  <ActionButtons
-                    onShare={handleShare}
-                    onPlayAgain={handlePlayAgain}
-                    onReturnToMenu={handleReturnToMenu}
-                  />
-                </ScrollView>
+                </View>
               </View>
             </Animated.View>
           </View>
@@ -535,6 +554,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
         </TouchableOpacity>
         
         <TouchableOpacity
+          testID="tab-play-button"
           style={[styles.tabButton, activeTab === 'play' && styles.tabButtonActive]}
           onPress={() => onTabChange('play')}
           activeOpacity={0.7}
@@ -572,11 +592,14 @@ interface ScoreHistoryTabProps {
     scores: number[];
   }[];
   playerNames: string[];
+  /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
+  actionButtonsSlot?: React.ReactNode;
 }
 
 const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   scoreHistory,
   playerNames,
+  actionButtonsSlot,
 }) => {
   // Start with only the latest match expanded (minimized by default)
   const [expandedScoreMatches, setExpandedScoreMatches] = useState<Set<number>>(() => {
@@ -627,144 +650,155 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
     return totals;
   }, [scoreHistory, playerNames.length]);
 
-  if (scoreHistory.length === 0) {
+  const allExpanded = expandedScoreMatches.size === scoreHistory.length;
+  const scoreHistoryLastIndex = scoreHistory.length - 1;
+
+  type ScoreHistoryItem = ScoreHistoryTabProps['scoreHistory'][number];
+
+  const renderScoreItem = ({ item: match, index: matchIndex }: { item: ScoreHistoryItem; index: number }) => {
+    const hasBustedPlayer = match.scores.some(score => score > 100);
+    const isExpanded = expandedScoreMatches.has(match.matchNumber);
+    const isLatest = matchIndex === scoreHistoryLastIndex;
     return (
-      <View style={styles.tabContent}>
+      <View>
+        {/* Collapsible header */}
+        <TouchableOpacity
+          style={[
+            styles.scoreHistoryCard,
+            hasBustedPlayer && styles.scoreHistoryCardBusted,
+            isLatest && styles.scoreHistoryCardLatest,
+            !isExpanded && styles.scoreHistoryCardCollapsed,
+          ]}
+          onPress={() => toggleScoreExpansion(match.matchNumber)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.scoreHistoryHeader}>
+            <View style={styles.scoreHistoryHeaderLeft}>
+              <Text style={styles.matchNumber}>
+                {i18n.t('gameEnd.match')} {match.matchNumber}
+              </Text>
+              {!isExpanded && (
+                <Text style={styles.scoreHistoryCollapsedSummary}>
+                  {playerNames.map((name, pi) =>
+                    `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
+                  ).join(' · ')}
+                </Text>
+              )}
+            </View>
+            <View style={styles.historyHeaderRight}>
+              {isLatest && (
+                <View style={styles.latestBadge}>
+                  <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
+                </View>
+              )}
+              <Text style={styles.expandIcon}>
+                {isExpanded ? '▼' : '▶'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Expanded detail */}
+          {isExpanded && (
+            <View style={styles.scoreHistoryGrid}>
+              {playerNames.map((name, playerIndex) => {
+                const score = match.scores[playerIndex] || 0;
+                const pointsAdded = match.pointsAdded[playerIndex] || 0;
+                const isBusted = score > 100;
+                return (
+                  <View key={playerIndex} style={styles.scoreHistoryRow}>
+                    <View style={styles.scoreHistoryPlayerInfo}>
+                      <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
+                      <View style={styles.scoreHistoryPoints}>
+                        <Text
+                          style={[
+                            styles.scoreHistoryCumulativeScore,
+                            isBusted && styles.scoreHistoryBustedText,
+                          ]}
+                        >
+                          {score} {i18n.t('gameEnd.points')}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.scoreHistoryPointsAdded,
+                            pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive,
+                          ]}
+                        >
+                          {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <FlatList
+      style={styles.tabContent}
+      contentContainerStyle={styles.tabScrollContent}
+      showsVerticalScrollIndicator={false}
+      data={scoreHistory}
+      keyExtractor={(item) => item.matchNumber.toString()}
+      renderItem={renderScoreItem}
+      extraData={expandedScoreMatches}
+      ListHeaderComponent={
+        scoreHistory.length > 0 ? (
+          <>
+            {/* Header row with title + expand/collapse toggle */}
+            <View style={styles.scoreHistoryHeaderRow}>
+              <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
+              <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
+                <Text style={styles.expandAllText}>
+                  {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Cumulative totals summary bar */}
+            <View style={styles.scoreSummaryBar}>
+              <Text style={styles.scoreSummaryTitle}>Totals</Text>
+              <View style={styles.scoreSummaryPlayers}>
+                {playerNames.map((name, idx) => (
+                  <View key={idx} style={styles.scoreSummaryItem}>
+                    <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
+                    <Text style={[
+                      styles.scoreSummaryScore,
+                      cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
+                    ]}>
+                      {cumulativeTotals[idx]}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null
+      }
+      ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
           <Text style={styles.emptyStateIcon}>📊</Text>
           <Text style={styles.emptyText}>{i18n.t('gameEnd.noScoreHistory')}</Text>
           <Text style={styles.emptySubtext}>{i18n.t('gameEnd.scoresWillAppear')}</Text>
         </View>
-      </View>
-    );
-  }
-
-  const allExpanded = expandedScoreMatches.size === scoreHistory.length;
-
-  return (
-    <ScrollView 
-      style={styles.tabContent}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.tabScrollContent}
-    >
-      {/* Header row with title + expand/collapse toggle */}
-      <View style={styles.scoreHistoryHeaderRow}>
-        <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
-        <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
-          <Text style={styles.expandAllText}>
-            {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Cumulative totals summary bar */}
-      <View style={styles.scoreSummaryBar}>
-        <Text style={styles.scoreSummaryTitle}>Totals</Text>
-        <View style={styles.scoreSummaryPlayers}>
-          {playerNames.map((name, idx) => (
-            <View key={idx} style={styles.scoreSummaryItem}>
-              <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
-              <Text style={[
-                styles.scoreSummaryScore,
-                cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText
-              ]}>
-                {cumulativeTotals[idx]}
+      }
+      ListFooterComponent={
+        <>
+          {scoreHistory.length > 0 && (
+            <View style={styles.tabContentFooter}>
+              <Text style={styles.tabContentFooterText}>
+                {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
               </Text>
             </View>
-          ))}
-        </View>
-      </View>
-      
-      {scoreHistory.map((match, matchIndex) => {
-        const hasBustedPlayer = match.scores.some(score => score > 100);
-        const isExpanded = expandedScoreMatches.has(match.matchNumber);
-        const isLatest = matchIndex === scoreHistory.length - 1;
-        
-        return (
-          <View key={match.matchNumber}>
-            {/* Collapsible header */}
-            <TouchableOpacity
-              style={[
-                styles.scoreHistoryCard,
-                hasBustedPlayer && styles.scoreHistoryCardBusted,
-                isLatest && styles.scoreHistoryCardLatest,
-                !isExpanded && styles.scoreHistoryCardCollapsed,
-              ]}
-              onPress={() => toggleScoreExpansion(match.matchNumber)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.scoreHistoryHeader}>
-                <View style={styles.scoreHistoryHeaderLeft}>
-                  <Text style={styles.matchNumber}>
-                    {i18n.t('gameEnd.match')} {match.matchNumber}
-                  </Text>
-                  {!isExpanded && (
-                    <Text style={styles.scoreHistoryCollapsedSummary}>
-                      {playerNames.map((name, pi) => 
-                        `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
-                      ).join(' · ')}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.playHistoryMatchHeaderRight}>
-                  {isLatest && (
-                    <View style={styles.latestBadge}>
-                      <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.expandIcon}>
-                    {isExpanded ? '▼' : '▶'}
-                  </Text>
-                </View>
-              </View>
-            
-              {/* Expanded detail */}
-              {isExpanded && (
-                <View style={styles.scoreHistoryGrid}>
-                  {playerNames.map((name, playerIndex) => {
-                    const score = match.scores[playerIndex] || 0;
-                    const pointsAdded = match.pointsAdded[playerIndex] || 0;
-                    const isBusted = score > 100;
-                    
-                    return (
-                      <View key={playerIndex} style={styles.scoreHistoryRow}>
-                        <View style={styles.scoreHistoryPlayerInfo}>
-                          <Text style={styles.scoreHistoryPlayerName}>{name}</Text>
-                          <View style={styles.scoreHistoryPoints}>
-                            <Text 
-                              style={[
-                                styles.scoreHistoryCumulativeScore,
-                                isBusted && styles.scoreHistoryBustedText
-                              ]}
-                            >
-                              {score} {i18n.t('gameEnd.points')}
-                            </Text>
-                            <Text 
-                              style={[
-                                styles.scoreHistoryPointsAdded,
-                                pointsAdded > 0 && styles.scoreHistoryPointsAddedPositive
-                              ]}
-                            >
-                              {pointsAdded > 0 ? `+${pointsAdded}` : pointsAdded}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        );
-      })}
-      
-      <View style={styles.tabContentFooter}>
-        <Text style={styles.tabContentFooterText}>
-          {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
-        </Text>
-      </View>
-    </ScrollView>
+          )}
+          {actionButtonsSlot}
+        </>
+      }
+    />
   );
 };
 
@@ -814,11 +848,14 @@ interface PlayHistoryTabProps {
     }[];
   }[];
   playerNames: string[];
+  /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
+  actionButtonsSlot?: React.ReactNode;
 }
 
 const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   playHistory,
   playerNames,
+  actionButtonsSlot,
 }) => {
   // Auto-expand the latest match on mount so content is visible immediately
   const [expandedMatches, setExpandedMatches] = useState<Set<number>>(() => {
@@ -855,18 +892,6 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     });
   };
   
-  if (playHistory.length === 0) {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateIcon}>🃏</Text>
-          <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
-          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
-        </View>
-      </View>
-    );
-  }
-
   // Flatten all hands for FlatList virtualization (Task #397)
   const flattenedData = playHistory.flatMap((match) => {
     const isExpanded = expandedMatches.has(match.matchNumber);
@@ -976,25 +1001,41 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   };
 
   return (
-    <ScrollView 
+    <FlatList
       style={styles.tabContent}
-      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.tabScrollContent}
-    >
-      <Text style={styles.historyTitle}>Card Play History</Text>
-      
-      {flattenedData.map((item, index) => (
-        <React.Fragment key={`${item.type}-${index}`}>
-          {renderItem({ item })}
-        </React.Fragment>
-      ))}
-      
-      <View style={styles.tabContentFooter}>
-        <Text style={styles.tabContentFooterText}>
-          {i18n.t('gameEnd.tapToExpand')}
-        </Text>
-      </View>
-    </ScrollView>
+      showsVerticalScrollIndicator={false}
+      data={flattenedData}
+      keyExtractor={(item) =>
+        item.type === 'header'
+          ? `header-${item.data.matchNumber}`
+          : `hand-${item.data.matchNumber}-${(item.data as PlayHistoryHandData).handIndex}`
+      }
+      renderItem={renderItem}
+      extraData={expandedMatches}
+      ListHeaderComponent={
+        <Text style={styles.historyTitle}>Card Play History</Text>
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyStateIcon}>🃏</Text>
+          <Text style={styles.emptyText}>{i18n.t('gameEnd.noPlayHistory')}</Text>
+          <Text style={styles.emptySubtext}>{i18n.t('gameEnd.playsWillAppear')}</Text>
+        </View>
+      }
+      ListFooterComponent={
+        <>
+          {flattenedData.length > 0 && (
+            <View style={styles.tabContentFooter}>
+              <Text style={styles.tabContentFooterText}>
+                {i18n.t('gameEnd.tapToExpand')}
+              </Text>
+            </View>
+          )}
+          {actionButtonsSlot}
+        </>
+      }
+    />
   );
 };
 
@@ -1078,10 +1119,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e', // Rich dark blue-purple background (matches intended gradient top color)
   },
-  scrollView: {
+  container: {
     flex: 1,
   },
-  scrollContent: {
+  modalSection: {
     padding: 20,
   },
   
@@ -1202,6 +1243,7 @@ const styles = StyleSheet.create({
     minHeight: 250,
   },
   tabScrollContent: {
+    paddingHorizontal: 20,
     paddingBottom: 16,
   },
   historyTitle: {
@@ -1408,6 +1450,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playHistoryMatchHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  historyHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
