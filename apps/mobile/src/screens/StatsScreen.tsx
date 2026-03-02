@@ -44,22 +44,21 @@ interface PlayerStats {
   global_rank: number | null;
   rank_points: number;
   rank_points_history: { date: string; points: number; result: 'win' | 'loss' }[] | null;
-  // Per-mode stats
+  // Per-mode stats (DB column names)
   casual_games_played: number;
-  casual_won: number;
-  casual_lost: number;
+  casual_games_won: number;
+  casual_games_lost: number;
   casual_win_rate: number;
   casual_rank_points: number;
   ranked_games_played: number;
-  ranked_won: number;
-  ranked_lost: number;
+  ranked_games_won: number;
+  ranked_games_lost: number;
   ranked_win_rate: number;
   ranked_rank_points: number;
   private_games_played: number;
-  private_won: number;
-  private_lost: number;
+  private_games_won: number;
+  private_games_lost: number;
   private_win_rate: number;
-  private_rank_points: number;
   // Game completion
   games_completed: number;
   games_abandoned: number;
@@ -389,42 +388,98 @@ export default function StatsScreen() {
           ))}
         </View>
 
-        {/* Mode-Aware Key Stats (Items 3) */}
+        {/* Mode-Aware Key Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             {activeTab === 'overview' ? i18n.t('profile.overview') : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Stats`}
           </Text>
+
+          {/* Core 4 cards — played / win rate / won / lost */}
           <View style={styles.statsGrid}>
-            {activeTab === 'overview' ? (
+            {activeTab === 'overview' && (
               <>
                 {renderStatCard(i18n.t('profile.gamesPlayed'), stats.games_played, '🎮')}
                 {renderStatCard(i18n.t('profile.winRate'), `${stats.win_rate.toFixed(1)}%`, '🏆')}
                 {renderStatCard(i18n.t('profile.gamesWon'), stats.games_won, '✅')}
                 {renderStatCard(i18n.t('profile.gamesLost'), stats.games_lost, '❌')}
               </>
-            ) : activeTab === 'casual' ? (
+            )}
+            {activeTab === 'casual' && (
               <>
                 {renderStatCard(i18n.t('profile.gamesPlayed'), stats.casual_games_played || 0, '🎮')}
                 {renderStatCard(i18n.t('profile.winRate'), `${(stats.casual_win_rate || 0).toFixed(1)}%`, '🏆')}
-                {renderStatCard(i18n.t('profile.gamesWon'), stats.casual_won || 0, '✅')}
-                {renderStatCard(i18n.t('profile.gamesLost'), stats.casual_lost || 0, '❌')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.casual_games_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.casual_games_lost || 0, '❌')}
               </>
-            ) : activeTab === 'private' ? (
+            )}
+            {activeTab === 'private' && (
               <>
                 {renderStatCard(i18n.t('profile.gamesPlayed'), stats.private_games_played || 0, '🎮')}
                 {renderStatCard(i18n.t('profile.winRate'), `${(stats.private_win_rate || 0).toFixed(1)}%`, '🏆')}
-                {renderStatCard(i18n.t('profile.gamesWon'), stats.private_won || 0, '✅')}
-                {renderStatCard(i18n.t('profile.gamesLost'), stats.private_lost || 0, '❌')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.private_games_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.private_games_lost || 0, '❌')}
               </>
-            ) : (
+            )}
+            {activeTab === 'ranked' && (
               <>
                 {renderStatCard(i18n.t('profile.gamesPlayed'), stats.ranked_games_played || 0, '🎮')}
                 {renderStatCard(i18n.t('profile.winRate'), `${(stats.ranked_win_rate || 0).toFixed(1)}%`, '🏆')}
-                {renderStatCard(i18n.t('profile.gamesWon'), stats.ranked_won || 0, '✅')}
-                {renderStatCard(i18n.t('profile.gamesLost'), stats.ranked_lost || 0, '❌')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.ranked_games_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.ranked_games_lost || 0, '❌')}
               </>
             )}
           </View>
+
+          {/* Rank Points + Global Rank — overview, casual, ranked (not private) */}
+          {(activeTab === 'overview' || activeTab === 'casual' || activeTab === 'ranked') && (
+            <View style={[styles.statsGrid, { marginTop: SPACING.md }]}>
+              {activeTab === 'overview' && (
+                <>
+                  {renderStatCard(i18n.t('profile.rankPoints'), stats.rank_points, '⭐')}
+                  {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                </>
+              )}
+              {activeTab === 'casual' && (
+                <>
+                  {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
+                  {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
+                </>
+              )}
+              {activeTab === 'ranked' && (
+                <>
+                  {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
+                  {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Streaks — all tabs */}
+          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>{i18n.t('profile.streaks')}</Text>
+          <View style={styles.streaksContainer}>
+            <View style={styles.streakItem}>
+              <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
+              <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
+                {stats.current_win_streak > 0
+                  ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}`
+                  : stats.current_loss_streak > 0
+                    ? `❄️ ${stats.current_loss_streak} ${i18n.t('profile.losses')}`
+                    : 'None'}
+              </Text>
+            </View>
+            <View style={styles.streakItem}>
+              <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
+              <Text style={styles.streakValue}>🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}</Text>
+            </View>
+          </View>
+
+          {/* Total Points row — casual / private / ranked */}
+          {activeTab !== 'overview' && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>{i18n.t('profile.totalScore')}</Text>
+              <Text style={styles.infoValue}>{(stats.total_points || 0).toLocaleString()}</Text>
+            </View>
+          )}
         </View>
 
         {/* Game Completion Section (Item 4) */}
@@ -464,33 +519,10 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* Streaks */}
-        {activeTab === 'overview' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{i18n.t('profile.streaks')}</Text>
-            <View style={styles.streaksContainer}>
-              <View style={styles.streakItem}>
-                <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
-                <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
-                  {stats.current_win_streak > 0 
-                    ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}` 
-                    : stats.current_loss_streak > 0
-                      ? `❄️ ${stats.current_loss_streak} ${i18n.t('profile.losses')}`
-                      : 'None'}
-                </Text>
-              </View>
-              <View style={styles.streakItem}>
-                <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
-                <Text style={styles.streakValue}>
-                  🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* Standalone Streaks section removed — now rendered inline in core stats section above */}
 
-        {/* Rank Progression Graph (Item 5) */}
-        {activeTab === 'overview' && userId && (
+        {/* Rank Progression Graph — Overview + Ranked only */}
+        {(activeTab === 'overview' || activeTab === 'ranked') && userId && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Rank Progression</Text>
             <StreakGraph 
@@ -768,6 +800,24 @@ const styles = StyleSheet.create({
   statLabel: {
     color: COLORS.white + '99',
     fontSize: FONT_SIZES.sm,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.white + '22',
+    marginTop: SPACING.md,
+  },
+  infoLabel: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.md,
+  },
+  infoValue: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
   streaksContainer: {
     gap: SPACING.md,

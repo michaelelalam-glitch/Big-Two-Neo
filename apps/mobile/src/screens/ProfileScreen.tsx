@@ -119,16 +119,27 @@ const ProfileScreen = () => {
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>{i18n.t('profile.title')}</Text>
-            {profile?.rank && profile?.elo_rating && (
-              <View style={styles.rankBadgeContainer}>
-                <RankBadge 
-                  rank={profile.rank as Rank} 
-                  elo={profile.elo_rating} 
-                  size="large" 
-                  showElo={true}
-                />
-              </View>
-            )}
+            <View style={styles.rankRowContainer}>
+              {profile?.rank && profile?.elo_rating ? (
+                <View style={styles.rankBadgeContainer}>
+                  <RankBadge 
+                    rank={profile.rank as Rank} 
+                    elo={profile.elo_rating} 
+                    size="large" 
+                    showElo={true}
+                  />
+                </View>
+              ) : (
+                <View style={styles.rankBadgePlaceholder} />
+              )}
+              <TouchableOpacity
+                style={styles.statsButtonInline}
+                onPress={() => navigation.navigate('Stats', { userId: user?.id })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.statsButtonInlineText}>📊 {i18n.t('profile.viewFullStats') || 'View Full Stats'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Overview Section */}
@@ -313,9 +324,38 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 30,
   },
-  rankBadgeContainer: {
+  rankRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 16,
-    alignSelf: 'flex-start',
+    gap: 12,
+  },
+  rankBadgeContainer: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  rankBadgePlaceholder: {
+    flex: 1,
+  },
+  statsButtonInline: {
+    flex: 1,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background.dark,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minHeight: 52,
+  },
+  statsButtonInlineText: {
+    color: COLORS.secondary,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   title: {
     fontSize: 32,
