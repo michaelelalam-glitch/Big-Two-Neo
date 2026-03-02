@@ -21,6 +21,8 @@ import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
+import { supabase } from '../services/supabase';
+import { API } from '../constants';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
@@ -58,6 +60,9 @@ export function MultiplayerGame() {
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
+  // Room UUID and game start time — used for online stats saving
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const gameStartedAtRef = useRef<number>(Date.now());
 
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
@@ -77,7 +82,7 @@ export function MultiplayerGame() {
   } = useCardSelection();
 
   // Initialize multiplayer room data
-  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers });
+  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomId });
 
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
@@ -170,6 +175,67 @@ export function MultiplayerGame() {
         scoreHistory || [],
         playHistoryByMatch || [],
       );
+
+      // Save stats for online multiplayer (fire-and-forget, does not block UI)
+      const nowTs = Date.now();
+      void (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) return;
+
+          // Only send human players — bots do not have real Supabase user accounts
+          const sortedByScore = [...finalScores].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
+          const humanPlayers = multiplayerPlayers.filter(p => !p.is_bot);
+          if (humanPlayers.length === 0) return;
+
+          const playersData = humanPlayers.map(player => {
+            const score = finalScores.find(s => s.player_index === player.player_index);
+            const rank = sortedByScore.findIndex(s => s.player_index === player.player_index) + 1;
+            return {
+              user_id: player.user_id,
+              username: player.username,
+              score: score?.cumulativeScore ?? 0,
+              finish_position: rank || 1,
+              // Combo tracking for online games is not yet implemented; send zeros
+              combos_played: { singles: 0, pairs: 0, triples: 0, straights: 0, flushes: 0, full_houses: 0, four_of_a_kinds: 0, straight_flushes: 0, royal_flushes: 0 },
+            };
+          });
+
+          // Winner is the human player with the lowest cumulative score
+          const winnerHuman = multiplayerPlayers.find(p => p.player_index === winnerIdx && !p.is_bot);
+          const winnerId = winnerHuman?.user_id ?? (user?.id ?? '');
+
+          const response = await fetch(
+            `${API.SUPABASE_URL}/functions/v1/complete-game`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                room_id: roomId,
+                room_code: roomCode,
+                players: playersData,
+                winner_id: winnerId,
+                game_duration_seconds: Math.floor((nowTs - gameStartedAtRef.current) / 1000),
+                started_at: new Date(gameStartedAtRef.current).toISOString(),
+                finished_at: new Date(nowTs).toISOString(),
+              }),
+            }
+          );
+
+          if (response.ok) {
+            gameLogger.info('[MultiplayerGame] ✅ Online game stats saved successfully');
+          } else {
+            const errBody = await response.json().catch(() => ({}));
+            gameLogger.warn('[MultiplayerGame] ⚠️ Stats save failed:', errBody);
+          }
+        } catch (statsErr) {
+          // Non-blocking — game still ends even if stats fail to save
+          gameLogger.warn('[MultiplayerGame] ⚠️ Failed to save online game stats:', statsErr instanceof Error ? statsErr.message : String(statsErr));
+        }
+      })();
     },
   });
 

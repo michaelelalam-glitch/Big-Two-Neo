@@ -84,10 +84,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Validate game data integrity
-    if (gameData.players.length !== 4) {
+    // Validate game data integrity — online games may have fewer than 4 human players
+    // when bots are present (bots are excluded from the players array)
+    if (gameData.players.length < 1) {
       return new Response(
-        JSON.stringify({ error: 'Invalid game: must have 4 players' }),
+        JSON.stringify({ error: 'Invalid game: must have at least 1 player' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,9 +102,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Verify finish positions are valid (1-4, no duplicates)
-    const positions = gameData.players.map(p => p.finish_position).sort();
-    if (positions.join(',') !== '1,2,3,4') {
+    // Verify finish positions are valid: 1-N (no duplicates, no gaps)
+    const n = gameData.players.length;
+    const positions = gameData.players.map(p => p.finish_position).sort((a, b) => a - b);
+    const expectedPositions = Array.from({ length: n }, (_, i) => i + 1);
+    if (positions.join(',') !== expectedPositions.join(',')) {
       return new Response(
         JSON.stringify({ error: 'Invalid finish positions' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -149,18 +152,18 @@ Deno.serve(async (req: Request) => {
       .insert({
         room_id: gameData.room_id,
         room_code: gameData.room_code,
-        player_1_id: realPlayers[0],
-        player_2_id: realPlayers[1],
-        player_3_id: realPlayers[2],
-        player_4_id: realPlayers[3],
-        player_1_username: gameData.players[0].username,
-        player_2_username: gameData.players[1].username,
-        player_3_username: gameData.players[2].username,
-        player_4_username: gameData.players[3].username,
-        player_1_score: gameData.players[0].score,
-        player_2_score: gameData.players[1].score,
-        player_3_score: gameData.players[2].score,
-        player_4_score: gameData.players[3].score,
+        player_1_id: realPlayers[0] ?? null,
+        player_2_id: realPlayers[1] ?? null,
+        player_3_id: realPlayers[2] ?? null,
+        player_4_id: realPlayers[3] ?? null,
+        player_1_username: gameData.players[0]?.username ?? null,
+        player_2_username: gameData.players[1]?.username ?? null,
+        player_3_username: gameData.players[2]?.username ?? null,
+        player_4_username: gameData.players[3]?.username ?? null,
+        player_1_score: gameData.players[0]?.score ?? null,
+        player_2_score: gameData.players[1]?.score ?? null,
+        player_3_score: gameData.players[2]?.score ?? null,
+        player_4_score: gameData.players[3]?.score ?? null,
         winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,
         game_duration_seconds: gameData.game_duration_seconds,
         started_at: gameData.started_at,
