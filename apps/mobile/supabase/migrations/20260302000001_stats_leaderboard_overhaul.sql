@@ -439,9 +439,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION refresh_leaderboard()
 RETURNS VOID AS $$
 BEGIN
-  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
-  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_casual;
-  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_ranked;
+  -- Use non-concurrent refresh to support first-run on a fresh DB
+  -- (CONCURRENTLY requires a prior population which may not exist on new installs).
+  REFRESH MATERIALIZED VIEW leaderboard_global;
+  REFRESH MATERIALIZED VIEW leaderboard_casual;
+  REFRESH MATERIALIZED VIEW leaderboard_ranked;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -453,5 +455,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 REVOKE EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER) TO service_role;
 
--- Grant refresh to authenticated users as well
-GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated, anon;
+-- Restrict refresh_leaderboard to service_role only to prevent expensive
+-- materialised-view refreshes from being triggered by unprivileged clients.
+REVOKE EXECUTE ON FUNCTION refresh_leaderboard() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO service_role;

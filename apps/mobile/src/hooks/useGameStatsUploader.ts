@@ -1,7 +1,7 @@
 /**
  * useGameStatsUploader — Sends multiplayer game completion data to the complete-game edge function.
  *
- * Called once when a multiplayer game's phase transitions to 'finished'.
+ * Called once when a multiplayer game's phase transitions to 'game_over'.
  * Builds the full GameCompletionRequest payload including:
  *   - game_type derived from room's ranked_mode + is_public flags
  *   - cards_left per player (from final hands state)
@@ -81,7 +81,8 @@ export function useGameStatsUploader({
     }
 
     uploadingRef.current = true;
-    hasUploadedRef.current = true;
+    // NOTE: hasUploadedRef is committed inside uploadStats() AFTER auth succeeds,
+    // so transient auth failures do not permanently block retry.
 
     const uploadStats = async () => {
       try {
@@ -90,14 +91,19 @@ export function useGameStatsUploader({
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           statsLogger.warn('[GameStats] No authenticated user, skipping stats upload');
+          uploadingRef.current = false;
           return;
         }
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
           statsLogger.warn('[GameStats] No active session, skipping stats upload');
+          uploadingRef.current = false;
           return;
         }
+
+        // Commit the upload flag here — auth is confirmed, we will attempt the upload.
+        hasUploadedRef.current = true;
 
         // Determine game_type from room flags
         // ranked_mode=true → ranked

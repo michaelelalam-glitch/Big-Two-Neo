@@ -464,7 +464,7 @@ export function MultiplayerGame() {
       isLocalAIGame={false}
       currentOrientation={currentOrientation}
       toggleOrientation={toggleOrientation}
-      isInitializing={false}
+      isInitializing={!isMultiplayerDataReady}
       isConnected={isConnected}
       showSettings={showSettings}
       setShowSettings={setShowSettings}

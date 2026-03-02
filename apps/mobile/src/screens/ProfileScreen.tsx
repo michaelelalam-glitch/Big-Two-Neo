@@ -22,14 +22,19 @@ import { authLogger } from '../utils/logger';
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { user, profile, isLoading, signOut } = useAuth();
+  const { user, profile, isLoading, signOut, refreshProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Just briefly show refresh indicator – profile data comes from AuthContext
-    setTimeout(() => setRefreshing(false), 500);
-  }, []);
+    try {
+      await refreshProfile();
+    } catch (_e) {
+      // Silently swallow — profile data is best-effort on pull-to-refresh
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshProfile]);
 
   const handleSignOut = async () => {
     showConfirm({
@@ -87,7 +92,7 @@ const ProfileScreen = () => {
                 onPress={() => navigation.navigate('Stats', { userId: user?.id })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.statsButtonInlineText}>📊 {i18n.t('profile.viewFullStats') || 'View Full Stats'}</Text>
+                <Text style={styles.statsButtonInlineText}>📊 {i18n.t('profile.viewFullStats')}</Text>
               </TouchableOpacity>
             </View>
           </View>

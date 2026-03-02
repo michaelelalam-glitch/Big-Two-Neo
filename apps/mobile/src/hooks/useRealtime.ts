@@ -215,7 +215,19 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // without needing to re-subscribe the channel when the prop changes.
         const broadcastData = (payload as any)?.data || payload;
         const winnerIndex = (broadcastData as any)?.winner_index ?? null;
-        const finalScores = (broadcastData as any)?.final_scores ?? [];
+        const rawScores = (broadcastData as any)?.final_scores ?? [];
+        // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
+        const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
+          typeof s === 'object' && s !== null &&
+          typeof (s as Record<string, unknown>).player_index === 'number' &&
+          typeof (s as Record<string, unknown>).matchScore === 'number' &&
+          typeof (s as Record<string, unknown>).cumulativeScore === 'number';
+        const finalScores: PlayerMatchScoreDetail[] = Array.isArray(rawScores)
+          ? rawScores.filter(isValidScore)
+          : [];
+        if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
+          networkLogger.warn('[Realtime] game_over: some final_scores entries had unexpected shape and were filtered');
+        }
         const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
 
         // Record the FINAL match scores before opening the game-over modal

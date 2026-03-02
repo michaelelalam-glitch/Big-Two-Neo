@@ -35,7 +35,7 @@ interface PlayerStats {
   avg_finish_position: number;
   total_points: number;
   highest_score: number;
-  lowest_score: number;
+  lowest_score: number | null;
   avg_score_per_game: number;
   avg_cards_left_in_hand: number;
   current_win_streak: number;
@@ -227,7 +227,10 @@ export default function StatsScreen() {
   }, [stats, activeTab]);
 
   const modeGamesCompleted = React.useMemo(() => {
-    // Use filtered game history to count completed games for this mode
+    // NOTE: game history is capped at the last 100 entries fetched (per .limit(100)).
+    // For heavy users with >100 games per mode this count may undercount vs the true total.
+    // TODO: add casual_games_completed / ranked_games_completed / private_games_completed
+    // DB columns and use them here once the migration lands.
     if (activeTab === 'overview') return stats?.games_completed || 0;
     return filteredGameHistory.filter((g) => g.game_completed !== false).length;
   }, [filteredGameHistory, activeTab, stats]);
@@ -499,8 +502,8 @@ export default function StatsScreen() {
             </View>
           </View>
 
-          {/* Total Points row — casual / private / ranked */}
-          {activeTab !== 'overview' && (
+          {/* Total Points row — private / ranked only (Casual already shows it in the rank points card) */}
+          {(activeTab === 'private' || activeTab === 'ranked') && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>{i18n.t('profile.totalScore')}</Text>
               <Text style={styles.infoValue}>{(stats.total_points || 0).toLocaleString()}</Text>
@@ -510,7 +513,7 @@ export default function StatsScreen() {
 
         {/* Game Completion Section — all tabs */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Game Completion</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.gameCompletion')}</Text>
           <View style={styles.completionContainer}>
             <View style={styles.completionMain}>
               <View style={styles.completionCircle}>
@@ -562,11 +565,17 @@ export default function StatsScreen() {
         {/* Rank Progression Graph — Overview + Ranked only */}
         {(activeTab === 'overview' || activeTab === 'ranked') && userId && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rank Progression</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.rankProgression')}</Text>
             <StreakGraph 
               gameHistory={gameHistory} 
               userId={userId} 
-              rankPointsHistory={stats.rank_points_history || undefined}
+              rankPointsHistory={
+                activeTab === 'ranked'
+                  ? (Array.isArray(stats.rank_points_history)
+                      ? stats.rank_points_history.filter((e) => e?.game_type === 'ranked')
+                      : undefined)
+                  : stats.rank_points_history || undefined
+              }
             />
           </View>
         )}
@@ -577,10 +586,10 @@ export default function StatsScreen() {
           <View style={styles.statsGrid}>
             {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
             {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
-            {renderStatCard('Highest Score', stats.highest_score, '💀')}
-            {renderStatCard('Lowest Score', stats.lowest_score || 0, '⭐')}
+            {renderStatCard(i18n.t('profile.highestScore'), stats.highest_score, '💀')}
+            {renderStatCard(i18n.t('profile.lowestScore'), stats.lowest_score ?? 0, '⭐')}
             {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
-            {renderStatCard('Avg Cards Left', (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
+            {renderStatCard(i18n.t('profile.avgCardsLeft'), (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
           </View>
         </View>
 
