@@ -229,10 +229,11 @@ export default function StatsScreen() {
   const modeGamesCompleted = React.useMemo(() => {
     // NOTE: game history is capped at the last 100 entries fetched (per .limit(100)).
     // For heavy users with >100 games per mode this count may undercount vs the true total.
-    // TODO: add casual_games_completed / ranked_games_completed / private_games_completed
-    // DB columns and use them here once the migration lands.
+    // We use `=== true` (not `!== false`) so that legacy rows where
+    // game_completed is NULL (added before the column existed, defaulting NULL
+    // for old rows) are treated as unknown / NOT completed — avoiding overcounting.
     if (activeTab === 'overview') return stats?.games_completed || 0;
-    return filteredGameHistory.filter((g) => g.game_completed !== false).length;
+    return filteredGameHistory.filter((g) => g.game_completed === true).length;
   }, [filteredGameHistory, activeTab, stats]);
   // ─────────────────────────────────────────────────────────────────────────────
 

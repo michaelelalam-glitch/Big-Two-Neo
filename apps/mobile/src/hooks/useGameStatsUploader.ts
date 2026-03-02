@@ -6,7 +6,7 @@
  *   - game_type derived from room's ranked_mode + is_public flags
  *   - cards_left per player (from final hands state)
  *   - was_bot, disconnected, original_username per player
- *   - combo stats from play history
+ *   - placeholder combo stats for multiplayer games (currently all zeros; no combo tracking implemented yet)
  */
 
 import { useEffect, useRef } from 'react';
@@ -39,16 +39,15 @@ export function useGameStatsUploader({
   useEffect(() => {
     if (!isMultiplayerGame) return;
     if (!multiplayerGameState) return;
-    if (multiplayerGameState.game_phase !== 'finished' && multiplayerGameState.game_phase !== 'game_over') {
-      // Reset flag if game is not finished/game_over (e.g., new game in same session)
+    if (multiplayerGameState.game_phase !== 'game_over') {
+      // Reset flag on any phase that isn't 'game_over' so that a new game
+      // in the same hook instance can trigger a fresh upload.
+      // Previously 'finished' (single-match end) was excluded from the reset,
+      // but that left the flag set across game boundaries if the component
+      // instance was reused.
       hasUploadedRef.current = false;
       return;
     }
-
-    // Only upload on 'game_over' (entire game ended), not 'finished' (match ended)
-    // 'finished' = single match ended, game continues to next match
-    // 'game_over' = all matches complete, final winner determined
-    if (multiplayerGameState.game_phase !== 'game_over') return;
     if (!roomInfo?.id) return;
     if (hasUploadedRef.current) return;
     if (uploadingRef.current) return;
@@ -126,6 +125,21 @@ export function useGameStatsUploader({
           cumulative_score: score as number,
         })).sort((a, b) => a.cumulative_score - b.cumulative_score);
 
+        // Build a unique finish-position map so every player gets a distinct
+        // rank. The edge function validates positions are exactly [1,2,3,4].
+        // Players present in finalScores are ranked 1-N by score; any missing
+        // players (e.g. disconnected before game_over) fill N+1, N+2, …
+        const finishPositionMap = new Map<number, number>();
+        finalScoresEntries.forEach((entry, idx) => {
+          finishPositionMap.set(entry.player_index, idx + 1);
+        });
+        let nextFallbackPosition = finalScoresEntries.length + 1;
+        multiplayerPlayers.forEach((p) => {
+          if (!finishPositionMap.has(p.player_index)) {
+            finishPositionMap.set(p.player_index, nextFallbackPosition++);
+          }
+        });
+
         // Build players array
         const finishedAt = new Date().toISOString();
         const startedAt = gameStartedAt || new Date(Date.now() - 30 * 60 * 1000).toISOString(); // fallback 30min
@@ -134,8 +148,7 @@ export function useGameStatsUploader({
         );
 
         const players = multiplayerPlayers.map((player) => {
-          const positionEntry = finalScoresEntries.findIndex(e => e.player_index === player.player_index);
-          const finishPosition = positionEntry >= 0 ? positionEntry + 1 : 4;
+          const finishPosition = finishPositionMap.get(player.player_index) ?? multiplayerPlayers.length;
 
           // cards_left: number of cards the player has at game end
           const playerHandKey = String(player.player_index);

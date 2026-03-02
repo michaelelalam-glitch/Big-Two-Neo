@@ -415,7 +415,11 @@ BEGIN
     WHERE user_id = p_user_id;
   END IF;
 
-  -- Append to rank_points_history (cap at last 100 entries)
+  -- Append to rank_points_history (cap at last 100 entries).
+  -- v_stats is a snapshot taken at the top of this function (before the first
+  -- UPDATE). Adding v_rank_point_change to the snapshot value reproduces the
+  -- same new rank_points value that was written by the UPDATE above —
+  -- equivalent to reading the updated row but without an extra SELECT.
   v_new_rank_points := v_stats.rank_points + v_rank_point_change;
   v_history_entry := jsonb_build_object(
     'points', v_new_rank_points,

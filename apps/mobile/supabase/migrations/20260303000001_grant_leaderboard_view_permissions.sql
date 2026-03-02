@@ -16,7 +16,8 @@ BEGIN
   END IF;
 END$$;
 
--- Refresh the materialized views so they have data
--- (They may be empty if no games were completed with the new edge function yet)
-REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_casual;
-REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_ranked;
+-- Initial (non-concurrent) refresh so views have data from the start.
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY requires a prior population and a
+-- unique index; using the plain form here is safe for a first-run migration.
+REFRESH MATERIALIZED VIEW leaderboard_casual;
+REFRESH MATERIALIZED VIEW leaderboard_ranked;
