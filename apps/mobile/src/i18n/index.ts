@@ -438,6 +438,7 @@ export interface Translations {
     flushes: string;
     royalFlush: string;
     recentGames: string;
+    viewFullStats: string;
   };
   
   // Leaderboard Screen
@@ -881,6 +882,7 @@ const en: Translations = {
     flushes: 'Flushes',
     royalFlush: 'Royal Flush',
     recentGames: 'Recent Games',
+    viewFullStats: 'View Full Stats',
   },
   leaderboard: {
     title: 'Leaderboard',

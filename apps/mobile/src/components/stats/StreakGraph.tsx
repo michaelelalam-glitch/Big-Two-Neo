@@ -28,9 +28,10 @@ interface GameHistory {
 }
 
 interface RankPointsHistoryEntry {
-  date: string;
+  timestamp: string;
   points: number;
-  result: 'win' | 'loss';
+  is_win: boolean;
+  game_type: string;
 }
 
 interface StreakGraphProps {
@@ -51,7 +52,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
       return rankPointsHistory.map((entry, index) => ({
         gameNumber: index + 1,
         points: entry.points,
-        isWin: entry.result === 'win',
+        isWin: entry.is_win,
         gameScore: 0,
       }));
     }

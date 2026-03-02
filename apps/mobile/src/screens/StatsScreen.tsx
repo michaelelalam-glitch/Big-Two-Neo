@@ -43,7 +43,7 @@ interface PlayerStats {
   current_loss_streak: number;
   global_rank: number | null;
   rank_points: number;
-  rank_points_history: { date: string; points: number; result: 'win' | 'loss' }[] | null;
+  rank_points_history: { timestamp: string; points: number; is_win: boolean; game_type: string }[] | null;
   // Per-mode stats (DB column names)
   casual_games_played: number;
   casual_games_won: number;
@@ -210,6 +210,28 @@ export default function StatsScreen() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  // ─── Per-mode derived data ─────────────────────────────────────────────────
+  // Filter game history by game_type for per-mode tabs
+  const filteredGameHistory = React.useMemo(() => {
+    if (activeTab === 'overview') return gameHistory;
+    return gameHistory.filter((g) => g.game_type === activeTab);
+  }, [gameHistory, activeTab]);
+
+  // Per-mode games played / completed for completion section
+  const modeGamesPlayed = React.useMemo(() => {
+    if (!stats || activeTab === 'overview') return 0;
+    if (activeTab === 'casual') return stats.casual_games_played || 0;
+    if (activeTab === 'ranked') return stats.ranked_games_played || 0;
+    return stats.private_games_played || 0;
+  }, [stats, activeTab]);
+
+  const modeGamesCompleted = React.useMemo(() => {
+    // Use filtered game history to count completed games for this mode
+    if (activeTab === 'overview') return stats?.games_completed || 0;
+    return filteredGameHistory.filter((g) => g.game_completed !== false).length;
+  }, [filteredGameHistory, activeTab, stats]);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const renderStatCard = (label: string, value: string | number, icon?: string) => (
     <View style={styles.statCard}>
@@ -430,29 +452,33 @@ export default function StatsScreen() {
             )}
           </View>
 
-          {/* Rank Points + Global Rank — overview, casual, ranked (not private) */}
-          {(activeTab === 'overview' || activeTab === 'casual' || activeTab === 'ranked') && (
-            <View style={[styles.statsGrid, { marginTop: SPACING.md }]}>
-              {activeTab === 'overview' && (
-                <>
-                  {renderStatCard(i18n.t('profile.rankPoints'), stats.rank_points, '⭐')}
-                  {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
-                </>
-              )}
-              {activeTab === 'casual' && (
-                <>
-                  {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
-                  {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
-                </>
-              )}
-              {activeTab === 'ranked' && (
-                <>
-                  {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
-                  {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
-                </>
-              )}
-            </View>
-          )}
+          {/* Rank Points + secondary metric — overview, casual, ranked, private */}
+          <View style={[styles.statsGrid, { marginTop: SPACING.md }]}>
+            {activeTab === 'overview' && (
+              <>
+                {renderStatCard(i18n.t('profile.rankPoints'), stats.rank_points, '⭐')}
+                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+              </>
+            )}
+            {activeTab === 'casual' && (
+              <>
+                {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
+                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+              </>
+            )}
+            {activeTab === 'ranked' && (
+              <>
+                {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
+                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+              </>
+            )}
+            {activeTab === 'private' && (
+              <>
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
+                {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+              </>
+            )}
+          </View>
 
           {/* Streaks — all tabs */}
           <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>{i18n.t('profile.streaks')}</Text>
@@ -482,42 +508,54 @@ export default function StatsScreen() {
           )}
         </View>
 
-        {/* Game Completion Section (Item 4) */}
-        {activeTab === 'overview' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Game Completion</Text>
-            <View style={styles.completionContainer}>
-              <View style={styles.completionMain}>
-                <View style={styles.completionCircle}>
-                  <Text style={styles.completionPercentage}>
-                    {(stats.completion_rate || 0).toFixed(0)}%
+        {/* Game Completion Section — all tabs */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Game Completion</Text>
+          <View style={styles.completionContainer}>
+            <View style={styles.completionMain}>
+              <View style={styles.completionCircle}>
+                <Text style={styles.completionPercentage}>
+                  {activeTab === 'overview'
+                    ? (stats.completion_rate || 0).toFixed(0)
+                    : modeGamesPlayed > 0
+                      ? ((modeGamesCompleted / modeGamesPlayed) * 100).toFixed(0)
+                      : '0'}%
+                </Text>
+                <Text style={styles.completionLabel}>Completed</Text>
+              </View>
+              <View style={styles.completionDetails}>
+                <View style={styles.completionRow}>
+                  <Text style={styles.completionDetailLabel}>✅ Completed</Text>
+                  <Text style={styles.completionDetailValue}>
+                    {activeTab === 'overview' ? (stats.games_completed || 0) : modeGamesCompleted}
                   </Text>
-                  <Text style={styles.completionLabel}>Completed</Text>
                 </View>
-                <View style={styles.completionDetails}>
-                  <View style={styles.completionRow}>
-                    <Text style={styles.completionDetailLabel}>✅ Completed</Text>
-                    <Text style={styles.completionDetailValue}>{stats.games_completed || 0}</Text>
-                  </View>
-                  <View style={styles.completionRow}>
-                    <Text style={styles.completionDetailLabel}>🚪 Abandoned</Text>
-                    <Text style={styles.completionDetailValue}>{stats.games_abandoned || 0}</Text>
-                  </View>
-                  <View style={styles.completionRow}>
-                    <Text style={styles.completionDetailLabel}>🔥 Current Streak</Text>
-                    <Text style={[styles.completionDetailValue, (stats.current_completion_streak || 0) > 0 && styles.streakValueActive]}>
-                      {stats.current_completion_streak || 0}
-                    </Text>
-                  </View>
-                  <View style={styles.completionRow}>
-                    <Text style={styles.completionDetailLabel}>🏅 Best Streak</Text>
-                    <Text style={styles.completionDetailValue}>{stats.longest_completion_streak || 0}</Text>
-                  </View>
+                <View style={styles.completionRow}>
+                  <Text style={styles.completionDetailLabel}>🚪 Abandoned</Text>
+                  <Text style={styles.completionDetailValue}>
+                    {activeTab === 'overview'
+                      ? (stats.games_abandoned || 0)
+                      : Math.max(0, modeGamesPlayed - modeGamesCompleted)}
+                  </Text>
                 </View>
+                {activeTab === 'overview' && (
+                  <>
+                    <View style={styles.completionRow}>
+                      <Text style={styles.completionDetailLabel}>🔥 Current Streak</Text>
+                      <Text style={[styles.completionDetailValue, (stats.current_completion_streak || 0) > 0 && styles.streakValueActive]}>
+                        {stats.current_completion_streak || 0}
+                      </Text>
+                    </View>
+                    <View style={styles.completionRow}>
+                      <Text style={styles.completionDetailLabel}>🏅 Best Streak</Text>
+                      <Text style={styles.completionDetailValue}>{stats.longest_completion_streak || 0}</Text>
+                    </View>
+                  </>
+                )}
               </View>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Standalone Streaks section removed — now rendered inline in core stats section above */}
 
@@ -533,45 +571,41 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* Performance (Item 6) — 6 cards */}
-        {activeTab === 'overview' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
-            <View style={styles.statsGrid}>
-              {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
-              {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
-              {renderStatCard('Highest Score', stats.highest_score, '💀')}
-              {renderStatCard('Lowest Score', stats.lowest_score || 0, '⭐')}
-              {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
-              {renderStatCard('Avg Cards Left', (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
-            </View>
+        {/* Performance — all tabs (uses overall stats; per-mode not tracked yet) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
+          <View style={styles.statsGrid}>
+            {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
+            {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
+            {renderStatCard('Highest Score', stats.highest_score, '💀')}
+            {renderStatCard('Lowest Score', stats.lowest_score || 0, '⭐')}
+            {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+            {renderStatCard('Avg Cards Left', (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
           </View>
-        )}
+        </View>
 
-        {/* Combo Stats */}
-        {activeTab === 'overview' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
-            <View style={styles.comboGrid}>
-              {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
-              {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
-              {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
-              {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
-              {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
-              {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
-              {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
-              {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
-              {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
-            </View>
+        {/* Combo Stats — all tabs (overall; per-mode not tracked yet) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
+          <View style={styles.comboGrid}>
+            {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
+            {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
+            {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
+            {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
+            {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
+            {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
+            {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
+            {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
+            {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
           </View>
-        )}
+        </View>
 
-        {/* Game History (Item 7) — enhanced with bots + disconnects */}
-        {activeTab === 'overview' && gameHistory.length > 0 && (
+        {/* Game History — all tabs; filtered by game_type for per-mode tabs */}
+        {filteredGameHistory.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
             <FlatList
-              data={gameHistory.slice(0, 20)}
+              data={filteredGameHistory.slice(0, 20)}
               renderItem={renderHistoryItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}

@@ -273,6 +273,41 @@ Deno.serve(async (req: Request) => {
     console.log('[Complete Game] All player stats updated successfully');
 
     // ============================================================================
+    // STEP 3b: CLOSE ROOM (mark ended + clean up room_players)
+    // ============================================================================
+    // Prevents "reconnect to game" banner after game completion.
+
+    if (gameData.room_id) {
+      try {
+        // Mark room as ended so HomeScreen banner doesn't show it
+        const { error: roomUpd } = await supabaseAdmin
+          .from('rooms')
+          .update({ status: 'ended' })
+          .eq('id', gameData.room_id);
+
+        if (roomUpd) {
+          console.warn('[Complete Game] Failed to mark room as ended:', roomUpd.message);
+        } else {
+          console.log('[Complete Game] Room marked as ended');
+        }
+
+        // Remove all room_players entries so no user sees a stale banner
+        const { error: rpDel } = await supabaseAdmin
+          .from('room_players')
+          .delete()
+          .eq('room_id', gameData.room_id);
+
+        if (rpDel) {
+          console.warn('[Complete Game] Failed to clean room_players:', rpDel.message);
+        } else {
+          console.log('[Complete Game] Room players cleaned up');
+        }
+      } catch (roomCleanupErr) {
+        console.warn('[Complete Game] Room cleanup error (non-critical):', roomCleanupErr);
+      }
+    }
+
+    // ============================================================================
     // STEP 4: SEND PUSH NOTIFICATIONS
     // ============================================================================
 

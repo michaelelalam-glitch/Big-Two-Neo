@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,74 +12,24 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import EmptyState from '../components/EmptyState';
 import { RankBadge, Rank } from '../components/RankBadge';
 import { COLORS, SPACING } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { supabase } from '../services/supabase';
 import { showError, showConfirm } from '../utils';
-import { statsLogger, authLogger } from '../utils/logger';
-
-interface PlayerStats {
-  games_played: number;
-  games_won: number;
-  games_lost: number;
-  win_rate: number;
-  total_points: number;
-  current_win_streak: number;
-  longest_win_streak: number;
-  rank_points: number;
-  global_rank: number | null;
-}
+import { authLogger } from '../utils/logger';
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { user, profile, isLoading, signOut } = useAuth();
-  const [stats, setStats] = useState<PlayerStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStats = useCallback(async (loadingType: 'initial' | 'refresh' = 'initial') => {
-    if (!user?.id) return;
-
-    if (loadingType === 'initial') {
-      setStatsLoading(true);
-    } else {
-      setRefreshing(true);
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('player_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-        statsLogger.error('[Profile] Stats fetch error:', error?.message || error?.code || 'Unknown error');
-      } else {
-        setStats(data);
-      }
-    } catch (error: unknown) {
-      statsLogger.error('[Profile] Error fetching stats:', error instanceof Error ? error.message : String(error));
-    } finally {
-      if (loadingType === 'initial') {
-        setStatsLoading(false);
-      } else {
-        setRefreshing(false);
-      }
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchStats('initial');
-  }, [fetchStats]);
-
   const onRefresh = useCallback(async () => {
-    await fetchStats('refresh');
-  }, [fetchStats]);
+    setRefreshing(true);
+    // Just briefly show refresh indicator – profile data comes from AuthContext
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
 
   const handleSignOut = async () => {
     showConfirm({
@@ -140,82 +90,6 @@ const ProfileScreen = () => {
                 <Text style={styles.statsButtonInlineText}>📊 {i18n.t('profile.viewFullStats') || 'View Full Stats'}</Text>
               </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Overview Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{i18n.t('profile.overview')}</Text>
-            
-            {statsLoading ? (
-              <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 20 }} />
-            ) : stats ? (
-              <>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.games_played}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.gamesPlayed')}</Text>
-                  </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.win_rate.toFixed(1)}%</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.winRate')}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statsGrid}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.games_won}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.gamesWon')}</Text>
-                  </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.games_played - stats.games_won}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.gamesLost')}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statsGrid}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.rank_points}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.rankPoints')}</Text>
-                  </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>#{stats.global_rank || 'N/A'}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.rank')}</Text>
-                  </View>
-                </View>
-
-                {/* Streaks Section */}
-                <Text style={[styles.sectionTitle, { marginTop: SPACING.md }]}>{i18n.t('profile.streaks')}</Text>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.current_win_streak}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.currentStreak')}</Text>
-                  </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{stats.longest_win_streak}</Text>
-                    <Text style={styles.statLabel}>{i18n.t('profile.bestStreak')}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>{i18n.t('profile.totalScore')}</Text>
-                  <Text style={styles.value}>{stats.total_points.toLocaleString()}</Text>
-                </View>
-
-                {stats.global_rank && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>{i18n.t('profile.rank')}</Text>
-                    <Text style={styles.value}>#{stats.global_rank}</Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <EmptyState
-                icon="📈"
-                title={i18n.t('profile.noStatsYet')}
-                subtitle={i18n.t('profile.playFirstGame')}
-                variant="minimal"
-              />
-            )}
           </View>
 
           <View style={styles.section}>
@@ -412,43 +286,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: COLORS.gray.darker,
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.secondary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: COLORS.gray.text,
-    textAlign: 'center',
-  },
-  noStatsContainer: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  noStatsText: {
-    fontSize: 16,
-    color: COLORS.gray.text,
-    marginBottom: 8,
-  },
-  noStatsSubtext: {
-    fontSize: 14,
-    color: COLORS.gray.textDark,
   },
   matchHistoryButton: {
     backgroundColor: COLORS.secondary,

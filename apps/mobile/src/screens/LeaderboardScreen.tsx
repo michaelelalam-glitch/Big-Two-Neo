@@ -50,11 +50,11 @@ interface PlayerStatsWithProfile {
   current_win_streak: number;
   // Per-mode columns
   casual_games_played?: number;
-  casual_won?: number;
+  casual_games_won?: number;
   casual_win_rate?: number;
   casual_rank_points?: number;
   ranked_games_played?: number;
-  ranked_won?: number;
+  ranked_games_won?: number;
   ranked_win_rate?: number;
   ranked_rank_points?: number;
   profiles: {
@@ -124,11 +124,11 @@ export default function LeaderboardScreen() {
             longest_win_streak,
             current_win_streak,
             casual_games_played,
-            casual_won,
+            casual_games_won,
             casual_win_rate,
             casual_rank_points,
             ranked_games_played,
-            ranked_won,
+            ranked_games_won,
             ranked_win_rate,
             ranked_rank_points,
             profiles!inner (
@@ -139,7 +139,7 @@ export default function LeaderboardScreen() {
           .gte('last_game_at', timeFilterDate!)
           .gt(`${modePrefix}_games_played`, 0)
           .order(`${modePrefix}_rank_points`, { ascending: false })
-          .order(`${modePrefix}_won`, { ascending: false })
+          .order(`${modePrefix}_games_won`, { ascending: false })
           .range(startIndex, endIndex);
       }
 
@@ -165,7 +165,7 @@ export default function LeaderboardScreen() {
             avatar_url: profile?.avatar_url ?? null,
             rank_points: (isCasual ? item.casual_rank_points : item.ranked_rank_points) ?? item.rank_points,
             games_played: (isCasual ? item.casual_games_played : item.ranked_games_played) ?? item.games_played,
-            games_won: (isCasual ? item.casual_won : item.ranked_won) ?? item.games_won,
+            games_won: (isCasual ? item.casual_games_won : item.ranked_games_won) ?? item.games_won,
             win_rate: (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate,
             longest_win_streak: item.longest_win_streak,
             current_win_streak: item.current_win_streak,
@@ -205,11 +205,11 @@ export default function LeaderboardScreen() {
               longest_win_streak,
               current_win_streak,
               casual_games_played,
-              casual_won,
+              casual_games_won,
               casual_win_rate,
               casual_rank_points,
               ranked_games_played,
-              ranked_won,
+              ranked_games_won,
               ranked_win_rate,
               ranked_rank_points,
               profiles!inner (
@@ -269,7 +269,7 @@ export default function LeaderboardScreen() {
                 avatar_url: userRankData.profiles.avatar_url,
                 rank_points: (isCasual ? userRankData.casual_rank_points : userRankData.ranked_rank_points) ?? userRankData.rank_points,
                 games_played: (isCasual ? userRankData.casual_games_played : userRankData.ranked_games_played) ?? userRankData.games_played,
-                games_won: (isCasual ? userRankData.casual_won : userRankData.ranked_won) ?? userRankData.games_won,
+                games_won: (isCasual ? userRankData.casual_games_won : userRankData.ranked_games_won) ?? userRankData.games_won,
                 win_rate: (isCasual ? userRankData.casual_win_rate : userRankData.ranked_win_rate) ?? userRankData.win_rate,
                 longest_win_streak: userRankData.longest_win_streak,
                 current_win_streak: userRankData.current_win_streak,

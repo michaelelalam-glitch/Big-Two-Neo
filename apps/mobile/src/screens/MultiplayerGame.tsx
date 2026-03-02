@@ -17,10 +17,12 @@ import { useGameActions } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useGameCleanup } from '../hooks/useGameCleanup';
 import { useHelperButtons } from '../hooks/useHelperButtons';
+import { useGameStatsUploader } from '../hooks/useGameStatsUploader';
 import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
+import type { RoomInfo } from '../hooks/useMultiplayerRoomLoader';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
@@ -52,12 +54,15 @@ export function MultiplayerGame() {
     scoreHistory,
     playHistoryByMatch,
   } = scoreboardContext;
-  const { openGameEndModal } = useGameEnd();
+  const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
+  const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+  // Track when game transitions to 'playing' to calculate duration
+  const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
@@ -65,6 +70,27 @@ export function MultiplayerGame() {
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
   gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+
+  // ─── Register Play Again / Return to Menu callbacks ──────────────────────
+  useEffect(() => {
+    setOnPlayAgain(() => () => {
+      gameLogger.info('🔄 [MultiplayerGame] Play Again → navigating to Lobby with same room');
+      // Navigate to Lobby so the player can re-queue / rejoin the same room
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode } }],
+      });
+    });
+
+    setOnReturnToMenu(() => () => {
+      gameLogger.info('🏠 [MultiplayerGame] Return to Menu → Home');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    });
+  }, [roomCode, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
   const {
@@ -77,7 +103,17 @@ export function MultiplayerGame() {
   } = useCardSelection();
 
   // Initialize multiplayer room data
-  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers });
+  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomInfo });
+
+  // Track when game starts (for duration calculation)
+  useEffect(() => {
+    if (multiplayerGameState?.game_phase === 'first_play' || multiplayerGameState?.game_phase === 'playing') {
+      if (!gameStartedAt) {
+        setGameStartedAt(new Date().toISOString());
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerGameState?.game_phase]);
 
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
@@ -299,6 +335,15 @@ export function MultiplayerGame() {
     scoreHistory: scoreHistory || [],
     playHistoryByMatch: playHistoryByMatch || [],
     openGameEndModal,
+  });
+
+  // Upload game stats to leaderboard when game finishes
+  useGameStatsUploader({
+    isMultiplayerGame: true,
+    multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
+    multiplayerPlayers,
+    roomInfo,
+    gameStartedAt,
   });
 
   // Multiplayer UI derived state
