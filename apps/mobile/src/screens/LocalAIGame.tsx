@@ -53,7 +53,9 @@ export function LocalAIGame() {
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  gameLogger.info('🎮 [LocalAIGame] Game mode: LOCAL AI (client-side)');
+  useEffect(() => {
+    gameLogger.info('🎮 [LocalAIGame] Game mode: LOCAL AI (client-side)');
+  }, []);
 
   // Card selection hook
   const {
@@ -98,12 +100,8 @@ export function LocalAIGame() {
     checkAndExecuteBotTurn,
   });
 
-  // Update placeholder ref once gameManagerRef is available
-  useEffect(() => {
-    if (gameManagerRef.current) {
-      gameManagerRefPlaceholder.current = gameManagerRef.current;
-    }
-  }, [gameManagerRef]);
+  // Keep placeholder ref in sync with the actual gameManagerRef (direct assignment is safe for refs)
+  gameManagerRefPlaceholder.current = gameManagerRef.current;
 
   // Derived game state (player hand, last play info)
   const {

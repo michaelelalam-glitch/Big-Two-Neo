@@ -1067,10 +1067,6 @@ export class GameStateManager {
    * Start a new match (after previous match ended)
    * Winner of previous match starts first
    */
-  /**
-   * Start a new match (after previous match ended)
-   * Winner of previous match starts first
-   */
   async startNewMatch(): Promise<{ success: boolean; error?: string }> {
     if (!this.state || !this.state.gameEnded || this.state.gameOver) {
       return { success: false, error: 'Cannot start new match' };

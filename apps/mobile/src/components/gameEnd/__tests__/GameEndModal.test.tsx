@@ -177,10 +177,9 @@ describe('GameEndModal FlatList history rendering (Task #574)', () => {
 
   describe('Play History tab', () => {
     it('renders Card Play History title after switching to the play tab', () => {
-      const { getAllByText, getByText } = renderWithOpenModal();
-      // Switch to the play history tab — use the first element that reads 'Play'
-      // (the tab button). There may be other 'play' text in the tree (e.g. Play Again).
-      const playTabButton = getAllByText(/\bPlay\b/i)[0];
+      const { getByText } = renderWithOpenModal();
+      // Use exact tab label text so this selector is stable regardless of other 'Play' nodes
+      const playTabButton = getByText(/^Play History$/i);
       fireEvent.press(playTabButton);
       // Play History title should be visible
       expect(getByText(/Card Play History/i)).toBeTruthy();

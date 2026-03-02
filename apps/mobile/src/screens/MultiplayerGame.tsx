@@ -55,7 +55,7 @@ export function MultiplayerGame() {
     playHistoryByMatch,
   } = scoreboardContext;
   const { openGameEndModal } = useGameEnd();
-  const { roomCode, botDifficulty = 'medium' } = route.params;
+  const { roomCode } = route.params;
   const [showSettings, setShowSettings] = useState(false);
 
   // State for multiplayer room data
@@ -63,13 +63,17 @@ export function MultiplayerGame() {
   // Room UUID and game start time — used for online stats saving
   const [roomId, setRoomId] = useState<string | null>(null);
   const gameStartedAtRef = useRef<number>(Date.now());
+  // Ref to check host status inside onGameOver closure (isMultiplayerHost is returned after useRealtime)
+  const isMultiplayerHostRef = useRef<boolean>(false);
 
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  useEffect(() => {
+    gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  }, []);
 
   // Card selection hook
   const {
@@ -180,29 +184,48 @@ export function MultiplayerGame() {
       const nowTs = Date.now();
       void (async () => {
         try {
+          // Only the host persists stats — every client receives the game_over broadcast
+          if (!isMultiplayerHostRef.current) return;
+
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.access_token) return;
 
           // Only send human players — bots do not have real Supabase user accounts
-          const sortedByScore = [...finalScores].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
           const humanPlayers = multiplayerPlayers.filter(p => !p.is_bot);
           if (humanPlayers.length === 0) return;
 
+          // Compute rankings relative to human players only so positions are gapless (1..N)
+          // Sorting all finalScores (which includes bots) would create gaps when bots are excluded
+          const humanScoresSorted = humanPlayers
+            .map(player => {
+              const score = finalScores.find(s => s.player_index === player.player_index);
+              return { player_index: player.player_index, score: score?.cumulativeScore ?? 0 };
+            })
+            .sort((a, b) => a.score - b.score);
+
+          const rankByPlayerIndex = new Map<number, number>();
+          humanScoresSorted.forEach((entry, idx) => {
+            rankByPlayerIndex.set(entry.player_index, idx + 1);
+          });
+
           const playersData = humanPlayers.map(player => {
             const score = finalScores.find(s => s.player_index === player.player_index);
-            const rank = sortedByScore.findIndex(s => s.player_index === player.player_index) + 1;
+            const rank = rankByPlayerIndex.get(player.player_index) ?? 1;
             return {
               user_id: player.user_id,
               username: player.username,
               score: score?.cumulativeScore ?? 0,
-              finish_position: rank || 1,
+              finish_position: rank,
               // Combo tracking for online games is not yet implemented; send zeros
               combos_played: { singles: 0, pairs: 0, triples: 0, straights: 0, flushes: 0, full_houses: 0, four_of_a_kinds: 0, straight_flushes: 0, royal_flushes: 0 },
             };
           });
 
-          // Winner is the human player with the lowest cumulative score
-          const winnerHuman = multiplayerPlayers.find(p => p.player_index === winnerIdx && !p.is_bot);
+          // Winner is the human player with rank 1 (lowest cumulative score among humans)
+          const topHumanEntry = humanScoresSorted[0];
+          const winnerHuman = topHumanEntry
+            ? humanPlayers.find(p => p.player_index === topHumanEntry.player_index)
+            : undefined;
           const winnerId = winnerHuman?.user_id ?? (user?.id ?? '');
 
           const response = await fetch(
@@ -238,6 +261,9 @@ export function MultiplayerGame() {
       })();
     },
   });
+
+  // Keep isMultiplayerHostRef in sync so the onGameOver callback can check it without a closure issue
+  isMultiplayerHostRef.current = isMultiplayerHost;
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen
   useEffect(() => {

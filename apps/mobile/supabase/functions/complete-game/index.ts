@@ -92,6 +92,12 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    if (gameData.players.length > 4) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid game: maximum of 4 players supported' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verify winner is one of the players
     const winner = gameData.players.find(p => p.user_id === gameData.winner_id);

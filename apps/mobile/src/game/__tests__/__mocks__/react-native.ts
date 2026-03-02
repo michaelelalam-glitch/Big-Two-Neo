@@ -112,9 +112,13 @@ export const FlatList = ({
 
   return React.createElement(
     'View',
-    { style: [style, contentContainerStyle], ...rest },
-    header,
-    ...(Array.isArray(content) ? content : [content]),
-    footer,
+    { style, ...rest },
+    React.createElement(
+      'View',
+      { style: contentContainerStyle },
+      header,
+      ...(Array.isArray(content) ? content : [content]),
+      footer,
+    ),
   );
 };
