@@ -36,7 +36,7 @@ interface LeaderboardEntry {
 }
 
 type TimeFilter = 'all_time' | 'weekly' | 'daily';
-type LeaderboardType = 'global' | 'ranked';
+type LeaderboardType = 'casual' | 'ranked';
 
 // Note: Supabase client types !inner joins as arrays, even though PostgREST
 // returns an object for to-one relationships. Array type kept for TS compat.
@@ -48,6 +48,15 @@ interface PlayerStatsWithProfile {
   win_rate: number;
   longest_win_streak: number;
   current_win_streak: number;
+  // Per-mode columns
+  casual_games_played?: number;
+  casual_won?: number;
+  casual_win_rate?: number;
+  casual_rank_points?: number;
+  ranked_games_played?: number;
+  ranked_won?: number;
+  ranked_win_rate?: number;
+  ranked_rank_points?: number;
   profiles: {
     username: string;
     avatar_url: string | null;
@@ -62,7 +71,7 @@ export default function LeaderboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all_time');
-  const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('global');
+  const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('casual');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
@@ -74,7 +83,7 @@ export default function LeaderboardScreen() {
       const startIndex = resetPagination ? 0 : page * PAGE_SIZE;
       const endIndex = startIndex + PAGE_SIZE - 1;
 
-      statsLogger.info('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter });
+      statsLogger.info('[Leaderboard] Fetching:', { startIndex, endIndex, timeFilter, leaderboardType });
 
       // Calculate time filter date
       let timeFilterDate: string | null = null;
@@ -88,16 +97,22 @@ export default function LeaderboardScreen() {
         timeFilterDate = dayAgo.toISOString();
       }
 
-      // For weekly/daily, query player_stats directly with time filter
-      // For all_time, use the optimized materialized view
+      // Choose the correct materialized view based on leaderboard type
+      // For all_time, use optimized materialized views
+      // For weekly/daily, query player_stats directly with per-mode columns
+      const viewName = leaderboardType === 'casual' ? 'leaderboard_casual' : 'leaderboard_ranked';
+      
+      // Per-mode column prefixes for weekly/daily queries
+      const modePrefix = leaderboardType === 'casual' ? 'casual' : 'ranked';
+
       let query;
       if (timeFilter === 'all_time') {
         query = supabase
-          .from('leaderboard_global')
+          .from(viewName)
           .select('*')
           .range(startIndex, endIndex);
       } else {
-        // Query player_stats with time filter and join profiles
+        // Query player_stats with time filter, using per-mode columns
         query = supabase
           .from('player_stats')
           .select(`
@@ -108,15 +123,23 @@ export default function LeaderboardScreen() {
             win_rate,
             longest_win_streak,
             current_win_streak,
+            casual_games_played,
+            casual_won,
+            casual_win_rate,
+            casual_rank_points,
+            ranked_games_played,
+            ranked_won,
+            ranked_win_rate,
+            ranked_rank_points,
             profiles!inner (
               username,
               avatar_url
             )
           `)
           .gte('last_game_at', timeFilterDate!)
-          .gt('games_played', 0)
-          .order('rank_points', { ascending: false })
-          .order('games_won', { ascending: false })
+          .gt(`${modePrefix}_games_played`, 0)
+          .order(`${modePrefix}_rank_points`, { ascending: false })
+          .order(`${modePrefix}_won`, { ascending: false })
           .range(startIndex, endIndex);
       }
 
@@ -132,17 +155,18 @@ export default function LeaderboardScreen() {
       if (timeFilter === 'all_time') {
         transformedData = (data || []) as LeaderboardEntry[];
       } else {
-        // Transform joined data to match LeaderboardEntry interface
+        // Transform joined data to match LeaderboardEntry interface, using per-mode columns
         transformedData = (data || []).map((item: PlayerStatsWithProfile, index: number) => {
           const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+          const isCasual = leaderboardType === 'casual';
           return {
             user_id: item.user_id,
             username: profile?.username ?? 'Unknown',
             avatar_url: profile?.avatar_url ?? null,
-            rank_points: item.rank_points,
-            games_played: item.games_played,
-            games_won: item.games_won,
-            win_rate: item.win_rate,
+            rank_points: (isCasual ? item.casual_rank_points : item.ranked_rank_points) ?? item.rank_points,
+            games_played: (isCasual ? item.casual_games_played : item.ranked_games_played) ?? item.games_played,
+            games_won: (isCasual ? item.casual_won : item.ranked_won) ?? item.games_won,
+            win_rate: (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate,
             longest_win_streak: item.longest_win_streak,
             current_win_streak: item.current_win_streak,
             rank: startIndex + index + 1, // Calculate rank based on position
@@ -164,7 +188,7 @@ export default function LeaderboardScreen() {
         let userRankQuery;
         if (timeFilter === 'all_time') {
           userRankQuery = supabase
-            .from('leaderboard_global')
+            .from(viewName)
             .select('*')
             .eq('user_id', user.id)
             .single();
@@ -180,6 +204,14 @@ export default function LeaderboardScreen() {
               win_rate,
               longest_win_streak,
               current_win_streak,
+              casual_games_played,
+              casual_won,
+              casual_win_rate,
+              casual_rank_points,
+              ranked_games_played,
+              ranked_won,
+              ranked_win_rate,
+              ranked_rank_points,
               profiles!inner (
                 username,
                 avatar_url
@@ -187,7 +219,7 @@ export default function LeaderboardScreen() {
             `)
             .eq('user_id', user.id)
             .gte('last_game_at', timeFilterDate || '1970-01-01')
-            .gt('games_played', 0)
+            .gt(`${modePrefix}_games_played`, 0)
             .single();
         }
 
@@ -217,22 +249,28 @@ export default function LeaderboardScreen() {
               setUserRank(null);
             } else {
               // Transform weekly/daily data
-              // Calculate rank by counting users with higher points
+              // Calculate rank by counting users with higher points (using per-mode points)
+              const userPoints = leaderboardType === 'casual'
+                ? userRankData.casual_rank_points ?? userRankData.rank_points
+                : userRankData.ranked_rank_points ?? userRankData.rank_points;
+
               const { count } = await supabase
                 .from('player_stats')
                 .select('*', { count: 'exact', head: true })
                 .gte('last_game_at', timeFilterDate!)
-                .gt('games_played', 0)
-                .gt('rank_points', userRankData.rank_points);
+                .gt(`${modePrefix}_games_played`, 0)
+                .gt(`${modePrefix}_rank_points`, userPoints);
+
+              const isCasual = leaderboardType === 'casual';
 
               setUserRank({
                 user_id: userRankData.user_id,
                 username: userRankData.profiles.username,
                 avatar_url: userRankData.profiles.avatar_url,
-                rank_points: userRankData.rank_points,
-                games_played: userRankData.games_played,
-                games_won: userRankData.games_won,
-                win_rate: userRankData.win_rate,
+                rank_points: (isCasual ? userRankData.casual_rank_points : userRankData.ranked_rank_points) ?? userRankData.rank_points,
+                games_played: (isCasual ? userRankData.casual_games_played : userRankData.ranked_games_played) ?? userRankData.games_played,
+                games_won: (isCasual ? userRankData.casual_won : userRankData.ranked_won) ?? userRankData.games_won,
+                win_rate: (isCasual ? userRankData.casual_win_rate : userRankData.ranked_win_rate) ?? userRankData.win_rate,
                 longest_win_streak: userRankData.longest_win_streak,
                 current_win_streak: userRankData.current_win_streak,
                 rank: (count || 0) + 1,
@@ -250,12 +288,12 @@ export default function LeaderboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, timeFilter, user]);
+  }, [page, timeFilter, leaderboardType, user]);
 
   useEffect(() => {
     fetchLeaderboard(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeFilter]); // Intentionally only trigger on timeFilter change, not fetchLeaderboard
+  }, [timeFilter, leaderboardType]); // Trigger on timeFilter or leaderboardType change
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -281,11 +319,11 @@ export default function LeaderboardScreen() {
       {/* Leaderboard Type Toggle */}
       <View style={[styles.filterContainer, { marginBottom: SPACING.sm }]}>
         <TouchableOpacity
-          style={[styles.filterButton, leaderboardType === 'global' && styles.filterButtonActive]}
-          onPress={() => setLeaderboardType('global')}
+          style={[styles.filterButton, leaderboardType === 'casual' && styles.filterButtonActive]}
+          onPress={() => setLeaderboardType('casual')}
         >
-          <Text style={[styles.filterText, leaderboardType === 'global' && styles.filterTextActive]}>
-            {i18n.t('common.allTime')}
+          <Text style={[styles.filterText, leaderboardType === 'casual' && styles.filterTextActive]}>
+            🎮 Casual
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -293,7 +331,7 @@ export default function LeaderboardScreen() {
           onPress={() => setLeaderboardType('ranked')}
         >
           <Text style={[styles.filterText, leaderboardType === 'ranked' && styles.filterTextActive]}>
-            🏆 {i18n.t('leaderboard.rankedTitle')}
+            🏆 Ranked
           </Text>
         </TouchableOpacity>
       </View>

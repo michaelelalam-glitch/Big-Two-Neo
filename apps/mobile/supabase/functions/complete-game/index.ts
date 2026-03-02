@@ -4,17 +4,22 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 interface GameCompletionRequest {
   room_id: string | null; // Must be valid UUID or null for local games
   room_code: string;
+  game_type: 'casual' | 'ranked' | 'private'; // Game mode
   players: {
     user_id: string;
     username: string;
     score: number;
     finish_position: number;
+    cards_left: number; // Cards remaining at end of game
+    was_bot: boolean; // Whether this player slot is a bot
+    disconnected: boolean; // Whether player disconnected
+    original_username: string | null; // Original player name before bot replaced them
     combos_played: {
       singles: number;
       pairs: number;
       triples: number;
       straights: number;
-      flushes: number; // ✅ ADDED: Regular flushes (5 cards same suit, not straight)
+      flushes: number;
       full_houses: number;
       four_of_a_kinds: number;
       straight_flushes: number;
@@ -25,6 +30,7 @@ interface GameCompletionRequest {
   game_duration_seconds: number;
   started_at: string;
   finished_at: string;
+  game_completed: boolean; // Whether game reached natural conclusion (no forfeit)
 }
 
 const corsHeaders = {
@@ -74,6 +80,24 @@ Deno.serve(async (req: Request) => {
     // ============================================================================
     // STEP 1: VALIDATE GAME DATA
     // ============================================================================
+
+    // ITEM 1: Reject local/offline games — they should never save to leaderboard
+    if (gameData.room_code === 'LOCAL' && gameData.room_id === null) {
+      console.log('[Complete Game] Rejected: local/offline game — stats not saved');
+      return new Response(
+        JSON.stringify({ error: 'Local/offline games cannot save stats', code: 'LOCAL_GAME_REJECTED' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate game_type
+    const validGameTypes = ['casual', 'ranked', 'private'];
+    if (!validGameTypes.includes(gameData.game_type)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid game_type. Must be casual, ranked, or private' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verify the requesting user is one of the players
     const requestingPlayer = gameData.players.find(p => p.user_id === user.id);
@@ -149,6 +173,7 @@ Deno.serve(async (req: Request) => {
       .insert({
         room_id: gameData.room_id,
         room_code: gameData.room_code,
+        game_type: gameData.game_type,
         player_1_id: realPlayers[0],
         player_2_id: realPlayers[1],
         player_3_id: realPlayers[2],
@@ -161,6 +186,28 @@ Deno.serve(async (req: Request) => {
         player_2_score: gameData.players[1].score,
         player_3_score: gameData.players[2].score,
         player_4_score: gameData.players[3].score,
+        // Bot tracking: original username before bot replacement
+        player_1_original_username: gameData.players[0].original_username,
+        player_2_original_username: gameData.players[1].original_username,
+        player_3_original_username: gameData.players[2].original_username,
+        player_4_original_username: gameData.players[3].original_username,
+        // Bot flags
+        player_1_was_bot: gameData.players[0].was_bot,
+        player_2_was_bot: gameData.players[1].was_bot,
+        player_3_was_bot: gameData.players[2].was_bot,
+        player_4_was_bot: gameData.players[3].was_bot,
+        // Disconnect flags
+        player_1_disconnected: gameData.players[0].disconnected,
+        player_2_disconnected: gameData.players[1].disconnected,
+        player_3_disconnected: gameData.players[2].disconnected,
+        player_4_disconnected: gameData.players[3].disconnected,
+        // Cards left in hand at end
+        player_1_cards_left: gameData.players[0].cards_left,
+        player_2_cards_left: gameData.players[1].cards_left,
+        player_3_cards_left: gameData.players[2].cards_left,
+        player_4_cards_left: gameData.players[3].cards_left,
+        // Game completion
+        game_completed: gameData.game_completed,
         winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,
         game_duration_seconds: gameData.game_duration_seconds,
         started_at: gameData.started_at,
@@ -195,6 +242,9 @@ Deno.serve(async (req: Request) => {
         p_finish_position: player.finish_position,
         p_score: player.score,
         p_combos_played: player.combos_played,
+        p_game_type: gameData.game_type,
+        p_completed: gameData.game_completed,
+        p_cards_left: player.cards_left,
       });
 
       if (statsError) {
@@ -225,24 +275,8 @@ Deno.serve(async (req: Request) => {
     // STEP 4: SEND PUSH NOTIFICATIONS
     // ============================================================================
 
-    // SECURITY: Validate that the requesting user was a participant in this game
-    // This prevents attackers from spamming notifications for games they weren't part of
-    const authHeader = req.headers.get('authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      
-      if (!authError && user) {
-        const isParticipant = gameData.players.some(p => p.user_id === user.id);
-        if (!isParticipant) {
-          console.error('[Complete Game] SECURITY VIOLATION: User not a participant in this game');
-          return new Response(
-            JSON.stringify({ error: 'Unauthorized: user is not a participant in this game' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-    }
+    // SECURITY: User participation already validated in STEP 1 above
+    // (requestingPlayer check ensures user is a game participant)
 
     try {
       const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);

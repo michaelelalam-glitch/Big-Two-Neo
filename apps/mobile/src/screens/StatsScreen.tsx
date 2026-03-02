@@ -35,12 +35,37 @@ interface PlayerStats {
   avg_finish_position: number;
   total_points: number;
   highest_score: number;
+  lowest_score: number;
   avg_score_per_game: number;
+  avg_cards_left_in_hand: number;
   current_win_streak: number;
   longest_win_streak: number;
   current_loss_streak: number;
   global_rank: number | null;
   rank_points: number;
+  rank_points_history: { date: string; points: number; result: 'win' | 'loss' }[] | null;
+  // Per-mode stats
+  casual_games_played: number;
+  casual_won: number;
+  casual_lost: number;
+  casual_win_rate: number;
+  casual_rank_points: number;
+  ranked_games_played: number;
+  ranked_won: number;
+  ranked_lost: number;
+  ranked_win_rate: number;
+  ranked_rank_points: number;
+  private_games_played: number;
+  private_won: number;
+  private_lost: number;
+  private_win_rate: number;
+  private_rank_points: number;
+  // Game completion
+  games_completed: number;
+  games_abandoned: number;
+  completion_rate: number;
+  current_completion_streak: number;
+  longest_completion_streak: number;
   // Combo stats
   singles_played: number;
   pairs_played: number;
@@ -63,7 +88,9 @@ interface Profile {
 interface GameHistoryEntry {
   id: string;
   room_code: string;
+  game_type: string | null;
   winner_id: string;
+  game_completed: boolean | null;
   player_1_username: string | null;
   player_2_username: string | null;
   player_3_username: string | null;
@@ -72,9 +99,30 @@ interface GameHistoryEntry {
   player_2_score: number;
   player_3_score: number;
   player_4_score: number;
+  // Bot tracking
+  player_1_was_bot: boolean | null;
+  player_2_was_bot: boolean | null;
+  player_3_was_bot: boolean | null;
+  player_4_was_bot: boolean | null;
+  player_1_original_username: string | null;
+  player_2_original_username: string | null;
+  player_3_original_username: string | null;
+  player_4_original_username: string | null;
+  // Disconnect tracking
+  player_1_disconnected: boolean | null;
+  player_2_disconnected: boolean | null;
+  player_3_disconnected: boolean | null;
+  player_4_disconnected: boolean | null;
+  // Cards left
+  player_1_cards_left: number | null;
+  player_2_cards_left: number | null;
+  player_3_cards_left: number | null;
+  player_4_cards_left: number | null;
   game_duration_seconds: number | null;
   finished_at: string;
 }
+
+type StatsTab = 'overview' | 'casual' | 'private' | 'ranked';
 
 export default function StatsScreen() {
   const route = useRoute<StatsScreenRouteProp>();
@@ -89,6 +137,7 @@ export default function StatsScreen() {
   const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<StatsTab>('overview');
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -187,15 +236,24 @@ export default function StatsScreen() {
     
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
+    const isIncomplete = item.game_completed === false;
 
     return (
-      <View style={[styles.historyItem, isWinner && styles.historyItemWin]}>
+      <View style={[styles.historyItem, isWinner && styles.historyItemWin, isIncomplete && styles.historyItemIncomplete]}>
         <View style={styles.historyHeader}>
           <View style={styles.historyResult}>
             <Text style={[styles.resultBadge, isWinner ? styles.winBadge : styles.lossBadge]}>
               {isWinner ? '🏆 WIN' : '❌ LOSS'}
             </Text>
             <Text style={styles.historyCode}>Room: {item.room_code}</Text>
+            {item.game_type && (
+              <Text style={styles.gameTypeBadge}>
+                {item.game_type === 'ranked' ? '🏆' : item.game_type === 'private' ? '🔒' : '🎮'}
+              </Text>
+            )}
+            {isIncomplete && (
+              <Text style={styles.incompleteBadge}>⚠️ Incomplete</Text>
+            )}
           </View>
           <Text style={styles.historyTime}>{timeAgo}</Text>
         </View>
@@ -204,14 +262,30 @@ export default function StatsScreen() {
           {[1, 2, 3, 4].map((num) => {
             const username = item[`player_${num}_username` as keyof GameHistoryEntry] as string;
             const score = item[`player_${num}_score` as keyof GameHistoryEntry] as number;
+            const wasBot = item[`player_${num}_was_bot` as keyof GameHistoryEntry] as boolean | null;
+            const originalUsername = item[`player_${num}_original_username` as keyof GameHistoryEntry] as string | null;
+            const disconnected = item[`player_${num}_disconnected` as keyof GameHistoryEntry] as boolean | null;
+            const cardsLeft = item[`player_${num}_cards_left` as keyof GameHistoryEntry] as number | null;
             if (!username) return null;
             
             return (
               <View key={num} style={styles.historyPlayer}>
-                <Text style={styles.historyPlayerName} numberOfLines={1}>
-                  {username}
-                </Text>
-                <Text style={styles.historyPlayerScore}>{score} pts</Text>
+                <View style={styles.historyPlayerNameRow}>
+                  <Text style={styles.historyPlayerName} numberOfLines={1}>
+                    {wasBot && originalUsername 
+                      ? `🤖 Bot (replaced ${originalUsername})`
+                      : wasBot 
+                        ? `🤖 ${username}` 
+                        : username}
+                  </Text>
+                  {disconnected && <Text style={styles.disconnectedBadge}>📡 DC</Text>}
+                </View>
+                <View style={styles.historyPlayerScoreRow}>
+                  <Text style={styles.historyPlayerScore}>{score} pts</Text>
+                  {cardsLeft != null && cardsLeft > 0 && (
+                    <Text style={styles.cardsLeftBadge}>🃏{cardsLeft}</Text>
+                  )}
+                </View>
               </View>
             );
           })}
@@ -300,81 +374,172 @@ export default function StatsScreen() {
           )}
         </View>
 
-        {/* Key Stats */}
+        {/* Tab Bar: Overview / Casual / Private / Ranked */}
+        <View style={styles.tabBar}>
+          {(['overview', 'casual', 'private', 'ranked'] as StatsTab[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'overview' ? '📊 Overview' : tab === 'casual' ? '🎮 Casual' : tab === 'private' ? '🔒 Private' : '🏆 Ranked'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Mode-Aware Key Stats (Items 3) */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.overview')}</Text>
+          <Text style={styles.sectionTitle}>
+            {activeTab === 'overview' ? i18n.t('profile.overview') : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Stats`}
+          </Text>
           <View style={styles.statsGrid}>
-            {renderStatCard(i18n.t('profile.gamesPlayed'), stats.games_played, '🎮')}
-            {renderStatCard(i18n.t('profile.winRate'), `${stats.win_rate.toFixed(1)}%`, '🏆')}
-            {renderStatCard(i18n.t('profile.gamesWon'), stats.games_won, '✅')}
-            {renderStatCard(i18n.t('profile.gamesLost'), stats.games_lost, '❌')}
+            {activeTab === 'overview' ? (
+              <>
+                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.games_played, '🎮')}
+                {renderStatCard(i18n.t('profile.winRate'), `${stats.win_rate.toFixed(1)}%`, '🏆')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.games_won, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.games_lost, '❌')}
+              </>
+            ) : activeTab === 'casual' ? (
+              <>
+                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.casual_games_played || 0, '🎮')}
+                {renderStatCard(i18n.t('profile.winRate'), `${(stats.casual_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.casual_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.casual_lost || 0, '❌')}
+              </>
+            ) : activeTab === 'private' ? (
+              <>
+                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.private_games_played || 0, '🎮')}
+                {renderStatCard(i18n.t('profile.winRate'), `${(stats.private_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.private_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.private_lost || 0, '❌')}
+              </>
+            ) : (
+              <>
+                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.ranked_games_played || 0, '🎮')}
+                {renderStatCard(i18n.t('profile.winRate'), `${(stats.ranked_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(i18n.t('profile.gamesWon'), stats.ranked_won || 0, '✅')}
+                {renderStatCard(i18n.t('profile.gamesLost'), stats.ranked_lost || 0, '❌')}
+              </>
+            )}
           </View>
         </View>
 
-        {/* Streaks */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.streaks')}</Text>
-          <View style={styles.streaksContainer}>
-            <View style={styles.streakItem}>
-              <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
-              <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
-                {stats.current_win_streak > 0 
-                  ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}` 
-                  : stats.current_loss_streak > 0
-                    ? `❄️ ${stats.current_loss_streak} ${i18n.t('profile.losses')}`
-                    : 'None'}
-              </Text>
-            </View>
-            <View style={styles.streakItem}>
-              <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
-              <Text style={styles.streakValue}>
-                🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Rank Progression Graph */}
-        {gameHistory.length > 0 && userId && (
+        {/* Game Completion Section (Item 4) */}
+        {activeTab === 'overview' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rank Progression</Text>
-            <StreakGraph gameHistory={gameHistory} userId={userId} />
+            <Text style={styles.sectionTitle}>Game Completion</Text>
+            <View style={styles.completionContainer}>
+              <View style={styles.completionMain}>
+                <View style={styles.completionCircle}>
+                  <Text style={styles.completionPercentage}>
+                    {(stats.completion_rate || 0).toFixed(0)}%
+                  </Text>
+                  <Text style={styles.completionLabel}>Completed</Text>
+                </View>
+                <View style={styles.completionDetails}>
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>✅ Completed</Text>
+                    <Text style={styles.completionDetailValue}>{stats.games_completed || 0}</Text>
+                  </View>
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>🚪 Abandoned</Text>
+                    <Text style={styles.completionDetailValue}>{stats.games_abandoned || 0}</Text>
+                  </View>
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>🔥 Current Streak</Text>
+                    <Text style={[styles.completionDetailValue, (stats.current_completion_streak || 0) > 0 && styles.streakValueActive]}>
+                      {stats.current_completion_streak || 0}
+                    </Text>
+                  </View>
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>🏅 Best Streak</Text>
+                    <Text style={styles.completionDetailValue}>{stats.longest_completion_streak || 0}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
         )}
 
-        {/* Performance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
-          <View style={styles.statsGrid}>
-            {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
-            {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
-            {renderStatCard(i18n.t('profile.highestScore'), stats.highest_score, '⭐')}
-            {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+        {/* Streaks */}
+        {activeTab === 'overview' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.streaks')}</Text>
+            <View style={styles.streaksContainer}>
+              <View style={styles.streakItem}>
+                <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
+                <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
+                  {stats.current_win_streak > 0 
+                    ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}` 
+                    : stats.current_loss_streak > 0
+                      ? `❄️ ${stats.current_loss_streak} ${i18n.t('profile.losses')}`
+                      : 'None'}
+                </Text>
+              </View>
+              <View style={styles.streakItem}>
+                <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
+                <Text style={styles.streakValue}>
+                  🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Rank Progression Graph (Item 5) */}
+        {activeTab === 'overview' && userId && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rank Progression</Text>
+            <StreakGraph 
+              gameHistory={gameHistory} 
+              userId={userId} 
+              rankPointsHistory={stats.rank_points_history || undefined}
+            />
+          </View>
+        )}
+
+        {/* Performance (Item 6) — 6 cards */}
+        {activeTab === 'overview' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
+            <View style={styles.statsGrid}>
+              {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
+              {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
+              {renderStatCard('Highest Score', stats.highest_score, '💀')}
+              {renderStatCard('Lowest Score', stats.lowest_score || 0, '⭐')}
+              {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+              {renderStatCard('Avg Cards Left', (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
+            </View>
+          </View>
+        )}
 
         {/* Combo Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
-          <View style={styles.comboGrid}>
-            {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
-            {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
-            {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
-            {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
-            {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
-            {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
-            {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
-            {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
-            {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
+        {activeTab === 'overview' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
+            <View style={styles.comboGrid}>
+              {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
+              {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
+              {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
+              {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
+              {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
+              {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
+              {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
+              {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
+              {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Game History */}
-        {gameHistory.length > 0 && (
+        {/* Game History (Item 7) — enhanced with bots + disconnects */}
+        {activeTab === 'overview' && gameHistory.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
             <FlatList
-              data={gameHistory}
+              data={gameHistory.slice(0, 20)}
               renderItem={renderHistoryItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
@@ -495,6 +660,78 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     marginTop: SPACING.xs,
   },
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    gap: SPACING.xs,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    backgroundColor: COLORS.secondary,
+    alignItems: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: COLORS.accent,
+  },
+  tabText: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: COLORS.white,
+  },
+  // Game Completion
+  completionContainer: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 12,
+    padding: SPACING.md,
+  },
+  completionMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  completionCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  completionPercentage: {
+    color: COLORS.accent,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+  },
+  completionLabel: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.xs,
+  },
+  completionDetails: {
+    flex: 1,
+    gap: SPACING.xs,
+  },
+  completionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  completionDetailLabel: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.sm,
+  },
+  completionDetailValue: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: 'bold',
+  },
   section: {
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.xl,
@@ -592,6 +829,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: COLORS.success,
   },
+  historyItemIncomplete: {
+    borderRightWidth: 4,
+    borderRightColor: '#FF9500',
+    opacity: 0.85,
+  },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -633,16 +875,44 @@ const styles = StyleSheet.create({
   historyPlayer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyPlayerNameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   historyPlayerName: {
     color: COLORS.white,
     fontSize: FONT_SIZES.sm,
     flex: 1,
   },
+  historyPlayerScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
   historyPlayerScore: {
     color: COLORS.accent,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
+  },
+  disconnectedBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: '#FF9500',
+  },
+  gameTypeBadge: {
+    fontSize: FONT_SIZES.xs,
+  },
+  incompleteBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: '#FF9500',
+    fontWeight: '600',
+  },
+  cardsLeftBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.white + '66',
   },
   historyDuration: {
     color: COLORS.white + '66',

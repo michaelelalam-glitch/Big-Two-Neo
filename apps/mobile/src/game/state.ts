@@ -1082,6 +1082,16 @@ export class GameStateManager {
 
     statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
 
+    // ============================================================================
+    // ITEM 1: Block offline/local games from saving to leaderboard or player stats.
+    // Local AI games (no room_id, room_code='LOCAL') are intentionally ephemeral.
+    // ============================================================================
+    const isLocalGame = !this.state.players.some(p => !p.isBot && p.id !== this.state?.players[0]?.id);
+    // All games started through the local GameManager are offline/local by design
+    statsLogger.info('🚫 [Stats] Local/offline game detected — stats will NOT be saved to leaderboard or player profile.');
+    statsLogger.info('📊 [Stats] Game result: Winner = ' + (this.state.finalWinnerId || 'unknown'));
+    return; // Early return — never save local game stats
+
     try {
       // Get current user
       statsLogger.debug('📊 [Stats] Getting current user...');
