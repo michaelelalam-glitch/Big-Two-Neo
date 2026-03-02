@@ -14,13 +14,7 @@ import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { statsLogger } from '../utils/logger';
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
-
-interface RoomInfo {
-  id: string | null;
-  code: string;
-  ranked_mode: boolean;
-  is_public: boolean;
-}
+import type { RoomInfo } from './useMultiplayerRoomLoader';
 
 interface UseGameStatsUploaderOptions {
   isMultiplayerGame: boolean;

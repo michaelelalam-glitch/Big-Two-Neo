@@ -213,11 +213,19 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
         // Use onGameOverRef.current so the latest callback is always invoked
         // without needing to re-subscribe the channel when the prop changes.
+        const broadcastData = (payload as any)?.data || payload;
+        const winnerIndex = (broadcastData as any)?.winner_index ?? null;
+        const finalScores = (broadcastData as any)?.final_scores ?? [];
+        const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
+
+        // Record the FINAL match scores before opening the game-over modal
+        // so that scoreHistory includes every match when the modal appears.
+        if (finalScores.length > 0 && onMatchEnded) {
+          onMatchEnded(matchNumber, finalScores);
+        }
+
         const handler = onGameOverRef.current;
         if (handler) {
-          const broadcastData = (payload as any)?.data || payload;
-          const winnerIndex = (broadcastData as any)?.winner_index ?? null;
-          const finalScores = (broadcastData as any)?.final_scores ?? [];
           handler(winnerIndex, finalScores);
         }
       })

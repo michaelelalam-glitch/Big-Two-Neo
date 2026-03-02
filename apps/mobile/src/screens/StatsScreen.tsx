@@ -463,7 +463,7 @@ export default function StatsScreen() {
             {activeTab === 'casual' && (
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
-                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
               </>
             )}
             {activeTab === 'ranked' && (

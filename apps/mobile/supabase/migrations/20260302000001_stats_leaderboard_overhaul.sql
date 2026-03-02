@@ -296,8 +296,8 @@ BEGIN
   );
   
   v_new_avg_score := ROUND(
-    (COALESCE(v_stats.avg_score_per_game, 0) * v_stats.games_played + p_score)::DECIMAL / 
-    (v_stats.games_played + 1)::DECIMAL,
+    (COALESCE(v_stats.avg_score_per_game, 0) * COALESCE(v_stats.games_completed, 0) + p_score)::DECIMAL / 
+    (COALESCE(v_stats.games_completed, 0) + 1)::DECIMAL,
     2
   );
 

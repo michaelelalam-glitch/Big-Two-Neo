@@ -105,16 +105,6 @@ export function MultiplayerGame() {
   // Initialize multiplayer room data
   useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomInfo });
 
-  // Track when game starts (for duration calculation)
-  useEffect(() => {
-    if (multiplayerGameState?.game_phase === 'first_play' || multiplayerGameState?.game_phase === 'playing') {
-      if (!gameStartedAt) {
-        setGameStartedAt(new Date().toISOString());
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiplayerGameState?.game_phase]);
-
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
 
@@ -208,6 +198,17 @@ export function MultiplayerGame() {
       );
     },
   });
+
+  // Track when game starts (for duration calculation)
+  // Placed after useRealtime so multiplayerGameState is already declared.
+  useEffect(() => {
+    if (multiplayerGameState?.game_phase === 'first_play' || multiplayerGameState?.game_phase === 'playing') {
+      if (!gameStartedAt) {
+        setGameStartedAt(new Date().toISOString());
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen
   useEffect(() => {
