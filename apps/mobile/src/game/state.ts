@@ -4,10 +4,8 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API } from '../constants';
-import { supabase } from '../services/supabase';
 import { type AutoPassTimerState } from '../types/multiplayer';
-import { showError, soundManager, SoundType } from '../utils';
+import { soundManager, SoundType } from '../utils';
 import { gameLogger, statsLogger } from '../utils/logger';
 import { type Card, type LastPlay, type ComboType, type PlayerMatchScore, type MatchResult, type PlayerMatchScoreDetail } from './types';
 import { sortHand, classifyCards, canBeatPlay, validateOneCardLeftRule, canPassWithOneCardLeftRule, isHighestPossiblePlay, findHighestBeatingSingle } from './engine';
@@ -1040,29 +1038,9 @@ export class GameStateManager {
       // This triggers the Game End Modal to appear (fixes missing modal bug)
       this.notifyListeners();
       
-      // Save game stats to database (async, don't await to avoid blocking UI)
-      statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
-      let alertShown = false; // Track if alert was shown to prevent duplicate alerts
-      this.saveGameStatsToDatabase().catch(err => {
-        // Only log error message/code to avoid exposing database internals or sensitive data
-        statsLogger.error('❌ [Stats] Failed to save game stats:', err?.message || err?.code || String(err));
-        
-        // Notify user that stats weren't saved (dismissible, non-blocking)
-        // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
-        if (!alertShown) {
-          alertShown = true;
-          setTimeout(() => {
-            // Check if game is still active (user hasn't navigated away)
-            // If game state still exists, show the alert
-            if (this.state && this.state.gameOver) {
-              showError(
-                'Your game stats could not be saved. Your progress was recorded, but may not appear in the leaderboard.',
-                'Stats Not Saved'
-              );
-            }
-          }, 1000); // Delay to avoid interrupting game over UI
-        }
-      });
+      // Local AI games do not save stats — offline games are ephemeral by design.
+      // Multiplayer stats are persisted server-side via the complete-game Edge Function.
+      this.saveGameStatsToDatabase();
     } else {
       // Continue to next match
       this.state.gameEnded = true; // Mark match as ended
@@ -1074,181 +1052,15 @@ export class GameStateManager {
   }
 
   /**
-   * Save game statistics to Supabase database
-   * Calls server-side edge function to validate and update stats with service_role credentials
+   * Save game statistics to Supabase database.
+   *
+   * ✅ DECISION (Task #509/#511/#584): Local AI games do not save stats.
+   * Offline games are ephemeral — multiplayer stats are persisted server-side via
+   * the complete-game Edge Function. This also avoids the bot-UUID error where bot
+   * IDs (e.g. "bot_1") were passed to columns expecting real UUIDs.
    */
-  private async saveGameStatsToDatabase(): Promise<void> {
-    if (!this.state) return;
-
-    statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
-
-    try {
-      // Get current user
-      statsLogger.debug('📊 [Stats] Getting current user...');
-      const { data: { user } } = await supabase.auth.getUser();
-      statsLogger.debug('📊 [Stats] User:', user?.id ? `Found (${user.id.slice(0, 8)}...)` : 'Not found');
-      
-      if (!user) {
-        statsLogger.warn('⚠️ [Stats] No authenticated user, skipping stats save');
-        return;
-      }
-
-      // Prepare game completion data for all players (including bots for now)
-      // TODO: In multiplayer mode, collect real player data from game state
-      const playersData = this.state.players.map(player => {
-        const playerScore = this.state!.matchScores.find(s => s.playerId === player.id);
-        const sortedScores = [...this.state!.matchScores].sort((a, b) => a.score - b.score);
-        const finishPosition = sortedScores.findIndex(s => s.playerId === player.id) + 1;
-
-        // 🎯 SUM COMBO STATS FROM ALL MATCHES (stored in matchComboStats)
-        const matchScore = this.state!.matchScores.find(s => s.playerId === player.id);
-        
-        // Default to zeros if matchScore not found (shouldn't happen but defensive)
-        const comboCounts = matchScore ? {
-          singles: matchScore.matchComboStats.singles.reduce((sum, val) => sum + val, 0),
-          pairs: matchScore.matchComboStats.pairs.reduce((sum, val) => sum + val, 0),
-          triples: matchScore.matchComboStats.triples.reduce((sum, val) => sum + val, 0),
-          straights: matchScore.matchComboStats.straights.reduce((sum, val) => sum + val, 0),
-          flushes: matchScore.matchComboStats.flushes.reduce((sum, val) => sum + val, 0),
-          full_houses: matchScore.matchComboStats.full_houses.reduce((sum, val) => sum + val, 0),
-          four_of_a_kinds: matchScore.matchComboStats.four_of_a_kinds.reduce((sum, val) => sum + val, 0),
-          straight_flushes: matchScore.matchComboStats.straight_flushes.reduce((sum, val) => sum + val, 0),
-          royal_flushes: matchScore.matchComboStats.royal_flushes.reduce((sum, val) => sum + val, 0),
-        } : {
-          singles: 0,
-          pairs: 0,
-          triples: 0,
-          straights: 0,
-          flushes: 0,
-          full_houses: 0,
-          four_of_a_kinds: 0,
-          straight_flushes: 0,
-          royal_flushes: 0,
-        };
-        
-        if (matchScore) {
-          statsLogger.debug(`[Stats] Player: ${player.name} (ID: ${player.id})`);
-          statsLogger.debug(`[Stats] Total matches played: ${matchScore.matchComboStats.singles.length}`);
-          
-          // Match-by-match breakdown only in debug mode to prevent console spam
-          if (matchScore.matchComboStats.singles.length <= 5) {
-            // Only log details for short games (5 matches or less)
-            statsLogger.debug(`[Stats] Match-by-match breakdown for ${player.name}:`);
-            for (let i = 0; i < matchScore.matchComboStats.singles.length; i++) {
-              statsLogger.debug(`  Match ${i + 1}: Singles=${matchScore.matchComboStats.singles[i]}, Pairs=${matchScore.matchComboStats.pairs[i]}, Triples=${matchScore.matchComboStats.triples[i]}, Straights=${matchScore.matchComboStats.straights[i]}, Flushes=${matchScore.matchComboStats.flushes[i]}, FullHouses=${matchScore.matchComboStats.full_houses[i]}, FourOfAKind=${matchScore.matchComboStats.four_of_a_kinds[i]}, StraightFlush=${matchScore.matchComboStats.straight_flushes[i]}, RoyalFlush=${matchScore.matchComboStats.royal_flushes[i]}`);
-            }
-          }
-          statsLogger.info(`[Stats] Final totals for ${player.name}: ${JSON.stringify(comboCounts)}`);
-        } else {
-          statsLogger.error(`❌ [Stats] No matchScore found for ${player.name}!`);
-        }
-        
-        statsLogger.info(`[Stats] Final combo counts for ${player.name}: ${JSON.stringify(comboCounts)}`);
-
-        return {
-          user_id: player.isBot ? `bot_${player.id}` : user.id, // TODO: Real user IDs in multiplayer
-          username: player.name,
-          score: playerScore?.score || 0,
-          finish_position: finishPosition,
-          combos_played: comboCounts,
-        };
-      });
-
-      // Find the winner's user_id (not the internal player ID)
-      if (!this.state.finalWinnerId) {
-        throw new Error('No final winner ID found in state');
-      }
-      const finalWinnerId = this.state.finalWinnerId; // Local variable to maintain non-null type after check
-      const winnerPlayer = this.state.players.find(p => p.id === finalWinnerId);
-      if (!winnerPlayer) {
-        throw new Error(`Winner player not found in state for finalWinnerId: ${finalWinnerId}`);
-      }
-      // ✅ FIX: winnerPlayer.id is already "bot_1", "bot_2", etc. - don't double-prefix
-      const winnerUserId = winnerPlayer.isBot ? winnerPlayer.id : user.id;
-
-      const gameCompletionData = {
-        room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
-        room_code: 'LOCAL', // TODO: Real room code in multiplayer
-        players: playersData,
-        winner_id: winnerUserId,
-        game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
-        started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
-        finished_at: new Date().toISOString(),
-      };
-
-      statsLogger.info(`📊 [Stats] Calling complete-game edge function`);
-
-      // Try Edge Function first (preferred for production)
-      let edgeFunctionSuccess = false;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('No active session');
-        }
-
-        const response = await fetch(
-          `${API.SUPABASE_URL}/functions/v1/complete-game`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(gameCompletionData),
-          }
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-          statsLogger.info('✅ [Stats] Game completed via Edge Function:', result);
-          edgeFunctionSuccess = true;
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Server returned ${response.status}`);
-        }
-      } catch (edgeError: unknown) {
-        // Edge Function failed - try fallback RPC
-        const edgeMsg = edgeError instanceof Error ? edgeError.message : String(edgeError);
-        if (edgeMsg.includes('503') || edgeMsg.includes('404')) {
-          statsLogger.warn('⚠️ [Stats] Edge Function unavailable, using fallback RPC');
-        } else {
-          statsLogger.warn('⚠️ [Stats] Edge Function error, using fallback RPC:', edgeMsg);
-        }
-      }
-
-      // Fallback: Use client-accessible RPC function
-      if (!edgeFunctionSuccess) {
-        statsLogger.info('📊 [Stats] Calling fallback RPC: complete_game_from_client');
-        
-        const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_game_from_client', {
-          p_room_id: gameCompletionData.room_id,
-          p_room_code: gameCompletionData.room_code,
-          p_players: gameCompletionData.players,
-          p_winner_id: gameCompletionData.winner_id,
-          p_game_duration_seconds: gameCompletionData.game_duration_seconds,
-          p_started_at: gameCompletionData.started_at,
-          p_finished_at: gameCompletionData.finished_at,
-        });
-
-        if (rpcError) {
-          throw rpcError;
-        }
-
-        statsLogger.info('✅ [Stats] Game completed via RPC fallback:', rpcResult);
-      }
-    } catch (error: unknown) {
-      // Suppress 503 errors (Edge Function not deployed/cold start)
-      // Game still works - this only affects stats tracking
-      const errRecord = error as Record<string, unknown>;
-      const statusCode = errRecord?.status || errRecord?.statusCode || errRecord?.code;
-      const errMsg = error instanceof Error ? error.message : String(error);
-      if (statusCode === 503 || statusCode === '503' || errMsg.includes('503')) {
-        statsLogger.warn('⚠️ [Stats] Stats service unavailable (503) - skipping stats save');
-      } else {
-        const errCode = errRecord?.code;
-        statsLogger.error('❌ [Stats] Exception saving stats:', errCode ? String(errCode) : errMsg);
-      }
-    }
+  private saveGameStatsToDatabase(): void {
+    statsLogger.info('ℹ️ [Stats] Local AI game — stats not saved (offline games are ephemeral by design)');
   }
 
   /**

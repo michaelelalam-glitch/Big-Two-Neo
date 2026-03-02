@@ -21,6 +21,7 @@ import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
+import { supabase } from '../services/supabase';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
@@ -58,13 +59,17 @@ export function MultiplayerGame() {
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
+  // Room UUID and game start time — used for online stats saving
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const gameStartedAtRef = useRef<number>(Date.now());
+  // Ref to check host status inside onGameOver closure (isMultiplayerHost is returned after useRealtime)
+  const isMultiplayerHostRef = useRef<boolean>(false);
 
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  // Log once on mount to avoid spamming on every re-render
   useEffect(() => {
     gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
   }, []);
@@ -80,7 +85,7 @@ export function MultiplayerGame() {
   } = useCardSelection();
 
   // Initialize multiplayer room data
-  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers });
+  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomId });
 
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
@@ -173,8 +178,83 @@ export function MultiplayerGame() {
         scoreHistory || [],
         playHistoryByMatch || [],
       );
+
+      // Save stats for online multiplayer (fire-and-forget, does not block UI)
+      const nowTs = Date.now();
+      void (async () => {
+        try {
+          // Only the host persists stats — every client receives the game_over broadcast
+          if (!isMultiplayerHostRef.current) return;
+
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) return;
+          // Only send human players — bots do not have real Supabase user accounts
+          const humanPlayers = multiplayerPlayers.filter(p => !p.is_bot);
+          if (humanPlayers.length === 0) return;
+
+          // Compute rankings relative to human players only so positions are gapless (1..N)
+          // Sorting all finalScores (which includes bots) would create gaps when bots are excluded
+          const humanScoresSorted = humanPlayers
+            .map(player => {
+              const score = finalScores.find(s => s.player_index === player.player_index);
+              return { player_index: player.player_index, score: score?.cumulativeScore ?? 0 };
+            })
+            .sort((a, b) => a.score - b.score);
+
+          const rankByPlayerIndex = new Map<number, number>();
+          humanScoresSorted.forEach((entry, idx) => {
+            rankByPlayerIndex.set(entry.player_index, idx + 1);
+          });
+
+          const playersData = humanPlayers.map(player => {
+            const score = finalScores.find(s => s.player_index === player.player_index);
+            const rank = rankByPlayerIndex.get(player.player_index) ?? 1;
+            return {
+              user_id: player.user_id,
+              username: player.username,
+              score: score?.cumulativeScore ?? 0,
+              finish_position: rank,
+              // Combo tracking for online games is not yet implemented; send zeros
+              combos_played: { singles: 0, pairs: 0, triples: 0, straights: 0, flushes: 0, full_houses: 0, four_of_a_kinds: 0, straight_flushes: 0, royal_flushes: 0 },
+            };
+          });
+
+          // Winner is the human player with rank 1 (lowest cumulative score among humans)
+          const topHumanEntry = humanScoresSorted[0];
+          const winnerHuman = topHumanEntry
+            ? humanPlayers.find(p => p.player_index === topHumanEntry.player_index)
+            : undefined;
+          const winnerId = winnerHuman?.user_id ?? (user?.id ?? '');
+
+          // Use supabase.functions.invoke so the apikey + Authorization headers
+          // are set correctly by the Supabase client (raw fetch() only sent Authorization)
+          const { error: invokeError } = await supabase.functions.invoke('complete-game', {
+            body: {
+              room_id: roomId,
+              room_code: roomCode,
+              players: playersData,
+              winner_id: winnerId,
+              game_duration_seconds: Math.floor((nowTs - gameStartedAtRef.current) / 1000),
+              started_at: new Date(gameStartedAtRef.current).toISOString(),
+              finished_at: new Date(nowTs).toISOString(),
+            },
+          });
+
+          if (!invokeError) {
+            gameLogger.info('[MultiplayerGame] ✅ Online game stats saved successfully');
+          } else {
+            gameLogger.warn('[MultiplayerGame] ⚠️ Stats save failed:', invokeError);
+          }
+        } catch (statsErr) {
+          // Non-blocking — game still ends even if stats fail to save
+          gameLogger.warn('[MultiplayerGame] ⚠️ Failed to save online game stats:', statsErr instanceof Error ? statsErr.message : String(statsErr));
+        }
+      })();
     },
   });
+
+  // Keep isMultiplayerHostRef in sync so the onGameOver callback can check it without a closure issue
+  isMultiplayerHostRef.current = isMultiplayerHost;
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen
   useEffect(() => {

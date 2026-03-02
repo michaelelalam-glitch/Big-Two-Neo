@@ -53,7 +53,6 @@ export function LocalAIGame() {
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  // Log once on mount to avoid spamming on every re-render
   useEffect(() => {
     gameLogger.info('🎮 [LocalAIGame] Game mode: LOCAL AI (client-side)');
   }, []);
@@ -101,8 +100,7 @@ export function LocalAIGame() {
     checkAndExecuteBotTurn,
   });
 
-  // Keep placeholder ref in sync with the internal gameManagerRef synchronously
-  // (useEffect + stable ref dependency would only run once and miss the initial value)
+  // Keep placeholder ref in sync with the actual gameManagerRef (direct assignment is safe for refs)
   gameManagerRefPlaceholder.current = gameManagerRef.current;
 
   // Derived game state (player hand, last play info)

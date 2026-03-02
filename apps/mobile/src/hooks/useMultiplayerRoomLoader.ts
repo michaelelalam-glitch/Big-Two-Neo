@@ -19,6 +19,7 @@ interface UseMultiplayerRoomLoaderOptions {
   roomCode: string;
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;
   setMultiplayerPlayers: React.Dispatch<React.SetStateAction<MultiplayerPlayer[]>>;
+  setRoomId?: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 export function useMultiplayerRoomLoader({
@@ -26,6 +27,7 @@ export function useMultiplayerRoomLoader({
   roomCode,
   navigation,
   setMultiplayerPlayers,
+  setRoomId,
 }: UseMultiplayerRoomLoaderOptions): void {
   useEffect(() => {
     if (!isMultiplayerGame) return;
@@ -45,6 +47,9 @@ export function useMultiplayerRoomLoader({
           return;
         }
 
+        // Expose room UUID so callers can use it for stats saving
+        setRoomId?.(roomData.id);
+
         // Load players
         const { data: playersData, error: playersError } = await supabase
           .from('room_players')
@@ -63,5 +68,5 @@ export function useMultiplayerRoomLoader({
     };
 
     loadMultiplayerRoom();
-  }, [isMultiplayerGame, roomCode, navigation, setMultiplayerPlayers]);
+  }, [isMultiplayerGame, roomCode, navigation, setMultiplayerPlayers, setRoomId]);
 }
