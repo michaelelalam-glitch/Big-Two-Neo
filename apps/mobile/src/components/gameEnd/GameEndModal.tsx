@@ -655,17 +655,6 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
     }
   };
 
-  // Calculate cumulative totals for the summary bar
-  const cumulativeTotals = React.useMemo(() => {
-    const totals: number[] = new Array(playerNames.length).fill(0);
-    scoreHistory.forEach(match => {
-      match.pointsAdded.forEach((pts, idx) => {
-        if (idx < totals.length) totals[idx] += pts;
-      });
-    });
-    return totals;
-  }, [scoreHistory, playerNames.length]);
-
   const allExpanded = expandedScoreMatches.size === scoreHistory.length;
   const scoreHistoryLastIndex = scoreHistory.length - 1;
 
@@ -767,9 +756,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
           {/* Winner announcement + standings scroll with the list */}
           {headerSlot}
           {scoreHistory.length > 0 ? (
-            <>
-              {/* Header row with title + expand/collapse toggle */}
-              <View style={styles.scoreHistoryHeaderRow}>
+            <View style={styles.scoreHistoryHeaderRow}>
               <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
               <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
                 <Text style={styles.expandAllText}>
@@ -777,25 +764,6 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                 </Text>
               </TouchableOpacity>
             </View>
-
-            {/* Cumulative totals summary bar */}
-            <View style={styles.scoreSummaryBar}>
-              <Text style={styles.scoreSummaryTitle}>Totals</Text>
-              <View style={styles.scoreSummaryPlayers}>
-                {playerNames.map((name, idx) => (
-                  <View key={idx} style={styles.scoreSummaryItem}>
-                    <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
-                    <Text style={[
-                      styles.scoreSummaryScore,
-                      cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
-                    ]}>
-                      {cumulativeTotals[idx]}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              </View>
-            </>
           ) : null}
         </>
       }
