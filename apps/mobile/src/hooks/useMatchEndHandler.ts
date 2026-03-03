@@ -68,9 +68,6 @@ export function useMatchEndHandler({
     const resolvedWinner = winner ?? game_winner_index;
     if (resolvedWinner == null) return;
 
-    // Require final_scores to be a non-empty object
-    if (!final_scores || typeof final_scores !== 'object' || Object.keys(final_scores).length === 0) return;
-
     // Guard: open at most once per game (DB realtime may deliver the same phase twice)
     if (hasOpenedModalRef.current) return;
     hasOpenedModalRef.current = true;
@@ -80,7 +77,35 @@ export function useMatchEndHandler({
     const winnerPlayer = multiplayerPlayers.find(p => p.player_index === resolvedWinner);
     const winnerName = winnerPlayer?.username || `Player ${resolvedWinner + 1}`;
 
-    const formattedScores: FinalScore[] = Object.entries(final_scores).map(
+    // Build final_scores from the DB field when present; otherwise fall back to
+    // the last accumulated scoreHistory entry (cumulative scores) or default 0.
+    const hasFinalScores =
+      !!final_scores &&
+      typeof final_scores === 'object' &&
+      Object.keys(final_scores).length > 0;
+
+    const resolvedFinalScores: Record<string, number> = hasFinalScores
+      ? (final_scores as Record<string, number>)
+      : (() => {
+          const fallback: Record<string, number> = {};
+          if (scoreHistory.length > 0) {
+            // Use cumulative scores from the last match entry
+            const lastEntry = scoreHistory[scoreHistory.length - 1];
+            lastEntry.scores.forEach((cum, idx) => {
+              fallback[String(idx)] = cum;
+            });
+            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores missing — built from last scoreHistory entry');
+          } else {
+            // Last resort: all players score 0
+            multiplayerPlayers.forEach(p => {
+              fallback[String(p.player_index)] = 0;
+            });
+            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores and scoreHistory both empty — defaulting to 0 per player');
+          }
+          return fallback;
+        })();
+
+    const formattedScores: FinalScore[] = Object.entries(resolvedFinalScores).map(
       ([position, score]) => {
         const player = multiplayerPlayers.find(
           p => p.player_index === parseInt(position),
