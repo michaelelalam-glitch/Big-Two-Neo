@@ -40,11 +40,17 @@ export function useGameStatsUploader({
     if (!isMultiplayerGame) return;
     if (!multiplayerGameState) return;
     if (multiplayerGameState.game_phase !== 'game_over') {
-      // Only reset the upload guard when a genuinely NEW game is starting
-      // (the 'dealing' phase). Any other non-game_over phase (e.g. a stale
-      // realtime read of 'playing' arriving after the 'game_over' snapshot)
-      // must NOT clear the flag — doing so would allow duplicate stat writes
-      // if the phase briefly oscillates back after the upload has already fired.
+      // Reset the upload guard ONLY on the 'dealing' phase — the start of a
+      // brand-new game. Using 'dealing' as the sole reset trigger prevents
+      // duplicate uploads caused by brief phase oscillations (e.g. a stale
+      // 'playing' snapshot arriving after 'game_over') or by the transient
+      // 'finished' phase (which occurs between matches inside a single game,
+      // NOT at game end, so resetting there would be incorrect).
+      //
+      // Phase lifecycle: dealing → first_play → playing → finished (loop per match)
+      //                                                  → game_over (game ends)
+      // Only 'dealing' signals a genuinely new game; all other non-game_over
+      // phases are either mid-game or transient and must NOT clear the guard.
       if (multiplayerGameState.game_phase === 'dealing') {
         hasUploadedRef.current = false;
         uploadingRef.current = false;
@@ -148,6 +154,12 @@ export function useGameStatsUploader({
             finishPositionMap.set(p.player_index, nextFallbackPosition++);
           }
         });
+        // After the two passes above, every player in multiplayerPlayers has a
+        // unique position in finishPositionMap. The counter below covers the
+        // theoretically impossible case where a player_index is absent from
+        // both finalScoresEntries AND multiplayerPlayers, which would otherwise
+        // produce a duplicate position and fail the edge-function [1,2,3,4] check.
+        let safeGapPosition = nextFallbackPosition;
 
         // Build players array
         const finishedAt = new Date().toISOString();
@@ -157,7 +169,10 @@ export function useGameStatsUploader({
         );
 
         const players = multiplayerPlayers.map((player) => {
-          const finishPosition = finishPositionMap.get(player.player_index) ?? multiplayerPlayers.length;
+          // finishPositionMap should always contain this player_index (both passes
+          // above guarantee coverage); the safeGapPosition fallback is a last-resort
+          // guard to prevent duplicate positions if data is unexpectedly malformed.
+          const finishPosition = finishPositionMap.get(player.player_index) ?? safeGapPosition++;
 
           // cards_left: number of cards the player has at game end.
           // NOTE: There is a known edge case where the server-side hands object may
@@ -183,8 +198,14 @@ export function useGameStatsUploader({
             finish_position: finishPosition,
             cards_left: cardsLeft,
             was_bot: player.is_bot,
-            disconnected: false, // TODO: track disconnects in future
+            disconnected: false, // TODO: track per-player disconnect status in future
             original_username: null,
+            // NOTE: Multiplayer combo tracking is not yet implemented.
+            // All values are intentionally zero. Combo stats are available for
+            // local (offline) games via state.ts saveGameStatsToDatabase, but
+            // multiplayer games do not yet aggregate per-combo play counts.
+            // This is a known gap; a future task should derive combos from
+            // game_state.play_history entries on the server side.
             combos_played: {
               singles: 0,
               pairs: 0,

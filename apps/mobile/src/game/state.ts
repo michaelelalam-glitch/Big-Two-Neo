@@ -1080,6 +1080,17 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
+    // ─── Offline (local AI) game guard ────────────────────────────────────────
+    // Offline games always have at least one bot player. Per product requirement,
+    // only real multiplayer games (where every player is human) should record
+    // stats to the database / leaderboard. Skip silently for offline games.
+    const isOfflineGame = this.state.players.some(p => p.isBot);
+    if (isOfflineGame) {
+      statsLogger.info('📊 [Stats] Skipping stats save — offline game (bot players present). Only multiplayer games count.');
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
 
     try {

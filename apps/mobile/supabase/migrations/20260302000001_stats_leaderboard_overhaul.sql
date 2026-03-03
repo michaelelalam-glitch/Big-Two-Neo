@@ -214,6 +214,10 @@ ORDER BY ps.casual_rank_points DESC, (ps.casual_games_won + ps.private_games_won
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leaderboard_casual_user ON leaderboard_casual(user_id);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_casual_rank ON leaderboard_casual(rank);
 
+-- Grant SELECT immediately after view creation to keep permissions atomic with view DDL.
+-- The separate 20260303000001 migration also grants these for idempotency.
+GRANT SELECT ON leaderboard_casual TO authenticated, anon;
+
 -- Ranked leaderboard
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_ranked;
 CREATE MATERIALIZED VIEW leaderboard_ranked AS
@@ -235,6 +239,10 @@ ORDER BY ps.ranked_rank_points DESC, ps.ranked_games_won DESC;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leaderboard_ranked_user ON leaderboard_ranked(user_id);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_ranked_rank ON leaderboard_ranked(rank);
+
+-- Grant SELECT immediately after view creation to keep permissions atomic with view DDL.
+-- The separate 20260303000001 migration also grants these for idempotency.
+GRANT SELECT ON leaderboard_ranked TO authenticated, anon;
 
 -- ============================================================================
 -- PART 7: Updated RPC Functions
@@ -425,6 +433,14 @@ BEGIN
   -- UPDATE). Adding v_rank_point_change to the snapshot value reproduces the
   -- same new rank_points value that was written by the UPDATE above —
   -- equivalent to reading the updated row but without an extra SELECT.
+  --
+  -- DESIGN NOTE: rank_points_history stores the OVERALL rank_points value
+  -- (not mode-specific casual/ranked points). This means the rank progression
+  -- graph reflects total ELO across all game modes. Mode-specific point history
+  -- (e.g. only ranked games in the ranked graph) can be derived by filtering
+  -- on the 'game_type' key in each history entry, which is included in the
+  -- jsonb_build_object below. The StatsScreen ranked-tab graph already does
+  -- this: it filters rank_points_history where game_type = 'ranked'.
   v_new_rank_points := v_stats.rank_points + v_rank_point_change;
   v_history_entry := jsonb_build_object(
     'points', v_new_rank_points,
