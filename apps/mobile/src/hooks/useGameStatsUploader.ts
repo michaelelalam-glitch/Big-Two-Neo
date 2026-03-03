@@ -237,10 +237,14 @@ export function useGameStatsUploader({
             : winnerPlayer.user_id;
         }
 
+        // Extract bot_difficulty from the first bot player (all bots share the same difficulty)
+        const botDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? null;
+
         const payload = {
           room_id: roomInfo.id,
           room_code: roomInfo.code,
           game_type: gameType,
+          bot_difficulty: botDifficulty,
           players,
           winner_id: winnerId,
           game_duration_seconds: Math.max(0, durationSeconds),
