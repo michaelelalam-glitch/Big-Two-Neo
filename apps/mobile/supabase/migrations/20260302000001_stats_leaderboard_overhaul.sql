@@ -297,15 +297,21 @@ BEGIN
     2
   );
   
-  -- NOTE: v_new_avg_position is intentionally computed inside the IF p_completed
-  -- block below using games_completed as denominator (not games_played), so that
-  -- abandoned games do not skew avg_finish_position. Declared here for scope only.
+  -- NOTE: v_new_avg_position and v_new_avg_score are intentionally computed inside
+  -- the IF p_completed block below using games_completed as denominator (not
+  -- games_played), so that abandoned games do not skew either stat. Declared here
+  -- for scope only; value is assigned conditionally.
 
-  v_new_avg_score := ROUND(
-    (COALESCE(v_stats.avg_score_per_game, 0) * COALESCE(v_stats.games_completed, 0) + p_score)::DECIMAL / 
-    (COALESCE(v_stats.games_completed, 0) + 1)::DECIMAL,
-    2
-  );
+  v_new_avg_score := CASE
+    WHEN p_completed THEN
+      ROUND(
+        (COALESCE(v_stats.avg_score_per_game, 0) * COALESCE(v_stats.games_completed, 0) + p_score)::DECIMAL /
+        (COALESCE(v_stats.games_completed, 0) + 1)::DECIMAL,
+        2
+      )
+    ELSE
+      v_stats.avg_score_per_game
+  END;
 
   -- Calculate new avg cards left
   v_new_avg_cards_left := ROUND(

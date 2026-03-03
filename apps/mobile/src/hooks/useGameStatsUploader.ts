@@ -95,8 +95,12 @@ export function useGameStatsUploader({
     }
 
     uploadingRef.current = true;
-    // NOTE: hasUploadedRef is committed inside uploadStats() AFTER auth succeeds,
-    // so transient auth failures do not permanently block retry.
+    // NOTE: hasUploadedRef.current is set to true above (line ~70) BEFORE the
+    // auth checks inside uploadStats(). Auth failures reset it to false (lines ~109
+    // and ~118) so retries remain possible after transient auth errors. The second
+    // assignment inside uploadStats() at auth-confirm time is now redundant — the
+    // flag is already true. The null-guard path (missing winner/scores) does NOT
+    // reset the flag, so missing-data exits are intentionally non-retryable.
 
     const uploadStats = async () => {
       try {

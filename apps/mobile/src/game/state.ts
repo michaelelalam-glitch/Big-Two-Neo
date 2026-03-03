@@ -1080,13 +1080,14 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
-    // ─── Offline (local AI) game guard ────────────────────────────────────────
-    // Offline games always have at least one bot player. Per product requirement,
-    // only real multiplayer games (where every player is human) should record
-    // stats to the database / leaderboard. Skip silently for offline games.
-    const isOfflineGame = this.state.players.some(p => p.isBot);
+    // ─── Offline (all-bot) game guard ────────────────────────────────────────
+    // Skip games where there is no human player (e.g. pure AI simulations).
+    // Mixed human+bot casual games are allowed to record stats via the edge
+    // function using room_code 'CASUAL'.
+    const hasHumanPlayer = this.state.players.some(p => !p.isBot);
+    const isOfflineGame = !hasHumanPlayer;
     if (isOfflineGame) {
-      statsLogger.info('📊 [Stats] Skipping stats save — offline game (bot players present). Only multiplayer games count.');
+      statsLogger.info('📊 [Stats] Skipping stats save — no human players in game. Only games with at least one human count.');
       return;
     }
     // ─────────────────────────────────────────────────────────────────────────
