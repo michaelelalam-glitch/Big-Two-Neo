@@ -46,6 +46,7 @@ export function LocalAIGame() {
     restoreScoreHistory,
     scoreHistory,
     playHistoryByMatch,
+    clearHistory,
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
@@ -161,6 +162,7 @@ export function LocalAIGame() {
     navigation,
     setOnPlayAgain,
     setOnReturnToMenu,
+    clearHistory,
   });
 
   // Cleanup: navigation cleanup + mount tracking

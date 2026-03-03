@@ -1080,6 +1080,18 @@ export class GameStateManager {
   private async saveGameStatsToDatabase(): Promise<void> {
     if (!this.state) return;
 
+    // ─── Offline (all-bot) game guard ────────────────────────────────────────
+    // Skip games where there is no human player (e.g. pure AI simulations).
+    // Mixed human+bot casual games are allowed to record stats via the edge
+    // function using room_code 'CASUAL'.
+    const hasHumanPlayer = this.state.players.some(p => !p.isBot);
+    const isOfflineGame = !hasHumanPlayer;
+    if (isOfflineGame) {
+      statsLogger.info('📊 [Stats] Skipping stats save — no human players in game. Only games with at least one human count.');
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     statsLogger.debug('📊 [Stats] saveGameStatsToDatabase called');
 
     try {
@@ -1150,6 +1162,10 @@ export class GameStateManager {
           username: player.name,
           score: playerScore?.score || 0,
           finish_position: finishPosition,
+          cards_left: player.hand.length, // 0 for winner, remaining cards for others
+          was_bot: player.isBot,
+          disconnected: false, // Local games never have disconnects
+          original_username: null, // No bot replacements in local games
           combos_played: comboCounts,
         };
       });
@@ -1166,14 +1182,21 @@ export class GameStateManager {
       // ✅ FIX: winnerPlayer.id is already "bot_1", "bot_2", etc. - don't double-prefix
       const winnerUserId = winnerPlayer.isBot ? winnerPlayer.id : user.id;
 
+      // Derive bot difficulty from the first bot in the game (all bots share the same difficulty)
+      const botPlayer = this.state.players.find(p => p.isBot);
+      const gameBotDifficulty = botPlayer?.botDifficulty ?? null;
+
       const gameCompletionData = {
-        room_id: null, // Local games don't have a room_id (multiplayer will provide real UUID)
-        room_code: 'LOCAL', // TODO: Real room code in multiplayer
+        room_id: null, // Casual local games don't have a room_id
+        room_code: 'CASUAL', // Distinguishes human+bot games from multiplayer rooms
+        game_type: 'casual' as const, // Always casual for local games with bots
+        bot_difficulty: gameBotDifficulty, // Difficulty of bots in this game (for recent games display)
         players: playersData,
         winner_id: winnerUserId,
         game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),
         started_at: new Date(this.state.startedAt || Date.now()).toISOString(),
         finished_at: new Date().toISOString(),
+        game_completed: true, // Always a natural completion for local games
       };
 
       statsLogger.info(`📊 [Stats] Calling complete-game edge function`);

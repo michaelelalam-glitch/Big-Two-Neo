@@ -220,8 +220,18 @@ export async function executePlayCards({
       await broadcastMessage('game_over', {
         winner_index: finalWinnerIndex,
         final_scores: matchScores,
+        match_number: currentMatchNumber,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
+
+      // Record the FINAL match scores before opening the game-over modal.
+      // Without this the scoreHistory passed to the game-end modal would be
+      // missing the last match (onMatchEnded was only called for non-game-over
+      // match ends).
+      if (onMatchEnded) {
+        gameLogger.info('[useRealtime] 📊 Calling onMatchEnded for final match before game over');
+        onMatchEnded(currentMatchNumber, matchScores);
+      }
 
       // Supabase Realtime does NOT echo broadcasts back to the sender.
       // Call onGameOver directly so the player who triggered the game-over

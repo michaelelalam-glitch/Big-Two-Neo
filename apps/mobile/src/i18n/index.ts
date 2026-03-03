@@ -438,6 +438,11 @@ export interface Translations {
     flushes: string;
     royalFlush: string;
     recentGames: string;
+    viewFullStats: string;
+    lowestScore: string;
+    avgCardsLeft: string;
+    gameCompletion: string;
+    rankProgression: string;
   };
   
   // Leaderboard Screen
@@ -881,6 +886,11 @@ const en: Translations = {
     flushes: 'Flushes',
     royalFlush: 'Royal Flush',
     recentGames: 'Recent Games',
+    viewFullStats: 'View Full Stats',
+    lowestScore: 'Lowest Score',
+    avgCardsLeft: 'Avg Cards Left',
+    gameCompletion: 'Game Completion',
+    rankProgression: 'Rank Progression',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -1266,6 +1276,11 @@ const ar: Translations = {
     flushes: 'السحب',
     royalFlush: 'السحب الملكي',
     recentGames: 'الألعاب الأخيرة',
+    viewFullStats: 'عرض كل الإحصائيات',
+    lowestScore: 'أدنى نقاط',
+    avgCardsLeft: 'متوسط البطاقات المتبقية',
+    gameCompletion: 'إتمام اللعبة',
+    rankProgression: 'تقدم الترتيب',
   },
   leaderboard: {
     title: 'لوحة المتصدرين',
@@ -1729,6 +1744,11 @@ const de: Translations = {
     flushes: 'Flushes',
     royalFlush: 'Royal Flush',
     recentGames: 'Letzte Spiele',
+    viewFullStats: 'Vollständige Statistiken',
+    lowestScore: 'Niedrigste Punktzahl',
+    avgCardsLeft: 'Durchschn. Karten übrig',
+    gameCompletion: 'Spielabschluss',
+    rankProgression: 'Rangverlauf',
   },
   leaderboard: {
     title: 'Bestenliste',
