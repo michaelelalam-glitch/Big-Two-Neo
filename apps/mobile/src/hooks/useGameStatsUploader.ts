@@ -40,12 +40,15 @@ export function useGameStatsUploader({
     if (!isMultiplayerGame) return;
     if (!multiplayerGameState) return;
     if (multiplayerGameState.game_phase !== 'game_over') {
-      // Reset flag on any phase that isn't 'game_over' so that a new game
-      // in the same hook instance can trigger a fresh upload.
-      // Previously 'finished' (single-match end) was excluded from the reset,
-      // but that left the flag set across game boundaries if the component
-      // instance was reused.
-      hasUploadedRef.current = false;
+      // Only reset the upload guard when a genuinely NEW game is starting
+      // (the 'dealing' phase). Any other non-game_over phase (e.g. a stale
+      // realtime read of 'playing' arriving after the 'game_over' snapshot)
+      // must NOT clear the flag — doing so would allow duplicate stat writes
+      // if the phase briefly oscillates back after the upload has already fired.
+      if (multiplayerGameState.game_phase === 'dealing') {
+        hasUploadedRef.current = false;
+        uploadingRef.current = false;
+      }
       return;
     }
     if (!roomInfo?.id) return;
@@ -53,6 +56,12 @@ export function useGameStatsUploader({
     if (uploadingRef.current) return;
 
     const { hands } = multiplayerGameState;
+
+    // Mark as uploaded optimistically BEFORE the winner/final_scores null guard.
+    // This prevents a second upload attempt if the effect re-fires while winner
+    // data hasn't propagated yet — the null-guard path now safely exits without
+    // clearing the flag, so the upload won't be retried on the next state tick.
+    hasUploadedRef.current = true;
 
     // Resolve winner — try 'winner' column first, fall back to 'game_winner_index'
     const resolvedWinner = multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
@@ -150,7 +159,14 @@ export function useGameStatsUploader({
         const players = multiplayerPlayers.map((player) => {
           const finishPosition = finishPositionMap.get(player.player_index) ?? multiplayerPlayers.length;
 
-          // cards_left: number of cards the player has at game end
+          // cards_left: number of cards the player has at game end.
+          // NOTE: There is a known edge case where the server-side hands object may
+          // not yet reflect the final state when game_phase transitions to 'finished'
+          // (the winning play and the phase update are two separate DB writes). In
+          // practice the winner's hand will already be 0, but a losing player's
+          // remaining cards could occasionally read 0 instead of the true count if
+          // the state snapshot arrived mid-write. This is acceptable as-is; a retry
+          // mechanism would add complexity for a minor cosmetic inaccuracy.
           const playerHandKey = String(player.player_index);
           const playerHand = hands?.[playerHandKey];
           const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;

@@ -289,12 +289,10 @@ BEGIN
     2
   );
   
-  v_new_avg_position := ROUND(
-    (COALESCE(v_stats.avg_finish_position, 2.5) * v_stats.games_played + p_finish_position)::DECIMAL / 
-    (v_stats.games_played + 1)::DECIMAL,
-    2
-  );
-  
+  -- NOTE: v_new_avg_position is intentionally computed inside the IF p_completed
+  -- block below using games_completed as denominator (not games_played), so that
+  -- abandoned games do not skew avg_finish_position. Declared here for scope only.
+
   v_new_avg_score := ROUND(
     (COALESCE(v_stats.avg_score_per_game, 0) * COALESCE(v_stats.games_completed, 0) + p_score)::DECIMAL / 
     (COALESCE(v_stats.games_completed, 0) + 1)::DECIMAL,
@@ -353,8 +351,15 @@ BEGIN
     updated_at = NOW()
   WHERE user_id = p_user_id;
 
-  -- Only update performance & combo stats for COMPLETED games (Item 8)
+  -- Only update performance & combo stats for COMPLETED games (Item 8).
+  -- avg_finish_position denominator uses games_completed (not games_played) so that
+  -- abandoned games do not pollute the stat — they are tracked via completion_rate.
   IF p_completed THEN
+    v_new_avg_position := ROUND(
+      (COALESCE(v_stats.avg_finish_position, 2.5) * COALESCE(v_stats.games_completed, 0) + p_finish_position)::DECIMAL /
+      (COALESCE(v_stats.games_completed, 0) + 1)::DECIMAL,
+      2
+    );
     UPDATE player_stats SET
       avg_finish_position = v_new_avg_position,
       total_points = total_points + p_score,
@@ -445,7 +450,11 @@ RETURNS VOID AS $$
 BEGIN
   -- Use non-concurrent refresh to support first-run on a fresh DB
   -- (CONCURRENTLY requires a prior population which may not exist on new installs).
-  REFRESH MATERIALIZED VIEW leaderboard_global;
+  -- leaderboard_global may not exist on all environments (created by prior migration
+  -- 20251208000001_leaderboard_stats_schema.sql), so guard with IF EXISTS.
+  IF EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'leaderboard_global') THEN
+    REFRESH MATERIALIZED VIEW leaderboard_global;
+  END IF;
   REFRESH MATERIALIZED VIEW leaderboard_casual;
   REFRESH MATERIALIZED VIEW leaderboard_ranked;
 END;

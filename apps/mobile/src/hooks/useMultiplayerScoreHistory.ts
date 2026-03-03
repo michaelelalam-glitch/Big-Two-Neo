@@ -73,7 +73,10 @@ export function useMultiplayerScoreHistory({
       );
       addScoreHistory(scoreHistoryEntry);
     }
-  }, [isMultiplayerGame, multiplayerGameState, addScoreHistory]);
+  // Narrow dependency to scores_history array only (not full game state object) to
+  // avoid re-running on every game state update unrelated to score history changes.
+  // This matches the pattern used by useMultiplayerPlayHistory for play_history.
+  }, [isMultiplayerGame, multiplayerGameState?.scores_history, addScoreHistory]);
 
   // Reset the sync counter when the game state is cleared (new game)
   useEffect(() => {

@@ -1,4 +1,5 @@
 -- Migration: Grant SELECT permissions on leaderboard materialized views to authenticated and anon roles.
+-- Date: 2026-03-03 (matches filename timestamp 20260303000001)
 -- The 20260302000001_stats_leaderboard_overhaul migration created these views but did not grant
 -- SELECT access, causing "permission denied for materialized view leaderboard_casual" errors on the client.
 
