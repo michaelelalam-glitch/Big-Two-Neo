@@ -166,10 +166,11 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
       playHistCount: playHist.length,
     });
     
-    // Hard block: we need at least a winner name. Player names and scores have
-    // fallbacks below so we don't block the modal when they're missing.
-    if (!winnerName && names.length === 0) {
-      console.error('❌ [GameEndContext] Invalid data — no winner name and no player names; cannot open modal:', {
+    // Hard block: a missing winner name causes GameEndModal to show a perpetual
+    // loading spinner (it gates on !gameWinnerName). Reject early rather than
+    // showing a stuck screen. Player names and scores have fallbacks below.
+    if (!winnerName) {
+      console.error('❌ [GameEndContext] Invalid data — no winner name; cannot open modal:', {
         hasWinner: !!winnerName,
         scoresCount: scores.length,
         namesCount: names.length,

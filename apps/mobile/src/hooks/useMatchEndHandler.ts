@@ -84,12 +84,38 @@ export function useMatchEndHandler({
       typeof final_scores === 'object' &&
       Object.keys(final_scores).length > 0;
 
+    // ─── SCORE HISTORY ──────────────────────────────────────────────────────────
+    // Build dbScoreHistory FIRST so it can serve as a fallback for final standings
+    // when final_scores has not yet been persisted to the DB snapshot we received.
+    const dbScoreHistory: ScoreHistory[] = (multiplayerGameState.scores_history ?? []).map(entry => {
+      const sortedScores = [...entry.scores].sort((a, b) => a.player_index - b.player_index);
+      return {
+        matchNumber: entry.match_number,
+        pointsAdded: sortedScores.map(s => s.matchScore),
+        scores: sortedScores.map(s => s.cumulativeScore),
+        timestamp: new Date().toISOString(),
+      };
+    });
+
+    // Resolve final standings. Priority order:
+    //  1. final_scores DB field (most authoritative)
+    //  2. Last dbScoreHistory entry's cumulative scores (DB-derived, no React staleness)
+    //  3. Last React-state scoreHistory entry (last resort before zeros)
+    //  4. Zeros (absolute last resort)
     const resolvedFinalScores: Record<string, number> = hasFinalScores
       ? (final_scores as Record<string, number>)
       : (() => {
           const fallback: Record<string, number> = {};
-          if (scoreHistory.length > 0) {
-            // Use cumulative scores from the last match entry
+          const dbLastEntry = dbScoreHistory.length > 0
+            ? dbScoreHistory[dbScoreHistory.length - 1]
+            : null;
+          if (dbLastEntry) {
+            dbLastEntry.scores.forEach((cum, idx) => {
+              fallback[String(idx)] = cum;
+            });
+            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores missing — built from last dbScoreHistory entry');
+          } else if (scoreHistory.length > 0) {
+            // Use cumulative scores from the last React-state match entry
             const lastEntry = scoreHistory[scoreHistory.length - 1];
             lastEntry.scores.forEach((cum, idx) => {
               fallback[String(idx)] = cum;
@@ -121,44 +147,51 @@ export function useMatchEndHandler({
 
     const playerNames = multiplayerPlayers.map(p => p.username).filter(Boolean);
 
-    // ─── SCORE HISTORY ──────────────────────────────────────────────────────────
-    // Derive from DB-persisted scores_history array first. This is more reliable
-    // than accumulated context state, which may not have propagated yet.
-    const dbScoreHistory: ScoreHistory[] = (multiplayerGameState.scores_history ?? []).map(entry => {
-      const sortedScores = [...entry.scores].sort((a, b) => a.player_index - b.player_index);
-      return {
-        matchNumber: entry.match_number,
-        pointsAdded: sortedScores.map(s => s.matchScore),
-        scores: sortedScores.map(s => s.cumulativeScore),
-        timestamp: new Date().toISOString(),
-      };
-    });
-
-    // Synthesize the final match entry if the edge function only stored it in
-    // final_scores (not scores_history). This happens when the last match ends
-    // the whole game — the EF sets game_over + final_scores but may not append
-    // the last entry to scores_history.
+    // Synthesize the final match entry when the edge function stored the result
+    // only in final_scores (not scores_history). This happens when the last match
+    // ends the whole game — the EF sets game_over + final_scores but may not
+    // append the last entry to scores_history.
+    //
+    // NOTE: dbScoreHistory.length > 0 is intentionally NOT required here so that
+    // a 1-match game (scores_history is always empty for a 1-match finish) also
+    // gets a synthetic entry. The two sub-cases are handled inside the block.
     const expectedLastMatchNumber = multiplayerGameState.match_number;
     const lastHistoryMatchNumber = dbScoreHistory.length > 0
       ? dbScoreHistory[dbScoreHistory.length - 1].matchNumber
       : 0;
     const isFinalMatchMissingFromHistory =
       expectedLastMatchNumber > lastHistoryMatchNumber &&
-      hasFinalScores &&
-      dbScoreHistory.length > 0;
+      hasFinalScores;
 
     if (isFinalMatchMissingFromHistory) {
-      const prevEntry = dbScoreHistory[dbScoreHistory.length - 1];
-      const pointsAdded = prevEntry.scores.map((prevCum, idx) => {
-        const finalCum = (resolvedFinalScores[String(idx)] as number) ?? prevCum;
-        return Math.max(0, finalCum - prevCum);
-      });
-      dbScoreHistory.push({
-        matchNumber: expectedLastMatchNumber,
-        pointsAdded,
-        scores: prevEntry.scores.map((prevCum, idx) => prevCum + pointsAdded[idx]),
-        timestamp: new Date().toISOString(),
-      });
+      if (dbScoreHistory.length > 0) {
+        // Normal case: at least one previous entry exists; derive delta from it.
+        const prevEntry = dbScoreHistory[dbScoreHistory.length - 1];
+        const pointsAdded = prevEntry.scores.map((prevCum, idx) => {
+          const finalCum = (resolvedFinalScores[String(idx)] as number) ?? prevCum;
+          return Math.max(0, finalCum - prevCum);
+        });
+        dbScoreHistory.push({
+          matchNumber: expectedLastMatchNumber,
+          pointsAdded,
+          scores: prevEntry.scores.map((prevCum, idx) => prevCum + pointsAdded[idx]),
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // 1-match game: scores_history is empty; build the sole/final entry
+        // entirely from resolvedFinalScores (which came from final_scores above).
+        const numPlayers = multiplayerPlayers.length;
+        const scores = Array.from({ length: numPlayers }, (_unused, idx) =>
+          (resolvedFinalScores[String(idx)] as number) ?? 0
+        );
+        const pointsAdded = [...scores];
+        dbScoreHistory.push({
+          matchNumber: expectedLastMatchNumber,
+          pointsAdded,
+          scores,
+          timestamp: new Date().toISOString(),
+        });
+      }
       gameLogger.info(
         `[useMatchEndHandler] 🔧 Synthesized missing final match ${expectedLastMatchNumber} entry from final_scores`,
       );
