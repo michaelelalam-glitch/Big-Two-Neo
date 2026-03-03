@@ -1181,10 +1181,15 @@ export class GameStateManager {
       // ✅ FIX: winnerPlayer.id is already "bot_1", "bot_2", etc. - don't double-prefix
       const winnerUserId = winnerPlayer.isBot ? winnerPlayer.id : user.id;
 
+      // Derive bot difficulty from the first bot in the game (all bots share the same difficulty)
+      const botPlayer = this.state.players.find(p => p.isBot);
+      const gameBotDifficulty = botPlayer?.botDifficulty ?? null;
+
       const gameCompletionData = {
         room_id: null, // Casual local games don't have a room_id
         room_code: 'CASUAL', // Distinguishes human+bot games from multiplayer rooms
         game_type: 'casual' as const, // Always casual for local games with bots
+        bot_difficulty: gameBotDifficulty, // Difficulty of bots in this game (for recent games display)
         players: playersData,
         winner_id: winnerUserId,
         game_duration_seconds: Math.floor((Date.now() - (this.state.startedAt || Date.now())) / 1000),

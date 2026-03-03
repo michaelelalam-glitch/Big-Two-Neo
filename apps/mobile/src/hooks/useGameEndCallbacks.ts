@@ -19,6 +19,8 @@ interface UseGameEndCallbacksOptions {
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;
   setOnPlayAgain: (fn: () => () => Promise<void>) => void;
   setOnReturnToMenu: (fn: () => () => void) => void;
+  /** Clears all score history and scoreboard state for a fresh game. */
+  clearHistory: () => void;
 }
 
 export function useGameEndCallbacks({
@@ -28,6 +30,7 @@ export function useGameEndCallbacks({
   navigation,
   setOnPlayAgain,
   setOnReturnToMenu,
+  clearHistory,
 }: UseGameEndCallbacksOptions): void {
   useEffect(() => {
     const manager = gameManagerRef.current;
@@ -36,6 +39,9 @@ export function useGameEndCallbacks({
     setOnPlayAgain(() => async () => {
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
       try {
+        // Clear scoreboard history so the new game starts with 0 scores
+        clearHistory();
+        gameLogger.info('🧹 [GameScreen] Score history cleared for new game');
         await manager.initializeGame({
           playerName: currentPlayerName,
           botCount: 3,
@@ -58,5 +64,6 @@ export function useGameEndCallbacks({
     });
     // botDifficulty included so "Play Again" always uses the latest difficulty.
     // setOnPlayAgain / setOnReturnToMenu are stable setters — safe to include.
-  }, [currentPlayerName, navigation, gameManagerRef, botDifficulty, setOnPlayAgain, setOnReturnToMenu]);
+    // clearHistory is a stable useCallback from ScoreboardContext — safe to include.
+  }, [currentPlayerName, navigation, gameManagerRef, botDifficulty, setOnPlayAgain, setOnReturnToMenu, clearHistory]);
 }

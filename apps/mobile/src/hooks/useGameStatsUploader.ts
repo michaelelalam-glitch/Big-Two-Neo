@@ -105,6 +105,8 @@ export function useGameStatsUploader({
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           statsLogger.warn('[GameStats] No authenticated user, skipping stats upload');
+          // Reset the flag so a retry is possible once the user is authenticated.
+          hasUploadedRef.current = false;
           uploadingRef.current = false;
           return;
         }
@@ -112,6 +114,8 @@ export function useGameStatsUploader({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
           statsLogger.warn('[GameStats] No active session, skipping stats upload');
+          // Reset the flag so a retry is possible once the session is restored.
+          hasUploadedRef.current = false;
           uploadingRef.current = false;
           return;
         }

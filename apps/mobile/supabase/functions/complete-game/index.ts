@@ -5,6 +5,8 @@ interface GameCompletionRequest {
   room_id: string | null; // Must be valid UUID or null for local games
   room_code: string;
   game_type: 'casual' | 'ranked' | 'private'; // Game mode
+  /** Difficulty of bot players in this game, if any (e.g. 'easy'|'medium'|'hard'). null for human-only games. */
+  bot_difficulty?: string | null;
   players: {
     user_id: string;
     username: string;
@@ -207,6 +209,8 @@ Deno.serve(async (req: Request) => {
         player_2_cards_left: gameData.players[1].cards_left,
         player_3_cards_left: gameData.players[2].cards_left,
         player_4_cards_left: gameData.players[3].cards_left,
+        // Bot difficulty (same for all bots in a game)
+        bot_difficulty: gameData.bot_difficulty ?? null,
         // Game completion
         game_completed: gameData.game_completed,
         winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,

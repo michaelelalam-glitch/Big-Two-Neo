@@ -117,6 +117,8 @@ interface GameHistoryEntry {
   player_2_cards_left: number | null;
   player_3_cards_left: number | null;
   player_4_cards_left: number | null;
+  // Bot difficulty (same for all bots in a game)
+  bot_difficulty: string | null;
   game_duration_seconds: number | null;
   finished_at: string;
 }
@@ -295,15 +297,22 @@ export default function StatsScreen() {
             const disconnected = item[`player_${num}_disconnected` as keyof GameHistoryEntry] as boolean | null;
             const cardsLeft = item[`player_${num}_cards_left` as keyof GameHistoryEntry] as number | null;
             if (!username) return null;
+
+            // Build difficulty tag for bot players: (E) easy, (M) medium, (H) hard
+            const difficultyTag = wasBot && item.bot_difficulty
+              ? item.bot_difficulty === 'easy' ? ' (E)'
+              : item.bot_difficulty === 'hard' ? ' (H)'
+              : ' (M)'
+              : '';
             
             return (
               <View key={num} style={styles.historyPlayer}>
                 <View style={styles.historyPlayerNameRow}>
                   <Text style={styles.historyPlayerName} numberOfLines={1}>
                     {wasBot && originalUsername 
-                      ? `🤖 Bot (replaced ${originalUsername})`
+                      ? `🤖 Bot (replaced ${originalUsername})${difficultyTag}`
                       : wasBot 
-                        ? `🤖 ${username}` 
+                        ? `🤖 ${username}${difficultyTag}` 
                         : username}
                   </Text>
                   {disconnected && <Text style={styles.disconnectedBadge}>📡 DC</Text>}
