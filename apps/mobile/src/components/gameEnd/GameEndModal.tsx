@@ -354,20 +354,8 @@ export const GameEndModal: React.FC = () => {
                  * "VirtualizedLists should never be nested inside plain ScrollViews" warning.
                  */}
                 <View style={styles.container}>
-                  {/* Fixed, non-scrollable header */}
+                  {/* Fixed, non-scrollable tab bar — wins/standings scroll with content */}
                   <View style={styles.modalSection}>
-                    {/* Winner Announcement */}
-                    <WinnerAnnouncement
-                      winnerName={gameWinnerName}
-                      pulseAnim={pulseAnim}
-                    />
-
-                    {/* Final Standings */}
-                    <FinalStandings
-                      finalScores={finalScores}
-                      winnerIndex={gameWinnerIndex}
-                    />
-
                     {/* Tab Interface */}
                     <TabInterface
                       activeTab={activeTab}
@@ -377,12 +365,26 @@ export const GameEndModal: React.FC = () => {
                   </View>
 
                   {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none'.
-                      flex: 1 lets the active FlatList expand to fill remaining vertical space. */}
+                      flex: 1 lets the active FlatList expand to fill remaining vertical space.
+                      Winner announcement + final standings are passed as headerSlot so they
+                      scroll with the match history, giving the full screen to scroll content. */}
                   <Animated.View style={{ flex: 1, opacity: tabContentOpacity }}>
                     <View style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
+                        headerSlot={
+                          <>
+                            <WinnerAnnouncement
+                              winnerName={gameWinnerName}
+                              pulseAnim={pulseAnim}
+                            />
+                            <FinalStandings
+                              finalScores={finalScores}
+                              winnerIndex={gameWinnerIndex}
+                            />
+                          </>
+                        }
                         actionButtonsSlot={
                           // paddingTop only — horizontal padding already comes from tabScrollContent
                           <View style={{ paddingTop: 8 }}>
@@ -399,6 +401,18 @@ export const GameEndModal: React.FC = () => {
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
+                        headerSlot={
+                          <>
+                            <WinnerAnnouncement
+                              winnerName={gameWinnerName}
+                              pulseAnim={pulseAnim}
+                            />
+                            <FinalStandings
+                              finalScores={finalScores}
+                              winnerIndex={gameWinnerIndex}
+                            />
+                          </>
+                        }
                         actionButtonsSlot={
                           // paddingTop only — horizontal padding already comes from tabScrollContent
                           <View style={{ paddingTop: 8 }}>
@@ -591,6 +605,8 @@ interface ScoreHistoryTabProps {
     scores: number[];
   }[];
   playerNames: string[];
+  /** Slot for header content (WinnerAnnouncement + FinalStandings) — scrolls with the list */
+  headerSlot?: React.ReactNode;
   /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
   actionButtonsSlot?: React.ReactNode;
 }
@@ -598,6 +614,7 @@ interface ScoreHistoryTabProps {
 const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   scoreHistory,
   playerNames,
+  headerSlot,
   actionButtonsSlot,
 }) => {
   // Start with only the latest match expanded (minimized by default)
@@ -746,10 +763,13 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       renderItem={renderScoreItem}
       extraData={expandedScoreMatches}
       ListHeaderComponent={
-        scoreHistory.length > 0 ? (
-          <>
-            {/* Header row with title + expand/collapse toggle */}
-            <View style={styles.scoreHistoryHeaderRow}>
+        <>
+          {/* Winner announcement + standings scroll with the list */}
+          {headerSlot}
+          {scoreHistory.length > 0 ? (
+            <>
+              {/* Header row with title + expand/collapse toggle */}
+              <View style={styles.scoreHistoryHeaderRow}>
               <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
               <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
                 <Text style={styles.expandAllText}>
@@ -774,9 +794,10 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                   </View>
                 ))}
               </View>
-            </View>
-          </>
-        ) : null
+              </View>
+            </>
+          ) : null}
+        </>
       }
       ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
@@ -847,6 +868,8 @@ interface PlayHistoryTabProps {
     }[];
   }[];
   playerNames: string[];
+  /** Slot for header content (WinnerAnnouncement + FinalStandings) — scrolls with the list */
+  headerSlot?: React.ReactNode;
   /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
   actionButtonsSlot?: React.ReactNode;
 }
@@ -854,6 +877,7 @@ interface PlayHistoryTabProps {
 const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   playHistory,
   playerNames,
+  headerSlot,
   actionButtonsSlot,
 }) => {
   // Auto-expand the latest match on mount so content is visible immediately
@@ -1013,7 +1037,11 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       renderItem={renderItem}
       extraData={expandedMatches}
       ListHeaderComponent={
-        <Text style={styles.historyTitle}>Card Play History</Text>
+        <>
+          {/* Winner announcement + standings scroll with the list */}
+          {headerSlot}
+          <Text style={styles.historyTitle}>Card Play History</Text>
+        </>
       }
       ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
