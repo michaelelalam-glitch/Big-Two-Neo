@@ -181,7 +181,7 @@ export function useMatchEndHandler({
         // 1-match game: scores_history is empty; build the sole/final entry
         // entirely from resolvedFinalScores (which came from final_scores above).
         const numPlayers = multiplayerPlayers.length;
-        const scores = Array.from({ length: numPlayers }, (_unused, idx) =>
+        const scores = Array.from({ length: numPlayers }, (_, idx) =>
           (resolvedFinalScores[String(idx)] as number) ?? 0
         );
         const pointsAdded = [...scores];

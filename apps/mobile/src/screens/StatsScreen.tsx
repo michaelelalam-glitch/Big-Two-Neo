@@ -215,10 +215,24 @@ export default function StatsScreen() {
 
   // ─── Per-mode derived data ─────────────────────────────────────────────────
   // Filter game history by game_type for per-mode tabs
+  // Deduplicate game history by room_code before filtering.
+  // The game_history table may store one row per participating client
+  // (e.g. 2 humans → 2 rows for the same room), so we keep only the
+  // first occurrence of each room_code (ordered by finished_at DESC from
+  // the query, so the first is the most recent/canonical row).
+  const deduplicatedGameHistory = React.useMemo(() => {
+    const seen = new Set<string>();
+    return gameHistory.filter((g) => {
+      if (seen.has(g.room_code)) return false;
+      seen.add(g.room_code);
+      return true;
+    });
+  }, [gameHistory]);
+
   const filteredGameHistory = React.useMemo(() => {
-    if (activeTab === 'overview') return gameHistory;
-    return gameHistory.filter((g) => g.game_type === activeTab);
-  }, [gameHistory, activeTab]);
+    if (activeTab === 'overview') return deduplicatedGameHistory;
+    return deduplicatedGameHistory.filter((g) => g.game_type === activeTab);
+  }, [deduplicatedGameHistory, activeTab]);
 
   // Per-mode games played / completed for completion section
   const modeGamesPlayed = React.useMemo(() => {
@@ -298,8 +312,15 @@ export default function StatsScreen() {
             const cardsLeft = item[`player_${num}_cards_left` as keyof GameHistoryEntry] as number | null;
             if (!username) return null;
 
-            // Build difficulty tag for bot players: (E) easy, (M) medium, (H) hard
-            const difficultyTag = wasBot && item.bot_difficulty
+            // A player is a bot if was_bot is explicitly true, OR if they have an
+            // originalUsername (meaning a bot replaced a disconnected human). The
+            // second case covers games where player_X_was_bot wasn't persisted.
+            const isBot = wasBot === true || !!originalUsername;
+
+            // Build difficulty tag: (E) easy, (M) medium (default), (H) hard.
+            // Always emit a tag whenever we know the player is a bot, even when
+            // bot_difficulty is null (NULL → treat as medium).
+            const difficultyTag = isBot
               ? item.bot_difficulty === 'easy' ? ' (E)'
               : item.bot_difficulty === 'hard' ? ' (H)'
               : ' (M)'
@@ -309,9 +330,9 @@ export default function StatsScreen() {
               <View key={num} style={styles.historyPlayer}>
                 <View style={styles.historyPlayerNameRow}>
                   <Text style={styles.historyPlayerName} numberOfLines={1}>
-                    {wasBot && originalUsername 
+                    {isBot && originalUsername 
                       ? `🤖 Bot (replaced ${originalUsername})${difficultyTag}`
-                      : wasBot 
+                      : isBot 
                         ? `🤖 ${username}${difficultyTag}` 
                         : username}
                   </Text>

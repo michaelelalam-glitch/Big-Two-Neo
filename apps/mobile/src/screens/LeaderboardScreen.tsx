@@ -110,6 +110,7 @@ export default function LeaderboardScreen() {
         query = supabase
           .from(viewName)
           .select('*')
+          .order('rank', { ascending: true })
           .range(startIndex, endIndex);
       } else {
         // Query player_stats with time filter, using per-mode columns
