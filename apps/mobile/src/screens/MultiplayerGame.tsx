@@ -17,10 +17,13 @@ import { useGameActions } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useGameCleanup } from '../hooks/useGameCleanup';
 import { useHelperButtons } from '../hooks/useHelperButtons';
+import { useGameStatsUploader } from '../hooks/useGameStatsUploader';
 import { useMatchEndHandler } from '../hooks/useMatchEndHandler';
 import { useMultiplayerLayout } from '../hooks/useMultiplayerLayout';
 import { useMultiplayerPlayHistory } from '../hooks/useMultiplayerPlayHistory';
+import { useMultiplayerScoreHistory } from '../hooks/useMultiplayerScoreHistory';
 import { useMultiplayerRoomLoader } from '../hooks/useMultiplayerRoomLoader';
+import type { RoomInfo } from '../hooks/useMultiplayerRoomLoader';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
@@ -32,7 +35,7 @@ import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
-import type { FinalScore } from '../types/gameEnd';
+// FinalScore import removed — onGameOver callback replaced by useMatchEndHandler (DB-authoritative path)
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { GameView } from './GameView';
@@ -52,12 +55,15 @@ export function MultiplayerGame() {
     scoreHistory,
     playHistoryByMatch,
   } = scoreboardContext;
-  const { openGameEndModal } = useGameEnd();
+  const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
+  const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+  // Track when game transitions to 'playing' to calculate duration
+  const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
@@ -65,6 +71,27 @@ export function MultiplayerGame() {
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
   gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+
+  // ─── Register Play Again / Return to Menu callbacks ──────────────────────
+  useEffect(() => {
+    setOnPlayAgain(() => () => {
+      gameLogger.info('🔄 [MultiplayerGame] Play Again → navigating to Lobby with same room');
+      // Navigate to Lobby so the player can re-queue / rejoin the same room
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode } }],
+      });
+    });
+
+    setOnReturnToMenu(() => () => {
+      gameLogger.info('🏠 [MultiplayerGame] Return to Menu → Home');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    });
+  }, [roomCode, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
   const {
@@ -77,7 +104,7 @@ export function MultiplayerGame() {
   } = useCardSelection();
 
   // Initialize multiplayer room data
-  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers });
+  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomInfo });
 
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
@@ -110,68 +137,28 @@ export function MultiplayerGame() {
     onReconnect: () => {
       gameLogger.info('[MultiplayerGame] Multiplayer reconnected successfully');
     },
-    onMatchEnded: (matchNumber, matchScores) => {
-      gameLogger.info(`[MultiplayerGame] 🏆 Match ${matchNumber} ended! Adding scores to scoreboard...`, matchScores);
-
-      const pointsAdded: number[] = [];
-      const cumulativeScores: number[] = [];
-      const sortedScores = [...matchScores].sort((a, b) => a.player_index - b.player_index);
-
-      sortedScores.forEach((score) => {
-        pointsAdded.push(score.matchScore);
-        cumulativeScores.push(score.cumulativeScore);
-      });
-
-      const scoreHistoryEntry: ScoreHistory = {
-        matchNumber,
-        pointsAdded,
-        scores: cumulativeScores,
-        timestamp: new Date().toISOString(),
-      };
-
-      gameLogger.info('[MultiplayerGame] 📊 Adding score history entry:', scoreHistoryEntry);
-      addScoreHistory(scoreHistoryEntry);
-    },
-    onGameOver: (winnerIndex, finalScores) => {
-      gameLogger.info(`[MultiplayerGame] 🎉 Game Over! Winner: Player ${winnerIndex}, scores:`, finalScores);
-
-      let winnerIdx: number;
-      if (winnerIndex !== null && winnerIndex !== undefined) {
-        winnerIdx = winnerIndex;
-      } else if (finalScores.length > 0) {
-        const minScore = Math.min(...finalScores.map((s) => s.cumulativeScore));
-        const derivedWinner = finalScores.find((s) => s.cumulativeScore === minScore);
-        winnerIdx = derivedWinner !== undefined ? derivedWinner.player_index : 0;
-      } else {
-        winnerIdx = 0;
-      }
-      const winnerPlayer = multiplayerPlayers.find((p) => p.player_index === winnerIdx);
-      const formattedScores: FinalScore[] = [...finalScores]
-        .sort((a, b) => a.cumulativeScore - b.cumulativeScore)
-        .map((s, index) => ({
-          player_index: s.player_index,
-          player_name:
-            multiplayerPlayers.find((p) => p.player_index === s.player_index)?.username ||
-            `Player ${s.player_index + 1}`,
-          cumulative_score: s.cumulativeScore,
-          points_added: s.matchScore,
-          rank: index + 1,
-          is_busted: s.cumulativeScore >= 101,
-        }));
-      const playerNames = [...multiplayerPlayers]
-        .sort((a, b) => a.player_index - b.player_index)
-        .map((p) => p.username);
-
-      openGameEndModal(
-        winnerPlayer?.username || `Player ${winnerIdx + 1}`,
-        winnerIdx,
-        formattedScores,
-        playerNames,
-        scoreHistory || [],
-        playHistoryByMatch || [],
-      );
-    },
+    // NOTE: onMatchEnded removed — score history is populated exclusively by
+    // useMultiplayerScoreHistory which reads from game_state.scores_history (DB).
+    // Having both caused every match to be added twice (doubling cumulative scores).
+    //
+    // NOTE: onGameOver removed — game-end modal is opened exclusively by
+    // useMatchEndHandler which reads from multiplayerGameState after the postgres_changes
+    // update arrives.  The broadcast-path opened the modal with stale React state
+    // (missing last match in score history, zero final standings for non-winner),
+    // producing different UIs per player.  useMatchEndHandler uses DB-authoritative data
+    // so every player — winner and losers — sees the same correct modal.
   });
+
+  // Track when game starts (for duration calculation)
+  // Placed after useRealtime so multiplayerGameState is already declared.
+  useEffect(() => {
+    if (multiplayerGameState?.game_phase === 'first_play' || multiplayerGameState?.game_phase === 'playing') {
+      if (!gameStartedAt) {
+        setGameStartedAt(new Date().toISOString());
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen
   useEffect(() => {
@@ -282,6 +269,15 @@ export function MultiplayerGame() {
     addPlayHistory,
   });
 
+  // Multiplayer score history tracking (from game_state.scores_history)
+  // This ensures scoreboard is populated even for bot-triggered match ends
+  // where no HTTP response or broadcast reaches the human client.
+  useMultiplayerScoreHistory({
+    isMultiplayerGame: true,
+    multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
+    addScoreHistory,
+  });
+
   // One card left alert
   useOneCardLeftAlert({
     isLocalAIGame: false,
@@ -299,6 +295,19 @@ export function MultiplayerGame() {
     scoreHistory: scoreHistory || [],
     playHistoryByMatch: playHistoryByMatch || [],
     openGameEndModal,
+  });
+
+  // Upload game stats to leaderboard when game finishes
+  useGameStatsUploader({
+    isMultiplayerGame: true,
+    multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
+    multiplayerPlayers,
+    roomInfo,
+    gameStartedAt,
+    // Pass the host-selected difficulty as a fallback for when the DB column is NULL.
+    // The navigation param defaults to 'medium' so non-host players who didn't select
+    // a difficulty still get a sensible fallback.
+    botDifficultyFallback: botDifficulty,
   });
 
   // Multiplayer UI derived state
@@ -408,10 +417,11 @@ export function MultiplayerGame() {
       isLocalAIGame={false}
       currentOrientation={currentOrientation}
       toggleOrientation={toggleOrientation}
-      isInitializing={false}
+      isInitializing={!isMultiplayerDataReady}
       isConnected={isConnected}
       showSettings={showSettings}
       setShowSettings={setShowSettings}
+      roomCode={roomCode}
       effectivePlayerHand={effectivePlayerHand}
       selectedCardIds={selectedCardIds}
       setSelectedCardIds={setSelectedCardIds}

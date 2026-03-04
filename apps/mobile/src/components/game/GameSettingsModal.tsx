@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -8,12 +8,15 @@ interface GameSettingsModalProps {
   visible: boolean;
   onClose: () => void;
   onLeaveGame: () => void;
+  /** Room code to display (multiplayer only) */
+  roomCode?: string;
 }
 
 export default function GameSettingsModal({
   visible,
   onClose,
   onLeaveGame,
+  roomCode,
 }: GameSettingsModalProps) {
   // Detect orientation
   const { width, height } = useWindowDimensions();
@@ -60,6 +63,28 @@ export default function GameSettingsModal({
     onClose();
     onLeaveGame();
   };
+
+  const handleCopyRoomCode = useCallback(() => {
+    if (!roomCode) return;
+    Clipboard.setString(roomCode);
+    if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
+    Alert.alert(
+      i18n.t('lobby.copiedTitle') || 'Copied!',
+      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard.`,
+    );
+  }, [roomCode, vibrationEnabled]);
+
+  const handleShareRoomCode = useCallback(async () => {
+    if (!roomCode) return;
+    try {
+      await Share.share({
+        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
+        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
+      });
+    } catch {
+      // User dismissed the share sheet — no action needed
+    }
+  }, [roomCode]);
 
   return (
     <Modal
@@ -116,6 +141,21 @@ export default function GameSettingsModal({
 
               <View style={styles.dividerLandscape} />
 
+              {/* Room Code in landscape — tap to copy */}
+              {roomCode ? (
+                <Pressable
+                  style={styles.menuItemLandscape}
+                  onPress={handleCopyRoomCode}
+                  onLongPress={handleShareRoomCode}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Room code ${roomCode}, tap to copy`}
+                >
+                  <Text style={styles.menuItemTextLandscape}>🏠</Text>
+                  <Text style={styles.menuItemLabelLandscape}>Room</Text>
+                  <Text style={styles.menuItemValueLandscape}>{roomCode}</Text>
+                </Pressable>
+              ) : null}
+
               <Pressable
                 style={[styles.menuItemLandscape, styles.leaveGameItemLandscape]}
                 onPress={handleLeaveGame}
@@ -162,6 +202,39 @@ export default function GameSettingsModal({
                 <Text style={styles.menuItemText}>📳 {i18n.t('settings.vibration')}</Text>
                 <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
               </Pressable>
+
+              {/* Room Code — Multiplayer only.
+                  The divider above is also gated on roomCode so single-player games
+                  don't get two consecutive dividers with nothing between them. */}
+              {roomCode ? (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.roomCodeContainer}>
+                    <View style={styles.roomCodeLabelRow}>
+                      <Text style={styles.roomCodeLabel}>🏠 Room Code</Text>
+                    </View>
+                    <Text style={styles.roomCodeValue}>{roomCode}</Text>
+                    <View style={styles.roomCodeButtonsRow}>
+                      <Pressable
+                        style={styles.roomCodeAction}
+                        onPress={handleCopyRoomCode}
+                        accessibilityRole="button"
+                        accessibilityLabel="Copy room code"
+                      >
+                        <Text style={styles.roomCodeActionText}>📋 Copy</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.roomCodeAction}
+                        onPress={handleShareRoomCode}
+                        accessibilityRole="button"
+                        accessibilityLabel="Share room code"
+                      >
+                        <Text style={styles.roomCodeActionText}>🔗 Share</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </>
+              ) : null}
 
               <View style={styles.divider} />
 
@@ -338,5 +411,49 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  // ROOM CODE STYLES
+  roomCodeContainer: {
+    backgroundColor: COLORS.gray.dark,
+    borderRadius: MODAL.menuItemBorderRadius,
+    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  roomCodeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  roomCodeLabel: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  roomCodeButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  roomCodeValue: {
+    fontSize: FONT_SIZES.xl,
+    color: '#facc15',
+    fontWeight: 'bold',
+    letterSpacing: 4,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  roomCodeAction: {
+    paddingVertical: 4,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: OVERLAYS.closeButtonBackground,
+    borderRadius: 8,
+  },
+  roomCodeActionText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.white,
+    fontWeight: '600',
   },
 });

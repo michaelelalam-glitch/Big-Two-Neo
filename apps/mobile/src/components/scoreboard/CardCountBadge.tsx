@@ -53,7 +53,17 @@ export const CardCountBadge: React.FC<CardCountBadgeProps> = ({
   // Glow animation for 1 card remaining
   useEffect(() => {
     if (!shouldGlow) {
-      glowAnim.setValue(1);
+      // Spring back to scale 1. Using Animated.spring (not setValue) because the
+      // animation runs on the native driver — setValue from JS can arrive too
+      // late and leave the badge visually stuck at an intermediate scale until
+      // the next render cycle, causing the badge to appear larger at the start
+      // of a new match when card count resets from 1 → 13.
+      Animated.spring(glowAnim, {
+        toValue: 1,
+        friction: 10,
+        tension: 120,
+        useNativeDriver: true,
+      }).start();
       return;
     }
 
@@ -90,8 +100,11 @@ export const CardCountBadge: React.FC<CardCountBadgeProps> = ({
       style={[
         styles.badge,
         { backgroundColor },
+        // Always apply the scale transform so the native driver is always in
+        // control. When shouldGlow is false the spring above resets it to 1,
+        // preventing a stale enlarged scale at the start of a new match.
+        { transform: [{ scale: glowAnim }] },
         shouldGlow && {
-          transform: [{ scale: glowAnim }],
           shadowColor: '#F44336',
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.8,

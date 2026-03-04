@@ -166,19 +166,42 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
       playHistCount: playHist.length,
     });
     
-    // CRITICAL FIX: Validate data before opening modal
-    if (!winnerName || scores.length === 0 || names.length === 0) {
-      console.error('❌ [GameEndContext] Invalid data, cannot open modal:', {
+    // Hard block: a missing winner name causes GameEndModal to show a perpetual
+    // loading spinner (it gates on !gameWinnerName). Reject early rather than
+    // showing a stuck screen. Player names and scores have fallbacks below.
+    if (!winnerName) {
+      console.error('❌ [GameEndContext] Invalid data — no winner name; cannot open modal:', {
         hasWinner: !!winnerName,
         scoresCount: scores.length,
         namesCount: names.length,
       });
       return;
     }
+
+    // Build fallback scores when they are missing so the modal always opens.
+    // This can happen when the backend fires game_over before final_scores are
+    // persisted. The GameEndModal will still render the winner + player list
+    // and can show 0-point placeholders rather than a blank screen.
+    const resolvedScores: FinalScore[] =
+      scores.length > 0
+        ? scores
+        : names.map((name, idx) => ({
+            player_index: idx,
+            player_name: name,
+            cumulative_score: 0,
+            points_added: 0,
+          }));
+
+    if (scores.length === 0) {
+      console.warn('⚠️ [GameEndContext] scores array was empty — built placeholder scores from player names:', {
+        namesCount: names.length,
+        resolvedScoresCount: resolvedScores.length,
+      });
+    }
     
     setGameWinnerName(winnerName);
     setGameWinnerIndex(winnerIndex);
-    setFinalScores(scores);
+    setFinalScores(resolvedScores);
     setPlayerNames(names);
     setScoreHistory(scoreHist as ScoreHistory[]);
     setPlayHistory(playHist as PlayHistoryMatch[]);

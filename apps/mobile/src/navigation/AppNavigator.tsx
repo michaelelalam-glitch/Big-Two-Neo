@@ -17,7 +17,6 @@ import MatchmakingScreen from '../screens/MatchmakingScreen';
 import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import RankedLeaderboardScreen from '../screens/RankedLeaderboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import StatsScreen from '../screens/StatsScreen';
@@ -35,7 +34,6 @@ export type RootStackParamList = {
   Lobby: { roomCode: string };
   Game: { roomCode: string; forceNewGame?: boolean; botDifficulty?: 'easy' | 'medium' | 'hard' };
   Leaderboard: undefined;
-  RankedLeaderboard: undefined;
   MatchHistory: undefined;
   Stats: { userId?: string };
   NotificationSettings: undefined;
@@ -91,7 +89,6 @@ export default function AppNavigator() {
               <Stack.Screen name="Lobby" component={LobbyScreen} />
               <Stack.Screen name="Game" component={GameScreen} />
               <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-              <Stack.Screen name="RankedLeaderboard" component={RankedLeaderboardScreen} />
               <Stack.Screen name="MatchHistory" component={MatchHistoryScreen} />
               <Stack.Screen name="Stats" component={StatsScreen} />
               <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />

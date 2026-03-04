@@ -48,13 +48,7 @@ export type { UseRealtimeOptions } from '../types/realtimeTypes';
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
-  const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded, onGameOver } = options;
-
-  // Store onGameOver in a ref so the playCards useCallback can always call the latest
-  // handler without including it in the deps array (which would recreate the callback
-  // on every render and cause stale-closure issues for callers that pass an inline fn).
-  const onGameOverRef = useRef(onGameOver);
-  useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
+  const { userId, username, onError, onDisconnect, onReconnect } = options;
 
   // State
   const [room, setRoom] = useState<Room | null>(null);
@@ -213,13 +207,26 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
         // Use onGameOverRef.current so the latest callback is always invoked
         // without needing to re-subscribe the channel when the prop changes.
-        const handler = onGameOverRef.current;
-        if (handler) {
-          const broadcastData = (payload as any)?.data || payload;
-          const winnerIndex = (broadcastData as any)?.winner_index ?? null;
-          const finalScores = (broadcastData as any)?.final_scores ?? [];
-          handler(winnerIndex, finalScores);
+        const broadcastData = (payload as any)?.data || payload;
+        const winnerIndex = (broadcastData as any)?.winner_index ?? null;
+        const rawScores = (broadcastData as any)?.final_scores ?? [];
+        // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
+        const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
+          typeof s === 'object' && s !== null &&
+          typeof (s as Record<string, unknown>).player_index === 'number' &&
+          typeof (s as Record<string, unknown>).matchScore === 'number' &&
+          typeof (s as Record<string, unknown>).cumulativeScore === 'number';
+        const finalScores: PlayerMatchScoreDetail[] = Array.isArray(rawScores)
+          ? rawScores.filter(isValidScore)
+          : [];
+        if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
+          networkLogger.warn('[Realtime] game_over: some final_scores entries had unexpected shape and were filtered');
         }
+        const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
+        // onMatchEnded + onGameOver calls removed — score history is handled by
+        // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
+        // fetchGameState above will update multiplayerGameState which triggers both hooks.
+        gameLogger.info('[Realtime] game_over received; fetchGameState triggered for modal/score-history refresh', { matchNumber });
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
@@ -228,9 +235,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         const broadcastData = (payload as { data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number } })?.data || payload;
         const matchScores = (broadcastData as { match_scores?: PlayerMatchScoreDetail[] })?.match_scores;
         const matchNumber = (broadcastData as { match_number?: number })?.match_number || gameState?.match_number || 1;
-        if (matchScores && onMatchEnded) {
-          onMatchEnded(matchNumber, matchScores);
-        }
+        gameLogger.info('[Realtime] match_ended received; fetchGameState triggered for score-history refresh', { matchNumber });
+        // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {
@@ -327,8 +333,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure); onGameOver intentionally excluded (read via onGameOverRef.current inside the broadcast handler so the channel never needs to re-subscribe when the callback prop changes)
-  }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure)
+  }, [userId, username, onDisconnect, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)
   const {
@@ -374,10 +380,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         roomPlayers,
         room,
         broadcastMessage,
-        onMatchEnded,
-        // Use ref so the callback always calls the latest handler without needing
-        // onGameOver in the deps array (avoids stale-closure churn on every render).
-        onGameOver: onGameOverRef.current,
         setGameState,
       });
     } catch (err) {
@@ -392,7 +394,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       throw error;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded (stable by construction); onGameOver read via ref (onGameOverRef) to avoid stale closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room intentionally excluded (stable by construction)
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**

@@ -27,17 +27,37 @@ interface GameHistory {
   player_4_score: number;
 }
 
+interface RankPointsHistoryEntry {
+  timestamp: string;
+  points: number;
+  is_win: boolean;
+  game_type: string;
+}
+
 interface StreakGraphProps {
   gameHistory: GameHistory[];
   userId: string;
+  rankPointsHistory?: RankPointsHistoryEntry[];
 }
 
 export const StreakGraph: React.FC<StreakGraphProps> = ({
   gameHistory,
   userId,
+  rankPointsHistory,
 }) => {
-  // Process game history to calculate rank points progression from REAL game data
+  // Use DB-stored rank_points_history if available, otherwise fall back to client-side calculation
   const pointsData = useMemo(() => {
+    // PREFERRED: Use actual rank_points_history from database
+    if (rankPointsHistory && rankPointsHistory.length > 0) {
+      return rankPointsHistory.map((entry, index) => ({
+        gameNumber: index + 1,
+        points: entry.points,
+        isWin: entry.is_win,
+        gameScore: 0,
+      }));
+    }
+
+    // FALLBACK: Calculate from game history (legacy behavior)
     if (!gameHistory || gameHistory.length === 0) return [];
 
     // Sort games chronologically (oldest first)
@@ -81,7 +101,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
         gameScore: playerScore, // Store actual game score
       };
     });
-  }, [gameHistory, userId]);
+  }, [gameHistory, userId, rankPointsHistory]);
 
   if (pointsData.length === 0) {
     return (
@@ -212,13 +232,22 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             const isLowest = point.points === lowestPoint.points;
             const isSpecial = isHighest || isLowest;
             
+            // Color coding: green=peak, red=lowest, accent=win, white=loss
+            const fillColor = isHighest 
+              ? COLORS.success 
+              : isLowest 
+                ? COLORS.error 
+                : point.isWin 
+                  ? COLORS.primary 
+                  : COLORS.white;
+            
             return (
               <Circle
                 key={`point-${index}`}
                 cx={point.x}
                 cy={point.y}
                 r={isSpecial ? 6 : 3}
-                fill={isHighest ? COLORS.success : isLowest ? COLORS.error : point.isWin ? COLORS.primary : COLORS.gray.text}
+                fill={fillColor}
                 stroke={COLORS.background.dark}
                 strokeWidth="2"
               />
@@ -269,15 +298,19 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.success }]} />
-          <Text style={styles.legendText}>Peak points</Text>
+          <Text style={styles.legendText}>Peak</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.error }]} />
-          <Text style={styles.legendText}>Lowest points</Text>
+          <Text style={styles.legendText}>Lowest</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
           <Text style={styles.legendText}>Win</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: COLORS.white }]} />
+          <Text style={styles.legendText}>Loss</Text>
         </View>
       </View>
 

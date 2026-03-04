@@ -35,6 +35,7 @@ export interface GameViewProps {
   // Settings modal
   showSettings: boolean;
   setShowSettings: (show: boolean) => void;
+  roomCode?: string;
 
   // Player hand & selection
   effectivePlayerHand: Card[];
@@ -102,6 +103,7 @@ export function GameView(props: GameViewProps) {
     isConnected,
     showSettings,
     setShowSettings,
+    roomCode,
     effectivePlayerHand,
     selectedCardIds,
     setSelectedCardIds,
@@ -403,6 +405,7 @@ export function GameView(props: GameViewProps) {
           visible={showSettings}
           onClose={() => setShowSettings(false)}
           onLeaveGame={handleLeaveGame}
+          roomCode={roomCode}
         />
       </View>
     </Profiler>

@@ -33,13 +33,6 @@ export interface PlayCardsParams {
   roomPlayers: Player[];
   room: Room | null;
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
-  onMatchEnded?: (matchNumber: number, scores: PlayerMatchScoreDetail[]) => void;
-  /**
-   * Called when the game fully ends (someone reaches 101+). Invoked directly here
-   * because Supabase Realtime does not echo broadcasts back to the sender — without
-   * this the player who triggers game-over would never see the end-game modal.
-   */
-  onGameOver?: (winnerIndex: number | null, finalScores: PlayerMatchScoreDetail[]) => void;
   setGameState: React.Dispatch<React.SetStateAction<GameState | null>>;
 }
 
@@ -60,8 +53,6 @@ export async function executePlayCards({
   roomPlayers,
   room,
   broadcastMessage,
-  onMatchEnded,
-  onGameOver,
   setGameState: _setGameState,
 }: PlayCardsParams): Promise<void> {
   const effectivePlayerIndex = playerIndex ?? currentPlayer?.player_index;
@@ -220,15 +211,15 @@ export async function executePlayCards({
       await broadcastMessage('game_over', {
         winner_index: finalWinnerIndex,
         final_scores: matchScores,
+        match_number: currentMatchNumber,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
-
-      // Supabase Realtime does NOT echo broadcasts back to the sender.
-      // Call onGameOver directly so the player who triggered the game-over
-      // also sees the end-game modal (other clients open it via the broadcast listener).
-      if (onGameOver) {
-        onGameOver(finalWinnerIndex, matchScores);
-      }
+      // Score history is now managed exclusively by useMultiplayerScoreHistory (reads from
+      // game_state.scores_history via Realtime).  Game-end modal is opened exclusively by
+      // useMatchEndHandler (reads from multiplayerGameState after postgres_changes update).
+      // Both onMatchEnded and onGameOver direct calls have been removed to prevent:
+      //   1. Score doubling (each match entry added by both broadcast-path and Realtime-path)
+      //   2. Inconsistent modals (broadcast-path used stale React state; zeros / missing data)
     } else {
       await broadcastMessage('match_ended', {
         winner_index: effectivePlayerIndex,
@@ -236,11 +227,7 @@ export async function executePlayCards({
         match_scores: matchScores,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: MATCH ENDED');
-
-      if (onMatchEnded) {
-        gameLogger.info('[useRealtime] 📊 Calling onMatchEnded callback directly');
-        onMatchEnded(currentMatchNumber, matchScores);
-      }
+      // onMatchEnded call removed — useMultiplayerScoreHistory handles score history via DB.
 
       // Start next match (fire-and-forget)
       (async () => {
@@ -255,11 +242,22 @@ export async function executePlayCards({
 
           if (newMatchError || !newMatchData) {
             gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
+          } else if (newMatchData.game_over || newMatchData.already_advanced) {
+            // start_new_match safety guard:
+            //   - If game_over is true, the game_over phase will be delivered via Realtime
+            //     and there is no next match to broadcast.
+            //   - If already_advanced is true (and game_over is false), another client has
+            //     already advanced the match; the new game_state will arrive via the DB
+            //     postgres_changes subscription, not via a game_over update.
+            // In both cases we skip broadcasting new_match_started here.
+            gameLogger.warn('[useRealtime] ⚠️ start_new_match returned already_advanced/game_over — skipping new_match_started broadcast');
           } else {
             gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
             await broadcastMessage('new_match_started', {
-              match_number: newMatchData.match_number,
-              starting_player_index: newMatchData.starting_player_index,
+              // In the else branch (not game_over, not already_advanced) these fields
+              // are always populated by the edge function for a genuine new-match response.
+              match_number: newMatchData.match_number!,
+              starting_player_index: newMatchData.starting_player_index!,
             });
           }
         } catch (matchStartError) {
@@ -353,6 +351,11 @@ export async function executePass({
 
   if (!passingPlayer || gameState.current_turn !== passingPlayer.player_index) {
     throw new Error('Not your turn');
+  }
+
+  // Guard: cannot pass when leading (no last play on board — player must open the trick)
+  if (!gameState.last_play) {
+    throw new Error('You cannot pass when leading — you must play cards to start the trick');
   }
 
   // Guard against auto-pass race condition

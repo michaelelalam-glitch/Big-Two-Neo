@@ -195,34 +195,4 @@ describe('useRealtime', () => {
     });
   });
 
-  describe('onGameOver callback option', () => {
-    it('accepts an onGameOver callback without error', () => {
-      const onGameOver = jest.fn();
-      const { result } = renderHook(() =>
-        useRealtime({ ...mockOptions, onGameOver })
-      );
-      expect(result.current.error).toBeNull();
-    });
-
-    it('does not call onGameOver before a game_over broadcast arrives', () => {
-      const onGameOver = jest.fn();
-      renderHook(() => useRealtime({ ...mockOptions, onGameOver }));
-      expect(onGameOver).not.toHaveBeenCalled();
-    });
-
-    it('stores onGameOver in a ref — latest handler is always used by playCards', async () => {
-      // Renders with v1, then replaces with v2 handler.
-      // Confirms the hook does not throw when the callback is swapped (stale-closure guard).
-      const onGameOverV1 = jest.fn();
-      const onGameOverV2 = jest.fn();
-
-      const { rerender } = renderHook(
-        (props: { onGameOver: jest.Mock }) => useRealtime({ ...mockOptions, ...props }),
-        { initialProps: { onGameOver: onGameOverV1 } }
-      );
-
-      // Replace the handler — should not throw
-      expect(() => rerender({ onGameOver: onGameOverV2 })).not.toThrow();
-    });
-  });
 });

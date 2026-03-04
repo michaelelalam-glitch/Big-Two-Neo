@@ -117,6 +117,46 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 1c. SAFETY GUARD: Check if any player has already busted (>= 101 points).
+    // play-cards SHOULD have set game_phase='game_over' in this case, but a race
+    // condition (or bug) can leave phase='finished' even though the game is over.
+    // Guard here so we never deal a new match when the game should be finished.
+    {
+      const { data: currentScores } = await supabaseClient
+        .from('room_players')
+        .select('player_index, score')
+        .eq('room_id', room_id);
+
+      if (currentScores?.some(p => (p.score || 0) >= 101)) {
+        console.log('[start_new_match] 🏆 Safety guard: player has ≥ 101 points — forcing game_over');
+        // Ensure game_phase reflects game_over (it may still be 'finished' due to the race)
+        const { error: gamePhaseUpdateError } = await supabaseClient
+          .from('game_state')
+          .update({ game_phase: 'game_over' })
+          .eq('room_id', room_id)
+          .neq('game_phase', 'playing'); // Do not clobber a legitimately running game
+
+        if (gamePhaseUpdateError) {
+          console.error(
+            '[start_new_match] ❌ Failed to force game_phase=game_over for room',
+            room_id,
+            gamePhaseUpdateError
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            game_over: true,
+            already_advanced: true,
+            match_number: gameState.match_number,
+            message: 'Game is over: a player has reached 101+ points',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // 2. Get winner from last_match_winner_index column (set by play-cards when match ends)
     // play-cards sets this when a player finishes all cards
     let winner_index = gameState.last_match_winner_index;

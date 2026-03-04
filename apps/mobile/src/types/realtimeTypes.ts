@@ -32,8 +32,17 @@ export interface PlayCardsResponse {
 }
 
 export interface StartNewMatchResponse {
-  match_number: number;
-  starting_player_index: number;
+  /** Present in normal (new-match) responses and in safety-guard game_over responses. */
+  match_number?: number;
+  /** Only present in normal (new-match) responses where a new round was actually dealt. */
+  starting_player_index?: number;
+  /** Returned by the edge function on success (all response shapes). */
+  success?: boolean;
+  /** True when the game is already over (start_new_match safety guard triggered). */
+  game_over?: boolean;
+  /** True when this match was already advanced by a concurrent caller (idempotency). */
+  already_advanced?: boolean;
+  message?: string;
 }
 
 export interface PlayerPassResponse {
@@ -51,9 +60,6 @@ export interface UseRealtimeOptions {
   onError?: (error: Error) => void;
   onDisconnect?: () => void;
   onReconnect?: () => void;
-  onMatchEnded?: (matchNumber: number, matchScores: MultiplayerMatchScoreDetail[]) => void;
-  /** Called when a player reaches 101+ points and the whole game ends. */
-  onGameOver?: (winnerIndex: number | null, finalScores: MultiplayerMatchScoreDetail[]) => void;
 }
 
 /**

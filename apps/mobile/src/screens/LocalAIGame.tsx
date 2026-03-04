@@ -46,6 +46,7 @@ export function LocalAIGame() {
     restoreScoreHistory,
     scoreHistory,
     playHistoryByMatch,
+    clearHistory,
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
@@ -72,6 +73,7 @@ export function LocalAIGame() {
   const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
     gameManagerRef: gameManagerRefPlaceholder,
+    botDifficulty,
   });
 
   // Client-side game state
@@ -161,6 +163,7 @@ export function LocalAIGame() {
     navigation,
     setOnPlayAgain,
     setOnReturnToMenu,
+    clearHistory,
   });
 
   // Cleanup: navigation cleanup + mount tracking

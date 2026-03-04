@@ -354,20 +354,8 @@ export const GameEndModal: React.FC = () => {
                  * "VirtualizedLists should never be nested inside plain ScrollViews" warning.
                  */}
                 <View style={styles.container}>
-                  {/* Fixed, non-scrollable header */}
+                  {/* Fixed, non-scrollable tab bar — wins/standings scroll with content */}
                   <View style={styles.modalSection}>
-                    {/* Winner Announcement */}
-                    <WinnerAnnouncement
-                      winnerName={gameWinnerName}
-                      pulseAnim={pulseAnim}
-                    />
-
-                    {/* Final Standings */}
-                    <FinalStandings
-                      finalScores={finalScores}
-                      winnerIndex={gameWinnerIndex}
-                    />
-
                     {/* Tab Interface */}
                     <TabInterface
                       activeTab={activeTab}
@@ -377,12 +365,26 @@ export const GameEndModal: React.FC = () => {
                   </View>
 
                   {/* Tab Content - Both tabs stay mounted to preserve state, hidden via display: 'none'.
-                      flex: 1 lets the active FlatList expand to fill remaining vertical space. */}
+                      flex: 1 lets the active FlatList expand to fill remaining vertical space.
+                      Winner announcement + final standings are passed as headerSlot so they
+                      scroll with the match history, giving the full screen to scroll content. */}
                   <Animated.View style={{ flex: 1, opacity: tabContentOpacity }}>
                     <View style={activeTab !== 'score' ? { display: 'none' } : { flex: 1 }}>
                       <ScoreHistoryTab
                         scoreHistory={scoreHistory}
                         playerNames={playerNames}
+                        headerSlot={
+                          <>
+                            <WinnerAnnouncement
+                              winnerName={gameWinnerName}
+                              pulseAnim={pulseAnim}
+                            />
+                            <FinalStandings
+                              finalScores={finalScores}
+                              winnerIndex={gameWinnerIndex}
+                            />
+                          </>
+                        }
                         actionButtonsSlot={
                           // paddingTop only — horizontal padding already comes from tabScrollContent
                           <View style={{ paddingTop: 8 }}>
@@ -399,6 +401,18 @@ export const GameEndModal: React.FC = () => {
                       <PlayHistoryTab
                         playHistory={playHistory}
                         playerNames={playerNames}
+                        headerSlot={
+                          <>
+                            <WinnerAnnouncement
+                              winnerName={gameWinnerName}
+                              pulseAnim={pulseAnim}
+                            />
+                            <FinalStandings
+                              finalScores={finalScores}
+                              winnerIndex={gameWinnerIndex}
+                            />
+                          </>
+                        }
                         actionButtonsSlot={
                           // paddingTop only — horizontal padding already comes from tabScrollContent
                           <View style={{ paddingTop: 8 }}>
@@ -591,6 +605,8 @@ interface ScoreHistoryTabProps {
     scores: number[];
   }[];
   playerNames: string[];
+  /** Slot for header content (WinnerAnnouncement + FinalStandings) — scrolls with the list */
+  headerSlot?: React.ReactNode;
   /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
   actionButtonsSlot?: React.ReactNode;
 }
@@ -598,6 +614,7 @@ interface ScoreHistoryTabProps {
 const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
   scoreHistory,
   playerNames,
+  headerSlot,
   actionButtonsSlot,
 }) => {
   // Start with only the latest match expanded (minimized by default)
@@ -637,17 +654,6 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       setExpandedScoreMatches(new Set(scoreHistory.map(m => m.matchNumber)));
     }
   };
-
-  // Calculate cumulative totals for the summary bar
-  const cumulativeTotals = React.useMemo(() => {
-    const totals: number[] = new Array(playerNames.length).fill(0);
-    scoreHistory.forEach(match => {
-      match.pointsAdded.forEach((pts, idx) => {
-        if (idx < totals.length) totals[idx] += pts;
-      });
-    });
-    return totals;
-  }, [scoreHistory, playerNames.length]);
 
   const allExpanded = expandedScoreMatches.size === scoreHistory.length;
   const scoreHistoryLastIndex = scoreHistory.length - 1;
@@ -746,9 +752,10 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       renderItem={renderScoreItem}
       extraData={expandedScoreMatches}
       ListHeaderComponent={
-        scoreHistory.length > 0 ? (
-          <>
-            {/* Header row with title + expand/collapse toggle */}
+        <>
+          {/* Winner announcement + standings scroll with the list */}
+          {headerSlot}
+          {scoreHistory.length > 0 ? (
             <View style={styles.scoreHistoryHeaderRow}>
               <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
               <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
@@ -757,26 +764,8 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                 </Text>
               </TouchableOpacity>
             </View>
-
-            {/* Cumulative totals summary bar */}
-            <View style={styles.scoreSummaryBar}>
-              <Text style={styles.scoreSummaryTitle}>Totals</Text>
-              <View style={styles.scoreSummaryPlayers}>
-                {playerNames.map((name, idx) => (
-                  <View key={idx} style={styles.scoreSummaryItem}>
-                    <Text style={styles.scoreSummaryName} numberOfLines={1}>{name}</Text>
-                    <Text style={[
-                      styles.scoreSummaryScore,
-                      cumulativeTotals[idx] > 100 && styles.scoreHistoryBustedText,
-                    ]}>
-                      {cumulativeTotals[idx]}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </>
-        ) : null
+          ) : null}
+        </>
       }
       ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
@@ -847,6 +836,8 @@ interface PlayHistoryTabProps {
     }[];
   }[];
   playerNames: string[];
+  /** Slot for header content (WinnerAnnouncement + FinalStandings) — scrolls with the list */
+  headerSlot?: React.ReactNode;
   /** Slot for Action Buttons — renders at the bottom of the FlatList so the whole modal content scrolls on small screens */
   actionButtonsSlot?: React.ReactNode;
 }
@@ -854,6 +845,7 @@ interface PlayHistoryTabProps {
 const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   playHistory,
   playerNames,
+  headerSlot,
   actionButtonsSlot,
 }) => {
   // Auto-expand the latest match on mount so content is visible immediately
@@ -1013,7 +1005,11 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       renderItem={renderItem}
       extraData={expandedMatches}
       ListHeaderComponent={
-        <Text style={styles.historyTitle}>Card Play History</Text>
+        <>
+          {/* Winner announcement + standings scroll with the list */}
+          {headerSlot}
+          <Text style={styles.historyTitle}>Card Play History</Text>
+        </>
       }
       ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
@@ -1292,47 +1288,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#60a5fa',
-  },
-  scoreSummaryBar: {
-    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.25)',
-  },
-  scoreSummaryTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#60a5fa',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  scoreSummaryPlayers: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  scoreSummaryItem: {
-    flex: 1,
-    minWidth: 70,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  scoreSummaryName: {
-    fontSize: 11,
-    color: '#9ca3af',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  scoreSummaryScore: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f3f4f6',
   },
   scoreHistoryHeaderLeft: {
     flex: 1,
