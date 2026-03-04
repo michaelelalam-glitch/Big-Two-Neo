@@ -76,7 +76,11 @@ describe('useRealtime - Timer Cancellation', () => {
     room_id: mockRoomId,
     current_turn: 0,
     turn_timer: 30,
-    last_play: null,
+    last_play: {
+      player_index: 1,
+      cards: [{ id: '2S', suit: 'S', rank: '2' }],
+      combo_type: 'Single',
+    },
     pass_count: 0,
     game_phase: 'playing',
     winner: null,
