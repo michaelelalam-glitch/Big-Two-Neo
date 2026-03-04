@@ -48,13 +48,7 @@ export type { UseRealtimeOptions } from '../types/realtimeTypes';
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
 
 export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
-  const { userId, username, onError, onDisconnect, onReconnect, onMatchEnded, onGameOver } = options;
-
-  // Store onGameOver in a ref so the playCards useCallback can always call the latest
-  // handler without including it in the deps array (which would recreate the callback
-  // on every render and cause stale-closure issues for callers that pass an inline fn).
-  const onGameOverRef = useRef(onGameOver);
-  useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
+  const { userId, username, onError, onDisconnect, onReconnect } = options;
 
   // State
   const [room, setRoom] = useState<Room | null>(null);
@@ -339,8 +333,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     });
     
     channelRef.current = channel;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure); onGameOver intentionally excluded (read via onGameOverRef.current inside the broadcast handler so the channel never needs to re-subscribe when the callback prop changes)
-  }, [userId, username, onDisconnect, onMatchEnded, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure)
+  }, [userId, username, onDisconnect, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)
   const {
@@ -386,10 +380,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         roomPlayers,
         room,
         broadcastMessage,
-        onMatchEnded,
-        // Use ref so the callback always calls the latest handler without needing
-        // onGameOver in the deps array (avoids stale-closure churn on every render).
-        onGameOver: onGameOverRef.current,
         setGameState,
       });
     } catch (err) {
@@ -404,7 +394,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       throw error;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room and onMatchEnded intentionally excluded (stable by construction); onGameOver read via ref (onGameOverRef) to avoid stale closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room intentionally excluded (stable by construction)
   }, [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]);
   
   /**

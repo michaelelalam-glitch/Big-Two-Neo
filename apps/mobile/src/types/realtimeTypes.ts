@@ -60,9 +60,6 @@ export interface UseRealtimeOptions {
   onError?: (error: Error) => void;
   onDisconnect?: () => void;
   onReconnect?: () => void;
-  onMatchEnded?: (matchNumber: number, matchScores: MultiplayerMatchScoreDetail[]) => void;
-  /** Called when a player reaches 101+ points and the whole game ends. */
-  onGameOver?: (winnerIndex: number | null, finalScores: MultiplayerMatchScoreDetail[]) => void;
 }
 
 /**
