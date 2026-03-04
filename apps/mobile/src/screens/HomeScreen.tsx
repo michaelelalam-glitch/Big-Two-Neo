@@ -340,32 +340,8 @@ export default function HomeScreen() {
 
   const handleBannerLeave = useCallback((gameInfo: ActiveGameInfo) => {
     if (gameInfo.type === 'online') {
-      if (canRejoinAfterExpiry === false) {
-        // All-bots state — no humans left, just clear the banner locally.
-        // The server’s periodic sweep will close the room.
-        showConfirm({
-          title: 'Leave Game?',
-          message: 'All other players have left. This game will end.',
-          confirmText: 'Leave',
-          cancelText: 'Cancel',
-          destructive: true,
-          onConfirm: async () => {
-            // Try to remove our bot-replaced row so we don’t see this game again
-            if (user) {
-              await supabase
-                .from('room_players')
-                .delete()
-                .eq('human_user_id', user.id)
-                .eq('connection_status', 'replaced_by_bot');
-            }
-            setCurrentRoom(null);
-            setCurrentRoomStatus(undefined);
-            setDisconnectTimestamp(null);
-            setCanRejoinAfterExpiry(null);
-          },
-        });
-      } else if (canRejoinAfterExpiry === true) {
-        // Bot replaced us but humans still in game — ask for permanent leave confirmation
+      if (canRejoinAfterExpiry === true) {
+        // Bot replaced us but humans still in game — confirm permanent leave
         showConfirm({
           title: 'Leave Permanently?',
           message: 'A bot is playing for you. If you leave now you cannot rejoin this game.',
@@ -374,7 +350,6 @@ export default function HomeScreen() {
           destructive: true,
           onConfirm: async () => {
             if (user) {
-              // Remove the bot-replaced row so the user can no longer rejoin
               await supabase
                 .from('room_players')
                 .delete()
@@ -388,7 +363,7 @@ export default function HomeScreen() {
           },
         });
       } else {
-        // Normal leave (timer not expired yet)
+        // Normal leave (timer still counting or not in post-expiry state)
         handleLeaveCurrentRoom();
       }
     } else {
@@ -430,51 +405,50 @@ export default function HomeScreen() {
   const handleTimerExpired = useCallback(async () => {
     if (!user || !currentRoom) return;
 
-    // Small delay to give the server time to close the room / run the sweep
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Allow the server's bot-replacement sweep a little extra time to run
+    // (update-heartbeat triggers process_disconnected_players every ~5 s)
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     try {
-      // Check if all players in the room are now bots (room was auto-closed)
-      const { data: roomData } = await supabase
-        .from('rooms')
-        .select('id, status')
-        .eq('code', currentRoom)
+      // Query via human_user_id — works regardless of RLS on the rooms table,
+      // since the replaced-by-bot row always has human_user_id = our user.id.
+      const { data: replacedRow } = await supabase
+        .from('room_players')
+        .select('id, room_id')
+        .eq('human_user_id', user.id)
+        .eq('connection_status', 'replaced_by_bot')
         .maybeSingle();
 
-      if (!roomData || roomData.status === 'finished') {
-        // Room closed — clear banner
-        setCurrentRoom(null);
-        setCurrentRoomStatus(undefined);
-        setDisconnectTimestamp(null);
-        setCanRejoinAfterExpiry(null);
+      if (!replacedRow) {
+        // Bot replacement hasn't been processed yet (or game already ended).
+        // Fall back to the normal room-check which handles all states correctly.
+        await checkCurrentRoom();
         return;
       }
 
-      // Room still active — check if any human players remain
+      // We've been replaced — now count humans still playing (excluding ourselves)
       const { data: humanPlayers } = await supabase
         .from('room_players')
         .select('id')
-        .eq('room_id', roomData.id)
+        .eq('room_id', replacedRow.room_id)
         .eq('is_bot', false)
         .neq('connection_status', 'replaced_by_bot');
 
       const humanCount = humanPlayers?.length ?? 0;
 
-      if (humanCount === 0) {
-        // All bots — keep banner visible with Leave-only UI so player sees "game will end"
-        // Clear disconnectTimestamp so the countdown effect doesn't retrigger
-        setDisconnectTimestamp(null);
-        setCanRejoinAfterExpiry(false);
-        // currentRoom stays set so the banner remains
-      } else {
-        // Other humans still in game — keep banner with "Replace Bot & Rejoin"
-        // Clear disconnectTimestamp (crucial: prevents the countdown effect re-firing onTimerExpired)
+      if (humanCount > 0) {
+        // Other humans still in the game — keep banner with "Replace Bot & Rejoin"
         setDisconnectTimestamp(null);
         setCanRejoinAfterExpiry(true);
-        // currentRoom stays set so the banner remains
+      } else {
+        // All players are bots — game will auto-delete server-side; clear banner
+        setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
+        setCanRejoinAfterExpiry(null);
       }
     } catch {
-      // Network error — re-check normally
+      // Network error — retry via normal room check
       await checkCurrentRoom();
     }
   }, [user, currentRoom, checkCurrentRoom]);

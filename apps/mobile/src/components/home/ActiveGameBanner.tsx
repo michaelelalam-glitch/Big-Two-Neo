@@ -68,7 +68,6 @@ interface ActiveGameBannerProps {
   /**
    * Set by parent after the timer expires and it has checked the room:
    *   true  = humans still in game → show "Replace Bot & Rejoin" + "Leave"
-   *   false = all players are bots → show only "Leave" (game will be cleared)
    *   null  = timer hasn't expired yet (normal countdown mode)
    */
   canRejoinAfterExpiry?: boolean | null;
@@ -286,29 +285,19 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         </View>
       )}
 
-      {/* Bot has replaced message — shown while timer is running or after expiry */}
+      {/* Bot has replaced message — shown after 60s expires */}
       {botHasReplaced && isOnline && (
         <View style={styles.countdownRow}>
-          {canRejoinAfterExpiry === false ? (
-            // All players are bots — game will be cleared
-            <View style={[styles.botReplacedBadge, styles.allBotsBadge]}>
-              <Text style={[styles.botReplacedText, styles.allBotsText]}>
-                🤖 All players are bots — game will end
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.botReplacedBadge}>
-              <Text style={styles.botReplacedText}>
-                🤖 A bot is playing for you
-              </Text>
-            </View>
-          )}
+          <View style={styles.botReplacedBadge}>
+            <Text style={styles.botReplacedText}>
+              🤖 A bot is playing for you
+            </Text>
+          </View>
         </View>
       )}
 
       {/* Action buttons */}
       <View style={styles.buttonRow}>
-        {/* Rejoin button — hidden when all players are bots */}
         {!botHasReplaced ? (
           // Timer still running — show plain Rejoin
           <TouchableOpacity
@@ -318,7 +307,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Rejoin</Text>
           </TouchableOpacity>
-        ) : canRejoinAfterExpiry !== false ? (
+        ) : (
           // Timer expired AND humans still in game → show Replace Bot & Rejoin
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton]}
@@ -327,7 +316,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Replace Bot & Rejoin</Text>
           </TouchableOpacity>
-        ) : null /* All bots — no rejoin button */}
+        )}
 
         {/* Leave button (always shown) */}
         <TouchableOpacity
@@ -416,18 +405,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.4)',
   },
-  allBotsBadge: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'rgba(239, 68, 68, 0.5)',
-  },
   botReplacedText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: '#a5b4fc',
     textAlign: 'center',
-  },
-  allBotsText: {
-    color: '#fca5a5',
   },
   buttonRow: {
     flexDirection: 'row',
