@@ -115,12 +115,29 @@ Deno.serve(async (req) => {
     }
 
     // 3. Get player info
-    const { data: player, error: playerError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('user_id', player_id)
-      .eq('room_id', room.id)
-      .single();
+    // Service-role callers (bot-coordinator) pass room_players.id which works
+    // for replacement bots that have user_id = NULL.
+    // Client callers pass their auth user_id.
+    let player: any, playerError: any;
+    if (isServiceRole) {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    } else {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('user_id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    }
 
     if (playerError || !player) {
       console.log('❌ [player-pass] Player not found:', playerError);

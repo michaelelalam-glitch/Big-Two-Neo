@@ -68,15 +68,36 @@ Deno.serve(async (req) => {
       .select('id, user_id, connection_status')
       .eq('id', player_id)
       .eq('room_id', room_id)
-      .eq('user_id', user.id)
       .maybeSingle();
 
-    if (playerError || !player) {
-      // Player might have been replaced by a bot; return a special status so
-      // the client knows to call get-rejoin-status
+    if (playerError) {
+      console.error('❌ [update-heartbeat] Player lookup error:', playerError.message);
       return new Response(
-        JSON.stringify({ success: false, replaced_by_bot: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Player lookup failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!player) {
+      // Row doesn't exist at all — player was removed from the room
+      return new Response(
+        JSON.stringify({ success: false, error: 'Player not found in room' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Player exists but user_id doesn't match — they were replaced by a bot
+    if (player.user_id !== user.id) {
+      if (player.connection_status === 'replaced_by_bot') {
+        return new Response(
+          JSON.stringify({ success: false, replaced_by_bot: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // Some other mismatch (shouldn't happen) — return 403
+      return new Response(
+        JSON.stringify({ success: false, error: 'Player does not belong to authenticated user' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -103,9 +124,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (updateCount === 0) {
+      console.warn('[update-heartbeat] Update matched 0 rows — player may have been replaced');
+      return new Response(
+        JSON.stringify({ success: false, replaced_by_bot: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Every 6th heartbeat (~30 s at 5 s interval) run the sweep so bot-replacement
     // works even when pg_cron is unavailable (e.g. dev environment).
-    const count = typeof heartbeat_count === 'number' ? heartbeat_count : 0;
+    // Default to 1 (not 0) so the first heartbeat doesn't trigger an immediate sweep.
+    const count =
+      Number.isInteger(heartbeat_count) && heartbeat_count > 0 ? heartbeat_count : 1;
     if (count % 6 === 0) {
       // Await the sweep result to check if bots replaced any players
       const sweepPromise = (async () => {

@@ -340,7 +340,7 @@ export function useConnectionManager({
           event:  'UPDATE',
           schema: 'public',
           table:  'room_players',
-          filter: `room_id=eq.${roomId},id=eq.${playerId}`,
+          filter: `id=eq.${playerId}`,
         },
         (payload) => {
           const rec = payload.new as {

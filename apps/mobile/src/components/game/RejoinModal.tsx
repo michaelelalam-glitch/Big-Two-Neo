@@ -83,6 +83,7 @@ export function RejoinModal({
       animationType="fade"
       statusBarTranslucent
       accessibilityViewIsModal
+      onRequestClose={onDismiss ?? (() => {})}
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>

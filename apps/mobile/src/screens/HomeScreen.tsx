@@ -75,9 +75,44 @@ export default function HomeScreen() {
       if (roomData?.rooms?.code) {
         setCurrentRoom(roomData.rooms.code);
         setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
-        // Track disconnect time for countdown (only set once when we detect an active playing room)
-        if (roomData.rooms.status === 'playing' && !disconnectTimestamp) {
-          setDisconnectTimestamp(Date.now());
+        // Fetch server-side timer so the countdown survives app restarts.
+        // The persistent disconnect_timer_started_at in the DB is the source of truth.
+        if (roomData.rooms.status === 'playing') {
+          try {
+            const { data: statusData } = await supabase.functions.invoke('get-rejoin-status', {
+              body: { room_id: roomData.room_id },
+            });
+
+            if (statusData?.success) {
+              if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
+                // Server has a timer running — back-compute the disconnect timestamp
+                const secondsLeft = statusData.seconds_left ?? 60;
+                const elapsed = 60 - secondsLeft;
+                setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+              } else if (statusData.status === 'replaced_by_bot') {
+                // Already replaced — force countdown to 0
+                setDisconnectTimestamp(Date.now() - 61000);
+              } else if (statusData.status === 'room_closed') {
+                // Room was closed while away
+                setCurrentRoom(null);
+                setCurrentRoomStatus(undefined);
+                setDisconnectTimestamp(null);
+              } else {
+                // 'connected' — no timer running yet; heartbeat will stop
+                // when the user stays on home screen, and server starts the timer
+                if (!disconnectTimestamp) {
+                  setDisconnectTimestamp(Date.now());
+                }
+              }
+            } else if (!disconnectTimestamp) {
+              setDisconnectTimestamp(Date.now());
+            }
+          } catch {
+            // Network error — fall back to now (will self-correct on next check)
+            if (!disconnectTimestamp) {
+              setDisconnectTimestamp(Date.now());
+            }
+          }
         }
       } else {
         setCurrentRoom(null);
@@ -293,6 +328,17 @@ export default function HomeScreen() {
     setDisconnectTimestamp(null);
     navigation.replace('Lobby', { roomCode });
   }, [navigation]);
+
+  /**
+   * Called when the 60s countdown expires.
+   * Re-checks room status — if the server closed the room (all bots),
+   * clears the banner back to "No Game in Progress".
+   */
+  const handleTimerExpired = useCallback(async () => {
+    // Small delay to give the server time to close the room
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await checkCurrentRoom();
+  }, [checkCurrentRoom]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
@@ -626,6 +672,7 @@ export default function HomeScreen() {
           onResume={handleBannerResume}
           onLeave={handleBannerLeave}
           onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+          onTimerExpired={handleTimerExpired}
           refreshTrigger={bannerRefreshKey}
         />
         

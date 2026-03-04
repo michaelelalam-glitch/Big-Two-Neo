@@ -59,6 +59,12 @@ interface ActiveGameBannerProps {
   disconnectTimestamp?: number | null;
   /** Increment to force re-check of offline game state (e.g. after discard) */
   refreshTrigger?: number;
+  /**
+   * Called when the countdown reaches 0 — parent should re-check room status.
+   * If the room was all-bots it will be closed server-side, so the parent
+   * should clear `onlineRoomCode` to return the banner to "No game in progress".
+   */
+  onTimerExpired?: () => void;
 }
 
 export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
@@ -70,6 +76,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   onReplaceBotAndRejoin,
   disconnectTimestamp,
   refreshTrigger,
+  onTimerExpired,
 }) => {
   const [offlineGameInfo, setOfflineGameInfo] = useState<ActiveGameInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -131,6 +138,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         setCountdown(0);
         setBotHasReplaced(true);
         onBotReplaced?.();
+        // Notify parent so it can re-check room status (may be closed if all-bots)
+        onTimerExpired?.();
       } else {
         setCountdown(remaining);
         setBotHasReplaced(false);
@@ -140,7 +149,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced]);
+  }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced, onTimerExpired]);
 
   // Determine which game info to display (online takes priority)
   const gameInfo = useMemo<ActiveGameInfo | null>(() => onlineRoomCode

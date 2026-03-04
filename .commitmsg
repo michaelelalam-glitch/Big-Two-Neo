@@ -1,0 +1,14 @@
+fix: address 21 PR review comments + 3 critical gameplay bugs
+
+Issues fixed:
+1. 60s countdown persists across app restarts (server-side timer)
+2. All-bots games auto-delete when timer expires (banner resets)
+3. Replacement bots now play correctly (room_players.id lookup)
+
+PR review comments addressed:
+- Security: REVOKE from PUBLIC/anon on all SECURITY DEFINER RPCs
+- update-heartbeat: ownership check, update count, heartbeat_count default
+- useConnectionManager: single-condition Realtime filter
+- RejoinModal: onRequestClose for Android back button
+- Migration: remove unused variables
+- play-cards/player-pass: service-role lookup by room_players.id

@@ -37,14 +37,12 @@ DECLARE
   rec               RECORD;
   v_room            RECORD;
   v_human_count     INTEGER;
-  v_original_human_count INTEGER;
   v_bot_difficulty  VARCHAR(10);
   v_marked          INTEGER := 0;
   v_replaced        INTEGER := 0;
   v_closed          INTEGER := 0;
   v_affected_codes  TEXT[] := '{}';
   v_room_code       TEXT;
-  v_game_state      RECORD;
 BEGIN
 
   -- ──────────────────────────────────────────────────────────────────────────
@@ -344,3 +342,27 @@ BEGIN
     AND connection_status = 'connected';
 END;
 $function$;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 6. Security: lock down all SECURITY DEFINER RPCs to service_role only
+--    (fixes: PUBLIC/anon could previously call these directly)
+-- ────────────────────────────────────────────────────────────────────────────
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM anon;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.process_disconnected_players() TO service_role;
+
+REVOKE ALL ON FUNCTION public.reconnect_player(UUID, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reconnect_player(UUID, UUID) FROM anon;
+REVOKE ALL ON FUNCTION public.reconnect_player(UUID, UUID) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.reconnect_player(UUID, UUID) TO service_role;
+
+REVOKE ALL ON FUNCTION public.mark_player_disconnected(UUID, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.mark_player_disconnected(UUID, UUID) FROM anon;
+REVOKE ALL ON FUNCTION public.mark_player_disconnected(UUID, UUID) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.mark_player_disconnected(UUID, UUID) TO service_role;
+
+REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM anon;
+REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.get_rejoin_status(UUID, UUID) TO service_role;

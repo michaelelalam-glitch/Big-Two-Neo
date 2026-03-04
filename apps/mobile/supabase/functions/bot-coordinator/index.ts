@@ -507,7 +507,7 @@ Deno.serve(async (req) => {
 
           if (lastError) break;
 
-          const result = await callPlayCards(supabaseUrl, serviceKey, room.code, currentPlayer.user_id, cardsToPlay);
+          const result = await callPlayCards(supabaseUrl, serviceKey, room.code, currentPlayer.id, cardsToPlay);
           if (!result.success) {
             lastError = result.error || 'play-cards failed';
             console.error(`[bot-coordinator] ❌ Bot play failed: ${lastError}`);
@@ -531,7 +531,7 @@ Deno.serve(async (req) => {
           }
         } else {
           // Pass
-          const result = await callPlayerPass(supabaseUrl, serviceKey, room.code, currentPlayer.user_id);
+          const result = await callPlayerPass(supabaseUrl, serviceKey, room.code, currentPlayer.id);
           if (!result.success) {
             lastError = result.error || 'player-pass failed';
             console.error(`[bot-coordinator] ❌ Bot pass failed: ${lastError}`);
