@@ -73,6 +73,7 @@ export function LocalAIGame() {
   const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
   const { checkAndExecuteBotTurn } = useBotTurnManager({
     gameManagerRef: gameManagerRefPlaceholder,
+    botDifficulty,
   });
 
   // Client-side game state

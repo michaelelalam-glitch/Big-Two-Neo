@@ -68,8 +68,8 @@ export default function GameSettingsModal({
     if (!roomCode) return;
     try {
       await Share.share({
-        message: `Join my Big Two game! Room code: ${roomCode}`,
-        title: 'Big Two Room Code',
+        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
+        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
     } catch {
@@ -81,8 +81,8 @@ export default function GameSettingsModal({
     if (!roomCode) return;
     try {
       await Share.share({
-        message: `Join my Big Two game! Room code: ${roomCode}`,
-        title: 'Big Two Room Code',
+        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
+        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
     } catch {
       // User dismissed the share sheet — no action needed
@@ -214,8 +214,8 @@ export default function GameSettingsModal({
                   <View style={styles.roomCodeLabelRow}>
                     <Text style={styles.roomCodeLabel}>🏠 Room Code</Text>
                   </View>
-                  <View style={styles.roomCodeValueRow}>
-                    <Text style={styles.roomCodeValue}>{roomCode}</Text>
+                  <Text style={styles.roomCodeValue}>{roomCode}</Text>
+                  <View style={styles.roomCodeButtonsRow}>
                     <Pressable
                       style={styles.roomCodeAction}
                       onPress={handleCopyRoomCode}
@@ -430,17 +430,20 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
   },
-  roomCodeValueRow: {
+  roomCodeButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     gap: SPACING.sm,
+    marginTop: SPACING.sm,
   },
   roomCodeValue: {
-    flex: 1,
     fontSize: FONT_SIZES.xl,
     color: '#facc15',
     fontWeight: 'bold',
-    letterSpacing: 2,
+    letterSpacing: 4,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 4,
   },
   roomCodeAction: {
     paddingVertical: 4,

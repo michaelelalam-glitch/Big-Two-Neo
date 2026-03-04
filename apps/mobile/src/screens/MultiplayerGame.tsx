@@ -35,7 +35,7 @@ import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
-import type { FinalScore } from '../types/gameEnd';
+// FinalScore import removed — onGameOver callback replaced by useMatchEndHandler (DB-authoritative path)
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { GameView } from './GameView';
@@ -137,67 +137,16 @@ export function MultiplayerGame() {
     onReconnect: () => {
       gameLogger.info('[MultiplayerGame] Multiplayer reconnected successfully');
     },
-    onMatchEnded: (matchNumber, matchScores) => {
-      gameLogger.info(`[MultiplayerGame] 🏆 Match ${matchNumber} ended! Adding scores to scoreboard...`, matchScores);
-
-      const pointsAdded: number[] = [];
-      const cumulativeScores: number[] = [];
-      const sortedScores = [...matchScores].sort((a, b) => a.player_index - b.player_index);
-
-      sortedScores.forEach((score) => {
-        pointsAdded.push(score.matchScore);
-        cumulativeScores.push(score.cumulativeScore);
-      });
-
-      const scoreHistoryEntry: ScoreHistory = {
-        matchNumber,
-        pointsAdded,
-        scores: cumulativeScores,
-        timestamp: new Date().toISOString(),
-      };
-
-      gameLogger.info('[MultiplayerGame] 📊 Adding score history entry:', scoreHistoryEntry);
-      addScoreHistory(scoreHistoryEntry);
-    },
-    onGameOver: (winnerIndex, finalScores) => {
-      gameLogger.info(`[MultiplayerGame] 🎉 Game Over! Winner: Player ${winnerIndex}, scores:`, finalScores);
-
-      let winnerIdx: number;
-      if (winnerIndex !== null && winnerIndex !== undefined) {
-        winnerIdx = winnerIndex;
-      } else if (finalScores.length > 0) {
-        const minScore = Math.min(...finalScores.map((s) => s.cumulativeScore));
-        const derivedWinner = finalScores.find((s) => s.cumulativeScore === minScore);
-        winnerIdx = derivedWinner !== undefined ? derivedWinner.player_index : 0;
-      } else {
-        winnerIdx = 0;
-      }
-      const winnerPlayer = multiplayerPlayers.find((p) => p.player_index === winnerIdx);
-      const formattedScores: FinalScore[] = [...finalScores]
-        .sort((a, b) => a.cumulativeScore - b.cumulativeScore)
-        .map((s, index) => ({
-          player_index: s.player_index,
-          player_name:
-            multiplayerPlayers.find((p) => p.player_index === s.player_index)?.username ||
-            `Player ${s.player_index + 1}`,
-          cumulative_score: s.cumulativeScore,
-          points_added: s.matchScore,
-          rank: index + 1,
-          is_busted: s.cumulativeScore >= 101,
-        }));
-      const playerNames = [...multiplayerPlayers]
-        .sort((a, b) => a.player_index - b.player_index)
-        .map((p) => p.username);
-
-      openGameEndModal(
-        winnerPlayer?.username || `Player ${winnerIdx + 1}`,
-        winnerIdx,
-        formattedScores,
-        playerNames,
-        scoreHistory || [],
-        playHistoryByMatch || [],
-      );
-    },
+    // NOTE: onMatchEnded removed — score history is populated exclusively by
+    // useMultiplayerScoreHistory which reads from game_state.scores_history (DB).
+    // Having both caused every match to be added twice (doubling cumulative scores).
+    //
+    // NOTE: onGameOver removed — game-end modal is opened exclusively by
+    // useMatchEndHandler which reads from multiplayerGameState after the postgres_changes
+    // update arrives.  The broadcast-path opened the modal with stale React state
+    // (missing last match in score history, zero final standings for non-winner),
+    // producing different UIs per player.  useMatchEndHandler uses DB-authoritative data
+    // so every player — winner and losers — sees the same correct modal.
   });
 
   // Track when game starts (for duration calculation)

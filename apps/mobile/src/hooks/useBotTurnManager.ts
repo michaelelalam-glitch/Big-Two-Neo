@@ -6,13 +6,15 @@ import { gameLogger } from '../utils/logger';
 
 interface UseBotTurnManagerParams {
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
+  /** Bot difficulty — controls the delay between bot turns to give the correct pacing feel. */
+  botDifficulty?: 'easy' | 'medium' | 'hard';
 }
 
 /**
  * Custom hook to manage bot turn execution with debouncing and timeout protection
  * Extracted from GameScreen to reduce complexity
  */
-export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
+export function useBotTurnManager({ gameManagerRef, botDifficulty = 'medium' }: UseBotTurnManagerParams) {
   // Track bot turn execution to prevent duplicates
   const isExecutingBotTurnRef = useRef(false);
   const lastBotTurnPlayerIndexRef = useRef<number | null>(null);
@@ -93,7 +95,7 @@ export function useBotTurnManager({ gameManagerRef }: UseBotTurnManagerParams) {
             // Check for next player after brief delay
             setTimeout(checkAndExecuteBotTurn, 100);
           });
-      }, getBotDelayMs('medium'));
+      }, getBotDelayMs(botDifficulty));
     }
   };
 

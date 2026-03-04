@@ -223,22 +223,12 @@ export async function executePlayCards({
         match_number: currentMatchNumber,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
-
-      // Record the FINAL match scores before opening the game-over modal.
-      // Without this the scoreHistory passed to the game-end modal would be
-      // missing the last match (onMatchEnded was only called for non-game-over
-      // match ends).
-      if (onMatchEnded) {
-        gameLogger.info('[useRealtime] 📊 Calling onMatchEnded for final match before game over');
-        onMatchEnded(currentMatchNumber, matchScores);
-      }
-
-      // Supabase Realtime does NOT echo broadcasts back to the sender.
-      // Call onGameOver directly so the player who triggered the game-over
-      // also sees the end-game modal (other clients open it via the broadcast listener).
-      if (onGameOver) {
-        onGameOver(finalWinnerIndex, matchScores);
-      }
+      // Score history is now managed exclusively by useMultiplayerScoreHistory (reads from
+      // game_state.scores_history via Realtime).  Game-end modal is opened exclusively by
+      // useMatchEndHandler (reads from multiplayerGameState after postgres_changes update).
+      // Both onMatchEnded and onGameOver direct calls have been removed to prevent:
+      //   1. Score doubling (each match entry added by both broadcast-path and Realtime-path)
+      //   2. Inconsistent modals (broadcast-path used stale React state; zeros / missing data)
     } else {
       await broadcastMessage('match_ended', {
         winner_index: effectivePlayerIndex,
@@ -246,11 +236,7 @@ export async function executePlayCards({
         match_scores: matchScores,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: MATCH ENDED');
-
-      if (onMatchEnded) {
-        gameLogger.info('[useRealtime] 📊 Calling onMatchEnded callback directly');
-        onMatchEnded(currentMatchNumber, matchScores);
-      }
+      // onMatchEnded call removed — useMultiplayerScoreHistory handles score history via DB.
 
       // Start next match (fire-and-forget)
       (async () => {

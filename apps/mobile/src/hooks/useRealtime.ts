@@ -229,17 +229,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           networkLogger.warn('[Realtime] game_over: some final_scores entries had unexpected shape and were filtered');
         }
         const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
-
-        // Record the FINAL match scores before opening the game-over modal
-        // so that scoreHistory includes every match when the modal appears.
-        if (finalScores.length > 0 && onMatchEnded) {
-          onMatchEnded(matchNumber, finalScores);
-        }
-
-        const handler = onGameOverRef.current;
-        if (handler) {
-          handler(winnerIndex, finalScores);
-        }
+        // onMatchEnded + onGameOver calls removed — score history is handled by
+        // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
+        // fetchGameState above will update multiplayerGameState which triggers both hooks.
+        gameLogger.info('[Realtime] game_over received; fetchGameState triggered for modal/score-history refresh', { matchNumber });
       })
       .on('broadcast', { event: 'match_ended' }, (payload) => {
         networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
@@ -248,9 +241,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         const broadcastData = (payload as { data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number } })?.data || payload;
         const matchScores = (broadcastData as { match_scores?: PlayerMatchScoreDetail[] })?.match_scores;
         const matchNumber = (broadcastData as { match_number?: number })?.match_number || gameState?.match_number || 1;
-        if (matchScores && onMatchEnded) {
-          onMatchEnded(matchNumber, matchScores);
-        }
+        gameLogger.info('[Realtime] match_ended received; fetchGameState triggered for score-history refresh', { matchNumber });
+        // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
         fetchGameState(roomId);
       })
       .on('broadcast', { event: 'auto_pass_timer_started' }, (payload) => {

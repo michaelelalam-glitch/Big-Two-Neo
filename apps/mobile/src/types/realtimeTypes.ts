@@ -34,6 +34,11 @@ export interface PlayCardsResponse {
 export interface StartNewMatchResponse {
   match_number: number;
   starting_player_index: number;
+  /** True when the game is already over (start_new_match safety guard triggered). */
+  game_over?: boolean;
+  /** True when this match was already advanced by a concurrent caller (idempotency). */
+  already_advanced?: boolean;
+  message?: string;
 }
 
 export interface PlayerPassResponse {
