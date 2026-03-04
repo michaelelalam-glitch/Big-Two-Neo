@@ -150,8 +150,8 @@ Deno.serve(async (req) => {
           .eq('room_id', room_id)
           .maybeSingle();
 
-        // Only act for actively-playing games
-        if (!gs || (gs.game_phase !== 'playing' && gs.game_phase !== 'normal_play')) return;
+        // Only act for actively-playing games (includes first_play phase where 3♦ must be led)
+        if (!gs || (gs.game_phase !== 'playing' && gs.game_phase !== 'normal_play' && gs.game_phase !== 'first_play')) return;
 
         const { data: turnPlayer } = await supabaseClient
           .from('room_players')

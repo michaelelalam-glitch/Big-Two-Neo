@@ -118,16 +118,14 @@ export function useMultiplayerLayout({
     const currentTurn = multiplayerGameState?.current_turn;
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
-    // fix/rejoin: a player is "disconnected" if their connection_status is disconnected
-    // OR if a bot is sitting in their seat (replaced_by_bot).
+    // fix/rejoin: a player is "disconnected" (shows spinner overlay) ONLY while they
+    // are in the process of disconnecting — i.e. connection_status = 'disconnected'.
+    // Once a replacement bot takes the seat (status = 'replaced_by_bot'), the bot
+    // is actively playing and should show a normal avatar without a spinner overlay.
     const isDisconnected = (idx: number): boolean => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return false;
-      return (
-        p.connection_status === 'disconnected' ||
-        p.connection_status === 'replaced_by_bot' ||
-        (!!p.human_user_id && p.is_bot)
-      );
+      return p.connection_status === 'disconnected';
     };
 
     // CRITICAL: RELATIVE positioning — each player sees THEMSELVES at bottom

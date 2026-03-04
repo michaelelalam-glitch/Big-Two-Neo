@@ -360,14 +360,57 @@ export default function HomeScreen() {
 
   /**
    * Called when the 60s countdown expires.
-   * Re-checks room status — if the server closed the room (all bots),
-   * clears the banner back to "No Game in Progress".
+   * Only clears the banner if ALL 4 players are now bots (room auto-closed
+   * because the last human left). If humans are still in the game, keep the
+   * banner so the player can "Replace Bot & Rejoin".
    */
   const handleTimerExpired = useCallback(async () => {
-    // Small delay to give the server time to close the room
+    if (!user || !currentRoom) return;
+
+    // Small delay to give the server time to close the room / run the sweep
     await new Promise(resolve => setTimeout(resolve, 2000));
-    await checkCurrentRoom();
-  }, [checkCurrentRoom]);
+
+    try {
+      // Check if all players in the room are now bots (room was auto-closed)
+      const { data: roomData } = await supabase
+        .from('rooms')
+        .select('id, status')
+        .eq('code', currentRoom)
+        .maybeSingle();
+
+      if (!roomData || roomData.status === 'finished') {
+        // Room closed — clear banner
+        setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
+        return;
+      }
+
+      // Room still active — check if any human players remain
+      const { data: humanPlayers } = await supabase
+        .from('room_players')
+        .select('id')
+        .eq('room_id', roomData.id)
+        .eq('is_bot', false)
+        .neq('connection_status', 'replaced_by_bot');
+
+      const humanCount = humanPlayers?.length ?? 0;
+
+      if (humanCount === 0) {
+        // All bots — server should close the room; clear banner
+        setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
+      } else {
+        // Other humans still in game — keep banner (bot replaced us, can rejoin)
+        // Force disconnectTimestamp past zero so banner shows "Replace Bot & Rejoin"
+        setDisconnectTimestamp(Date.now() - 61000);
+      }
+    } catch {
+      // Network error — re-check normally
+      await checkCurrentRoom();
+    }
+  }, [user, currentRoom, checkCurrentRoom]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
