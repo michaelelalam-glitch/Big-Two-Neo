@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Alert } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -68,11 +67,13 @@ export default function GameSettingsModal({
   const handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
     try {
-      await Clipboard.setStringAsync(roomCode);
+      await Share.share({
+        message: `Join my Big Two game! Room code: ${roomCode}`,
+        title: 'Big Two Room Code',
+      });
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      Alert.alert('Copied!', `Room code "${roomCode}" copied to clipboard.`);
     } catch {
-      Alert.alert('Error', 'Could not copy to clipboard.');
+      // User dismissed the share sheet — no action needed
     }
   }, [roomCode, vibrationEnabled]);
 
