@@ -475,18 +475,58 @@ Deno.serve(async (req) => {
         const isFirstPlay = playedCards.length === 0;
         const matchNumber = gs.match_number || 1;
 
+        // ── Auto-pass timer override ────────────────────────────────────────────
+        // When auto_pass_timer is active AND expired, all non-exempt players MUST pass.
+        // The bot missed its turn window — override BotAI and force a pass.
+        // Combined with the player-pass fix that skips the One Card Left Rule during
+        // auto-pass scenarios, this guarantees the game always advances out of a
+        // stuck timer state.
+        const timerData = gs.auto_pass_timer as {
+          active?: boolean;
+          end_timestamp?: number;
+          started_at?: string;
+          duration_ms?: number;
+          triggering_play?: { position?: number };
+          player_index?: number;
+        } | null;
+
+        let forcePass = false;
+        if (timerData?.active) {
+          const endTimestamp =
+            timerData.end_timestamp ||
+            (timerData.started_at
+              ? new Date(timerData.started_at).getTime() + (timerData.duration_ms || 0)
+              : 0);
+          const isExpired = Date.now() >= endTimestamp;
+          if (isExpired) {
+            const exemptIndex =
+              timerData.triggering_play?.position ?? timerData.player_index;
+            forcePass =
+              typeof exemptIndex === 'number' &&
+              currentPlayer.player_index !== exemptIndex;
+            if (forcePass) {
+              console.log(
+                `⏰ [bot-coordinator] Auto-pass timer expired — forcing pass for bot ${currentPlayer.username} (index ${currentPlayer.player_index}, exempt=${exemptIndex})`,
+              );
+            }
+          }
+        }
+        // ────────────────────────────────────────────────────────────────────────
+
         // Create BotAI and make decision
         const difficulty: BotDifficulty = (currentPlayer.bot_difficulty as BotDifficulty) || 'medium';
         const botAI = new BotAI(difficulty);
-        const decision = botAI.getPlay({
-          hand: botHand,
-          lastPlay,
-          isFirstPlayOfGame: isFirstPlay,
-          matchNumber,
-          playerCardCounts,
-          currentPlayerIndex: currentPlayer.player_index,
-          nextPlayerIndex,
-        });
+        const decision = forcePass
+          ? { cards: null, reasoning: 'Auto-pass timer expired — forced pass' }
+          : botAI.getPlay({
+              hand: botHand,
+              lastPlay,
+              isFirstPlayOfGame: isFirstPlay,
+              matchNumber,
+              playerCardCounts,
+              currentPlayerIndex: currentPlayer.player_index,
+              nextPlayerIndex,
+            });
 
         console.log(`[bot-coordinator] 🎯 Bot decision: ${decision.cards ? `play ${decision.cards.length} cards` : 'pass'} — ${decision.reasoning}`);
 
