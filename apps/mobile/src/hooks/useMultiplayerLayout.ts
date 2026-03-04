@@ -31,6 +31,8 @@ export interface LayoutPlayer {
   score: number;
   isActive: boolean;
   player_index: number;
+  /** fix/rejoin: true when the player is disconnected or replaced by a bot */
+  isDisconnected?: boolean;
 }
 
 export function useMultiplayerLayout({
@@ -116,6 +118,18 @@ export function useMultiplayerLayout({
     const currentTurn = multiplayerGameState?.current_turn;
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
+    // fix/rejoin: a player is "disconnected" if their connection_status is disconnected
+    // OR if a bot is sitting in their seat (replaced_by_bot).
+    const isDisconnected = (idx: number): boolean => {
+      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      if (!p) return false;
+      return (
+        p.connection_status === 'disconnected' ||
+        p.connection_status === 'replaced_by_bot' ||
+        (!!p.human_user_id && p.is_bot)
+      );
+    };
+
     // CRITICAL: RELATIVE positioning — each player sees THEMSELVES at bottom
     const bottom = multiplayerSeatIndex;
     const top = (multiplayerSeatIndex + 2) % 4;
@@ -123,10 +137,10 @@ export function useMultiplayerLayout({
     const right = (multiplayerSeatIndex + 1) % 4;
 
     return [
-      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom },
-      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top },
-      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left },
-      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right },
+      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom, isDisconnected: isDisconnected(bottom) },
+      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top, isDisconnected: isDisconnected(top) },
+      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left) },
+      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right) },
     ];
   }, [multiplayerPlayers, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
 

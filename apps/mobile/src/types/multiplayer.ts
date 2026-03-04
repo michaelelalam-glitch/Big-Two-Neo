@@ -43,6 +43,10 @@ export interface Player {
   is_bot: boolean;
   bot_difficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty level (only for bot players)
   joined_at: string;
+  /** fix/rejoin: live connection state from room_players realtime subscription */
+  connection_status?: 'connected' | 'disconnected' | 'replaced_by_bot';
+  /** fix/rejoin: set when a human was replaced by a bot (human can reclaim seat) */
+  human_user_id?: string | null;
 }
 
 export interface GameState {
