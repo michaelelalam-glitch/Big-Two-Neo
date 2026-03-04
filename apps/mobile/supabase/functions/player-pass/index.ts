@@ -130,6 +130,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 3b. Clear persistent disconnect timer — player is actively playing
+    if (!player.is_bot && player.disconnect_timer_started_at) {
+      await supabaseClient
+        .from('room_players')
+        .update({ disconnect_timer_started_at: null })
+        .eq('id', player.id)
+        .eq('room_id', room.id);
+    }
+
     // 4a. Reject passes when game is already finished/game_over
     if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
       console.log('❌ [player-pass] Game already ended:', { game_phase: gameState.game_phase });

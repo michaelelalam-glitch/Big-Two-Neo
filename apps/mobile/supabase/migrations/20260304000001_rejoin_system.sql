@@ -22,7 +22,19 @@
 -- ============================================================================
 -- STEP 0: Enable pg_cron (needs superuser; no-op if already enabled)
 -- ============================================================================
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+DO $$
+BEGIN
+  -- Attempt to enable pg_cron, but ignore errors if privileges are insufficient.
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- On Supabase and other managed setups, this often requires superuser privileges.
+      -- Later logic already tolerates pg_cron being unavailable, so we can safely continue.
+      NULL;
+  END;
+END;
+$$;
 
 -- ============================================================================
 -- STEP 1: Schema additions
@@ -234,7 +246,8 @@ EXCEPTION WHEN OTHERS THEN
   RETURN jsonb_build_object('error', SQLERRM, 'processed_at', NOW());
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.process_disconnected_players() TO authenticated;
+-- Security: only edge functions (service_role) should invoke this expensive sweep.
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.process_disconnected_players() TO service_role;
 
 -- ============================================================================
@@ -343,7 +356,9 @@ EXCEPTION WHEN OTHERS THEN
   RETURN jsonb_build_object('success', FALSE, 'error', SQLERRM);
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.reconnect_player(UUID, UUID) TO authenticated;
+-- Security: only edge functions (service_role) should invoke this.
+-- The edge function verifies auth.uid() before calling the RPC.
+REVOKE ALL ON FUNCTION public.reconnect_player(UUID, UUID) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.reconnect_player(UUID, UUID) TO service_role;
 COMMENT ON FUNCTION public.reconnect_player(UUID, UUID) IS
 'Allows a human to reconnect to their seat. Handles both simple reconnect (was '
@@ -383,7 +398,9 @@ BEGIN
     AND connection_status = 'connected';  -- idempotent
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.mark_player_disconnected(UUID, UUID) TO authenticated;
+-- Security: only edge functions (service_role) should invoke this.
+REVOKE ALL ON FUNCTION public.mark_player_disconnected(UUID, UUID) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_player_disconnected(UUID, UUID) TO service_role;
 
 -- ============================================================================
 -- STEP 7: Helper — get_rejoin_status(room_id, user_id)
@@ -452,6 +469,8 @@ BEGIN
   );
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.get_rejoin_status(UUID, UUID) TO authenticated;
+-- Security: only edge functions (service_role) should invoke this.
+REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_rejoin_status(UUID, UUID) TO service_role;
 COMMENT ON FUNCTION public.get_rejoin_status IS
 'Returns the current rejoin status for a player in a room. Used on app-foreground to determine the UI state.';

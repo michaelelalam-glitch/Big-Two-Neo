@@ -95,6 +95,13 @@ export function useConnectionManager({
   const heartbeatCountRef     = useRef<number>(0);
   const appStateRef           = useRef<AppStateStatus>('active');
 
+  // Refs for callbacks used inside AppState/Realtime listeners
+  // to avoid stale closures when parent re-renders with new callback instances.
+  const onBotReplacedRef  = useRef(onBotReplaced);
+  const onRoomClosedRef   = useRef(onRoomClosed);
+  onBotReplacedRef.current  = onBotReplaced;
+  onRoomClosedRef.current   = onRoomClosed;
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const stopHeartbeat = useCallback(() => {
@@ -129,7 +136,7 @@ export function useConnectionManager({
       if (data?.replaced_by_bot) {
         setConnectionStatus('disconnected');
         stopHeartbeat();
-        onBotReplaced?.();
+        onBotReplacedRef.current?.();
         return;
       }
 
@@ -139,7 +146,7 @@ export function useConnectionManager({
     } catch (err) {
       console.warn('[useConnectionManager] heartbeat exception:', err);
     }
-  }, [enabled, roomId, playerId, stopHeartbeat, onBotReplaced]);
+  }, [enabled, roomId, playerId, stopHeartbeat]);
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat();
@@ -180,6 +187,14 @@ export function useConnectionManager({
       return null;
     }
   }, [roomId]);
+
+  // Keep stable refs for internal callbacks so effects always call the latest version
+  const checkRejoinStatusRef = useRef(checkRejoinStatus);
+  const startHeartbeatRef    = useRef(startHeartbeat);
+  const stopHeartbeatRef     = useRef(stopHeartbeat);
+  checkRejoinStatusRef.current = checkRejoinStatus;
+  startHeartbeatRef.current    = startHeartbeat;
+  stopHeartbeatRef.current     = stopHeartbeat;
 
   // ── Reconnect / reclaim ───────────────────────────────────────────────────
 
@@ -248,37 +263,42 @@ export function useConnectionManager({
       if (nextAppState === 'active' && prev !== 'active') {
         // App came to foreground — check server state before deciding what to do.
         // Do NOT call mark-disconnected or assume anything.
-        const status = await checkRejoinStatus();
+        const status = await checkRejoinStatusRef.current();
 
         if (!status) {
           // Network issue — cautiously resume heartbeat
-          startHeartbeat();
+          startHeartbeatRef.current();
           return;
         }
 
         switch (status.status) {
           case 'connected':
             // We never missed the window; just resume heartbeat
-            startHeartbeat();
+            startHeartbeatRef.current();
             break;
 
           case 'disconnected':
-            // Still in grace period — reconnect immediately
-            await reconnect();
+            // Still in grace period — just resume heartbeat.
+            // The update-heartbeat edge function will set connection_status back
+            // to 'connected' without clearing disconnect_timer_started_at.
+            // This ensures the persistent 60-second server-side timer is NOT reset
+            // by merely reopening the app. Only an explicit rejoin (button press)
+            // or active game action (play/pass) clears the timer.
+            startHeartbeatRef.current();
             break;
 
           case 'replaced_by_bot':
             // Bot took over; surface "reclaim seat" UI
             setConnectionStatus('disconnected');
-            onBotReplaced?.();
+            onBotReplacedRef.current?.();
             break;
 
           case 'room_closed':
-            onRoomClosed?.();
+            onRoomClosedRef.current?.();
             break;
 
           default:
-            startHeartbeat();
+            startHeartbeatRef.current();
         }
       } else if (nextAppState === 'background' || nextAppState === 'inactive') {
         // App went to background.
@@ -286,7 +306,7 @@ export function useConnectionManager({
         // The server will detect the silence and eventually mark us disconnected.
         // We do NOT proactively call mark-disconnected here — reopening the app
         // would restart the 60-second timer, disrupting in-progress games.
-        stopHeartbeat();
+        stopHeartbeatRef.current();
       }
     });
 
@@ -330,8 +350,8 @@ export function useConnectionManager({
 
           if (rec.connection_status === 'replaced_by_bot') {
             setConnectionStatus('disconnected');
-            stopHeartbeat();
-            onBotReplaced?.();
+            stopHeartbeatRef.current();
+            onBotReplacedRef.current?.();
           } else if (rec.connection_status === 'disconnected') {
             setConnectionStatus('disconnected');
           } else if (rec.connection_status === 'connected') {

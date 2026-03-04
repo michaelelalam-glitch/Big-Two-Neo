@@ -769,6 +769,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 3b. Clear persistent disconnect timer — player is actively playing.
+    // This proves the player is engaged and should not be replaced by a bot.
+    // Only applies to human players who have a timer running.
+    if (!player.is_bot && player.disconnect_timer_started_at) {
+      await supabaseClient
+        .from('room_players')
+        .update({ disconnect_timer_started_at: null })
+        .eq('id', player.id)
+        .eq('room_id', room.id);
+    }
+
     // 4a. Reject plays when game is already finished/game_over.
     //
     // IDEMPOTENCY EXCEPTION — "lost response" retry:
