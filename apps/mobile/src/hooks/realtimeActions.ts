@@ -252,8 +252,13 @@ export async function executePlayCards({
           if (newMatchError || !newMatchData) {
             gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
           } else if (newMatchData.game_over || newMatchData.already_advanced) {
-            // start_new_match safety guard detected game should be over — do NOT
-            // broadcast new_match_started; Realtime will deliver the game_over phase.
+            // start_new_match safety guard:
+            //   - If game_over is true, the game_over phase will be delivered via Realtime
+            //     and there is no next match to broadcast.
+            //   - If already_advanced is true (and game_over is false), another client has
+            //     already advanced the match; the new game_state will arrive via the DB
+            //     postgres_changes subscription, not via a game_over update.
+            // In both cases we skip broadcasting new_match_started here.
             gameLogger.warn('[useRealtime] ⚠️ start_new_match returned already_advanced/game_over — skipping new_match_started broadcast');
           } else {
             gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);

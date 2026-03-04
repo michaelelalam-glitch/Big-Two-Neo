@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -64,17 +64,14 @@ export default function GameSettingsModal({
     onLeaveGame();
   };
 
-  const handleCopyRoomCode = useCallback(async () => {
+  const handleCopyRoomCode = useCallback(() => {
     if (!roomCode) return;
-    try {
-      await Share.share({
-        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
-        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
-      });
-      if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-    } catch {
-      // User dismissed the share sheet — no action needed
-    }
+    Clipboard.setString(roomCode);
+    if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
+    Alert.alert(
+      i18n.t('lobby.copiedTitle') || 'Copied!',
+      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard.`,
+    );
   }, [roomCode, vibrationEnabled]);
 
   const handleShareRoomCode = useCallback(async () => {
