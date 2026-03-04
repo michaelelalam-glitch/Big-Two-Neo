@@ -241,8 +241,11 @@ export function useGameStatsUploader({
             : winnerPlayer.user_id;
         }
 
-        // Extract bot_difficulty from the first bot player (all bots share the same difficulty)
-        const botDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? null;
+        // Extract bot_difficulty from the first bot player (all bots share the same difficulty).
+        // Default to 'medium' when the column is NULL so that prior games recorded before
+        // difficulty selection was added still display correctly in Recent Games.
+        const botPlayer = multiplayerPlayers.find(p => p.is_bot);
+        const botDifficulty = botPlayer ? (botPlayer.bot_difficulty ?? 'medium') : null;
 
         const payload = {
           room_id: roomInfo.id,

@@ -468,6 +468,7 @@ export function MultiplayerGame() {
       isConnected={isConnected}
       showSettings={showSettings}
       setShowSettings={setShowSettings}
+      roomCode={roomCode}
       effectivePlayerHand={effectivePlayerHand}
       selectedCardIds={selectedCardIds}
       setSelectedCardIds={setSelectedCardIds}

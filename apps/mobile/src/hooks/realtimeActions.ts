@@ -265,6 +265,10 @@ export async function executePlayCards({
 
           if (newMatchError || !newMatchData) {
             gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
+          } else if (newMatchData.game_over || newMatchData.already_advanced) {
+            // start_new_match safety guard detected game should be over — do NOT
+            // broadcast new_match_started; Realtime will deliver the game_over phase.
+            gameLogger.warn('[useRealtime] ⚠️ start_new_match returned already_advanced/game_over — skipping new_match_started broadcast');
           } else {
             gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
             await broadcastMessage('new_match_started', {
@@ -363,6 +367,11 @@ export async function executePass({
 
   if (!passingPlayer || gameState.current_turn !== passingPlayer.player_index) {
     throw new Error('Not your turn');
+  }
+
+  // Guard: cannot pass when leading (no last play on board — player must open the trick)
+  if (!gameState.last_play) {
+    throw new Error('You cannot pass when leading — you must play cards to start the trick');
   }
 
   // Guard against auto-pass race condition
