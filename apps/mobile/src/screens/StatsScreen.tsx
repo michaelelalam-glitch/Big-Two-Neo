@@ -309,7 +309,6 @@ export default function StatsScreen() {
             const wasBot = item[`player_${num}_was_bot` as keyof GameHistoryEntry] as boolean | null;
             const originalUsername = item[`player_${num}_original_username` as keyof GameHistoryEntry] as string | null;
             const disconnected = item[`player_${num}_disconnected` as keyof GameHistoryEntry] as boolean | null;
-            const cardsLeft = item[`player_${num}_cards_left` as keyof GameHistoryEntry] as number | null;
             if (!username) return null;
 
             // A player is a bot if was_bot is explicitly true, OR if they have an
@@ -340,9 +339,6 @@ export default function StatsScreen() {
                 </View>
                 <View style={styles.historyPlayerScoreRow}>
                   <Text style={styles.historyPlayerScore}>{score} pts</Text>
-                  {cardsLeft != null && cardsLeft > 0 && (
-                    <Text style={styles.cardsLeftBadge}>🃏{cardsLeft}</Text>
-                  )}
                 </View>
               </View>
             );

@@ -206,34 +206,37 @@ export default function GameSettingsModal({
                 <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
               </Pressable>
 
-              <View style={styles.divider} />
-
-              {/* Room Code - Multiplayer only */}
+              {/* Room Code — Multiplayer only.
+                  The divider above is also gated on roomCode so single-player games
+                  don't get two consecutive dividers with nothing between them. */}
               {roomCode ? (
-                <View style={styles.roomCodeContainer}>
-                  <View style={styles.roomCodeLabelRow}>
-                    <Text style={styles.roomCodeLabel}>🏠 Room Code</Text>
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.roomCodeContainer}>
+                    <View style={styles.roomCodeLabelRow}>
+                      <Text style={styles.roomCodeLabel}>🏠 Room Code</Text>
+                    </View>
+                    <Text style={styles.roomCodeValue}>{roomCode}</Text>
+                    <View style={styles.roomCodeButtonsRow}>
+                      <Pressable
+                        style={styles.roomCodeAction}
+                        onPress={handleCopyRoomCode}
+                        accessibilityRole="button"
+                        accessibilityLabel="Copy room code"
+                      >
+                        <Text style={styles.roomCodeActionText}>📋 Copy</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.roomCodeAction}
+                        onPress={handleShareRoomCode}
+                        accessibilityRole="button"
+                        accessibilityLabel="Share room code"
+                      >
+                        <Text style={styles.roomCodeActionText}>🔗 Share</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Text style={styles.roomCodeValue}>{roomCode}</Text>
-                  <View style={styles.roomCodeButtonsRow}>
-                    <Pressable
-                      style={styles.roomCodeAction}
-                      onPress={handleCopyRoomCode}
-                      accessibilityRole="button"
-                      accessibilityLabel="Copy room code"
-                    >
-                      <Text style={styles.roomCodeActionText}>📋 Copy</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.roomCodeAction}
-                      onPress={handleShareRoomCode}
-                      accessibilityRole="button"
-                      accessibilityLabel="Share room code"
-                    >
-                      <Text style={styles.roomCodeActionText}>🔗 Share</Text>
-                    </Pressable>
-                  </View>
-                </View>
+                </>
               ) : null}
 
               <View style={styles.divider} />

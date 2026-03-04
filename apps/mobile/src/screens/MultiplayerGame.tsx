@@ -304,6 +304,10 @@ export function MultiplayerGame() {
     multiplayerPlayers,
     roomInfo,
     gameStartedAt,
+    // Pass the host-selected difficulty as a fallback for when the DB column is NULL.
+    // The navigation param defaults to 'medium' so non-host players who didn't select
+    // a difficulty still get a sensible fallback.
+    botDifficultyFallback: botDifficulty,
   });
 
   // Multiplayer UI derived state

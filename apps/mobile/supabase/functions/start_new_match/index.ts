@@ -130,11 +130,19 @@ Deno.serve(async (req) => {
       if (currentScores?.some(p => (p.score || 0) >= 101)) {
         console.log('[start_new_match] 🏆 Safety guard: player has ≥ 101 points — forcing game_over');
         // Ensure game_phase reflects game_over (it may still be 'finished' due to the race)
-        await supabaseClient
+        const { error: gamePhaseUpdateError } = await supabaseClient
           .from('game_state')
           .update({ game_phase: 'game_over' })
           .eq('room_id', room_id)
           .neq('game_phase', 'playing'); // Do not clobber a legitimately running game
+
+        if (gamePhaseUpdateError) {
+          console.error(
+            '[start_new_match] ❌ Failed to force game_phase=game_over for room',
+            room_id,
+            gamePhaseUpdateError
+          );
+        }
 
         return new Response(
           JSON.stringify({

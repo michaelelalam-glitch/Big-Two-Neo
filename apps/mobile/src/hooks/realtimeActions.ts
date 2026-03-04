@@ -258,8 +258,10 @@ export async function executePlayCards({
           } else {
             gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
             await broadcastMessage('new_match_started', {
-              match_number: newMatchData.match_number,
-              starting_player_index: newMatchData.starting_player_index,
+              // In the else branch (not game_over, not already_advanced) these fields
+              // are always populated by the edge function for a genuine new-match response.
+              match_number: newMatchData.match_number!,
+              starting_player_index: newMatchData.starting_player_index!,
             });
           }
         } catch (matchStartError) {

@@ -285,8 +285,9 @@ export default function LobbyScreen() {
             // the frontend's game_state subscription has time to receive the INSERT event.
             setTimeout(() => {
               // CRITICAL FIX: Pass forceNewGame: true to prevent loading stale cached game state
-              // This ensures all players start with fresh state from server, not AsyncStorage
-              navigation.replace('Game', { roomCode, forceNewGame: true });
+              // This ensures all players start with fresh state from server, not AsyncStorage.
+              // Pass botDifficulty so the host's selected difficulty is preserved in stats.
+              navigation.replace('Game', { roomCode, forceNewGame: true, botDifficulty });
             }, 100);
           }
         }

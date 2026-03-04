@@ -23,6 +23,12 @@ interface UseGameStatsUploaderOptions {
   roomInfo: RoomInfo | null;
   /** ISO timestamp when game started (from when the room started playing) */
   gameStartedAt: string | null;
+  /**
+   * Fallback difficulty used when the DB `bot_difficulty` column is NULL for bot players.
+   * Pass the value from the route params (selected in the lobby) so that the correct
+   * difficulty is recorded even when the RPC hasn't persisted it to `room_players` yet.
+   */
+  botDifficultyFallback?: 'easy' | 'medium' | 'hard';
 }
 
 export function useGameStatsUploader({
@@ -31,6 +37,7 @@ export function useGameStatsUploader({
   multiplayerPlayers,
   roomInfo,
   gameStartedAt,
+  botDifficultyFallback,
 }: UseGameStatsUploaderOptions): void {
   // Prevent duplicate uploads if state updates multiple times while 'finished'
   const hasUploadedRef = useRef(false);
@@ -242,10 +249,14 @@ export function useGameStatsUploader({
         }
 
         // Extract bot_difficulty from the first bot player (all bots share the same difficulty).
-        // Default to 'medium' when the column is NULL so that prior games recorded before
-        // difficulty selection was added still display correctly in Recent Games.
+        // Priority order:
+        //   1. DB column value  (set by start_game_with_bots RPC)
+        //   2. Route-param fallback  (passed from the lobby difficulty selector)
+        //   3. 'medium'  (safe default for games recorded before difficulty tracking was added)
         const botPlayer = multiplayerPlayers.find(p => p.is_bot);
-        const botDifficulty = botPlayer ? (botPlayer.bot_difficulty ?? 'medium') : null;
+        const botDifficulty = botPlayer
+          ? (botPlayer.bot_difficulty ?? botDifficultyFallback ?? 'medium')
+          : null;
 
         const payload = {
           room_id: roomInfo.id,
@@ -301,5 +312,6 @@ export function useGameStatsUploader({
     multiplayerPlayers,
     roomInfo,
     gameStartedAt,
+    botDifficultyFallback,
   ]);
 }
