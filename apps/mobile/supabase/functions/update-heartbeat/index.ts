@@ -52,7 +52,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json();
+    let body: any;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('❌ [update-heartbeat] Invalid JSON body:', parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const { room_id, player_id, heartbeat_count } = body;
 
     if (!room_id || !player_id) {

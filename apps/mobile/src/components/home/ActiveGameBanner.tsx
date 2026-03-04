@@ -130,6 +130,10 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
       return;
     }
 
+    // Use `let` so the callback can clear the interval once it expires,
+    // preventing onBotReplaced / onTimerExpired from firing every second.
+    let interval: ReturnType<typeof setInterval> | undefined;
+
     const updateCountdown = () => {
       const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
       const remaining = BOT_REPLACEMENT_SECONDS - elapsed;
@@ -137,6 +141,11 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
       if (remaining <= 0) {
         setCountdown(0);
         setBotHasReplaced(true);
+        // Stop the interval immediately so callbacks fire exactly once.
+        if (interval) {
+          clearInterval(interval);
+          interval = undefined;
+        }
         onBotReplaced?.();
         // Notify parent so it can re-check room status (may be closed if all-bots)
         onTimerExpired?.();
@@ -147,7 +156,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
+    interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced, onTimerExpired]);
 

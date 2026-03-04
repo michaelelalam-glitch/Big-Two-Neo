@@ -64,10 +64,18 @@ Deno.serve(async (req) => {
     }
 
     // Use the server-side function which guards offline rooms
-    await supabaseClient.rpc('mark_player_disconnected', {
+    const { error: rpcError } = await supabaseClient.rpc('mark_player_disconnected', {
       p_room_id: room_id,
       p_user_id: user.id,
     });
+
+    if (rpcError) {
+      console.error('❌ [mark-disconnected] RPC error:', rpcError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to mark player as disconnected' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('✅ [mark-disconnected] Success');
     return new Response(

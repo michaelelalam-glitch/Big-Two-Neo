@@ -14,7 +14,7 @@
  * fix/rejoin branch
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -60,6 +60,16 @@ export function RejoinModal({
   const [isReclaiming, setIsReclaiming] = useState(false);
   const [reclaimed, setReclaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset internal state each time the modal is opened so a previously-shown
+  // "Seat reclaimed" or error state does not bleed into the next appearance.
+  useEffect(() => {
+    if (visible) {
+      setIsReclaiming(false);
+      setReclaimed(false);
+      setError(null);
+    }
+  }, [visible]);
 
   const handleReclaim = async () => {
     setIsReclaiming(true);
