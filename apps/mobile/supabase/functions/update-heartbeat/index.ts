@@ -137,8 +137,63 @@ Deno.serve(async (req) => {
     // Default to 1 (not 0) so the first heartbeat doesn't trigger an immediate sweep.
     const count =
       Number.isInteger(heartbeat_count) && heartbeat_count > 0 ? heartbeat_count : 1;
+    // ── Bot-coordinator watchdog (every heartbeat) ──────────────────────────
+    // If the current turn in the game belongs to a bot, trigger bot-coordinator.
+    // This catches bots that were placed by pg_cron (which can't call edge functions)
+    // or any code path that failed to trigger bot-coordinator after insertion.
+    // Bot-coordinator has a row-based lease so simultaneous triggers are safe.
+    const botWatchdogPromise = (async () => {
+      try {
+        const { data: gs } = await supabaseClient
+          .from('game_state')
+          .select('current_turn, game_phase')
+          .eq('room_id', room_id)
+          .maybeSingle();
+
+        // Only act for actively-playing games
+        if (!gs || (gs.game_phase !== 'playing' && gs.game_phase !== 'normal_play')) return;
+
+        const { data: turnPlayer } = await supabaseClient
+          .from('room_players')
+          .select('is_bot')
+          .eq('room_id', room_id)
+          .eq('player_index', gs.current_turn)
+          .maybeSingle();
+
+        if (!turnPlayer?.is_bot) return;
+
+        // Current turn is a bot — ensure coordinator is running
+        const { data: roomInfo } = await supabaseClient
+          .from('rooms')
+          .select('code')
+          .eq('id', room_id)
+          .maybeSingle();
+
+        if (!roomInfo?.code) return;
+
+        console.log(`[update-heartbeat] 🤖 Bot watchdog: current turn is a bot in room ${roomInfo.code}, triggering coordinator`);
+        await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            'x-bot-coordinator': 'true',
+          },
+          body: JSON.stringify({ room_code: roomInfo.code }),
+        });
+      } catch (watchdogErr: any) {
+        console.warn('[update-heartbeat] Bot watchdog error (non-critical):', watchdogErr?.message);
+      }
+    })();
+
+    try {
+      (globalThis as any).EdgeRuntime?.waitUntil(botWatchdogPromise);
+    } catch (_) {
+      await botWatchdogPromise;
+    }
+
     if (count % 6 === 0) {
-      // Await the sweep result to check if bots replaced any players
+      // Periodic sweep: mark stale heartbeats as disconnected and replace with bots
       const sweepPromise = (async () => {
         try {
           const { data: sweepResult, error: sweepError } = await supabaseClient
@@ -149,8 +204,29 @@ Deno.serve(async (req) => {
             return;
           }
 
-          // If bots replaced players in any rooms, trigger bot-coordinator for each
-          const affectedCodes: string[] = sweepResult?.rooms_with_bot_replacements ?? [];
+          // Primary: use rooms_with_bot_replacements from the updated function
+          let affectedCodes: string[] = sweepResult?.rooms_with_bot_replacements ?? [];
+
+          // Fallback: if migration not yet deployed, rooms_with_bot_replacements may be absent.
+          // Query directly for recently-replaced bot rows in playing rooms.
+          if (affectedCodes.length === 0 && (sweepResult?.replaced_with_bot ?? 0) > 0) {
+            const { data: recentBots } = await supabaseClient
+              .from('room_players')
+              .select('rooms!inner(code, status)')
+              .eq('connection_status', 'replaced_by_bot')
+              .eq('is_bot', true)
+              .eq('rooms.status', 'playing')
+              .gte('last_seen_at', new Date(Date.now() - 90_000).toISOString());
+
+            if (recentBots) {
+              const codes = recentBots
+                .map((r: any) => r.rooms?.code)
+                .filter((c: any): c is string => typeof c === 'string');
+              affectedCodes = [...new Set(codes)];
+              console.log(`[update-heartbeat] 🔍 Fallback found replacement rooms: [${affectedCodes.join(', ')}]`);
+            }
+          }
+
           if (affectedCodes.length > 0) {
             console.log(`[update-heartbeat] 🤖 Bot replacements in ${affectedCodes.length} room(s), triggering bot-coordinator...`);
 

@@ -115,9 +115,38 @@ export default function HomeScreen() {
           }
         }
       } else {
-        setCurrentRoom(null);
-        setCurrentRoomStatus(undefined);
-        setDisconnectTimestamp(null);
+        // ── Fallback: check if this player was replaced by a bot ────────────
+        // After replacement, user_id = NULL and human_user_id = our user.id.
+        // The game may still be running with other humans. If so, keep the
+        // banner visible so the player can "Replace Bot & Rejoin".
+        try {
+          const { data: replacedData } = await supabase
+            .from('room_players')
+            .select('room_id, rooms!inner(code, status)')
+            .eq('human_user_id', user.id)
+            .eq('connection_status', 'replaced_by_bot')
+            .in('rooms.status', ['playing'])
+            .maybeSingle();
+
+          const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
+          if (rd?.rooms?.code) {
+            // We were replaced but the game still has humans — keep banner open
+            roomLogger.info(`🤖 Bot replaced player in room ${rd.rooms.code} — keeping rejoin banner`);
+            setCurrentRoom(rd.rooms.code);
+            setCurrentRoomStatus('playing');
+            // Force countdown past zero so the banner shows "Replace Bot & Rejoin"
+            setDisconnectTimestamp(Date.now() - 61000);
+          } else {
+            // Truly no active game — clear everything
+            setCurrentRoom(null);
+            setCurrentRoomStatus(undefined);
+            setDisconnectTimestamp(null);
+          }
+        } catch {
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+        }
       }
     } catch (error: unknown) {
       roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
