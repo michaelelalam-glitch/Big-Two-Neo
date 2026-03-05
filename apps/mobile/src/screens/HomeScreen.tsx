@@ -918,7 +918,7 @@ export default function HomeScreen() {
               }}
             >
               <Text style={styles.mainButtonText}>{i18n.t('home.cancelSearch')}</Text>
-              <Text style={styles.mainButtonSubtext}>{i18n.t('common.loading')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('home.findingRankedMatch')}</Text>
             </TouchableOpacity>
           )}
 

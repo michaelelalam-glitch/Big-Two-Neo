@@ -127,7 +127,7 @@ export function useGameActions({
             const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
             if (missingCard) {
               soundManager.playSound(SoundType.INVALID_MOVE);
-              showError('Card not in hand');
+              showError(i18n.t('game.cardNotInHand'));
               isPlayingCardsRef.current = false;
               return;
             }
@@ -144,7 +144,7 @@ export function useGameActions({
             // 3. First play of game must include the 3 of Diamonds
             if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D')) {
               soundManager.playSound(SoundType.INVALID_MOVE);
-              showError('First play must include 3♦');
+              showError(i18n.t('game.firstPlayMustInclude3D'));
               isPlayingCardsRef.current = false;
               return;
             }

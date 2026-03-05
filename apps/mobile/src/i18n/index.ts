@@ -284,6 +284,8 @@ export interface Translations {
     selectCards: string;
     cannotBeat: string;
     invalidCombo: string;
+    cardNotInHand: string;
+    firstPlayMustInclude3D: string;
     mustPlayHigher: string;
     autoPassTimer: string;
     secondsRemaining: string;
@@ -781,6 +783,8 @@ const en: Translations = {
     selectCards: 'Select cards to play',
     cannotBeat: 'Cannot beat this combo',
     invalidCombo: 'Invalid card combination',
+    cardNotInHand: 'Card not in hand',
+    firstPlayMustInclude3D: 'First play must include 3♦',
     mustPlayHigher: 'Must play higher combo',
     autoPassTimer: 'Auto-pass in',
     secondsRemaining: 'seconds if no manual pass',
@@ -1214,6 +1218,8 @@ const ar: Translations = {
     selectCards: 'حدد البطاقات للعب',
     cannotBeat: 'لا يمكن التغلب على هذا الكومبو',
     invalidCombo: 'مجموعة بطاقات غير صالحة',
+    cardNotInHand: 'البطاقة ليست في يدك',
+    firstPlayMustInclude3D: 'اللعبة الأولى يجب أن تتضمن 3♦',
     mustPlayHigher: 'يجب لعب كومبو أعلى',
     autoPassTimer: 'التمرير التلقائي في',
     secondsRemaining: 'ثانية إذا لم يتم التمرير يدويًا',
@@ -1725,6 +1731,8 @@ const de: Translations = {
     selectCards: 'Karten zum Spielen auswählen',
     cannotBeat: 'Kann diese Kombo nicht schlagen',
     invalidCombo: 'Ungültige Kartenkombination',
+    cardNotInHand: 'Karte nicht in der Hand',
+    firstPlayMustInclude3D: 'Erstes Spiel muss 3♦ enthalten',
     mustPlayHigher: 'Muss höhere Kombo spielen',
     autoPassTimer: 'Auto-Pass in',
     secondsRemaining: 'Sekunden, wenn kein manuelles Passen',

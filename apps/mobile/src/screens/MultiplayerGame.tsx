@@ -313,7 +313,6 @@ export function MultiplayerGame() {
       },
       will_trigger_bots: coordinatorStatus,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- realtimePlayers excluded: changes every heartbeat; isMultiplayerDataReady/isMultiplayerHost/playersWithCards cover all meaningful transitions
   }, [isMultiplayerDataReady, isMultiplayerHost, playersWithCards]);
 
   // Server-side bot coordinator fallback (Tasks #551/#552)
@@ -431,8 +430,8 @@ export function MultiplayerGame() {
     if (!multiplayerGameState) return null;
     return {
       lastPlay: multiplayerGameState.last_play ?? null,
-      isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
-      playerHand: (multiplayerPlayerHand ?? []) as import('../game/types').Card[],
+      isFirstPlayOfGame: multiplayerGameState.match_number === 1 && multiplayerGameState.last_play === null,
+      playerHand: (multiplayerPlayerHand ?? []) as Card[],
     };
   }, [multiplayerGameState, multiplayerPlayerHand]);
 
