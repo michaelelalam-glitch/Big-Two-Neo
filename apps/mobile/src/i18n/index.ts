@@ -178,6 +178,11 @@ export interface Translations {
     rejoin: string;
     replaceBotAndRejoin: string;
     cancelSearch: string;
+    findingRankedMatch: string;
+    offlineMatchSubtitle: string;
+    botReplacingYou: string;
+    beforeBotReplaces: string;
+    botPlayingForYou: string;
   };
 
   // How to Play Screen
@@ -300,6 +305,19 @@ export interface Translations {
     stay: string;
     spectatorMode: string;
     spectatorDescription: string;
+    initializingGame: string;
+    settingUpEngine: string;
+    matchHistoryTitle: string;
+    finalScoresTitle: string;
+    matchColumn: string;
+    totalRow: string;
+    pastMatchesHeader: string;
+    matchNum: string;
+    matchCurrentLabel: string;
+    noPlaysRecorded: string;
+    noCardsThisMatch: string;
+    cardsWillAppear: string;
+    noPlayHistoryYet: string;
   };
   
   // Game End Modal
@@ -715,6 +733,11 @@ const en: Translations = {
     rejoin: '🔄 Rejoin',
     replaceBotAndRejoin: '🔄 Replace Bot & Rejoin',
     cancelSearch: '❌ Cancel Search',
+    findingRankedMatch: '🔍 Finding ranked match...',
+    offlineMatchSubtitle: 'Match {{match}} · vs AI',
+    botReplacingYou: 'Bot replacing you...',
+    beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
+    botPlayingForYou: '🤖 A bot is playing for you',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -759,10 +782,10 @@ const en: Translations = {
     rankTiersTitle: 'Rank Tiers:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Reconnection & Disconnection',
-    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect before a bot replaces you.',
+    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect and take back your position from the bot.',
     disconnectGrace: '⏱️ Grace Period: 60 seconds to resume your app and restore your position.',
-    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will play for you.',
-    spectatorMode: '👁️ Spectator Mode: If you reconnect after bot replacement, you can watch the match but cannot play.',
+    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will fill in for you.',
+    spectatorMode: '🔄 Rejoin & Replace Bot: You can rejoin the game at any time during the match and take over your hand from the bot. Tap "Replace Bot & Rejoin" to instantly resume where the bot left off.',
   },
   game: {
     yourTurn: 'Your Turn',
@@ -799,6 +822,19 @@ const en: Translations = {
     stay: 'Stay',
     spectatorMode: 'Spectator Mode',
     spectatorDescription: 'You are watching this match. A bot replaced you after disconnection.',
+    initializingGame: 'Initializing game...',
+    settingUpEngine: 'Setting up game engine...',
+    matchHistoryTitle: 'Match {{n}} History',
+    finalScoresTitle: '🏁 Final Scores',
+    matchColumn: 'Match',
+    totalRow: 'Total',
+    pastMatchesHeader: 'Past Matches (tap to expand)',
+    matchNum: 'Match {{n}}',
+    matchCurrentLabel: '🎯 Match {{n}} (Current)',
+    noPlaysRecorded: 'No plays recorded',
+    noCardsThisMatch: '🃏 No cards played yet this match',
+    cardsWillAppear: 'Cards will appear here after each play',
+    noPlayHistoryYet: 'No play history yet. Start playing to see card history!',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1198,6 +1234,11 @@ const ar: Translations = {
     rejoin: '🔄 إعادة الانضمام',
     replaceBotAndRejoin: '🔄 استبدال الروبوت والانضمام',
     cancelSearch: '❌ إلغاء البحث',
+    findingRankedMatch: '🔍 البحث عن مباراة مصنفة...',
+    offlineMatchSubtitle: 'مباراة {{match}} · ضد الذكاء الاصطناعي',
+    botReplacingYou: 'يحل البوت محلك...',
+    beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
+    botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
   },
   game: {
     yourTurn: 'دورك',
@@ -1234,6 +1275,19 @@ const ar: Translations = {
     stay: 'البقاء',
     spectatorMode: 'وضع المشاهدة',
     spectatorDescription: 'أنت تشاهد هذه المباراة. حل بوت محلك بعد الانقطاع.',
+    initializingGame: 'جارٍ تهيئة اللعبة...',
+    settingUpEngine: 'جارٍ إعداد محرك اللعبة...',
+    matchHistoryTitle: 'سجل المباراة {{n}}',
+    finalScoresTitle: '🏁 النتائج النهائية',
+    matchColumn: 'مباراة',
+    totalRow: 'المجموع',
+    pastMatchesHeader: 'المباريات السابقة (اضغط للتوسيع)',
+    matchNum: 'مباراة {{n}}',
+    matchCurrentLabel: '🎯 مباراة {{n}} (الحالية)',
+    noPlaysRecorded: 'لا توجد لعبات مسجلة',
+    noCardsThisMatch: '🃏 لم يتم لعب أي بطاقات بعد في هذه المباراة',
+    cardsWillAppear: 'ستظهر البطاقات هنا بعد كل لعب',
+    noPlayHistoryYet: 'لا يوجد سجل لعب بعد. ابدأ اللعب لرؤية سجل البطاقات!',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -1559,10 +1613,10 @@ const ar: Translations = {
     rankTiersTitle: 'مستويات الرتب:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 إعادة الاتصال والانقطاع',
-    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال قبل أن يحل بوت محلك.',
+    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال واسترداد موضعك من البوت.',
     disconnectGrace: '⏱️ فترة السماح: 60 ثانية لاستئناف التطبيق واستعادة موضعك.',
     botReplacement: '🤖 استبدال البوت: بعد 60 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
-    spectatorMode: '👁️ وضع المشاهدة: إذا أعدت الاتصال بعد استبدال البوت، يمكنك مشاهدة المباراة ولكن لا يمكنك اللعب.',
+    spectatorMode: '🔄 إعادة الانضمام واستبدال البوت: يمكنك إعادة الانضمام في أي وقت أثناء المباراة واستعادة يدك من البوت. اضغط على "استبدال البوت وإعادة الانضمام" للاستئناف فوراً.',
   },
 };
 
@@ -1711,6 +1765,11 @@ const de: Translations = {
     rejoin: '🔄 Wieder beitreten',
     replaceBotAndRejoin: '🔄 Bot ersetzen & beitreten',
     cancelSearch: '❌ Suche abbrechen',
+    findingRankedMatch: '🔍 Suche nach gerangetem Spiel...',
+    offlineMatchSubtitle: 'Match {{match}} · gegen KI',
+    botReplacingYou: 'Bot ersetzt dich...',
+    beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
+    botPlayingForYou: '🤖 Ein Bot spielt für dich',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -1747,6 +1806,19 @@ const de: Translations = {
     stay: 'Bleiben',
     spectatorMode: 'Zuschauermodus',
     spectatorDescription: 'Du schaust bei diesem Spiel zu. Ein Bot hat dich nach der Trennung ersetzt.',
+    initializingGame: 'Spiel wird initialisiert...',
+    settingUpEngine: 'Spielengine wird eingerichtet...',
+    matchHistoryTitle: 'Runde {{n}} Verlauf',
+    finalScoresTitle: '🏁 Finale Ergebnisse',
+    matchColumn: 'Runde',
+    totalRow: 'Gesamt',
+    pastMatchesHeader: 'Vergangene Spiele (tippen zum Erweitern)',
+    matchNum: 'Runde {{n}}',
+    matchCurrentLabel: '🎯 Runde {{n}} (Aktuell)',
+    noPlaysRecorded: 'Keine Spielzüge aufgezeichnet',
+    noCardsThisMatch: '🃏 Noch keine Karten in dieser Runde gespielt',
+    cardsWillAppear: 'Karten erscheinen hier nach jedem Spielzug',
+    noPlayHistoryYet: 'Noch kein Spielverlauf. Spiele um den Kartenverlauf zu sehen!',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
@@ -2072,10 +2144,10 @@ const de: Translations = {
     rankTiersTitle: 'Rangstufen:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Wiederverbindung & Trennung',
-    reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden, bevor ein Bot dich ersetzt.',
+    reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
     disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
     botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
-    spectatorMode: '👁️ Zuschauermodus: Wenn du dich nach dem Bot-Ersatz wieder verbindest, kannst du das Spiel ansehen, aber nicht spielen.',
+    spectatorMode: '🔄 Wiedereintreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder eintreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & Wiedereintreten" um sofort weiterzuspielen.',
   },
 };
 

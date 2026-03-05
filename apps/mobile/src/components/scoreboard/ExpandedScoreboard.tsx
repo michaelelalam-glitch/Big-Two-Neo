@@ -19,6 +19,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { ExpandedScoreboardProps } from '../../types/scoreboard';
 import { useExpandedScoreboardStyles } from './hooks/useResponsiveStyles';
 import { ScoreboardColors, getScoreColor, getPointsColor } from './styles/colors';
+import { i18n } from '../../i18n';
 
 export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
   playerNames,
@@ -40,7 +41,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
       {/* Header */}
       <View style={styles.expandedHeader}>
         <Text style={styles.expandedTitle}>
-          {isGameFinished ? '🏁 Final Scores' : `Match ${matchNumber} History`}
+          {isGameFinished ? i18n.t('game.finalScoresTitle') : i18n.t('game.matchHistoryTitle', { n: matchNumber })}
         </Text>
         
         <View style={styles.headerButtons}>
@@ -68,7 +69,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
               accessibilityHint="Return to compact scoreboard view"
               accessibilityRole="button"
             >
-              <Text style={styles.closeButtonText}>◀ Close</Text>
+              <Text style={styles.closeButtonText}>◀ {i18n.t('common.close')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -85,7 +86,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
             <View style={styles.tableHeaderRow}>
             {/* Match # column */}
             <View style={[styles.tableHeaderCell, styles.tableHeaderCellFirst]}>
-              <Text style={styles.tableHeaderText}>Match</Text>
+              <Text style={styles.tableHeaderText}>{i18n.t('game.matchColumn')}</Text>
             </View>
             
             {/* Player name columns */}
@@ -173,7 +174,7 @@ export const ExpandedScoreboard: React.FC<ExpandedScoreboardProps> = ({
             {/* Label */}
             <View style={[styles.tableCell, styles.tableCellFirst, styles.totalCell]}>
               <Text style={[styles.tableCellText, styles.totalCellText]}>
-                Total
+                {i18n.t('game.totalRow')}
               </Text>
             </View>
             

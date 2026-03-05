@@ -267,7 +267,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           <Text style={styles.subtitle}>
             {isOnline
               ? `${i18n.t('lobby.roomCode')}: ${gameInfo.roomCode} · ${onlineRoomStatus === 'playing' ? i18n.t('home.inProgress') : i18n.t('home.waitingStatus')}`
-              : `Match ${gameInfo.matchNumber || 1} · vs AI`}
+              : i18n.t('home.offlineMatchSubtitle', { match: gameInfo.matchNumber || 1 })}
           </Text>
         </View>
       </View>
@@ -283,7 +283,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
               styles.countdownText,
               countdown <= 15 && styles.countdownTextUrgent,
             ]}>
-              {countdown <= 0 ? 'Bot replacing you...' : `⏱ ${countdown}s before bot replaces you`}
+              {countdown <= 0 ? i18n.t('home.botReplacingYou') : i18n.t('home.beforeBotReplaces', { seconds: countdown })}
             </Text>
           </View>
         </View>
@@ -294,7 +294,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         <View style={styles.countdownRow}>
           <View style={styles.botReplacedBadge}>
             <Text style={styles.botReplacedText}>
-              🤖 A bot is playing for you
+              {i18n.t('home.botPlayingForYou')}
             </Text>
           </View>
         </View>

@@ -98,7 +98,7 @@ export const useScoreboardContainerStyles = () => {
       right: 0,
       alignItems: 'center' as const,
       maxWidth: dims.isPortrait 
-        ? dims.screenWidth * 0.9 
+        ? undefined 
         : dims.isLargeDevice 
           ? dims.moderateScale(500) 
           : dims.moderateScale(400),

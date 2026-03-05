@@ -20,6 +20,7 @@ import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { PlayHistoryModalProps, PlayHistoryMatch, PlayHistoryHand } from '../../types/scoreboard';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
+import { i18n } from '../../i18n';
 
 // Type for FlatList items (header, current match, past matches)
 type ListItem = 
@@ -114,7 +115,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
           >
             <View style={styles.matchCardHeaderTouchable}>
               <Text style={styles.matchCardTitle}>
-                🎯 Match {currentMatch} (Current)
+                {i18n.t('game.matchCurrentLabel', { n: currentMatch })}
               </Text>
               <Text style={styles.matchCardIcon}>
                 {collapsedMatches.has(currentMatch) ? '▶' : '▼'}
@@ -128,10 +129,10 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               {item.data.hands.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
-                  🃏 No cards played yet this match
+                  {i18n.t('game.noCardsThisMatch')}
                 </Text>
                 <Text style={styles.emptyStateTextSmall}>
-                  Cards will appear here after each play
+                  {i18n.t('game.cardsWillAppear')}
                 </Text>
               </View>
             ) : (
@@ -165,7 +166,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     if (item.type === 'pastHeader') {
       return (
         <Text style={styles.pastMatchesHeaderText}>
-          Past Matches (tap to expand)
+          {i18n.t('game.pastMatchesHeader')}
         </Text>
       );
     }
@@ -187,7 +188,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
           >
             <View style={styles.matchCardHeaderTouchable}>
               <Text style={styles.matchCardTitle}>
-                Match {match.matchNumber}
+                {i18n.t('game.matchNum', { n: match.matchNumber })}
               </Text>
               <Text style={styles.matchCardIcon}>
                 {isCollapsed ? '▶' : '▼'}
@@ -201,7 +202,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               {match.hands.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
-                    No plays recorded
+                    {i18n.t('game.noPlaysRecorded')}
                   </Text>
                 </View>
               ) : (
@@ -251,7 +252,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>📜 Play History</Text>
+            <Text style={styles.modalTitle}>📜 {i18n.t('game.playHistory')}</Text>
             
             <TouchableOpacity
               style={styles.modalCloseButton}
@@ -260,7 +261,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
               accessibilityLabel="Close play history"
               accessibilityRole="button"
             >
-              <Text style={styles.modalCloseButtonText}>✕ Close</Text>
+              <Text style={styles.modalCloseButtonText}>✕ {i18n.t('common.close')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -268,7 +269,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
           {playHistory.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                No play history yet. Start playing to see card history!
+                {i18n.t('game.noPlayHistoryYet')}
               </Text>
             </View>
           ) : (
