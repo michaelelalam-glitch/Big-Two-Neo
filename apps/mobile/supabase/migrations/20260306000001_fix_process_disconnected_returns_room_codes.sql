@@ -270,7 +270,7 @@ REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM anon;
 REVOKE ALL ON FUNCTION public.get_rejoin_status(UUID, UUID) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_rejoin_status(UUID, UUID) TO service_role;
 
-COMMENT ON FUNCTION public.get_rejoin_status IS
+COMMENT ON FUNCTION public.get_rejoin_status(UUID, UUID) IS
   'Returns rejoin status for a player. Checks user_id (not yet replaced) and '
   'human_user_id (replaced by bot). Returns seconds_left and disconnect_timer_active '
   'fields consumed by HomeScreen.tsx.';

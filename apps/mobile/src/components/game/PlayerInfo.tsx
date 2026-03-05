@@ -9,7 +9,7 @@ interface PlayerInfoProps {
   cardCount: number;
   isActive: boolean; // Current turn indicator
   totalScore?: number; // Cumulative total score (Task #590)
-  /** fix/rejoin: show spinner when player is disconnected or replaced by bot */
+  /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
 }
 

@@ -38,7 +38,7 @@ interface LandscapeOpponentProps {
   layout?: 'vertical' | 'horizontal';
   /** Total cumulative score (Task #590) */
   totalScore?: number;
-  /** fix/rejoin: show spinner when player is disconnected or replaced by bot */
+  /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
 }
 

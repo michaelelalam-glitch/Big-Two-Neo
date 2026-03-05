@@ -106,20 +106,18 @@ export default function HomeScreen() {
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
-                // 'connected' — no timer running yet; heartbeat will stop
-                // when the user stays on home screen, and server starts the timer
-                if (!disconnectTimestamp) {
-                  setDisconnectTimestamp(Date.now());
-                }
+                // 'connected' — no server-side disconnect timer running; rely on heartbeat.
+                // Do NOT start a client-side countdown here: the server timer is the
+                // source of truth, and starting one early can show "bot replaced you"
+                // before the server has even begun the 60-second window.
+                setDisconnectTimestamp(null);
               }
-            } else if (!disconnectTimestamp) {
-              setDisconnectTimestamp(Date.now());
             }
+            // statusData missing / success=false — do not start a phantom countdown;
+            // the next checkCurrentRoom call will re-evaluate from the server.
           } catch {
-            // Network error — fall back to now (will self-correct on next check)
-            if (!disconnectTimestamp) {
-              setDisconnectTimestamp(Date.now());
-            }
+            // Network blip — leave disconnectTimestamp unchanged so an in-flight
+            // countdown is not restarted and no phantom timer is created.
           }
         }
       } else {
@@ -179,7 +177,14 @@ export default function HomeScreen() {
     } catch (error: unknown) {
       roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
     }
-  }, [user, disconnectTimestamp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+  // NOTE: disconnectTimestamp intentionally omitted from deps. Including it would
+  // recreate the callback on every second while the countdown runs, causing
+  // useFocusEffect to re-invoke checkCurrentRoom in a tight loop that restarts
+  // the timer each time the server reports 'connected'. All reads of
+  // disconnectTimestamp inside the callback were replaced with setters (functional
+  // updaters or explicit nulls) so no stale-closure hazard exists.
 
   // Check current room on screen focus
   useFocusEffect(
@@ -367,11 +372,19 @@ export default function HomeScreen() {
           destructive: true,
           onConfirm: async () => {
             if (user) {
-              await supabase
-                .from('room_players')
-                .delete()
-                .eq('human_user_id', user.id)
-                .eq('connection_status', 'replaced_by_bot');
+              // Use SECURITY DEFINER RPC to bypass RLS — replaced rows have
+              // user_id = NULL so a client-side DELETE (which only allows
+              // auth.uid() = user_id) would be silently blocked.
+              try {
+                await supabase.rpc('delete_room_players_by_human_user_id', {
+                  human_user_id: user.id,
+                });
+              } catch (delError) {
+                roomLogger.error('Failed to delete room_players for permanent leave', {
+                  error: delError,
+                  humanUserId: user.id,
+                });
+              }
             }
             setCurrentRoom(null);
             setCurrentRoomStatus(undefined);

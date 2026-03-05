@@ -125,7 +125,13 @@ Deno.serve(async (req) => {
         // disconnect_timer_started_at is intentionally NOT touched here
       }, { count: 'exact' })
       .eq('id', player_id)
-      .eq('room_id', room_id);
+      .eq('room_id', room_id)
+      // Guard against race: do not flip a replaced_by_bot row back to 'connected'.
+      // If the row was claimed by a bot between the ownership SELECT above and this
+      // UPDATE, user_id will no longer match (it was set to the bot's UUID) and
+      // connection_status will be 'replaced_by_bot' — either predicate rejects it.
+      .eq('user_id', user.id)
+      .neq('connection_status', 'replaced_by_bot');
 
     if (updateError) {
       console.error('❌ [update-heartbeat] Update failed:', updateError.message);
