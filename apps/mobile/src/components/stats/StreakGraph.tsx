@@ -12,6 +12,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Line, Circle, Polyline, Text as SvgText } from 'react-native-svg';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { i18n } from '../../i18n';
 
 interface GameHistory {
   id: string;
@@ -161,7 +162,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Rank Points Progression</Text>
+      <Text style={styles.title}>{i18n.t('profile.rankPointsProgression')}</Text>
       
       <View style={styles.graphContainer}>
         <Svg width={graphWidth} height={graphHeight}>
@@ -277,7 +278,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             textAnchor="middle"
             fontWeight="600"
           >
-            Games Played
+            {i18n.t('profile.gamesPlayed')}
           </SvgText>
 
           <SvgText
@@ -289,7 +290,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             fontWeight="600"
             transform={`rotate(-90, 20, ${graphHeight / 2})`}
           >
-            Rank Points
+            {i18n.t('profile.rankPoints')}
           </SvgText>
         </Svg>
       </View>
@@ -298,34 +299,34 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.success }]} />
-          <Text style={styles.legendText}>Peak</Text>
+          <Text style={styles.legendText}>{i18n.t('profile.peak')}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.error }]} />
-          <Text style={styles.legendText}>Lowest</Text>
+          <Text style={styles.legendText}>{i18n.t('profile.lowest')}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-          <Text style={styles.legendText}>Win</Text>
+          <Text style={styles.legendText}>{i18n.t('profile.win')}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.white }]} />
-          <Text style={styles.legendText}>Loss</Text>
+          <Text style={styles.legendText}>{i18n.t('profile.loss')}</Text>
         </View>
       </View>
 
       {/* Stats summary */}
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Total Games</Text>
+          <Text style={styles.statLabel}>{i18n.t('profile.totalGames')}</Text>
           <Text style={styles.statValue}>{pointsData.length}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Current Points</Text>
+          <Text style={styles.statLabel}>{i18n.t('profile.currentPoints')}</Text>
           <Text style={styles.statValue}>{pointsData[pointsData.length - 1]?.points || 1000}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Peak Points</Text>
+          <Text style={styles.statLabel}>{i18n.t('profile.peakPoints')}</Text>
           <Text style={styles.statValue}>🏆 {highestPoint.points}</Text>
         </View>
       </View>

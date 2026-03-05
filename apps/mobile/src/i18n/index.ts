@@ -156,6 +156,28 @@ export interface Translations {
     casualMatchDescription: string;
     rankedMatch: string;
     rankedMatchDescription: string;
+    findGame: string;
+    findGameDescription: string;
+    offlinePractice: string;
+    offlinePracticeDescription: string;
+    botDifficultyTitle: string;
+    botDifficultySubtitle: string;
+    easy: string;
+    easyDesc: string;
+    medium: string;
+    mediumDesc: string;
+    hard: string;
+    hardDesc: string;
+    chooseGameMode: string;
+    noGameInProgress: string;
+    startNewGameHint: string;
+    activeOnlineGame: string;
+    activeOfflineGame: string;
+    inProgress: string;
+    waitingStatus: string;
+    rejoin: string;
+    replaceBotAndRejoin: string;
+    cancelSearch: string;
   };
 
   // How to Play Screen
@@ -353,9 +375,14 @@ export interface Translations {
     startGameError: string;
     shareError: string;
     shareErrorMessage: string;
+    rankedRequirement: string;
+    waitingForMorePlayers: string;
+    allReadyToStart: string;
+    botDifficultyLabel: string;
+    easy: string;
+    medium: string;
+    hard: string;
   };
-  
-  // Create/Join Room Screens
   room: {
     createTitle: string;
     joinTitle: string;
@@ -443,6 +470,20 @@ export interface Translations {
     avgCardsLeft: string;
     gameCompletion: string;
     rankProgression: string;
+    completed: string;
+    abandoned: string;
+    private: string;
+    casualStats: string;
+    privateStats: string;
+    rankedStats: string;
+    peak: string;
+    lowest: string;
+    win: string;
+    loss: string;
+    totalGames: string;
+    currentPoints: string;
+    peakPoints: string;
+    rankPointsProgression: string;
   };
   
   // Leaderboard Screen
@@ -650,6 +691,28 @@ const en: Translations = {
     casualMatchDescription: 'Quick game with relaxed ranking',
     rankedMatch: 'Ranked Match',
     rankedMatchDescription: 'Competitive ELO-rated match',
+    findGame: '🎮 Find a Game',
+    findGameDescription: 'Play online matches',
+    offlinePractice: '🤖 Offline Practice',
+    offlinePracticeDescription: 'Play with 3 AI bots',
+    botDifficultyTitle: '🤖 Bot Difficulty',
+    botDifficultySubtitle: 'Choose how smart the bots will be',
+    easy: 'Easy',
+    easyDesc: 'Bots make mistakes and pass often. Great for learning!',
+    medium: 'Medium',
+    mediumDesc: 'Balanced play with basic strategy. A fair challenge.',
+    hard: 'Hard',
+    hardDesc: 'Optimal play with advanced combos. Think you can win?',
+    chooseGameMode: 'Choose your game mode',
+    noGameInProgress: 'No Game in Progress',
+    startNewGameHint: 'Start a new game to play!',
+    activeOnlineGame: 'Active Online Game',
+    activeOfflineGame: 'Active Offline Game',
+    inProgress: 'In Progress',
+    waitingStatus: 'Waiting',
+    rejoin: '🔄 Rejoin',
+    replaceBotAndRejoin: '🔄 Replace Bot & Rejoin',
+    cancelSearch: '❌ Cancel Search',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -805,6 +868,13 @@ const en: Translations = {
     startGameError: 'Failed to start game',
     shareError: 'Share Error',
     shareErrorMessage: 'Unable to share room code',
+    rankedRequirement: 'Ranked matches require 4 human players',
+    waitingForMorePlayers: 'Waiting for more players...',
+    allReadyToStart: 'All ready to start!',
+    botDifficultyLabel: '🤖 Bot Difficulty:',
+    easy: 'Easy',
+    medium: 'Medium',
+    hard: 'Hard',
   },
   room: {
     createTitle: 'Create Room',
@@ -891,6 +961,20 @@ const en: Translations = {
     avgCardsLeft: 'Avg Cards Left',
     gameCompletion: 'Game Completion',
     rankProgression: 'Rank Progression',
+    completed: 'Completed',
+    abandoned: 'Abandoned',
+    private: 'Private',
+    casualStats: 'Casual Stats',
+    privateStats: 'Private Stats',
+    rankedStats: 'Ranked Stats',
+    peak: 'Peak',
+    lowest: 'Lowest',
+    win: 'Win',
+    loss: 'Loss',
+    totalGames: 'Total Games',
+    currentPoints: 'Current Points',
+    peakPoints: 'Peak Points',
+    rankPointsProgression: 'Rank Points Progression',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -1088,6 +1172,28 @@ const ar: Translations = {
     rankedMatchDescription: 'مباراة تنافسية بتصنيف ELO',
     howToPlay: '📖 كيف تلعب',
     howToPlayDescription: 'تعلم قواعد اللعبة',
+    findGame: '🎮 ابحث عن لعبة',
+    findGameDescription: 'العب مباريات أونلاين',
+    offlinePractice: '🤖 تدريب بدون إنترنت',
+    offlinePracticeDescription: 'العب مع 3 روبوتات',
+    botDifficultyTitle: '🤖 صعوبة الروبوت',
+    botDifficultySubtitle: 'اختر مدى ذكاء الروبوتات',
+    easy: 'سهل',
+    easyDesc: 'الروبوتات ترتكب أخطاء وتمرر كثيرًا. مثالي للتعلم!',
+    medium: 'متوسط',
+    mediumDesc: 'لعب متوازن باستراتيجية أساسية. تحدٍّ عادل.',
+    hard: 'صعب',
+    hardDesc: 'لعب مثالي بتشكيلات متقدمة. هل تعتقد أنك ستفوز؟',
+    chooseGameMode: 'اختر وضع اللعب',
+    noGameInProgress: 'لا توجد لعبة جارية',
+    startNewGameHint: 'ابدأ لعبة جديدة للعب!',
+    activeOnlineGame: 'لعبة أونلاين نشطة',
+    activeOfflineGame: 'لعبة أوفلاين نشطة',
+    inProgress: 'جارية',
+    waitingStatus: 'انتظار',
+    rejoin: '🔄 إعادة الانضمام',
+    replaceBotAndRejoin: '🔄 استبدال الروبوت والانضمام',
+    cancelSearch: '❌ إلغاء البحث',
   },
   game: {
     yourTurn: 'دورك',
@@ -1195,6 +1301,13 @@ const ar: Translations = {
     startGameError: 'فشل بدء اللعبة',
     shareError: 'خطأ في المشاركة',
     shareErrorMessage: 'فشلت مشاركة رمز الغرفة. حاول مرة أخرى.',
+    rankedRequirement: 'تتطلب المباريات المصنفة 4 لاعبين بشريين',
+    waitingForMorePlayers: 'في انتظار المزيد من اللاعبين...',
+    allReadyToStart: 'الجميع جاهز للبدء!',
+    botDifficultyLabel: '🤖 صعوبة الروبوت:',
+    easy: 'سهل',
+    medium: 'متوسط',
+    hard: 'صعب',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1281,6 +1394,20 @@ const ar: Translations = {
     avgCardsLeft: 'متوسط البطاقات المتبقية',
     gameCompletion: 'إتمام اللعبة',
     rankProgression: 'تقدم الترتيب',
+    completed: 'مكتمل',
+    abandoned: 'متخلى عنها',
+    private: 'خاص',
+    casualStats: 'إحصاءات العادي',
+    privateStats: 'إحصاءات الخاص',
+    rankedStats: 'إحصاءات المصنف',
+    peak: 'الذروة',
+    lowest: 'الأدنى',
+    win: 'فوز',
+    loss: 'خسارة',
+    totalGames: 'إجمالي الألعاب',
+    currentPoints: 'النقاط الحالية',
+    peakPoints: 'نقاط الذروة',
+    rankPointsProgression: 'تطور نقاط الترتيب',
   },
   leaderboard: {
     title: 'لوحة المتصدرين',
@@ -1556,6 +1683,28 @@ const de: Translations = {
     rankedMatchDescription: 'Wettbewerbsorientiertes ELO-Match',
     howToPlay: '📖 Wie man spielt',
     howToPlayDescription: 'Spielregeln lernen',
+    findGame: '🎮 Spiel finden',
+    findGameDescription: 'Online-Matches spielen',
+    offlinePractice: '🤖 Offline-Training',
+    offlinePracticeDescription: 'Mit 3 KI-Bots spielen',
+    botDifficultyTitle: '🤖 Bot-Schwierigkeit',
+    botDifficultySubtitle: 'Wähle, wie klug die Bots sein sollen',
+    easy: 'Einfach',
+    easyDesc: 'Bots machen Fehler und passen oft. Ideal zum Lernen!',
+    medium: 'Mittel',
+    mediumDesc: 'Ausgewogenes Spiel mit einfacher Strategie. Eine faire Herausforderung.',
+    hard: 'Schwer',
+    hardDesc: 'Optimales Spiel mit fortgeschrittenen Kombinationen. Glaubst du, du kannst gewinnen?',
+    chooseGameMode: 'Wähle deinen Spielmodus',
+    noGameInProgress: 'Kein laufendes Spiel',
+    startNewGameHint: 'Starte ein neues Spiel!',
+    activeOnlineGame: 'Aktives Online-Spiel',
+    activeOfflineGame: 'Aktives Offline-Spiel',
+    inProgress: 'Läuft',
+    waitingStatus: 'Warten',
+    rejoin: '🔄 Wieder beitreten',
+    replaceBotAndRejoin: '🔄 Bot ersetzen & beitreten',
+    cancelSearch: '❌ Suche abbrechen',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -1663,6 +1812,13 @@ const de: Translations = {
     startGameError: 'Fehler beim Starten des Spiels',
     shareError: 'Fehler beim Teilen',
     shareErrorMessage: 'Raumcode konnte nicht geteilt werden. Bitte erneut versuchen.',
+    rankedRequirement: 'Ranglistenspiele erfordern 4 menschliche Spieler',
+    waitingForMorePlayers: 'Warte auf weitere Spieler...',
+    allReadyToStart: 'Alle bereit zum Starten!',
+    botDifficultyLabel: '🤖 Bot-Schwierigkeit:',
+    easy: 'Einfach',
+    medium: 'Mittel',
+    hard: 'Schwer',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -1749,6 +1905,20 @@ const de: Translations = {
     avgCardsLeft: 'Durchschn. Karten übrig',
     gameCompletion: 'Spielabschluss',
     rankProgression: 'Rangverlauf',
+    completed: 'Abgeschlossen',
+    abandoned: 'Abgebrochen',
+    private: 'Privat',
+    casualStats: 'Casual-Statistiken',
+    privateStats: 'Privatspiel-Statistiken',
+    rankedStats: 'Ranglisten-Statistiken',
+    peak: 'Höchstwert',
+    lowest: 'Tiefstwert',
+    win: 'Sieg',
+    loss: 'Niederlage',
+    totalGames: 'Spiele gesamt',
+    currentPoints: 'Aktuelle Punkte',
+    peakPoints: 'Höchstpunktzahl',
+    rankPointsProgression: 'Rangpunkte-Verlauf',
   },
   leaderboard: {
     title: 'Bestenliste',

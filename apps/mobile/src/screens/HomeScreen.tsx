@@ -904,8 +904,8 @@ export default function HomeScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.mainButtonText}>🎮 Find a Game</Text>
-                <Text style={styles.mainButtonSubtext}>Play online matches</Text>
+                <Text style={styles.mainButtonText}>{i18n.t('home.findGame')}</Text>
+                <Text style={styles.mainButtonSubtext}>{i18n.t('home.findGameDescription')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -917,8 +917,8 @@ export default function HomeScreen() {
                 setIsRankedSearching(false);
               }}
             >
-              <Text style={styles.mainButtonText}>❌ Cancel Search</Text>
-              <Text style={styles.mainButtonSubtext}>Stop looking for ranked match</Text>
+              <Text style={styles.mainButtonText}>{i18n.t('home.cancelSearch')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('common.loading')}</Text>
             </TouchableOpacity>
           )}
 
@@ -937,8 +937,8 @@ export default function HomeScreen() {
             style={[styles.mainButton, styles.offlinePracticeButton]}
             onPress={handleOfflinePractice}
           >
-            <Text style={styles.mainButtonText}>🤖 Offline Practice</Text>
-            <Text style={styles.mainButtonSubtext}>Play with 3 AI bots</Text>
+            <Text style={styles.mainButtonText}>{i18n.t('home.offlinePractice')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.offlinePracticeDescription')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -972,8 +972,8 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
-            <Text style={styles.modalTitle}>🤖 Bot Difficulty</Text>
-            <Text style={styles.modalSubtitle}>Choose how smart the bots will be</Text>
+            <Text style={styles.modalTitle}>{i18n.t('home.botDifficultyTitle')}</Text>
+            <Text style={styles.modalSubtitle}>{i18n.t('home.botDifficultySubtitle')}</Text>
             
             <ScrollView
               showsVerticalScrollIndicator={false}
@@ -986,8 +986,8 @@ export default function HomeScreen() {
                   onPress={() => handleStartOfflineWithDifficulty('easy')}
                 >
                   <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>😊</Text>
-                  <Text style={styles.modalButtonText}>Easy</Text>
-                  <Text style={styles.modalButtonSubtext}>Bots make mistakes and pass often. Great for learning!</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.easy')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.easyDesc')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -995,8 +995,8 @@ export default function HomeScreen() {
                   onPress={() => handleStartOfflineWithDifficulty('medium')}
                 >
                   <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🧠</Text>
-                  <Text style={styles.modalButtonText}>Medium</Text>
-                  <Text style={styles.modalButtonSubtext}>Balanced play with basic strategy. A fair challenge.</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.medium')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.mediumDesc')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -1004,8 +1004,8 @@ export default function HomeScreen() {
                   onPress={() => handleStartOfflineWithDifficulty('hard')}
                 >
                   <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🔥</Text>
-                  <Text style={styles.modalButtonText}>Hard</Text>
-                  <Text style={styles.modalButtonSubtext}>Optimal play with advanced combos. Think you can win?</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.hard')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.hardDesc')}</Text>
                 </TouchableOpacity>
               </View>
               
@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
                 style={styles.modalCancelButton}
                 onPress={() => setShowDifficultyModal(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1029,8 +1029,8 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
-            <Text style={styles.modalTitle}>🎮 Find a Game</Text>
-            <Text style={styles.modalSubtitle}>Choose your game mode</Text>
+            <Text style={styles.modalTitle}>{i18n.t('home.findGame')}</Text>
+            <Text style={styles.modalSubtitle}>{i18n.t('home.chooseGameMode')}</Text>
             
             <ScrollView
               showsVerticalScrollIndicator={false}
@@ -1063,7 +1063,7 @@ export default function HomeScreen() {
                 style={styles.modalCancelButton}
                 onPress={() => setShowFindGameModal(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
