@@ -104,6 +104,36 @@ Deno.serve(async (req) => {
       player_index: result.player_index,
     });
 
+    // Broadcast player_reconnected so all other clients know a human reclaimed
+    // this seat and can stop waiting for a "bot" to make a move.
+    // This is fire-and-forget — we do not block the response on it.
+    (async () => {
+      try {
+        const { data: roomRow } = await supabaseClient
+          .from('rooms')
+          .select('code')
+          .eq('id', room_id)
+          .maybeSingle();
+        if (roomRow?.code) {
+          const broadcastChannel = supabaseClient.channel(`room:${roomRow.code}`);
+          await broadcastChannel.send({
+            type:    'broadcast',
+            event:   'player_reconnected',
+            payload: {
+              player_index: result.player_index,
+              username:     result.username,
+              was_replaced: result.was_replaced ?? false,
+            },
+          });
+          await supabaseClient.removeChannel(broadcastChannel);
+          console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${roomRow.code} (index ${result.player_index})`);
+        }
+      } catch (bcastErr: any) {
+        // Non-fatal — clients will also detect the change via postgres_changes
+        console.warn('[reconnect-player] Broadcast error (non-critical):', bcastErr?.message);
+      }
+    })();
+
     return new Response(
       JSON.stringify({
         success:        true,

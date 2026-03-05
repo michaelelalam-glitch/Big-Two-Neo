@@ -439,8 +439,29 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // Check if current turn is a bot
-        const currentPlayer = roomPlayers.find(p => p.player_index === gs.current_turn) as RoomPlayer | undefined;
+        // Re-fetch the current-turn player from DB on every iteration.
+        // This is the PRIMARY fix for the game-freeze-on-rejoin bug:
+        // the initial `roomPlayers` snapshot is fetched ONCE before this loop,
+        // so it cannot detect a human reclaiming their seat mid-run.
+        // A fresh DB read ensures that when reconnect_player() sets is_bot=FALSE,
+        // the coordinator sees it on the next iteration and stops immediately.
+        const { data: freshTurnPlayer, error: freshPlayerErr } = await supabaseClient
+          .from('room_players')
+          .select('*')
+          .eq('room_id', room.id)
+          .eq('player_index', gs.current_turn)
+          .maybeSingle();
+
+        if (freshPlayerErr) {
+          console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
+          lastError = 'Failed to fetch current turn player';
+          break;
+        }
+
+        // Prefer fresh DB row; fall back to initial snapshot only if row vanished
+        const currentPlayer = (freshTurnPlayer as RoomPlayer | null) ??
+          (roomPlayers.find(p => p.player_index === gs.current_turn) as RoomPlayer | undefined);
+
         if (!currentPlayer || !currentPlayer.is_bot) {
           console.log(`[bot-coordinator] 👤 Turn ${gs.current_turn} is human (${currentPlayer?.username || 'unknown'}), stopping`);
           break;

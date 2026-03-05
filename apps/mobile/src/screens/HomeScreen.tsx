@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -22,6 +22,10 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  // Ref that always holds the latest currentRoom value so closures (checkCurrentRoom,
+  // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
+  // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
+  const currentRoomRef = useRef<string | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -33,6 +37,9 @@ export default function HomeScreen() {
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
   
+  // Keep currentRoomRef in sync with currentRoom state
+  useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
   const [isRankedSearching, setIsRankedSearching] = useState(false);
@@ -147,13 +154,15 @@ export default function HomeScreen() {
             // No replaced row — before clearing the banner, confirm the room is
             // actually finished. A game still in progress should keep the banner
             // visible so the player can press Leave when they're ready.
+            // Use currentRoomRef.current (not captured state) to avoid stale closure.
             let shouldClear = true;
-            if (currentRoom) {
+            const currentRoomSnapshot = currentRoomRef.current;
+            if (currentRoomSnapshot) {
               try {
                 const { data: roomCheck } = await supabase
                   .from('rooms')
                   .select('status')
-                  .eq('code', currentRoom)
+                  .eq('code', currentRoomSnapshot)
                   .maybeSingle();
                 if (roomCheck?.status === 'playing') {
                   shouldClear = false; // Game still running — keep banner open
@@ -375,15 +384,19 @@ export default function HomeScreen() {
               // Use SECURITY DEFINER RPC to bypass RLS — replaced rows have
               // user_id = NULL so a client-side DELETE (which only allows
               // auth.uid() = user_id) would be silently blocked.
-              try {
-                await supabase.rpc('delete_room_players_by_human_user_id', {
-                  human_user_id: user.id,
-                });
-              } catch (delError) {
-                roomLogger.error('Failed to delete room_players for permanent leave', {
-                  error: delError,
+              // supabase.rpc returns { data, error } and does not throw on
+              // PostgREST errors, so we must capture and inspect the error.
+              const { error: rpcError } = await supabase.rpc('delete_room_players_by_human_user_id', {
+                human_user_id: user.id,
+              });
+              if (rpcError) {
+                roomLogger.error('Failed to delete room_players for permanent leave (RPC error)', {
+                  error: rpcError,
                   humanUserId: user.id,
                 });
+                // Still proceed with clearing local state — the row may not
+                // exist if the game ended naturally, and blocking the UI is
+                // worse than a silent RPC failure for this non-critical cleanup.
               }
             }
             setCurrentRoom(null);
