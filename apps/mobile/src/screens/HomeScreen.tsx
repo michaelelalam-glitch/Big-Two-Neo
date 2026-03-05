@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, useWindowDimensions } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +36,8 @@ export default function HomeScreen() {
   const [showFindGameModal, setShowFindGameModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
   
   // Keep currentRoomRef in sync with currentRoom state
   useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
@@ -969,45 +971,51 @@ export default function HomeScreen() {
         onRequestClose={() => setShowDifficultyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
             <Text style={styles.modalTitle}>🤖 Bot Difficulty</Text>
             <Text style={styles.modalSubtitle}>Choose how smart the bots will be</Text>
             
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyEasyButton]}
-                onPress={() => handleStartOfflineWithDifficulty('easy')}
-              >
-                <Text style={styles.modalButtonIcon}>😊</Text>
-                <Text style={styles.modalButtonText}>Easy</Text>
-                <Text style={styles.modalButtonSubtext}>Bots make mistakes and pass often. Great for learning!</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyMediumButton]}
-                onPress={() => handleStartOfflineWithDifficulty('medium')}
-              >
-                <Text style={styles.modalButtonIcon}>🧠</Text>
-                <Text style={styles.modalButtonText}>Medium</Text>
-                <Text style={styles.modalButtonSubtext}>Balanced play with basic strategy. A fair challenge.</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyHardButton]}
-                onPress={() => handleStartOfflineWithDifficulty('hard')}
-              >
-                <Text style={styles.modalButtonIcon}>🔥</Text>
-                <Text style={styles.modalButtonText}>Hard</Text>
-                <Text style={styles.modalButtonSubtext}>Optimal play with advanced combos. Think you can win?</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.modalCancelButton}
-              onPress={() => setShowDifficultyModal(false)}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.modalScrollContent}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyEasyButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('easy')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>😊</Text>
+                  <Text style={styles.modalButtonText}>Easy</Text>
+                  <Text style={styles.modalButtonSubtext}>Bots make mistakes and pass often. Great for learning!</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyMediumButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('medium')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🧠</Text>
+                  <Text style={styles.modalButtonText}>Medium</Text>
+                  <Text style={styles.modalButtonSubtext}>Balanced play with basic strategy. A fair challenge.</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyHardButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('hard')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🔥</Text>
+                  <Text style={styles.modalButtonText}>Hard</Text>
+                  <Text style={styles.modalButtonSubtext}>Optimal play with advanced combos. Think you can win?</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowDifficultyModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1020,38 +1028,44 @@ export default function HomeScreen() {
         onRequestClose={() => setShowFindGameModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
             <Text style={styles.modalTitle}>🎮 Find a Game</Text>
             <Text style={styles.modalSubtitle}>Choose your game mode</Text>
             
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalCasualButton]}
-                onPress={handleCasualMatch}
-                disabled={isQuickPlaying}
-              >
-                <Text style={styles.modalButtonIcon}>🎮</Text>
-                <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
-                <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
-              </TouchableOpacity>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCasualButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={handleCasualMatch}
+                  disabled={isQuickPlaying}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🎮</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalRankedButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleRankedMatch(0)}
+                  disabled={isRankedSearching}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🏆</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+                </TouchableOpacity>
+              </View>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalRankedButton]}
-                onPress={() => handleRankedMatch(0)}
-                disabled={isRankedSearching}
+                style={styles.modalCancelButton}
+                onPress={() => setShowFindGameModal(false)}
               >
-                <Text style={styles.modalButtonIcon}>🏆</Text>
-                <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
-                <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.modalCancelButton}
-              onPress={() => setShowFindGameModal(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1304,5 +1318,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray.medium,
     fontWeight: '600',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+  },
+  modalButtonContainerLandscape: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  modalButtonLandscape: {
+    flex: 1,
+    minWidth: 120,
+    padding: SPACING.md,
+  },
+  modalButtonIconLandscape: {
+    fontSize: 20,
+    marginBottom: 2,
   },
 });
