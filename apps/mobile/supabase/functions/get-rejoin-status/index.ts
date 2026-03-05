@@ -47,7 +47,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { room_id } = await req.json();
+    let room_id: string | undefined;
+    try {
+      const body = await req.json();
+      room_id = body?.room_id;
+    } catch (parseError) {
+      console.error('❌ [get-rejoin-status] Invalid JSON body:', parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!room_id) {
       return new Response(
@@ -60,8 +70,7 @@ Deno.serve(async (req) => {
       .rpc('get_rejoin_status', {
         p_room_id: room_id,
         p_user_id: user.id,
-      })
-      .single();
+      });
 
     if (rpcError) {
       console.error('❌ [get-rejoin-status] RPC error:', rpcError);

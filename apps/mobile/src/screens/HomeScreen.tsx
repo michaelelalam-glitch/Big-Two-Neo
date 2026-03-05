@@ -146,11 +146,28 @@ export default function HomeScreen() {
             setDisconnectTimestamp(null);
             setCanRejoinAfterExpiry(true);
           } else {
-            // Truly no active game — clear everything
-            setCurrentRoom(null);
-            setCurrentRoomStatus(undefined);
-            setDisconnectTimestamp(null);
-            setCanRejoinAfterExpiry(null);
+            // No replaced row — before clearing the banner, confirm the room is
+            // actually finished. A game still in progress should keep the banner
+            // visible so the player can press Leave when they're ready.
+            let shouldClear = true;
+            if (currentRoom) {
+              try {
+                const { data: roomCheck } = await supabase
+                  .from('rooms')
+                  .select('status')
+                  .eq('code', currentRoom)
+                  .maybeSingle();
+                if (roomCheck?.status === 'playing') {
+                  shouldClear = false; // Game still running — keep banner open
+                }
+              } catch { /* ignore — default to clearing */ }
+            }
+            if (shouldClear) {
+              setCurrentRoom(null);
+              setCurrentRoomStatus(undefined);
+              setDisconnectTimestamp(null);
+              setCanRejoinAfterExpiry(null);
+            }
           }
         } catch {
           setCurrentRoom(null);
@@ -472,7 +489,22 @@ export default function HomeScreen() {
         .maybeSingle();
 
       if (!replacedFinal) {
-        // No replaced row at all — game ended or we were never replaced.
+        // No replaced row — verify the room is actually finished before clearing
+        // the banner. If the game is still playing (bot replacement may have been
+        // delayed), keep the banner so the user can press Leave when ready.
+        try {
+          const { data: roomCheck } = await supabase
+            .from('rooms')
+            .select('status')
+            .eq('code', currentRoom)
+            .maybeSingle();
+          if (roomCheck?.status === 'playing') {
+            // Game still running but no replaced row yet. Keep banner;
+            // hide "Replace Bot & Rejoin" since there's nothing to claim.
+            setCanRejoinAfterExpiry(false);
+            return;
+          }
+        } catch { /* ignore — fall through to clear */ }
         setCurrentRoom(null);
         setCurrentRoomStatus(undefined);
         setCanRejoinAfterExpiry(null);

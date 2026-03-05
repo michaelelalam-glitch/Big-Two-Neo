@@ -48,12 +48,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { room_id, player_id } = await req.json();
+    // player_id is accepted but not used for validation — the RPC keys by auth user_id.
+    // We parse the full body so callers do not get 'unexpected token' errors on extra fields.
+    const { room_id } = await req.json();
 
     console.log('🔌 [mark-disconnected]', {
-      user_id:   user.id.substring(0, 8),
-      room_id:   room_id?.substring(0, 8),
-      player_id: player_id?.substring(0, 8),
+      user_id: user.id.substring(0, 8),
+      room_id: room_id?.substring(0, 8),
     });
 
     if (!room_id) {

@@ -66,8 +66,7 @@ Deno.serve(async (req) => {
       .rpc('reconnect_player', {
         p_room_id:  room_id,
         p_user_id:  user.id,
-      })
-      .single();
+      });
 
     if (rpcError) {
       console.error('❌ [reconnect-player] RPC error:', rpcError);

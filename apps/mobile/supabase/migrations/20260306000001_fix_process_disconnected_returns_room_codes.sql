@@ -241,7 +241,23 @@ BEGIN
     );
   END IF;
 
-  -- 'connected' state
+  -- 'connected' but persistent disconnect timer still running
+  -- (player reopened the app and heartbeat resumed, but rejoin not yet confirmed).
+  -- Return the active timer info so the client can show the correct countdown.
+  IF v_rec.disconnect_timer_started_at IS NOT NULL THEN
+    v_seconds_left := GREATEST(
+      0,
+      60 - EXTRACT(EPOCH FROM (NOW() - v_rec.disconnect_timer_started_at))::INTEGER
+    );
+    RETURN jsonb_build_object(
+      'status',                  'connected',
+      'player_index',            v_rec.player_index,
+      'disconnect_timer_active', TRUE,
+      'seconds_left',            v_seconds_left
+    );
+  END IF;
+
+  -- Fully connected, no timer running
   RETURN jsonb_build_object(
     'status',       'connected',
     'player_index', v_rec.player_index

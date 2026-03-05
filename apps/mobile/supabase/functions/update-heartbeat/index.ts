@@ -114,6 +114,8 @@ Deno.serve(async (req) => {
     // NOTE: We deliberately do NOT clear disconnect_timer_started_at here.
     // That persistent timer is only cleared by explicit reconnect (rejoin button)
     // or active game actions (play-cards / player-pass).
+    // Request an exact count so updateCount is non-null and we can detect
+    // "0 rows matched" (race with bot replacement).
     const { error: updateError, count: updateCount } = await supabaseClient
       .from('room_players')
       .update({
@@ -121,7 +123,7 @@ Deno.serve(async (req) => {
         connection_status: 'connected',
         disconnected_at:   null,
         // disconnect_timer_started_at is intentionally NOT touched here
-      })
+      }, { count: 'exact' })
       .eq('id', player_id)
       .eq('room_id', room_id);
 
@@ -146,59 +148,61 @@ Deno.serve(async (req) => {
     // Default to 1 (not 0) so the first heartbeat doesn't trigger an immediate sweep.
     const count =
       Number.isInteger(heartbeat_count) && heartbeat_count > 0 ? heartbeat_count : 1;
-    // ── Bot-coordinator watchdog (every heartbeat) ──────────────────────────
-    // If the current turn in the game belongs to a bot, trigger bot-coordinator.
-    // This catches bots that were placed by pg_cron (which can't call edge functions)
-    // or any code path that failed to trigger bot-coordinator after insertion.
-    // Bot-coordinator has a row-based lease so simultaneous triggers are safe.
-    const botWatchdogPromise = (async () => {
+
+    // ── Bot-coordinator watchdog (throttled: every 3rd heartbeat ≈ 15s) ─────
+    // Triggers bot-coordinator when the current turn belongs to a bot.
+    // Throttled to every 3rd heartbeat to reduce DB round trips; bot-coordinator
+    // has a row-based lease so duplicate triggers from multiple clients are safe.
+    if (count % 3 === 0) {
+      const botWatchdogPromise = (async () => {
+        try {
+          const { data: gs } = await supabaseClient
+            .from('game_state')
+            .select('current_turn, game_phase')
+            .eq('room_id', room_id)
+            .maybeSingle();
+
+          // Only act for actively-playing games
+          if (!gs || (gs.game_phase !== 'playing' && gs.game_phase !== 'normal_play' && gs.game_phase !== 'first_play')) return;
+
+          const { data: turnPlayer } = await supabaseClient
+            .from('room_players')
+            .select('is_bot')
+            .eq('room_id', room_id)
+            .eq('player_index', gs.current_turn)
+            .maybeSingle();
+
+          if (!turnPlayer?.is_bot) return;
+
+          // Current turn is a bot — ensure coordinator is running
+          const { data: roomInfo } = await supabaseClient
+            .from('rooms')
+            .select('code')
+            .eq('id', room_id)
+            .maybeSingle();
+
+          if (!roomInfo?.code) return;
+
+          console.log(`[update-heartbeat] 🤖 Bot watchdog: current turn is a bot in room ${roomInfo.code}, triggering coordinator`);
+          await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              'x-bot-coordinator': 'true',
+            },
+            body: JSON.stringify({ room_code: roomInfo.code }),
+          });
+        } catch (watchdogErr: any) {
+          console.warn('[update-heartbeat] Bot watchdog error (non-critical):', watchdogErr?.message);
+        }
+      })();
+
       try {
-        const { data: gs } = await supabaseClient
-          .from('game_state')
-          .select('current_turn, game_phase')
-          .eq('room_id', room_id)
-          .maybeSingle();
-
-        // Only act for actively-playing games (includes first_play phase where 3♦ must be led)
-        if (!gs || (gs.game_phase !== 'playing' && gs.game_phase !== 'normal_play' && gs.game_phase !== 'first_play')) return;
-
-        const { data: turnPlayer } = await supabaseClient
-          .from('room_players')
-          .select('is_bot')
-          .eq('room_id', room_id)
-          .eq('player_index', gs.current_turn)
-          .maybeSingle();
-
-        if (!turnPlayer?.is_bot) return;
-
-        // Current turn is a bot — ensure coordinator is running
-        const { data: roomInfo } = await supabaseClient
-          .from('rooms')
-          .select('code')
-          .eq('id', room_id)
-          .maybeSingle();
-
-        if (!roomInfo?.code) return;
-
-        console.log(`[update-heartbeat] 🤖 Bot watchdog: current turn is a bot in room ${roomInfo.code}, triggering coordinator`);
-        await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
-            'x-bot-coordinator': 'true',
-          },
-          body: JSON.stringify({ room_code: roomInfo.code }),
-        });
-      } catch (watchdogErr: any) {
-        console.warn('[update-heartbeat] Bot watchdog error (non-critical):', watchdogErr?.message);
+        (globalThis as any).EdgeRuntime?.waitUntil(botWatchdogPromise);
+      } catch (_) {
+        await botWatchdogPromise;
       }
-    })();
-
-    try {
-      (globalThis as any).EdgeRuntime?.waitUntil(botWatchdogPromise);
-    } catch (_) {
-      await botWatchdogPromise;
     }
 
     if (count % 6 === 0) {

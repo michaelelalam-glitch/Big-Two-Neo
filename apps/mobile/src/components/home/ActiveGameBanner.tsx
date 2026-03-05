@@ -310,8 +310,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Rejoin</Text>
           </TouchableOpacity>
-        ) : (
-          // Timer expired AND humans still in game → show Replace Bot & Rejoin
+        ) : canRejoinAfterExpiry !== false ? (
+          // Timer expired AND bot took over — show Replace Bot & Rejoin
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton]}
             onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
@@ -319,7 +319,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Replace Bot & Rejoin</Text>
           </TouchableOpacity>
-        )}
+        ) : null /* canRejoinAfterExpiry===false: game running but replacement row absent — show only Leave */}
 
         {/* Leave button (always shown) */}
         <TouchableOpacity

@@ -64,7 +64,6 @@ export default function LobbyScreen() {
   
   // Performance optimization: Calculate human player count once using useMemo
   const humanPlayerCount = useMemo(() => players.filter(p => !p.is_bot).length, [players]);
-  const botsNeeded = useMemo(() => 4 - humanPlayerCount, [humanPlayerCount]);
 
   useEffect(() => {
     loadPlayers();
@@ -660,21 +659,12 @@ export default function LobbyScreen() {
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
         {/* Hidden when game is already in progress (rejoin) since bots are already set */}
-        {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
+        {/* Performance: humanPlayerCount calculated once via useMemo */}
         {isHost && !roomType.isRanked && !isGameInProgress ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
               <>
-                <View style={styles.botFillingContainer}>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.humanPlayers') || 'Human Players'}: {humanPlayerCount}/4
-                  </Text>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {botsNeeded}
-                  </Text>
-                </View>
-
                 {/* Bot Difficulty Selector */}
                 <View style={styles.difficultyContainer}>
                   <Text style={styles.difficultyLabel}>🤖 Bot Difficulty:</Text>
