@@ -497,12 +497,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error(roomError?.message || 'Room not found');
       }
 
-      // Ensure the caller is already in the room
+      // Ensure the caller is already in the room.
+      // Also match human_user_id so a player whose seat was temporarily held by a
+      // bot (replaced_by_bot path) can still establish the Realtime channel and
+      // see the game while the RejoinModal prompts them to reclaim their seat.
       const { data: membership, error: membershipError } = await supabase
         .from('room_players')
         .select('id')
         .eq('room_id', existingRoom.id)
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},human_user_id.eq.${userId}`)
         .maybeSingle();
 
       if (membershipError) {

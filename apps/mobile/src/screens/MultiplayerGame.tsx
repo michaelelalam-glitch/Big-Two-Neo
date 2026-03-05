@@ -160,7 +160,15 @@ export function MultiplayerGame() {
     onError: (error) => {
       gameLogger.error('[MultiplayerGame] Multiplayer error:', error.message);
       const msg = error.message?.toLowerCase() || '';
-      if (msg.includes('connection') || msg.includes('reconnect') || msg.includes('not your turn')) {
+      if (
+        msg.includes('connection') ||
+        msg.includes('reconnect') ||
+        msg.includes('not your turn') ||
+        // When a bot holds the player's seat the initial connectToRoom membership
+        // check fails with this message. useConnectionManager surfaces the reclaim
+        // modal instead — no need to show a redundant alert.
+        msg.includes('not a member')
+      ) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed non-critical multiplayer error from UI');
         return;
       }
@@ -212,6 +220,10 @@ export function MultiplayerGame() {
     multiplayerConnectToRoom(roomCode).catch((error: Error) => {
       console.error('[MultiplayerGame] ❌ Failed to connect:', error);
       gameLogger.error('[MultiplayerGame] Failed to connect:', error?.message || String(error));
+      // 'not a member' means a bot currently holds the seat — useConnectionManager
+      // will surface the RejoinModal so we intentionally skip the alert here.
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('not a member')) return;
       showError(error?.message || 'Failed to connect to room');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,6 +536,14 @@ export function MultiplayerGame() {
         onReclaim={async () => {
           await connectionReconnect();
           setShowRejoinModal(false);
+          // Re-establish the Realtime channel after reclaiming the seat.
+          // The initial connectToRoom may have succeeded (Fix A: human_user_id match)
+          // or failed (pre-fix path). Either way, calling it again is safe:
+          // it refreshes players/game-state and ensures isConnected=true so the
+          // game renders properly instead of staying on "Initializing game…".
+          multiplayerConnectToRoom(roomCode).catch((e: Error) => {
+            gameLogger.error('[MultiplayerGame] post-reclaim reconnect failed:', e?.message || String(e));
+          });
         }}
         onDismiss={() => setShowRejoinModal(false)}
       />
