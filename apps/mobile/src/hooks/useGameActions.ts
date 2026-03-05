@@ -24,6 +24,8 @@ import {
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
+import { classifyCards, canBeatPlay } from '../game/engine/game-logic';
+import type { LastPlay } from '../types/multiplayer';
 
 interface GameManagerLike {
   playCards: (cardIds: string[]) => Promise<{ success: boolean; error?: string }>;
@@ -38,6 +40,16 @@ interface UseGameActionsOptions {
   setSelectedCardIds: (ids: Set<string>) => void;
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;
   isMountedRef: React.RefObject<boolean>;
+  /**
+   * Task #573: Client-side validation context for multiplayer.
+   * Returns current game state needed to validate card plays before
+   * sending to the server — eliminates unnecessary server round-trips.
+   */
+  getMultiplayerValidationState?: () => {
+    lastPlay: LastPlay | null;
+    isFirstPlayOfGame: boolean;
+    playerHand: Card[];
+  } | null;
 }
 
 export function useGameActions({
@@ -48,6 +60,7 @@ export function useGameActions({
   setSelectedCardIds,
   navigation,
   isMountedRef,
+  getMultiplayerValidationState,
 }: UseGameActionsOptions) {
   // Task #568: Separate refs to prevent cross-operation blocking
   const isPlayingCardsRef = useRef(false);
@@ -102,6 +115,57 @@ export function useGameActions({
         hapticManager.playCard();
 
         const sortedCards = sortCardsForDisplay(cards);
+
+        // Task #573: Client-side validation — catch common errors before server round-trip
+        if (getMultiplayerValidationState) {
+          const validationState = getMultiplayerValidationState();
+          if (validationState) {
+            const { lastPlay, isFirstPlayOfGame, playerHand } = validationState;
+
+            // 1. Verify all selected cards are actually in the player's hand
+            const handCardIds = new Set(playerHand.map(c => c.id));
+            const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
+            if (missingCard) {
+              soundManager.playSound(SoundType.INVALID_MOVE);
+              showError('Card not in hand');
+              isPlayingCardsRef.current = false;
+              return;
+            }
+
+            // 2. Verify the combination itself is valid
+            const combo = classifyCards(sortedCards);
+            if (combo === 'unknown') {
+              soundManager.playSound(SoundType.INVALID_MOVE);
+              showError(i18n.t('game.invalidCombo'));
+              isPlayingCardsRef.current = false;
+              return;
+            }
+
+            // 3. First play of game must include the 3 of Diamonds
+            if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D')) {
+              soundManager.playSound(SoundType.INVALID_MOVE);
+              showError('First play must include 3♦');
+              isPlayingCardsRef.current = false;
+              return;
+            }
+
+            // 4. Must beat the current last play (if one exists)
+            if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
+              soundManager.playSound(SoundType.INVALID_MOVE);
+              showError(i18n.t('game.cannotBeat'));
+              isPlayingCardsRef.current = false;
+              return;
+            }
+
+            gameLogger.info('✅ [GameActions] Client-side validation passed', {
+              combo,
+              cardCount: sortedCards.length,
+              isFirstPlay: isFirstPlayOfGame,
+              hasLastPlay: !!lastPlay,
+            });
+          }
+        }
+
         await multiplayerPlayCards(sortedCards as Card[]);
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.CARD_PLAY);
@@ -113,7 +177,7 @@ export function useGameActions({
         isPlayingCardsRef.current = false;
       }
     }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, setSelectedCardIds]);
+  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, setSelectedCardIds, getMultiplayerValidationState]);
 
   const handlePass = useCallback(async () => {
     if (isPassingRef.current) {
