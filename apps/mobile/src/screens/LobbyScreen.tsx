@@ -708,8 +708,8 @@ export default function LobbyScreen() {
                 ) : (
                   <Text style={styles.startButtonText}>
                     {i18n.t('lobby.startWithBotsCount', {
-                      count: botsNeeded,
-                    }) || `🤖 Start with ${botsNeeded} AI Bot(s)`}
+                      count: 4 - humanPlayerCount,
+                    }) || `🤖 Start with ${4 - humanPlayerCount} AI Bot(s)`}
                   </Text>
                 )}
               </TouchableOpacity>
