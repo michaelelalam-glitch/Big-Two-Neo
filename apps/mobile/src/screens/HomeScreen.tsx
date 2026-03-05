@@ -405,53 +405,92 @@ export default function HomeScreen() {
   const handleTimerExpired = useCallback(async () => {
     if (!user || !currentRoom) return;
 
-    // Allow the server's bot-replacement sweep a little extra time to run
-    // (update-heartbeat triggers process_disconnected_players every ~5 s)
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // STEP 1: Null disconnectTimestamp IMMEDIATELY so the countdown effect
+    // cannot loop back and re-fire onTimerExpired while we do async work.
+    // botHasReplaced stays true (we fixed the banner to not clear it here).
+    setDisconnectTimestamp(null);
 
+    // STEP 2: Poll for the replaced_by_bot row.
+    // process_disconnected_players runs every ~30 s (6th heartbeat), so we
+    // may need to wait up to 30 s after the 60-s client timer fires.
+    // Try up to 7 times × 5 s = 35 s max poll window.
+    const MAX_ATTEMPTS = 7;
+    const POLL_INTERVAL_MS = 5000;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      try {
+        // human_user_id is set when the bot takes over our slot.
+        // This query works even after replacement (our UUID is in human_user_id, not user_id).
+        const { data: replacedRow } = await supabase
+          .from('room_players')
+          .select('id, rooms!inner(status)')
+          .eq('human_user_id', user.id)
+          .eq('connection_status', 'replaced_by_bot')
+          .maybeSingle();
+
+        if (replacedRow) {
+          const roomStatus = (replacedRow as any).rooms?.status;
+
+          if (!roomStatus || roomStatus === 'finished') {
+            // Room closed (all-bots game was auto-deleted by server sweep) — clear banner
+            setCurrentRoom(null);
+            setCurrentRoomStatus(undefined);
+            setCanRejoinAfterExpiry(null);
+          } else {
+            // Room still playing — at least one human must be in it (server closes
+            // all-bot rooms automatically). Show "Replace Bot & Rejoin".
+            // NOTE: we intentionally skip counting humanPlayers here because after
+            // replacement our row has a bot UUID, so the RLS policy `user_id = auth.uid()`
+            // blocks reads of other players' rows, returning 0 even when humans exist.
+            setCanRejoinAfterExpiry(true);
+          }
+          return; // Done — exit poll loop
+        }
+
+        // Replacement row not found yet — server sweep hasn't run.
+        // Banner already shows "🤖 A bot is playing for you" (botHasReplaced=true),
+        // so the user sees meaningful UI while we wait. Keep polling.
+      } catch {
+        // Network blip — keep trying
+      }
+    }
+
+    // After MAX_ATTEMPTS the replaced row still isn't there.
+    // This means either:
+    //   a) The room was already closed (game ended naturally), or
+    //   b) Something unexpected — play it safe and re-check.
+    // We do NOT call checkCurrentRoom() here as that could re-set
+    // disconnectTimestamp and restart the countdown.
     try {
-      // Query via human_user_id — works regardless of RLS on the rooms table,
-      // since the replaced-by-bot row always has human_user_id = our user.id.
-      const { data: replacedRow } = await supabase
+      const { data: replacedFinal } = await supabase
         .from('room_players')
-        .select('id, room_id')
+        .select('id, rooms!inner(status)')
         .eq('human_user_id', user.id)
         .eq('connection_status', 'replaced_by_bot')
         .maybeSingle();
 
-      if (!replacedRow) {
-        // Bot replacement hasn't been processed yet (or game already ended).
-        // Fall back to the normal room-check which handles all states correctly.
-        await checkCurrentRoom();
-        return;
-      }
-
-      // We've been replaced — now count humans still playing (excluding ourselves)
-      const { data: humanPlayers } = await supabase
-        .from('room_players')
-        .select('id')
-        .eq('room_id', replacedRow.room_id)
-        .eq('is_bot', false)
-        .neq('connection_status', 'replaced_by_bot');
-
-      const humanCount = humanPlayers?.length ?? 0;
-
-      if (humanCount > 0) {
-        // Other humans still in the game — keep banner with "Replace Bot & Rejoin"
-        setDisconnectTimestamp(null);
-        setCanRejoinAfterExpiry(true);
-      } else {
-        // All players are bots — game will auto-delete server-side; clear banner
+      if (!replacedFinal) {
+        // No replaced row at all — game ended or we were never replaced.
         setCurrentRoom(null);
         setCurrentRoomStatus(undefined);
-        setDisconnectTimestamp(null);
         setCanRejoinAfterExpiry(null);
+      } else {
+        const roomStatus = (replacedFinal as any).rooms?.status;
+        if (!roomStatus || roomStatus === 'finished') {
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setCanRejoinAfterExpiry(null);
+        } else {
+          setCanRejoinAfterExpiry(true);
+        }
       }
     } catch {
-      // Network error — retry via normal room check
-      await checkCurrentRoom();
+      // Safe fallback: keep banner in current state (botHasReplaced=true visible),
+      // user can manually tap Leave if needed.
     }
-  }, [user, currentRoom, checkCurrentRoom]);
+  }, [user, currentRoom]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)

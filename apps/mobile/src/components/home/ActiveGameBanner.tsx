@@ -132,6 +132,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   // Calculate countdown for online games
   useEffect(() => {
     if (!onlineRoomCode || onlineRoomStatus !== 'playing') {
+      // Room is gone — reset everything
       setCountdown(null);
       setBotHasReplaced(false);
       return;
@@ -147,7 +148,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
     if (!disconnectTimestamp) {
       setCountdown(null);
-      setBotHasReplaced(false);
+      // Do NOT clear botHasReplaced here — it was set when the timer hit 0 and
+      // must persist while the parent resolves canRejoinAfterExpiry asynchronously.
+      // It is only reset in the !onlineRoomCode branch above (room gone entirely).
       return;
     }
 
