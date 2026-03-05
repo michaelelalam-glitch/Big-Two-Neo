@@ -12,6 +12,8 @@ interface GameLayoutProps {
     cardCount: number;
     isActive: boolean;
     totalScore?: number;
+    /** fix/rejoin: show disconnect spinner */
+    isDisconnected?: boolean;
   }[];
   /** Last played cards to display in center area */
   lastPlayedCards: Card[];
@@ -54,6 +56,7 @@ export function GameLayout({
           cardCount={players[1].cardCount}
           isActive={players[1].isActive}
           totalScore={players[1].totalScore}
+          isDisconnected={players[1].isDisconnected}
         />
       </View>
 
@@ -68,6 +71,7 @@ export function GameLayout({
               cardCount={players[2].cardCount}
               isActive={players[2].isActive}
               totalScore={players[2].totalScore}
+              isDisconnected={players[2].isDisconnected}
             />
           </View>
 
@@ -96,6 +100,7 @@ export function GameLayout({
               cardCount={players[3].cardCount}
               isActive={players[3].isActive}
               totalScore={players[3].totalScore}
+              isDisconnected={players[3].isDisconnected}
             />
           </View>
         </View>

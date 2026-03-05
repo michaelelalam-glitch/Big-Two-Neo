@@ -115,12 +115,29 @@ Deno.serve(async (req) => {
     }
 
     // 3. Get player info
-    const { data: player, error: playerError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('user_id', player_id)
-      .eq('room_id', room.id)
-      .single();
+    // Service-role callers (bot-coordinator) pass room_players.id which works
+    // for replacement bots that have user_id = NULL.
+    // Client callers pass their auth user_id.
+    let player: any, playerError: any;
+    if (isServiceRole) {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    } else {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('user_id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    }
 
     if (playerError || !player) {
       console.log('❌ [player-pass] Player not found:', playerError);
@@ -128,6 +145,15 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Player not found in room' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 3b. Clear persistent disconnect timer — player is actively playing
+    if (!player.is_bot && player.disconnect_timer_started_at) {
+      await supabaseClient
+        .from('room_players')
+        .update({ disconnect_timer_started_at: null })
+        .eq('id', player.id)
+        .eq('room_id', room.id);
     }
 
     // 4a. Reject passes when game is already finished/game_over
@@ -203,9 +229,15 @@ Deno.serve(async (req) => {
     // Validate totalPlayers > 1 before proceeding
     // This prevents incorrect turn calculations when hands object is empty or malformed
     const totalPlayers = Object.keys(currentHands).length;
-    
-    // Only proceed with One Card Left check if we have valid player count
-    if (totalPlayers > 1) {
+
+    // Skip One Card Left Rule when the auto_pass_timer is active.
+    // An active (and typically already-expired) timer means ALL non-exempt players are
+    // being force-passed. The courtesy rule must not block these forced passes — doing so
+    // would leave the game permanently stuck when bots need to auto-pass.
+    const isAutoPassScenario = !!gameState.auto_pass_timer?.active;
+
+    // Only proceed with One Card Left check if we have valid player count AND it is NOT an auto-pass scenario
+    if (totalPlayers > 1 && !isAutoPassScenario) {
     // Calculate next player index (counterclockwise: 0→1→2→3→0)
     // Use modulo arithmetic to support variable player counts
     const nextPlayerIndex = (player.player_index + 1) % totalPlayers;
@@ -298,7 +330,7 @@ Deno.serve(async (req) => {
         // Don't block gameplay if validation throws - log and continue
       }
     }
-    } // End of if (totalPlayers > 1)
+    } // End of if (totalPlayers > 1 && !isAutoPassScenario)
 
     // 6. Calculate next turn (counterclockwise: 0→1→2→3→0)
     // Turn order mapping: [0→1, 1→2, 2→3, 3→0]

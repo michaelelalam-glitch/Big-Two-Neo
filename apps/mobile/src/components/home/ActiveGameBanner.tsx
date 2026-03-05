@@ -59,6 +59,18 @@ interface ActiveGameBannerProps {
   disconnectTimestamp?: number | null;
   /** Increment to force re-check of offline game state (e.g. after discard) */
   refreshTrigger?: number;
+  /**
+   * Called when the countdown reaches 0 — parent should re-check room status.
+   * If the room was all-bots it will be closed server-side, so the parent
+   * should clear `onlineRoomCode` to return the banner to "No game in progress".
+   */
+  onTimerExpired?: () => void;
+  /**
+   * Set by parent after the timer expires and it has checked the room:
+   *   true  = humans still in game → show "Replace Bot & Rejoin" + "Leave"
+   *   null  = timer hasn't expired yet (normal countdown mode)
+   */
+  canRejoinAfterExpiry?: boolean | null;
 }
 
 export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
@@ -70,6 +82,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   onReplaceBotAndRejoin,
   disconnectTimestamp,
   refreshTrigger,
+  onTimerExpired,
+  canRejoinAfterExpiry,
 }) => {
   const [offlineGameInfo, setOfflineGameInfo] = useState<ActiveGameInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -117,11 +131,32 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
   // Calculate countdown for online games
   useEffect(() => {
-    if (!onlineRoomCode || onlineRoomStatus !== 'playing' || !disconnectTimestamp) {
+    if (!onlineRoomCode || onlineRoomStatus !== 'playing') {
+      // Room is gone — reset everything
       setCountdown(null);
       setBotHasReplaced(false);
       return;
     }
+
+    // If the parent has already resolved the post-expiry state, lock into that state.
+    // This prevents the disconnect-timestamp reset from re-firing onTimerExpired infinitely.
+    if (canRejoinAfterExpiry !== null && canRejoinAfterExpiry !== undefined) {
+      setCountdown(0);
+      setBotHasReplaced(true);
+      return; // No interval needed — timer already expired and resolved
+    }
+
+    if (!disconnectTimestamp) {
+      setCountdown(null);
+      // Do NOT clear botHasReplaced here — it was set when the timer hit 0 and
+      // must persist while the parent resolves canRejoinAfterExpiry asynchronously.
+      // It is only reset in the !onlineRoomCode branch above (room gone entirely).
+      return;
+    }
+
+    // Use `let` so the callback can clear the interval once it expires,
+    // preventing onBotReplaced / onTimerExpired from firing every second.
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     const updateCountdown = () => {
       const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
@@ -130,7 +165,14 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
       if (remaining <= 0) {
         setCountdown(0);
         setBotHasReplaced(true);
+        // Stop the interval immediately so callbacks fire exactly once.
+        if (interval) {
+          clearInterval(interval);
+          interval = undefined;
+        }
         onBotReplaced?.();
+        // Notify parent so it can re-check room status (may be closed if all-bots)
+        onTimerExpired?.();
       } else {
         setCountdown(remaining);
         setBotHasReplaced(false);
@@ -138,9 +180,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
+    interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced]);
+  }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced, onTimerExpired, canRejoinAfterExpiry]);
 
   // Determine which game info to display (online takes priority)
   const gameInfo = useMemo<ActiveGameInfo | null>(() => onlineRoomCode
@@ -246,7 +288,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         </View>
       )}
 
-      {/* Bot has replaced message */}
+      {/* Bot has replaced message — shown after 60s expires */}
       {botHasReplaced && isOnline && (
         <View style={styles.countdownRow}>
           <View style={styles.botReplacedBadge}>
@@ -259,8 +301,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
       {/* Action buttons */}
       <View style={styles.buttonRow}>
-        {/* Rejoin button (unified wording for online & offline) */}
         {!botHasReplaced ? (
+          // Timer still running — show plain Rejoin
           <TouchableOpacity
             style={[styles.button, styles.resumeButton]}
             onPress={() => onResume(gameInfo)}
@@ -268,8 +310,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Rejoin</Text>
           </TouchableOpacity>
-        ) : (
-          /* Replace bot button (after 60s, online only) */
+        ) : canRejoinAfterExpiry !== false ? (
+          // Timer expired AND bot took over — show Replace Bot & Rejoin
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton]}
             onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
@@ -277,9 +319,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>🔄 Replace Bot & Rejoin</Text>
           </TouchableOpacity>
-        )}
+        ) : null /* canRejoinAfterExpiry===false: game running but replacement row absent — show only Leave */}
 
-        {/* Leave button (unified wording) */}
+        {/* Leave button (always shown) */}
         <TouchableOpacity
           style={[styles.button, styles.leaveButton]}
           onPress={() => onLeave(gameInfo)}

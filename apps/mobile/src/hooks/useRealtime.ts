@@ -189,6 +189,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('broadcast', { event: 'player_ready' }, (_payload) => {
         fetchPlayers(roomId);
       })
+      // fix/rejoin: human reclaimed seat from bot — refresh both players and
+      // game state so all clients update their UI (stop waiting for "bot" turn)
+      .on('broadcast', { event: 'player_reconnected' }, (payload) => {
+        networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
+        fetchPlayers(roomId);
+        fetchGameState(roomId);
+      })
       .on('broadcast', { event: 'game_started' }, (_payload) => {
         fetchGameState(roomId);
       })
@@ -490,12 +497,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error(roomError?.message || 'Room not found');
       }
 
-      // Ensure the caller is already in the room
+      // Ensure the caller is already in the room.
+      // Also match human_user_id so a player whose seat was temporarily held by a
+      // bot (replaced_by_bot path) can still establish the Realtime channel and
+      // see the game while the RejoinModal prompts them to reclaim their seat.
       const { data: membership, error: membershipError } = await supabase
         .from('room_players')
         .select('id')
         .eq('room_id', existingRoom.id)
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},human_user_id.eq.${userId}`)
         .maybeSingle();
 
       if (membershipError) {

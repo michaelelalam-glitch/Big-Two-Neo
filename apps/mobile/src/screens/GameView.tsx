@@ -53,8 +53,8 @@ export interface GameViewProps {
   effectiveLastPlayCombo: string | null;
 
   // Layout players
-  layoutPlayers: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number }>;
-  layoutPlayersWithScores: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number }>;
+  layoutPlayers: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean }>;
+  layoutPlayersWithScores: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean }>;
   playerTotalScores: number[];
   currentPlayerName: string;
 
@@ -203,6 +203,7 @@ export function GameView(props: GameViewProps) {
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
             totalScores={playerTotalScores}
+            disconnectedPlayers={layoutPlayers.map((p) => p.isDisconnected ?? false)}
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}
             lastPlayedBy={effectiveLastPlayedBy ?? undefined}
@@ -348,6 +349,7 @@ export function GameView(props: GameViewProps) {
                 cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
                 isActive={layoutPlayers[0]?.isActive ?? false}
                 totalScore={playerTotalScores[0] ?? 0}
+                isDisconnected={(layoutPlayers[0] as { isDisconnected?: boolean })?.isDisconnected}
               />
             </View>
 

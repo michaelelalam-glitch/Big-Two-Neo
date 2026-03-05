@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
@@ -38,6 +38,8 @@ interface LandscapeOpponentProps {
   layout?: 'vertical' | 'horizontal';
   /** Total cumulative score (Task #590) */
   totalScore?: number;
+  /** fix/rejoin: show spinner when player is disconnected */
+  isDisconnected?: boolean;
 }
 
 // ============================================================================
@@ -51,6 +53,7 @@ export function LandscapeOpponent({
   photoUrl,
   layout = 'vertical',
   totalScore,
+  isDisconnected = false,
 }: LandscapeOpponentProps) {
   
   return (
@@ -60,14 +63,20 @@ export function LandscapeOpponent({
         styles.avatarContainer,
         isActive && styles.avatarContainerActive,
       ]}>
-        <View style={styles.avatarInner}>
+        <View style={[styles.avatarInner, isDisconnected && styles.avatarInnerDisconnected]}>
           {photoUrl ? (
             // TODO: Render actual profile photo when available
-            <Text style={styles.avatarIcon}>👤</Text>
+            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
           ) : (
-            <Text style={styles.avatarIcon}>👤</Text>
+            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
           )}
         </View>
+        {/* Disconnect spinner overlay */}
+        {isDisconnected && (
+          <View style={styles.disconnectOverlay} pointerEvents="none">
+            <ActivityIndicator size="small" color={COLORS.white} />
+          </View>
+        )}
         {/* Card count badge positioned on avatar */}
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
@@ -91,6 +100,7 @@ export function LandscapeOpponent({
       <View style={[
         styles.nameBadge,
         isActive && styles.nameBadgeActive,
+        isDisconnected && styles.nameBadgeDisconnected,
       ]}>
         <Text style={styles.nameText} numberOfLines={1}>
           {name}
@@ -180,6 +190,29 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
+  },
+
+  // Disconnect styles (fix/rejoin)
+  avatarInnerDisconnected: {
+    opacity: 0.5,
+  },
+  avatarIconFaded: {
+    opacity: 0.6,
+  },
+  disconnectOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: LAYOUT.avatarInnerRadius,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  nameBadgeDisconnected: {
+    opacity: 0.6,
   },
 });
 

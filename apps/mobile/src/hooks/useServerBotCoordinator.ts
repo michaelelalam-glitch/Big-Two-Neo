@@ -57,6 +57,8 @@ export function useServerBotCoordinator({
   // Store players in a ref so the effect does not re-run (and cancel the timer) on every
   // Realtime update that produces a new players array reference without changing the turn.
   const playersRef = useRef(players);
+  // Track whether the current-turn player is a bot (used to detect replacement events)
+  const currentTurnIsBotRef = useRef<boolean>(false);
   useEffect(() => { playersRef.current = players; }, [players]);
 
   const triggerBotCoordinator = useCallback(async () => {
@@ -187,4 +189,38 @@ export function useServerBotCoordinator({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- players excluded (use ref); only re-run when current_turn changes
   }, [gameState?.current_turn]);
+
+  // ── Bot-replacement detection ────────────────────────────────────────────────
+  // When process_disconnected_players converts a human to a bot, a room_players
+  // UPDATE event fires and `players` is updated — but current_turn does NOT change,
+  // so the main effect never re-evaluates currentPlayer?.is_bot.  This effect watches
+  // for the "was human, now bot" transition on the current-turn slot and immediately
+  // triggers the bot coordinator fallback so the game doesn't stall.
+  useEffect(() => {
+    if (!enabled || !gameState || !roomCode) return;
+    const { current_turn: currentTurn, game_phase: phase } = gameState;
+    if (phase === 'finished' || phase === 'game_over') return;
+
+    const currentPlayer = players.find(p => p.player_index === currentTurn);
+    const isNowBot = !!currentPlayer?.is_bot;
+
+    if (isNowBot && !currentTurnIsBotRef.current) {
+      // Transition: human → bot on the current-turn slot (replacement happened)
+      gameLogger.info(
+        `[ServerBotCoordinator] 🔄 Player at turn ${currentTurn} replaced by bot — scheduling immediate fallback trigger`,
+      );
+      // Reset any prior "triggered for this turn" record so the main effect fires fresh
+      triggeredForTurnRef.current = null;
+      // Fire the coordinator after the replacement Realtime update has propagated
+      const t = setTimeout(() => {
+        triggerBotCoordinator();
+      }, FALLBACK_GRACE_PERIOD_MS);
+      currentTurnIsBotRef.current = true;
+      return () => clearTimeout(t);
+    }
+
+    currentTurnIsBotRef.current = isNowBot;
+  // players is intentionally included here — we NEED to re-run when is_bot changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, gameState?.current_turn, gameState?.game_phase, enabled, roomCode, triggerBotCoordinator]);
 }
