@@ -292,6 +292,17 @@ jobs:
           fi
           echo "Installing app: $APP_PATH"
           xcrun simctl install booted "$APP_PATH"
+
+      - name: ⏳ Warm up simulator after install
+        run: |
+          # Give the simulator time to register the newly installed app and
+          # let the XCUITest AXServer fully initialize. Without this, Maestro's
+          # XCUITest driver times out connecting to port 7001 on the first run.
+          # Also launch + terminate the app once so SpringBoard caches it.
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 15
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 5
       
       - name: 🎭 Run Maestro E2E tests
         run: |
@@ -306,6 +317,11 @@ jobs:
             --format junit \
             --output e2e/results/results.xml
         timeout-minutes: 10
+        env:
+          # Give Maestro's XCUITest driver up to 5 minutes to start the
+          # XCTest server on port 7001. Default (~90s) is too short on
+          # freshly-booted GitHub Actions macOS runners.
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
       
       - name: 📸 Upload E2E screenshots & results
         uses: actions/upload-artifact@v4
