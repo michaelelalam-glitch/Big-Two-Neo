@@ -2,6 +2,12 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 // parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+
+// Rate-limit config for play-cards: max 10 plays per 10-second window per user.
+// Normal gameplay is ~1 play every several seconds; 10/10s is generous for legitimate use.
+const PLAY_CARDS_RATE_LIMIT_MAX    = 10;
+const PLAY_CARDS_RATE_LIMIT_WINDOW = 10; // seconds
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -705,6 +711,23 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ── Rate limiting (client callers only; service-role / bot-coordinator bypass) ──
+    // Prevents rapid-fire abuse of play-cards (e.g. scripted card spam).
+    // Uses the shared rate_limit_tracking table — Task #556.
+    if (!isServiceRole) {
+      const rl = await checkRateLimit(
+        supabaseClient,
+        player_id,
+        'play_cards',
+        PLAY_CARDS_RATE_LIMIT_MAX,
+        PLAY_CARDS_RATE_LIMIT_WINDOW,
+      );
+      if (!rl.allowed) {
+        return rateLimitResponse(rl.retryAfterMs, corsHeaders);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     console.log('🎮 [play-cards] Request received:', {
       room_code,

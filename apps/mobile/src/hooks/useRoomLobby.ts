@@ -107,6 +107,11 @@ export function useRoomLobby({
             );
             continue;
           }
+          // P0429 = rate limit exceeded (enforce_create_room_rate_limit trigger — Task #281).
+          // Do NOT retry; surface immediately.
+          if (roomError.code === 'P0429' || roomError.message?.toLowerCase().includes('rate limit')) {
+            networkLogger.warn('[useRoomLobby] Room creation rate limit exceeded for user', userId?.substring(0, 8));
+          }
           throw roomError;
         }
 
