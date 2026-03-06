@@ -143,18 +143,27 @@ CREATE TRIGGER trg_rate_limit_create_room
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 7. pg_cron: purge stale rows every hour (keeps table lean)
---    Only scheduled if pg_cron extension is available.
+--    Uses the same two-block convention as other migrations:
+--    block 1 — safely remove any pre-existing schedule (idempotent);
+--    block 2 — register the new schedule.
 -- ─────────────────────────────────────────────────────────────────────────────
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_extension WHERE extname = 'pg_cron'
-  ) THEN
-    PERFORM cron.schedule(
-      'purge-rate-limit-tracking',    -- job name
-      '0 * * * *',                    -- every hour on the hour
-      $$DELETE FROM rate_limit_tracking WHERE updated_at < now() - INTERVAL '25 hours'$$
-    );
-  END IF;
+  PERFORM cron.unschedule('purge-rate-limit-tracking');
+EXCEPTION WHEN OTHERS THEN
+  NULL; -- pg_cron not installed yet, or job doesn't exist — safe to ignore
+END;
+$$;
+
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'purge-rate-limit-tracking',    -- job name
+    '0 * * * *',                    -- every hour on the hour
+    $$DELETE FROM rate_limit_tracking WHERE updated_at < now() - INTERVAL '25 hours'$$
+  );
+  RAISE NOTICE 'pg_cron: purge-rate-limit-tracking scheduled every hour';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron scheduling skipped (extension not available): %', SQLERRM;
 END;
 $$;
