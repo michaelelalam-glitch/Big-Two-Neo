@@ -426,11 +426,15 @@ export function MultiplayerGame() {
 
   // Task #573: Stable callback that reads the latest game state at call-time for
   // client-side card validation in useGameActions (avoids stale-closure issues).
+  // NOTE: isFirstPlayOfGame uses game_phase === 'first_play' rather than
+  // (match_number===1 && last_play===null) — last_play is also null at the start of
+  // any new trick (after all players pass), which would incorrectly re-enable the
+  // 3♦ opening rule mid-match.  game_phase is the authoritative flag set by the server.
   const getMultiplayerValidationState = React.useCallback(() => {
     if (!multiplayerGameState) return null;
     return {
       lastPlay: multiplayerGameState.last_play ?? null,
-      isFirstPlayOfGame: multiplayerGameState.match_number === 1 && multiplayerGameState.last_play === null,
+      isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
       playerHand: (multiplayerPlayerHand ?? []) as Card[],
     };
   }, [multiplayerGameState, multiplayerPlayerHand]);

@@ -141,7 +141,9 @@ export function useGameActions({
               return;
             }
 
-            // 3. First play of game must include the 3 of Diamonds
+            // 3. First play of game must include the 3 of Diamonds.
+            // Card IDs are always constructed as `${rank}${suit}` (rank-first), so the
+            // 3 of Diamonds is always '3D' — 'D3' is never a valid ID in this codebase.
             if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D')) {
               soundManager.playSound(SoundType.INVALID_MOVE);
               showError(i18n.t('game.firstPlayMustInclude3D'));
