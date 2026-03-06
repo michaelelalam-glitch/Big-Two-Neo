@@ -159,7 +159,17 @@ export default function CreateRoomScreen() {
       // Only log error message/code to avoid exposing DB internals or auth tokens
       const msg = error instanceof Error ? error.message : String(error);
       roomLogger.error('Error creating room:', msg);
-      showError(msg || i18n.t('room.createRoomError'));
+
+      // P0429 = rate limit exceeded (raised by enforce_create_room_rate_limit trigger — Task #281)
+      const isRateLimitError =
+        (error as { code?: string })?.code === 'P0429' ||
+        msg.toLowerCase().includes('rate limit');
+
+      showError(
+        isRateLimitError
+          ? i18n.t('room.createRoomRateLimited')
+          : msg || i18n.t('room.createRoomError'),
+      );
     } finally {
       setIsCreating(false);
     }
