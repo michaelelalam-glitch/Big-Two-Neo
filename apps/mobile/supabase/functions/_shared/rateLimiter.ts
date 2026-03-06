@@ -68,8 +68,13 @@ export async function checkRateLimit(
 
     const attempts: number = data as number;
     const allowed = attempts <= maxPerWindow;
-    // Remaining time in the current window (worst case = full window).
-    const retryAfterMs = allowed ? 0 : windowSeconds * 1000;
+    // Compute remaining time in the current window using the same bucket formula
+    // as the DB: floor(epochSeconds / windowSeconds) * windowSeconds.
+    // This avoids over-reporting the wait time when the window is nearly expired.
+    const nowMs = Date.now();
+    const windowStartMs = Math.floor(nowMs / 1000 / windowSeconds) * windowSeconds * 1000;
+    const windowEndMs = windowStartMs + windowSeconds * 1000;
+    const retryAfterMs = allowed ? 0 : Math.max(0, windowEndMs - nowMs);
 
     if (!allowed) {
       console.warn(

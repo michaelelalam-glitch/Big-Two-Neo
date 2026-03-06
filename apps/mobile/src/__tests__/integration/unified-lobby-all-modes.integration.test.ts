@@ -44,9 +44,10 @@ const nodeCrypto = require('crypto') as { randomUUID: () => string };
 const randomUUID = (): string =>
   (globalThis as any).crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
 
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  'https://dppybucldqufbqhwnkxu.supabase.co';
+// SUPABASE_URL must be supplied via environment variable.
+// Do not hard-code the production URL here — set EXPO_PUBLIC_SUPABASE_URL
+// in your .env or CI secrets.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

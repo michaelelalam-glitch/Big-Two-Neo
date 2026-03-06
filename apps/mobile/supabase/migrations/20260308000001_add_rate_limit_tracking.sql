@@ -89,6 +89,15 @@ BEGIN
 END;
 $$;
 
+-- Security hardening: restrict upsert_rate_limit_counter to service_role only.
+-- Prevents anon/authenticated clients from calling it directly via .rpc(),
+-- which would let them manipulate their own rate-limit counters.
+-- Follows the same REVOKE/GRANT pattern used throughout this codebase.
+REVOKE ALL ON FUNCTION public.upsert_rate_limit_counter(uuid, text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.upsert_rate_limit_counter(uuid, text, integer) FROM anon;
+REVOKE ALL ON FUNCTION public.upsert_rate_limit_counter(uuid, text, integer) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_rate_limit_counter(uuid, text, integer) TO service_role;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 5. BEFORE INSERT trigger function: enforce_create_room_rate_limit
 --    Limits each authenticated user to MAX_ROOMS_PER_HOUR room creations.
