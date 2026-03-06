@@ -50,6 +50,21 @@ export interface Translations {
     comingSoon: string;
     continue: string;
   };
+
+  // Game Selection Screen
+  gameSelection: {
+    welcome: string;
+    subtitle: string;
+    chinesePokerTitle: string;
+    chinesePokerDesc: string;
+    playButton: string;
+    lebaneseDealTitle: string;
+    lebaneseDealDesc: string;
+    soonButton: string;
+    moreGamesFooter: string;
+    comingSoonAlertTitle: string;
+    comingSoonAlertMsg: string;
+  };
   
   // Settings Screen
   settings: {
@@ -356,6 +371,10 @@ export interface Translations {
     leaveErrorMessage: string;
     matchesPlayed: string;
     oneMatch: string;
+    collapseAll: string;
+    expandAll: string;
+    card: string;
+    cards: string;
   };
   
   // Lobby Screen
@@ -402,6 +421,8 @@ export interface Translations {
     easy: string;
     medium: string;
     hard: string;
+    rankedMatch: string;
+    privateRoom: string;
   };
   room: {
     createTitle: string;
@@ -615,6 +636,19 @@ const en: Translations = {
     daily: 'Daily',
     comingSoon: 'Coming Soon',
     continue: 'Continue',
+  },
+  gameSelection: {
+    welcome: 'Welcome,',
+    subtitle: 'Choose a game to play',
+    chinesePokerTitle: 'Chinese Poker',
+    chinesePokerDesc: 'Big Two — the classic card game.\nPlay online or against bots.',
+    playButton: 'PLAY →',
+    lebaneseDealTitle: 'Lebanese Deal',
+    lebaneseDealDesc: 'A brand-new card game experience.\nStay tuned for the launch!',
+    soonButton: 'SOON',
+    moreGamesFooter: 'More games coming in future updates',
+    comingSoonAlertTitle: '🚧 Coming Soon!',
+    comingSoonAlertMsg: 'Lebanese Deal is currently in development. Stay tuned!',
   },
   settings: {
     title: 'Settings',
@@ -871,6 +905,10 @@ const en: Translations = {
     leaveErrorMessage: 'Failed to leave game. Please try again.',
     matchesPlayed: 'matches played',
     oneMatch: 'match',
+    collapseAll: 'Collapse All',
+    expandAll: 'Expand All',
+    card: 'card',
+    cards: 'cards',
   },
   lobby: {
     title: 'Game Lobby',
@@ -915,6 +953,8 @@ const en: Translations = {
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',
+    rankedMatch: '🏆 Ranked Match',
+    privateRoom: '🔒 Private Room',
   },
   room: {
     createTitle: 'Create Room',
@@ -1116,6 +1156,19 @@ const ar: Translations = {
     daily: 'يومي',
     comingSoon: 'قريبًا',
     continue: 'متابعة',
+  },
+  gameSelection: {
+    welcome: 'مرحبًا،',
+    subtitle: 'اختر لعبة للعب',
+    chinesePokerTitle: 'بوكر صيني',
+    chinesePokerDesc: 'بيج تو — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
+    playButton: '←  العب',
+    lebaneseDealTitle: 'ديل لبناني',
+    lebaneseDealDesc: 'تجربة لعبة ورق جديدة كليًا.\nترقبوا الإطلاق!',
+    soonButton: 'قريبًا',
+    moreGamesFooter: 'المزيد من الألعاب في التحديثات القادمة',
+    comingSoonAlertTitle: '🚧 قريبًا!',
+    comingSoonAlertMsg: 'الديل اللبناني قيد التطوير حاليًا. ترقبوا!',
   },
   settings: {
     title: 'الإعدادات',
@@ -1324,6 +1377,10 @@ const ar: Translations = {
     leaveErrorMessage: 'فشلت مغادرة اللعبة. حاول مرة أخرى.',
     matchesPlayed: 'مباريات ملعوبة',
     oneMatch: 'مباراة',
+    collapseAll: 'طي الكل',
+    expandAll: 'توسيع الكل',
+    card: 'بطاقة',
+    cards: 'بطاقات',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -1368,6 +1425,8 @@ const ar: Translations = {
     easy: 'سهل',
     medium: 'متوسط',
     hard: 'صعب',
+    rankedMatch: '🏆 مباراة مصنفة',
+    privateRoom: '🔒 غرفة خاصة',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1648,6 +1707,19 @@ const de: Translations = {
     comingSoon: 'Bald verfügbar',
     continue: 'Weiter',
   },
+  gameSelection: {
+    welcome: 'Willkommen,',
+    subtitle: 'Wähle ein Spiel',
+    chinesePokerTitle: 'Chinesisches Poker',
+    chinesePokerDesc: 'Big Two — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
+    playButton: 'SPIELEN →',
+    lebaneseDealTitle: 'Libanesischer Deal',
+    lebaneseDealDesc: 'Ein brandneues Kartenspiel-Erlebnis.\nBleibt auf dem Laufenden!',
+    soonButton: 'BALD',
+    moreGamesFooter: 'Weitere Spiele in künftigen Updates',
+    comingSoonAlertTitle: '🚧 Bald verfügbar!',
+    comingSoonAlertMsg: 'Libanesischer Deal ist derzeit in Entwicklung. Bleibt gespannt!',
+  },
   settings: {
     title: 'Einstellungen',
     profileSettings: 'Profileinstellungen',
@@ -1855,6 +1927,10 @@ const de: Translations = {
     leaveErrorMessage: 'Spiel konnte nicht verlassen werden. Bitte erneut versuchen.',
     matchesPlayed: 'gespielte Matches',
     oneMatch: 'Match',
+    collapseAll: 'Alle einklappen',
+    expandAll: 'Alle ausklappen',
+    card: 'Karte',
+    cards: 'Karten',
   },
   lobby: {
     title: 'Spiellobby',
@@ -1899,6 +1975,8 @@ const de: Translations = {
     easy: 'Einfach',
     medium: 'Mittel',
     hard: 'Schwer',
+    rankedMatch: '🏆 Ranglistenspiel',
+    privateRoom: '🔒 Privater Raum',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -2147,7 +2225,7 @@ const de: Translations = {
     reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
     disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
     botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
-    spectatorMode: '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf „Wieder beitreten & Bot ersetzen“, um sofort weiterzuspielen.',
+    spectatorMode: '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf „Bot ersetzen & beitreten“, um sofort weiterzuspielen.',
   },
 };
 

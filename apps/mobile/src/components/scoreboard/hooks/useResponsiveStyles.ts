@@ -248,10 +248,13 @@ export const useExpandedScoreboardStyles = () => {
       backgroundColor: ScoreboardColors.background.expanded,
       borderRadius: dims.moderateScale(12),
       padding: dims.moderateScale(8),
-      minWidth: dims.isLandscape 
+      width: dims.isLandscape
+        ? dims.screenWidth * 0.65  // Match play history width
+        : dims.screenWidth * 0.9,  // Match play history portrait width
+      minWidth: dims.isLandscape
         ? dims.screenWidth * 0.65  // Match play history width
         : undefined,
-      maxWidth: dims.isLandscape 
+      maxWidth: dims.isLandscape
         ? dims.screenWidth * 0.65  // Match play history width
         : dims.screenWidth * 0.9,
       maxHeight: dims.isLandscape 

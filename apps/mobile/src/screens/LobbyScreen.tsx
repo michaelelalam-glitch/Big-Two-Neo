@@ -592,9 +592,9 @@ export default function LobbyScreen() {
           styles.roomTypeBadge,
         ]}>
           <Text style={styles.roomTypeBadgeText}>
-            {(roomType.isRanked && '🏆 Ranked Match') ||
+            {(roomType.isRanked && i18n.t('lobby.rankedMatch')) ||
              (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch')}`) ||
-             (roomType.isPrivate && '🔒 Private Room') ||
+             (roomType.isPrivate && i18n.t('lobby.privateRoom')) ||
              i18n.t('lobby.title')}
           </Text>
         </View>

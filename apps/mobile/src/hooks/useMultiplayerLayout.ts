@@ -42,7 +42,15 @@ export function useMultiplayerLayout({
   userId,
 }: UseMultiplayerLayoutOptions) {
   const multiplayerSeatIndex = React.useMemo(() => {
-    const me = multiplayerPlayers.find((p) => p.user_id === userId);
+    // Primary lookup: match by user_id.
+    // Fallback: match by human_user_id for rejoin/bot-replacement scenarios where
+    // the row's user_id has been switched to the bot's ID but human_user_id still
+    // references the original human player.  Without this, myIndex defaults to 0
+    // and the player sees the wrong seat as "active", making play/pass buttons
+    // permanently disabled when it's actually their turn.
+    const me =
+      multiplayerPlayers.find((p) => p.user_id === userId) ??
+      multiplayerPlayers.find((p) => p.human_user_id === userId);
     const myIndex = typeof me?.player_index === 'number' ? me.player_index : 0;
     return myIndex;
   }, [multiplayerPlayers, userId]);

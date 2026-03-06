@@ -295,7 +295,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           setGameState(payload.new as GameState);
         }
       })
-      // ✅ FIX: Listen to room_players changes to catch is_host updates
+      // ✅ FIX: Listen to room_players changes to catch is_host updates.
+      // PERF: For UPDATE events, merge the changed row directly instead of re-fetching
+      // all players from the DB. Heartbeats fire every 5 s per player (×4 players ≈ 1/s)
+      // and previously triggered a full SELECT + setState + 2-3 cascading re-renders.
+      // Returning the SAME prev reference when only heartbeat fields changed prevents
+      // those unnecessary re-renders entirely.
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -303,7 +308,38 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         filter: `room_id=eq.${roomId}`,
       }, async (payload) => {
         networkLogger.debug('[useRealtime] 👥 room_players change:', payload.eventType);
-        await fetchPlayers(roomId);
+
+        if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as Player;
+          setRoomPlayers(prev => {
+            const idx = prev.findIndex(p => p.id === updated.id);
+            if (idx === -1) return [...prev, updated]; // new row — insert
+
+            const existing = prev[idx];
+            // Only re-render when UI-relevant fields change.
+            // last_heartbeat / heartbeat_count are heartbeat-only and never affect rendering.
+            const meaningfullyChanged =
+              existing.is_host !== updated.is_host ||
+              existing.is_bot !== updated.is_bot ||
+              existing.connection_status !== updated.connection_status ||
+              existing.player_index !== updated.player_index ||
+              existing.username !== updated.username ||
+              existing.human_user_id !== updated.human_user_id ||
+              existing.user_id !== updated.user_id;
+
+            if (!meaningfullyChanged) {
+              networkLogger.debug('[useRealtime] 👥 room_players heartbeat ping — skipping re-render');
+              return prev; // same reference → React bails out → no re-render
+            }
+
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          });
+        } else {
+          // INSERT / DELETE: full re-fetch to ensure consistent ordering
+          await fetchPlayers(roomId);
+        }
       });
     
     // Subscribe and track presence - WAIT for subscription to complete
