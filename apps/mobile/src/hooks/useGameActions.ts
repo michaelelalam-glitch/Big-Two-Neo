@@ -142,7 +142,7 @@ export function useGameActions({
             }
 
             // 3. First play of game must include the 3 of Diamonds
-            if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D' || c.id === 'D3')) {
+            if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D')) {
               soundManager.playSound(SoundType.INVALID_MOVE);
               showError(i18n.t('game.firstPlayMustInclude3D'));
               isPlayingCardsRef.current = false;

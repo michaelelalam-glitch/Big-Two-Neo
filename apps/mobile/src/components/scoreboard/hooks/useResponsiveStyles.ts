@@ -250,10 +250,10 @@ export const useExpandedScoreboardStyles = () => {
       padding: dims.moderateScale(8),
       minWidth: dims.isLandscape 
         ? dims.screenWidth * 0.65  // Match play history width
-        : dims.isSmallDevice ? dims.moderateScale(140) : dims.moderateScale(150),
+        : undefined,
       maxWidth: dims.isLandscape 
         ? dims.screenWidth * 0.65  // Match play history width
-        : dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
+        : dims.screenWidth * 0.9,
       maxHeight: dims.isLandscape 
         ? dims.screenHeight * 0.92  // Match play history height
         : dims.screenHeight * 0.85,

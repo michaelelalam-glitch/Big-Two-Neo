@@ -1345,7 +1345,7 @@ const ar: Translations = {
     readyUp: 'جاهز',
     starting: 'البدء',
     startWithBots: 'ابدأ مع روبوتات الذكاء الاصطناعي',
-    startWithBotsCount: 'ابدأ مع {count} روبوت(ات)',
+    startWithBotsCount: 'ابدأ مع {{count}} روبوت(ات)',
     humanPlayers: 'لاعبون بشر',
     botsNeeded: 'الروبوتات المطلوبة',
     casualMatch: 'مباراة عادية',
@@ -1876,7 +1876,7 @@ const de: Translations = {
     readyUp: 'Bereit machen',
     starting: 'Startet',
     startWithBots: 'Mit KI-Bots starten',
-    startWithBotsCount: 'Mit {count} Bot(s) starten',
+    startWithBotsCount: 'Mit {{count}} Bot(s) starten',
     humanPlayers: 'Menschliche Spieler',
     botsNeeded: 'Benötigte Bots',
     casualMatch: 'Freundschaftsspiel',
@@ -2147,7 +2147,7 @@ const de: Translations = {
     reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
     disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
     botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
-    spectatorMode: '🔄 Wiedereintreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder eintreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & Wiedereintreten" um sofort weiterzuspielen.',
+    spectatorMode: '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf „Wieder beitreten & Bot ersetzen“, um sofort weiterzuspielen.',
   },
 };
 

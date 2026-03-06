@@ -324,7 +324,7 @@ export default function LeaderboardScreen() {
           onPress={() => setLeaderboardType('casual')}
         >
           <Text style={[styles.filterText, leaderboardType === 'casual' && styles.filterTextActive]}>
-            🎮 Casual
+            🎮 {i18n.t('matchmaking.casual')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -332,7 +332,7 @@ export default function LeaderboardScreen() {
           onPress={() => setLeaderboardType('ranked')}
         >
           <Text style={[styles.filterText, leaderboardType === 'ranked' && styles.filterTextActive]}>
-            🏆 Ranked
+            🏆 {i18n.t('matchmaking.ranked')}
           </Text>
         </TouchableOpacity>
       </View>

@@ -252,7 +252,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>📜 {i18n.t('game.playHistory')}</Text>
+            <Text style={styles.modalTitle}>📜 {i18n.t('gameEnd.playHistory')}</Text>
             
             <TouchableOpacity
               style={styles.modalCloseButton}

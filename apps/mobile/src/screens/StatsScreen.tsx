@@ -437,7 +437,12 @@ export default function StatsScreen() {
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'overview' ? `📊 ${i18n.t('profile.overview')}` : tab === 'casual' ? `🎮 ${i18n.t('matchmaking.casual')}` : tab === 'private' ? `🔒 ${i18n.t('profile.private')}` : `🏆 ${i18n.t('matchmaking.ranked')}`}
+                {({
+                  overview: `📊 ${i18n.t('profile.overview')}`,
+                  casual: `🎮 ${i18n.t('matchmaking.casual')}`,
+                  private: `🔒 ${i18n.t('profile.private')}`,
+                  ranked: `🏆 ${i18n.t('matchmaking.ranked')}`,
+                } as Record<string, string>)[tab] ?? tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -446,7 +451,12 @@ export default function StatsScreen() {
         {/* Mode-Aware Key Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {activeTab === 'overview' ? i18n.t('profile.overview') : activeTab === 'casual' ? i18n.t('profile.casualStats') : activeTab === 'private' ? i18n.t('profile.privateStats') : i18n.t('profile.rankedStats')}
+            {({
+              overview: i18n.t('profile.overview'),
+              casual: i18n.t('profile.casualStats'),
+              private: i18n.t('profile.privateStats'),
+              ranked: i18n.t('profile.rankedStats'),
+            } as Record<string, string>)[activeTab] ?? activeTab}
           </Text>
 
           {/* Core 4 cards — played / win rate / won / lost */}
