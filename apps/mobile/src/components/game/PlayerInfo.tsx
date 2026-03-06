@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
@@ -9,6 +9,8 @@ interface PlayerInfoProps {
   cardCount: number;
   isActive: boolean; // Current turn indicator
   totalScore?: number; // Cumulative total score (Task #590)
+  /** fix/rejoin: show spinner when player is disconnected */
+  isDisconnected?: boolean;
 }
 
 export default function PlayerInfo({
@@ -16,8 +18,9 @@ export default function PlayerInfo({
   cardCount,
   isActive,
   totalScore,
+  isDisconnected = false,
 }: PlayerInfoProps) {
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}`;
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}`;
   
   return (
     <View 
@@ -27,10 +30,16 @@ export default function PlayerInfo({
     >
       {/* Avatar with turn indicator */}
       <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
           {/* Default avatar icon - matches landscape opponent emoji */}
-          <Text style={styles.avatarIcon}>👤</Text>
+          <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
+        {/* Disconnect spinner overlay */}
+        {isDisconnected && (
+          <View style={styles.disconnectOverlay} pointerEvents="none">
+            <ActivityIndicator size="small" color={COLORS.white} />
+          </View>
+        )}
         {/* Card count badge positioned on avatar */}
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
@@ -53,7 +62,7 @@ export default function PlayerInfo({
       </View>
 
       {/* Player name badge */}
-      <View style={styles.nameBadge}>
+      <View style={[styles.nameBadge, isDisconnected && styles.nameBadgeDisconnected]}>
         <Text style={styles.nameText} numberOfLines={1}>
           {name}
         </Text>
@@ -117,5 +126,27 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
+  },
+  // Disconnect overlay styles (fix/rejoin)
+  avatarDisconnected: {
+    opacity: 0.5,
+  },
+  avatarIconFaded: {
+    opacity: 0.6,
+  },
+  disconnectOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: LAYOUT.avatarInnerRadius,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  nameBadgeDisconnected: {
+    opacity: 0.6,
   },
 });

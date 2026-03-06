@@ -740,13 +740,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Get player info (using user_id column, not id)
-    const { data: player, error: playerError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('user_id', player_id)  // ✅ FIX: Use user_id column (not id which is the record UUID)
-      .eq('room_id', room.id)
-      .single();
+    // 3. Get player info
+    // Service-role callers (bot-coordinator) pass room_players.id which works
+    // for replacement bots that have user_id = NULL.
+    // Client callers pass their auth user_id.
+    let player: any, playerError: any;
+    if (isServiceRole) {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    } else {
+      const result = await supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('user_id', player_id)
+        .eq('room_id', room.id)
+        .single();
+      player = result.data;
+      playerError = result.error;
+    }
 
     if (playerError || !player) {
       console.log('❌ [play-cards] Player not found:', {
@@ -767,6 +784,17 @@ Deno.serve(async (req) => {
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 3b. Clear persistent disconnect timer — player is actively playing.
+    // This proves the player is engaged and should not be replaced by a bot.
+    // Only applies to human players who have a timer running.
+    if (!player.is_bot && player.disconnect_timer_started_at) {
+      await supabaseClient
+        .from('room_players')
+        .update({ disconnect_timer_started_at: null })
+        .eq('id', player.id)
+        .eq('room_id', room.id);
     }
 
     // 4a. Reject plays when game is already finished/game_over.

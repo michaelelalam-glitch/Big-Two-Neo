@@ -31,6 +31,8 @@ export interface LayoutPlayer {
   score: number;
   isActive: boolean;
   player_index: number;
+  /** fix/rejoin: true when the player is disconnected or replaced by a bot */
+  isDisconnected?: boolean;
 }
 
 export function useMultiplayerLayout({
@@ -40,7 +42,15 @@ export function useMultiplayerLayout({
   userId,
 }: UseMultiplayerLayoutOptions) {
   const multiplayerSeatIndex = React.useMemo(() => {
-    const me = multiplayerPlayers.find((p) => p.user_id === userId);
+    // Primary lookup: match by user_id.
+    // Fallback: match by human_user_id for rejoin/bot-replacement scenarios where
+    // the row's user_id has been switched to the bot's ID but human_user_id still
+    // references the original human player.  Without this, myIndex defaults to 0
+    // and the player sees the wrong seat as "active", making play/pass buttons
+    // permanently disabled when it's actually their turn.
+    const me =
+      multiplayerPlayers.find((p) => p.user_id === userId) ??
+      multiplayerPlayers.find((p) => p.human_user_id === userId);
     const myIndex = typeof me?.player_index === 'number' ? me.player_index : 0;
     return myIndex;
   }, [multiplayerPlayers, userId]);
@@ -116,6 +126,16 @@ export function useMultiplayerLayout({
     const currentTurn = multiplayerGameState?.current_turn;
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
+    // fix/rejoin: a player is "disconnected" (shows spinner overlay) ONLY while they
+    // are in the process of disconnecting — i.e. connection_status = 'disconnected'.
+    // Once a replacement bot takes the seat (status = 'replaced_by_bot'), the bot
+    // is actively playing and should show a normal avatar without a spinner overlay.
+    const isDisconnected = (idx: number): boolean => {
+      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      if (!p) return false;
+      return p.connection_status === 'disconnected';
+    };
+
     // CRITICAL: RELATIVE positioning — each player sees THEMSELVES at bottom
     const bottom = multiplayerSeatIndex;
     const top = (multiplayerSeatIndex + 2) % 4;
@@ -123,10 +143,10 @@ export function useMultiplayerLayout({
     const right = (multiplayerSeatIndex + 1) % 4;
 
     return [
-      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom },
-      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top },
-      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left },
-      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right },
+      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom, isDisconnected: isDisconnected(bottom) },
+      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top, isDisconnected: isDisconnected(top) },
+      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left) },
+      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right) },
     ];
   }, [multiplayerPlayers, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
 

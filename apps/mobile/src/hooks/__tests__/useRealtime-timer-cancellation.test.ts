@@ -190,6 +190,11 @@ describe('useRealtime - Timer Cancellation', () => {
         return {
           select: jest.fn().mockImplementation(() => ({
             eq: jest.fn().mockImplementation(() => ({
+              // connectToRoom membership check: .eq('room_id').or('user_id.eq...,human_user_id.eq...').maybeSingle()
+              or: jest.fn().mockReturnValue({
+                maybeSingle: jest.fn().mockResolvedValue({ data: mockMembership, error: null }),
+              }),
+              // Legacy path / fallback: second .eq() before maybeSingle
               eq: jest.fn().mockReturnValue({
                 maybeSingle: jest.fn().mockResolvedValue({ data: mockMembership, error: null }),
               }),

@@ -760,7 +760,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
               <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
               <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
                 <Text style={styles.expandAllText}>
-                  {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+                  {allExpanded ? `▲ ${i18n.t('gameEnd.collapseAll')}` : `▼ ${i18n.t('gameEnd.expandAll')}`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -983,7 +983,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
             ))
           ) : (
             <Text style={styles.playHistoryNoCards}>
-              {hand.count} {hand.count === 1 ? 'card' : 'cards'}
+              {hand.count} {hand.count === 1 ? i18n.t('gameEnd.card') : i18n.t('gameEnd.cards')}
             </Text>
           )}
         </View>
@@ -1008,7 +1008,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         <>
           {/* Winner announcement + standings scroll with the list */}
           {headerSlot}
-          <Text style={styles.historyTitle}>Card Play History</Text>
+          <Text style={styles.historyTitle}>{i18n.t('gameEnd.cardPlayHistory')}</Text>
         </>
       }
       ListEmptyComponent={

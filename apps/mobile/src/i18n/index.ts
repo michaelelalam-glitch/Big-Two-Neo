@@ -50,6 +50,21 @@ export interface Translations {
     comingSoon: string;
     continue: string;
   };
+
+  // Game Selection Screen
+  gameSelection: {
+    welcome: string;
+    subtitle: string;
+    chinesePokerTitle: string;
+    chinesePokerDesc: string;
+    playButton: string;
+    lebaneseDealTitle: string;
+    lebaneseDealDesc: string;
+    soonButton: string;
+    moreGamesFooter: string;
+    comingSoonAlertTitle: string;
+    comingSoonAlertMsg: string;
+  };
   
   // Settings Screen
   settings: {
@@ -156,6 +171,33 @@ export interface Translations {
     casualMatchDescription: string;
     rankedMatch: string;
     rankedMatchDescription: string;
+    findGame: string;
+    findGameDescription: string;
+    offlinePractice: string;
+    offlinePracticeDescription: string;
+    botDifficultyTitle: string;
+    botDifficultySubtitle: string;
+    easy: string;
+    easyDesc: string;
+    medium: string;
+    mediumDesc: string;
+    hard: string;
+    hardDesc: string;
+    chooseGameMode: string;
+    noGameInProgress: string;
+    startNewGameHint: string;
+    activeOnlineGame: string;
+    activeOfflineGame: string;
+    inProgress: string;
+    waitingStatus: string;
+    rejoin: string;
+    replaceBotAndRejoin: string;
+    cancelSearch: string;
+    findingRankedMatch: string;
+    offlineMatchSubtitle: string;
+    botReplacingYou: string;
+    beforeBotReplaces: string;
+    botPlayingForYou: string;
   };
 
   // How to Play Screen
@@ -262,6 +304,8 @@ export interface Translations {
     selectCards: string;
     cannotBeat: string;
     invalidCombo: string;
+    cardNotInHand: string;
+    firstPlayMustInclude3D: string;
     mustPlayHigher: string;
     autoPassTimer: string;
     secondsRemaining: string;
@@ -276,6 +320,19 @@ export interface Translations {
     stay: string;
     spectatorMode: string;
     spectatorDescription: string;
+    initializingGame: string;
+    settingUpEngine: string;
+    matchHistoryTitle: string;
+    finalScoresTitle: string;
+    matchColumn: string;
+    totalRow: string;
+    pastMatchesHeader: string;
+    matchNum: string;
+    matchCurrentLabel: string;
+    noPlaysRecorded: string;
+    noCardsThisMatch: string;
+    cardsWillAppear: string;
+    noPlayHistoryYet: string;
   };
   
   // Game End Modal
@@ -314,6 +371,10 @@ export interface Translations {
     leaveErrorMessage: string;
     matchesPlayed: string;
     oneMatch: string;
+    collapseAll: string;
+    expandAll: string;
+    card: string;
+    cards: string;
   };
   
   // Lobby Screen
@@ -353,9 +414,16 @@ export interface Translations {
     startGameError: string;
     shareError: string;
     shareErrorMessage: string;
+    rankedRequirement: string;
+    waitingForMorePlayers: string;
+    allReadyToStart: string;
+    botDifficultyLabel: string;
+    easy: string;
+    medium: string;
+    hard: string;
+    rankedMatch: string;
+    privateRoom: string;
   };
-  
-  // Create/Join Room Screens
   room: {
     createTitle: string;
     joinTitle: string;
@@ -443,6 +511,20 @@ export interface Translations {
     avgCardsLeft: string;
     gameCompletion: string;
     rankProgression: string;
+    completed: string;
+    abandoned: string;
+    private: string;
+    casualStats: string;
+    privateStats: string;
+    rankedStats: string;
+    peak: string;
+    lowest: string;
+    win: string;
+    loss: string;
+    totalGames: string;
+    currentPoints: string;
+    peakPoints: string;
+    rankPointsProgression: string;
   };
   
   // Leaderboard Screen
@@ -555,6 +637,19 @@ const en: Translations = {
     comingSoon: 'Coming Soon',
     continue: 'Continue',
   },
+  gameSelection: {
+    welcome: 'Welcome,',
+    subtitle: 'Choose a game to play',
+    chinesePokerTitle: 'Chinese Poker',
+    chinesePokerDesc: 'Big Two — the classic card game.\nPlay online or against bots.',
+    playButton: 'PLAY →',
+    lebaneseDealTitle: 'Lebanese Deal',
+    lebaneseDealDesc: 'A brand-new card game experience.\nStay tuned for the launch!',
+    soonButton: 'SOON',
+    moreGamesFooter: 'More games coming in future updates',
+    comingSoonAlertTitle: '🚧 Coming Soon!',
+    comingSoonAlertMsg: 'Lebanese Deal is currently in development. Stay tuned!',
+  },
   settings: {
     title: 'Settings',
     profileSettings: 'Profile Settings',
@@ -650,6 +745,33 @@ const en: Translations = {
     casualMatchDescription: 'Quick game with relaxed ranking',
     rankedMatch: 'Ranked Match',
     rankedMatchDescription: 'Competitive ELO-rated match',
+    findGame: '🎮 Find a Game',
+    findGameDescription: 'Play online matches',
+    offlinePractice: '🤖 Offline Practice',
+    offlinePracticeDescription: 'Play with 3 AI bots',
+    botDifficultyTitle: '🤖 Bot Difficulty',
+    botDifficultySubtitle: 'Choose how smart the bots will be',
+    easy: 'Easy',
+    easyDesc: 'Bots make mistakes and pass often. Great for learning!',
+    medium: 'Medium',
+    mediumDesc: 'Balanced play with basic strategy. A fair challenge.',
+    hard: 'Hard',
+    hardDesc: 'Optimal play with advanced combos. Think you can win?',
+    chooseGameMode: 'Choose your game mode',
+    noGameInProgress: 'No Game in Progress',
+    startNewGameHint: 'Start a new game to play!',
+    activeOnlineGame: 'Active Online Game',
+    activeOfflineGame: 'Active Offline Game',
+    inProgress: 'In Progress',
+    waitingStatus: 'Waiting',
+    rejoin: '🔄 Rejoin',
+    replaceBotAndRejoin: '🔄 Replace Bot & Rejoin',
+    cancelSearch: '❌ Cancel Search',
+    findingRankedMatch: '🔍 Finding ranked match...',
+    offlineMatchSubtitle: 'Match {{match}} · vs AI',
+    botReplacingYou: 'Bot replacing you...',
+    beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
+    botPlayingForYou: '🤖 A bot is playing for you',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -694,10 +816,10 @@ const en: Translations = {
     rankTiersTitle: 'Rank Tiers:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Reconnection & Disconnection',
-    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect before a bot replaces you.',
+    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect and take back your position from the bot.',
     disconnectGrace: '⏱️ Grace Period: 60 seconds to resume your app and restore your position.',
-    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will play for you.',
-    spectatorMode: '👁️ Spectator Mode: If you reconnect after bot replacement, you can watch the match but cannot play.',
+    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will fill in for you.',
+    spectatorMode: '🔄 Rejoin & Replace Bot: You can rejoin the game at any time during the match and take over your hand from the bot. Tap "Replace Bot & Rejoin" to instantly resume where the bot left off.',
   },
   game: {
     yourTurn: 'Your Turn',
@@ -718,6 +840,8 @@ const en: Translations = {
     selectCards: 'Select cards to play',
     cannotBeat: 'Cannot beat this combo',
     invalidCombo: 'Invalid card combination',
+    cardNotInHand: 'Card not in hand',
+    firstPlayMustInclude3D: 'First play must include 3♦',
     mustPlayHigher: 'Must play higher combo',
     autoPassTimer: 'Auto-pass in',
     secondsRemaining: 'seconds if no manual pass',
@@ -732,6 +856,19 @@ const en: Translations = {
     stay: 'Stay',
     spectatorMode: 'Spectator Mode',
     spectatorDescription: 'You are watching this match. A bot replaced you after disconnection.',
+    initializingGame: 'Initializing game...',
+    settingUpEngine: 'Setting up game engine...',
+    matchHistoryTitle: 'Match {{n}} History',
+    finalScoresTitle: '🏁 Final Scores',
+    matchColumn: 'Match',
+    totalRow: 'Total',
+    pastMatchesHeader: 'Past Matches (tap to expand)',
+    matchNum: 'Match {{n}}',
+    matchCurrentLabel: '🎯 Match {{n}} (Current)',
+    noPlaysRecorded: 'No plays recorded',
+    noCardsThisMatch: '🃏 No cards played yet this match',
+    cardsWillAppear: 'Cards will appear here after each play',
+    noPlayHistoryYet: 'No play history yet. Start playing to see card history!',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -768,6 +905,10 @@ const en: Translations = {
     leaveErrorMessage: 'Failed to leave game. Please try again.',
     matchesPlayed: 'matches played',
     oneMatch: 'match',
+    collapseAll: 'Collapse All',
+    expandAll: 'Expand All',
+    card: 'card',
+    cards: 'cards',
   },
   lobby: {
     title: 'Game Lobby',
@@ -805,6 +946,15 @@ const en: Translations = {
     startGameError: 'Failed to start game',
     shareError: 'Share Error',
     shareErrorMessage: 'Unable to share room code',
+    rankedRequirement: 'Ranked matches require 4 human players',
+    waitingForMorePlayers: 'Waiting for more players...',
+    allReadyToStart: 'All ready to start!',
+    botDifficultyLabel: '🤖 Bot Difficulty:',
+    easy: 'Easy',
+    medium: 'Medium',
+    hard: 'Hard',
+    rankedMatch: '🏆 Ranked Match',
+    privateRoom: '🔒 Private Room',
   },
   room: {
     createTitle: 'Create Room',
@@ -891,6 +1041,20 @@ const en: Translations = {
     avgCardsLeft: 'Avg Cards Left',
     gameCompletion: 'Game Completion',
     rankProgression: 'Rank Progression',
+    completed: 'Completed',
+    abandoned: 'Abandoned',
+    private: 'Private',
+    casualStats: 'Casual Stats',
+    privateStats: 'Private Stats',
+    rankedStats: 'Ranked Stats',
+    peak: 'Peak',
+    lowest: 'Lowest',
+    win: 'Win',
+    loss: 'Loss',
+    totalGames: 'Total Games',
+    currentPoints: 'Current Points',
+    peakPoints: 'Peak Points',
+    rankPointsProgression: 'Rank Points Progression',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -993,6 +1157,19 @@ const ar: Translations = {
     comingSoon: 'قريبًا',
     continue: 'متابعة',
   },
+  gameSelection: {
+    welcome: 'مرحبًا،',
+    subtitle: 'اختر لعبة للعب',
+    chinesePokerTitle: 'بوكر صيني',
+    chinesePokerDesc: 'بيج تو — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
+    playButton: '←  العب',
+    lebaneseDealTitle: 'ديل لبناني',
+    lebaneseDealDesc: 'تجربة لعبة ورق جديدة كليًا.\nترقبوا الإطلاق!',
+    soonButton: 'قريبًا',
+    moreGamesFooter: 'المزيد من الألعاب في التحديثات القادمة',
+    comingSoonAlertTitle: '🚧 قريبًا!',
+    comingSoonAlertMsg: 'الديل اللبناني قيد التطوير حاليًا. ترقبوا!',
+  },
   settings: {
     title: 'الإعدادات',
     profileSettings: 'إعدادات الملف الشخصي',
@@ -1088,6 +1265,33 @@ const ar: Translations = {
     rankedMatchDescription: 'مباراة تنافسية بتصنيف ELO',
     howToPlay: '📖 كيف تلعب',
     howToPlayDescription: 'تعلم قواعد اللعبة',
+    findGame: '🎮 ابحث عن لعبة',
+    findGameDescription: 'العب مباريات أونلاين',
+    offlinePractice: '🤖 تدريب بدون إنترنت',
+    offlinePracticeDescription: 'العب مع 3 روبوتات',
+    botDifficultyTitle: '🤖 صعوبة الروبوت',
+    botDifficultySubtitle: 'اختر مدى ذكاء الروبوتات',
+    easy: 'سهل',
+    easyDesc: 'الروبوتات ترتكب أخطاء وتمرر كثيرًا. مثالي للتعلم!',
+    medium: 'متوسط',
+    mediumDesc: 'لعب متوازن باستراتيجية أساسية. تحدٍّ عادل.',
+    hard: 'صعب',
+    hardDesc: 'لعب مثالي بتشكيلات متقدمة. هل تعتقد أنك ستفوز؟',
+    chooseGameMode: 'اختر وضع اللعب',
+    noGameInProgress: 'لا توجد لعبة جارية',
+    startNewGameHint: 'ابدأ لعبة جديدة للعب!',
+    activeOnlineGame: 'لعبة أونلاين نشطة',
+    activeOfflineGame: 'لعبة أوفلاين نشطة',
+    inProgress: 'جارية',
+    waitingStatus: 'انتظار',
+    rejoin: '🔄 إعادة الانضمام',
+    replaceBotAndRejoin: '🔄 استبدال الروبوت والانضمام',
+    cancelSearch: '❌ إلغاء البحث',
+    findingRankedMatch: '🔍 البحث عن مباراة مصنفة...',
+    offlineMatchSubtitle: 'مباراة {{match}} · ضد الذكاء الاصطناعي',
+    botReplacingYou: 'يحل البوت محلك...',
+    beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
+    botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
   },
   game: {
     yourTurn: 'دورك',
@@ -1108,6 +1312,8 @@ const ar: Translations = {
     selectCards: 'حدد البطاقات للعب',
     cannotBeat: 'لا يمكن التغلب على هذا الكومبو',
     invalidCombo: 'مجموعة بطاقات غير صالحة',
+    cardNotInHand: 'البطاقة ليست في يدك',
+    firstPlayMustInclude3D: 'اللعبة الأولى يجب أن تتضمن 3♦',
     mustPlayHigher: 'يجب لعب كومبو أعلى',
     autoPassTimer: 'التمرير التلقائي في',
     secondsRemaining: 'ثانية إذا لم يتم التمرير يدويًا',
@@ -1122,6 +1328,19 @@ const ar: Translations = {
     stay: 'البقاء',
     spectatorMode: 'وضع المشاهدة',
     spectatorDescription: 'أنت تشاهد هذه المباراة. حل بوت محلك بعد الانقطاع.',
+    initializingGame: 'جارٍ تهيئة اللعبة...',
+    settingUpEngine: 'جارٍ إعداد محرك اللعبة...',
+    matchHistoryTitle: 'سجل المباراة {{n}}',
+    finalScoresTitle: '🏁 النتائج النهائية',
+    matchColumn: 'مباراة',
+    totalRow: 'المجموع',
+    pastMatchesHeader: 'المباريات السابقة (اضغط للتوسيع)',
+    matchNum: 'مباراة {{n}}',
+    matchCurrentLabel: '🎯 مباراة {{n}} (الحالية)',
+    noPlaysRecorded: 'لا توجد لعبات مسجلة',
+    noCardsThisMatch: '🃏 لم يتم لعب أي بطاقات بعد في هذه المباراة',
+    cardsWillAppear: 'ستظهر البطاقات هنا بعد كل لعب',
+    noPlayHistoryYet: 'لا يوجد سجل لعب بعد. ابدأ اللعب لرؤية سجل البطاقات!',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -1158,6 +1377,10 @@ const ar: Translations = {
     leaveErrorMessage: 'فشلت مغادرة اللعبة. حاول مرة أخرى.',
     matchesPlayed: 'مباريات ملعوبة',
     oneMatch: 'مباراة',
+    collapseAll: 'طي الكل',
+    expandAll: 'توسيع الكل',
+    card: 'بطاقة',
+    cards: 'بطاقات',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -1179,7 +1402,7 @@ const ar: Translations = {
     readyUp: 'جاهز',
     starting: 'البدء',
     startWithBots: 'ابدأ مع روبوتات الذكاء الاصطناعي',
-    startWithBotsCount: 'ابدأ مع {count} روبوت(ات)',
+    startWithBotsCount: 'ابدأ مع {{count}} روبوت(ات)',
     humanPlayers: 'لاعبون بشر',
     botsNeeded: 'الروبوتات المطلوبة',
     casualMatch: 'مباراة عادية',
@@ -1195,6 +1418,15 @@ const ar: Translations = {
     startGameError: 'فشل بدء اللعبة',
     shareError: 'خطأ في المشاركة',
     shareErrorMessage: 'فشلت مشاركة رمز الغرفة. حاول مرة أخرى.',
+    rankedRequirement: 'تتطلب المباريات المصنفة 4 لاعبين بشريين',
+    waitingForMorePlayers: 'في انتظار المزيد من اللاعبين...',
+    allReadyToStart: 'الجميع جاهز للبدء!',
+    botDifficultyLabel: '🤖 صعوبة الروبوت:',
+    easy: 'سهل',
+    medium: 'متوسط',
+    hard: 'صعب',
+    rankedMatch: '🏆 مباراة مصنفة',
+    privateRoom: '🔒 غرفة خاصة',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1202,8 +1434,8 @@ const ar: Translations = {
     enterCode: 'أدخل رمز الغرفة',
     createButton: 'إنشاء',
     joinButton: 'انضم',
-    invalidCode: 'رمز غرفة غير صالح',
-    roomFull: 'الغرفة ممتلئة',
+    invalidCode: 'يجب أن يتكون رمز الغرفة من 6 أحرف',
+    roomFull: 'الغرفة ممتلئة (4/4 لاعبين)',
     roomNotFound: 'الغرفة غير موجودة',
     alreadyInRoom: 'أنت موجود بالفعل في غرفة',
     createSubtitle: 'أنشئ غرفة خاصة وادع أصدقائك',
@@ -1281,6 +1513,20 @@ const ar: Translations = {
     avgCardsLeft: 'متوسط البطاقات المتبقية',
     gameCompletion: 'إتمام اللعبة',
     rankProgression: 'تقدم الترتيب',
+    completed: 'مكتمل',
+    abandoned: 'متخلى عنها',
+    private: 'خاص',
+    casualStats: 'إحصاءات العادي',
+    privateStats: 'إحصاءات الخاص',
+    rankedStats: 'إحصاءات المصنف',
+    peak: 'الذروة',
+    lowest: 'الأدنى',
+    win: 'فوز',
+    loss: 'خسارة',
+    totalGames: 'إجمالي الألعاب',
+    currentPoints: 'النقاط الحالية',
+    peakPoints: 'نقاط الذروة',
+    rankPointsProgression: 'تطور نقاط الترتيب',
   },
   leaderboard: {
     title: 'لوحة المتصدرين',
@@ -1426,10 +1672,10 @@ const ar: Translations = {
     rankTiersTitle: 'مستويات الرتب:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 إعادة الاتصال والانقطاع',
-    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال قبل أن يحل بوت محلك.',
+    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال واسترداد موضعك من البوت.',
     disconnectGrace: '⏱️ فترة السماح: 60 ثانية لاستئناف التطبيق واستعادة موضعك.',
     botReplacement: '🤖 استبدال البوت: بعد 60 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
-    spectatorMode: '👁️ وضع المشاهدة: إذا أعدت الاتصال بعد استبدال البوت، يمكنك مشاهدة المباراة ولكن لا يمكنك اللعب.',
+    spectatorMode: '🔄 إعادة الانضمام واستبدال البوت: يمكنك إعادة الانضمام في أي وقت أثناء المباراة واستعادة يدك من البوت. اضغط على "استبدال البوت وإعادة الانضمام" للاستئناف فوراً.',
   },
 };
 
@@ -1455,15 +1701,28 @@ const de: Translations = {
     you: 'Du',
     bot: 'Bot',
     current: 'Aktuell',
-    allTime: 'Alle Zeit',
+    allTime: 'Gesamt',
     weekly: 'Wöchentlich',
     daily: 'Täglich',
     comingSoon: 'Bald verfügbar',
     continue: 'Weiter',
   },
+  gameSelection: {
+    welcome: 'Willkommen,',
+    subtitle: 'Wähle ein Spiel',
+    chinesePokerTitle: 'Chinesisches Poker',
+    chinesePokerDesc: 'Big Two — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
+    playButton: 'SPIELEN →',
+    lebaneseDealTitle: 'Libanesischer Deal',
+    lebaneseDealDesc: 'Ein brandneues Kartenspiel-Erlebnis.\nBleibt auf dem Laufenden!',
+    soonButton: 'BALD',
+    moreGamesFooter: 'Weitere Spiele in künftigen Updates',
+    comingSoonAlertTitle: '🚧 Bald verfügbar!',
+    comingSoonAlertMsg: 'Libanesischer Deal ist derzeit in Entwicklung. Bleibt gespannt!',
+  },
   settings: {
     title: 'Einstellungen',
-    profileSettings: 'Profilseinstellungen',
+    profileSettings: 'Profileinstellungen',
     gameSettings: 'Spieleinstellungen',
     notificationSettings: 'Benachrichtigungen',
     audioHaptics: 'Audio & Haptik',
@@ -1556,6 +1815,33 @@ const de: Translations = {
     rankedMatchDescription: 'Wettbewerbsorientiertes ELO-Match',
     howToPlay: '📖 Wie man spielt',
     howToPlayDescription: 'Spielregeln lernen',
+    findGame: '🎮 Spiel finden',
+    findGameDescription: 'Online-Matches spielen',
+    offlinePractice: '🤖 Offline-Training',
+    offlinePracticeDescription: 'Mit 3 KI-Bots spielen',
+    botDifficultyTitle: '🤖 Bot-Schwierigkeit',
+    botDifficultySubtitle: 'Wähle, wie klug die Bots sein sollen',
+    easy: 'Einfach',
+    easyDesc: 'Bots machen Fehler und passen oft. Ideal zum Lernen!',
+    medium: 'Mittel',
+    mediumDesc: 'Ausgewogenes Spiel mit einfacher Strategie. Eine faire Herausforderung.',
+    hard: 'Schwer',
+    hardDesc: 'Optimales Spiel mit fortgeschrittenen Kombinationen. Glaubst du, du kannst gewinnen?',
+    chooseGameMode: 'Wähle deinen Spielmodus',
+    noGameInProgress: 'Kein laufendes Spiel',
+    startNewGameHint: 'Starte ein neues Spiel!',
+    activeOnlineGame: 'Aktives Online-Spiel',
+    activeOfflineGame: 'Aktives Offline-Spiel',
+    inProgress: 'Läuft',
+    waitingStatus: 'Warten',
+    rejoin: '🔄 Wieder beitreten',
+    replaceBotAndRejoin: '🔄 Bot ersetzen & beitreten',
+    cancelSearch: '❌ Suche abbrechen',
+    findingRankedMatch: '🔍 Suche nach gerangetem Spiel...',
+    offlineMatchSubtitle: 'Match {{match}} · gegen KI',
+    botReplacingYou: 'Bot ersetzt dich...',
+    beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
+    botPlayingForYou: '🤖 Ein Bot spielt für dich',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -1576,6 +1862,8 @@ const de: Translations = {
     selectCards: 'Karten zum Spielen auswählen',
     cannotBeat: 'Kann diese Kombo nicht schlagen',
     invalidCombo: 'Ungültige Kartenkombination',
+    cardNotInHand: 'Karte nicht in der Hand',
+    firstPlayMustInclude3D: 'Erstes Spiel muss 3♦ enthalten',
     mustPlayHigher: 'Muss höhere Kombo spielen',
     autoPassTimer: 'Auto-Pass in',
     secondsRemaining: 'Sekunden, wenn kein manuelles Passen',
@@ -1590,6 +1878,19 @@ const de: Translations = {
     stay: 'Bleiben',
     spectatorMode: 'Zuschauermodus',
     spectatorDescription: 'Du schaust bei diesem Spiel zu. Ein Bot hat dich nach der Trennung ersetzt.',
+    initializingGame: 'Spiel wird initialisiert...',
+    settingUpEngine: 'Spielengine wird eingerichtet...',
+    matchHistoryTitle: 'Runde {{n}} Verlauf',
+    finalScoresTitle: '🏁 Finale Ergebnisse',
+    matchColumn: 'Runde',
+    totalRow: 'Gesamt',
+    pastMatchesHeader: 'Vergangene Spiele (tippen zum Erweitern)',
+    matchNum: 'Runde {{n}}',
+    matchCurrentLabel: '🎯 Runde {{n}} (Aktuell)',
+    noPlaysRecorded: 'Keine Spielzüge aufgezeichnet',
+    noCardsThisMatch: '🃏 Noch keine Karten in dieser Runde gespielt',
+    cardsWillAppear: 'Karten erscheinen hier nach jedem Spielzug',
+    noPlayHistoryYet: 'Noch kein Spielverlauf. Spiele um den Kartenverlauf zu sehen!',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
@@ -1626,6 +1927,10 @@ const de: Translations = {
     leaveErrorMessage: 'Spiel konnte nicht verlassen werden. Bitte erneut versuchen.',
     matchesPlayed: 'gespielte Matches',
     oneMatch: 'Match',
+    collapseAll: 'Alle einklappen',
+    expandAll: 'Alle ausklappen',
+    card: 'Karte',
+    cards: 'Karten',
   },
   lobby: {
     title: 'Spiellobby',
@@ -1647,7 +1952,7 @@ const de: Translations = {
     readyUp: 'Bereit machen',
     starting: 'Startet',
     startWithBots: 'Mit KI-Bots starten',
-    startWithBotsCount: 'Mit {count} Bot(s) starten',
+    startWithBotsCount: 'Mit {{count}} Bot(s) starten',
     humanPlayers: 'Menschliche Spieler',
     botsNeeded: 'Benötigte Bots',
     casualMatch: 'Freundschaftsspiel',
@@ -1663,6 +1968,15 @@ const de: Translations = {
     startGameError: 'Fehler beim Starten des Spiels',
     shareError: 'Fehler beim Teilen',
     shareErrorMessage: 'Raumcode konnte nicht geteilt werden. Bitte erneut versuchen.',
+    rankedRequirement: 'Ranglistenspiele erfordern 4 menschliche Spieler',
+    waitingForMorePlayers: 'Warte auf weitere Spieler...',
+    allReadyToStart: 'Alle bereit zum Starten!',
+    botDifficultyLabel: '🤖 Bot-Schwierigkeit:',
+    easy: 'Einfach',
+    medium: 'Mittel',
+    hard: 'Schwer',
+    rankedMatch: '🏆 Ranglistenspiel',
+    privateRoom: '🔒 Privater Raum',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -1670,8 +1984,8 @@ const de: Translations = {
     enterCode: 'Raumcode eingeben',
     createButton: 'Erstellen',
     joinButton: 'Beitreten',
-    invalidCode: 'Ungültiger Raumcode',
-    roomFull: 'Raum ist voll',
+    invalidCode: 'Raumcode muss 6 Zeichen lang sein',
+    roomFull: 'Raum ist voll (4/4 Spieler)',
     roomNotFound: 'Raum nicht gefunden',
     alreadyInRoom: 'Du bist bereits in einem Raum',
     createSubtitle: 'Erstelle einen privaten Raum und lade deine Freunde ein',
@@ -1749,6 +2063,20 @@ const de: Translations = {
     avgCardsLeft: 'Durchschn. Karten übrig',
     gameCompletion: 'Spielabschluss',
     rankProgression: 'Rangverlauf',
+    completed: 'Abgeschlossen',
+    abandoned: 'Abgebrochen',
+    private: 'Privat',
+    casualStats: 'Casual-Statistiken',
+    privateStats: 'Privatspiel-Statistiken',
+    rankedStats: 'Ranglisten-Statistiken',
+    peak: 'Höchstwert',
+    lowest: 'Tiefstwert',
+    win: 'Sieg',
+    loss: 'Niederlage',
+    totalGames: 'Spiele gesamt',
+    currentPoints: 'Aktuelle Punkte',
+    peakPoints: 'Höchstpunktzahl',
+    rankPointsProgression: 'Rangpunkte-Verlauf',
   },
   leaderboard: {
     title: 'Bestenliste',
@@ -1758,7 +2086,7 @@ const de: Translations = {
     winRate: 'Gewinnrate',
     score: 'Punkte',
     noData: 'Noch keine Bestenlisten-Daten',
-    allTime: 'Alle Zeit',
+    allTime: 'Gesamt',
     weekly: 'Wöchentlich',
     daily: 'Täglich',
     winLoss: 'S/N',
@@ -1889,15 +2217,15 @@ const de: Translations = {
     letsPlay: 'Los geht\'s!',
     // ELO Rating System
     eloSystemTitle: '🏆 ELO-Bewertungssystem',
-    eloSystemDesc: 'Ihre ELO-Bewertung misst Ihr Fähigkeitsniveau. Sie steigt, wenn Sie gewinnen, und sinkt, wenn Sie in gewerteten Spielen verlieren. Casual-Spiele beeinflussen Ihre ELO nicht.',
+    eloSystemDesc: 'Deine ELO-Bewertung misst dein Fähigkeitsniveau. Sie steigt, wenn du gewinnst, und sinkt, wenn du in gewerteten Spielen verlierst. Casual-Spiele beeinflussen deine ELO nicht.',
     eloFormula: 'ELO-Änderungen werden mit der Schachbewertungsformel mit K-Faktor=32 berechnet. Gewinnen gegen höher bewertete Gegner gibt mehr Punkte.',
     rankTiersTitle: 'Rangstufen:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Wiederverbindung & Trennung',
-    reconnectionDesc: 'Wenn Sie während eines Spiels die Verbindung verlieren, haben Sie 60 Sekunden Zeit, um sich wieder zu verbinden, bevor ein Bot Sie ersetzt.',
-    disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um Ihre App fortzusetzen und Ihre Position wiederherzustellen.',
-    botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit Ihren aktuellen Karten für Sie.',
-    spectatorMode: '👁️ Zuschauermodus: Wenn Sie sich nach dem Bot-Ersatz wieder verbinden, können Sie das Spiel ansehen, aber nicht spielen.',
+    reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
+    disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
+    botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
+    spectatorMode: '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & beitreten", um sofort weiterzuspielen.',
   },
 };
 

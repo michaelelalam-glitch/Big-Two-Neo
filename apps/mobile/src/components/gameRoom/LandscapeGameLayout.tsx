@@ -63,6 +63,9 @@ export interface LandscapeGameLayoutProps {
   /** Drag-to-play callback */
   onPlayCards?: (cards: CardType[]) => void;
   
+  /** fix/rejoin: disconnect state per player in display order [bottom, top, left, right] */
+  disconnectedPlayers?: boolean[];
+  
   /** Control bar callbacks */
   onOrientationToggle: () => void;
   onHelp?: () => void;
@@ -125,6 +128,7 @@ export function LandscapeGameLayout({
   disabled = false,
   canPlay = false,
   canPass = false,
+  disconnectedPlayers = [false, false, false, false],
 }: LandscapeGameLayoutProps) {
   
   // Scoreboard expand/collapse state
@@ -230,6 +234,7 @@ export function LandscapeGameLayout({
             isActive={isOpponentActive(1)}
             layout="horizontal"
             totalScore={totalScores[1]}
+            isDisconnected={disconnectedPlayers[1]}
           />
         </View>
 
@@ -240,6 +245,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
             totalScore={totalScores[2]}
+            isDisconnected={disconnectedPlayers[2]}
           />
         </View>
 
@@ -250,6 +256,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
             totalScore={totalScores[3]}
+            isDisconnected={disconnectedPlayers[3]}
           />
         </View>
 
@@ -307,6 +314,7 @@ export function LandscapeGameLayout({
             isActive={isPlayerActive}
             layout="vertical"
             totalScore={totalScores[0]}
+            isDisconnected={disconnectedPlayers[0]}
           />
         </View>
         

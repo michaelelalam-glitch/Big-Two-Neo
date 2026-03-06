@@ -170,7 +170,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 30
+    timeout-minutes: 55
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -247,9 +247,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: apps/mobile/ios/build
-          # Key on dependency files + source hash. Podfile doesn't exist until
-          # prebuild, so use package.json/lockfile/app.json as proxy.
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json', 'apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          # Key on native dependency files only. TS/TSX source files are bundled
+          # into the JS bundle by Metro, NOT compiled by Xcode — including them
+          # in the key busts the cache on every code change unnecessarily.
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
             ${{ runner.os }}-deriveddata-
 
@@ -277,7 +278,7 @@ jobs:
             build \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tail -50
-        timeout-minutes: 20
+        timeout-minutes: 35
       
       - name: 📲 Install app on Simulator
         run: |
@@ -291,6 +292,17 @@ jobs:
           fi
           echo "Installing app: $APP_PATH"
           xcrun simctl install booted "$APP_PATH"
+
+      - name: ⏳ Warm up simulator after install
+        run: |
+          # Give the simulator time to register the newly installed app and
+          # let the XCUITest AXServer fully initialize. Without this, Maestro's
+          # XCUITest driver times out connecting to port 7001 on the first run.
+          # Also launch + terminate the app once so SpringBoard caches it.
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 15
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 5
       
       - name: 🎭 Run Maestro E2E tests
         run: |
@@ -305,6 +317,11 @@ jobs:
             --format junit \
             --output e2e/results/results.xml
         timeout-minutes: 10
+        env:
+          # Give Maestro's XCUITest driver up to 5 minutes to start the
+          # XCTest server on port 7001. Default (~90s) is too short on
+          # freshly-booted GitHub Actions macOS runners.
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
       
       - name: 📸 Upload E2E screenshots & results
         uses: actions/upload-artifact@v4

@@ -437,7 +437,12 @@ export default function StatsScreen() {
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'overview' ? '📊 Overview' : tab === 'casual' ? '🎮 Casual' : tab === 'private' ? '🔒 Private' : '🏆 Ranked'}
+                {({
+                  overview: `📊 ${i18n.t('profile.overview')}`,
+                  casual: `🎮 ${i18n.t('matchmaking.casual')}`,
+                  private: `🔒 ${i18n.t('profile.private')}`,
+                  ranked: `🏆 ${i18n.t('matchmaking.ranked')}`,
+                } as Record<string, string>)[tab] ?? tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -446,7 +451,12 @@ export default function StatsScreen() {
         {/* Mode-Aware Key Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {activeTab === 'overview' ? i18n.t('profile.overview') : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Stats`}
+            {({
+              overview: i18n.t('profile.overview'),
+              casual: i18n.t('profile.casualStats'),
+              private: i18n.t('profile.privateStats'),
+              ranked: i18n.t('profile.rankedStats'),
+            } as Record<string, string>)[activeTab] ?? activeTab}
           </Text>
 
           {/* Core 4 cards — played / win rate / won / lost */}
@@ -554,17 +564,17 @@ export default function StatsScreen() {
                       ? ((modeGamesCompleted / modeGamesPlayed) * 100).toFixed(0)
                       : '0'}%
                 </Text>
-                <Text style={styles.completionLabel}>Completed</Text>
+                <Text style={styles.completionLabel}>{i18n.t('profile.completed')}</Text>
               </View>
               <View style={styles.completionDetails}>
                 <View style={styles.completionRow}>
-                  <Text style={styles.completionDetailLabel}>✅ Completed</Text>
+                  <Text style={styles.completionDetailLabel}>✅ {i18n.t('profile.completed')}</Text>
                   <Text style={styles.completionDetailValue}>
                     {activeTab === 'overview' ? (stats.games_completed || 0) : modeGamesCompleted}
                   </Text>
                 </View>
                 <View style={styles.completionRow}>
-                  <Text style={styles.completionDetailLabel}>🚪 Abandoned</Text>
+                  <Text style={styles.completionDetailLabel}>🚪 {i18n.t('profile.abandoned')}</Text>
                   <Text style={styles.completionDetailValue}>
                     {activeTab === 'overview'
                       ? (stats.games_abandoned || 0)
@@ -574,13 +584,13 @@ export default function StatsScreen() {
                 {activeTab === 'overview' && (
                   <>
                     <View style={styles.completionRow}>
-                      <Text style={styles.completionDetailLabel}>🔥 Current Streak</Text>
+                      <Text style={styles.completionDetailLabel}>🔥 {i18n.t('profile.currentStreak')}</Text>
                       <Text style={[styles.completionDetailValue, (stats.current_completion_streak || 0) > 0 && styles.streakValueActive]}>
                         {stats.current_completion_streak || 0}
                       </Text>
                     </View>
                     <View style={styles.completionRow}>
-                      <Text style={styles.completionDetailLabel}>🏅 Best Streak</Text>
+                      <Text style={styles.completionDetailLabel}>🏅 {i18n.t('profile.bestStreak')}</Text>
                       <Text style={styles.completionDetailValue}>{stats.longest_completion_streak || 0}</Text>
                     </View>
                   </>

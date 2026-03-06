@@ -64,7 +64,6 @@ export default function LobbyScreen() {
   
   // Performance optimization: Calculate human player count once using useMemo
   const humanPlayerCount = useMemo(() => players.filter(p => !p.is_bot).length, [players]);
-  const botsNeeded = useMemo(() => 4 - humanPlayerCount, [humanPlayerCount]);
 
   useEffect(() => {
     loadPlayers();
@@ -593,9 +592,9 @@ export default function LobbyScreen() {
           styles.roomTypeBadge,
         ]}>
           <Text style={styles.roomTypeBadgeText}>
-            {(roomType.isRanked && '🏆 Ranked Match') ||
+            {(roomType.isRanked && i18n.t('lobby.rankedMatch')) ||
              (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch')}`) ||
-             (roomType.isPrivate && '🔒 Private Room') ||
+             (roomType.isPrivate && i18n.t('lobby.privateRoom')) ||
              i18n.t('lobby.title')}
           </Text>
         </View>
@@ -660,24 +659,15 @@ export default function LobbyScreen() {
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
         {/* Hidden when game is already in progress (rejoin) since bots are already set */}
-        {/* Performance: humanPlayerCount and botsNeeded calculated once via useMemo */}
+        {/* Performance: humanPlayerCount calculated once via useMemo */}
         {isHost && !roomType.isRanked && !isGameInProgress ? (
           <>
             {/* Show bot count and start button if less than 4 humans */}
             {humanPlayerCount < 4 && (
               <>
-                <View style={styles.botFillingContainer}>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.humanPlayers') || 'Human Players'}: {humanPlayerCount}/4
-                  </Text>
-                  <Text style={styles.botFillingLabel}>
-                    {i18n.t('lobby.botsNeeded') || 'Bots needed'}: {botsNeeded}
-                  </Text>
-                </View>
-
                 {/* Bot Difficulty Selector */}
                 <View style={styles.difficultyContainer}>
-                  <Text style={styles.difficultyLabel}>🤖 Bot Difficulty:</Text>
+                  <Text style={styles.difficultyLabel}>{i18n.t('lobby.botDifficultyLabel')}</Text>
                   <View style={styles.difficultyButtons}>
                     {(['easy', 'medium', 'hard'] as const).map((level) => (
                       <TouchableOpacity
@@ -694,7 +684,7 @@ export default function LobbyScreen() {
                             botDifficulty === level && styles.difficultyButtonTextActive,
                           ]}
                         >
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                          {i18n.t(`lobby.${level}`)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -718,8 +708,8 @@ export default function LobbyScreen() {
                 ) : (
                   <Text style={styles.startButtonText}>
                     {i18n.t('lobby.startWithBotsCount', {
-                      count: botsNeeded,
-                    }) || `🤖 Start with ${botsNeeded} AI Bot(s)`}
+                      count: 4 - humanPlayerCount,
+                    }) || `🤖 Start with ${4 - humanPlayerCount} AI Bot(s)`}
                   </Text>
                 )}
               </TouchableOpacity>

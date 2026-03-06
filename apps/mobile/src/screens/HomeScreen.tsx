@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, useWindowDimensions } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,12 +22,26 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [isQuickPlaying, setIsQuickPlaying] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  // Ref that always holds the latest currentRoom value so closures (checkCurrentRoom,
+  // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
+  // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
+  const currentRoomRef = useRef<string | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
+  // Post-expiry rejoin state:
+  //   null  = timer hasn't fired yet
+  //   true  = humans still in game → banner shows "Replace Bot & Rejoin"
+  //   false = all players are bots → banner shows only "Leave"
+  const [canRejoinAfterExpiry, setCanRejoinAfterExpiry] = useState<boolean | null>(null);
   const [showFindGameModal, setShowFindGameModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
   
+  // Keep currentRoomRef in sync with currentRoom state
+  useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
   const [isRankedSearching, setIsRankedSearching] = useState(false);
@@ -75,19 +89,113 @@ export default function HomeScreen() {
       if (roomData?.rooms?.code) {
         setCurrentRoom(roomData.rooms.code);
         setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
-        // Track disconnect time for countdown (only set once when we detect an active playing room)
-        if (roomData.rooms.status === 'playing' && !disconnectTimestamp) {
-          setDisconnectTimestamp(Date.now());
+        // Fetch server-side timer so the countdown survives app restarts.
+        // The persistent disconnect_timer_started_at in the DB is the source of truth.
+        if (roomData.rooms.status === 'playing') {
+          try {
+            const { data: statusData } = await supabase.functions.invoke('get-rejoin-status', {
+              body: { room_id: roomData.room_id },
+            });
+
+            if (statusData?.success) {
+              if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
+                // Server has a timer running — back-compute the disconnect timestamp
+                const secondsLeft = statusData.seconds_left ?? 60;
+                const elapsed = 60 - secondsLeft;
+                setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+              } else if (statusData.status === 'replaced_by_bot') {
+                // Already replaced — timer has elapsed; skip the countdown loop
+                // by using canRejoinAfterExpiry instead of setting timestamp to -61s
+                setDisconnectTimestamp(null);
+                setCanRejoinAfterExpiry(true); // Assume humans in game until handleTimerExpired confirms
+              } else if (statusData.status === 'room_closed') {
+                // Room was closed while away
+                setCurrentRoom(null);
+                setCurrentRoomStatus(undefined);
+                setDisconnectTimestamp(null);
+                setCanRejoinAfterExpiry(null);
+              } else {
+                // 'connected' — no server-side disconnect timer running; rely on heartbeat.
+                // Do NOT start a client-side countdown here: the server timer is the
+                // source of truth, and starting one early can show "bot replaced you"
+                // before the server has even begun the 60-second window.
+                setDisconnectTimestamp(null);
+              }
+            }
+            // statusData missing / success=false — do not start a phantom countdown;
+            // the next checkCurrentRoom call will re-evaluate from the server.
+          } catch {
+            // Network blip — leave disconnectTimestamp unchanged so an in-flight
+            // countdown is not restarted and no phantom timer is created.
+          }
         }
       } else {
-        setCurrentRoom(null);
-        setCurrentRoomStatus(undefined);
-        setDisconnectTimestamp(null);
+        // ── Fallback: check if this player was replaced by a bot ────────────
+        // After replacement, user_id = NULL and human_user_id = our user.id.
+        // The game may still be running with other humans. If so, keep the
+        // banner visible so the player can "Replace Bot & Rejoin".
+        try {
+          const { data: replacedData } = await supabase
+            .from('room_players')
+            .select('room_id, rooms!inner(code, status)')
+            .eq('human_user_id', user.id)
+            .eq('connection_status', 'replaced_by_bot')
+            .in('rooms.status', ['playing'])
+            .maybeSingle();
+
+          const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
+          if (rd?.rooms?.code) {
+            // We were replaced but the game still has humans — keep banner open
+            roomLogger.info(`🤖 Bot replaced player in room ${rd.rooms.code} — keeping rejoin banner`);
+            setCurrentRoom(rd.rooms.code);
+            setCurrentRoomStatus('playing');
+            // Set canRejoinAfterExpiry=true directly (timer already expired server-side)
+            setDisconnectTimestamp(null);
+            setCanRejoinAfterExpiry(true);
+          } else {
+            // No replaced row — before clearing the banner, confirm the room is
+            // actually finished. A game still in progress should keep the banner
+            // visible so the player can press Leave when they're ready.
+            // Use currentRoomRef.current (not captured state) to avoid stale closure.
+            let shouldClear = true;
+            const currentRoomSnapshot = currentRoomRef.current;
+            if (currentRoomSnapshot) {
+              try {
+                const { data: roomCheck } = await supabase
+                  .from('rooms')
+                  .select('status')
+                  .eq('code', currentRoomSnapshot)
+                  .maybeSingle();
+                if (roomCheck?.status === 'playing') {
+                  shouldClear = false; // Game still running — keep banner open
+                }
+              } catch { /* ignore — default to clearing */ }
+            }
+            if (shouldClear) {
+              setCurrentRoom(null);
+              setCurrentRoomStatus(undefined);
+              setDisconnectTimestamp(null);
+              setCanRejoinAfterExpiry(null);
+            }
+          }
+        } catch {
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+          setCanRejoinAfterExpiry(null);
+        }
       }
     } catch (error: unknown) {
       roomLogger.error('Error in checkCurrentRoom:', error instanceof Error ? error.message : String(error));
     }
-  }, [user, disconnectTimestamp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+  // NOTE: disconnectTimestamp intentionally omitted from deps. Including it would
+  // recreate the callback on every second while the countdown runs, causing
+  // useFocusEffect to re-invoke checkCurrentRoom in a tight loop that restarts
+  // the timer each time the server reports 'connected'. All reads of
+  // disconnectTimestamp inside the callback were replaced with setters (functional
+  // updaters or explicit nulls) so no stale-closure hazard exists.
 
   // Check current room on screen focus
   useFocusEffect(
@@ -265,7 +373,44 @@ export default function HomeScreen() {
 
   const handleBannerLeave = useCallback((gameInfo: ActiveGameInfo) => {
     if (gameInfo.type === 'online') {
-      handleLeaveCurrentRoom();
+      if (canRejoinAfterExpiry === true) {
+        // Bot replaced us but humans still in game — confirm permanent leave
+        showConfirm({
+          title: 'Leave Permanently?',
+          message: 'A bot is playing for you. If you leave now you cannot rejoin this game.',
+          confirmText: 'Leave Permanently',
+          cancelText: 'Stay',
+          destructive: true,
+          onConfirm: async () => {
+            if (user) {
+              // Use SECURITY DEFINER RPC to bypass RLS — replaced rows have
+              // user_id = NULL so a client-side DELETE (which only allows
+              // auth.uid() = user_id) would be silently blocked.
+              // supabase.rpc returns { data, error } and does not throw on
+              // PostgREST errors, so we must capture and inspect the error.
+              const { error: rpcError } = await supabase.rpc('delete_room_players_by_human_user_id', {
+                human_user_id: user.id,
+              });
+              if (rpcError) {
+                roomLogger.error('Failed to delete room_players for permanent leave (RPC error)', {
+                  error: rpcError,
+                  humanUserId: user.id,
+                });
+                // Still proceed with clearing local state — the row may not
+                // exist if the game ended naturally, and blocking the UI is
+                // worse than a silent RPC failure for this non-critical cleanup.
+              }
+            }
+            setCurrentRoom(null);
+            setCurrentRoomStatus(undefined);
+            setDisconnectTimestamp(null);
+            setCanRejoinAfterExpiry(null);
+          },
+        });
+      } else {
+        // Normal leave (timer still counting or not in post-expiry state)
+        handleLeaveCurrentRoom();
+      }
     } else {
       // Discard offline game
       showConfirm({
@@ -285,14 +430,127 @@ export default function HomeScreen() {
         },
       });
     }
-  }, [handleLeaveCurrentRoom]);
+  }, [handleLeaveCurrentRoom, canRejoinAfterExpiry, user]);
 
   const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {
-    // Navigate back to the room - the server-side logic will handle bot → player swap
-    roomLogger.info(`🔄 Replacing bot and rejoining room: ${roomCode}`);
+    // Navigate back into the active game — server logic handles bot → player swap
+    roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
     setDisconnectTimestamp(null);
-    navigation.replace('Lobby', { roomCode });
+    setCanRejoinAfterExpiry(null);
+    // Room is in 'playing' status — go directly to GameScreen
+    navigation.replace('Game', { roomCode });
   }, [navigation]);
+
+  /**
+   * Called when the 60s countdown expires.
+   * Only clears the banner if ALL 4 players are now bots (room auto-closed
+   * because the last human left). If humans are still in the game, keep the
+   * banner so the player can "Replace Bot & Rejoin".
+   */
+  const handleTimerExpired = useCallback(async () => {
+    if (!user || !currentRoom) return;
+
+    // STEP 1: Null disconnectTimestamp IMMEDIATELY so the countdown effect
+    // cannot loop back and re-fire onTimerExpired while we do async work.
+    // botHasReplaced stays true (we fixed the banner to not clear it here).
+    setDisconnectTimestamp(null);
+
+    // STEP 2: Poll for the replaced_by_bot row.
+    // process_disconnected_players runs every ~30 s (6th heartbeat), so we
+    // may need to wait up to 30 s after the 60-s client timer fires.
+    // Try up to 7 times × 5 s = 35 s max poll window.
+    const MAX_ATTEMPTS = 7;
+    const POLL_INTERVAL_MS = 5000;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      try {
+        // human_user_id is set when the bot takes over our slot.
+        // This query works even after replacement (our UUID is in human_user_id, not user_id).
+        const { data: replacedRow } = await supabase
+          .from('room_players')
+          .select('id, rooms!inner(status)')
+          .eq('human_user_id', user.id)
+          .eq('connection_status', 'replaced_by_bot')
+          .maybeSingle();
+
+        if (replacedRow) {
+          const roomStatus = (replacedRow as any).rooms?.status;
+
+          if (!roomStatus || roomStatus === 'finished') {
+            // Room closed (all-bots game was auto-deleted by server sweep) — clear banner
+            setCurrentRoom(null);
+            setCurrentRoomStatus(undefined);
+            setCanRejoinAfterExpiry(null);
+          } else {
+            // Room still playing — at least one human must be in it (server closes
+            // all-bot rooms automatically). Show "Replace Bot & Rejoin".
+            // NOTE: we intentionally skip counting humanPlayers here because after
+            // replacement our row has a bot UUID, so the RLS policy `user_id = auth.uid()`
+            // blocks reads of other players' rows, returning 0 even when humans exist.
+            setCanRejoinAfterExpiry(true);
+          }
+          return; // Done — exit poll loop
+        }
+
+        // Replacement row not found yet — server sweep hasn't run.
+        // Banner already shows "🤖 A bot is playing for you" (botHasReplaced=true),
+        // so the user sees meaningful UI while we wait. Keep polling.
+      } catch {
+        // Network blip — keep trying
+      }
+    }
+
+    // After MAX_ATTEMPTS the replaced row still isn't there.
+    // This means either:
+    //   a) The room was already closed (game ended naturally), or
+    //   b) Something unexpected — play it safe and re-check.
+    // We do NOT call checkCurrentRoom() here as that could re-set
+    // disconnectTimestamp and restart the countdown.
+    try {
+      const { data: replacedFinal } = await supabase
+        .from('room_players')
+        .select('id, rooms!inner(status)')
+        .eq('human_user_id', user.id)
+        .eq('connection_status', 'replaced_by_bot')
+        .maybeSingle();
+
+      if (!replacedFinal) {
+        // No replaced row — verify the room is actually finished before clearing
+        // the banner. If the game is still playing (bot replacement may have been
+        // delayed), keep the banner so the user can press Leave when ready.
+        try {
+          const { data: roomCheck } = await supabase
+            .from('rooms')
+            .select('status')
+            .eq('code', currentRoom)
+            .maybeSingle();
+          if (roomCheck?.status === 'playing') {
+            // Game still running but no replaced row yet. Keep banner;
+            // hide "Replace Bot & Rejoin" since there's nothing to claim.
+            setCanRejoinAfterExpiry(false);
+            return;
+          }
+        } catch { /* ignore — fall through to clear */ }
+        setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setCanRejoinAfterExpiry(null);
+      } else {
+        const roomStatus = (replacedFinal as any).rooms?.status;
+        if (!roomStatus || roomStatus === 'finished') {
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setCanRejoinAfterExpiry(null);
+        } else {
+          setCanRejoinAfterExpiry(true);
+        }
+      }
+    } catch {
+      // Safe fallback: keep banner in current state (botHasReplaced=true visible),
+      // user can manually tap Leave if needed.
+    }
+  }, [user, currentRoom]);
 
   // 🔥 FIXED Task #XXX: Ranked match now works like casual - immediate lobby!
   // Creates room with ranked_mode=true, goes to lobby immediately (doesn't wait for 4 players)
@@ -626,6 +884,8 @@ export default function HomeScreen() {
           onResume={handleBannerResume}
           onLeave={handleBannerLeave}
           onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+          onTimerExpired={handleTimerExpired}
+          canRejoinAfterExpiry={canRejoinAfterExpiry}
           refreshTrigger={bannerRefreshKey}
         />
         
@@ -644,8 +904,8 @@ export default function HomeScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.mainButtonText}>🎮 Find a Game</Text>
-                <Text style={styles.mainButtonSubtext}>Play online matches</Text>
+                <Text style={styles.mainButtonText}>{i18n.t('home.findGame')}</Text>
+                <Text style={styles.mainButtonSubtext}>{i18n.t('home.findGameDescription')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -657,8 +917,8 @@ export default function HomeScreen() {
                 setIsRankedSearching(false);
               }}
             >
-              <Text style={styles.mainButtonText}>❌ Cancel Search</Text>
-              <Text style={styles.mainButtonSubtext}>Stop looking for ranked match</Text>
+              <Text style={styles.mainButtonText}>{i18n.t('home.cancelSearch')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('home.findingRankedMatch')}</Text>
             </TouchableOpacity>
           )}
 
@@ -677,8 +937,8 @@ export default function HomeScreen() {
             style={[styles.mainButton, styles.offlinePracticeButton]}
             onPress={handleOfflinePractice}
           >
-            <Text style={styles.mainButtonText}>🤖 Offline Practice</Text>
-            <Text style={styles.mainButtonSubtext}>Play with 3 AI bots</Text>
+            <Text style={styles.mainButtonText}>{i18n.t('home.offlinePractice')}</Text>
+            <Text style={styles.mainButtonSubtext}>{i18n.t('home.offlinePracticeDescription')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -711,45 +971,51 @@ export default function HomeScreen() {
         onRequestClose={() => setShowDifficultyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>🤖 Bot Difficulty</Text>
-            <Text style={styles.modalSubtitle}>Choose how smart the bots will be</Text>
+          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
+            <Text style={styles.modalTitle}>{i18n.t('home.botDifficultyTitle')}</Text>
+            <Text style={styles.modalSubtitle}>{i18n.t('home.botDifficultySubtitle')}</Text>
             
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyEasyButton]}
-                onPress={() => handleStartOfflineWithDifficulty('easy')}
-              >
-                <Text style={styles.modalButtonIcon}>😊</Text>
-                <Text style={styles.modalButtonText}>Easy</Text>
-                <Text style={styles.modalButtonSubtext}>Bots make mistakes and pass often. Great for learning!</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyMediumButton]}
-                onPress={() => handleStartOfflineWithDifficulty('medium')}
-              >
-                <Text style={styles.modalButtonIcon}>🧠</Text>
-                <Text style={styles.modalButtonText}>Medium</Text>
-                <Text style={styles.modalButtonSubtext}>Balanced play with basic strategy. A fair challenge.</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.difficultyHardButton]}
-                onPress={() => handleStartOfflineWithDifficulty('hard')}
-              >
-                <Text style={styles.modalButtonIcon}>🔥</Text>
-                <Text style={styles.modalButtonText}>Hard</Text>
-                <Text style={styles.modalButtonSubtext}>Optimal play with advanced combos. Think you can win?</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.modalCancelButton}
-              onPress={() => setShowDifficultyModal(false)}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.modalScrollContent}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyEasyButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('easy')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>😊</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.easy')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.easyDesc')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyMediumButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('medium')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🧠</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.medium')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.mediumDesc')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.difficultyHardButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleStartOfflineWithDifficulty('hard')}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🔥</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.hard')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.hardDesc')}</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowDifficultyModal(false)}
+              >
+                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -762,38 +1028,44 @@ export default function HomeScreen() {
         onRequestClose={() => setShowFindGameModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>🎮 Find a Game</Text>
-            <Text style={styles.modalSubtitle}>Choose your game mode</Text>
+          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
+            <Text style={styles.modalTitle}>{i18n.t('home.findGame')}</Text>
+            <Text style={styles.modalSubtitle}>{i18n.t('home.chooseGameMode')}</Text>
             
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalCasualButton]}
-                onPress={handleCasualMatch}
-                disabled={isQuickPlaying}
-              >
-                <Text style={styles.modalButtonIcon}>🎮</Text>
-                <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
-                <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
-              </TouchableOpacity>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCasualButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={handleCasualMatch}
+                  disabled={isQuickPlaying}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🎮</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalRankedButton, isLandscape && styles.modalButtonLandscape]}
+                  onPress={() => handleRankedMatch(0)}
+                  disabled={isRankedSearching}
+                >
+                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🏆</Text>
+                  <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
+                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+                </TouchableOpacity>
+              </View>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalRankedButton]}
-                onPress={() => handleRankedMatch(0)}
-                disabled={isRankedSearching}
+                style={styles.modalCancelButton}
+                onPress={() => setShowFindGameModal(false)}
               >
-                <Text style={styles.modalButtonIcon}>🏆</Text>
-                <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
-                <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.modalCancelButton}
-              onPress={() => setShowFindGameModal(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1046,5 +1318,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray.medium,
     fontWeight: '600',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+  },
+  modalButtonContainerLandscape: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  modalButtonLandscape: {
+    flex: 1,
+    minWidth: 120,
+    padding: SPACING.md,
+  },
+  modalButtonIconLandscape: {
+    fontSize: 20,
+    marginBottom: 2,
   },
 });

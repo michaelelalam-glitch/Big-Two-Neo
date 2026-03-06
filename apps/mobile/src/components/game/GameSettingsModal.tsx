@@ -151,7 +151,7 @@ export default function GameSettingsModal({
                   accessibilityLabel={`Room code ${roomCode}, tap to copy`}
                 >
                   <Text style={styles.menuItemTextLandscape}>🏠</Text>
-                  <Text style={styles.menuItemLabelLandscape}>Room</Text>
+                  <Text style={styles.menuItemLabelLandscape}>{i18n.t('lobby.roomCode')}</Text>
                   <Text style={styles.menuItemValueLandscape}>{roomCode}</Text>
                 </Pressable>
               ) : null}
@@ -211,7 +211,7 @@ export default function GameSettingsModal({
                   <View style={styles.divider} />
                   <View style={styles.roomCodeContainer}>
                     <View style={styles.roomCodeLabelRow}>
-                      <Text style={styles.roomCodeLabel}>🏠 Room Code</Text>
+                      <Text style={styles.roomCodeLabel}>🏠 {i18n.t('lobby.roomCode')}</Text>
                     </View>
                     <Text style={styles.roomCodeValue}>{roomCode}</Text>
                     <View style={styles.roomCodeButtonsRow}>
@@ -221,7 +221,7 @@ export default function GameSettingsModal({
                         accessibilityRole="button"
                         accessibilityLabel="Copy room code"
                       >
-                        <Text style={styles.roomCodeActionText}>📋 Copy</Text>
+                        <Text style={styles.roomCodeActionText}>{i18n.t('lobby.copy')}</Text>
                       </Pressable>
                       <Pressable
                         style={styles.roomCodeAction}
@@ -229,7 +229,7 @@ export default function GameSettingsModal({
                         accessibilityRole="button"
                         accessibilityLabel="Share room code"
                       >
-                        <Text style={styles.roomCodeActionText}>🔗 Share</Text>
+                        <Text style={styles.roomCodeActionText}>{i18n.t('lobby.share')}</Text>
                       </Pressable>
                     </View>
                   </View>

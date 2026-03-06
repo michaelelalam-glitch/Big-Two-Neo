@@ -189,6 +189,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('broadcast', { event: 'player_ready' }, (_payload) => {
         fetchPlayers(roomId);
       })
+      // fix/rejoin: human reclaimed seat from bot — refresh both players and
+      // game state so all clients update their UI (stop waiting for "bot" turn)
+      .on('broadcast', { event: 'player_reconnected' }, (payload) => {
+        networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
+        fetchPlayers(roomId);
+        fetchGameState(roomId);
+      })
       .on('broadcast', { event: 'game_started' }, (_payload) => {
         fetchGameState(roomId);
       })
@@ -288,7 +295,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           setGameState(payload.new as GameState);
         }
       })
-      // ✅ FIX: Listen to room_players changes to catch is_host updates
+      // ✅ FIX: Listen to room_players changes to catch is_host updates.
+      // PERF: For UPDATE events, merge the changed row directly instead of re-fetching
+      // all players from the DB. Heartbeats fire every 5 s per player (×4 players ≈ 1/s)
+      // and previously triggered a full SELECT + setState + 2-3 cascading re-renders.
+      // Returning the SAME prev reference when only heartbeat fields changed prevents
+      // those unnecessary re-renders entirely.
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -296,7 +308,38 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         filter: `room_id=eq.${roomId}`,
       }, async (payload) => {
         networkLogger.debug('[useRealtime] 👥 room_players change:', payload.eventType);
-        await fetchPlayers(roomId);
+
+        if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as Player;
+          setRoomPlayers(prev => {
+            const idx = prev.findIndex(p => p.id === updated.id);
+            if (idx === -1) return [...prev, updated]; // new row — insert
+
+            const existing = prev[idx];
+            // Only re-render when UI-relevant fields change.
+            // last_heartbeat / heartbeat_count are heartbeat-only and never affect rendering.
+            const meaningfullyChanged =
+              existing.is_host !== updated.is_host ||
+              existing.is_bot !== updated.is_bot ||
+              existing.connection_status !== updated.connection_status ||
+              existing.player_index !== updated.player_index ||
+              existing.username !== updated.username ||
+              existing.human_user_id !== updated.human_user_id ||
+              existing.user_id !== updated.user_id;
+
+            if (!meaningfullyChanged) {
+              networkLogger.debug('[useRealtime] 👥 room_players heartbeat ping — skipping re-render');
+              return prev; // same reference → React bails out → no re-render
+            }
+
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          });
+        } else {
+          // INSERT / DELETE: full re-fetch to ensure consistent ordering
+          await fetchPlayers(roomId);
+        }
       });
     
     // Subscribe and track presence - WAIT for subscription to complete
@@ -490,12 +533,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error(roomError?.message || 'Room not found');
       }
 
-      // Ensure the caller is already in the room
+      // Ensure the caller is already in the room.
+      // Also match human_user_id so a player whose seat was temporarily held by a
+      // bot (replaced_by_bot path) can still establish the Realtime channel and
+      // see the game while the RejoinModal prompts them to reclaim their seat.
       const { data: membership, error: membershipError } = await supabase
         .from('room_players')
         .select('id')
         .eq('room_id', existingRoom.id)
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},human_user_id.eq.${userId}`)
         .maybeSingle();
 
       if (membershipError) {

@@ -7,16 +7,16 @@ const corsHeaders = {
 };
 
 /**
- * mark-disconnected edge function
+ * get-rejoin-status edge function
  *
- * Called ONLY when a player explicitly leaves the game (navigates away, tabs out
- * far enough that AppState triggers 'background', etc.).
+ * Called by the client when the app comes back to the foreground while the
+ * player is supposed to be in an active game. Returns one of:
  *
- * NOT called when the app is merely backgrounded temporarily (e.g. swipe-up, incoming
- * call) — in that case the heartbeat simply stops and process_disconnected_players()
- * on the server detects it after 30 s.
- *
- * Offline rooms are skipped entirely — the DB function guards this.
+ *   { status: 'connected',       player_index }                 — nothing to do
+ *   { status: 'disconnected',    seconds_left, player_index }   — in grace period
+ *   { status: 'replaced_by_bot', player_index, bot_username }   — can reclaim
+ *   { status: 'room_closed' }                                   — game over, redirect home
+ *   { status: 'not_in_room' }                                   — was never here
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -41,21 +41,23 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
-      console.error('❌ [mark-disconnected] Auth error:', authError);
       return new Response(
         JSON.stringify({ success: false, error: 'Not authenticated' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // player_id is accepted but not used for validation — the RPC keys by auth user_id.
-    // We parse the full body so callers do not get 'unexpected token' errors on extra fields.
-    const { room_id } = await req.json();
-
-    console.log('🔌 [mark-disconnected]', {
-      user_id: user.id.substring(0, 8),
-      room_id: room_id?.substring(0, 8),
-    });
+    let room_id: string | undefined;
+    try {
+      const body = await req.json();
+      room_id = body?.room_id;
+    } catch (parseError) {
+      console.error('❌ [get-rejoin-status] Invalid JSON body:', parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!room_id) {
       return new Response(
@@ -64,27 +66,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use the server-side function which guards offline rooms
-    const { error: rpcError } = await supabaseClient.rpc('mark_player_disconnected', {
-      p_room_id: room_id,
-      p_user_id: user.id,
-    });
+    const { data: statusResult, error: rpcError } = await supabaseClient
+      .rpc('get_rejoin_status', {
+        p_room_id: room_id,
+        p_user_id: user.id,
+      });
 
     if (rpcError) {
-      console.error('❌ [mark-disconnected] RPC error:', rpcError);
+      console.error('❌ [get-rejoin-status] RPC error:', rpcError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to mark player as disconnected' }),
+        JSON.stringify({ success: false, error: rpcError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✅ [mark-disconnected] Success');
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, ...(statusResult as object) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('💥 [mark-disconnected] Error:', error);
+    console.error('💥 [get-rejoin-status] Error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

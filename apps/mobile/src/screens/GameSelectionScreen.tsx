@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { i18n } from '../i18n';
 
 type GameSelectionNavigationProp = StackNavigationProp<RootStackParamList, 'GameSelection'>;
 
@@ -25,9 +26,9 @@ export default function GameSelectionScreen() {
 
   const handleLebaneseDeal = () => {
     Alert.alert(
-      '🚧 Coming Soon!',
-      'Lebanese Deal is currently in development. Stay tuned!',
-      [{ text: 'OK', style: 'default' }]
+      i18n.t('gameSelection.comingSoonAlertTitle'),
+      i18n.t('gameSelection.comingSoonAlertMsg'),
+      [{ text: i18n.t('common.ok'), style: 'default' }]
     );
   };
 
@@ -35,9 +36,9 @@ export default function GameSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.greeting}>
-          Welcome, {profile?.username || user?.email?.split('@')[0] || 'Player'}!
+          {i18n.t('gameSelection.welcome')} {profile?.username || user?.email?.split('@')[0] || 'Player'}!
         </Text>
-        <Text style={styles.headerSubtitle}>Choose a game to play</Text>
+        <Text style={styles.headerSubtitle}>{i18n.t('gameSelection.subtitle')}</Text>
       </View>
 
       <View style={styles.content}>
@@ -50,13 +51,13 @@ export default function GameSelectionScreen() {
           <View style={styles.gameCardInner}>
             <Text style={styles.gameEmoji}>🀄</Text>
             <View style={styles.gameInfo}>
-              <Text style={styles.gameTitle}>Chinese Poker</Text>
+              <Text style={styles.gameTitle}>{i18n.t('gameSelection.chinesePokerTitle')}</Text>
               <Text style={styles.gameDescription}>
-                Big Two — the classic card game.{'\n'}Play online or against bots.
+                {i18n.t('gameSelection.chinesePokerDesc')}
               </Text>
             </View>
             <View style={styles.playBadge}>
-              <Text style={styles.playBadgeText}>PLAY →</Text>
+              <Text style={styles.playBadgeText}>{i18n.t('gameSelection.playButton')}</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -70,24 +71,24 @@ export default function GameSelectionScreen() {
           <View style={styles.gameCardInner}>
             <Text style={styles.gameEmoji}>🃏</Text>
             <View style={styles.gameInfo}>
-              <Text style={styles.gameTitle}>Lebanese Deal</Text>
+              <Text style={styles.gameTitle}>{i18n.t('gameSelection.lebaneseDealTitle')}</Text>
               <Text style={styles.gameDescription}>
-                A brand-new card game experience.{'\n'}Stay tuned for the launch!
+                {i18n.t('gameSelection.lebaneseDealDesc')}
               </Text>
             </View>
             <View style={[styles.playBadge, styles.comingSoonBadge]}>
-              <Text style={[styles.playBadgeText, styles.comingSoonBadgeText]}>SOON</Text>
+              <Text style={[styles.playBadgeText, styles.comingSoonBadgeText]}>{i18n.t('gameSelection.soonButton')}</Text>
             </View>
           </View>
           {/* Overlay to visually indicate disabled */}
           <View style={styles.comingSoonOverlay}>
-            <Text style={styles.comingSoonLabel}>Coming Soon</Text>
+            <Text style={styles.comingSoonLabel}>{i18n.t('common.comingSoon')}</Text>
           </View>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>More games coming in future updates</Text>
+        <Text style={styles.footerText}>{i18n.t('gameSelection.moreGamesFooter')}</Text>
       </View>
     </SafeAreaView>
   );

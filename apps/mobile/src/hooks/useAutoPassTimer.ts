@@ -317,6 +317,21 @@ async function executeAutoPasses(
         continue;
       }
 
+      // Bot players have user_id = NULL (set by process_disconnected_players) so they
+      // cannot be auto-passed via the client JWT.  Delegate ALL bot passes to
+      // bot-coordinator which runs server-side with service-role auth and will force-pass
+      // every non-exempt bot (it will also respect the auto_pass_timer.active flag and
+      // skip the One Card Left Rule via the updated player-pass logic).
+      if (playerToPass.is_bot) {
+        networkLogger.info(
+          `⏰ [Timer] Bot at turn ${currentTurnIndex} (${playerToPass.username}) — delegating remaining passes to bot-coordinator`,
+        );
+        void supabase.functions
+          .invoke('bot-coordinator', { body: { room_code: room?.code } })
+          .catch(e => networkLogger.error('[Timer] bot-coordinator delegation failed:', e));
+        break; // bot-coordinator handles all remaining auto-passes server-side
+      }
+
       try {
         networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurnIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
 

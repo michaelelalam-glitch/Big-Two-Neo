@@ -20,10 +20,12 @@ tags:
     clearState: true
 
 # Step 2: Wait for sign-in screen to load (testID on SafeAreaView container)
+# Timeout is 90s to account for: JS bundle parse time on cold Release build +
+# AuthProvider isLoading state (Supabase session check network round-trip in CI).
 - extendedWaitUntil:
     visible:
       id: "sign-in-screen"
-    timeout: 45000
+    timeout: 90000
 
 # Step 3: Verify sign-in screen content via testIDs
 - assertVisible:

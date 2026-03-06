@@ -98,7 +98,7 @@ export const useScoreboardContainerStyles = () => {
       right: 0,
       alignItems: 'center' as const,
       maxWidth: dims.isPortrait 
-        ? dims.screenWidth * 0.9 
+        ? undefined 
         : dims.isLargeDevice 
           ? dims.moderateScale(500) 
           : dims.moderateScale(400),
@@ -248,12 +248,15 @@ export const useExpandedScoreboardStyles = () => {
       backgroundColor: ScoreboardColors.background.expanded,
       borderRadius: dims.moderateScale(12),
       padding: dims.moderateScale(8),
-      minWidth: dims.isLandscape 
+      width: dims.isLandscape
         ? dims.screenWidth * 0.65  // Match play history width
-        : dims.isSmallDevice ? dims.moderateScale(140) : dims.moderateScale(150),
-      maxWidth: dims.isLandscape 
+        : dims.screenWidth * 0.9,  // Match play history portrait width
+      minWidth: dims.isLandscape
         ? dims.screenWidth * 0.65  // Match play history width
-        : dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
+        : undefined,
+      maxWidth: dims.isLandscape
+        ? dims.screenWidth * 0.65  // Match play history width
+        : dims.screenWidth * 0.9,
       maxHeight: dims.isLandscape 
         ? dims.screenHeight * 0.92  // Match play history height
         : dims.screenHeight * 0.85,

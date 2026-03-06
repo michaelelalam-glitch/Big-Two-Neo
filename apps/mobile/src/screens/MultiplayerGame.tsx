@@ -29,6 +29,8 @@ import { useOrientationManager } from '../hooks/useOrientationManager';
 import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
+import { useConnectionManager } from '../hooks/useConnectionManager';
+import { RejoinModal } from '../components/game/RejoinModal';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { showError } from '../utils';
 import { gameLogger } from '../utils/logger';
@@ -65,10 +67,43 @@ export function MultiplayerGame() {
   // Track when game transitions to 'playing' to calculate duration
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
+  // Rejoin modal state (fix/rejoin)
+  const [showRejoinModal, setShowRejoinModal] = useState(false);
+  const [rejoinBotUsername, setRejoinBotUsername] = useState<string | null>(null);
+
+  // ── Derived IDs for useConnectionManager ──────────────────────────────────
+  // The current user's room_players row (needed for heartbeat + reconnect)
+  const myRoomPlayerRow = React.useMemo(
+    () => multiplayerPlayers.find((p) => p.user_id === user?.id || p.human_user_id === user?.id),
+    [multiplayerPlayers, user?.id],
+  );
+
   // Orientation manager (Task #450)
   const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
+
+  // ── Connection manager (fix/rejoin) ───────────────────────────────────────
+  const { reconnect: connectionReconnect, disconnect: connectionDisconnect } = useConnectionManager({
+    roomId: roomInfo?.id ?? '',
+    playerId: myRoomPlayerRow?.id ?? '',
+    enabled: !!(roomInfo?.id && myRoomPlayerRow?.id),
+    onBotReplaced: () => {
+      // Server has placed a bot in our seat — surface the reclaim modal
+      const botRow = multiplayerPlayers.find(
+        (p) => p.human_user_id === user?.id && p.is_bot,
+      );
+      setRejoinBotUsername(botRow?.username ?? null);
+      setShowRejoinModal(true);
+    },
+    onRoomClosed: () => {
+      // Room was closed while we were away — send player home
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    },
+  });
 
   gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
 
@@ -125,7 +160,15 @@ export function MultiplayerGame() {
     onError: (error) => {
       gameLogger.error('[MultiplayerGame] Multiplayer error:', error.message);
       const msg = error.message?.toLowerCase() || '';
-      if (msg.includes('connection') || msg.includes('reconnect') || msg.includes('not your turn')) {
+      if (
+        msg.includes('connection') ||
+        msg.includes('reconnect') ||
+        msg.includes('not your turn') ||
+        // When a bot holds the player's seat the initial connectToRoom membership
+        // check fails with this message. useConnectionManager surfaces the reclaim
+        // modal instead — no need to show a redundant alert.
+        msg.includes('not a member')
+      ) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed non-critical multiplayer error from UI');
         return;
       }
@@ -160,6 +203,16 @@ export function MultiplayerGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multiplayerGameState?.game_phase]);
 
+  // ── Sync multiplayerPlayers from realtime (fix/rejoin) ────────────────────
+  // useRealtime subscribes to room_players postgres_changes, so realtimePlayers
+  // contains fresh connection_status, human_user_id, is_bot updates for ALL players.
+  // We keep multiplayerPlayers in sync so the disconnect spinner renders correctly.
+  useEffect(() => {
+    if (realtimePlayers && realtimePlayers.length > 0) {
+      setMultiplayerPlayers(realtimePlayers as MultiplayerPlayer[]);
+    }
+  }, [realtimePlayers]);
+
   // Ensure multiplayer realtime channel is joined when entering the Game screen
   useEffect(() => {
     if (!user?.id) return;
@@ -167,6 +220,10 @@ export function MultiplayerGame() {
     multiplayerConnectToRoom(roomCode).catch((error: Error) => {
       console.error('[MultiplayerGame] ❌ Failed to connect:', error);
       gameLogger.error('[MultiplayerGame] Failed to connect:', error?.message || String(error));
+      // 'not a member' means a bot currently holds the seat — useConnectionManager
+      // will surface the RejoinModal so we intentionally skip the alert here.
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('not a member')) return;
       showError(error?.message || 'Failed to connect to room');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,7 +296,11 @@ export function MultiplayerGame() {
     });
   }, [multiplayerHandsByIndex, multiplayerPlayers]);
 
-  // DIAGNOSTIC: Track coordinator status
+  // DIAGNOSTIC: Track coordinator status.
+  // NOTE: realtimePlayers intentionally excluded from deps — it changed on every heartbeat
+  // tick (every ~1 s across 4 players) which spammed this log and caused unnecessary
+  // re-evaluations.  The values that actually affect coordinator readiness are
+  // isMultiplayerDataReady, isMultiplayerHost, and playersWithCards.
   useEffect(() => {
     const coordinatorStatus = isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0;
     gameLogger.info('[MultiplayerGame] 🎯 Coordinator Status:', {
@@ -252,7 +313,7 @@ export function MultiplayerGame() {
       },
       will_trigger_bots: coordinatorStatus,
     });
-  }, [isMultiplayerDataReady, isMultiplayerHost, realtimePlayers, multiplayerGameState, playersWithCards]);
+  }, [isMultiplayerDataReady, isMultiplayerHost, playersWithCards]);
 
   // Server-side bot coordinator fallback (Tasks #551/#552)
   useServerBotCoordinator({
@@ -363,6 +424,21 @@ export function MultiplayerGame() {
     multiplayerGameState,
   });
 
+  // Task #573: Stable callback that reads the latest game state at call-time for
+  // client-side card validation in useGameActions (avoids stale-closure issues).
+  // NOTE: isFirstPlayOfGame uses game_phase === 'first_play' rather than
+  // (match_number===1 && last_play===null) — last_play is also null at the start of
+  // any new trick (after all players pass), which would incorrectly re-enable the
+  // 3♦ opening rule mid-match.  game_phase is the authoritative flag set by the server.
+  const getMultiplayerValidationState = React.useCallback(() => {
+    if (!multiplayerGameState) return null;
+    return {
+      lastPlay: multiplayerGameState.last_play ?? null,
+      isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
+      playerHand: (multiplayerPlayerHand ?? []) as Card[],
+    };
+  }, [multiplayerGameState, multiplayerPlayerHand]);
+
   // Play/Pass action handlers
   const {
     handlePlayCards,
@@ -371,7 +447,7 @@ export function MultiplayerGame() {
     handlePassSuccess,
     handleCardHandPlayCards,
     handleCardHandPass,
-    handleLeaveGame,
+    handleLeaveGame: handleLeaveGameBase,
   } = useGameActions({
     isLocalAIGame: false,
     gameManagerRef: emptyGameManagerRef,
@@ -380,7 +456,15 @@ export function MultiplayerGame() {
     setSelectedCardIds,
     navigation,
     isMountedRef,
+    getMultiplayerValidationState,
   });
+
+  // Wrap leave so we fire mark-disconnected (explicit leave) before navigating (fix/rejoin)
+  const handleLeaveGame = React.useCallback((skipConfirmation?: boolean) => {
+    // Fire-and-forget — we don't block navigation on this
+    connectionDisconnect().catch(() => {});
+    handleLeaveGameBase(skipConfirmation);
+  }, [connectionDisconnect, handleLeaveGameBase]);
 
   // Computed values
   const selectedCards = getSelectedCards(effectivePlayerHand);
@@ -413,55 +497,76 @@ export function MultiplayerGame() {
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
   return (
-    <GameView
-      isLocalAIGame={false}
-      currentOrientation={currentOrientation}
-      toggleOrientation={toggleOrientation}
-      isInitializing={!isMultiplayerDataReady}
-      isConnected={isConnected}
-      showSettings={showSettings}
-      setShowSettings={setShowSettings}
-      roomCode={roomCode}
-      effectivePlayerHand={effectivePlayerHand}
-      selectedCardIds={selectedCardIds}
-      setSelectedCardIds={setSelectedCardIds}
-      handleCardsReorder={handleCardsReorder}
-      selectedCards={selectedCards}
-      customCardOrder={customCardOrder}
-      setCustomCardOrder={setCustomCardOrder}
-      effectiveLastPlayedCards={multiplayerLastPlayedCards}
-      effectiveLastPlayedBy={multiplayerLastPlayedBy}
-      effectiveLastPlayComboType={multiplayerLastPlayComboType}
-      effectiveLastPlayCombo={multiplayerLastPlayCombo}
-      layoutPlayers={layoutPlayers}
-      layoutPlayersWithScores={layoutPlayersWithScores}
-      playerTotalScores={playerTotalScores}
-      currentPlayerName={currentPlayerName}
-      togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
-      toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
-      memoizedPlayerNames={memoizedPlayerNames}
-      memoizedCurrentScores={memoizedCurrentScores}
-      memoizedCardCounts={memoizedCardCounts}
-      memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
-      effectiveAutoPassTimerState={effectiveAutoPassTimerState}
-      effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-      matchNumber={matchNumber}
-      isGameFinished={isGameFinished}
-      displayOrderScoreHistory={displayOrderScoreHistory}
-      playHistoryByMatch={playHistoryByMatch}
-      handlePlayCards={handlePlayCards}
-      handlePass={handlePass}
-      handlePlaySuccess={handlePlaySuccess}
-      handlePassSuccess={handlePassSuccess}
-      handleCardHandPlayCards={handleCardHandPlayCards}
-      handleCardHandPass={handleCardHandPass}
-      handleLeaveGame={handleLeaveGame}
-      handleSort={handleSort}
-      handleSmartSort={handleSmartSort}
-      handleHint={handleHint}
-      isPlayerReady={isPlayerReady}
-      gameManagerRef={emptyGameManagerRef}
-      isMountedRef={isMountedRef}
-    />
+    <>
+      <GameView
+        isLocalAIGame={false}
+        currentOrientation={currentOrientation}
+        toggleOrientation={toggleOrientation}
+        isInitializing={!isMultiplayerDataReady}
+        isConnected={isConnected}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        roomCode={roomCode}
+        effectivePlayerHand={effectivePlayerHand}
+        selectedCardIds={selectedCardIds}
+        setSelectedCardIds={setSelectedCardIds}
+        handleCardsReorder={handleCardsReorder}
+        selectedCards={selectedCards}
+        customCardOrder={customCardOrder}
+        setCustomCardOrder={setCustomCardOrder}
+        effectiveLastPlayedCards={multiplayerLastPlayedCards}
+        effectiveLastPlayedBy={multiplayerLastPlayedBy}
+        effectiveLastPlayComboType={multiplayerLastPlayComboType}
+        effectiveLastPlayCombo={multiplayerLastPlayCombo}
+        layoutPlayers={layoutPlayers}
+        layoutPlayersWithScores={layoutPlayersWithScores}
+        playerTotalScores={playerTotalScores}
+        currentPlayerName={currentPlayerName}
+        togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
+        toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
+        memoizedPlayerNames={memoizedPlayerNames}
+        memoizedCurrentScores={memoizedCurrentScores}
+        memoizedCardCounts={memoizedCardCounts}
+        memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
+        effectiveAutoPassTimerState={effectiveAutoPassTimerState}
+        effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+        matchNumber={matchNumber}
+        isGameFinished={isGameFinished}
+        displayOrderScoreHistory={displayOrderScoreHistory}
+        playHistoryByMatch={playHistoryByMatch}
+        handlePlayCards={handlePlayCards}
+        handlePass={handlePass}
+        handlePlaySuccess={handlePlaySuccess}
+        handlePassSuccess={handlePassSuccess}
+        handleCardHandPlayCards={handleCardHandPlayCards}
+        handleCardHandPass={handleCardHandPass}
+        handleLeaveGame={handleLeaveGame}
+        handleSort={handleSort}
+        handleSmartSort={handleSmartSort}
+        handleHint={handleHint}
+        isPlayerReady={isPlayerReady}
+        gameManagerRef={emptyGameManagerRef}
+        isMountedRef={isMountedRef}
+      />
+
+      {/* Rejoin / reclaim-seat modal (fix/rejoin) */}
+      <RejoinModal
+        visible={showRejoinModal}
+        botUsername={rejoinBotUsername}
+        onReclaim={async () => {
+          await connectionReconnect();
+          setShowRejoinModal(false);
+          // Re-establish the Realtime channel after reclaiming the seat.
+          // The initial connectToRoom may have succeeded (Fix A: human_user_id match)
+          // or failed (pre-fix path). Either way, calling it again is safe:
+          // it refreshes players/game-state and ensures isConnected=true so the
+          // game renders properly instead of staying on "Initializing game…".
+          multiplayerConnectToRoom(roomCode).catch((e: Error) => {
+            gameLogger.error('[MultiplayerGame] post-reclaim reconnect failed:', e?.message || String(e));
+          });
+        }}
+        onDismiss={() => setShowRejoinModal(false)}
+      />
+    </>
   );
 }

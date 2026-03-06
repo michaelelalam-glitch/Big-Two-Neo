@@ -24,6 +24,8 @@ interface DisplayPlayer {
   score: number;
   isActive: boolean;
   player_index?: number;
+  /** fix/rejoin: disconnect spinner */
+  isDisconnected?: boolean;
 }
 
 interface UsePlayerDisplayDataOptions {
