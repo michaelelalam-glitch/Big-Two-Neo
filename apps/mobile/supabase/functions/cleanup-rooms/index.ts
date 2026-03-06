@@ -7,11 +7,15 @@
  *   - Delete stuck "starting" rooms older than 1 minute
  *   - Delete completed/cancelled rooms older than 30 days
  *
- * Designed to be invoked via pg_cron/pg_net (every 6 hours) or manually.
+ * Invocation:
+ *   - Periodic cleanup in this project is handled by pg_cron calling the
+ *     cleanup_abandoned_rooms() SQL function directly (no HTTP).
+ *   - This Edge Function is intended for manual or external HTTP-triggered
+ *     runs (e.g. from an external scheduler or Supabase dashboard).
  *
- * AUTH: Requires `Authorization: Bearer <CRON_SECRET>` header.
- * Set the CRON_SECRET env variable in the Supabase project secrets.
- * pg_net callers must include: "Authorization", "Bearer " || current_setting('app.cron_secret')
+ * AUTH (HTTP only):
+ *   - Requires `Authorization: Bearer <CRON_SECRET>` header.
+ *   - Set the CRON_SECRET env variable in the Supabase project secrets.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
