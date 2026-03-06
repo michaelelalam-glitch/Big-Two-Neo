@@ -24,12 +24,18 @@ import {
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
-import { classifyCards, canBeatPlay } from '../game/engine/game-logic';
-import type { LastPlay } from '../types/multiplayer';
+import { classifyCards, canBeatPlay } from '../game';
+import type { LastPlay } from '../game';
 
 interface GameManagerLike {
   playCards: (cardIds: string[]) => Promise<{ success: boolean; error?: string }>;
   pass: () => Promise<{ success: boolean; error?: string }>;
+}
+
+interface MultiplayerValidationState {
+  lastPlay: LastPlay | null;
+  isFirstPlayOfGame: boolean;
+  playerHand: Card[];
 }
 
 interface UseGameActionsOptions {
@@ -40,16 +46,8 @@ interface UseGameActionsOptions {
   setSelectedCardIds: (ids: Set<string>) => void;
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;
   isMountedRef: React.RefObject<boolean>;
-  /**
-   * Task #573: Client-side validation context for multiplayer.
-   * Returns current game state needed to validate card plays before
-   * sending to the server — eliminates unnecessary server round-trips.
-   */
-  getMultiplayerValidationState?: () => {
-    lastPlay: LastPlay | null;
-    isFirstPlayOfGame: boolean;
-    playerHand: Card[];
-  } | null;
+  /** Optional: returns current game state for client-side pre-validation (Task #573) */
+  getMultiplayerValidationState?: () => MultiplayerValidationState | null;
 }
 
 export function useGameActions({
@@ -142,9 +140,10 @@ export function useGameActions({
             }
 
             // 3. First play of game must include the 3 of Diamonds.
-            // Card IDs are always constructed as `${rank}${suit}` (rank-first), so the
-            // 3 of Diamonds is always '3D' — 'D3' is never a valid ID in this codebase.
-            if (isFirstPlayOfGame && !sortedCards.some(c => c.id === '3D')) {
+            // Use rank+suit check instead of id string comparison since the server
+            // stores cards in suit-first format ('D3') while local state uses
+            // rank-first format ('3D'). Checking rank/suit fields works for both.
+            if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
               soundManager.playSound(SoundType.INVALID_MOVE);
               showError(i18n.t('game.firstPlayMustInclude3D'));
               isPlayingCardsRef.current = false;
@@ -167,7 +166,6 @@ export function useGameActions({
             });
           }
         }
-
         await multiplayerPlayCards(sortedCards as Card[]);
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.CARD_PLAY);
