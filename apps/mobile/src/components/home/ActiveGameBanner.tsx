@@ -24,6 +24,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { i18n } from '../../i18n';
 
 const GAME_STATE_KEY = '@big2_game_state';
 const BOT_REPLACEMENT_SECONDS = 60;
@@ -231,8 +232,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         <View style={styles.headerRow}>
           <Text style={styles.icon}>🃏</Text>
           <View style={styles.headerText}>
-            <Text style={styles.title}>No Game in Progress</Text>
-            <Text style={styles.subtitle}>Start a new game to play!</Text>
+            <Text style={styles.title}>{i18n.t('home.noGameInProgress')}</Text>
+            <Text style={styles.subtitle}>{i18n.t('home.startNewGameHint')}</Text>
           </View>
         </View>
       </View>
@@ -261,12 +262,12 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         <Text style={styles.icon}>{isOnline ? '🌐' : '🤖'}</Text>
         <View style={styles.headerText}>
           <Text style={styles.title}>
-            {isOnline ? 'Active Online Game' : 'Active Offline Game'}
+            {isOnline ? i18n.t('home.activeOnlineGame') : i18n.t('home.activeOfflineGame')}
           </Text>
           <Text style={styles.subtitle}>
             {isOnline
-              ? `Room: ${gameInfo.roomCode} · ${onlineRoomStatus === 'playing' ? 'In Progress' : 'Waiting'}`
-              : `Match ${gameInfo.matchNumber || 1} · vs AI`}
+              ? `${i18n.t('lobby.roomCode')}: ${gameInfo.roomCode} · ${onlineRoomStatus === 'playing' ? i18n.t('home.inProgress') : i18n.t('home.waitingStatus')}`
+              : i18n.t('home.offlineMatchSubtitle', { match: gameInfo.matchNumber || 1 })}
           </Text>
         </View>
       </View>
@@ -282,7 +283,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
               styles.countdownText,
               countdown <= 15 && styles.countdownTextUrgent,
             ]}>
-              {countdown <= 0 ? 'Bot replacing you...' : `⏱ ${countdown}s before bot replaces you`}
+              {countdown <= 0 ? i18n.t('home.botReplacingYou') : i18n.t('home.beforeBotReplaces', { seconds: countdown })}
             </Text>
           </View>
         </View>
@@ -293,7 +294,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         <View style={styles.countdownRow}>
           <View style={styles.botReplacedBadge}>
             <Text style={styles.botReplacedText}>
-              🤖 A bot is playing for you
+              {i18n.t('home.botPlayingForYou')}
             </Text>
           </View>
         </View>
@@ -308,7 +309,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             onPress={() => onResume(gameInfo)}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>🔄 Rejoin</Text>
+            <Text style={styles.buttonText}>{i18n.t('home.rejoin')}</Text>
           </TouchableOpacity>
         ) : canRejoinAfterExpiry !== false ? (
           // Timer expired AND bot took over — show Replace Bot & Rejoin
@@ -317,7 +318,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>🔄 Replace Bot & Rejoin</Text>
+            <Text style={styles.buttonText}>{i18n.t('home.replaceBotAndRejoin')}</Text>
           </TouchableOpacity>
         ) : null /* canRejoinAfterExpiry===false: game running but replacement row absent — show only Leave */}
 
@@ -327,7 +328,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           onPress={() => onLeave(gameInfo)}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>🚪 Leave</Text>
+          <Text style={styles.buttonText}>🚪 {i18n.t('home.leave')}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

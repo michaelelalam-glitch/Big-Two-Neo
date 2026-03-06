@@ -592,9 +592,9 @@ export default function LobbyScreen() {
           styles.roomTypeBadge,
         ]}>
           <Text style={styles.roomTypeBadgeText}>
-            {(roomType.isRanked && '🏆 Ranked Match') ||
+            {(roomType.isRanked && i18n.t('lobby.rankedMatch')) ||
              (roomType.isCasual && `🎮 ${i18n.t('lobby.casualMatch')}`) ||
-             (roomType.isPrivate && '🔒 Private Room') ||
+             (roomType.isPrivate && i18n.t('lobby.privateRoom')) ||
              i18n.t('lobby.title')}
           </Text>
         </View>
@@ -667,7 +667,7 @@ export default function LobbyScreen() {
               <>
                 {/* Bot Difficulty Selector */}
                 <View style={styles.difficultyContainer}>
-                  <Text style={styles.difficultyLabel}>🤖 Bot Difficulty:</Text>
+                  <Text style={styles.difficultyLabel}>{i18n.t('lobby.botDifficultyLabel')}</Text>
                   <View style={styles.difficultyButtons}>
                     {(['easy', 'medium', 'hard'] as const).map((level) => (
                       <TouchableOpacity
@@ -684,7 +684,7 @@ export default function LobbyScreen() {
                             botDifficulty === level && styles.difficultyButtonTextActive,
                           ]}
                         >
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                          {i18n.t(`lobby.${level}`)}
                         </Text>
                       </TouchableOpacity>
                     ))}

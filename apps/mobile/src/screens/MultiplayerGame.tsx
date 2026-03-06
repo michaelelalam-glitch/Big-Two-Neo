@@ -296,7 +296,11 @@ export function MultiplayerGame() {
     });
   }, [multiplayerHandsByIndex, multiplayerPlayers]);
 
-  // DIAGNOSTIC: Track coordinator status
+  // DIAGNOSTIC: Track coordinator status.
+  // NOTE: realtimePlayers intentionally excluded from deps — it changed on every heartbeat
+  // tick (every ~1 s across 4 players) which spammed this log and caused unnecessary
+  // re-evaluations.  The values that actually affect coordinator readiness are
+  // isMultiplayerDataReady, isMultiplayerHost, and playersWithCards.
   useEffect(() => {
     const coordinatorStatus = isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0;
     gameLogger.info('[MultiplayerGame] 🎯 Coordinator Status:', {
@@ -309,7 +313,7 @@ export function MultiplayerGame() {
       },
       will_trigger_bots: coordinatorStatus,
     });
-  }, [isMultiplayerDataReady, isMultiplayerHost, realtimePlayers, multiplayerGameState, playersWithCards]);
+  }, [isMultiplayerDataReady, isMultiplayerHost, playersWithCards]);
 
   // Server-side bot coordinator fallback (Tasks #551/#552)
   useServerBotCoordinator({
@@ -420,6 +424,21 @@ export function MultiplayerGame() {
     multiplayerGameState,
   });
 
+  // Task #573: Stable callback that reads the latest game state at call-time for
+  // client-side card validation in useGameActions (avoids stale-closure issues).
+  // NOTE: isFirstPlayOfGame uses game_phase === 'first_play' rather than
+  // (match_number===1 && last_play===null) — last_play is also null at the start of
+  // any new trick (after all players pass), which would incorrectly re-enable the
+  // 3♦ opening rule mid-match.  game_phase is the authoritative flag set by the server.
+  const getMultiplayerValidationState = React.useCallback(() => {
+    if (!multiplayerGameState) return null;
+    return {
+      lastPlay: multiplayerGameState.last_play ?? null,
+      isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
+      playerHand: (multiplayerPlayerHand ?? []) as Card[],
+    };
+  }, [multiplayerGameState, multiplayerPlayerHand]);
+
   // Play/Pass action handlers
   const {
     handlePlayCards,
@@ -437,6 +456,7 @@ export function MultiplayerGame() {
     setSelectedCardIds,
     navigation,
     isMountedRef,
+    getMultiplayerValidationState,
   });
 
   // Wrap leave so we fire mark-disconnected (explicit leave) before navigating (fix/rejoin)

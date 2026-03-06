@@ -186,8 +186,8 @@ export function GameView(props: GameViewProps) {
           // Loading state
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 12 }} />
-            <Text style={styles.loadingText}>Initializing game...</Text>
-            <Text style={styles.loadingSubtext}>Setting up game engine...</Text>
+            <Text style={styles.loadingText}>{i18n.t('game.initializingGame')}</Text>
+            <Text style={styles.loadingSubtext}>{i18n.t('game.settingUpEngine')}</Text>
           </View>
         ) : currentOrientation === 'landscape' ? (
           // LANDSCAPE MODE (Task #450)
