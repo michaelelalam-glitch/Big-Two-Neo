@@ -170,7 +170,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 30
+    timeout-minutes: 55
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -247,9 +247,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: apps/mobile/ios/build
-          # Key on dependency files + source hash. Podfile doesn't exist until
-          # prebuild, so use package.json/lockfile/app.json as proxy.
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json', 'apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
+          # Key on native dependency files only. TS/TSX source files are bundled
+          # into the JS bundle by Metro, NOT compiled by Xcode — including them
+          # in the key busts the cache on every code change unnecessarily.
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
             ${{ runner.os }}-deriveddata-
 
@@ -277,7 +278,7 @@ jobs:
             build \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tail -50
-        timeout-minutes: 20
+        timeout-minutes: 35
       
       - name: 📲 Install app on Simulator
         run: |
