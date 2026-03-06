@@ -13,8 +13,12 @@
  *   - This Edge Function is intended for manual or external HTTP-triggered
  *     runs (e.g. from an external scheduler or Supabase dashboard).
  *
+ * Invocation method:
+ *   - For HTTP invocation, you must send a POST request (non-POST methods
+ *     will receive HTTP 405 Method Not Allowed).
+ *
  * AUTH (HTTP only):
- *   - Requires `Authorization: Bearer <CRON_SECRET>` header.
+ *   - Requires `Authorization: Bearer <CRON_SECRET>` header on the POST request.
  *   - Set the CRON_SECRET env variable in the Supabase project secrets.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -23,6 +27,30 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ==================== HELPERS ====================
+
+/**
+ * Constant-time string comparison to prevent timing-based secret leakage.
+ * Always iterates over full length regardless of where a mismatch occurs.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  if (aBytes.length !== bBytes.length) {
+    // Length mismatch — still iterate to maintain constant-time behaviour
+    let diff = 0;
+    for (let i = 0; i < aBytes.length; i++) {
+      diff |= aBytes[i] ^ 0;
+    }
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
+}
 
 // ==================== MAIN HANDLER ====================
 
@@ -55,9 +83,18 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get('Authorization');
-    const providedSecret = authHeader?.replace('Bearer ', '').trim();
-    if (!authHeader || providedSecret !== cronSecret) {
-      console.warn('⚠️ [cleanup-rooms] Unauthorized request — invalid or missing Authorization header');
+    // Reject malformed or non-Bearer Authorization schemes immediately
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('⚠️ [cleanup-rooms] Unauthorized request — missing or malformed Authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const providedSecret = authHeader.slice('Bearer '.length).trim();
+    // Use constant-time comparison to prevent timing-attack leakage
+    if (!timingSafeEqual(providedSecret, cronSecret)) {
+      console.warn('⚠️ [cleanup-rooms] Unauthorized request — invalid CRON_SECRET');
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
