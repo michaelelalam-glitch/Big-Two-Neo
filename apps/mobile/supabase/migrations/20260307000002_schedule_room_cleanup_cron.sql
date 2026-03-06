@@ -1,6 +1,11 @@
 -- ============================================================================
 -- Migration: Schedule cleanup_abandoned_rooms via pg_cron (Task #524)
 -- Runs every 6 hours to clean up abandoned, stuck, and old rooms.
+--
+-- This cron job calls the SQL function directly (no HTTP round-trip).
+-- For manual HTTP invocations via the cleanup-rooms Edge Function,
+-- set CRON_SECRET in Supabase project secrets and pass it as:
+--   Authorization: Bearer <CRON_SECRET>
 -- ============================================================================
 
 -- Remove stale schedule if it exists
