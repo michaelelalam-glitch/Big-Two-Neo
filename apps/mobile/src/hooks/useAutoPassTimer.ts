@@ -425,8 +425,12 @@ async function executeAutoPasses(
           continue;
         }
 
+        // Log unexpected error but continue to attempt passing the remaining players.
+        // Edge Function HTTP failures (non-2xx) should not stop the cascade.
         networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${currentTurnIndex}:`, errorMsg);
-        break;
+        // Advance the turnOffset so we try the next player in sequence.
+        turnOffset++;
+        continue;
       }
     }
 

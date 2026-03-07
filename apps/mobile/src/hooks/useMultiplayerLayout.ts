@@ -133,7 +133,18 @@ export function useMultiplayerLayout({
     const isDisconnected = (idx: number): boolean => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return false;
-      return p.connection_status === 'disconnected';
+
+      // Only show the disconnected spinner when the server explicitly marks
+      // the player as 'disconnected' AND the player is not currently in the
+      // active game (no cards).  This prevents transient server-side races
+      // or heartbeat hiccups from showing all avatars as disconnected while
+      // players remain actively in the match.
+      const explicitlyDisconnected = p.connection_status === 'disconnected';
+      if (!explicitlyDisconnected) return false;
+
+      const cardCount = getCount(idx);
+      // If the player still has cards, treat them as active for UI purposes.
+      return cardCount === 0;
     };
 
     // CRITICAL: RELATIVE positioning — each player sees THEMSELVES at bottom
