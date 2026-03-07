@@ -105,6 +105,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     roomPlayers,
     broadcastMessage,
     getCorrectedNow,
+    currentUserId: userId,
   });
 
   /**

@@ -33,6 +33,8 @@ export interface UseAutoPassTimerOptions {
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   /** Clock-sync corrected timestamp (ms). */
   getCorrectedNow: () => number;
+  /** Current authenticated user id (auth.uid) — used to only auto-pass the local player. */
+  currentUserId?: string | null;
 }
 
 /**
@@ -49,6 +51,7 @@ export function useAutoPassTimer({
   roomPlayers,
   broadcastMessage,
   getCorrectedNow,
+  currentUserId,
 }: UseAutoPassTimerOptions): { isAutoPassInProgress: boolean } {
   // ── Refs ────────────────────────────────────────────────────────────────────
   /** Track active polling interval to prevent duplicates. */
@@ -183,6 +186,7 @@ export function useAutoPassTimer({
           broadcastMessage,
           autoPassExecutionGuard,
           setIsAutoPassInProgressState,
+          currentUserId ?? null,
         );
       }
     }, 100);
@@ -219,6 +223,7 @@ async function executeAutoPasses(
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>,
   autoPassExecutionGuard: React.MutableRefObject<number | null>,
   setIsAutoPassInProgress: (value: boolean) => void,
+  currentUserId: string | null,
 ): Promise<void> {
   const now = Date.now();
   const lockTimeout = 30000; // 30 s max lock duration
@@ -339,6 +344,7 @@ async function executeAutoPasses(
       const playerToPass = roomPlayers.find(p => p.player_index === currentTurnIndex);
       if (!playerToPass) {
         networkLogger.error(`⏰ [Timer] ❌ No player found at index ${currentTurnIndex}`);
+        turnOffset++;
         continue;
       }
 
@@ -355,6 +361,15 @@ async function executeAutoPasses(
           .invoke('bot-coordinator', { body: { room_code: room?.code } })
           .catch(e => networkLogger.error('[Timer] bot-coordinator delegation failed:', e));
         break; // bot-coordinator handles all remaining auto-passes server-side
+      }
+
+      // If this player is a human but not the current user, skip — their client
+      // will perform its own auto-pass when its timer fires. This prevents 403
+      // forbidden errors when trying to act on behalf of other users.
+      if (!playerToPass.is_bot && playerToPass.user_id !== currentUserId) {
+        networkLogger.debug(`⏰ [Timer] Skipping pass for player ${currentTurnIndex} (not current user)`);
+        turnOffset++;
+        continue;
       }
 
       try {
