@@ -115,11 +115,20 @@ export default function HomeScreen() {
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
-                // 'connected' — no server-side disconnect timer running; rely on heartbeat.
-                // Do NOT start a client-side countdown here: the server timer is the
-                // source of truth, and starting one early can show "bot replaced you"
-                // before the server has even begun the 60-second window.
+                // 'connected' — no server-side disconnect timer running YET.
+                // The player may have JUST navigated away from the game screen
+                // and the mark-disconnected request is still in-flight. Schedule
+                // a single re-check after 2 s to pick up the timer once the server
+                // has processed it.  This avoids showing a banner with no countdown
+                // (just Rejoin / Leave) for the brief race window.
                 setDisconnectTimestamp(null);
+                setTimeout(() => {
+                  // Only re-check if we still have a current room — the user
+                  // may have pressed Leave in the meantime.
+                  if (currentRoomRef.current) {
+                    checkCurrentRoom();
+                  }
+                }, 2000);
               }
             }
             // statusData missing / success=false — do not start a phantom countdown;

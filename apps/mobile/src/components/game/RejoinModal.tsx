@@ -43,6 +43,11 @@ interface RejoinModalProps {
   /** Called when the player taps "Reclaim My Seat" */
   onReclaim: () => Promise<void>;
   /**
+   * Called when the player taps "Leave Room" — permanently leaves the game.
+   * If undefined the leave button is hidden.
+   */
+  onLeaveRoom?: () => void;
+  /**
    * Called when the player taps "Watch / Spectate" or closes the modal.
    * If undefined the dismiss button is hidden (player MUST reclaim or leave).
    */
@@ -55,6 +60,7 @@ export function RejoinModal({
   visible,
   botUsername,
   onReclaim,
+  onLeaveRoom,
   onDismiss,
 }: RejoinModalProps) {
   const [isReclaiming, setIsReclaiming] = useState(false);
@@ -152,6 +158,19 @@ export function RejoinModal({
                   accessibilityLabel="Watch as spectator"
                 >
                   <Text style={styles.dismissButtonText}>Watch Game</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Leave room permanently */}
+              {onLeaveRoom && (
+                <TouchableOpacity
+                  style={styles.leaveButton}
+                  onPress={onLeaveRoom}
+                  disabled={isReclaiming}
+                  accessibilityRole="button"
+                  accessibilityLabel="Leave room"
+                >
+                  <Text style={styles.leaveButtonText}>Leave Room</Text>
                 </TouchableOpacity>
               )}
             </>
@@ -263,6 +282,17 @@ const styles = StyleSheet.create({
   dismissButtonText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: FONT_SIZES.sm,
+  },
+  leaveButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  leaveButtonText: {
+    color: '#ff6b7a',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
   },
 });
 

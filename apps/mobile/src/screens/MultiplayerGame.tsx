@@ -4,7 +4,7 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -31,6 +31,7 @@ import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { supabase } from '../services/supabase';
 import { showError } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
@@ -39,6 +40,7 @@ import type { GameStateManager } from '../game/state';
 // FinalScore import removed — onGameOver callback replaced by useMatchEndHandler (DB-authoritative path)
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
+import { RejoinModal } from '../components/game/RejoinModal';
 import { GameView } from './GameView';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -59,6 +61,10 @@ export function MultiplayerGame() {
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
+
+  // State for bot replacement dialog
+  const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
+  const [botReplacedUsername, setBotReplacedUsername] = useState<string | null>(null);
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
@@ -185,18 +191,51 @@ export function MultiplayerGame() {
     return me?.id ?? null;
   }, [multiplayerPlayers, user?.id]);
 
-  useConnectionManager({
+  const { reconnect: connectionReconnect, rejoinStatus } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
     onBotReplaced: () => {
-      gameLogger.warn('[MultiplayerGame] Player was replaced by a bot');
+      gameLogger.warn('[MultiplayerGame] Player was replaced by a bot — showing rejoin dialog');
+      setShowBotReplacedModal(true);
     },
     onRoomClosed: () => {
       gameLogger.warn('[MultiplayerGame] Room was closed while away');
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     },
   });
+
+  // Update bot username from rejoin status payload when available
+  useEffect(() => {
+    if (rejoinStatus?.status === 'replaced_by_bot' && rejoinStatus.bot_username) {
+      setBotReplacedUsername(rejoinStatus.bot_username);
+    }
+  }, [rejoinStatus]);
+
+  // ── Bot Replacement Modal Handlers ──────────────────────────────────────
+  const handleReclaimSeat = useCallback(async () => {
+    gameLogger.info('[MultiplayerGame] Reclaiming seat from bot...');
+    await connectionReconnect();
+    setShowBotReplacedModal(false);
+    setBotReplacedUsername(null);
+    gameLogger.info('[MultiplayerGame] Seat reclaimed successfully');
+  }, [connectionReconnect]);
+
+  const handleLeaveRoomFromModal = useCallback(async () => {
+    gameLogger.info('[MultiplayerGame] Leaving room after bot replacement');
+    setShowBotReplacedModal(false);
+    if (user?.id) {
+      // Use SECURITY DEFINER RPC to bypass RLS — replaced rows have
+      // user_id = NULL so a client-side DELETE would be silently blocked.
+      const { error: rpcErr } = await supabase.rpc('delete_room_players_by_human_user_id', {
+        human_user_id: user.id,
+      });
+      if (rpcErr) {
+        gameLogger.error('[MultiplayerGame] Failed to delete room_player on leave:', rpcErr);
+      }
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  }, [user?.id, navigation]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
@@ -381,6 +420,7 @@ export function MultiplayerGame() {
     roomCode,
     navigation,
     orientationAvailable,
+    roomId: roomInfo?.id,
   });
 
   // Audio/haptic feedback
@@ -452,55 +492,66 @@ export function MultiplayerGame() {
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
   return (
-    <GameView
-      isLocalAIGame={false}
-      currentOrientation={currentOrientation}
-      toggleOrientation={toggleOrientation}
-      isInitializing={!isMultiplayerDataReady}
-      isConnected={isConnected}
-      showSettings={showSettings}
-      setShowSettings={setShowSettings}
-      roomCode={roomCode}
-      effectivePlayerHand={effectivePlayerHand}
-      selectedCardIds={selectedCardIds}
-      setSelectedCardIds={setSelectedCardIds}
-      handleCardsReorder={handleCardsReorder}
-      selectedCards={selectedCards}
-      customCardOrder={customCardOrder}
-      setCustomCardOrder={setCustomCardOrder}
-      effectiveLastPlayedCards={multiplayerLastPlayedCards}
-      effectiveLastPlayedBy={multiplayerLastPlayedBy}
-      effectiveLastPlayComboType={multiplayerLastPlayComboType}
-      effectiveLastPlayCombo={multiplayerLastPlayCombo}
-      layoutPlayers={layoutPlayers}
-      layoutPlayersWithScores={layoutPlayersWithScores}
-      playerTotalScores={playerTotalScores}
-      currentPlayerName={currentPlayerName}
-      togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
-      toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
-      memoizedPlayerNames={memoizedPlayerNames}
-      memoizedCurrentScores={memoizedCurrentScores}
-      memoizedCardCounts={memoizedCardCounts}
-      memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
-      effectiveAutoPassTimerState={effectiveAutoPassTimerState}
-      effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-      matchNumber={matchNumber}
-      isGameFinished={isGameFinished}
-      displayOrderScoreHistory={displayOrderScoreHistory}
-      playHistoryByMatch={playHistoryByMatch}
-      handlePlayCards={handlePlayCards}
-      handlePass={handlePass}
-      handlePlaySuccess={handlePlaySuccess}
-      handlePassSuccess={handlePassSuccess}
-      handleCardHandPlayCards={handleCardHandPlayCards}
-      handleCardHandPass={handleCardHandPass}
-      handleLeaveGame={handleLeaveGame}
-      handleSort={handleSort}
-      handleSmartSort={handleSmartSort}
-      handleHint={handleHint}
-      isPlayerReady={isPlayerReady}
-      gameManagerRef={emptyGameManagerRef}
-      isMountedRef={isMountedRef}
-    />
+    <>
+      <GameView
+        isLocalAIGame={false}
+        currentOrientation={currentOrientation}
+        toggleOrientation={toggleOrientation}
+        isInitializing={!isMultiplayerDataReady}
+        isConnected={isConnected}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        roomCode={roomCode}
+        effectivePlayerHand={effectivePlayerHand}
+        selectedCardIds={selectedCardIds}
+        setSelectedCardIds={setSelectedCardIds}
+        handleCardsReorder={handleCardsReorder}
+        selectedCards={selectedCards}
+        customCardOrder={customCardOrder}
+        setCustomCardOrder={setCustomCardOrder}
+        effectiveLastPlayedCards={multiplayerLastPlayedCards}
+        effectiveLastPlayedBy={multiplayerLastPlayedBy}
+        effectiveLastPlayComboType={multiplayerLastPlayComboType}
+        effectiveLastPlayCombo={multiplayerLastPlayCombo}
+        layoutPlayers={layoutPlayers}
+        layoutPlayersWithScores={layoutPlayersWithScores}
+        playerTotalScores={playerTotalScores}
+        currentPlayerName={currentPlayerName}
+        togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
+        toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
+        memoizedPlayerNames={memoizedPlayerNames}
+        memoizedCurrentScores={memoizedCurrentScores}
+        memoizedCardCounts={memoizedCardCounts}
+        memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
+        effectiveAutoPassTimerState={effectiveAutoPassTimerState}
+        effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+        matchNumber={matchNumber}
+        isGameFinished={isGameFinished}
+        displayOrderScoreHistory={displayOrderScoreHistory}
+        playHistoryByMatch={playHistoryByMatch}
+        handlePlayCards={handlePlayCards}
+        handlePass={handlePass}
+        handlePlaySuccess={handlePlaySuccess}
+        handlePassSuccess={handlePassSuccess}
+        handleCardHandPlayCards={handleCardHandPlayCards}
+        handleCardHandPass={handleCardHandPass}
+        handleLeaveGame={handleLeaveGame}
+        handleSort={handleSort}
+        handleSmartSort={handleSmartSort}
+        handleHint={handleHint}
+        isPlayerReady={isPlayerReady}
+        gameManagerRef={emptyGameManagerRef}
+        isMountedRef={isMountedRef}
+      />
+
+      {/* Bot Replacement Modal — shown when the server replaces a disconnected
+          player with a bot. Offers "Reclaim My Seat" or "Leave Room". */}
+      <RejoinModal
+        visible={showBotReplacedModal}
+        botUsername={botReplacedUsername}
+        onReclaim={handleReclaimSeat}
+        onLeaveRoom={handleLeaveRoomFromModal}
+      />
+    </>
   );
 }
