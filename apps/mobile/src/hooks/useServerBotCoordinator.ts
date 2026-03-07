@@ -216,6 +216,9 @@ export function useServerBotCoordinator({
   // triggers the bot coordinator fallback so the game doesn't stall.
   useEffect(() => {
     if (!enabled || !gameState || !roomCode) return;
+    // Don't fire replacement-detection trigger while auto-pass is running —
+    // same race-condition concern as the main effect.
+    if (isAutoPassInProgress) return;
     const { current_turn: currentTurn, game_phase: phase } = gameState;
     if (phase === 'finished' || phase === 'game_over') return;
 
@@ -240,5 +243,5 @@ export function useServerBotCoordinator({
     currentTurnIsBotRef.current = isNowBot;
   // players is intentionally included here — we NEED to re-run when is_bot changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, gameState?.current_turn, gameState?.game_phase, enabled, roomCode, triggerBotCoordinator]);
+  }, [players, gameState?.current_turn, gameState?.game_phase, enabled, roomCode, triggerBotCoordinator, isAutoPassInProgress]);
 }

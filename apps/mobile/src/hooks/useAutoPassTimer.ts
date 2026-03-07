@@ -298,11 +298,19 @@ async function executeAutoPasses(
     // Clearing it upfront ensures all subsequent broadcasts have auto_pass_timer=null.
     networkLogger.info('⏰ [Timer] Clearing auto_pass_timer from DB (cascade prevention)...');
     try {
-      await supabase.from('game_state').update({ auto_pass_timer: null }).eq('room_id', room?.id);
-      networkLogger.info('⏰ [Timer] ✅ auto_pass_timer cleared');
+      const { error: clearError } = await supabase
+        .from('game_state')
+        .update({ auto_pass_timer: null })
+        .eq('room_id', room?.id);
+      if (clearError) {
+        // Non-fatal — continue with sequential passes; final cleanup will retry
+        networkLogger.warn('⏰ [Timer] ⚠️ Pre-emptive clear returned DB error, continuing:', clearError);
+      } else {
+        networkLogger.info('⏰ [Timer] ✅ auto_pass_timer cleared');
+      }
     } catch (clearErr) {
       // Non-fatal — continue with sequential passes; final cleanup will retry
-      networkLogger.warn('⏰ [Timer] ⚠️ Pre-emptive clear failed, continuing:', clearErr);
+      networkLogger.warn('⏰ [Timer] ⚠️ Pre-emptive clear failed (exception), continuing:', clearErr);
     }
 
     const totalPlayers = roomPlayers.length;
@@ -431,9 +439,17 @@ async function executeAutoPasses(
     // this handles the rare case where the pre-emptive clear failed)
     if (passedCount > 0) {
       try {
-        await supabase.from('game_state').update({ auto_pass_timer: null }).eq('room_id', room?.id);
-      } catch {
-        // Silently ignore — already cleared pre-emptively
+        const { error: finalClearError } = await supabase
+          .from('game_state')
+          .update({ auto_pass_timer: null })
+          .eq('room_id', room?.id);
+        if (finalClearError) {
+          // Non-fatal — pre-emptive clear likely already succeeded; log for debugging
+          networkLogger.warn('⏰ [Timer] ⚠️ Final clear returned DB error (non-fatal):', finalClearError);
+        }
+      } catch (finalClearErr) {
+        // Non-fatal — already cleared pre-emptively; log for debugging
+        networkLogger.warn('⏰ [Timer] ⚠️ Final clear exception (non-fatal):', finalClearErr);
       }
     }
   } catch (fatalError) {

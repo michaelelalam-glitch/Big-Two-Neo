@@ -575,9 +575,31 @@ export default function HomeScreen() {
     try {
       // Clean up any zombie entries first (same as casual)
       roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
-      await supabase.from('room_players').delete().eq('user_id', user.id);
+      const { error: cleanupError } = await supabase
+        .from('room_players')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (cleanupError) {
+        roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        // Don't throw — fall through to verification below
+      }
+
+      // Wait for cleanup to propagate through Postgres
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      // Verify cleanup actually succeeded — same guard as casual path
+      const { data: stillInRoom } = await supabase
+        .from('room_players')
+        .select('room_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (stillInRoom) {
+        roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+        throw new Error('Failed to leave previous room. Please try again.');
+      }
+
       // STEP 1: Try to find existing RANKED room with space (same as casual)
       roomLogger.info('📡 Searching for joinable ranked rooms...');
       const { data: availableRooms, error: searchError } = await supabase
