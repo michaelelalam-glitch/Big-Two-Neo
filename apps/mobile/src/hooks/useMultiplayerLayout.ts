@@ -130,6 +130,14 @@ export function useMultiplayerLayout({
     // are in the process of disconnecting — i.e. connection_status = 'disconnected'.
     // Once a replacement bot takes the seat (status = 'replaced_by_bot'), the bot
     // is actively playing and should show a normal avatar without a spinner overlay.
+    //
+    // DEFENSIVE: We also gate on cardCount === 0 so that transient heartbeat
+    // hiccups (e.g., the server cron marking a player 'disconnected' before the
+    // next heartbeat arrives) don't flash the disconnect spinner mid-game for
+    // players who are still actively in the hand.  The primary accuracy source
+    // is useConnectionManager (heartbeat) integrated in MultiplayerGame — this
+    // cardCount check is a UI-level fallback that prevents misleading visuals
+    // when all players are genuinely playing.
     const isDisconnected = (idx: number): boolean => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return false;

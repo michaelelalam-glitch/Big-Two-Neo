@@ -4,13 +4,14 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
+import { useConnectionManager } from '../hooks/useConnectionManager';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useGameActions } from '../hooks/useGameActions';
@@ -172,6 +173,31 @@ export function MultiplayerGame() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, user?.id]);
+
+  // ─── HEARTBEAT / CONNECTION MANAGER ──────────────────────────────────────
+  // Keeps this player's connection_status = 'connected' via periodic heartbeats.
+  // Without this, the server-side cron marks the player as 'disconnected' after
+  // 30 s of silence, causing all avatars to show the disconnect spinner.
+  const myRoomPlayerId = useMemo(() => {
+    const me =
+      multiplayerPlayers.find(p => p.user_id === user?.id) ??
+      multiplayerPlayers.find(p => p.human_user_id === user?.id);
+    return me?.id ?? null;
+  }, [multiplayerPlayers, user?.id]);
+
+  useConnectionManager({
+    roomId: roomInfo?.id ?? '',
+    playerId: myRoomPlayerId ?? '',
+    enabled: !!roomInfo?.id && !!myRoomPlayerId,
+    onBotReplaced: () => {
+      gameLogger.warn('[MultiplayerGame] Player was replaced by a bot');
+    },
+    onRoomClosed: () => {
+      gameLogger.warn('[MultiplayerGame] Room was closed while away');
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    },
+  });
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
   const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
