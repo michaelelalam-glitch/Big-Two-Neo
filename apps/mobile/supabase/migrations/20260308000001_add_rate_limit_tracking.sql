@@ -5,7 +5,8 @@
 --   • rate_limit_tracking — lightweight table used by both the DB trigger (room creation)
 --     and Edge Function helpers (play-cards, player-pass) to count actions per window.
 --   • enforce_create_room_rate_limit() — BEFORE INSERT trigger on `rooms` that rejects
---     requests exceeding MAX_ROOMS_PER_HOUR (5) for a given user in a rolling 1-hour window.
+--     requests exceeding MAX_ROOMS_PER_HOUR (10) for a given user in a rolling 1-hour window.
+--     (10 is generous enough for players who bounce between lobbies while still blocking bots)
 --   • RLS: rows are owned by the creating user; service role bypasses (bot-coordinator, etc.).
 --   • Cleanup: pg_cron job purges rows older than 25 hours; table stays lean.
 
@@ -102,6 +103,7 @@ GRANT EXECUTE ON FUNCTION public.upsert_rate_limit_counter(uuid, text, integer) 
 -- 5. BEFORE INSERT trigger function: enforce_create_room_rate_limit
 --    Limits each authenticated user to MAX_ROOMS_PER_HOUR room creations.
 --    Service-role / null auth.uid() bypasses the check (bots, migrations).
+--    MAX_ROOMS_PER_HOUR = 10 (players bounce between lobbies; 10 is fair, bots still blocked)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION enforce_create_room_rate_limit()
 RETURNS trigger
@@ -110,7 +112,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  MAX_ROOMS_PER_HOUR CONSTANT integer := 5;
+  MAX_ROOMS_PER_HOUR CONSTANT integer := 10;
   WINDOW_SECS        CONSTANT integer := 3600; -- 1 hour
   v_caller_uid  uuid;
   v_attempts    integer;

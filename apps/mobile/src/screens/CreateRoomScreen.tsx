@@ -11,6 +11,7 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { showError, showConfirm } from '../utils';
 import { roomLogger } from '../utils/logger';
+import { isRateLimitError } from '../utils/rateLimitUtils';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -160,13 +161,9 @@ export default function CreateRoomScreen() {
       const msg = error instanceof Error ? error.message : String(error);
       roomLogger.error('Error creating room:', msg);
 
-      // P0429 = rate limit exceeded (raised by enforce_create_room_rate_limit trigger — Task #281)
-      const isRateLimitError =
-        (error as { code?: string })?.code === 'P0429' ||
-        msg.toLowerCase().includes('rate limit');
-
+      // isRateLimitError checks for P0429 (enforce_create_room_rate_limit trigger) — Task #281
       showError(
-        isRateLimitError
+        isRateLimitError(error)
           ? i18n.t('room.createRoomRateLimited')
           : msg || i18n.t('room.createRoomError'),
       );
