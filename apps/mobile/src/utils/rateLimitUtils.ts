@@ -21,6 +21,14 @@ export function isRateLimitError(error: unknown): boolean {
   if (error == null) return false;
   const code = (error as { code?: string })?.code;
   if (code === 'P0429') return true;
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : String(error);
   return msg.toLowerCase().includes('rate limit');
 }

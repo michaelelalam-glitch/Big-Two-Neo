@@ -66,6 +66,12 @@ describe('Task #281 — isRateLimitError (real production helper)', () => {
   test('non-Error object with P0429 code → true', () => {
     expect(isRateLimitError({ code: 'P0429', message: 'rate limit' })).toBe(true);
   });
+
+  test('plain object with rate limit message but no code → true (fallback)', () => {
+    // Regression guard: String({ message: '...' }) yields '[object Object]', so without
+    // explicit message extraction the fallback would silently return false.
+    expect(isRateLimitError({ message: 'User hit rate limit for this action' } as { message: string })).toBe(true);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

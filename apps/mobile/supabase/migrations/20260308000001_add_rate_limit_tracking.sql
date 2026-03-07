@@ -5,7 +5,8 @@
 --   • rate_limit_tracking — lightweight table used by both the DB trigger (room creation)
 --     and Edge Function helpers (play-cards, player-pass) to count actions per window.
 --   • enforce_create_room_rate_limit() — BEFORE INSERT trigger on `rooms` that rejects
---     requests exceeding MAX_ROOMS_PER_HOUR (10) for a given user in a rolling 1-hour window.
+--     requests exceeding MAX_ROOMS_PER_HOUR (10) for a given user within a fixed 1-hour
+--     bucketed window (epoch-aligned, not a true sliding window).
 --     (10 is generous enough for players who bounce between lobbies while still blocking bots)
 --   • RLS: rows are owned by the creating user; service role bypasses (bot-coordinator, etc.).
 --   • Cleanup: pg_cron job purges rows older than 25 hours; table stays lean.
