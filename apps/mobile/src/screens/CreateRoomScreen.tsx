@@ -9,7 +9,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
-import { showError, showConfirm } from '../utils';
+import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { roomLogger } from '../utils/logger';
 import { isRateLimitError } from '../utils/rateLimitUtils';
 
@@ -158,7 +158,7 @@ export default function CreateRoomScreen() {
       navigation.replace('Lobby', { roomCode: result.room_code });
     } catch (error: unknown) {
       // Only log error message/code to avoid exposing DB internals or auth tokens
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = extractErrorMessage(error);
       roomLogger.error('Error creating room:', msg);
 
       // isRateLimitError checks for P0429 (enforce_create_room_rate_limit trigger) — Task #281
