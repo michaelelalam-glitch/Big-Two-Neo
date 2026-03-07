@@ -30,6 +30,12 @@ interface UseServerBotCoordinatorProps {
   gameState: GameState | null;
   /** Room players array with is_bot flag */
   players: Array<{ player_index: number; is_bot?: boolean; [key: string]: any }>;
+  /**
+   * True while the auto-pass sequential execution is running (from useAutoPassTimer).
+   * When true, bot-coordinator must NOT fire — it would race with auto-pass passes
+   * and cause "Not your turn" errors or double-pass the same player.
+   */
+  isAutoPassInProgress?: boolean;
 }
 
 /**
@@ -49,6 +55,7 @@ export function useServerBotCoordinator({
   enabled,
   gameState,
   players,
+  isAutoPassInProgress = false,
 }: UseServerBotCoordinatorProps): void {
   const lastTriggerTimeRef = useRef<number>(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +99,17 @@ export function useServerBotCoordinator({
     // replacing it, leaving the game stuck on a bot turn.
 
     if (!enabled || !gameState || !roomCode) {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Don't schedule bot-coordinator while auto-pass sequential execution is active.
+    // Auto-pass calls player-pass for each non-exempt player; if bot-coordinator fires
+    // simultaneously it races with those calls causing "Not your turn" errors.
+    if (isAutoPassInProgress) {
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
         fallbackTimerRef.current = null;
@@ -177,7 +195,7 @@ export function useServerBotCoordinator({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- players intentionally excluded; stored in playersRef so timer is not cancelled on every Realtime update that recreates the array
-  }, [enabled, gameState?.current_turn, gameState?.game_phase, roomCode, triggerBotCoordinator]);
+  }, [enabled, gameState?.current_turn, gameState?.game_phase, roomCode, triggerBotCoordinator, isAutoPassInProgress]);
 
   // Reset triggered turn when the turn actually advances to a human player
   useEffect(() => {

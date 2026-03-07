@@ -620,5 +620,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     reconnect,
     loading,
     error,
+    isAutoPassInProgress,
   };
 }

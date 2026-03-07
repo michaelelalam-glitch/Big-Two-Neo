@@ -95,6 +95,19 @@ export default function AutoPassTimer({
     // NEW ARCHITECTURE: Use end_timestamp if available (server-authoritative)
     const endTimestamp = timerState.end_timestamp;
     if (typeof endTimestamp === 'number') {
+      const durationMs = timerState.duration_ms || 10000;
+
+      // ── Clock-sync guard (Task 618 Issue 1) ───────────────────────────────
+      // If the clock hasn't synced yet the offset is 0 and correctedNow equals
+      // localNow. For a device whose local clock is N seconds behind the server,
+      // remaining = end_timestamp - localNow ≈ durationMs + N.  Showing that
+      // wildly-inflated value would let the timer count from e.g. 37s → 10s and
+      // then trigger executeAutoPasses on the wrong cadence.
+      // Solution: clamp to durationMs until the clock sync arrives (< 300ms).
+      if (!isSynced) {
+        return durationMs;
+      }
+
       // Use clock-corrected current time
       const correctedNow = getCorrectedNow();
       const remaining = Math.max(0, endTimestamp - correctedNow);

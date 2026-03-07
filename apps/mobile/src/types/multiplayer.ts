@@ -248,6 +248,8 @@ export interface UseRealtimeReturn {
   // Loading states
   loading: boolean;
   error: Error | null;
+  /** True while auto-pass sequential execution is in progress (guards bot-coordinator and manual pass) */
+  isAutoPassInProgress: boolean;
 }
 
 // Realtime channel events

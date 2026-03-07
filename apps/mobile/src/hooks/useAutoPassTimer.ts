@@ -155,13 +155,15 @@ export function useAutoPassTimer({
       if (typeof endTimestamp === 'number') {
         const correctedNow = getCorrectedNow();
         remaining = Math.max(0, endTimestamp - correctedNow);
-        networkLogger.debug(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
+        // Only log at whole-second transitions to avoid 300+ lines of 100ms spam
+        if (remaining > 0 && Math.floor(remaining / 1000) !== Math.floor((remaining + 100) / 1000)) {
+          networkLogger.debug(`⏰ [Timer] ${Math.ceil(remaining / 1000)}s remaining`);
+        }
       } else {
         const startedAt = new Date(currentTimerState.started_at).getTime();
         const correctedNow = getCorrectedNow();
         const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
-        networkLogger.debug(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
       }
 
       // ── Timer expired → execute auto-passes ──────────────────────────────
@@ -288,6 +290,21 @@ async function executeAutoPasses(
       return;
     }
 
+    // ── CASCADE PREVENTION ──────────────────────────────────────────────────
+    // Clear auto_pass_timer from DB NOW — before any player-pass calls.
+    // Each player-pass triggers a Realtime broadcast. If auto_pass_timer is still
+    // "active" in those broadcasts, every other client will detect expiry and also
+    // fire executeAutoPasses, regenerating the UI timer for 1-2s per sequential pass.
+    // Clearing it upfront ensures all subsequent broadcasts have auto_pass_timer=null.
+    networkLogger.info('⏰ [Timer] Clearing auto_pass_timer from DB (cascade prevention)...');
+    try {
+      await supabase.from('game_state').update({ auto_pass_timer: null }).eq('room_id', room?.id);
+      networkLogger.info('⏰ [Timer] ✅ auto_pass_timer cleared');
+    } catch (clearErr) {
+      // Non-fatal — continue with sequential passes; final cleanup will retry
+      networkLogger.warn('⏰ [Timer] ⚠️ Pre-emptive clear failed, continuing:', clearErr);
+    }
+
     const totalPlayers = roomPlayers.length;
     networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
     networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
@@ -408,20 +425,16 @@ async function executeAutoPasses(
     networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${maxPasses} players passed`);
 
     // Wait for Realtime sync
-    networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
     await new Promise(resolve => setTimeout(resolve, 250));
 
-    // Clear timer from DB
+    // Best-effort final clear (should already be null from cascade-prevention above;
+    // this handles the rare case where the pre-emptive clear failed)
     if (passedCount > 0) {
-      networkLogger.info('⏰ [Timer] Clearing timer state from database...');
       try {
         await supabase.from('game_state').update({ auto_pass_timer: null }).eq('room_id', room?.id);
-        networkLogger.info('⏰ [Timer] ✅ Timer cleared from database');
-      } catch (clearError) {
-        networkLogger.error('[Timer] Failed to clear timer:', clearError);
+      } catch {
+        // Silently ignore — already cleared pre-emptively
       }
-    } else {
-      networkLogger.info('⏰ [Timer] No passes executed, timer likely already cleared');
     }
   } catch (fatalError) {
     networkLogger.error('⏰ [Timer] ❌ Fatal error in auto-pass execution:', fatalError);

@@ -119,6 +119,7 @@ export function MultiplayerGame() {
     playCards: multiplayerPlayCards,
     pass: multiplayerPass,
     connectToRoom: multiplayerConnectToRoom,
+    isAutoPassInProgress,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
@@ -260,6 +261,7 @@ export function MultiplayerGame() {
     enabled: isMultiplayerDataReady && playersWithCards.length > 0,
     gameState: multiplayerGameState,
     players: playersWithCards,
+    isAutoPassInProgress,
   });
 
   // Multiplayer play history tracking
