@@ -166,9 +166,12 @@ export function useMultiplayerLayout({
     const getDisconnectTimerStartedAt = (idx: number): string | null => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return null;
-      // Only show countdown when status is 'disconnected' and timer is running.
-      // Once replaced_by_bot, the countdown is irrelevant.
-      if (p.connection_status !== 'disconnected') return null;
+      // Show countdown whenever the timer is running, regardless of connection_status.
+      // This handles:
+      //   - 'disconnected': player's heartbeat went stale
+      //   - 'connected': player resumed heartbeat but timer is still running (persistent timer)
+      // Once 'replaced_by_bot', the countdown is irrelevant.
+      if (p.connection_status === 'replaced_by_bot') return null;
       return p.disconnect_timer_started_at ?? null;
     };
 

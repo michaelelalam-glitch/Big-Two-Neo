@@ -23,13 +23,15 @@ const RING_STROKE_WIDTH = 4; // Slightly thinner than avatar border (4px) so it 
 const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-/** Orange countdown color */
-const RING_COLOR_FULL = '#FFA500'; // Orange — full time remaining
-const RING_COLOR_LOW = '#FF4500';  // OrangeRed — under 15s remaining
+/** Yellow countdown color (user-requested change from orange) */
+const RING_COLOR_FULL = '#FFD700'; // Gold/Yellow — full time remaining
+const RING_COLOR_LOW = '#FF8C00';  // DarkOrange — under 15s remaining
 
 interface InactivityCountdownRingProps {
   /** UTC ISO-8601 timestamp when the server started the 60s disconnect timer */
   disconnectTimerStartedAt: string;
+  /** Called when the countdown reaches 0 (timer expired) */
+  onExpired?: () => void;
 }
 
 /**
@@ -38,9 +40,11 @@ interface InactivityCountdownRingProps {
  */
 export default function InactivityCountdownRing({
   disconnectTimerStartedAt,
+  onExpired,
 }: InactivityCountdownRingProps) {
   const [progress, setProgress] = useState(1); // 1 = full ring, 0 = depleted
   const rafIdRef = useRef<number | null>(null);
+  const expiredFiredRef = useRef(false);
 
   const startTimeMs = React.useMemo(
     () => new Date(disconnectTimerStartedAt).getTime(),
@@ -55,10 +59,16 @@ export default function InactivityCountdownRing({
 
     if (newProgress > 0) {
       rafIdRef.current = requestAnimationFrame(tick);
+    } else if (!expiredFiredRef.current && onExpired) {
+      // Timer reached 0 — fire callback once
+      expiredFiredRef.current = true;
+      onExpired();
     }
-  }, [startTimeMs]);
+  }, [startTimeMs, onExpired]);
 
   useEffect(() => {
+    // Reset expired flag when timer restarts
+    expiredFiredRef.current = false;
     // Start animation loop
     rafIdRef.current = requestAnimationFrame(tick);
     return () => {

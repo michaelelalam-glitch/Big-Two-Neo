@@ -14,6 +14,8 @@ interface PlayerInfoProps {
   isDisconnected?: boolean;
   /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
   disconnectTimerStartedAt?: string | null;
+  /** Called when the countdown ring expires (timer reaches 0) */
+  onCountdownExpired?: () => void;
 }
 
 export default function PlayerInfo({
@@ -23,6 +25,7 @@ export default function PlayerInfo({
   totalScore,
   isDisconnected = false,
   disconnectTimerStartedAt,
+  onCountdownExpired,
 }: PlayerInfoProps) {
   const hasInactivityTimer = !!disconnectTimerStartedAt;
   const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${hasInactivityTimer ? ', bot replacement countdown active' : ''}`;
@@ -41,7 +44,10 @@ export default function PlayerInfo({
         </View>
         {/* 60s inactivity countdown ring (overlays avatar border) */}
         {hasInactivityTimer && (
-          <InactivityCountdownRing disconnectTimerStartedAt={disconnectTimerStartedAt!} />
+          <InactivityCountdownRing 
+            disconnectTimerStartedAt={disconnectTimerStartedAt!}
+            onExpired={onCountdownExpired}
+          />
         )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (

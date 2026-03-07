@@ -16,6 +16,8 @@ interface GameLayoutProps {
     isDisconnected?: boolean;
     /** UTC timestamp when 60s bot-replacement countdown started */
     disconnectTimerStartedAt?: string | null;
+    /** Called when this player's countdown ring expires */
+    onCountdownExpired?: () => void;
   }[];
   /** Last played cards to display in center area */
   lastPlayedCards: Card[];
@@ -60,6 +62,7 @@ export function GameLayout({
           totalScore={players[1].totalScore}
           isDisconnected={players[1].isDisconnected}
           disconnectTimerStartedAt={players[1].disconnectTimerStartedAt}
+          onCountdownExpired={players[1].onCountdownExpired}
         />
       </View>
 
@@ -76,6 +79,7 @@ export function GameLayout({
               totalScore={players[2].totalScore}
               isDisconnected={players[2].isDisconnected}
               disconnectTimerStartedAt={players[2].disconnectTimerStartedAt}
+              onCountdownExpired={players[2].onCountdownExpired}
             />
           </View>
 
@@ -106,6 +110,7 @@ export function GameLayout({
               totalScore={players[3].totalScore}
               isDisconnected={players[3].isDisconnected}
               disconnectTimerStartedAt={players[3].disconnectTimerStartedAt}
+              onCountdownExpired={players[3].onCountdownExpired}
             />
           </View>
         </View>

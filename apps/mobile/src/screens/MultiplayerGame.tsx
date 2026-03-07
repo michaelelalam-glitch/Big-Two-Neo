@@ -488,6 +488,22 @@ export function MultiplayerGame() {
     multiplayerLayoutPlayers,
   });
 
+  // ── Countdown Expiry Handler for Local Player ──────────────────────────
+  // When the local player's (position 0) 60s inactivity countdown ring reaches
+  // 0, show the RejoinModal so they can reclaim their seat from the bot.
+  const handleLocalPlayerCountdownExpired = useCallback(() => {
+    gameLogger.warn('[MultiplayerGame] Local player countdown expired — showing rejoin modal');
+    setShowBotReplacedModal(true);
+  }, []);
+
+  // Enrich layoutPlayersWithScores with onCountdownExpired callback for local player
+  const enrichedLayoutPlayers = useMemo(() => {
+    return layoutPlayersWithScores.map((player, idx) => ({
+      ...player,
+      onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : undefined,
+    }));
+  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired]);
+
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
@@ -514,7 +530,7 @@ export function MultiplayerGame() {
         effectiveLastPlayComboType={multiplayerLastPlayComboType}
         effectiveLastPlayCombo={multiplayerLastPlayCombo}
         layoutPlayers={layoutPlayers}
-        layoutPlayersWithScores={layoutPlayersWithScores}
+        layoutPlayersWithScores={enrichedLayoutPlayers}
         playerTotalScores={playerTotalScores}
         currentPlayerName={currentPlayerName}
         togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
