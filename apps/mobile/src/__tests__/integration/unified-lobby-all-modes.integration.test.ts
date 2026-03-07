@@ -478,7 +478,17 @@ describeWithDb('Suite 8 — DB integration: room flows (requires service role)',
     if (roomErr || !room) throw new Error(`createRoom failed: ${roomErr?.message}`);
     createdRoomIds.push(room.id);
 
-    await supabase.from('room_players').insert({
+    // Remove host from any other rooms first — the enforce_single_room_membership
+    // BEFORE INSERT trigger rejects inserts when the user is already present in
+    // a different room. Without this cleanup successive createRoom() calls in the
+    // same test suite would silently fail and leave room_players empty.
+    await supabase
+      .from('room_players')
+      .delete()
+      .eq('user_id', hostId)
+      .neq('room_id', room.id);
+
+    const { error: playerErr } = await supabase.from('room_players').insert({
       room_id: room.id,
       user_id: hostId,
       player_index: 0,
@@ -486,6 +496,9 @@ describeWithDb('Suite 8 — DB integration: room flows (requires service role)',
       is_bot: false,
       is_host: true,
     });
+    if (playerErr) {
+      throw new Error(`createRoom: room_players insert failed — ${playerErr.message}`);
+    }
 
     return room;
   }
