@@ -7,8 +7,8 @@
  * Covers:
  *  - isRateLimitError (real production helper from rateLimitUtils.ts):
  *      P0429 code, "rate limit" in message, other errors, null/undefined
- *  - rateLimiter sliding-window math: retryAfterMs formula, suspicious-activity threshold,
- *      allowed/blocked decision helper
+ *  - rateLimiter fixed-window bucket math: retryAfterMs formula, suspicious-activity threshold,
+ *      allowed/blocked decision helper (epoch-aligned fixed windows, not true sliding windows)
  *  - checkRateLimit DB integration: mocked Supabase RPC — allowed, boundary, blocked,
  *      fail-open on DB error, correct RPC params, constants for play-cards / player-pass
  *  - Room creation: max 10 rooms/hour boundary (Task #281)
@@ -75,12 +75,13 @@ describe('Task #281 — isRateLimitError (real production helper)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section 2: rateLimiter window-bucket logic (Task #556)
+// Section 2: rateLimiter fixed-window bucket logic (Task #556)
 // ─────────────────────────────────────────────────────────────────────────────
-describe('Task #556 — rateLimiter sliding-window logic', () => {
+describe('Task #556 — rateLimiter fixed-window bucket logic', () => {
   /**
-   * Inlined version of the client-side retryAfterMs calculation from rateLimiter.ts.
-   * Tests the formula: windowStart = floor(nowMs / windowMs) * windowMs
+   * Inlined version of the client-side fixed-window bucket retryAfterMs calculation
+   * from rateLimiter.ts. Tests the formula: windowStart = floor(nowMs / windowMs) * windowMs
+   * Windows are epoch-aligned (fixed buckets), not true sliding windows.
    */
   function calcRetryAfterMs(nowMs: number, windowSeconds: number, allowed: boolean): number {
     if (allowed) return 0;
@@ -169,8 +170,11 @@ describe('Task #556 — rateLimiter sliding-window logic', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Task #556 — checkRateLimit DB integration (mocked Supabase RPC)', () => {
   /**
-   * Simplified JS re-implementation of checkRateLimit that uses a mocked RPC.
-   * Mirrors the real function's logic so we can unit-test the branching paths.
+   * Spec/contract re-implementation of checkRateLimit that uses a mocked RPC.
+   * This is intentionally a separate re-implementation (not the production function)
+   * because the production version lives in a Deno Edge Function module that cannot
+   * be imported by the React Native Jest environment. It tests the same branching
+   * contract: allowed/blocked, fail-open on DB error, suspicious-activity logging.
    */
   async function checkRateLimitMock(
     rpcMock: jest.Mock,
