@@ -14,6 +14,8 @@ interface PlayerInfoProps {
   isDisconnected?: boolean;
   /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
   disconnectTimerStartedAt?: string | null;
+  /** UTC timestamp when the 60s turn countdown started (null = no countdown) */
+  turnTimerStartedAt?: string | null;
   /** Called when the countdown ring expires (timer reaches 0) */
   onCountdownExpired?: () => void;
 }
@@ -25,10 +27,18 @@ export default function PlayerInfo({
   totalScore,
   isDisconnected = false,
   disconnectTimerStartedAt,
+  turnTimerStartedAt,
   onCountdownExpired,
 }: PlayerInfoProps) {
-  const hasInactivityTimer = !!disconnectTimerStartedAt;
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${hasInactivityTimer ? ', bot replacement countdown active' : ''}`;
+  // Connection timer (yellow) takes priority over turn timer (orange)
+  // If player disconnects during their turn, yellow ring replaces orange and continues countdown
+  const hasConnectionTimer = !!disconnectTimerStartedAt;
+  const hasTurnTimer = !!turnTimerStartedAt;
+  const showRing = hasConnectionTimer || hasTurnTimer;
+  const ringType = hasConnectionTimer ? 'connection' : 'turn';
+  const ringStartedAt = hasConnectionTimer ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+  
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}`;
   
   return (
     <View 
@@ -37,15 +47,16 @@ export default function PlayerInfo({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && !hasInactivityTimer && styles.activeAvatar]}>
+      <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
         <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
-        {/* 60s inactivity countdown ring (overlays avatar border) */}
-        {hasInactivityTimer && (
+        {/* Dual-mode countdown ring (orange = turn, yellow = connection) */}
+        {showRing && (
           <InactivityCountdownRing 
-            disconnectTimerStartedAt={disconnectTimerStartedAt!}
+            type={ringType}
+            startedAt={ringStartedAt}
             onExpired={onCountdownExpired}
           />
         )}

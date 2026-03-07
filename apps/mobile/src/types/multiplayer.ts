@@ -56,6 +56,7 @@ export interface GameState {
   room_id: string;
   current_turn: number; // position of player whose turn it is
   turn_timer: number; // seconds remaining in turn
+  turn_started_at?: string | null; // UTC timestamp when current player's turn started (for 60s timeout)
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
   game_phase: 'dealing' | 'first_play' | 'playing' | 'finished' | 'game_over';
@@ -183,7 +184,8 @@ export type BroadcastEvent =
   | 'reconnected'
   | 'auto_pass_timer_started'  // New: Timer started for highest play
   | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
-  | 'auto_pass_executed';  // New: Auto-pass executed after timer expired
+  | 'auto_pass_executed'  // New: Auto-pass executed after timer expired
+  | 'turn_auto_played';  // New: Turn inactivity auto-play executed
 
 /**
  * Score detail for a single player in a multiplayer match.

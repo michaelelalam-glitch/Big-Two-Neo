@@ -13,6 +13,7 @@ import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
 import { useConnectionManager } from '../hooks/useConnectionManager';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
+import { useTurnInactivityTimer } from '../hooks/useTurnInactivityTimer';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useGameActions } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -41,6 +42,7 @@ import type { GameStateManager } from '../game/state';
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
+import { TurnAutoPlayModal } from '../components/game/TurnAutoPlayModal';
 import { GameView } from './GameView';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -65,6 +67,11 @@ export function MultiplayerGame() {
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
   const [botReplacedUsername, setBotReplacedUsername] = useState<string | null>(null);
+
+  // State for turn auto-play dialog
+  const [showTurnAutoPlayModal, setShowTurnAutoPlayModal] = useState(false);
+  const [autoPlayedCards, setAutoPlayedCards] = useState<any[] | null>(null);
+  const [autoPlayAction, setAutoPlayAction] = useState<'play' | 'pass'>('pass');
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
@@ -461,6 +468,29 @@ export function MultiplayerGame() {
     getMultiplayerValidationState,
   });
 
+  // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
+  // Monitors turn_started_at when it's the local player's turn.
+  // Shows orange countdown ring (60s to play/pass).
+  // When expired: auto-plays highest valid cards OR passes.
+  const turnTimer = useTurnInactivityTimer({
+    gameState: multiplayerGameState,
+    room: roomInfo,
+    roomPlayers: multiplayerPlayers,
+    broadcastMessage: async (event, data) => {
+      // Re-use the broadcast pattern from useRealtime if needed
+      gameLogger.info('[MultiplayerGame] Broadcasting turn event:', event, data);
+    },
+    getCorrectedNow: () => Date.now(), // Use clock-sync if available
+    currentUserId: user?.id,
+    onAutoPlay: (cards, action) => {
+      gameLogger.info('[MultiplayerGame] Turn auto-played:', action, cards);
+      setAutoPlayedCards(cards);
+      setAutoPlayAction(action);
+      setShowTurnAutoPlayModal(true);
+    },
+  });
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Computed values
   const selectedCards = getSelectedCards(effectivePlayerHand);
   const layoutPlayers = multiplayerLayoutPlayers;
@@ -488,21 +518,28 @@ export function MultiplayerGame() {
     multiplayerLayoutPlayers,
   });
 
-  // ── Countdown Expiry Handler for Local Player ──────────────────────────
-  // When the local player's (position 0) 60s inactivity countdown ring reaches
-  // 0, show the RejoinModal so they can reclaim their seat from the bot.
+  // ── Countdown Expiry Handlers ──────────────────────────────────────────
+  // CONNECTION countdown expired: show RejoinModal (bot replaced player)
   const handleLocalPlayerCountdownExpired = useCallback(() => {
-    gameLogger.warn('[MultiplayerGame] Local player countdown expired — showing rejoin modal');
+    gameLogger.warn('[MultiplayerGame] Local player connection countdown expired — showing rejoin modal');
     setShowBotReplacedModal(true);
   }, []);
 
-  // Enrich layoutPlayersWithScores with onCountdownExpired callback for local player
+  // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
   const enrichedLayoutPlayers = useMemo(() => {
+    // Get turn timer started_at from game_state if it's local player's turn
+    const turnStartedAt = turnTimer.isMyTurn && multiplayerGameState?.turn_started_at 
+      ? multiplayerGameState.turn_started_at 
+      : null;
+
     return layoutPlayersWithScores.map((player, idx) => ({
       ...player,
+      // Position 0 = local player  
+      turnTimerStartedAt: idx === 0 ? turnStartedAt : null,
+      // Connection countdown callback (existing)
       onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : undefined,
     }));
-  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired]);
+  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, turnTimer.isMyTurn, multiplayerGameState?.turn_started_at]);
 
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
@@ -567,6 +604,33 @@ export function MultiplayerGame() {
         botUsername={botReplacedUsername}
         onReclaim={handleReclaimSeat}
         onLeaveRoom={handleLeaveRoomFromModal}
+      />
+
+      {/* Turn Auto-Play Modal — shown when 60s turn countdown expires and
+          auto-play-turn edge function plays/passes automatically. */}
+      <TurnAutoPlayModal
+        visible={showTurnAutoPlayModal}
+        action={autoPlayAction}
+        cards={autoPlayedCards}
+        onConfirm={() => {
+          gameLogger.info('[MultiplayerGame] Player confirmed: still here');
+          setShowTurnAutoPlayModal(false);
+          setAutoPlayedCards(null);
+        }}
+        onTimeout={async () => {
+          gameLogger.warn('[MultiplayerGame] Turn auto-play modal timed out — marking player disconnected');
+          setShowTurnAutoPlayModal(false);
+          setAutoPlayedCards(null);
+          // Mark player as disconnected → triggers bot replacement flow
+          if (roomInfo?.id) {
+            const { error } = await supabase.functions.invoke('mark-disconnected', {
+              body: { room_code: roomCode },
+            });
+            if (error) {
+              gameLogger.error('[MultiplayerGame] Failed to mark player disconnected:', error);
+            }
+          }
+        }}
       />
     </>
   );
