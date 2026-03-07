@@ -31,9 +31,9 @@ interface UseServerBotCoordinatorProps {
   /** Room players array with is_bot flag */
   players: Array<{ player_index: number; is_bot?: boolean; [key: string]: any }>;
   /**
-   * True while the auto-pass sequential execution is running (from useAutoPassTimer).
-   * When true, bot-coordinator must NOT fire — it would race with auto-pass passes
-   * and cause "Not your turn" errors or double-pass the same player.
+   * True while the auto-pass self-pass is in progress (from useAutoPassTimer).
+   * When true, bot-coordinator must NOT fire — it would race with the client's
+   * own auto-pass action and can cause "Not your turn" errors.
    */
   isAutoPassInProgress?: boolean;
 }

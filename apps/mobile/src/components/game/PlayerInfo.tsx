@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import InactivityCountdownRing from './InactivityCountdownRing';
 
 interface PlayerInfoProps {
   name: string;
@@ -11,6 +12,8 @@ interface PlayerInfoProps {
   totalScore?: number; // Cumulative total score (Task #590)
   /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
+  /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
+  disconnectTimerStartedAt?: string | null;
 }
 
 export default function PlayerInfo({
@@ -19,8 +22,10 @@ export default function PlayerInfo({
   isActive,
   totalScore,
   isDisconnected = false,
+  disconnectTimerStartedAt,
 }: PlayerInfoProps) {
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}`;
+  const hasInactivityTimer = !!disconnectTimerStartedAt;
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${hasInactivityTimer ? ', bot replacement countdown active' : ''}`;
   
   return (
     <View 
@@ -29,11 +34,15 @@ export default function PlayerInfo({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
+      <View style={[styles.avatarContainer, isActive && !hasInactivityTimer && styles.activeAvatar]}>
         <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
+        {/* 60s inactivity countdown ring (overlays avatar border) */}
+        {hasInactivityTimer && (
+          <InactivityCountdownRing disconnectTimerStartedAt={disconnectTimerStartedAt!} />
+        )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
           <View style={styles.disconnectOverlay} pointerEvents="none">

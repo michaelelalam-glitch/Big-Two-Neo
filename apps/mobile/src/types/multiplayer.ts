@@ -47,6 +47,8 @@ export interface Player {
   connection_status?: 'connected' | 'disconnected' | 'replaced_by_bot';
   /** fix/rejoin: set when a human was replaced by a bot (human can reclaim seat) */
   human_user_id?: string | null;
+  /** Server-side disconnect timer: UTC timestamp when the 60s bot-replacement countdown started */
+  disconnect_timer_started_at?: string | null;
 }
 
 export interface GameState {

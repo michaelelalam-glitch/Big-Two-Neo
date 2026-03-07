@@ -326,7 +326,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               existing.player_index !== updated.player_index ||
               existing.username !== updated.username ||
               existing.human_user_id !== updated.human_user_id ||
-              existing.user_id !== updated.user_id;
+              existing.user_id !== updated.user_id ||
+              existing.disconnect_timer_started_at !== updated.disconnect_timer_started_at;
 
             if (!meaningfullyChanged) {
               networkLogger.debug('[useRealtime] 👥 room_players heartbeat ping — skipping re-render');

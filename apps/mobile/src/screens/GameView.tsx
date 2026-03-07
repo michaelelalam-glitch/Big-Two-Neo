@@ -350,6 +350,7 @@ export function GameView(props: GameViewProps) {
                 isActive={layoutPlayers[0]?.isActive ?? false}
                 totalScore={playerTotalScores[0] ?? 0}
                 isDisconnected={(layoutPlayers[0] as { isDisconnected?: boolean })?.isDisconnected}
+                disconnectTimerStartedAt={(layoutPlayers[0] as { disconnectTimerStartedAt?: string | null })?.disconnectTimerStartedAt}
               />
             </View>
 

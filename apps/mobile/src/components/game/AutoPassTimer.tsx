@@ -102,7 +102,7 @@ export default function AutoPassTimer({
       // localNow. For a device whose local clock is N seconds behind the server,
       // remaining = end_timestamp - localNow ≈ durationMs + N.  Showing that
       // wildly-inflated value would let the timer count from e.g. 37s → 10s and
-      // then trigger executeAutoPasses on the wrong cadence.
+      // then trigger the auto-pass mechanism on the wrong cadence.
       // Solution: clamp to durationMs until the clock sync arrives (< 300ms).
       if (!isSynced) {
         return durationMs;
