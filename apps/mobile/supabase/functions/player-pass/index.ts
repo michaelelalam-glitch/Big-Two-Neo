@@ -2,6 +2,12 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Use shared parseCards utility to reduce duplication
 import { parseCards } from '../_shared/parseCards.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+
+// Rate-limit config for player-pass: same budget as play-cards.
+// A player physically cannot pass more than once per turn, so 10/10s is very generous.
+const PLAYER_PASS_RATE_LIMIT_MAX    = 10;
+const PLAYER_PASS_RATE_LIMIT_WINDOW = 10; // seconds
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +84,23 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ── Rate limiting (client callers only; service-role / bot-coordinator bypass) ──
+    // Prevents pass spam (e.g. scripted bot abuse of the pass endpoint).
+    // Uses the shared rate_limit_tracking table — Task #556.
+    if (!isServiceRole) {
+      const rl = await checkRateLimit(
+        supabaseClient,
+        player_id,
+        'player_pass',
+        PLAYER_PASS_RATE_LIMIT_MAX,
+        PLAYER_PASS_RATE_LIMIT_WINDOW,
+      );
+      if (!rl.allowed) {
+        return rateLimitResponse(rl.retryAfterMs, corsHeaders);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     console.log('🎮 [player-pass] Request received:', {
       room_code,

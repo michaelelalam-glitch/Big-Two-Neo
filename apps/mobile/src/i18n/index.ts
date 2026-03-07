@@ -454,6 +454,7 @@ export interface Translations {
     joinRoomError: string;
     tip: string;
     askFriendForCode: string;
+    createRoomRateLimited: string;
   };
   
   // Profile Screen
@@ -986,6 +987,7 @@ const en: Translations = {
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
+    createRoomRateLimited: 'You\'ve created too many rooms recently. Please wait up to an hour before creating another.',  // Rate limit window is 1 hour — Task #281
   },
   profile: {
     title: 'Profile',
@@ -1458,6 +1460,7 @@ const ar: Translations = {
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
+    createRoomRateLimited: 'لقد أنشأت غرفًا كثيرة مؤخرًا. يرجى الانتظار نحو ساعة قبل إنشاء غرفة أخرى.',
   },
   profile: {
     title: 'الملف الشخصي',
@@ -2008,6 +2011,7 @@ const de: Translations = {
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
     askFriendForCode: 'Frage deinen Freund nach dem Raumcode und gib ihn hier ein, um seinem Spiel beizutreten',
+    createRoomRateLimited: 'Du hast in letzter Zeit zu viele Räume erstellt. Bitte warte etwa eine Stunde, bevor du einen weiteren erstellst.',
   },
   profile: {
     title: 'Profil',

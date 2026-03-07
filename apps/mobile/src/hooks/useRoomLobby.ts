@@ -107,6 +107,12 @@ export function useRoomLobby({
             );
             continue;
           }
+          // P0429 = rate limit exceeded (enforce_create_room_rate_limit trigger — Task #281).
+          // Log the event for observability; the throw below surfaces it to the caller
+          // regardless of error type — no special control-flow change is needed here.
+          if (roomError.code === 'P0429' || roomError.message?.toLowerCase().includes('rate limit')) {
+            networkLogger.warn('[useRoomLobby] Room creation rate limit exceeded for user', userId?.substring(0, 8));
+          }
           throw roomError;
         }
 
