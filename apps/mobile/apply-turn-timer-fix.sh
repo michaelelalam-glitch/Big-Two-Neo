@@ -8,7 +8,7 @@ echo ""
 PROJECT_REF=$(grep 'project_id' supabase/config.toml 2>/dev/null | cut -d'"' -f2 || echo "")
 
 if [ -z "$PROJECT_REF" ]; then
-  echo "❌ Could not find project_ref in supabase/config.toml"
+  echo "❌ Could not find project_id in supabase/config.toml"
   echo "Please run this manually:"
   echo ""
   echo "  npx supabase db execute --file fix-turn-timer-now.sql"

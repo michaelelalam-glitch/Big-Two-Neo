@@ -117,7 +117,7 @@ export default function HomeScreen() {
                 // client Date.now() causes clock-skew: if the server is ahead by N seconds,
                 // elapsed is negative and the countdown shows 60+N seconds (e.g. 80s).
                 // seconds_left is computed server-side (no client clock involved) so it
-                // gives the exact same remaining time as the in-game orange ring.
+                // gives the exact same remaining time as the in-game charcoal-grey disconnect ring.
                 const secondsLeft = statusData.seconds_left ?? 60;
                 const elapsed = 60 - secondsLeft;
                 setDisconnectTimestamp(Date.now() - (elapsed * 1000));

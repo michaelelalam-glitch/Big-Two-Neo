@@ -8,14 +8,14 @@
  * - Edge function auto-plays highest valid cards OR passes
  * - Returns auto-played cards to show "I'm Still Here?" popup
  *
- * CRITICAL: Coexists with connection inactivity (orange ring).
+ * CRITICAL: Coexists with connection inactivity (charcoal-grey disconnect ring).
  * - Yellow ring = turn inactivity (60s to play)
- * - Orange ring = connection inactivity (heartbeat stopped)
- * - If disconnect happens during turn, orange ring replaces yellow and continues countdown
+ * - Charcoal-grey ring = connection inactivity (heartbeat stopped)
+ * - If disconnect happens during turn, charcoal-grey disconnect ring replaces yellow and continues countdown
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { GameState, Player, BroadcastEvent, BroadcastData } from '../types/multiplayer';
+import type { GameState, Player, BroadcastEvent, BroadcastData, Card } from '../types/multiplayer';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
 

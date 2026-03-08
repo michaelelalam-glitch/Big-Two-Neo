@@ -538,7 +538,7 @@ export function MultiplayerGame() {
   // The server marks players as 'disconnected' via process_disconnected_players()
   // (pg_cron + heartbeat piggyback), but Realtime delivery of that change can be
   // unreliable. As a fallback, we detect stale last_seen_at timestamps directly:
-  // if a player's heartbeat hasn't updated for >35s they are treated as disconnected.
+  // if a player's heartbeat hasn't updated for >12s they are treated as disconnected.
   // playerLastSeenAtRef is updated on every Realtime UPDATE event (even heartbeat-only
   // skipped ones), giving us the freshest timestamp without causing re-renders.
   const [clientDisconnections, setClientDisconnections] = useState<Map<number, string>>(new Map());
