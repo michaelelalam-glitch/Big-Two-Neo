@@ -170,7 +170,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 45
+    timeout-minutes: 55
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -264,6 +264,12 @@ jobs:
           key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
             ${{ runner.os }}-deriveddata-
+          # save-always: true ensures the cache is saved even when the build step
+          # (or any later step) fails or times out. Without this, a build timeout
+          # causes the post-cache step to be skipped → cache never saved → next
+          # run also misses the cache → another full 20-30 min rebuild → timeout
+          # again. This breaks the infinite cache-miss loop.
+          save-always: true
 
       - name: 📦 Install dependencies
         run: |
@@ -294,7 +300,7 @@ jobs:
             -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tail -100
-        timeout-minutes: 30
+        timeout-minutes: 35
       
       - name: 📲 Install app on Simulator
         run: |

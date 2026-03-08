@@ -16,8 +16,13 @@ echo -e "${BLUE}  Auto-Play Timer Debug & Test${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 
-# Get the project ref
-PROJECT_REF="${SUPABASE_PROJECT_REF:-dppybucldqufbqhwnkxu}"
+# Get the project ref (require SUPABASE_PROJECT_REF to be set)
+if [ -z "$SUPABASE_PROJECT_REF" ]; then
+  echo -e "${RED}Error: SUPABASE_PROJECT_REF is not set.${NC}"
+  echo "Please export SUPABASE_PROJECT_REF=<your-project-ref> and re-run this script."
+  exit 1
+fi
+PROJECT_REF="$SUPABASE_PROJECT_REF"
 
 echo -e "${YELLOW}📋 Testing auto-play timer fix...${NC}"
 echo ""

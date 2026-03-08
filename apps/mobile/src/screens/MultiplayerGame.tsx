@@ -485,12 +485,12 @@ export function MultiplayerGame() {
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
   // Monitors turn_started_at when it's the local player's turn.
-  // Shows orange countdown ring (60s to play/pass).
+  // Shows yellow InactivityCountdownRing (60s to play/pass).
   // When expired: auto-plays highest valid cards OR passes.
-  const turnTimer = useTurnInactivityTimer({
+  useTurnInactivityTimer({
     gameState: multiplayerGameState,
     room: roomInfo,
-    roomPlayers: multiplayerPlayers,
+    roomPlayers: effectiveMultiplayerPlayers,
     broadcastMessage: async (event, data) => {
       // Re-use the broadcast pattern from useRealtime if needed
       gameLogger.info('[MultiplayerGame] Broadcasting turn event:', event, data);

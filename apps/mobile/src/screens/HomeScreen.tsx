@@ -28,6 +28,8 @@ export default function HomeScreen() {
   const currentRoomRef = useRef<string | null>(null);
   /** Guard: at most one scheduled 2s re-check can be pending at a time. */
   const hasScheduledRecheckRef = useRef(false);
+  /** Holds the handle of the pending 2s re-check so it can be cleared on unmount. */
+  const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -43,6 +45,15 @@ export default function HomeScreen() {
   
   // Keep currentRoomRef in sync with currentRoom state
   useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
+  // Clear any pending re-check timeout on unmount to avoid post-unmount state updates
+  useEffect(() => {
+    return () => {
+      if (recheckTimeoutRef.current) {
+        clearTimeout(recheckTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
@@ -131,7 +142,8 @@ export default function HomeScreen() {
                 setDisconnectTimestamp(null);
                 if (!hasScheduledRecheckRef.current) {
                   hasScheduledRecheckRef.current = true;
-                  setTimeout(() => {
+                  recheckTimeoutRef.current = setTimeout(() => {
+                    recheckTimeoutRef.current = null;
                     hasScheduledRecheckRef.current = false;
                     // Only re-check if we still have a current room — the user
                     // may have pressed Leave in the meantime.

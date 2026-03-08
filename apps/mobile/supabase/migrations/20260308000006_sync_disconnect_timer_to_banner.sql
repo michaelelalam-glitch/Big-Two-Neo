@@ -5,7 +5,7 @@
 --
 -- Problem
 -- -------
--- The 60s countdown on the opponent avatar (orange InactivityCountdownRing) and
+-- The 60s countdown on the opponent avatar (charcoal grey InactivityCountdownRing) and
 -- the 60s countdown on the home-screen banner (ActiveGameBanner) were NOT in sync:
 --
 --   In-game ring  → anchored to disconnect_timer_started_at (persistent column,
@@ -86,7 +86,7 @@ BEGIN
       'status',                       'disconnected',
       'seconds_left',                 v_seconds_left,
       -- Raw ISO-8601 timestamp: client uses new Date(ts).getTime() so both
-      -- the home-screen banner and the in-game orange ring are anchored to
+      -- the home-screen banner and the in-game charcoal grey disconnect ring are anchored to
       -- the exact same millisecond with no back-computation drift.
       'disconnect_timer_started_at',  v_timer_anchor,
       'player_index',                 v_rec.player_index
@@ -109,4 +109,4 @@ GRANT EXECUTE ON FUNCTION public.get_rejoin_status(UUID, UUID) TO service_role;
 COMMENT ON FUNCTION public.get_rejoin_status IS
   'Returns the current rejoin status for a player in a room. '
   'For disconnected players, returns the raw disconnect_timer_started_at ISO timestamp '
-  'so both the home-screen banner and in-game orange ring anchor to the same moment.';
+  'so both the home-screen banner and in-game charcoal grey disconnect ring anchor to the same moment.';
