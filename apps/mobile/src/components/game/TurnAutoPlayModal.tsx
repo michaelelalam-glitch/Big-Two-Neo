@@ -12,7 +12,7 @@
  * fix/turn-inactivity branch
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -62,6 +62,12 @@ export function TurnAutoPlayModal({
 }: TurnAutoPlayModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(RESPONSE_TIMEOUT_S);
 
+  // Store onTimeout in a ref so the interval callback always has the latest
+  // version without needing onTimeout in the dep array (which would restart
+  // the interval — and reset the countdown — on every parent re-render).
+  const onTimeoutRef = useRef(onTimeout);
+  useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
+
   // Reset timer when modal opens
   useEffect(() => {
     if (!visible) return;
@@ -75,12 +81,12 @@ export function TurnAutoPlayModal({
       
       if (remaining === 0) {
         clearInterval(interval);
-        onTimeout?.();
+        onTimeoutRef.current?.();
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [visible, onTimeout]);
+  }, [visible]);
 
   const renderAutoPlayedCards = () => {
     if (!cards || cards.length === 0) return null;

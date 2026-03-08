@@ -42,7 +42,7 @@ Look for these messages in your app console:
 ### 2. View Edge Function Logs
 
 ```bash
-supabase functions logs auto-play-turn --project-ref dppybucldqufbqhwnkxu --follow
+supabase functions logs auto-play-turn --project-ref <your-project-ref> --follow
 ```
 
 **Look for:**
@@ -196,10 +196,10 @@ Edge function checks: currentPlayer.user_id !== user.id
 
 ```bash
 # 1. Get edge function logs
-supabase functions logs auto-play-turn --project-ref dppybucldqufbqhwnkxu > autoplay-logs.txt
+supabase functions logs auto-play-turn --project-ref <your-project-ref> > autoplay-logs.txt
 
 # 2. Get database state
-supabase db execute --project-ref dppybucldqufbqhwnkxu --sql "
+supabase db execute --project-ref <your-project-ref> --sql "
 SELECT 
   rp.player_index,
   rp.username,
@@ -223,7 +223,7 @@ WHERE rp.room_id = '<your_room_id>';
 
 ```bash
 # Test edge function directly
-curl -X POST https://dppybucldqufbqhwnkxu.supabase.co/functions/v1/auto-play-turn \
+curl -X POST https://<your-project-ref>.supabase.co/functions/v1/auto-play-turn \
   -H "Authorization: Bearer <your_anon_key>" \
   -H "Content-Type: application/json" \
   -d '{"room_code":"<your_room_code>"}'

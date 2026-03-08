@@ -17,7 +17,7 @@ echo -e "${BLUE}═════════════════════�
 echo ""
 
 # Get the project ref
-PROJECT_REF="dppybucldqufbqhwnkxu"
+PROJECT_REF="${SUPABASE_PROJECT_REF:-dppybucldqufbqhwnkxu}"
 
 echo -e "${YELLOW}📋 Testing auto-play timer fix...${NC}"
 echo ""

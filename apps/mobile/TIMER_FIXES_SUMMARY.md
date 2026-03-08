@@ -197,12 +197,12 @@ WHERE trigger_name = 'trigger_update_turn_started_at';
 
 ### Step 4: Test Everything
 1. **Console Spam:** Start game → console should be clean
-2. **Ring Visibility:** Start game → all players see orange ring on current player
+2. **Ring Visibility:** Start game → all players see yellow ring on current player
 3. **Ring Direction:** Watch ring → should deplete clockwise from top
 4. **Ring Reset:** Play card → ring should reset to full for next player
 5. **Auto-Play:** Wait 60s on your turn → auto-play should execute
 6. **Disconnect Spinner:** Close app → spinner should appear on your avatar for other players
-7. **Yellow Ring:** Close app → yellow ring should replace orange ring
+7. **Charcoal Grey Ring:** Close app → charcoal grey ring should replace yellow ring
 8. **Bot Replacement:** Stay away 60s → bot should replace you
 9. **Home Banner:** Close app → banner should show "XX seconds before bot replaces you"
 
@@ -210,20 +210,20 @@ WHERE trigger_name = 'trigger_update_turn_started_at';
 
 ## Technical Details
 
-### Orange Ring (Turn Inactivity)
+### Yellow Ring (Turn Inactivity)
 - **Database:** `game_state.turn_started_at`
 - **Trigger:** Auto-updates on `current_turn` change
 - **Client:** Reads timestamp, calculates 60s countdown
 - **Display:** Shows on whoever's turn it is (visible to all players)
-- **Color:** Orange (#FFA500) → OrangeRed (#FF4500) when < 15s
+- **Color:** Gold (#FFD700) → Amber (#FFC107) when < 15s
 - **Expiry:** Calls `auto-play-turn` edge function
 
-### Yellow Ring (Connection Inactivity)  
+### Charcoal Grey Ring (Connection Inactivity)
 - **Database:** `room_players.disconnect_timer_started_at`
 - **Set By:** `process_disconnected_players()` when heartbeat stops
 - **Client:** Reads timestamp, calculates 60s countdown
-- **Display:** Replaces orange ring if disconnect happens during turn
-- **Color:** Gold (#FFD700) → DarkOrange (#FF8C00) when < 15s
+- **Display:** Replaces yellow ring if disconnect happens during turn
+- **Color:** Charcoal Grey (#4A4A4A) → Dark Charcoal (#2E2E2E) when < 15s
 - **Expiry:** Bot replaces player, `RejoinModal` shown
 
 ### Architecture

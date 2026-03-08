@@ -40,9 +40,9 @@ const RING_COLORS = {
     background: 'rgba(255,215,0,0.2)', // Yellow tint for background track
   },
   connection: {
-    full: '#FFA500',  // Orange — player disconnected, 60s to bot replacement
-    low: '#FF4500',   // OrangeRed — under 15s remaining
-    background: 'rgba(255,165,0,0.2)', // Orange tint for background track
+    full: '#4A4A4A',  // Charcoal grey — player disconnected, 60s to bot replacement
+    low: '#2E2E2E',   // Dark charcoal — under 15s remaining
+    background: 'rgba(74,74,74,0.2)', // Charcoal grey tint for background track
   },
 };
 
