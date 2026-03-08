@@ -99,7 +99,12 @@ export default function HomeScreen() {
 
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
-                // Server has a timer running — back-compute the disconnect timestamp
+                // ALWAYS anchor to the CLIENT clock using the server-computed seconds_left.
+                // Using disconnect_timer_started_at (a server timestamp) directly with
+                // client Date.now() causes clock-skew: if the server is ahead by N seconds,
+                // elapsed is negative and the countdown shows 60+N seconds (e.g. 80s).
+                // seconds_left is computed server-side (no client clock involved) so it
+                // gives the exact same remaining time as the in-game orange ring.
                 const secondsLeft = statusData.seconds_left ?? 60;
                 const elapsed = 60 - secondsLeft;
                 setDisconnectTimestamp(Date.now() - (elapsed * 1000));

@@ -84,7 +84,10 @@ export function MultiplayerGame() {
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-  gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  // Log game mode ONCE (not on every render)
+  useEffect(() => {
+    gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
+  }, []);
 
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
@@ -134,6 +137,7 @@ export function MultiplayerGame() {
     pass: multiplayerPass,
     connectToRoom: multiplayerConnectToRoom,
     isAutoPassInProgress,
+    playerLastSeenAtRef,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
@@ -385,6 +389,12 @@ export function MultiplayerGame() {
   });
 
   // Multiplayer UI derived state
+  // CRITICAL FIX: Use live realtimePlayers (kept up-to-date by Supabase realtime
+  // subscription) so that connection_status, disconnect_timer_started_at, and
+  // username changes (e.g. bot replacement) are reflected immediately.
+  // Fall back to the initial one-time load while the realtime channel is joining.
+  const effectiveMultiplayerPlayers = realtimePlayers.length > 0 ? realtimePlayers : multiplayerPlayers;
+
   const {
     multiplayerPlayerHand,
     multiplayerLastPlay,
@@ -394,7 +404,7 @@ export function MultiplayerGame() {
     multiplayerLastPlayCombo,
     multiplayerLayoutPlayers,
   } = useMultiplayerLayout({
-    multiplayerPlayers,
+    multiplayerPlayers: effectiveMultiplayerPlayers,
     multiplayerHandsByIndex,
     multiplayerGameState: multiplayerGameState as MultiplayerGameState | null,
     userId: user?.id,
@@ -518,6 +528,96 @@ export function MultiplayerGame() {
     multiplayerLayoutPlayers,
   });
 
+  // ── Client-side disconnect staleness detector ─────────────────────────────
+  // The server marks players as 'disconnected' via process_disconnected_players()
+  // (pg_cron + heartbeat piggyback), but Realtime delivery of that change can be
+  // unreliable. As a fallback, we detect stale last_seen_at timestamps directly:
+  // if a player's heartbeat hasn't updated for >35s they are treated as disconnected.
+  // playerLastSeenAtRef is updated on every Realtime UPDATE event (even heartbeat-only
+  // skipped ones), giving us the freshest timestamp without causing re-renders.
+  const [clientDisconnections, setClientDisconnections] = useState<Map<number, string>>(new Map());
+  const clientDisconnectStartRef = useRef<Record<number, string>>({});
+
+  useEffect(() => {
+    const STALE_THRESHOLD_MS = 12_000; // 12s: fast detection, presence leave backdates to 60s
+    const interval = setInterval(() => {
+      if (!realtimePlayers || realtimePlayers.length === 0) return;
+
+      const now = Date.now();
+      const newMap = new Map<number, string>();
+
+      for (const rp of realtimePlayers) {
+        // Skip bots and the local player (they can't disconnect from our perspective)
+        if (rp.is_bot || typeof rp.player_index !== 'number') continue;
+        if (rp.user_id === user?.id) continue;
+
+        // Bot replaced — clear any client-side detection and skip
+        if (rp.connection_status === 'replaced_by_bot') {
+          delete clientDisconnectStartRef.current[rp.player_index];
+          continue;
+        }
+
+        // Server-confirmed disconnect: preserve the client-detected start timestamp
+        // (seeding from client now if we don't have one yet).
+        // CRITICAL: Do NOT fall through to the stale-heartbeat check for disconnected
+        // players — their last_seen_at is stale by design and would always trigger.
+        // More importantly, never switch to the raw server disconnect_timer_started_at
+        // for the ring animation: that timestamp comes from the server clock and can be
+        // seconds in the future relative to the client clock, causing the ring to
+        // normalise to "now" and replenish to full at the moment the server event arrives.
+        if (rp.connection_status === 'disconnected') {
+          if (!clientDisconnectStartRef.current[rp.player_index]) {
+            // Server told us first — seed the client timer from client-local now.
+            clientDisconnectStartRef.current[rp.player_index] = new Date().toISOString();
+            gameLogger.warn(`[MultiplayerGame] Client-side: seeding disconnect from server event for player_index=${rp.player_index}`);
+          }
+          newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
+          continue;
+        }
+
+        // Player is 'connected' — check for stale heartbeat
+        // Use freshest last_seen_at: prefer ref (updated each heartbeat ping),
+        // fall back to the value from the last meaningful state update.
+        const lastSeenIso = playerLastSeenAtRef.current[rp.id] || rp.last_seen_at;
+        if (!lastSeenIso) continue;
+
+        const staleMs = now - new Date(lastSeenIso).getTime();
+        if (staleMs > STALE_THRESHOLD_MS) {
+          // Disconnect timer starts NOW for the client UI (orange ring starts depleting).
+          // If presence leave already backdated the timestamp, staleMs will be very large
+          // and we'll detect immediately. Use NOW as the disconnect timer start so the
+          // 60s countdown begins from the moment we detect the disconnect.
+          if (!clientDisconnectStartRef.current[rp.player_index]) {
+            clientDisconnectStartRef.current[rp.player_index] = new Date().toISOString();
+            gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s)`);
+          }
+          newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
+        } else {
+          // Player is live — only clear client detection when the server also has no
+          // active timer (disconnect_timer_started_at = null). If the server timer is
+          // still running (heartbeat race set connection_status back to 'connected'
+          // without clearing the persistent timer), keep our client-side start time.
+          if (clientDisconnectStartRef.current[rp.player_index]) {
+            if (!rp.disconnect_timer_started_at) {
+              gameLogger.info(`[MultiplayerGame] Client-side: player_index=${rp.player_index} reconnected (server timer cleared)`);
+              delete clientDisconnectStartRef.current[rp.player_index];
+            } else {
+              // Server timer still active despite 'connected' status (heartbeat race).
+              // Keep the client-detected start time so the ring animation is unaffected.
+              newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
+            }
+          }
+        }
+      }
+
+      setClientDisconnections(newMap);
+    }, 1_000); // Poll every 1s for fast disconnect detection (presence leave backdates timestamps)
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimePlayers, user?.id]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // ── Countdown Expiry Handlers ──────────────────────────────────────────
   // CONNECTION countdown expired: show RejoinModal (bot replaced player)
   const handleLocalPlayerCountdownExpired = useCallback(() => {
@@ -527,19 +627,30 @@ export function MultiplayerGame() {
 
   // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
   const enrichedLayoutPlayers = useMemo(() => {
-    // Get turn timer started_at from game_state if it's local player's turn
-    const turnStartedAt = turnTimer.isMyTurn && multiplayerGameState?.turn_started_at 
-      ? multiplayerGameState.turn_started_at 
-      : null;
+    // Get turn timer started_at from game_state (shared state for ALL players)
+    const turnStartedAt = multiplayerGameState?.turn_started_at || null;
 
-    return layoutPlayersWithScores.map((player, idx) => ({
-      ...player,
-      // Position 0 = local player  
-      turnTimerStartedAt: idx === 0 ? turnStartedAt : null,
-      // Connection countdown callback (existing)
-      onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : undefined,
-    }));
-  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, turnTimer.isMyTurn, multiplayerGameState?.turn_started_at]);
+    // CRITICAL FIX: Pass turnTimerStartedAt to ALL players based on isActive (current turn)
+    // Previously only passed to idx === 0 (local player), but the ring needs to be
+    // visible to ALL players when it's ANYONE's turn (server-authoritative state)
+    return layoutPlayersWithScores.map((player, idx) => {
+      // Client-side disconnect override: use staleness detection when server hasn't
+      // delivered the connection_status change yet via Realtime.
+      const clientDisconnectTimerStartedAt = clientDisconnections.get(player.player_index) ?? null;
+      const isClientDisconnected = clientDisconnectTimerStartedAt !== null;
+
+      return {
+        ...player,
+        // Show turn ring on WHOEVER's turn it is (all players see it)
+        turnTimerStartedAt: player.isActive ? turnStartedAt : null,
+        // Merge client-side + server-side disconnect state
+        isDisconnected: isClientDisconnected || player.isDisconnected,
+        disconnectTimerStartedAt: clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt,
+        // Connection countdown callback: only local player handles expiry
+        onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : undefined,
+      };
+    });
+  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, multiplayerGameState?.turn_started_at, clientDisconnections]);
 
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
