@@ -29,7 +29,7 @@ interface UseServerBotCoordinatorProps {
   /** Current game state from Realtime subscription */
   gameState: GameState | null;
   /** Room players array with is_bot flag */
-  players: Array<{ player_index: number; is_bot?: boolean; [key: string]: any }>;
+  players: { player_index: number; is_bot?: boolean; [key: string]: unknown }[];
   /**
    * True while the auto-pass self-pass is in progress (from useAutoPassTimer).
    * When true, bot-coordinator must NOT fire — it would race with the client's

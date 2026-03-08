@@ -33,7 +33,7 @@ export interface UseTurnInactivityTimerOptions {
   /** Current authenticated user id */
   currentUserId?: string | null;
   /** Callback when auto-play happens (show "I'm Still Here?" modal) */
-  onAutoPlay?: (cards: any[] | null, action: 'play' | 'pass') => void;
+  onAutoPlay?: (cards: Card[] | null, action: 'play' | 'pass') => void;
 }
 
 export interface TurnInactivityTimer {
@@ -128,7 +128,7 @@ export function useTurnInactivityTimer({
       const { data: result, error } = await invokeWithRetry<{
         success: boolean;
         action: 'play' | 'pass';
-        cards?: any[];
+        cards?: Card[];
         replaced_by_bot?: boolean;
         error?: string;
       }>('auto-play-turn', {
@@ -179,20 +179,20 @@ export function useTurnInactivityTimer({
       const userId = currentUserIdRef.current;
 
       if (!gs || !players || !userId) {
-        setTimerState({ isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
         return;
       }
 
       // Game not in active phase → no timer
       if (gs.game_phase !== 'playing' && gs.game_phase !== 'first_play') {
-        setTimerState({ isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
         return;
       }
 
       // Find local player
       const myPlayer = players.find(p => p.user_id === userId);
       if (!myPlayer) {
-        setTimerState({ isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
         return;
       }
 
@@ -205,14 +205,14 @@ export function useTurnInactivityTimer({
           hasExpiredRef.current = false;
           lastAutoPlayAttemptRef.current = 0;
         }
-        setTimerState({ isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
         return;
       }
 
       // It's my turn — check turn_started_at
       const turnStartedAt = gs.turn_started_at;
       if (!turnStartedAt) {
-        setTimerState({ isMyTurn: true, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: isAutoPlayInProgressRef.current });
+        setTimerState(prev => (prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && prev.isAutoPlayInProgress === isAutoPlayInProgressRef.current) ? prev : { isMyTurn: true, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: isAutoPlayInProgressRef.current });
         return;
       }
 

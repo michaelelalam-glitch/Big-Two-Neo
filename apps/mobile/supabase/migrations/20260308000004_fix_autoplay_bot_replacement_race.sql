@@ -35,7 +35,7 @@ BEGIN
     FROM room_players rp
     JOIN rooms r ON r.id = rp.room_id
     WHERE r.status IN ('waiting', 'playing')
-      AND rp.last_heartbeat < (NOW() - INTERVAL '15 seconds')
+      AND rp.last_seen_at < (NOW() - INTERVAL '15 seconds')
       AND rp.connection_status = 'connected'
   LOOP
     UPDATE room_players
@@ -69,7 +69,6 @@ BEGIN
       AND rp.disconnected_at IS NOT NULL
       AND rp.disconnected_at < (NOW() - INTERVAL '60 seconds')  -- 60s grace period
       AND rp.connection_status = 'disconnected'
-      AND rp.connection_status NOT IN ('disconnected', 'replaced_by_bot')
     ORDER BY rp.disconnected_at ASC
   LOOP
     -- ── NEW: Skip replacement if this player's turn is active and timer hasn't expired ──
@@ -125,8 +124,8 @@ BEGIN
       replaced_username           = rec.username,
       username                    = 'Bot ' || COALESCE(rec.username, 'Player'),
       connection_status           = 'replaced_by_bot',
-      last_heartbeat              = NOW(),
-      disconnect_timer_expires_at = NULL,
+      last_seen_at                = NOW(),
+      disconnect_timer_started_at = NULL,
       bot_difficulty              = v_bot_diff
     WHERE id = rec.id;
 

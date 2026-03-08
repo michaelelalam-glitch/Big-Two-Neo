@@ -47,6 +47,12 @@ async function triggerBotCoordinatorIfNeeded(
 
   if (isInternalCall) return; // Don't recurse into bot-coordinator
 
+  // Guard: skip if required env vars are not configured
+  if (!sk || !Deno.env.get('SUPABASE_URL')) {
+    console.warn('[player-pass] SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL not set — skipping bot coordinator trigger');
+    return;
+  }
+
   try {
     const { data: nextPlayer } = await supabaseClient
       .from('room_players')

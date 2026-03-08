@@ -140,7 +140,8 @@ BEGIN
       user_id                     = NULL,
       is_bot                      = TRUE,
       bot_difficulty              = v_bot_difficulty,
-      username                    = 'Bot ' || COALESCE(rec.username, 'Player'),
+      -- Strip any existing 'Bot ' prefix before prepending to prevent 'Bot Bot ...' doubling
+      username                    = 'Bot ' || REGEXP_REPLACE(COALESCE(rec.username, 'Player'), '^Bot ', '', 'i'),
       connection_status           = 'replaced_by_bot',
       disconnected_at             = NULL,
       disconnect_timer_started_at = NULL,

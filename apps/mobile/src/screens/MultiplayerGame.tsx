@@ -70,7 +70,7 @@ export function MultiplayerGame() {
 
   // State for turn auto-play dialog
   const [showTurnAutoPlayModal, setShowTurnAutoPlayModal] = useState(false);
-  const [autoPlayedCards, setAutoPlayedCards] = useState<any[] | null>(null);
+  const [autoPlayedCards, setAutoPlayedCards] = useState<Card[] | null>(null);
   const [autoPlayAction, setAutoPlayAction] = useState<'play' | 'pass'>('pass');
 
   // State for multiplayer room data
@@ -486,6 +486,7 @@ export function MultiplayerGame() {
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
   // Monitors turn_started_at when it's the local player's turn.
   // Shows yellow InactivityCountdownRing (60s to play/pass).
+  // Separate from the charcoal-grey disconnect ring (connection inactivity).
   // When expired: auto-plays highest valid cards OR passes.
   useTurnInactivityTimer({
     gameState: multiplayerGameState,

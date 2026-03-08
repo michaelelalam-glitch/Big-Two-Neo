@@ -40,6 +40,17 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Room not found');
   END IF;
 
+  -- 1b. Authorization check: if called by an authenticated user (not service_role),
+  --     verify the caller is actually a participant of this room.
+  --     Service-role callers (edge functions) have auth.uid() = NULL and bypass this check.
+  IF auth.uid() IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM room_players WHERE room_id = p_room_id AND user_id = auth.uid()
+    ) THEN
+      RETURN json_build_object('success', false, 'error', 'Not a room participant');
+    END IF;
+  END IF;
+
   -- 2. Count existing human + bot players
   SELECT COUNT(*) INTO v_total_players 
   FROM room_players 
@@ -256,6 +267,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION start_game_with_bots(UUID, TEXT) IS
   'Creates game_state with proper turn_started_at initialization for turn timer support.';
+
+-- Restrict direct invocation to authenticated users and service_role only
+-- (anonymous/public access blocked; authenticated users further gated by the
+-- room-participant check inside the function body)
+REVOKE EXECUTE ON FUNCTION start_game_with_bots(UUID, TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION start_game_with_bots(UUID, TEXT) TO authenticated, service_role;
 
 -- 3. Initialize turn_started_at for any existing games that still have NULL
 UPDATE game_state 

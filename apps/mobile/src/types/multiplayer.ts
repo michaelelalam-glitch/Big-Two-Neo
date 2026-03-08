@@ -9,12 +9,12 @@
 /** Per-match score entry persisted in game_state.scores_history by play-cards EF */
 export interface ScoresHistoryEntry {
   match_number: number;
-  scores: Array<{
+  scores: {
     player_index: number;
     matchScore: number;
     cumulativeScore: number;
     cardsRemaining: number;
-  }>;
+  }[];
 }
 
 export interface Room {

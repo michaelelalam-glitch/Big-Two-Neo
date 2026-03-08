@@ -508,7 +508,7 @@ export default function HomeScreen() {
           .maybeSingle();
 
         if (replacedRow) {
-          const roomStatus = (replacedRow as any).rooms?.status;
+          const roomStatus = (replacedRow as { rooms?: { status?: string } }).rooms?.status;
 
           if (!roomStatus || roomStatus === 'finished') {
             // Room closed (all-bots game was auto-deleted by server sweep) — clear banner
@@ -569,7 +569,7 @@ export default function HomeScreen() {
         setCurrentRoomStatus(undefined);
         setCanRejoinAfterExpiry(null);
       } else {
-        const roomStatus = (replacedFinal as any).rooms?.status;
+        const roomStatus = (replacedFinal as { rooms?: { status?: string } }).rooms?.status;
         if (!roomStatus || roomStatus === 'finished') {
           setCurrentRoom(null);
           setCurrentRoomStatus(undefined);

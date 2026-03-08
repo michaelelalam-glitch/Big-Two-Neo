@@ -247,9 +247,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
         // Use onGameOverRef.current so the latest callback is always invoked
         // without needing to re-subscribe the channel when the prop changes.
-        const broadcastData = (payload as any)?.data || payload;
-        const winnerIndex = (broadcastData as any)?.winner_index ?? null;
-        const rawScores = (broadcastData as any)?.final_scores ?? [];
+        const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ?? payload) as Record<string, unknown>;
+        const rawScores = (broadcastData?.final_scores as unknown[] | undefined) ?? [];
         // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
         const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
           typeof s === 'object' && s !== null &&
@@ -262,7 +261,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
           networkLogger.warn('[Realtime] game_over: some final_scores entries had unexpected shape and were filtered');
         }
-        const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
+        const matchNumber = (broadcastData?.match_number as number | undefined) ?? gameState?.match_number ?? 1;
         // onMatchEnded + onGameOver calls removed — score history is handled by
         // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
         // fetchGameState above will update multiplayerGameState which triggers both hooks.
@@ -273,7 +272,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // broadcastMessage wraps data as { event, data: {...}, timestamp }
         // Access payload.data first, fall back to top-level for robustness
         const broadcastData = (payload as { data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number } })?.data || payload;
-        const matchScores = (broadcastData as { match_scores?: PlayerMatchScoreDetail[] })?.match_scores;
         const matchNumber = (broadcastData as { match_number?: number })?.match_number || gameState?.match_number || 1;
         gameLogger.info('[Realtime] match_ended received; fetchGameState triggered for score-history refresh', { matchNumber });
         // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.

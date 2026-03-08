@@ -194,11 +194,14 @@ Deno.serve(async (req) => {
     console.log(`[auto-play-turn] Auth check: user=${user.id}, player_user_id=${playerUserId}, human_user_id=${playerHumanUserId}, isPlayersTurn=${isPlayersTurn}`);
     
     if (!isPlayersTurn) {
+      // Log detailed IDs server-side only; return a generic message to the client
+      // to avoid leaking internal user_id values in 403 responses.
+      console.warn(`[auto-play-turn] Not your turn — caller=${user.id}, current_turn_player=${gameState.current_turn}, player_user_id=${playerUserId}, human_user_id=${playerHumanUserId}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
           action: 'not_your_turn',
-          error: `Not your turn (current player: ${gameState.current_turn}, your user_id: ${user.id}, player_user_id: ${playerUserId}, human_user_id: ${playerHumanUserId})` 
+          error: 'Not your turn',
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );

@@ -53,8 +53,8 @@ export interface GameViewProps {
   effectiveLastPlayCombo: string | null;
 
   // Layout players
-  layoutPlayers: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null }>;
-  layoutPlayersWithScores: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null; turnTimerStartedAt?: string | null; onCountdownExpired?: () => void }>;
+  layoutPlayers: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null }[];
+  layoutPlayersWithScores: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null; turnTimerStartedAt?: string | null; onCountdownExpired?: () => void }[];
   playerTotalScores: number[];
   currentPlayerName: string;
 
