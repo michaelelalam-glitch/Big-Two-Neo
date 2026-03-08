@@ -7,7 +7,7 @@
  * - When expired: calls auto-play-turn edge function (plays highest cards OR passes)
  * - Shows "I'm Still Here?" popup after auto-play
  * 
- * **ORANGE RING (Connection / Disconnect):**
+ * **CHARCOAL GREY RING (Connection / Disconnect):**
  * - Shows when player disconnects (heartbeat stopped) — 60s countdown to bot replacement
  * - Replaces yellow ring if disconnect happens during turn
  * - Picks up where yellow ring left off (continuous countdown, no flash)
@@ -47,7 +47,7 @@ const RING_COLORS = {
 };
 
 interface InactivityCountdownRingProps {
-  /** Ring type: 'turn' (yellow, 60s to play) or 'connection' (orange, 60s to bot replacement) */
+  /** Ring type: 'turn' (yellow, 60s to play) or 'connection' (charcoal grey, 60s to bot replacement) */
   type: 'turn' | 'connection';
   /** UTC ISO-8601 timestamp when the countdown started */
   startedAt: string;
@@ -57,7 +57,7 @@ interface InactivityCountdownRingProps {
 
 /**
  * Renders a circular SVG ring that depletes clockwise from full → empty
- * over 60 seconds. Color adapts based on type (yellow = turn, orange = connection/disconnect).
+ * over 60 seconds. Color adapts based on type (yellow = turn, charcoal grey = connection/disconnect).
  * Positioned absolutely over the player's avatar.
  */
 export default function InactivityCountdownRing({
