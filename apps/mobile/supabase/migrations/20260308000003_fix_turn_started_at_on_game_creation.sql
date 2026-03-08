@@ -21,7 +21,6 @@ CREATE OR REPLACE FUNCTION start_game_with_bots(
 RETURNS JSON AS $$
 DECLARE
   v_room RECORD;
-  v_players RECORD[];
   v_total_players INTEGER;
   v_bots_needed INTEGER;
   v_bot_names TEXT[] := ARRAY['Bot Alice', 'Bot Bob', 'Bot Charlie'];
@@ -34,8 +33,6 @@ DECLARE
   v_shuffled_deck TEXT[];
   v_player_hands JSONB := '{}'::JSONB;
   v_starting_player INTEGER;
-  v_temp TEXT;
-  v_j INTEGER;
 BEGIN
   -- 1. Validate room exists
   SELECT * INTO v_room FROM rooms WHERE id = p_room_id;
@@ -257,7 +254,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION start_game_with_bots IS
+COMMENT ON FUNCTION start_game_with_bots(UUID, TEXT) IS
   'Creates game_state with proper turn_started_at initialization for turn timer support.';
 
 -- 3. Initialize turn_started_at for any existing games that still have NULL

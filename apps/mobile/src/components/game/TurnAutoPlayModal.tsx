@@ -51,6 +51,7 @@ interface TurnAutoPlayModalProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const RESPONSE_TIMEOUT_MS = 30_000; // 30 seconds to respond
+const RESPONSE_TIMEOUT_S = RESPONSE_TIMEOUT_MS / 1000;
 
 export function TurnAutoPlayModal({
   visible,
@@ -59,17 +60,17 @@ export function TurnAutoPlayModal({
   onConfirm,
   onTimeout,
 }: TurnAutoPlayModalProps) {
-  const [secondsLeft, setSecondsLeft] = useState(30);
+  const [secondsLeft, setSecondsLeft] = useState(RESPONSE_TIMEOUT_S);
 
   // Reset timer when modal opens
   useEffect(() => {
     if (!visible) return;
     
-    setSecondsLeft(30);
+    setSecondsLeft(RESPONSE_TIMEOUT_S);
     const startTime = Date.now();
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const remaining = Math.max(0, 30 - elapsed);
+      const remaining = Math.max(0, RESPONSE_TIMEOUT_S - elapsed);
       setSecondsLeft(remaining);
       
       if (remaining === 0) {
@@ -119,7 +120,7 @@ export function TurnAutoPlayModal({
             <Text style={styles.bold}>Are you still here?</Text>
             {'\n'}
             <Text style={styles.small}>
-              Tap below within {secondsLeft}s or you'll be disconnected and replaced by a bot.
+              Tap below within {secondsLeft}s or you&apos;ll be disconnected and replaced by a bot.
             </Text>
           </Text>
 
@@ -133,7 +134,7 @@ export function TurnAutoPlayModal({
             accessibilityRole="button"
             accessibilityLabel="I'm still here"
           >
-            <Text style={styles.confirmButtonText}>I'm Still Here ✋</Text>
+            <Text style={styles.confirmButtonText}>I&apos;m Still Here ✋</Text>
           </TouchableOpacity>
 
           {/* Timer warning */}

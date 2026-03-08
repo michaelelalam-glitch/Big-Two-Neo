@@ -226,10 +226,15 @@ export function MultiplayerGame() {
   // ── Bot Replacement Modal Handlers ──────────────────────────────────────
   const handleReclaimSeat = useCallback(async () => {
     gameLogger.info('[MultiplayerGame] Reclaiming seat from bot...');
-    await connectionReconnect();
-    setShowBotReplacedModal(false);
-    setBotReplacedUsername(null);
-    gameLogger.info('[MultiplayerGame] Seat reclaimed successfully');
+    try {
+      await connectionReconnect();
+      setShowBotReplacedModal(false);
+      setBotReplacedUsername(null);
+      gameLogger.info('[MultiplayerGame] Seat reclaimed successfully');
+    } catch (err) {
+      gameLogger.error('[MultiplayerGame] Failed to reclaim seat from bot:', err instanceof Error ? err.message : String(err));
+      // Keep modal open — user can retry or leave
+    }
   }, [connectionReconnect]);
 
   const handleLeaveRoomFromModal = useCallback(async () => {
@@ -636,7 +641,9 @@ export function MultiplayerGame() {
     return layoutPlayersWithScores.map((player, idx) => {
       // Client-side disconnect override: use staleness detection when server hasn't
       // delivered the connection_status change yet via Realtime.
-      const clientDisconnectTimerStartedAt = clientDisconnections.get(player.player_index) ?? null;
+      const clientDisconnectTimerStartedAt = player.player_index !== undefined
+        ? (clientDisconnections.get(player.player_index) ?? null)
+        : null;
       const isClientDisconnected = clientDisconnectTimerStartedAt !== null;
 
       return {
@@ -735,7 +742,7 @@ export function MultiplayerGame() {
           // Mark player as disconnected → triggers bot replacement flow
           if (roomInfo?.id) {
             const { error } = await supabase.functions.invoke('mark-disconnected', {
-              body: { room_code: roomCode },
+              body: { room_id: roomInfo.id },
             });
             if (error) {
               gameLogger.error('[MultiplayerGame] Failed to mark player disconnected:', error);

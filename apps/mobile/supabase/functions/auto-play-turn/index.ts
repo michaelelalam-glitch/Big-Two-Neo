@@ -37,6 +37,61 @@ interface AutoPlayResponse {
   seconds_elapsed?: number;
 }
 
+/**
+ * Replace an inactive human player with a bot after auto-play.
+ * Mirrors the pattern used by process_disconnected_players():
+ *  - is_bot = true, user_id = null, human_user_id = original user
+ *  - connection_status = 'replaced_by_bot'
+ *  - username = 'Bot <original_name>'
+ * The Realtime subscription on the client detects the status change and shows
+ * the RejoinModal ("Reclaim My Seat").
+ */
+async function replacePlayerWithBot(
+  client: ReturnType<typeof createClient>,
+  player: any,
+  roomId: string,
+): Promise<void> {
+  const originalUserId = player.user_id;
+  // Strip any stacked "Bot " prefixes so reclaim always restores the clean name.
+  // e.g. "Bot Bot Alice" → "Alice", "Alice" → "Alice"
+  const cleanUsername = (player.username || 'Player').replace(/^(Bot )+/i, '').trim() || 'Player';
+
+  // Determine bot difficulty from room settings
+  const { data: room } = await client
+    .from('rooms')
+    .select('settings, bot_difficulty')
+    .eq('id', roomId)
+    .single();
+
+  const botDifficulty =
+    room?.settings?.bot_difficulty ?? room?.bot_difficulty ?? 'hard';
+
+  const { error } = await client
+    .from('room_players')
+    .update({
+      human_user_id: originalUserId,
+      // Store the clean username so reconnect_player() RPC can restore it via
+      // COALESCE(replaced_username, username) without ever re-adding "Bot ".
+      replaced_username: cleanUsername,
+      user_id: null,
+      is_bot: true,
+      bot_difficulty: botDifficulty,
+      username: `Bot ${cleanUsername}`,
+      connection_status: 'replaced_by_bot',
+      disconnected_at: null,
+      disconnect_timer_started_at: null,
+    })
+    .eq('id', player.id);
+
+  if (error) {
+    console.error(`[auto-play-turn] ❌ Failed to replace player with bot:`, error.message);
+  } else {
+    console.log(
+      `[auto-play-turn] 🤖 Player ${player.player_index} (${cleanUsername}) replaced by bot after inactivity`,
+    );
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -68,7 +123,7 @@ Deno.serve(async (req) => {
       AUTO_PLAY_RATE_LIMIT_WINDOW,
     );
     if (!rateLimitResult.allowed) {
-      return rateLimitResponse(corsHeaders);
+      return rateLimitResponse(rateLimitResult.retryAfterMs, corsHeaders);
     }
 
     // ── Parse request body ──
@@ -131,12 +186,19 @@ Deno.serve(async (req) => {
     }
 
     // ── Verify it's the calling user's turn ──
-    if (currentPlayer.user_id !== user.id) {
+    // Check both user_id (active player) and human_user_id (if replaced by bot)
+    const playerUserId = currentPlayer.user_id;
+    const playerHumanUserId = (currentPlayer as any).human_user_id;
+    const isPlayersTurn = playerUserId === user.id || playerHumanUserId === user.id;
+    
+    console.log(`[auto-play-turn] Auth check: user=${user.id}, player_user_id=${playerUserId}, human_user_id=${playerHumanUserId}, isPlayersTurn=${isPlayersTurn}`);
+    
+    if (!isPlayersTurn) {
       return new Response(
         JSON.stringify({ 
           success: false, 
           action: 'not_your_turn',
-          error: `Not your turn (current: player ${gameState.current_turn})` 
+          error: `Not your turn (current player: ${gameState.current_turn}, your user_id: ${user.id}, player_user_id: ${playerUserId}, human_user_id: ${playerHumanUserId})` 
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -178,17 +240,25 @@ Deno.serve(async (req) => {
       return Array.isArray(cards) ? cards.length : 0;
     });
 
-    const botAI = new BotAI('hard'); // Aggressive: play highest cards
-    const playResult = botAI.getPlay({
+    // Always play the highest valid combination for inactivity auto-play.
+    // We intentionally bypass BotAI.getPlay() strategy (which can choose to save
+    // high cards) and use playHighestValid() which always maximises the played value.
+    const botAI = new BotAI('hard');
+    const playResult = botAI.playHighestValid({
       hand,
       lastPlay,
       isFirstPlayOfGame,
-      matchNumber: gameState.match_number || 1,
-      playerCardCounts,
-      currentPlayerIndex: currentPlayer.player_index,
     });
 
     // ── Execute the play ──
+    // CRITICAL: Use the room_players ROW ID (currentPlayer.id), NOT the user's auth UUID.
+    // play-cards and player-pass with service-role key look up by room_players.id,
+    // not user_id. Using the auth UUID causes a 404 every time.
+    const effectivePlayerId = currentPlayer.id;
+    
+    console.log(`[auto-play-turn] Using room_players row ID: ${effectivePlayerId} (player_index=${currentPlayer.player_index}, user_id=${playerUserId}, human_user_id=${playerHumanUserId})`);
+    console.log(`[auto-play-turn] Auto-play decision: ${playResult.reasoning}`);
+    
     if (!playResult.cards || playResult.cards.length === 0) {
       // Pass
       console.log(`⏰ [auto-play-turn] Auto-passing for player ${currentPlayer.player_index}`);
@@ -203,7 +273,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           room_code: room.code,
-          player_id: user.id,
+          player_id: effectivePlayerId,
         }),
       });
 
@@ -215,10 +285,17 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── Replace inactive player with bot ──
+      // The player was inactive for 60s. Mark them as a bot so the bot-coordinator
+      // takes over on subsequent turns. The client detects 'replaced_by_bot' via
+      // Realtime and shows the RejoinModal ("Reclaim My Seat").
+      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'pass',
+          replaced_by_bot: true,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -243,7 +320,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           room_code: room.code,
-          player_id: user.id,
+          player_id: effectivePlayerId,
           cards: cardsToPlay.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
         }),
       });
@@ -256,11 +333,15 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── Replace inactive player with bot ──
+      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'play',
           cards: cardsToPlay,
+          replaced_by_bot: true,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

@@ -26,6 +26,8 @@ interface DisplayPlayer {
   player_index?: number;
   /** fix/rejoin: disconnect spinner */
   isDisconnected?: boolean;
+  /** UTC timestamp when the 60s bot-replacement countdown started */
+  disconnectTimerStartedAt?: string | null;
 }
 
 interface UsePlayerDisplayDataOptions {

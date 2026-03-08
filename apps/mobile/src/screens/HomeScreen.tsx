@@ -26,6 +26,8 @@ export default function HomeScreen() {
   // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
   // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
   const currentRoomRef = useRef<string | null>(null);
+  /** Guard: at most one scheduled 2s re-check can be pending at a time. */
+  const hasScheduledRecheckRef = useRef(false);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -127,13 +129,17 @@ export default function HomeScreen() {
                 // has processed it.  This avoids showing a banner with no countdown
                 // (just Rejoin / Leave) for the brief race window.
                 setDisconnectTimestamp(null);
-                setTimeout(() => {
-                  // Only re-check if we still have a current room — the user
-                  // may have pressed Leave in the meantime.
-                  if (currentRoomRef.current) {
-                    checkCurrentRoom();
-                  }
-                }, 2000);
+                if (!hasScheduledRecheckRef.current) {
+                  hasScheduledRecheckRef.current = true;
+                  setTimeout(() => {
+                    hasScheduledRecheckRef.current = false;
+                    // Only re-check if we still have a current room — the user
+                    // may have pressed Leave in the meantime.
+                    if (currentRoomRef.current) {
+                      checkCurrentRoom();
+                    }
+                  }, 2000);
+                }
               }
             }
             // statusData missing / success=false — do not start a phantom countdown;

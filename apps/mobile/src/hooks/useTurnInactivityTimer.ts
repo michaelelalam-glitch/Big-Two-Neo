@@ -3,19 +3,18 @@
  *
  * Architecture:
  * - Monitors game_state.turn_started_at when it's the local player's turn
- * - Shows orange InactivityCountdownRing (60s countdown)
+ * - Shows yellow InactivityCountdownRing (60s countdown)
  * - When timer expires: calls auto-play-turn edge function
  * - Edge function auto-plays highest valid cards OR passes
  * - Returns auto-played cards to show "I'm Still Here?" popup
  *
- * CRITICAL: Coexists with connection inactivity (yellow ring).
- * - Orange ring = turn inactivity (60s to play)
- * - Yellow ring = connection inactivity (heartbeat stopped)
- * - If disconnect happens during turn, yellow ring replaces orange and continues countdown
+ * CRITICAL: Coexists with connection inactivity (orange ring).
+ * - Yellow ring = turn inactivity (60s to play)
+ * - Orange ring = connection inactivity (heartbeat stopped)
+ * - If disconnect happens during turn, orange ring replaces yellow and continues countdown
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { supabase } from '../services/supabase';
 import type { GameState, Player, BroadcastEvent, BroadcastData } from '../types/multiplayer';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
@@ -69,12 +68,24 @@ export function useTurnInactivityTimer({
 
   /** Execution guard to prevent concurrent auto-play calls */
   const autoPlayExecutionGuard = useRef<number | null>(null);
-  const [isAutoPlayInProgressState, setIsAutoPlayInProgressState] = useState(false);
+  /** Tracks whether auto-play is in progress — read inside the stable interval
+   *  via setTimerState to expose isAutoPlayInProgress to consumers. A ref is used
+   *  instead of useState so the interval (deps: [room?.id, currentUserId]) is not
+   *  recreated on every auto-play start/finish, which would reset activeTurnSequenceRef. */
+  const isAutoPlayInProgressRef = useRef(false);
 
   /** Track which turn sequence we're monitoring to detect turn changes */
   const activeTurnSequenceRef = useRef<string | null>(null);
   const hasExpiredRef = useRef(false);
   const lastAutoPlayAttemptRef = useRef<number>(0);
+
+  /**
+   * Client-local start time for the current turn.
+   * Used INSTEAD of the server's turn_started_at when clock skew is detected.
+   * This ensures the 60s countdown is always relative to when the client
+   * first observed the turn, avoiding issues where server clock is ahead.
+   */
+  const localTurnStartRef = useRef<number | null>(null);
 
   /** Reactive state for UI */
   const [timerState, setTimerState] = useState<TurnInactivityTimer>({
@@ -109,7 +120,7 @@ export function useTurnInactivityTimer({
     }
 
     autoPlayExecutionGuard.current = now;
-    setIsAutoPlayInProgressState(true);
+    isAutoPlayInProgressRef.current = true;
 
     try {
       networkLogger.info('⏰ [TurnTimer] Calling auto-play-turn edge function');
@@ -118,6 +129,7 @@ export function useTurnInactivityTimer({
         success: boolean;
         action: 'play' | 'pass';
         cards?: any[];
+        replaced_by_bot?: boolean;
         error?: string;
       }>('auto-play-turn', {
         body: { room_code: currentRoom.code },
@@ -129,10 +141,13 @@ export function useTurnInactivityTimer({
         return;
       }
 
-      networkLogger.info(`⏰ [TurnTimer] ✅ Auto-play successful: ${result.action}`, result.cards ? `(${result.cards.length} cards)` : '');
+      networkLogger.info(`⏰ [TurnTimer] ✅ Auto-play successful: ${result.action}`, result.cards ? `(${result.cards.length} cards)` : '', result.replaced_by_bot ? '(replaced by bot)' : '');
 
-      // Callback to show "I'm Still Here?" modal
-      if (onAutoPlayRef.current) {
+      // If the server replaced the player with a bot, the Realtime subscription
+      // on room_players will fire and useConnectionManager will surface the
+      // RejoinModal automatically. Skip the TurnAutoPlayModal to avoid stacking
+      // two modals on top of each other.
+      if (!result.replaced_by_bot && onAutoPlayRef.current) {
         onAutoPlayRef.current(result.cards || null, result.action);
       }
 
@@ -148,7 +163,7 @@ export function useTurnInactivityTimer({
       networkLogger.error('⏰ [TurnTimer] ❌ Auto-play fatal error:', fatalError);
     } finally {
       autoPlayExecutionGuard.current = null;
-      setIsAutoPlayInProgressState(false);
+      isAutoPlayInProgressRef.current = false;
     }
   }, []);
 
@@ -197,7 +212,7 @@ export function useTurnInactivityTimer({
       // It's my turn — check turn_started_at
       const turnStartedAt = gs.turn_started_at;
       if (!turnStartedAt) {
-        setTimerState({ isMyTurn: true, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: isAutoPlayInProgressState });
+        setTimerState({ isMyTurn: true, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: isAutoPlayInProgressRef.current });
         return;
       }
 
@@ -207,20 +222,41 @@ export function useTurnInactivityTimer({
         activeTurnSequenceRef.current = seqId;
         hasExpiredRef.current = false;
         lastAutoPlayAttemptRef.current = 0;
+
+        // CLOCK SKEW FIX: If server timestamp is in the future relative to client,
+        // use client-local time as the start instead. This prevents the timer from
+        // accumulating extra seconds when the server clock is ahead of the client.
+        const serverStart = new Date(turnStartedAt).getTime();
+        const clientNow = Date.now();
+        const serverElapsed = clientNow - serverStart;
+        if (serverElapsed < -2000) {
+          // Server clock is >2s ahead — use client time as start
+          networkLogger.warn(`⏰ [TurnTimer] Clock skew detected: server is ${Math.abs(serverElapsed)}ms ahead. Using client-local start time.`);
+          localTurnStartRef.current = clientNow;
+        } else {
+          localTurnStartRef.current = null; // Use server timestamp normally
+        }
         networkLogger.debug('⏰ [TurnTimer] Tracking new turn sequence:', seqId);
       }
 
-      // Calculate remaining time
-      const startTime = new Date(turnStartedAt).getTime();
+      // Calculate remaining time — use local start if clock skew was detected
+      const startTime = localTurnStartRef.current ?? new Date(turnStartedAt).getTime();
       const correctedNow = getCorrectedNowRef.current();
       const elapsed = correctedNow - startTime;
       const remaining = Math.max(0, TURN_TIMEOUT_MS - elapsed);
 
-      // Update UI state
-      setTimerState({
-        isMyTurn: true,
-        remainingMs: remaining,
-        isAutoPlayInProgress: isAutoPlayInProgressState,
+      // Update UI state ONLY if values changed (prevent unnecessary re-renders)
+      setTimerState(prev => {
+        if (prev.isMyTurn !== true || 
+            Math.abs(prev.remainingMs - remaining) > 50 || // Only update if diff > 50ms
+            prev.isAutoPlayInProgress !== isAutoPlayInProgressRef.current) {
+          return {
+            isMyTurn: true,
+            remainingMs: remaining,
+            isAutoPlayInProgress: isAutoPlayInProgressRef.current,
+          };
+        }
+        return prev;
       });
 
       // Timer expired → trigger auto-play
@@ -243,7 +279,7 @@ export function useTurnInactivityTimer({
       clearInterval(interval);
       activeTurnSequenceRef.current = null;
     };
-  }, [room?.id, currentUserId, tryAutoPlayTurn, isAutoPlayInProgressState]);
+  }, [room?.id, currentUserId, tryAutoPlayTurn]);
 
   return timerState;
 }

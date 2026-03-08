@@ -49,6 +49,8 @@ export interface Player {
   human_user_id?: string | null;
   /** Server-side disconnect timer: UTC timestamp when the 60s bot-replacement countdown started */
   disconnect_timer_started_at?: string | null;
+  /** UTC timestamp of the player's last heartbeat ping (used for client-side staleness detection) */
+  last_seen_at?: string | null;
 }
 
 export interface GameState {
@@ -254,6 +256,10 @@ export interface UseRealtimeReturn {
   error: Error | null;
   /** True while auto-pass sequential execution is in progress (guards bot-coordinator and manual pass) */
   isAutoPassInProgress: boolean;
+  /** Mutable ref tracking the freshest last_seen_at per player UUID.
+   *  Updated on every room_players Realtime UPDATE (even heartbeat-only ones).
+   *  Used for client-side disconnect staleness detection. */
+  playerLastSeenAtRef: { current: Record<string, string> };
 }
 
 // Realtime channel events

@@ -111,6 +111,8 @@ export function useMultiplayerLayout({
   const multiplayerLayoutPlayers: LayoutPlayer[] = React.useMemo(() => {
     const getName = (idx: number): string => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      // Server already sets username to 'Bot <original name>' when replacing with a bot.
+      // Do NOT add another 'Bot ' prefix here — that would produce 'Bot Bot <name>'.
       return p?.username ?? `Player ${idx + 1}`;
     };
 
@@ -128,38 +130,16 @@ export function useMultiplayerLayout({
     const currentTurn = multiplayerGameState?.current_turn;
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
-    // fix/rejoin: a player is "disconnected" (shows spinner overlay) ONLY while they
-    // are in the process of disconnecting — i.e. connection_status = 'disconnected'.
-    // Once a replacement bot takes the seat (status = 'replaced_by_bot'), the bot
-    // is actively playing and should show a normal avatar without a spinner overlay.
-    //
-    // DEFENSIVE: We also gate on cardCount === 0 so that transient heartbeat
-    // hiccups (e.g., the server cron marking a player 'disconnected' before the
-    // next heartbeat arrives) don't flash the disconnect spinner mid-game for
-    // players who are still actively in the hand.  The primary accuracy source
-    // is useConnectionManager (heartbeat) integrated in MultiplayerGame — this
-    // cardCount check is a UI-level fallback that prevents misleading visuals
-    // when all players are genuinely playing.
+    // fix/rejoin: a player is "disconnected" (shows spinner overlay) when their
+    // connection_status = 'disconnected' (heartbeat stopped). The orange ring
+    // countdown shows the time until bot replacement.
+    // Once replacement happens (status = 'replaced_by_bot'), the avatar shows
+    // normally without spinner since the bot is actively playing.
     const isDisconnected = (idx: number): boolean => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return false;
-
-      // Only show the disconnected spinner when the server explicitly marks
-      // the player as 'disconnected' AND the player is not currently in the
-      // active game (no cards).  This prevents transient server-side races
-      // or heartbeat hiccups from showing all avatars as disconnected while
-      // players remain actively in the match.
-      const explicitlyDisconnected = p.connection_status === 'disconnected';
-      if (!explicitlyDisconnected) return false;
-
-      const cardCount = getCount(idx);
-      // If the player still has cards, treat them as active for UI purposes.
-      // NOTE: This intentionally suppresses the spinner during active gameplay.
-      // Genuine disconnections trigger the 60s server-side replacement timer;
-      // once the bot takes the seat the status changes to 'replaced_by_bot'
-      // and the UI updates accordingly. Showing the spinner for transient
-      // heartbeat hiccups (< 60s) was causing false disconnect indicators.
-      return cardCount === 0;
+      // Show spinner whenever explicitly disconnected (not just when cardCount=0)
+      return p.connection_status === 'disconnected';
     };
 
     /** Get disconnect_timer_started_at for a player (non-null while 60s countdown is active) */
