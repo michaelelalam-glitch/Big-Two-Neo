@@ -16,3 +16,4 @@ apps/mobile/Big2Mobile.app/
 *.bak
 .vscode/mcp.json
 coverage/
+.vscode/settings.json

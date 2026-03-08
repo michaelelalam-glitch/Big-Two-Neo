@@ -47,6 +47,10 @@ export interface Player {
   connection_status?: 'connected' | 'disconnected' | 'replaced_by_bot';
   /** fix/rejoin: set when a human was replaced by a bot (human can reclaim seat) */
   human_user_id?: string | null;
+  /** Server-side disconnect timer: UTC timestamp when the 60s bot-replacement countdown started */
+  disconnect_timer_started_at?: string | null;
+  /** UTC timestamp of the player's last heartbeat ping (used for client-side staleness detection) */
+  last_seen_at?: string | null;
 }
 
 export interface GameState {
@@ -54,6 +58,7 @@ export interface GameState {
   room_id: string;
   current_turn: number; // position of player whose turn it is
   turn_timer: number; // seconds remaining in turn
+  turn_started_at?: string | null; // UTC timestamp when current player's turn started (for 60s timeout)
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
   game_phase: 'dealing' | 'first_play' | 'playing' | 'finished' | 'game_over';
@@ -181,7 +186,8 @@ export type BroadcastEvent =
   | 'reconnected'
   | 'auto_pass_timer_started'  // New: Timer started for highest play
   | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
-  | 'auto_pass_executed';  // New: Auto-pass executed after timer expired
+  | 'auto_pass_executed'  // New: Auto-pass executed after timer expired
+  | 'turn_auto_played';  // New: Turn inactivity auto-play executed
 
 /**
  * Score detail for a single player in a multiplayer match.
@@ -248,6 +254,12 @@ export interface UseRealtimeReturn {
   // Loading states
   loading: boolean;
   error: Error | null;
+  /** True while auto-pass sequential execution is in progress (guards bot-coordinator and manual pass) */
+  isAutoPassInProgress: boolean;
+  /** Mutable ref tracking the freshest last_seen_at per player UUID.
+   *  Updated on every room_players Realtime UPDATE (even heartbeat-only ones).
+   *  Used for client-side disconnect staleness detection. */
+  playerLastSeenAtRef: { current: Record<string, string> };
 }
 
 // Realtime channel events

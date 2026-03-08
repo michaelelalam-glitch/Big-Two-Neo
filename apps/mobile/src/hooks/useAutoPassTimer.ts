@@ -1,21 +1,20 @@
 /**
  * useAutoPassTimer — Server-authoritative auto-pass timer hook.
  *
- * Extracted from useRealtime.ts (~395 lines) to isolate the most complex
- * piece of timer logic into a self-contained, independently testable module.
- *
- * Architecture (Dec 29 2025 – CRITICAL FIX v2):
+ * Architecture (Mar 2026 – SELF-PASS + SERVER CASCADE):
  * - Timer state lives in `game_state.auto_pass_timer` (database)
- * - Contains `started_at` timestamp and `duration_ms`
+ * - Contains `started_at`, `duration_ms`, and `end_timestamp`
  * - ALL clients calculate remaining_ms independently from the SAME server timestamp
- * - ALL clients execute auto-pass for redundancy (backend validates turns)
- *
- * When the timer expires, every non-exempt player is auto-passed in sequence.
- * The exempt player is the one who played the highest card (stored in
- * `auto_pass_timer.triggering_play.position`).
+ * - When the timer expires, the first client whose user's turn it is calls
+ *   `player-pass` for ITSELF.  The server-side cascade in the player-pass
+ *   edge function then completes ALL remaining passes atomically in a single
+ *   DB write.  No sequential client-by-client passing.
+ * - The interval is created ONCE per room (stable interval pattern) and reads
+ *   all state from refs — no deps-based recreation during gameplay.
+ * - Bots are handled by the bot-coordinator, not this hook.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import type { GameState, Player, AutoPassTimerState, BroadcastEvent, BroadcastData } from '../types/multiplayer';
 import type { PlayerPassResponse } from '../types/realtimeTypes';
@@ -31,17 +30,19 @@ export interface UseAutoPassTimerOptions {
   roomPlayers: Player[];
   /** Broadcast a message to all connected clients. */
   broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
-  /** Clock-sync corrected timestamp (ms). */
+  /** Clock-sync corrected timestamp (ms) — ref-based, safe in stale closures. */
   getCorrectedNow: () => number;
+  /** Current authenticated user id (auth.uid) — used to only auto-pass the local player. */
+  currentUserId?: string | null;
 }
 
 /**
  * Manages the auto-pass timer lifecycle:
- * 1. Watches `gameState.auto_pass_timer` for active timers.
- * 2. Polls every 100 ms using a `setInterval` with a ref-based pattern to
- *    avoid stale closures.
- * 3. When the timer expires, fetches fresh state from DB and sequentially
- *    invokes `player-pass` for every non-exempt player.
+ * 1. Creates a SINGLE stable 100ms polling interval per room (no deps churn).
+ * 2. All state is read from refs inside the interval callback.
+ * 3. When the timer expires, triggers ONE self-pass call; the server-side
+ *    cascade in player-pass handles all remaining passes atomically.
+ * 4. Interval stops when auto_pass_timer is cleared by the server.
  */
 export function useAutoPassTimer({
   gameState,
@@ -49,384 +50,201 @@ export function useAutoPassTimer({
   roomPlayers,
   broadcastMessage,
   getCorrectedNow,
+  currentUserId,
 }: UseAutoPassTimerOptions): { isAutoPassInProgress: boolean } {
-  // ── Refs ────────────────────────────────────────────────────────────────────
-  /** Track active polling interval to prevent duplicates. */
-  const activeTimerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** Unique ID of the timer we're currently polling (sequence_id or started_at). */
-  const currentTimerId = useRef<string | null>(null);
-  /**
-   * Timestamp-based execution guard to prevent multiple simultaneous
-   * auto-pass executions.  Stores the timestamp when the lock was acquired,
-   * or `null` when unlocked.
-   */
-  const autoPassExecutionGuard = useRef<number | null>(null);
-  /**
-   * Reactive state that mirrors autoPassExecutionGuard so consumers
-   * (e.g., useRealtime gating `pass()`) observe changes via re-render
-   * rather than reading a potentially stale ref value.
-   */
-  const [isAutoPassInProgressState, setIsAutoPassInProgressState] = useState(false);
-  /**
-   * Mutable ref kept in sync with the latest `gameState` so that
-   * `setInterval` callbacks never read stale closure values.
-   */
+  // ── Refs (all state the interval callback needs) ────────────────────────
   const gameStateRef = useRef<GameState | null>(null);
+  const roomRef = useRef<{ id: string; code: string } | null>(null);
+  const roomPlayersRef = useRef<Player[]>([]);
+  const currentUserIdRef = useRef<string | null>(null);
+  const broadcastMessageRef = useRef<typeof broadcastMessage>(broadcastMessage);
+  const getCorrectedNowRef = useRef<typeof getCorrectedNow>(getCorrectedNow);
 
-  // Keep ref in sync with prop
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
+  /** Timestamp-based execution guard to prevent concurrent self-pass calls. */
+  const autoPassExecutionGuard = useRef<number | null>(null);
+  /** Reactive mirror of the guard for consumers (e.g. useRealtime gating pass()). */
+  const [isAutoPassInProgressState, setIsAutoPassInProgressState] = useState(false);
+  /** Whether the timer has already expired — used together with
+   *  `lastSelfPassAttemptRef` to throttle self-pass attempts to every 500 ms
+   *  after expiry (the underlying setInterval remains at 100 ms). */
+  const hasExpiredRef = useRef(false);
+  /** Timestamp of last self-pass attempt for throttling. */
+  const lastSelfPassAttemptRef = useRef<number>(0);
+  /** Track which timer sequence_id the interval is handling to detect new timers. */
+  const activeTimerSequenceRef = useRef<string | null>(null);
 
-  // ── Main timer effect ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const timerState = gameState?.auto_pass_timer;
+  // ── Keep refs in sync with props (cheap, no interval recreation) ────────
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { roomRef.current = room; }, [room]);
+  useEffect(() => { roomPlayersRef.current = roomPlayers; }, [roomPlayers]);
+  useEffect(() => { currentUserIdRef.current = currentUserId ?? null; }, [currentUserId]);
+  useEffect(() => { broadcastMessageRef.current = broadcastMessage; }, [broadcastMessage]);
+  useEffect(() => { getCorrectedNowRef.current = getCorrectedNow; }, [getCorrectedNow]);
 
-    networkLogger.debug('⏰ [DEBUG] Timer useEffect triggered', {
-      gamePhase: gameState?.game_phase,
-      hasAutoPassTimer: !!timerState,
-      timerActive: timerState?.active,
-      timerStartedAt: timerState?.started_at,
-      currentTimerId: currentTimerId.current,
-      hasActiveInterval: !!activeTimerInterval.current,
-      roomId: room?.id,
-    });
+  // ── Stable self-pass function (reads everything from refs) ──────────────
+  const tryAutoPassSelf = useCallback(async () => {
+    const currentRoom = roomRef.current;
+    const userId = currentUserIdRef.current;
+    if (!currentRoom || !userId) return;
 
-    // ── Cleanup helper ────────────────────────────────────────────────────────
-    const cleanup = () => {
-      if (activeTimerInterval.current) {
-        networkLogger.debug('⏰ [DEBUG] Clearing timer interval');
-        clearInterval(activeTimerInterval.current);
-        activeTimerInterval.current = null;
-        currentTimerId.current = null;
+    const now = Date.now();
+    const lockTimeout = 10_000;
+    const currentLock = autoPassExecutionGuard.current;
+
+    // Skip if already executing (non-stale lock)
+    if (currentLock && now - currentLock < lockTimeout) return;
+    if (currentLock) {
+      networkLogger.warn('⏰ [Timer] Stale self-pass lock detected, overriding');
+    }
+
+    autoPassExecutionGuard.current = now;
+    setIsAutoPassInProgressState(true);
+
+    try {
+      // Fetch fresh game state from DB (not from ref — ref might lag Realtime)
+      const { data: gs, error: stateErr } = await supabase
+        .from('game_state')
+        .select('current_turn, passes, last_play, auto_pass_timer, game_phase')
+        .eq('room_id', currentRoom.id)
+        .single();
+
+      if (stateErr || !gs) {
+        networkLogger.error('⏰ [Timer] Self-pass: failed to fetch game state:', stateErr);
+        return;
       }
-    };
 
-    // Skip if game has finished
-    if (gameState?.game_phase === 'finished') {
-      cleanup();
-      return;
+      // Early exits
+      if (gs.game_phase === 'finished' || gs.game_phase === 'game_over') return;
+      if (!gs.auto_pass_timer || !(gs.auto_pass_timer as { active?: boolean }).active) return;
+      if (!gs.last_play && (!gs.passes || gs.passes === 0)) return;
+      if ((gs.passes || 0) >= 3) return;
+
+      // Find local player
+      const players = roomPlayersRef.current;
+      const myPlayer = players.find(p => p.user_id === userId);
+      if (!myPlayer) return;
+
+      // Exempt check
+      const timerData = gs.auto_pass_timer as {
+        triggering_play?: { position?: number };
+        player_index?: number;
+      } | null;
+      const exemptIdx = timerData?.triggering_play?.position ?? timerData?.player_index;
+      if (myPlayer.player_index === exemptIdx) return;
+
+      // Turn check
+      if (gs.current_turn !== myPlayer.player_index) return;
+
+      // It's our turn → auto-pass (server will cascade remaining passes)
+      networkLogger.info(
+        `⏰ [Timer] Auto-passing self (player ${myPlayer.player_index}, ${myPlayer.username})`,
+      );
+
+      const { data: passResult, error: passError } = await invokeWithRetry<PlayerPassResponse>(
+        'player-pass',
+        { body: { room_code: currentRoom.code, player_id: myPlayer.user_id } },
+      );
+
+      if (passError || !passResult?.success) {
+        const errMsg = passResult?.error || passError?.message || 'Unknown';
+        networkLogger.error(`⏰ [Timer] ❌ Self-pass failed: ${errMsg}`);
+        return;
+      }
+
+      networkLogger.info(
+        `⏰ [Timer] ✅ Self-pass successful. next_turn=${passResult.next_turn}, ` +
+        `passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`,
+      );
+
+      // Broadcast (non-blocking, best-effort)
+      void broadcastMessageRef.current('auto_pass_executed', { player_index: myPlayer.player_index })
+        .catch(() => {});
+    } catch (fatalError) {
+      networkLogger.error('⏰ [Timer] ❌ Self-pass fatal error:', fatalError);
+    } finally {
+      autoPassExecutionGuard.current = null;
+      setIsAutoPassInProgressState(false);
     }
+  }, []); // Empty deps: reads everything from refs
 
-    // Skip if no timer or timer is inactive
-    if (!timerState || !timerState.active) {
-      cleanup();
-      return;
-    }
+  // ── Stable polling interval — created ONCE per room ─────────────────────
+  // Instead of recreating the interval every time a dep changes (which resets
+  // expiry detection and causes stale getCorrectedNow captures), we create
+  // ONE long-lived interval that reads ALL state from refs.  This avoids the
+  // bugs where interval recreation caused the timer to "restart at 10s" or
+  // fire EXPIRED incorrectly.
+  useEffect(() => {
+    if (!room?.id) return;
 
-    // Prevent duplicate intervals for the same timer (keyed by sequence_id)
-    const newTimerId = (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id || timerState.started_at;
-    if (currentTimerId.current === newTimerId && activeTimerInterval.current) {
-      networkLogger.debug('⏰ [DEBUG] Timer already running for sequence_id', newTimerId);
-      return;
-    }
+    networkLogger.debug('⏰ [DEBUG] Creating stable timer polling interval for room', room.id);
 
-    // Clear old interval if switching to a new timer
-    cleanup();
-    currentTimerId.current = newTimerId;
+    const interval = setInterval(() => {
+      const gs = gameStateRef.current;
+      const timerState = gs?.auto_pass_timer;
 
-    networkLogger.debug('⏰ [DEBUG] Starting NEW timer polling interval', {
-      sequence_id: (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id,
-      started_at: timerState.started_at,
-      end_timestamp: (timerState as AutoPassTimerState & { end_timestamp?: number }).end_timestamp,
-      duration_ms: timerState.duration_ms,
-      player_id: timerState.player_id,
-    });
-
-    // ── 100 ms polling interval ───────────────────────────────────────────────
-    activeTimerInterval.current = setInterval(() => {
-      const currentTimerState = gameStateRef.current?.auto_pass_timer;
-
-      // Timer deactivated → stop
-      if (!currentTimerState || !currentTimerState.active) {
-        if (activeTimerInterval.current) {
-          networkLogger.debug('⏰ [Timer] Timer deactivated, stopping interval');
-          clearInterval(activeTimerInterval.current);
-          activeTimerInterval.current = null;
-          currentTimerId.current = null;
+      // No active timer → nothing to do
+      if (!timerState || !timerState.active) {
+        // If we were tracking a timer, reset tracking state
+        if (activeTimerSequenceRef.current) {
+          networkLogger.debug('⏰ [Timer] Timer deactivated, resetting tracking');
+          activeTimerSequenceRef.current = null;
+          hasExpiredRef.current = false;
+          lastSelfPassAttemptRef.current = 0;
         }
         return;
       }
 
-      // Calculate remaining milliseconds
-      let remaining: number;
-      const endTimestamp = (currentTimerState as AutoPassTimerState & { end_timestamp?: number }).end_timestamp;
+      // Game finished → skip
+      if (gs?.game_phase === 'finished' || gs?.game_phase === 'game_over') return;
 
-      if (typeof endTimestamp === 'number') {
-        const correctedNow = getCorrectedNow();
-        remaining = Math.max(0, endTimestamp - correctedNow);
-        networkLogger.debug(`⏰ [Timer] Server-auth check: ${remaining}ms remaining (corrected time)`);
-      } else {
-        const startedAt = new Date(currentTimerState.started_at).getTime();
-        const correctedNow = getCorrectedNow();
-        const elapsed = correctedNow - startedAt;
-        remaining = Math.max(0, currentTimerState.duration_ms - elapsed);
-        networkLogger.debug(`⏰ [Timer] Fallback check: ${remaining}ms remaining`);
+      // Detect new timer (different sequence_id → reset expiry tracking)
+      const seqId = (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id || timerState.started_at;
+      if (activeTimerSequenceRef.current !== seqId) {
+        activeTimerSequenceRef.current = seqId;
+        hasExpiredRef.current = false;
+        lastSelfPassAttemptRef.current = 0;
+        networkLogger.debug('⏰ [Timer] Tracking new timer sequence:', seqId);
       }
 
-      // ── Timer expired → execute auto-passes ──────────────────────────────
+      // Calculate remaining milliseconds using clock-sync corrected time
+      let remaining: number;
+      const endTimestamp = (timerState as AutoPassTimerState & { end_timestamp?: number }).end_timestamp;
+
+      if (typeof endTimestamp === 'number') {
+        const correctedNow = getCorrectedNowRef.current();
+        remaining = Math.max(0, endTimestamp - correctedNow);
+        // Log once per whole-second transition
+        if (remaining > 0 && Math.floor(remaining / 1000) !== Math.floor((remaining + 100) / 1000)) {
+          networkLogger.debug(`⏰ [Timer] ${Math.ceil(remaining / 1000)}s remaining`);
+        }
+      } else {
+        const startedAt = new Date(timerState.started_at).getTime();
+        const correctedNow = getCorrectedNowRef.current();
+        const elapsed = correctedNow - startedAt;
+        remaining = Math.max(0, timerState.duration_ms - elapsed);
+      }
+
+      // Timer expired → trigger one self-pass (server cascades the rest)
       if (remaining <= 0) {
-        if (activeTimerInterval.current) {
-          clearInterval(activeTimerInterval.current);
-          activeTimerInterval.current = null;
-          currentTimerId.current = null;
+        const now = Date.now();
+        if (now - lastSelfPassAttemptRef.current < 500) return; // throttle
+        lastSelfPassAttemptRef.current = now;
+
+        if (!hasExpiredRef.current) {
+          hasExpiredRef.current = true;
+          networkLogger.info('⏰ [Timer] EXPIRED — triggering self-pass (server will cascade)');
         }
 
-        const exemptPlayerId = currentTimerState.player_id;
-        networkLogger.info(`⏰ [Timer] EXPIRED! Auto-passing all players except player_id: ${exemptPlayerId}`);
-
-        void executeAutoPasses(
-          room,
-          roomPlayers,
-          broadcastMessage,
-          autoPassExecutionGuard,
-          setIsAutoPassInProgressState,
-        );
+        void tryAutoPassSelf();
       }
     }, 100);
 
-    // Cleanup on unmount / deps change
     return () => {
-      if (activeTimerInterval.current) {
-        networkLogger.debug('⏰ [DEBUG] Cleaning up timer polling interval on unmount');
-        clearInterval(activeTimerInterval.current);
-        activeTimerInterval.current = null;
-        currentTimerId.current = null;
-      }
+      networkLogger.debug('⏰ [DEBUG] Cleaning up stable timer polling interval');
+      clearInterval(interval);
+      activeTimerSequenceRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState?.auto_pass_timer, getCorrectedNow, and room?.code intentionally excluded: these are read inside the interval callback via ref-based patterns; including them would destroy/recreate the interval on every game state broadcast
-  }, [
-    gameState?.auto_pass_timer?.active,
-    gameState?.auto_pass_timer?.started_at,
-    gameState?.game_phase,
-    room?.id,
-    roomPlayers,
-    broadcastMessage,
-  ]);
+  }, [room?.id, tryAutoPassSelf]); // Only recreate when room changes
 
   return { isAutoPassInProgress: isAutoPassInProgressState };
-}
-
-// ───────────────────────────────────────────────────────────────────────────────
-// Private helper — extracted from the inline IIFE for readability
-// ───────────────────────────────────────────────────────────────────────────────
-
-async function executeAutoPasses(
-  room: { id: string; code: string } | null,
-  roomPlayers: Player[],
-  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>,
-  autoPassExecutionGuard: React.MutableRefObject<number | null>,
-  setIsAutoPassInProgress: (value: boolean) => void,
-): Promise<void> {
-  const now = Date.now();
-  const lockTimeout = 30000; // 30 s max lock duration
-  const currentLock = autoPassExecutionGuard.current;
-
-  // Check if lock is held and not stale
-  if (currentLock && now - currentLock < lockTimeout) {
-    networkLogger.warn(`⏰ [Timer] ⚠️ Auto-pass already in progress (lock age: ${now - currentLock}ms), skipping`);
-    return;
-  }
-
-  if (currentLock && now - currentLock >= lockTimeout) {
-    networkLogger.warn(
-      `⏰ [Timer] ⚠️ Stale lock detected (age: ${now - currentLock}ms > ${lockTimeout}ms), overriding. ` +
-      `Previous execution may have taken longer than expected or crashed.`,
-    );
-  }
-
-  // Acquire lock
-  autoPassExecutionGuard.current = now;
-  setIsAutoPassInProgress(true);
-
-  try {
-    // STEP 1: Query FRESH game state
-    const { data: currentGameState, error: stateError } = await supabase
-      .from('game_state')
-      .select('current_turn, passes, last_play, auto_pass_timer, game_phase')
-      .eq('room_id', room?.id)
-      .single();
-
-    if (stateError || !currentGameState) {
-      networkLogger.error('⏰ [Timer] Failed to fetch game state:', stateError);
-      return;
-    }
-
-    // Game already ended — don't auto-pass
-    if (currentGameState.game_phase === 'finished' || currentGameState.game_phase === 'game_over') {
-      networkLogger.info('⏰ [Timer] ✅ Game already ended (phase=' + currentGameState.game_phase + '), no auto-pass needed');
-      return;
-    }
-
-    // Trick already completed
-    if (currentGameState.last_play === null && currentGameState.passes === 0) {
-      networkLogger.info('⏰ [Timer] ✅ Trick already completed, no auto-pass needed');
-      return;
-    }
-
-    // Timer no longer active
-    if (!currentGameState.auto_pass_timer || !currentGameState.auto_pass_timer.active) {
-      networkLogger.info('⏰ [Timer] Timer manually cleared, no auto-pass needed');
-      return;
-    }
-
-    const currentPassCount = currentGameState.passes || 0;
-    const remainingPasses = 3 - currentPassCount;
-    if (remainingPasses <= 0) {
-      networkLogger.info(`⏰ [Timer] No passes needed (already ${currentPassCount}/3)`);
-      return;
-    }
-
-    // Determine exempt player
-    const timerData = currentGameState.auto_pass_timer as {
-      triggering_play?: { position?: number };
-      player_index?: number;
-    } | null;
-    const exemptPlayerIndex = timerData?.triggering_play?.position ?? timerData?.player_index;
-    if (typeof exemptPlayerIndex !== 'number') {
-      networkLogger.error('⏰ [Timer] No exempt player index found in timer state:', JSON.stringify(timerData));
-      return;
-    }
-
-    const totalPlayers = roomPlayers.length;
-    networkLogger.info(`⏰ [Timer] Current state: turn=${currentGameState.current_turn}, passes=${currentPassCount}, exempt=${exemptPlayerIndex}`);
-    networkLogger.info(`⏰ [Timer] Will auto-pass up to ${totalPlayers - 1} players (all except exempt player ${exemptPlayerIndex})`);
-
-    // STEP 2: Sequential passes
-    let passedCount = 0;
-    const maxPasses = totalPlayers - 1;
-    const startingTurnIndex = currentGameState.current_turn;
-    if (typeof startingTurnIndex !== 'number') {
-      networkLogger.error('⏰ [Timer] ❌ No current_turn in initial state');
-      return;
-    }
-
-    let turnOffset = 0;
-
-    for (let attempt = 0; attempt < maxPasses && turnOffset < maxPasses; attempt++) {
-      const currentTurnIndex = (startingTurnIndex + turnOffset) % totalPlayers;
-
-      if (currentTurnIndex === exemptPlayerIndex) {
-        networkLogger.info(`⏰ [Timer] Current turn is exempt player ${exemptPlayerIndex}, round complete`);
-        break;
-      }
-
-      const playerToPass = roomPlayers.find(p => p.player_index === currentTurnIndex);
-      if (!playerToPass) {
-        networkLogger.error(`⏰ [Timer] ❌ No player found at index ${currentTurnIndex}`);
-        continue;
-      }
-
-      // Bot players have user_id = NULL (set by process_disconnected_players) so they
-      // cannot be auto-passed via the client JWT.  Delegate ALL bot passes to
-      // bot-coordinator which runs server-side with service-role auth and will force-pass
-      // every non-exempt bot (it will also respect the auto_pass_timer.active flag and
-      // skip the One Card Left Rule via the updated player-pass logic).
-      if (playerToPass.is_bot) {
-        networkLogger.info(
-          `⏰ [Timer] Bot at turn ${currentTurnIndex} (${playerToPass.username}) — delegating remaining passes to bot-coordinator`,
-        );
-        void supabase.functions
-          .invoke('bot-coordinator', { body: { room_code: room?.code } })
-          .catch(e => networkLogger.error('[Timer] bot-coordinator delegation failed:', e));
-        break; // bot-coordinator handles all remaining auto-passes server-side
-      }
-
-      try {
-        networkLogger.info(`⏰ [Timer] Auto-passing player ${currentTurnIndex} (${playerToPass.username})... (${passedCount + 1}/${maxPasses})`);
-
-        const { data: passResult, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
-          body: {
-            room_code: room?.code,
-            player_id: playerToPass.user_id,
-          },
-        });
-
-        if (passError || !passResult?.success) {
-          const errorMsg = passResult?.error || passError?.message || 'Unknown error';
-          throw new Error(errorMsg);
-        }
-
-        passedCount++;
-        turnOffset++;
-        networkLogger.info(`⏰ [Timer] ✅ Successfully auto-passed player ${currentTurnIndex} (${passedCount}/${maxPasses})`);
-        networkLogger.info(`⏰ [Timer] Server response: next_turn=${passResult.next_turn}, passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`);
-
-        // Broadcast (non-blocking)
-        void broadcastMessage('auto_pass_executed', { player_index: currentTurnIndex }).catch(broadcastError => {
-          networkLogger.error('[Timer] Broadcast failed:', broadcastError);
-        });
-
-        if (passResult.trick_cleared) {
-          networkLogger.info('⏰ [Timer] 🎯 Trick cleared after 3 passes, stopping auto-pass');
-          break;
-        }
-
-        const AUTO_PASS_DELAY_MS = 300;
-        const hasRemainingAttempts = attempt + 1 < maxPasses && passedCount < maxPasses;
-        if (hasRemainingAttempts) {
-          await new Promise(resolve => setTimeout(resolve, AUTO_PASS_DELAY_MS));
-        }
-      } catch (error) {
-        const errorMsg = (error as Error).message || String(error);
-
-        if (errorMsg.includes('Not your turn')) {
-          networkLogger.warn(`⏰ [Timer] ⚠️ Player ${currentTurnIndex} - server says not their turn, querying fresh state...`);
-
-          try {
-            const { data: freshState } = await supabase
-              .from('game_state')
-              .select('current_turn, auto_pass_timer')
-              .eq('room_id', room?.id)
-              .single();
-
-            if (freshState) {
-              const expectedTurn = (startingTurnIndex + attempt) % totalPlayers;
-              const actualTurn = freshState.current_turn;
-              if (expectedTurn !== actualTurn) {
-                turnOffset = (actualTurn - startingTurnIndex + totalPlayers) % totalPlayers - attempt;
-                networkLogger.info(`⏰ [Timer] Synced with server: actualTurn=${actualTurn}, adjusted turnOffset=${turnOffset}`);
-              }
-
-              if (!freshState.auto_pass_timer?.active) {
-                networkLogger.info('⏰ [Timer] Timer no longer active on server, stopping execution');
-                break;
-              }
-            }
-          } catch (queryError) {
-            networkLogger.warn('⏰ [Timer] Failed to query fresh state, aborting auto-pass to avoid desync', queryError);
-            break;
-          }
-          continue;
-        }
-
-        networkLogger.error(`⏰ [Timer] ❌ Unexpected error during auto-pass for player ${currentTurnIndex}:`, errorMsg);
-        break;
-      }
-    }
-
-    networkLogger.info(`⏰ [Timer] Auto-pass execution complete: ${passedCount}/${maxPasses} players passed`);
-
-    // Wait for Realtime sync
-    networkLogger.info('⏰ [Timer] Waiting 250ms for final Realtime sync...');
-    await new Promise(resolve => setTimeout(resolve, 250));
-
-    // Clear timer from DB
-    if (passedCount > 0) {
-      networkLogger.info('⏰ [Timer] Clearing timer state from database...');
-      try {
-        await supabase.from('game_state').update({ auto_pass_timer: null }).eq('room_id', room?.id);
-        networkLogger.info('⏰ [Timer] ✅ Timer cleared from database');
-      } catch (clearError) {
-        networkLogger.error('[Timer] Failed to clear timer:', clearError);
-      }
-    } else {
-      networkLogger.info('⏰ [Timer] No passes executed, timer likely already cleared');
-    }
-  } catch (fatalError) {
-    networkLogger.error('⏰ [Timer] ❌ Fatal error in auto-pass execution:', fatalError);
-  } finally {
-    autoPassExecutionGuard.current = null;
-    setIsAutoPassInProgress(false);
-  }
 }

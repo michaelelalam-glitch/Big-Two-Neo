@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import InactivityCountdownRing from './InactivityCountdownRing';
 
 interface PlayerInfoProps {
   name: string;
@@ -11,6 +12,12 @@ interface PlayerInfoProps {
   totalScore?: number; // Cumulative total score (Task #590)
   /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
+  /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
+  disconnectTimerStartedAt?: string | null;
+  /** UTC timestamp when the 60s turn countdown started (null = no countdown) */
+  turnTimerStartedAt?: string | null;
+  /** Called when the countdown ring expires (timer reaches 0) */
+  onCountdownExpired?: () => void;
 }
 
 export default function PlayerInfo({
@@ -19,8 +26,30 @@ export default function PlayerInfo({
   isActive,
   totalScore,
   isDisconnected = false,
+  disconnectTimerStartedAt,
+  turnTimerStartedAt,
+  onCountdownExpired,
 }: PlayerInfoProps) {
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}`;
+  const hasConnectionTimer = !!disconnectTimerStartedAt;
+  const hasTurnTimer = !!turnTimerStartedAt;
+  const showRing = hasConnectionTimer || hasTurnTimer;
+  // Connection ring (orange) ALWAYS takes priority over turn ring (yellow).
+  // When a player disconnects during their turn, the orange ring replaces the
+  // yellow ring and picks up where it left off (no flash).
+  const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
+  // Seamless pickup: use the earliest of the two timestamps so the ring
+  // continues from its current position rather than jumping back to full.
+  // e.g. player was 20s into their turn (yellow at 66%) then disconnected →
+  // orange ring uses turnTimerStartedAt (T−20s) and shows at 66% too.
+  const ringStartedAt: string = (() => {
+    if (hasConnectionTimer && hasTurnTimer) {
+      // Use the earlier timestamp so orange picks up where yellow left off
+      return disconnectTimerStartedAt! < turnTimerStartedAt! ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+    }
+    return ringType === 'connection' ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+  })();
+  
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}`;
   
   return (
     <View 
@@ -29,11 +58,20 @@ export default function PlayerInfo({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
+      <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
         <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
+        {/* Dual-mode countdown ring (yellow = turn, orange = disconnect) */}
+        {showRing && (
+          <InactivityCountdownRing 
+            key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→orange transition
+            type={ringType}
+            startedAt={ringStartedAt}
+            onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+          />
+        )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
           <View style={styles.disconnectOverlay} pointerEvents="none">

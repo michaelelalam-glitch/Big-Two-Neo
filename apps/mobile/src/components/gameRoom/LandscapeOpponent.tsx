@@ -20,6 +20,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import InactivityCountdownRing from '../game/InactivityCountdownRing';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -40,6 +41,12 @@ interface LandscapeOpponentProps {
   totalScore?: number;
   /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
+  /** UTC timestamp when 60s bot-replacement countdown started (null = no countdown) */
+  disconnectTimerStartedAt?: string | null;
+  /** UTC timestamp when 60s turn countdown started (null = no countdown) */
+  turnTimerStartedAt?: string | null;
+  /** Called when countdown ring expires */
+  onCountdownExpired?: () => void;
 }
 
 // ============================================================================
@@ -54,14 +61,29 @@ export function LandscapeOpponent({
   layout = 'vertical',
   totalScore,
   isDisconnected = false,
+  disconnectTimerStartedAt,
+  turnTimerStartedAt,
+  onCountdownExpired,
 }: LandscapeOpponentProps) {
+  const hasConnectionTimer = !!disconnectTimerStartedAt;
+  const hasTurnTimer = !!turnTimerStartedAt;
+  const showRing = hasConnectionTimer || hasTurnTimer;
+  // Connection ring (orange) ALWAYS takes priority over turn ring (yellow)
+  const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
+  const ringStartedAt: string | undefined = (() => {
+    if (hasConnectionTimer && hasTurnTimer) {
+      return disconnectTimerStartedAt! < turnTimerStartedAt! ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+    }
+    return ringType === 'connection' ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+  })();
+
   
   return (
     <View style={[styles.container, layout === 'horizontal' && styles.containerHorizontal]} testID="landscape-opponent">
       {/* Avatar Circle */}
       <View style={[
         styles.avatarContainer,
-        isActive && styles.avatarContainerActive,
+        isActive && !showRing && styles.avatarContainerActive,
       ]}>
         <View style={[styles.avatarInner, isDisconnected && styles.avatarInnerDisconnected]}>
           {photoUrl ? (
@@ -71,6 +93,15 @@ export function LandscapeOpponent({
             <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
           )}
         </View>
+        {/* Countdown ring (yellow = turn, orange = disconnect) */}
+        {showRing && ringStartedAt && (
+          <InactivityCountdownRing
+            key={ringStartedAt}
+            type={ringType}
+            startedAt={ringStartedAt}
+            onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+          />
+        )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
           <View style={styles.disconnectOverlay} pointerEvents="none">

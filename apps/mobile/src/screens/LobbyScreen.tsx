@@ -134,7 +134,8 @@ export default function LobbyScreen() {
         setRoomId(currentRoomId);
       }
       
-      roomLogger.info('[LobbyScreen] Loading players for room:', currentRoomId, 'user:', user?.id);
+      // REMOVED: Console spam - subscription triggers this on every room_players change
+      // roomLogger.info('[LobbyScreen] Loading players for room:', currentRoomId, 'user:', user?.id);
       
       // Use the username column to avoid N+1 query problem
       const { data, error } = await supabase
@@ -253,7 +254,8 @@ export default function LobbyScreen() {
           table: 'room_players',
         },
         () => {
-          roomLogger.info('[LobbyScreen] room_players changed, reloading players...');
+          // REMOVED: Console spam - fires on every player join/ready/state change
+          // roomLogger.info('[LobbyScreen] room_players changed, reloading players...');
           loadPlayers();
         }
       )

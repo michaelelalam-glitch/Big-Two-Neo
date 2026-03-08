@@ -26,6 +26,8 @@ export default function HomeScreen() {
   // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
   // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
   const currentRoomRef = useRef<string | null>(null);
+  /** Guard: at most one scheduled 2s re-check can be pending at a time. */
+  const hasScheduledRecheckRef = useRef(false);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -99,7 +101,12 @@ export default function HomeScreen() {
 
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
-                // Server has a timer running — back-compute the disconnect timestamp
+                // ALWAYS anchor to the CLIENT clock using the server-computed seconds_left.
+                // Using disconnect_timer_started_at (a server timestamp) directly with
+                // client Date.now() causes clock-skew: if the server is ahead by N seconds,
+                // elapsed is negative and the countdown shows 60+N seconds (e.g. 80s).
+                // seconds_left is computed server-side (no client clock involved) so it
+                // gives the exact same remaining time as the in-game orange ring.
                 const secondsLeft = statusData.seconds_left ?? 60;
                 const elapsed = 60 - secondsLeft;
                 setDisconnectTimestamp(Date.now() - (elapsed * 1000));
@@ -115,11 +122,24 @@ export default function HomeScreen() {
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
-                // 'connected' — no server-side disconnect timer running; rely on heartbeat.
-                // Do NOT start a client-side countdown here: the server timer is the
-                // source of truth, and starting one early can show "bot replaced you"
-                // before the server has even begun the 60-second window.
+                // 'connected' — no server-side disconnect timer running YET.
+                // The player may have JUST navigated away from the game screen
+                // and the mark-disconnected request is still in-flight. Schedule
+                // a single re-check after 2 s to pick up the timer once the server
+                // has processed it.  This avoids showing a banner with no countdown
+                // (just Rejoin / Leave) for the brief race window.
                 setDisconnectTimestamp(null);
+                if (!hasScheduledRecheckRef.current) {
+                  hasScheduledRecheckRef.current = true;
+                  setTimeout(() => {
+                    hasScheduledRecheckRef.current = false;
+                    // Only re-check if we still have a current room — the user
+                    // may have pressed Leave in the meantime.
+                    if (currentRoomRef.current) {
+                      checkCurrentRoom();
+                    }
+                  }, 2000);
+                }
               }
             }
             // statusData missing / success=false — do not start a phantom countdown;
@@ -575,9 +595,31 @@ export default function HomeScreen() {
     try {
       // Clean up any zombie entries first (same as casual)
       roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
-      await supabase.from('room_players').delete().eq('user_id', user.id);
+      const { error: cleanupError } = await supabase
+        .from('room_players')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (cleanupError) {
+        roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        // Don't throw — fall through to verification below
+      }
+
+      // Wait for cleanup to propagate through Postgres
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      // Verify cleanup actually succeeded — same guard as casual path
+      const { data: stillInRoom } = await supabase
+        .from('room_players')
+        .select('room_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (stillInRoom) {
+        roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+        throw new Error('Failed to leave previous room. Please try again.');
+      }
+
       // STEP 1: Try to find existing RANKED room with space (same as casual)
       roomLogger.info('📡 Searching for joinable ranked rooms...');
       const { data: availableRooms, error: searchError } = await supabase
