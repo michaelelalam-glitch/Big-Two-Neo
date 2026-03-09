@@ -59,13 +59,43 @@ interface PlayerStats {
   private_games_won: number;
   private_games_lost: number;
   private_win_rate: number;
-  // Game completion
+  // Global game completion
   games_completed: number;
   games_abandoned: number;
+  games_voided: number;
   completion_rate: number;
   current_completion_streak: number;
   longest_completion_streak: number;
-  // Combo stats
+  // Per-mode completion (from migration 20260309000004)
+  casual_games_completed: number;
+  casual_games_abandoned: number;
+  casual_games_voided: number;
+  ranked_games_completed: number;
+  ranked_games_abandoned: number;
+  ranked_games_voided: number;
+  private_games_completed: number;
+  private_games_abandoned: number;
+  private_games_voided: number;
+  // Per-mode performance stats
+  casual_total_points: number;
+  casual_highest_score: number;
+  casual_lowest_score: number | null;
+  casual_avg_score_per_game: number;
+  casual_avg_finish_position: number;
+  casual_avg_cards_left: number;
+  ranked_total_points: number;
+  ranked_highest_score: number;
+  ranked_lowest_score: number | null;
+  ranked_avg_score_per_game: number;
+  ranked_avg_finish_position: number;
+  ranked_avg_cards_left: number;
+  private_total_points: number;
+  private_highest_score: number;
+  private_lowest_score: number | null;
+  private_avg_score_per_game: number;
+  private_avg_finish_position: number;
+  private_avg_cards_left: number;
+  // Global combo stats (overall)
   singles_played: number;
   pairs_played: number;
   triples_played: number;
@@ -75,6 +105,34 @@ interface PlayerStats {
   four_of_a_kinds_played: number;
   straight_flushes_played: number;
   royal_flushes_played: number;
+  // Per-mode combo stats
+  casual_singles_played: number;
+  casual_pairs_played: number;
+  casual_triples_played: number;
+  casual_straights_played: number;
+  casual_flushes_played: number;
+  casual_full_houses_played: number;
+  casual_four_of_a_kinds_played: number;
+  casual_straight_flushes_played: number;
+  casual_royal_flushes_played: number;
+  ranked_singles_played: number;
+  ranked_pairs_played: number;
+  ranked_triples_played: number;
+  ranked_straights_played: number;
+  ranked_flushes_played: number;
+  ranked_full_houses_played: number;
+  ranked_four_of_a_kinds_played: number;
+  ranked_straight_flushes_played: number;
+  ranked_royal_flushes_played: number;
+  private_singles_played: number;
+  private_pairs_played: number;
+  private_triples_played: number;
+  private_straights_played: number;
+  private_flushes_played: number;
+  private_full_houses_played: number;
+  private_four_of_a_kinds_played: number;
+  private_straight_flushes_played: number;
+  private_royal_flushes_played: number;
   first_game_at: string | null;
   last_game_at: string | null;
 }
@@ -234,7 +292,9 @@ export default function StatsScreen() {
     return deduplicatedGameHistory.filter((g) => g.game_type === activeTab);
   }, [deduplicatedGameHistory, activeTab]);
 
-  // Per-mode games played / completed for completion section
+  // Per-mode games played / completed / abandoned / voided for completion section
+  // Use DB-stored per-mode columns (from migration 20260309000004) for accuracy —
+  // they are not capped at 100 like the local game_history fetch.
   const modeGamesPlayed = React.useMemo(() => {
     if (!stats || activeTab === 'overview') return 0;
     if (activeTab === 'casual') return stats.casual_games_played || 0;
@@ -243,17 +303,140 @@ export default function StatsScreen() {
   }, [stats, activeTab]);
 
   const modeGamesCompleted = React.useMemo(() => {
-    // NOTE: game history is capped at the last 100 entries fetched (per .limit(100)).
-    // For heavy users with >100 games per mode this count may undercount vs the true total.
-    //
-    // IMPORTANT: We deliberately use `=== true` (strict equality) instead of `!== false`.
-    // Legacy game_history rows created before the game_completed column was added will have
-    // game_completed = NULL (the column has no DEFAULT for pre-migration rows). A null value
-    // satisfies `!= false` but NOT `=== true`, so the strict check correctly excludes
-    // unknown-completion rows rather than over-counting them as completed.
-    if (activeTab === 'overview') return stats?.games_completed || 0;
-    return filteredGameHistory.filter((g) => g.game_completed === true).length;
-  }, [filteredGameHistory, activeTab, stats]);
+    if (!stats) return 0;
+    if (activeTab === 'overview') return stats.games_completed || 0;
+    if (activeTab === 'casual') return stats.casual_games_completed || 0;
+    if (activeTab === 'ranked') return stats.ranked_games_completed || 0;
+    return stats.private_games_completed || 0;
+  }, [stats, activeTab]);
+
+  const modeGamesAbandoned = React.useMemo(() => {
+    if (!stats) return 0;
+    if (activeTab === 'overview') return stats.games_abandoned || 0;
+    if (activeTab === 'casual') return stats.casual_games_abandoned || 0;
+    if (activeTab === 'ranked') return stats.ranked_games_abandoned || 0;
+    return stats.private_games_abandoned || 0;
+  }, [stats, activeTab]);
+
+  const modeGamesVoided = React.useMemo(() => {
+    if (!stats) return 0;
+    if (activeTab === 'overview') return stats.games_voided || 0;
+    if (activeTab === 'casual') return stats.casual_games_voided || 0;
+    if (activeTab === 'ranked') return stats.ranked_games_voided || 0;
+    return stats.private_games_voided || 0;
+  }, [stats, activeTab]);
+
+  // Per-tab completion % clamped to 0-100
+  const modeCompletionRate = React.useMemo(() => {
+    if (!stats) return 0;
+    if (activeTab === 'overview') {
+      // Use DB-stored completion_rate (already clamped in migration)
+      return Math.min(100, Math.max(0, stats.completion_rate || 0));
+    }
+    const played = modeGamesPlayed;
+    if (played === 0) return 0;
+    return Math.min(100, Math.max(0, Math.round((modeGamesCompleted / played) * 100)));
+  }, [activeTab, stats, modeGamesPlayed, modeGamesCompleted]);
+
+  // ─── Per-tab performance stats (use mode-specific DB columns) ─────────────
+  const perfStats = React.useMemo(() => {
+    if (!stats) return null;
+    if (activeTab === 'overview') {
+      return {
+        avgPosition: stats.avg_finish_position,
+        totalPoints: stats.total_points,
+        highestScore: stats.highest_score,
+        lowestScore: stats.lowest_score,
+        avgScore: stats.avg_score_per_game,
+        avgCardsLeft: stats.avg_cards_left_in_hand,
+      };
+    }
+    if (activeTab === 'casual') {
+      return {
+        avgPosition: stats.casual_avg_finish_position || 0,
+        totalPoints: stats.casual_total_points || 0,
+        highestScore: stats.casual_highest_score || 0,
+        lowestScore: stats.casual_lowest_score ?? null,
+        avgScore: stats.casual_avg_score_per_game || 0,
+        avgCardsLeft: stats.casual_avg_cards_left || 0,
+      };
+    }
+    if (activeTab === 'ranked') {
+      return {
+        avgPosition: stats.ranked_avg_finish_position || 0,
+        totalPoints: stats.ranked_total_points || 0,
+        highestScore: stats.ranked_highest_score || 0,
+        lowestScore: stats.ranked_lowest_score ?? null,
+        avgScore: stats.ranked_avg_score_per_game || 0,
+        avgCardsLeft: stats.ranked_avg_cards_left || 0,
+      };
+    }
+    // private
+    return {
+      avgPosition: stats.private_avg_finish_position || 0,
+      totalPoints: stats.private_total_points || 0,
+      highestScore: stats.private_highest_score || 0,
+      lowestScore: stats.private_lowest_score ?? null,
+      avgScore: stats.private_avg_score_per_game || 0,
+      avgCardsLeft: stats.private_avg_cards_left || 0,
+    };
+  }, [stats, activeTab]);
+
+  // ─── Per-tab combo stats (use mode-specific DB columns) ───────────────────
+  const comboStats = React.useMemo(() => {
+    if (!stats) return null;
+    if (activeTab === 'overview') {
+      return {
+        singles: stats.singles_played,
+        pairs: stats.pairs_played,
+        triples: stats.triples_played,
+        straights: stats.straights_played,
+        flushes: stats.flushes_played,
+        full_houses: stats.full_houses_played,
+        four_of_a_kinds: stats.four_of_a_kinds_played,
+        straight_flushes: stats.straight_flushes_played,
+        royal_flushes: stats.royal_flushes_played,
+      };
+    }
+    if (activeTab === 'casual') {
+      return {
+        singles: stats.casual_singles_played || 0,
+        pairs: stats.casual_pairs_played || 0,
+        triples: stats.casual_triples_played || 0,
+        straights: stats.casual_straights_played || 0,
+        flushes: stats.casual_flushes_played || 0,
+        full_houses: stats.casual_full_houses_played || 0,
+        four_of_a_kinds: stats.casual_four_of_a_kinds_played || 0,
+        straight_flushes: stats.casual_straight_flushes_played || 0,
+        royal_flushes: stats.casual_royal_flushes_played || 0,
+      };
+    }
+    if (activeTab === 'ranked') {
+      return {
+        singles: stats.ranked_singles_played || 0,
+        pairs: stats.ranked_pairs_played || 0,
+        triples: stats.ranked_triples_played || 0,
+        straights: stats.ranked_straights_played || 0,
+        flushes: stats.ranked_flushes_played || 0,
+        full_houses: stats.ranked_full_houses_played || 0,
+        four_of_a_kinds: stats.ranked_four_of_a_kinds_played || 0,
+        straight_flushes: stats.ranked_straight_flushes_played || 0,
+        royal_flushes: stats.ranked_royal_flushes_played || 0,
+      };
+    }
+    // private
+    return {
+      singles: stats.private_singles_played || 0,
+      pairs: stats.private_pairs_played || 0,
+      triples: stats.private_triples_played || 0,
+      straights: stats.private_straights_played || 0,
+      flushes: stats.private_flushes_played || 0,
+      full_houses: stats.private_full_houses_played || 0,
+      four_of_a_kinds: stats.private_four_of_a_kinds_played || 0,
+      straight_flushes: stats.private_straight_flushes_played || 0,
+      royal_flushes: stats.private_royal_flushes_played || 0,
+    };
+  }, [stats, activeTab]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   const renderStatCard = (label: string, value: string | number, icon?: string) => (
@@ -422,7 +605,8 @@ export default function StatsScreen() {
             )}
           </View>
           <Text style={styles.username}>{profile.username}</Text>
-          <Text style={styles.rankPoints}>{stats.rank_points} Rank Points</Text>
+          {/* Overview shows casual ELO (canonical overview rank); ranked shows ranked ELO */}
+          <Text style={styles.rankPoints}>{stats.casual_rank_points || stats.rank_points} Rank Points</Text>
           {stats.global_rank && (
             <Text style={styles.globalRank}>#{stats.global_rank} Global</Text>
           )}
@@ -499,14 +683,15 @@ export default function StatsScreen() {
           <View style={[styles.statsGrid, { marginTop: SPACING.md }]}>
             {activeTab === 'overview' && (
               <>
-                {renderStatCard(i18n.t('profile.rankPoints'), stats.rank_points, '⭐')}
+                {/* Overview rank = casual ELO (canonical; synced in migration 20260309000004) */}
+                {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || stats.rank_points, '⭐')}
                 {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
               </>
             )}
             {activeTab === 'casual' && (
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
-                {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.casual_total_points || 0).toLocaleString(), '💎')}
               </>
             )}
             {activeTab === 'ranked' && (
@@ -517,8 +702,8 @@ export default function StatsScreen() {
             )}
             {activeTab === 'private' && (
               <>
-                {renderStatCard(i18n.t('profile.totalPoints'), (stats.total_points || 0).toLocaleString(), '💎')}
-                {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.private_total_points || 0).toLocaleString(), '💎')}
+                {renderStatCard(i18n.t('profile.avgScore'), (stats.private_avg_score_per_game || 0).toFixed(0), '📈')}
               </>
             )}
           </View>
@@ -542,45 +727,45 @@ export default function StatsScreen() {
             </View>
           </View>
 
-          {/* Total Points row — private / ranked only (Casual already shows it in the rank points card) */}
+          {/* Total Points row — private / ranked only (shows mode-specific total) */}
           {(activeTab === 'private' || activeTab === 'ranked') && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>{i18n.t('profile.totalScore')}</Text>
-              <Text style={styles.infoValue}>{(stats.total_points || 0).toLocaleString()}</Text>
+              <Text style={styles.infoValue}>
+                {activeTab === 'ranked'
+                  ? (stats.ranked_total_points || 0).toLocaleString()
+                  : (stats.private_total_points || 0).toLocaleString()}
+              </Text>
             </View>
           )}
         </View>
 
-        {/* Game Completion Section — all tabs */}
+        {/* Game Completion Section — all tabs; uses per-mode DB columns + clamped % */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{i18n.t('profile.gameCompletion')}</Text>
           <View style={styles.completionContainer}>
             <View style={styles.completionMain}>
               <View style={styles.completionCircle}>
                 <Text style={styles.completionPercentage}>
-                  {activeTab === 'overview'
-                    ? (stats.completion_rate || 0).toFixed(0)
-                    : modeGamesPlayed > 0
-                      ? ((modeGamesCompleted / modeGamesPlayed) * 100).toFixed(0)
-                      : '0'}%
+                  {modeCompletionRate.toFixed(0)}%
                 </Text>
                 <Text style={styles.completionLabel}>{i18n.t('profile.completed')}</Text>
               </View>
               <View style={styles.completionDetails}>
                 <View style={styles.completionRow}>
                   <Text style={styles.completionDetailLabel}>✅ {i18n.t('profile.completed')}</Text>
-                  <Text style={styles.completionDetailValue}>
-                    {activeTab === 'overview' ? (stats.games_completed || 0) : modeGamesCompleted}
-                  </Text>
+                  <Text style={styles.completionDetailValue}>{modeGamesCompleted}</Text>
                 </View>
                 <View style={styles.completionRow}>
                   <Text style={styles.completionDetailLabel}>🚪 {i18n.t('profile.abandoned')}</Text>
-                  <Text style={styles.completionDetailValue}>
-                    {activeTab === 'overview'
-                      ? (stats.games_abandoned || 0)
-                      : Math.max(0, modeGamesPlayed - modeGamesCompleted)}
-                  </Text>
+                  <Text style={styles.completionDetailValue}>{modeGamesAbandoned}</Text>
                 </View>
+                {modeGamesVoided > 0 && (
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>🏳️ Voided</Text>
+                    <Text style={styles.completionDetailValue}>{modeGamesVoided}</Text>
+                  </View>
+                )}
                 {activeTab === 'overview' && (
                   <>
                     <View style={styles.completionRow}>
@@ -620,34 +805,38 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* Performance — all tabs (uses overall stats; per-mode not tracked yet) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
-          <View style={styles.statsGrid}>
-            {renderStatCard(i18n.t('profile.avgPosition'), stats.avg_finish_position?.toFixed(2) || 'N/A', '📊')}
-            {renderStatCard(i18n.t('profile.totalPoints'), stats.total_points.toLocaleString(), '💎')}
-            {renderStatCard(i18n.t('profile.highestScore'), stats.highest_score, '💀')}
-            {renderStatCard(i18n.t('profile.lowestScore'), stats.lowest_score ?? 0, '⭐')}
-            {renderStatCard(i18n.t('profile.avgScore'), stats.avg_score_per_game?.toFixed(0) || 'N/A', '📈')}
-            {renderStatCard(i18n.t('profile.avgCardsLeft'), (stats.avg_cards_left_in_hand || 0).toFixed(1), '🃏')}
+        {/* Performance — per-tab using mode-specific DB columns */}
+        {perfStats && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
+            <View style={styles.statsGrid}>
+              {renderStatCard(i18n.t('profile.avgPosition'), perfStats.avgPosition?.toFixed(2) || 'N/A', '📊')}
+              {renderStatCard(i18n.t('profile.totalPoints'), (perfStats.totalPoints || 0).toLocaleString(), '💎')}
+              {renderStatCard(i18n.t('profile.highestScore'), perfStats.highestScore || 0, '💀')}
+              {renderStatCard(i18n.t('profile.lowestScore'), perfStats.lowestScore ?? 0, '⭐')}
+              {renderStatCard(i18n.t('profile.avgScore'), perfStats.avgScore?.toFixed(0) || 'N/A', '📈')}
+              {renderStatCard(i18n.t('profile.avgCardsLeft'), (perfStats.avgCardsLeft || 0).toFixed(1), '🃏')}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Combo Stats — all tabs (overall; per-mode not tracked yet) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
-          <View style={styles.comboGrid}>
-            {renderComboCard(i18n.t('profile.singles'), stats.singles_played, '🃏')}
-            {renderComboCard(i18n.t('profile.pairs'), stats.pairs_played, '🃏🃏')}
-            {renderComboCard(i18n.t('profile.triples'), stats.triples_played, '🃏🃏🃏')}
-            {renderComboCard(i18n.t('profile.straights'), stats.straights_played, '➡️')}
-            {renderComboCard(i18n.t('profile.flushes'), stats.flushes_played, '🌊')}
-            {renderComboCard(i18n.t('profile.fullHouses'), stats.full_houses_played, '🏠')}
-            {renderComboCard(i18n.t('profile.fourOfAKind'), stats.four_of_a_kinds_played, '🌟')}
-            {renderComboCard(i18n.t('profile.straightFlush'), stats.straight_flushes_played, '💫')}
-            {renderComboCard(i18n.t('profile.royalFlush'), stats.royal_flushes_played, '👑')}
+        {/* Combo Stats — per-tab using mode-specific DB columns */}
+        {comboStats && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{i18n.t('profile.combosPlayed')}</Text>
+            <View style={styles.comboGrid}>
+              {renderComboCard(i18n.t('profile.singles'), comboStats.singles, '🃏')}
+              {renderComboCard(i18n.t('profile.pairs'), comboStats.pairs, '🃏🃏')}
+              {renderComboCard(i18n.t('profile.triples'), comboStats.triples, '🃏🃏🃏')}
+              {renderComboCard(i18n.t('profile.straights'), comboStats.straights, '➡️')}
+              {renderComboCard(i18n.t('profile.flushes'), comboStats.flushes, '🌊')}
+              {renderComboCard(i18n.t('profile.fullHouses'), comboStats.full_houses, '🏠')}
+              {renderComboCard(i18n.t('profile.fourOfAKind'), comboStats.four_of_a_kinds, '🌟')}
+              {renderComboCard(i18n.t('profile.straightFlush'), comboStats.straight_flushes, '💫')}
+              {renderComboCard(i18n.t('profile.royalFlush'), comboStats.royal_flushes, '👑')}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Game History — all tabs; filtered by game_type for per-mode tabs */}
         {filteredGameHistory.length > 0 && (
