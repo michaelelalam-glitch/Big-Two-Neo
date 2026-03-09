@@ -61,7 +61,10 @@ export function useGameCleanup({
 
     const isOnlineRoom = roomCode !== 'LOCAL_AI_GAME';
 
-    const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE'];
+    // Include RESET because handleLeaveGame calls navigation.reset() to return to Home.
+    // Without RESET, mark-disconnected is never called on an explicit leave, the heartbeat
+    // stops silently, and process_disconnected_players only detects it after ~30s.
+    const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE', 'RESET'];
     const unsubscribe = navigation.addListener('beforeRemove', async (e: { data: { action: { type: string } }; preventDefault: () => void }) => {
       const actionType = e?.data?.action?.type;
       if (

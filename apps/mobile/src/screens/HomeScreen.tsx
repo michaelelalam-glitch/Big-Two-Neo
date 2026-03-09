@@ -134,11 +134,10 @@ export default function HomeScreen() {
                 setCanRejoinAfterExpiry(null);
               } else {
                 // 'connected' — no server-side disconnect timer running YET.
-                // The player may have JUST navigated away from the game screen
-                // and the mark-disconnected request is still in-flight. Schedule
-                // a single re-check after 2 s to pick up the timer once the server
-                // has processed it.  This avoids showing a banner with no countdown
-                // (just Rejoin / Leave) for the brief race window.
+                // The player navigated away just now and the mark-disconnected
+                // request is still in-flight (typically completes in < 500ms).
+                // Poll every 1 s until the server confirms 'disconnected', so the
+                // banner countdown appears within ~1s of the player leaving.
                 setDisconnectTimestamp(null);
                 if (!hasScheduledRecheckRef.current) {
                   hasScheduledRecheckRef.current = true;
@@ -150,7 +149,7 @@ export default function HomeScreen() {
                     if (currentRoomRef.current) {
                       checkCurrentRoom();
                     }
-                  }, 2000);
+                  }, 1000);
                 }
               }
             }

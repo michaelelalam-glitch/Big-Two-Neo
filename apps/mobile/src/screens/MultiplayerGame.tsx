@@ -544,6 +544,14 @@ export function MultiplayerGame() {
   const [clientDisconnections, setClientDisconnections] = useState<Map<number, string>>(new Map());
   const clientDisconnectStartRef = useRef<Record<number, string>>({});
 
+  // Stable ref so the disconnect-staleness interval callback can read the latest
+  // game state (current_turn / turn_started_at) without being re-created on every
+  // game state change. Used to seed the disconnect timer anchor at turn_started_at
+  // when a player disconnects during their active turn, so the charcoal-grey ring
+  // picks up exactly where the yellow turn ring left off.
+  const multiplayerGameStateRef = useRef(multiplayerGameState);
+  useEffect(() => { multiplayerGameStateRef.current = multiplayerGameState; }, [multiplayerGameState]);
+
   useEffect(() => {
     const STALE_THRESHOLD_MS = 12_000; // 12s: fast detection, presence leave backdates to 60s
     const interval = setInterval(() => {
@@ -573,9 +581,15 @@ export function MultiplayerGame() {
         // normalise to "now" and replenish to full at the moment the server event arrives.
         if (rp.connection_status === 'disconnected') {
           if (!clientDisconnectStartRef.current[rp.player_index]) {
-            // Server told us first — seed the client timer from client-local now.
-            clientDisconnectStartRef.current[rp.player_index] = new Date().toISOString();
-            gameLogger.warn(`[MultiplayerGame] Client-side: seeding disconnect from server event for player_index=${rp.player_index}`);
+            // Turn carry-over: if this player disconnected during their active turn, seed
+            // the disconnect ring from turn_started_at so the charcoal grey ring picks up
+            // exactly where the yellow turn ring left off (no jump back to full).
+            // Otherwise fall back to client-local now (fresh 60s countdown).
+            const gs = multiplayerGameStateRef.current;
+            const isTheirTurn = gs?.current_turn === rp.player_index;
+            const anchor = (isTheirTurn && gs?.turn_started_at) ? gs.turn_started_at : new Date().toISOString();
+            clientDisconnectStartRef.current[rp.player_index] = anchor;
+            gameLogger.warn(`[MultiplayerGame] Client-side: seeding disconnect from server event for player_index=${rp.player_index} (anchor=${isTheirTurn ? 'turn_started_at' : 'now'})`);
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
           continue;
@@ -589,13 +603,15 @@ export function MultiplayerGame() {
 
         const staleMs = now - new Date(lastSeenIso).getTime();
         if (staleMs > STALE_THRESHOLD_MS) {
-          // Disconnect timer starts NOW for the client UI (orange ring starts depleting).
-          // If presence leave already backdated the timestamp, staleMs will be very large
-          // and we'll detect immediately. Use NOW as the disconnect timer start so the
-          // 60s countdown begins from the moment we detect the disconnect.
+          // Disconnect detected via stale heartbeat. If it's this player's turn, use
+          // turn_started_at as the anchor so the charcoal grey ring continues the
+          // turn countdown rather than restarting from 60s.
           if (!clientDisconnectStartRef.current[rp.player_index]) {
-            clientDisconnectStartRef.current[rp.player_index] = new Date().toISOString();
-            gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s)`);
+            const gs = multiplayerGameStateRef.current;
+            const isTheirTurn = gs?.current_turn === rp.player_index;
+            const anchor = (isTheirTurn && gs?.turn_started_at) ? gs.turn_started_at : new Date().toISOString();
+            clientDisconnectStartRef.current[rp.player_index] = anchor;
+            gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${isTheirTurn ? 'turn_started_at' : 'now'})`);
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
         } else {
