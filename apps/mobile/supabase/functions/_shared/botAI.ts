@@ -101,6 +101,25 @@ export class BotAI {
     if (validPlays.length === 0) {
       return { cards: null, reasoning: '[AUTO] No valid play, passing' };
     }
+
+    // Sort validPlays so [last] is the strongest for 1/2/3-card cases.
+    // findAllValidPlays already sorts the 5-card case; for smaller combos the
+    // iteration order is not guaranteed to be strongest-last (e.g. multiple
+    // same-rank pairs differ by suit, multiple triples differ by suit).
+    if (validPlays.length > 1 && lastPlay.cards.length < 5) {
+      const byId = new Map(sorted.map(c => [c.id, c] as const));
+      const comboType = classifyCards(lastPlay.cards);
+      validPlays.sort((a, b) => {
+        const cardsA = a.map(id => byId.get(id)!);
+        const cardsB = b.map(id => byId.get(id)!);
+        const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: comboType });
+        const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: comboType });
+        if (aBeatsB && !bBeatsA) return 1;  // a is stronger → comes last
+        if (!aBeatsB && bBeatsA) return -1; // b is stronger → a comes before
+        return 0;
+      });
+    }
+
     const highestPlay = validPlays[validPlays.length - 1];
     return {
       cards: highestPlay,

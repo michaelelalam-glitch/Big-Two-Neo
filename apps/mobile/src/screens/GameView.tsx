@@ -203,7 +203,7 @@ export function GameView(props: GameViewProps) {
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
             totalScores={playerTotalScores}
-            disconnectedPlayers={layoutPlayers.map((p) => p.isDisconnected ?? false)}
+            disconnectedPlayers={layoutPlayersWithScores.map((p) => p.isDisconnected ?? false)}
             disconnectTimerStartedAts={layoutPlayersWithScores.map((p) => p.disconnectTimerStartedAt ?? null)}
             turnTimerStartedAts={layoutPlayersWithScores.map((p) => p.turnTimerStartedAt ?? null)}
             onCountdownExpireds={layoutPlayersWithScores.map((p) => p.onCountdownExpired)}
