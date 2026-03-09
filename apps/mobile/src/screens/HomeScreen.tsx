@@ -315,11 +315,28 @@ export default function HomeScreen() {
           destructive: true,
           onConfirm: async () => {
             try {
-              await supabase.from('room_players').delete().eq('user_id', user.id);
+              // Same safe-leave logic: backdate timer for playing rooms,
+              // delete immediately for non-playing rooms.
+              const { data: membershipCheck } = await supabase
+                .from('room_players')
+                .select('rooms!inner(status)')
+                .eq('user_id', user.id)
+                .maybeSingle();
+              const currentStatus = (membershipCheck?.rooms as { status: string } | null)?.status;
+              if (currentStatus === 'playing') {
+                const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+                await supabase.from('room_players').update({
+                  connection_status: 'disconnected',
+                  disconnected_at: new Date().toISOString(),
+                  disconnect_timer_started_at: expiredAnchor,
+                }).eq('user_id', user.id);
+              } else {
+                await supabase.from('room_players').delete().eq('user_id', user.id);
+              }
               setCurrentRoom(null);
               setCurrentRoomStatus(undefined);
               setDisconnectTimestamp(null);
-              await checkCurrentRoom();
+              if (currentStatus !== 'playing') await checkCurrentRoom();
               resolve(true);
             } catch {
               showError('Failed to leave the room. Try again.');
@@ -366,21 +383,54 @@ export default function HomeScreen() {
       onConfirm: async () => {
         try {
           roomLogger.info(`🚪 Leaving room ${currentRoom}...`);
-          
-          // Delete from room_players (trigger will auto-delete room if empty)
-          const { error } = await supabase
+
+          // For PLAYING rooms: do NOT hard-delete the row.
+          // The row must remain so process_disconnected_players can detect
+          // the departure and record abandoned/voided stats correctly.
+          // Instead, backdate disconnect_timer_started_at so Phase B treats
+          // the timer as already expired; the cron will close the room and
+          // save stats within ≤30 s.
+          // For all other rooms: delete immediately (original behaviour).
+          const { data: membership } = await supabase
             .from('room_players')
-            .delete()
-            .eq('user_id', user.id);
+            .select('rooms!inner(status)')
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-          if (error) throw error;
+          const roomStatus = (membership?.rooms as { status: string } | null)?.status;
 
-          roomLogger.info('✅ Successfully left room - auto-cleanup triggered');
+          if (roomStatus === 'playing') {
+            const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+            await supabase
+              .from('room_players')
+              .update({
+                connection_status: 'disconnected',
+                disconnected_at: new Date().toISOString(),
+                disconnect_timer_started_at: expiredAnchor,
+              })
+              .eq('user_id', user.id);
+            roomLogger.info('✅ Playing-room leave: timer backdated — cron will close room and record stats');
+          } else {
+            const { error } = await supabase
+              .from('room_players')
+              .delete()
+              .eq('user_id', user.id);
+            if (error) throw error;
+            roomLogger.info('✅ Successfully left room - auto-cleanup triggered');
+          }
+
           showSuccess(i18n.t('home.leftRoom'));
           setCurrentRoom(null);
-          
-          // Force refresh to ensure banner is cleared
-          await checkCurrentRoom();
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+          setCanRejoinAfterExpiry(null);
+
+          // Only re-poll for non-playing rooms; for playing rooms the
+          // disconnected row would immediately re-surface the banner, and
+          // the cron will resolve it within ≤30 s anyway.
+          if (roomStatus !== 'playing') {
+            await checkCurrentRoom();
+          }
         } catch (error: unknown) {
           // Only log error message/code to avoid exposing DB internals
           roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));

@@ -323,13 +323,19 @@ Deno.serve(async (req: Request) => {
     const statsUpdatePromises = realPlayerData.map(async (player) => {
       const won = player.user_id === gameData.winner_id;
 
-      console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}`);
+      console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}, disconnected=${player.disconnected}`);
 
       // A player is voided when they were the last human to leave an unfinished game.
       // serverVoidedPlayerId is computed from room_players above — never from the client.
       const isVoided = !gameData.game_completed &&
         !!serverVoidedPlayerId &&
         player.user_id === serverVoidedPlayerId;
+
+      // A disconnected-but-not-yet-bot-replaced player abandoned the game even if
+      // game_completed=true (they were still in the room_players list with
+      // connection_status='disconnected').  Treat them as abandoned rather than
+      // completed so games_abandoned / ELO penalty are applied correctly.
+      const isCompleted = gameData.game_completed && !player.disconnected;
 
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,
@@ -338,7 +344,7 @@ Deno.serve(async (req: Request) => {
         p_score: player.score,
         p_combos_played: player.combos_played,
         p_game_type: gameData.game_type,
-        p_completed: gameData.game_completed,
+        p_completed: isCompleted,
         p_cards_left: player.cards_left,
         p_voided: isVoided,
       });

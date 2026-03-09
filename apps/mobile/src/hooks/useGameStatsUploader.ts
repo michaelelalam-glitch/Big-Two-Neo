@@ -213,7 +213,11 @@ export function useGameStatsUploader({
             finish_position: finishPosition,
             cards_left: cardsLeft,
             was_bot: player.is_bot,
-            disconnected: false, // TODO: track per-player disconnect status in future
+            // A player is considered disconnected if their connection_status is
+            // 'disconnected' at the time the game ends (not yet bot-replaced).
+            // This ensures the server records them as ABANDONED rather than
+            // COMPLETED, which was the prior bug (hardcoded false for everyone).
+            disconnected: player.connection_status === 'disconnected',
             original_username: null,
             // NOTE: Multiplayer combo tracking is not yet implemented.
             // All values are intentionally zero. Combo stats are available for

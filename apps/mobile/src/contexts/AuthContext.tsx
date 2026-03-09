@@ -613,11 +613,70 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         authLogger.info('🔔 [AuthContext] Removing push token...');
         await removePushTokenFromDatabase(currentUserId);
         
-        // Remove ALL room_players entries for this user
-        const { error: cleanupError } = await supabase
+        // Gracefully handle room membership on sign-out.
+        // For PLAYING rooms: mark the player as disconnected so
+        //   process_disconnected_players can still record abandoned/voided stats
+        //   and close the room via the normal 60-second cron path.
+        //   Deleting the row would make the room permanently stuck in 'playing'
+        //   with no record of the player's abandonment.
+        // For all other rooms (waiting, finished, ended): delete immediately.
+        const { data: memberships } = await supabase
           .from('room_players')
-          .delete()
+          .select('room_id, rooms!inner(status)')
           .eq('user_id', currentUserId);
+
+        const playingRoomIds = (memberships ?? [])
+          .filter(m => (m.rooms as { status: string } | null)?.status === 'playing')
+          .map(m => m.room_id as string);
+
+        const nonPlayingRoomIds = (memberships ?? [])
+          .filter(m => (m.rooms as { status: string } | null)?.status !== 'playing')
+          .map(m => m.room_id as string);
+
+        // Mark playing-room exits as disconnected (preserves row for stat recording)
+        if (playingRoomIds.length > 0) {
+          const now = new Date().toISOString();
+          const { error: disconnectError } = await supabase
+            .from('room_players')
+            .update({
+              connection_status: 'disconnected',
+              disconnected_at: now,
+              // Start the 60-second replacement/close timer immediately so the
+              // cron fires as soon as possible after sign-out.
+              disconnect_timer_started_at: now,
+            })
+            .eq('user_id', currentUserId)
+            .in('room_id', playingRoomIds);
+
+          if (disconnectError) {
+            authLogger.error('⚠️ [AuthContext] Failed to mark playing-room disconnect on sign-out:', disconnectError?.message);
+          } else {
+            authLogger.info(`✅ [AuthContext] Marked ${playingRoomIds.length} playing-room row(s) as disconnected`);
+          }
+        }
+
+        // Delete from non-playing rooms (safe — no in-progress game to protect)
+        const cleanupError = await (async () => {
+          if (nonPlayingRoomIds.length > 0) {
+            const { error } = await supabase
+              .from('room_players')
+              .delete()
+              .eq('user_id', currentUserId)
+              .in('room_id', nonPlayingRoomIds);
+            return error;
+          }
+          if (!memberships) {
+            // memberships query failed — fall back to deleting everything to
+            // prevent stale rows (same as original behaviour; better than leaving
+            // zombie entries in waiting/finished rooms).
+            const { error } = await supabase
+              .from('room_players')
+              .delete()
+              .eq('user_id', currentUserId);
+            return error;
+          }
+          return null;
+        })();
 
         if (cleanupError) {
           authLogger.error('⚠️ [AuthContext] Error cleaning up room data on sign-out:', cleanupError?.message);
