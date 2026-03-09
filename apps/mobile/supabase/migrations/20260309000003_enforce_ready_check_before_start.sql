@@ -141,7 +141,7 @@ BEGIN
   WHERE room_id = p_room_id
     AND is_bot = false
     AND user_id <> v_coordinator_id  -- exclude coordinator instead of relying on is_host
-    AND is_ready = false;
+    AND is_ready IS DISTINCT FROM true;  -- treat NULL as not-ready (defensive: column may be nullable)
 
   IF v_unready_count > 0 THEN
     RETURN json_build_object(
