@@ -489,8 +489,11 @@ Deno.serve(async (req: Request) => {
     const failedStats = statsResults.filter(r => !r.success);
     const failedAbandoned = abandonedResults.filter(r => !r.success);
 
-    // Abandoned failures are non-blocking — the game completed successfully
-    // and the real player records were written.  Log them loudly but don't 500.
+    // Abandoned-stat failures are non-blocking: the game completed successfully and
+    // all real-player records were written. We log the failure loudly for ops
+    // visibility but intentionally return a 200 rather than a 500, because the
+    // completed game itself is valid and re-triggering the entire flow would cause
+    // duplicate stat entries for the players whose records DID succeed.
     if (failedAbandoned.length > 0) {
       console.error('[Complete Game] ⚠️ Failed to record ABANDONED for some bot-replaced players (non-blocking):', failedAbandoned);
     }

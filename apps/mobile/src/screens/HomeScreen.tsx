@@ -446,20 +446,36 @@ export default function HomeScreen() {
               if (invokeError) throw invokeError;
             } else {
               // Room ID unknown (join query failed): re-query room_players without the
-              // join to obtain room_id(s) and call mark-disconnected per room so the
-              // server sets disconnect_timer_started_at — required for Phase B processing.
-              // If this secondary query also fails or returns no rows, stopping heartbeats
-              // is sufficient; Phase A will detect the stale heartbeat and anchor the timer.
+              // join, then fetch room statuses so we can handle each room correctly:
+              //   • playing rooms → mark-disconnected (Phase B needs the timer anchor)
+              //   • non-playing rooms → delete immediately (safe; no in-progress game)
+              //   • rooms whose status is unknown (second query also fails) → conservative
+              //     mark-disconnected so we never leave a playing room stuck.
               const { data: plainRows } = await supabase
                 .from('room_players')
                 .select('room_id')
                 .eq('user_id', user.id);
               if (plainRows && plainRows.length > 0) {
-                await Promise.allSettled(
-                  plainRows.map(r =>
-                    supabase.functions.invoke('mark-disconnected', { body: { room_id: r.room_id } })
-                  )
-                );
+                const roomIds = plainRows.map(r => r.room_id).filter(Boolean) as string[];
+                const { data: roomStatuses } = await supabase
+                  .from('rooms')
+                  .select('id, status')
+                  .in('id', roomIds);
+                const statusMap = new Map((roomStatuses ?? []).map(r => [r.id, r.status]));
+                // Playing or unknown-status rooms: call mark-disconnected (safe default).
+                const playingIds = roomIds.filter(id => statusMap.get(id) === 'playing' || !statusMap.has(id));
+                // Non-playing rooms: delete immediately — no in-progress game to protect.
+                const nonPlayingIds = roomIds.filter(id => statusMap.has(id) && statusMap.get(id) !== 'playing');
+                if (nonPlayingIds.length > 0) {
+                  await supabase.from('room_players').delete().eq('user_id', user.id).in('room_id', nonPlayingIds);
+                }
+                if (playingIds.length > 0) {
+                  await Promise.allSettled(
+                    playingIds.map(id =>
+                      supabase.functions.invoke('mark-disconnected', { body: { room_id: id } })
+                    )
+                  );
+                }
               }
             }
             roomLogger.info('✅ Playing-room leave: mark-disconnected called — cron will close room and record stats');

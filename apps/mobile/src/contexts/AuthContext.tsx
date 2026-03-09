@@ -626,22 +626,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .eq('user_id', currentUserId);
 
         if (membershipsError) {
-          // On query failure, re-query room_players without the join to get room_id(s)
-          // and call mark-disconnected per room so the server sets disconnect_timer_started_at
-          // — required for process_disconnected_players Phase B to process the row.
-          // If this secondary query also fails or returns no rows, sign-out stops
-          // heartbeats and Phase A will detect the stale heartbeat and anchor the timer.
-          authLogger.warn('⚠️ [AuthContext] memberships query failed — attempting mark-disconnected fallback:', membershipsError.message);
+          // The joined query failed — re-query room_players without the join, then
+          // fetch room statuses separately so we can handle each room correctly:
+          //   • playing rooms → mark-disconnected (Phase B needs the timer anchor)
+          //   • non-playing rooms (waiting/finished) → delete immediately to avoid
+          //     ghost lobby occupants that block future joins or starts
+          //   • rooms whose status query also fails → conservative mark-disconnected
+          authLogger.warn('⚠️ [AuthContext] memberships query failed — falling back to plain room_players query:', membershipsError.message);
           const { data: plainRows } = await supabase
             .from('room_players')
             .select('room_id')
             .eq('user_id', currentUserId);
           if (plainRows && plainRows.length > 0) {
-            await Promise.allSettled(
-              plainRows.map(r =>
-                supabase.functions.invoke('mark-disconnected', { body: { room_id: r.room_id } })
-              )
-            );
+            const roomIds = plainRows.map(r => r.room_id).filter(Boolean) as string[];
+            const { data: roomStatuses } = await supabase
+              .from('rooms')
+              .select('id, status')
+              .in('id', roomIds);
+            const statusMap = new Map((roomStatuses ?? []).map(r => [r.id, r.status]));
+            // Playing or unknown-status rooms: mark-disconnected (safe conservative default).
+            const playingIds = roomIds.filter(id => statusMap.get(id) === 'playing' || !statusMap.has(id));
+            // Non-playing rooms: delete immediately — safe, no in-progress game to protect.
+            const nonPlayingIds = roomIds.filter(id => statusMap.has(id) && statusMap.get(id) !== 'playing');
+            if (playingIds.length > 0) {
+              await Promise.allSettled(
+                playingIds.map(id =>
+                  supabase.functions.invoke('mark-disconnected', { body: { room_id: id } })
+                )
+              );
+            }
+            if (nonPlayingIds.length > 0) {
+              await supabase
+                .from('room_players')
+                .delete()
+                .eq('user_id', currentUserId)
+                .in('room_id', nonPlayingIds);
+            }
           }
           // Skip the rest of the room cleanup and proceed to sign-out
         } else {
