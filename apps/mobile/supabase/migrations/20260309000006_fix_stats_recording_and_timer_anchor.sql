@@ -190,19 +190,17 @@ BEGIN
         END;
 
         -- Identify the VOIDED player: the still-disconnected (not-yet-replaced)
-        -- human with the latest *actual* disconnect anchor.  We use the same
-        -- heartbeat-based anchor as Phase A:
-        --   COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at)
-        -- so the "last to leave" matches real disconnect order even when multiple
-        -- players are marked disconnected in the same sweep (disconnected_at = NOW()
-        -- for all of them, making it non-deterministic).
+        -- human with the latest disconnect anchor.
+        -- last_seen_at is intentionally excluded: for bot-replaced rows it can
+        -- be updated by bot heartbeats, corrupting the "last to leave" ordering.
+        -- This matches the sort key used in complete-game and migration 000008.
         SELECT user_id
         INTO   v_voided_user_id
         FROM   public.room_players
         WHERE  room_id           = rec.room_id
           AND  is_bot            = FALSE
           AND  connection_status = 'disconnected'
-        ORDER BY COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) DESC NULLS LAST
+        ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC NULLS LAST
         LIMIT 1;
 
         -- Safety fallback: if the query returns nothing (unexpected), fall back

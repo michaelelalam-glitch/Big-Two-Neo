@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
     // process_disconnected_players + bot-coordinator fanout continuously (DoS vector).
     let shouldSweep = count % 6 === 0;
     if (force_sweep === true && !shouldSweep) {
-      const { data: expiredTimer } = await supabaseClient
+      const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')
         .select('id')
         .eq('room_id', room_id)
@@ -233,9 +233,15 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      shouldSweep = !!expiredTimer;
-      if (!shouldSweep) {
-        console.log(`[update-heartbeat] force_sweep ignored: no expired disconnect timer in room ${room_id}`);
+      if (expiredTimerError) {
+        console.warn(`[update-heartbeat] force_sweep validation query failed for room ${room_id}:`, expiredTimerError.message);
+        // Keep shouldSweep=false on error so a query failure cannot be exploited
+        // to trigger an unvalidated sweep.
+      } else {
+        shouldSweep = !!expiredTimer;
+        if (!shouldSweep) {
+          console.log(`[update-heartbeat] force_sweep ignored: no expired disconnect timer in room ${room_id}`);
+        }
       }
     }
 

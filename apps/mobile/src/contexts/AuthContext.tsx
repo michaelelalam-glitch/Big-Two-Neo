@@ -628,15 +628,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (membershipsError) {
           // On query failure, mark all rows as disconnected (safe path) rather
           // than deleting them — avoids destroying playing-room rows when
-          // room status is unknown.
+          // room status is unknown. Do not set disconnect_timer_started_at so the
+          // server COALESCE anchor remains uncontaminated by device clock.
           authLogger.warn('⚠️ [AuthContext] memberships query failed — marking all rows disconnected as safe fallback:', membershipsError.message);
-          const now = new Date().toISOString();
           await supabase
             .from('room_players')
             .update({
               connection_status: 'disconnected',
-              disconnected_at: now,
-              disconnect_timer_started_at: now,
+              disconnected_at: new Date().toISOString(),
             })
             .eq('user_id', currentUserId);
           // Skip the rest of the room cleanup and proceed to sign-out
@@ -650,17 +649,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .filter(m => (m.rooms as { status: string } | null)?.status !== 'playing')
           .map(m => m.room_id as string);
 
-        // Mark playing-room exits as disconnected (preserves row for stat recording)
+        // Mark playing-room exits as disconnected (preserves row for stat recording).
+        // Do not set disconnect_timer_started_at from the client: the server's
+        // COALESCE(disconnect_timer_started_at, disconnected_at) anchor should
+        // reflect server/heartbeat time, not a potentially skewed device clock.
         if (playingRoomIds.length > 0) {
-          const now = new Date().toISOString();
           const { error: disconnectError } = await supabase
             .from('room_players')
             .update({
               connection_status: 'disconnected',
-              disconnected_at: now,
-              // Start the 60-second replacement/close timer immediately so the
-              // cron fires as soon as possible after sign-out.
-              disconnect_timer_started_at: now,
+              disconnected_at: new Date().toISOString(),
             })
             .eq('user_id', currentUserId)
             .in('room_id', playingRoomIds);

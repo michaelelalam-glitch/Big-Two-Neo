@@ -329,13 +329,14 @@ export default function HomeScreen() {
               const shouldTreatAsPlaying =
                 !!membershipError || !membershipCheck || currentStatus === 'playing';
               if (shouldTreatAsPlaying) {
-                const now = new Date().toISOString();
+                // Do not set disconnect_timer_started_at from the client; leave it
+                // NULL so COALESCE(disconnect_timer_started_at, disconnected_at) uses
+                // server-anchored ordering without device-clock contamination.
                 let updateQuery = supabase
                   .from('room_players')
                   .update({
                     connection_status: 'disconnected',
-                    disconnected_at: now,
-                    disconnect_timer_started_at: now,
+                    disconnected_at: new Date().toISOString(),
                   })
                   .eq('user_id', user.id);
                 if (membershipCheck?.room_id) {
@@ -426,13 +427,15 @@ export default function HomeScreen() {
             !!membershipQueryError || !membership || roomStatus === 'playing';
 
           if (treatAsPlaying) {
-            const now = new Date().toISOString();
+            // Set connection_status and disconnected_at; leave disconnect_timer_started_at
+            // as NULL so COALESCE(disconnect_timer_started_at, disconnected_at) uses
+            // the server-anchored value from Phase A when available, avoiding
+            // device-clock contamination in voided/abandoned attribution.
             let updateQuery = supabase
               .from('room_players')
               .update({
                 connection_status: 'disconnected',
-                disconnected_at: now,
-                disconnect_timer_started_at: now,
+                disconnected_at: new Date().toISOString(),
               })
               .eq('user_id', user.id);
             if (membership?.room_id) {
