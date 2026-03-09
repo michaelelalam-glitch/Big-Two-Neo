@@ -294,16 +294,9 @@ export default function StatsScreen() {
     return deduplicatedGameHistory.filter((g) => g.game_type === activeTab);
   }, [deduplicatedGameHistory, activeTab]);
 
-  // Per-mode games played / completed / abandoned / voided for completion section
+  // Per-mode completed / abandoned / voided for completion section
   // Use DB-stored per-mode columns (from migration 20260309000004) for accuracy —
   // they are not capped at 100 like the local game_history fetch.
-  const modeGamesPlayed = React.useMemo(() => {
-    if (!stats || activeTab === 'overview') return 0;
-    if (activeTab === 'casual') return stats.casual_games_played || 0;
-    if (activeTab === 'ranked') return stats.ranked_games_played || 0;
-    return stats.private_games_played || 0;
-  }, [stats, activeTab]);
-
   const modeGamesCompleted = React.useMemo(() => {
     if (!stats) return 0;
     if (activeTab === 'overview') return stats.games_completed || 0;

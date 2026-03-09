@@ -56,11 +56,12 @@ DECLARE
   v_phase_a_anchor     TIMESTAMPTZ;
 
   -- game_history player slots (indexed 1-4 by player_index+1)
-  v_p_ids       UUID[]    := ARRAY[NULL::UUID, NULL::UUID, NULL::UUID, NULL::UUID];
-  v_p_usernames TEXT[]    := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
-  v_p_was_bot   BOOLEAN[] := ARRAY[FALSE, FALSE, FALSE, FALSE];
-  v_p_disconn   BOOLEAN[] := ARRAY[FALSE, FALSE, FALSE, FALSE];
-  v_slot_idx    INTEGER;
+  v_p_ids            UUID[]    := ARRAY[NULL::UUID, NULL::UUID, NULL::UUID, NULL::UUID];
+  v_p_usernames      TEXT[]    := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
+  v_p_orig_usernames TEXT[]    := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
+  v_p_was_bot        BOOLEAN[] := ARRAY[FALSE, FALSE, FALSE, FALSE];
+  v_p_disconn        BOOLEAN[] := ARRAY[FALSE, FALSE, FALSE, FALSE];
+  v_slot_idx         INTEGER;
 BEGIN
 
   -- ── Phase A: Mark stale heartbeats as disconnected ───────────────────────
@@ -171,15 +172,17 @@ BEGIN
         -- Scores and combo counts are unavailable server-side without the full
         -- game state; columns default to 0/NULL which is acceptable for
         -- incomplete games.
-        v_p_ids       := ARRAY[NULL::UUID, NULL::UUID, NULL::UUID, NULL::UUID];
-        v_p_usernames := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
-        v_p_was_bot   := ARRAY[FALSE, FALSE, FALSE, FALSE];
-        v_p_disconn   := ARRAY[FALSE, FALSE, FALSE, FALSE];
+        v_p_ids            := ARRAY[NULL::UUID, NULL::UUID, NULL::UUID, NULL::UUID];
+        v_p_usernames      := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
+        v_p_orig_usernames := ARRAY[NULL::TEXT, NULL::TEXT, NULL::TEXT, NULL::TEXT];
+        v_p_was_bot        := ARRAY[FALSE, FALSE, FALSE, FALSE];
+        v_p_disconn        := ARRAY[FALSE, FALSE, FALSE, FALSE];
 
         FOR v_slot IN
           SELECT player_index,
                  user_id,
                  username,
+                 replaced_username,
                  is_bot,
                  human_user_id,
                  connection_status
@@ -189,10 +192,15 @@ BEGIN
         LOOP
           v_slot_idx := v_slot.player_index + 1; -- 1-based array index
           -- For bot slots that replaced a human, record the original human's ID
-          v_p_ids[v_slot_idx]       := COALESCE(v_slot.human_user_id, v_slot.user_id);
-          v_p_usernames[v_slot_idx] := v_slot.username;
-          v_p_was_bot[v_slot_idx]   := v_slot.is_bot;
-          v_p_disconn[v_slot_idx]   := (v_slot.connection_status = 'disconnected');
+          v_p_ids[v_slot_idx]            := COALESCE(v_slot.human_user_id, v_slot.user_id);
+          v_p_usernames[v_slot_idx]      := v_slot.username;
+          -- Preserve original human name in audit trail for bot-replaced slots
+          v_p_orig_usernames[v_slot_idx] := CASE
+            WHEN v_slot.human_user_id IS NOT NULL THEN v_slot.replaced_username
+            ELSE NULL
+          END;
+          v_p_was_bot[v_slot_idx]        := v_slot.is_bot;
+          v_p_disconn[v_slot_idx]        := (v_slot.connection_status = 'disconnected');
         END LOOP;
 
         BEGIN
@@ -202,6 +210,8 @@ BEGIN
             started_at, finished_at,
             player_1_id,       player_2_id,       player_3_id,       player_4_id,
             player_1_username, player_2_username, player_3_username, player_4_username,
+            player_1_original_username, player_2_original_username,
+            player_3_original_username, player_4_original_username,
             player_1_was_bot,  player_2_was_bot,  player_3_was_bot,  player_4_was_bot,
             player_1_disconnected, player_2_disconnected,
             player_3_disconnected, player_4_disconnected,
@@ -210,11 +220,13 @@ BEGIN
             v_room.id, v_room.code, v_game_type, FALSE,
             NULL,  -- no winner for abandoned/voided game
             COALESCE(v_room.started_at, v_room.created_at), NOW(),
-            v_p_ids[1],       v_p_ids[2],       v_p_ids[3],       v_p_ids[4],
-            v_p_usernames[1], v_p_usernames[2], v_p_usernames[3], v_p_usernames[4],
-            v_p_was_bot[1],   v_p_was_bot[2],   v_p_was_bot[3],   v_p_was_bot[4],
-            v_p_disconn[1],   v_p_disconn[2],
-            v_p_disconn[3],   v_p_disconn[4],
+            v_p_ids[1],            v_p_ids[2],            v_p_ids[3],            v_p_ids[4],
+            v_p_usernames[1],      v_p_usernames[2],      v_p_usernames[3],      v_p_usernames[4],
+            v_p_orig_usernames[1], v_p_orig_usernames[2],
+            v_p_orig_usernames[3], v_p_orig_usernames[4],
+            v_p_was_bot[1],        v_p_was_bot[2],        v_p_was_bot[3],        v_p_was_bot[4],
+            v_p_disconn[1],        v_p_disconn[2],
+            v_p_disconn[3],        v_p_disconn[4],
             v_voided_user_id  -- NULL for non-voided / unknown
           );
         EXCEPTION WHEN OTHERS THEN
