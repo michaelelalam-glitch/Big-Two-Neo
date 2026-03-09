@@ -341,7 +341,8 @@ export default function HomeScreen() {
                 if (membershipCheck?.room_id) {
                   updateQuery = updateQuery.eq('room_id', membershipCheck.room_id);
                 }
-                await updateQuery;
+                const { error: updateError } = await updateQuery;
+                if (updateError) throw updateError;
               } else {
                 let deleteQuery = supabase
                   .from('room_players')
@@ -350,7 +351,8 @@ export default function HomeScreen() {
                 if (membershipCheck?.room_id) {
                   deleteQuery = deleteQuery.eq('room_id', membershipCheck.room_id);
                 }
-                await deleteQuery;
+                const { error: deleteError } = await deleteQuery;
+                if (deleteError) throw deleteError;
               }
               setCurrentRoom(null);
               setCurrentRoomStatus(undefined);
@@ -436,7 +438,8 @@ export default function HomeScreen() {
             if (membership?.room_id) {
               updateQuery = updateQuery.eq('room_id', membership.room_id);
             }
-            await updateQuery;
+            const { error: disconnectError } = await updateQuery;
+            if (disconnectError) throw disconnectError;
             roomLogger.info('✅ Playing-room leave: marked disconnected — cron will close room and record stats');
           } else {
             let deleteQuery = supabase

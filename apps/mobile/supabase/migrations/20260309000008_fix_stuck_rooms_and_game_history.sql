@@ -160,7 +160,9 @@ BEGIN
         WHERE  room_id           = rec.room_id
           AND  is_bot            = FALSE
           AND  connection_status = 'disconnected'
-        ORDER BY COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) DESC NULLS LAST
+        -- last_seen_at is intentionally excluded: for bot-replaced rows it
+        -- reflects bot heartbeats rather than the human's actual disconnect time.
+        ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC NULLS LAST
         LIMIT 1;
 
         IF v_voided_user_id IS NULL THEN
@@ -406,7 +408,6 @@ BEGIN
         -- preserved in the is_bot=true rows so we can still credit them.
         -- We cannot determine who was the 'last' to leave (row ordering is lost),
         -- so everyone present in a bot slot gets ABANDONED (not VOIDED).
-        BEGIN
           FOR v_abandoned IN
             SELECT human_user_id, ranked_mode, is_public
             FROM   public.room_players rp
@@ -415,26 +416,28 @@ BEGIN
               AND  rp.is_bot        = TRUE
               AND  rp.human_user_id IS NOT NULL
           LOOP
-            PERFORM update_player_stats_after_game(
-              p_user_id         := v_abandoned.human_user_id,
-              p_won             := false,
-              p_finish_position := 4,
-              p_score           := 0,
-              p_combos_played   := '{}'::jsonb,
-              p_game_type       := CASE
-                                     WHEN rec.ranked_mode = TRUE THEN 'ranked'
-                                     WHEN rec.is_public   = TRUE THEN 'casual'
-                                     ELSE 'private'
-                                   END,
-              p_completed       := false,
-              p_cards_left      := 0,
-              p_voided          := false
-            );
+            -- Per-user isolation: one bad row cannot skip the rest of the loop
+            BEGIN
+              PERFORM update_player_stats_after_game(
+                p_user_id         := v_abandoned.human_user_id,
+                p_won             := false,
+                p_finish_position := 4,
+                p_score           := 0,
+                p_combos_played   := '{}'::jsonb,
+                p_game_type       := CASE
+                                       WHEN rec.ranked_mode = TRUE THEN 'ranked'
+                                       WHEN rec.is_public   = TRUE THEN 'casual'
+                                       ELSE 'private'
+                                     END,
+                p_completed       := false,
+                p_cards_left      := 0,
+                p_voided          := false
+              );
+            EXCEPTION WHEN OTHERS THEN
+              RAISE WARNING '[process_disconnected_players] Phase C abandoned stats failed for room % user %: %',
+                rec.code, v_abandoned.human_user_id, SQLERRM;
+            END;
           END LOOP;
-        EXCEPTION WHEN OTHERS THEN
-          RAISE WARNING '[process_disconnected_players] Phase C abandoned stats failed for room %: %',
-            rec.code, SQLERRM;
-        END;
       END IF;
   END LOOP;
 
