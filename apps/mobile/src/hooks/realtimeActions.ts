@@ -5,7 +5,6 @@
  * These are pure async functions (not hooks). The hook wraps them in useCallback.
  */
 
-import { supabase } from '../services/supabase';
 import type { Card, GameState, Player, Room, BroadcastEvent, BroadcastData, ComboType } from '../types/multiplayer';
 import type {
   PlayCardsResponse,

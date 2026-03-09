@@ -26,6 +26,10 @@ export default function HomeScreen() {
   // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
   // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
   const currentRoomRef = useRef<string | null>(null);
+  /** Guard: at most one scheduled 1s re-check can be pending at a time. */
+  const hasScheduledRecheckRef = useRef(false);
+  /** Holds the handle of the pending 1s re-check so it can be cleared on unmount. */
+  const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -41,6 +45,15 @@ export default function HomeScreen() {
   
   // Keep currentRoomRef in sync with currentRoom state
   useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
+  // Clear any pending re-check timeout on unmount to avoid post-unmount state updates
+  useEffect(() => {
+    return () => {
+      if (recheckTimeoutRef.current) {
+        clearTimeout(recheckTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Ranked matchmaking hook
   const { matchFound, roomCode: rankedRoomCode, resetMatch } = useMatchmaking();
@@ -99,10 +112,20 @@ export default function HomeScreen() {
 
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
-                // Server has a timer running — back-compute the disconnect timestamp
-                const secondsLeft = statusData.seconds_left ?? 60;
-                const elapsed = 60 - secondsLeft;
-                setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+                // Anchor to disconnect_timer_started_at (same source as the in-game
+                // charcoal-grey ring) so both countdowns stay in sync.
+                // Clamp elapsed to >= 0 to handle the case where the server clock is
+                // ahead of the client — a negative elapsed would inflate the countdown.
+                if (statusData.disconnect_timer_started_at) {
+                  const serverTs = new Date(statusData.disconnect_timer_started_at).getTime();
+                  const elapsed = Math.max(0, Date.now() - serverTs);
+                  setDisconnectTimestamp(Date.now() - elapsed);
+                } else {
+                  // Fallback: back-compute from seconds_left if timestamp unavailable
+                  const secondsLeft = statusData.seconds_left ?? 60;
+                  const elapsed = 60 - secondsLeft;
+                  setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+                }
               } else if (statusData.status === 'replaced_by_bot') {
                 // Already replaced — timer has elapsed; skip the countdown loop
                 // by using canRejoinAfterExpiry instead of setting timestamp to -61s
@@ -115,11 +138,24 @@ export default function HomeScreen() {
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
-                // 'connected' — no server-side disconnect timer running; rely on heartbeat.
-                // Do NOT start a client-side countdown here: the server timer is the
-                // source of truth, and starting one early can show "bot replaced you"
-                // before the server has even begun the 60-second window.
+                // 'connected' — no server-side disconnect timer running YET.
+                // The player navigated away just now and the mark-disconnected
+                // request is still in-flight (typically completes in < 500ms).
+                // Poll every 1 s until the server confirms 'disconnected', so the
+                // banner countdown appears within ~1s of the player leaving.
                 setDisconnectTimestamp(null);
+                if (!hasScheduledRecheckRef.current) {
+                  hasScheduledRecheckRef.current = true;
+                  recheckTimeoutRef.current = setTimeout(() => {
+                    recheckTimeoutRef.current = null;
+                    hasScheduledRecheckRef.current = false;
+                    // Only re-check if we still have a current room — the user
+                    // may have pressed Leave in the meantime.
+                    if (currentRoomRef.current) {
+                      checkCurrentRoom();
+                    }
+                  }, 1000);
+                }
               }
             }
             // statusData missing / success=false — do not start a phantom countdown;
@@ -476,7 +512,7 @@ export default function HomeScreen() {
           .maybeSingle();
 
         if (replacedRow) {
-          const roomStatus = (replacedRow as any).rooms?.status;
+          const roomStatus = (replacedRow as { rooms?: { status?: string } }).rooms?.status;
 
           if (!roomStatus || roomStatus === 'finished') {
             // Room closed (all-bots game was auto-deleted by server sweep) — clear banner
@@ -537,7 +573,7 @@ export default function HomeScreen() {
         setCurrentRoomStatus(undefined);
         setCanRejoinAfterExpiry(null);
       } else {
-        const roomStatus = (replacedFinal as any).rooms?.status;
+        const roomStatus = (replacedFinal as { rooms?: { status?: string } }).rooms?.status;
         if (!roomStatus || roomStatus === 'finished') {
           setCurrentRoom(null);
           setCurrentRoomStatus(undefined);
@@ -575,9 +611,31 @@ export default function HomeScreen() {
     try {
       // Clean up any zombie entries first (same as casual)
       roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
-      await supabase.from('room_players').delete().eq('user_id', user.id);
+      const { error: cleanupError } = await supabase
+        .from('room_players')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (cleanupError) {
+        roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        // Don't throw — fall through to verification below
+      }
+
+      // Wait for cleanup to propagate through Postgres
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      // Verify cleanup actually succeeded — same guard as casual path
+      const { data: stillInRoom } = await supabase
+        .from('room_players')
+        .select('room_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (stillInRoom) {
+        roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+        throw new Error('Failed to leave previous room. Please try again.');
+      }
+
       // STEP 1: Try to find existing RANKED room with space (same as casual)
       roomLogger.info('📡 Searching for joinable ranked rooms...');
       const { data: availableRooms, error: searchError } = await supabase

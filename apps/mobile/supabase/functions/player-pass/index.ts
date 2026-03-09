@@ -14,6 +14,79 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ==================== BOT-COORDINATOR HELPER ====================
+/**
+ * Fire-and-forget bot-coordinator trigger.
+ * Checks if the next player at `nextTurn` is a bot, and if so, calls the
+ * bot-coordinator edge function in the background via EdgeRuntime.waitUntil.
+ *
+ * Skips the call if the current request itself came from bot-coordinator
+ * (prevents infinite loops).
+ *
+ * @param supabaseClient  Service-role Supabase client
+ * @param roomId          Room UUID (for bot lookup)
+ * @param roomCode        Room code (for bot-coordinator body)
+ * @param nextTurn        Player index of the next player
+ * @param req             Original request (to check x-bot-coordinator header)
+ * @param label           Log label for tracing (e.g. "trick clear", "cascade", "normal pass")
+ */
+async function triggerBotCoordinatorIfNeeded(
+  supabaseClient: any,
+  roomId: string,
+  roomCode: string,
+  nextTurn: number,
+  req: Request,
+  label: string,
+): Promise<void> {
+  const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const authHeader = req.headers.get('authorization') ?? '';
+  const isInternalCall =
+    req.headers.get('x-bot-coordinator') === 'true' &&
+    sk !== '' &&
+    authHeader === `Bearer ${sk}`;
+
+  if (isInternalCall) return; // Don't recurse into bot-coordinator
+
+  // Guard: skip if required env vars are not configured
+  if (!sk || !Deno.env.get('SUPABASE_URL')) {
+    console.warn('[player-pass] SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL not set — skipping bot coordinator trigger');
+    return;
+  }
+
+  try {
+    const { data: nextPlayer } = await supabaseClient
+      .from('room_players')
+      .select('is_bot')
+      .eq('room_id', roomId)
+      .eq('player_index', nextTurn)
+      .single();
+
+    if (nextPlayer?.is_bot) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sk}`,
+          'Content-Type': 'application/json',
+          'x-bot-coordinator': 'true',
+        },
+        body: JSON.stringify({ room_code: roomCode }),
+      }).then(res => {
+        if (res.ok) {
+          console.log(`🤖 [player-pass] Bot coordinator triggered (${label}) for player ${nextTurn}`);
+        } else {
+          res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body)).catch(() => {});
+        }
+      }).catch(err => {
+        console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, err);
+      });
+      try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
+    }
+  } catch (err) {
+    console.error(`[player-pass] ⚠️ Bot next-player check (${label}) failed (non-critical):`, err);
+  }
+}
+
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
@@ -430,51 +503,7 @@ Deno.serve(async (req) => {
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      // Verify header + service_role auth — clients can forge headers but not the service_role JWT.
-      const skForTrickClear = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-      const authForTrickClear = req.headers.get('authorization') ?? '';
-      const isInternalCallTrickClear =
-        req.headers.get('x-bot-coordinator') === 'true' &&
-        skForTrickClear !== '' &&
-        authForTrickClear === `Bearer ${skForTrickClear}`;
-
-      if (!isInternalCallTrickClear) {
-        try {
-          const { data: nextPlayer } = await supabaseClient
-            .from('room_players')
-            .select('is_bot')
-            .eq('room_id', room.id)
-            .eq('player_index', finalNextTurn)
-            .single();
-
-          if (nextPlayer?.is_bot) {
-            const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-            // Fire-and-forget via EdgeRuntime.waitUntil: response returns immediately to client;
-            // bot-coordinator runs in background so the pass call doesn't block on bot turns.
-            const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-                'x-bot-coordinator': 'true',
-              },
-              body: JSON.stringify({ room_code }),
-            }).then(res => {
-              if (res.ok) {
-                console.log(`🤖 [player-pass] Bot coordinator triggered (trick cleared) for player ${finalNextTurn}`);
-              } else {
-                res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (trick clear) non-2xx: ${res.status}`, body)).catch(() => {});
-              }
-            }).catch(err => {
-              console.error('[player-pass] ⚠️ Bot coordinator trigger (trick clear) failed:', err);
-            });
-            try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
-          }
-        } catch (err) {
-          console.error('[player-pass] ⚠️ Bot next-player check (trick clear) failed (non-critical):', err);
-        }
-      }
+      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
 
       return new Response(
         JSON.stringify({
@@ -488,7 +517,101 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 8. Normal pass - just advance turn and increment pass count
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. SERVER-SIDE CASCADE: If auto_pass_timer is expired AND more passes are
+    //    needed, complete ALL remaining passes atomically in this single edge
+    //    function invocation.  This eliminates:
+    //    (a) Sequential client-by-client auto-pass triggers (visible timer
+    //        "reappearing" between each pass)
+    //    (b) JWT 403 errors when one client tried to pass other humans
+    //    (c) Dependency on every client being online to advance the game
+    //
+    //    After the cascade, a SINGLE game_state update goes out → ONE Realtime
+    //    event → all clients see the final "trick cleared" state at once.
+    // ─────────────────────────────────────────────────────────────────────────
+    const autoTimer = gameState.auto_pass_timer as {
+      active?: boolean;
+      end_timestamp?: number;
+      started_at?: string;
+      duration_ms?: number;
+      triggering_play?: { position?: number };
+      player_index?: number;
+    } | null;
+
+    const isTimerExpired = (() => {
+      if (!autoTimer?.active) return false;
+      const endTs = autoTimer.end_timestamp ||
+        (autoTimer.started_at
+          ? new Date(autoTimer.started_at).getTime() + (autoTimer.duration_ms || 0)
+          : 0);
+      return Date.now() >= endTs;
+    })();
+
+    if (isTimerExpired && newPasses < 3) {
+      // ⚡ CASCADE: Timer expired — complete all remaining passes atomically.
+      // We know every non-exempt player MUST pass, so skip straight to the
+      // "trick cleared" state in a single DB write.
+      const exemptPlayerIndex = autoTimer?.triggering_play?.position ?? autoTimer?.player_index;
+
+      console.log('⚡ [player-pass] SERVER-SIDE CASCADE: Timer expired, completing all remaining passes', {
+        current_passes_after_this: newPasses,
+        remaining_passes: 3 - newPasses,
+        exempt_player: exemptPlayerIndex,
+      });
+
+      // The exempt player (who played the highest card) gets the next turn
+      let cascadeNextTurn: number;
+      if (typeof exemptPlayerIndex === 'number') {
+        cascadeNextTurn = exemptPlayerIndex;
+      } else {
+        // Fallback: use SQL function
+        const { data: correctNextTurn } = await supabaseClient
+          .rpc('get_next_turn_after_three_passes', {
+            p_game_state_id: gameState.id,
+            p_last_passing_player_index: player.player_index,
+          });
+        cascadeNextTurn = (typeof correctNextTurn === 'number') ? correctNextTurn : nextTurn;
+      }
+
+      // Atomic update: skip to trick-cleared state
+      const { error: cascadeError } = await supabaseClient
+        .from('game_state')
+        .update({
+          current_turn: cascadeNextTurn,
+          passes: 0,
+          last_play: null,
+          auto_pass_timer: null, // Clear timer — trick complete
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', gameState.id);
+
+      if (cascadeError) {
+        console.log('❌ [player-pass] CASCADE failed:', cascadeError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update game state (cascade)' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
+
+      // Trigger bot-coordinator if the exempt player is a bot
+      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          next_turn: cascadeNextTurn,
+          trick_cleared: true,
+          passes: 0,
+          auto_pass_timer: null,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // ── End of server-side cascade ────────────────────────────────────────
+
+    // 8b. Normal pass (timer NOT expired, or no timer) - advance turn and increment pass count
     // 🔥 CRITICAL: Preserve auto_pass_timer - DO NOT set to NULL!
     const { error: updateError } = await supabaseClient
       .from('game_state')
@@ -511,51 +634,7 @@ Deno.serve(async (req) => {
     console.log('✅ [player-pass] Pass processed successfully');
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    // Verify header + service_role auth — clients can forge headers but not the service_role JWT.
-    const skForPass = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const authForPass = req.headers.get('authorization') ?? '';
-    const isInternalCallPass =
-      req.headers.get('x-bot-coordinator') === 'true' &&
-      skForPass !== '' &&
-      authForPass === `Bearer ${skForPass}`;
-
-    if (!isInternalCallPass) {
-      try {
-        const { data: nextPlayer } = await supabaseClient
-          .from('room_players')
-          .select('is_bot')
-          .eq('room_id', room.id)
-          .eq('player_index', nextTurn)
-          .single();
-
-        if (nextPlayer?.is_bot) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          // Fire-and-forget via EdgeRuntime.waitUntil: response returns immediately to client;
-          // bot-coordinator runs in background so the pass call doesn't block on bot turns.
-          const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json',
-              'x-bot-coordinator': 'true',
-            },
-            body: JSON.stringify({ room_code }),
-          }).then(res => {
-            if (res.ok) {
-              console.log(`🤖 [player-pass] Bot coordinator triggered for player ${nextTurn}`);
-            } else {
-              res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (normal pass) non-2xx: ${res.status}`, body)).catch(() => {});
-            }
-          }).catch(err => {
-            console.error('[player-pass] ⚠️ Bot coordinator trigger (normal pass) failed:', err);
-          });
-          try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
-        }
-      } catch (err) {
-        console.error('[player-pass] ⚠️ Bot next-player check (normal pass) failed (non-critical):', err);
-      }
-    }
+    void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
 
     return new Response(
       JSON.stringify({

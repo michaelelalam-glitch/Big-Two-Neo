@@ -229,6 +229,10 @@ export function useMatchTransition({
         transitionTimerRef.current = null;
       }
     };
+    // Narrow deps: only re-run when the specific phase/match-number values change,
+    // not on every unrelated gameState mutation. gameState is accessed via its
+    // individual properties already listed as deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, gameState?.game_phase, gameState?.match_number, room, triggerNewMatch]);
 
   // Reset transitioned match when match_number changes (new match started by someone else)

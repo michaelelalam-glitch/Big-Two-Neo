@@ -18,9 +18,9 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { PlayHistoryModalProps, PlayHistoryMatch, PlayHistoryHand } from '../../types/scoreboard';
+import { i18n } from '../../i18n';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
-import { i18n } from '../../i18n';
 
 // Type for FlatList items (header, current match, past matches)
 type ListItem = 

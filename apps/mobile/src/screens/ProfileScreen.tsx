@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RankBadge, Rank } from '../components/RankBadge';
-import { COLORS, SPACING } from '../constants';
+import { COLORS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -29,7 +29,7 @@ const ProfileScreen = () => {
     setRefreshing(true);
     try {
       await refreshProfile();
-    } catch (_e) {
+    } catch {
       // Silently swallow — profile data is best-effort on pull-to-refresh
     } finally {
       setRefreshing(false);

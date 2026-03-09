@@ -65,6 +65,12 @@ export interface LandscapeGameLayoutProps {
   
   /** fix/rejoin: disconnect state per player in display order [bottom, top, left, right] */
   disconnectedPlayers?: boolean[];
+  /** Disconnect timer started_at per player in display order */
+  disconnectTimerStartedAts?: (string | null)[];
+  /** Turn timer started_at per player in display order */
+  turnTimerStartedAts?: (string | null)[];
+  /** Countdown expired callbacks per player in display order */
+  onCountdownExpireds?: ((() => void) | undefined)[];
   
   /** Control bar callbacks */
   onOrientationToggle: () => void;
@@ -129,6 +135,9 @@ export function LandscapeGameLayout({
   canPlay = false,
   canPass = false,
   disconnectedPlayers = [false, false, false, false],
+  disconnectTimerStartedAts,
+  turnTimerStartedAts,
+  onCountdownExpireds,
 }: LandscapeGameLayoutProps) {
   
   // Scoreboard expand/collapse state
@@ -235,6 +244,9 @@ export function LandscapeGameLayout({
             layout="horizontal"
             totalScore={totalScores[1]}
             isDisconnected={disconnectedPlayers[1]}
+            disconnectTimerStartedAt={disconnectTimerStartedAts?.[1]}
+            turnTimerStartedAt={turnTimerStartedAts?.[1]}
+            onCountdownExpired={onCountdownExpireds?.[1]}
           />
         </View>
 
@@ -246,6 +258,9 @@ export function LandscapeGameLayout({
             isActive={isOpponentActive(2)}
             totalScore={totalScores[2]}
             isDisconnected={disconnectedPlayers[2]}
+            disconnectTimerStartedAt={disconnectTimerStartedAts?.[2]}
+            turnTimerStartedAt={turnTimerStartedAts?.[2]}
+            onCountdownExpired={onCountdownExpireds?.[2]}
           />
         </View>
 
@@ -257,6 +272,9 @@ export function LandscapeGameLayout({
             isActive={isOpponentActive(3)}
             totalScore={totalScores[3]}
             isDisconnected={disconnectedPlayers[3]}
+            disconnectTimerStartedAt={disconnectTimerStartedAts?.[3]}
+            turnTimerStartedAt={turnTimerStartedAts?.[3]}
+            onCountdownExpired={onCountdownExpireds?.[3]}
           />
         </View>
 
@@ -315,6 +333,9 @@ export function LandscapeGameLayout({
             layout="vertical"
             totalScore={totalScores[0]}
             isDisconnected={disconnectedPlayers[0]}
+            disconnectTimerStartedAt={disconnectTimerStartedAts?.[0]}
+            turnTimerStartedAt={turnTimerStartedAts?.[0]}
+            onCountdownExpired={onCountdownExpireds?.[0]}
           />
         </View>
         

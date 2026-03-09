@@ -33,6 +33,8 @@ export interface LayoutPlayer {
   player_index: number;
   /** fix/rejoin: true when the player is disconnected or replaced by a bot */
   isDisconnected?: boolean;
+  /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
+  disconnectTimerStartedAt?: string | null;
 }
 
 export function useMultiplayerLayout({
@@ -109,6 +111,8 @@ export function useMultiplayerLayout({
   const multiplayerLayoutPlayers: LayoutPlayer[] = React.useMemo(() => {
     const getName = (idx: number): string => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      // Server already sets username to 'Bot <original name>' when replacing with a bot.
+      // Do NOT add another 'Bot ' prefix here — that would produce 'Bot Bot <name>'.
       return p?.username ?? `Player ${idx + 1}`;
     };
 
@@ -126,14 +130,29 @@ export function useMultiplayerLayout({
     const currentTurn = multiplayerGameState?.current_turn;
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
-    // fix/rejoin: a player is "disconnected" (shows spinner overlay) ONLY while they
-    // are in the process of disconnecting — i.e. connection_status = 'disconnected'.
-    // Once a replacement bot takes the seat (status = 'replaced_by_bot'), the bot
-    // is actively playing and should show a normal avatar without a spinner overlay.
+    // fix/rejoin: a player is "disconnected" (shows spinner overlay) when their
+    // connection_status = 'disconnected' (heartbeat stopped). The charcoal grey ring
+    // countdown shows the time until bot replacement.
+    // Once replacement happens (status = 'replaced_by_bot'), the avatar shows
+    // normally without spinner since the bot is actively playing.
     const isDisconnected = (idx: number): boolean => {
       const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
       if (!p) return false;
+      // Show spinner whenever explicitly disconnected (not just when cardCount=0)
       return p.connection_status === 'disconnected';
+    };
+
+    /** Get disconnect_timer_started_at for a player (non-null while 60s countdown is active) */
+    const getDisconnectTimerStartedAt = (idx: number): string | null => {
+      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      if (!p) return null;
+      // Show countdown whenever the timer is running, regardless of connection_status.
+      // This handles:
+      //   - 'disconnected': player's heartbeat went stale
+      //   - 'connected': player resumed heartbeat but timer is still running (persistent timer)
+      // Once 'replaced_by_bot', the countdown is irrelevant.
+      if (p.connection_status === 'replaced_by_bot') return null;
+      return p.disconnect_timer_started_at ?? null;
     };
 
     // CRITICAL: RELATIVE positioning — each player sees THEMSELVES at bottom
@@ -143,10 +162,10 @@ export function useMultiplayerLayout({
     const right = (multiplayerSeatIndex + 1) % 4;
 
     return [
-      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom, isDisconnected: isDisconnected(bottom) },
-      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top, isDisconnected: isDisconnected(top) },
-      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left) },
-      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right) },
+      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom, isDisconnected: isDisconnected(bottom), disconnectTimerStartedAt: getDisconnectTimerStartedAt(bottom) },
+      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top, isDisconnected: isDisconnected(top), disconnectTimerStartedAt: getDisconnectTimerStartedAt(top) },
+      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left), disconnectTimerStartedAt: getDisconnectTimerStartedAt(left) },
+      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right), disconnectTimerStartedAt: getDisconnectTimerStartedAt(right) },
     ];
   }, [multiplayerPlayers, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
 

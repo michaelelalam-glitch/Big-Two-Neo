@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import InactivityCountdownRing from './InactivityCountdownRing';
 
 interface PlayerInfoProps {
   name: string;
@@ -11,6 +12,12 @@ interface PlayerInfoProps {
   totalScore?: number; // Cumulative total score (Task #590)
   /** fix/rejoin: show spinner when player is disconnected */
   isDisconnected?: boolean;
+  /** UTC timestamp when the 60s bot-replacement countdown started (null = no countdown) */
+  disconnectTimerStartedAt?: string | null;
+  /** UTC timestamp when the 60s turn countdown started (null = no countdown) */
+  turnTimerStartedAt?: string | null;
+  /** Called when the countdown ring expires (timer reaches 0) */
+  onCountdownExpired?: () => void;
 }
 
 export default function PlayerInfo({
@@ -19,8 +26,26 @@ export default function PlayerInfo({
   isActive,
   totalScore,
   isDisconnected = false,
+  disconnectTimerStartedAt,
+  turnTimerStartedAt,
+  onCountdownExpired,
 }: PlayerInfoProps) {
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}`;
+  const hasConnectionTimer = !!disconnectTimerStartedAt;
+  const hasTurnTimer = !!turnTimerStartedAt;
+  const showRing = hasConnectionTimer || hasTurnTimer;
+  // Connection ring (charcoal grey) ALWAYS takes priority over turn ring (yellow).
+  const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
+  // Always anchor the connection ring to disconnectTimerStartedAt so its
+  // countdown matches the server-side bot-replacement timer exactly
+  // (disconnect_timer_started_at + 60s). The turn ring uses turnTimerStartedAt.
+  const ringStartedAt: string = (() => {
+    if (ringType === 'connection') {
+      return disconnectTimerStartedAt!;
+    }
+    return turnTimerStartedAt!;
+  })();
+  
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}`;
   
   return (
     <View 
@@ -29,11 +54,20 @@ export default function PlayerInfo({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && styles.activeAvatar]}>
+      <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
         <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
+        {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
+        {showRing && (
+          <InactivityCountdownRing 
+            key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→charcoal-grey transition
+            type={ringType}
+            startedAt={ringStartedAt}
+            onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+          />
+        )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
           <View style={styles.disconnectOverlay} pointerEvents="none">

@@ -14,6 +14,12 @@ interface GameLayoutProps {
     totalScore?: number;
     /** fix/rejoin: show disconnect spinner */
     isDisconnected?: boolean;
+    /** UTC timestamp when 60s bot-replacement countdown started */
+    disconnectTimerStartedAt?: string | null;
+    /** UTC timestamp when 60s turn countdown started */
+    turnTimerStartedAt?: string | null;
+    /** Called when this player's countdown ring expires */
+    onCountdownExpired?: () => void;
   }[];
   /** Last played cards to display in center area */
   lastPlayedCards: Card[];
@@ -57,6 +63,9 @@ export function GameLayout({
           isActive={players[1].isActive}
           totalScore={players[1].totalScore}
           isDisconnected={players[1].isDisconnected}
+          disconnectTimerStartedAt={players[1].disconnectTimerStartedAt}
+          turnTimerStartedAt={players[1].turnTimerStartedAt}
+          onCountdownExpired={players[1].onCountdownExpired}
         />
       </View>
 
@@ -72,6 +81,9 @@ export function GameLayout({
               isActive={players[2].isActive}
               totalScore={players[2].totalScore}
               isDisconnected={players[2].isDisconnected}
+              disconnectTimerStartedAt={players[2].disconnectTimerStartedAt}
+              turnTimerStartedAt={players[2].turnTimerStartedAt}
+              onCountdownExpired={players[2].onCountdownExpired}
             />
           </View>
 
@@ -101,6 +113,9 @@ export function GameLayout({
               isActive={players[3].isActive}
               totalScore={players[3].totalScore}
               isDisconnected={players[3].isDisconnected}
+              disconnectTimerStartedAt={players[3].disconnectTimerStartedAt}
+              turnTimerStartedAt={players[3].turnTimerStartedAt}
+              onCountdownExpired={players[3].onCountdownExpired}
             />
           </View>
         </View>

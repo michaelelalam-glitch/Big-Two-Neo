@@ -148,6 +148,27 @@ describe('useServerBotCoordinator', () => {
 
       expect(supabase.functions.invoke).not.toHaveBeenCalled();
     });
+
+    it('does NOT trigger when isAutoPassInProgress is true', async () => {
+      const gameState = makeBotTurnState(1);
+      const players = [humanPlayer, botPlayer];
+
+      renderHook(() =>
+        useServerBotCoordinator({
+          roomCode: ROOM_CODE,
+          enabled: true,
+          gameState,
+          players,
+          isAutoPassInProgress: true,
+        })
+      );
+
+      await act(async () => {
+        jest.advanceTimersByTime(FALLBACK_GRACE_PERIOD_MS + 100);
+      });
+
+      expect(supabase.functions.invoke).not.toHaveBeenCalled();
+    });
   });
 
   describe('Cooldown retry behaviour', () => {

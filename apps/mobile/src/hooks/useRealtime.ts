@@ -64,6 +64,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Tracks the freshest last_seen_at per player ID without triggering re-renders.
+   *  Updated on every room_players UPDATE (even heartbeat-only skipped ones).
+   *  Used by MultiplayerGame for client-side disconnect staleness detection. */
+  const playerLastSeenAtRef = useRef<Record<string, string>>({});
+  /** Maps room_players.id → user_id for presence leave → disconnect detection.
+   *  Updated alongside playerLastSeenAtRef in the postgres_changes handler. */
+  const playerIdToUserIdRef = useRef<Record<string, string>>({});
   
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
@@ -105,6 +112,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     roomPlayers,
     broadcastMessage,
     getCorrectedNow,
+    currentUserId: userId,
   });
 
   /**
@@ -123,6 +131,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw error;
       } else if (data) {
         setRoomPlayers(data);
+        // Populate refs for presence leave → disconnect detection
+        for (const player of data) {
+          if (player.id && player.user_id) {
+            playerIdToUserIdRef.current[player.id] = player.user_id;
+          }
+          if (player.id && player.last_seen_at) {
+            playerLastSeenAtRef.current[player.id] = player.last_seen_at;
+          }
+        }
       }
     } catch (err) {
       networkLogger.error('[useRealtime] Failed to fetch players:', err);
@@ -172,11 +189,27 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       },
     });
     
-    // Subscribe to presence events (logging disabled to reduce console noise)
+    // Subscribe to presence events — 'leave' triggers instant disconnect detection
     channel
       .on('presence', { event: 'sync' }, () => {})
       .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {})
-      .on('presence', { event: 'leave' }, ({ key: _key2, leftPresences: _leftPresences }) => {});
+      .on('presence', { event: 'leave' }, ({ key: leftUserId, leftPresences: _leftPresences }) => {
+        // When a player's presence leaves (WebSocket drops), immediately mark their
+        // last_seen_at as stale so the client-side staleness detector in MultiplayerGame
+        // picks it up on the very next polling cycle (~1s) instead of waiting 35s.
+        if (leftUserId && leftUserId !== userId) {
+          networkLogger.warn(`[useRealtime] 🔌 Presence LEAVE detected for user ${leftUserId.substring(0, 8)} — marking stale for instant disconnect`);
+          // Find the room_players row for this user via the ref-based mapping
+          // and backdate last_seen_at to 60s ago so staleness detector fires immediately.
+          const staleTimestamp = new Date(Date.now() - 60_000).toISOString();
+          for (const [playerId, mappedUserId] of Object.entries(playerIdToUserIdRef.current)) {
+            if (mappedUserId === leftUserId) {
+              playerLastSeenAtRef.current[playerId] = staleTimestamp;
+              networkLogger.info(`[useRealtime] ⚡ Backdated last_seen_at for playerId=${playerId.substring(0, 8)} (instant disconnect detection)`);
+            }
+          }
+        }
+      });
     
     // Subscribe to broadcast events
     channel
@@ -214,9 +247,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         fetchGameState(roomId);
         // Use onGameOverRef.current so the latest callback is always invoked
         // without needing to re-subscribe the channel when the prop changes.
-        const broadcastData = (payload as any)?.data || payload;
-        const winnerIndex = (broadcastData as any)?.winner_index ?? null;
-        const rawScores = (broadcastData as any)?.final_scores ?? [];
+        const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ?? payload) as Record<string, unknown>;
+        const rawScores = (broadcastData?.final_scores as unknown[] | undefined) ?? [];
         // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
         const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
           typeof s === 'object' && s !== null &&
@@ -229,7 +261,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
           networkLogger.warn('[Realtime] game_over: some final_scores entries had unexpected shape and were filtered');
         }
-        const matchNumber = (broadcastData as any)?.match_number ?? gameState?.match_number ?? 1;
+        const matchNumber = (broadcastData?.match_number as number | undefined) ?? gameState?.match_number ?? 1;
         // onMatchEnded + onGameOver calls removed — score history is handled by
         // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
         // fetchGameState above will update multiplayerGameState which triggers both hooks.
@@ -240,7 +272,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // broadcastMessage wraps data as { event, data: {...}, timestamp }
         // Access payload.data first, fall back to top-level for robustness
         const broadcastData = (payload as { data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number } })?.data || payload;
-        const matchScores = (broadcastData as { match_scores?: PlayerMatchScoreDetail[] })?.match_scores;
         const matchNumber = (broadcastData as { match_number?: number })?.match_number || gameState?.match_number || 1;
         gameLogger.info('[Realtime] match_ended received; fetchGameState triggered for score-history refresh', { matchNumber });
         // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
@@ -311,6 +342,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
         if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Player;
+          // Always track last_seen_at in a mutable ref (no re-render).
+          // Used by the client-side staleness detector to detect disconnects
+          // even when the server's process_disconnected_players hasn't fired yet.
+          if (updated.id && updated.last_seen_at) {
+            playerLastSeenAtRef.current[updated.id] = updated.last_seen_at;
+          }
+          // Track user_id mapping for presence leave → disconnect detection
+          if (updated.id && updated.user_id) {
+            playerIdToUserIdRef.current[updated.id] = updated.user_id;
+          }
           setRoomPlayers(prev => {
             const idx = prev.findIndex(p => p.id === updated.id);
             if (idx === -1) return [...prev, updated]; // new row — insert
@@ -325,7 +366,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               existing.player_index !== updated.player_index ||
               existing.username !== updated.username ||
               existing.human_user_id !== updated.human_user_id ||
-              existing.user_id !== updated.user_id;
+              existing.user_id !== updated.user_id ||
+              existing.disconnect_timer_started_at !== updated.disconnect_timer_started_at;
 
             if (!meaningfullyChanged) {
               networkLogger.debug('[useRealtime] 👥 room_players heartbeat ping — skipping re-render');
@@ -620,5 +662,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     reconnect,
     loading,
     error,
+    isAutoPassInProgress,
+    playerLastSeenAtRef,
   };
 }

@@ -57,6 +57,76 @@ export class BotAI {
     return this._difficulty;
   }
 
+  /**
+   * Always plays the highest valid combination — used for inactivity auto-play (60s timeout).
+   *
+   * Unlike getPlay() which uses difficulty-based strategy, this always maximises
+   * the value of the card(s) played:
+   *   - Leading (no lastPlay): highest single card in hand
+   *   - Following: highest valid combination that beats lastPlay
+   *   - No valid play: returns null (pass)
+   *   - First play of game (must include 3♦): highest combo containing 3♦
+   */
+  public playHighestValid(
+    options: Pick<BotPlayOptions, 'hand' | 'lastPlay' | 'isFirstPlayOfGame'>,
+  ): BotPlayResult {
+    const { hand, lastPlay, isFirstPlayOfGame } = options;
+
+    if (hand.length === 0) {
+      return { cards: null, reasoning: '[AUTO] No cards in hand' };
+    }
+
+    const sorted = sortHand(hand);
+
+    // First play of game must start with 3♦
+    if (isFirstPlayOfGame) {
+      const threeD = sorted.find(c => c.rank === '3' && c.suit === 'D');
+      if (!threeD) return { cards: null, reasoning: '[AUTO] No 3♦ found' };
+      const comboWith3D = this.findBestComboWith3D(sorted, threeD);
+      if (comboWith3D) return { cards: comboWith3D, reasoning: '[AUTO] Highest combo with 3♦' };
+      return { cards: [threeD.id], reasoning: '[AUTO] Playing 3♦ (only option)' };
+    }
+
+    // Leading — play the highest single card
+    if (!lastPlay) {
+      const highest = sorted[sorted.length - 1];
+      return {
+        cards: [highest.id],
+        reasoning: `[AUTO] Leading with highest single (${highest.rank}${highest.suit})`,
+      };
+    }
+
+    // Following — find all valid plays and return the highest one
+    const validPlays = this.findAllValidPlays(sorted, lastPlay);
+    if (validPlays.length === 0) {
+      return { cards: null, reasoning: '[AUTO] No valid play, passing' };
+    }
+
+    // Sort validPlays so [last] is the strongest for 1/2/3-card cases.
+    // findAllValidPlays already sorts the 5-card case; for smaller combos the
+    // iteration order is not guaranteed to be strongest-last (e.g. multiple
+    // same-rank pairs differ by suit, multiple triples differ by suit).
+    if (validPlays.length > 1 && lastPlay.cards.length < 5) {
+      const byId = new Map(sorted.map(c => [c.id, c] as const));
+      const comboType = classifyCards(lastPlay.cards);
+      validPlays.sort((a, b) => {
+        const cardsA = a.map(id => byId.get(id)!);
+        const cardsB = b.map(id => byId.get(id)!);
+        const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: comboType });
+        const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: comboType });
+        if (aBeatsB && !bBeatsA) return 1;  // a is stronger → comes last
+        if (!aBeatsB && bBeatsA) return -1; // b is stronger → a comes before
+        return 0;
+      });
+    }
+
+    const highestPlay = validPlays[validPlays.length - 1];
+    return {
+      cards: highestPlay,
+      reasoning: `[AUTO] Highest valid combination (${highestPlay.length} card${highestPlay.length !== 1 ? 's' : ''})`,
+    };
+  }
+
   public getPlay(options: BotPlayOptions): BotPlayResult {
     const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex, nextPlayerIndex } = options;
 

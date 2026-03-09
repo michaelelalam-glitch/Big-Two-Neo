@@ -233,7 +233,7 @@ jobs:
           # Export DEVICE_ID for subsequent steps
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       
-      - name: 💾 Cache CocoaPods
+      - name: 💾 Cache CocoaPods specs
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/CocoaPods
@@ -243,13 +243,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cocoapods-
 
-      - name: 💾 Cache DerivedData (xcodebuild)
+      - name: 💾 Cache Pods directory
         uses: actions/cache@v4
         with:
-          path: apps/mobile/ios/build
-          # Key on native dependency files only. TS/TSX source files are bundled
-          # into the JS bundle by Metro, NOT compiled by Xcode — including them
-          # in the key busts the cache on every code change unnecessarily.
+          # Cache the resolved Pods directory (spec + source) so pod install
+          # only links rather than downloading on cache hits.
+          path: apps/mobile/ios/Pods
+          key: ${{ runner.os }}-pods-dir-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-dir-
+
+      - name: 💾 Restore DerivedData cache (stable path, survives expo prebuild)
+        uses: actions/cache/restore@v4
+        with:
+          # DerivedData is stored OUTSIDE ios/ so that expo prebuild --clean
+          # (which wipes ios/) does not destroy the incremental build cache.
+          # On cache hits xcodebuild performs an incremental compile (~2-5 min)
+          # instead of a full rebuild (~15-20 min).
+          path: ~/DerivedData/Big2Mobile
           key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
             ${{ runner.os }}-deriveddata-
@@ -269,25 +280,40 @@ jobs:
           # Build RELEASE so JavaScript bundle is embedded in the app binary.
           # Debug builds load JS from Metro dev server which isn't available in CI,
           # causing the Expo Dev Client launcher to appear instead of the app.
+          # -jobs: use all available vCPUs for parallel Clang compilation.
+          # -derivedDataPath ~/DerivedData/Big2Mobile: keeps build artifacts at a
+          #   stable path outside ios/ so expo prebuild --clean doesn't wipe the
+          #   incremental cache on the next run (was apps/mobile/ios/build before).
           xcodebuild -workspace Big2Mobile.xcworkspace \
             -scheme Big2Mobile \
             -configuration Release \
             -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=${{ env.DEVICE_ID }}" \
-            -derivedDataPath build \
+            -derivedDataPath ~/DerivedData/Big2Mobile \
             build \
+            -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tail -50
+            2>&1 | tail -100
         timeout-minutes: 35
+
+      - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
+        # Saving with if: always() ensures the cache is preserved even when the
+        # build times out — breaking the infinite cache-miss loop where every run
+        # does a full 20-30 min rebuild. actions/cache/restore@v4 above handles
+        # the restore; this dedicated save step handles the write-back.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/DerivedData/Big2Mobile
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
-          # xcodebuild with -derivedDataPath build outputs to:
-          #   build/Build/Products/Release-iphonesimulator/<AppName>.app
-          APP_PATH=$(find apps/mobile/ios/build/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          # DerivedData is now at ~/DerivedData/Big2Mobile (stable path outside ios/)
+          APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No .app bundle found in derived data. Build may have failed."
-            find apps/mobile/ios/build -type d -maxdepth 4 2>/dev/null || echo "Build directory doesn't exist"
+            find ~/DerivedData/Big2Mobile -type d -maxdepth 4 2>/dev/null || echo "DerivedData directory doesn't exist"
             exit 1
           fi
           echo "Installing app: $APP_PATH"

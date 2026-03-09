@@ -61,6 +61,7 @@ module.exports = {
     '^@react-native-async-storage/async-storage$': '<rootDir>/src/game/__tests__/__mocks__/async-storage.ts',
     '^react-native$': '<rootDir>/src/game/__tests__/__mocks__/react-native.ts',
     '^react-native-safe-area-context$': '<rootDir>/src/game/__tests__/__mocks__/safe-area-context.ts',
+    '^react-native-svg$': '<rootDir>/src/__tests__/__mocks__/react-native-svg.ts',
     '^expo-haptics$': '<rootDir>/src/game/__tests__/__mocks__/expo-haptics.ts',
     '^expo-av$': '<rootDir>/src/__tests__/__mocks__/expo-av.ts',
     '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',

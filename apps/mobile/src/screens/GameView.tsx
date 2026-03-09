@@ -53,8 +53,8 @@ export interface GameViewProps {
   effectiveLastPlayCombo: string | null;
 
   // Layout players
-  layoutPlayers: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean }>;
-  layoutPlayersWithScores: Array<{ name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean }>;
+  layoutPlayers: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null }[];
+  layoutPlayersWithScores: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null; turnTimerStartedAt?: string | null; onCountdownExpired?: () => void }[];
   playerTotalScores: number[];
   currentPlayerName: string;
 
@@ -203,7 +203,10 @@ export function GameView(props: GameViewProps) {
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
             totalScores={playerTotalScores}
-            disconnectedPlayers={layoutPlayers.map((p) => p.isDisconnected ?? false)}
+            disconnectedPlayers={layoutPlayersWithScores.map((p) => p.isDisconnected ?? false)}
+            disconnectTimerStartedAts={layoutPlayersWithScores.map((p) => p.disconnectTimerStartedAt ?? null)}
+            turnTimerStartedAts={layoutPlayersWithScores.map((p) => p.turnTimerStartedAt ?? null)}
+            onCountdownExpireds={layoutPlayersWithScores.map((p) => p.onCountdownExpired)}
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}
             lastPlayedBy={effectiveLastPlayedBy ?? undefined}
@@ -345,11 +348,14 @@ export function GameView(props: GameViewProps) {
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.playerInfoContainer}>
               <PlayerInfo
-                name={layoutPlayers[0]?.name ?? currentPlayerName}
-                cardCount={layoutPlayers[0]?.cardCount ?? effectivePlayerHand.length}
-                isActive={layoutPlayers[0]?.isActive ?? false}
-                totalScore={playerTotalScores[0] ?? 0}
-                isDisconnected={(layoutPlayers[0] as { isDisconnected?: boolean })?.isDisconnected}
+                name={layoutPlayersWithScores[0]?.name ?? currentPlayerName}
+                cardCount={layoutPlayersWithScores[0]?.cardCount ?? effectivePlayerHand.length}
+                isActive={layoutPlayersWithScores[0]?.isActive ?? false}
+                totalScore={layoutPlayersWithScores[0]?.totalScore ?? playerTotalScores[0] ?? 0}
+                isDisconnected={layoutPlayersWithScores[0]?.isDisconnected}
+                disconnectTimerStartedAt={layoutPlayersWithScores[0]?.disconnectTimerStartedAt}
+                turnTimerStartedAt={layoutPlayersWithScores[0]?.turnTimerStartedAt}
+                onCountdownExpired={layoutPlayersWithScores[0]?.onCountdownExpired}
               />
             </View>
 
