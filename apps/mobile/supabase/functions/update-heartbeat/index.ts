@@ -215,12 +215,15 @@ Deno.serve(async (req) => {
     // force_sweep=true is sent by the client when a disconnect countdown ring expires
     // (ring hits 0) so the replacement happens immediately rather than waiting up to
     // 30s for the next scheduled piggyback sweep.
-    // SECURITY: validate force_sweep against a server-derived condition — only honour
-    // it when this room actually has a player with an expired disconnect timer
-    // (disconnect_timer_started_at older than 60 s).  Without this check any
-    // authenticated client could set force_sweep=true on every heartbeat to trigger
-    // process_disconnected_players + bot-coordinator fanout continuously (DoS vector).
-    let shouldSweep = count % 6 === 0;
+    // SECURITY: periodic gate is derived from the server clock — one 5-second slot per
+    // 30-second window (~1/6 frequency) — so a malicious client cannot force a sweep by
+    // sending a heartbeat_count that is a multiple of 6.  force_sweep is additionally
+    // validated server-side: it is only honoured when the room has a player with a
+    // genuinely expired disconnect timer (disconnect_timer_started_at older than 60 s).
+    // Without that check any authenticated client could trigger process_disconnected_players
+    // + bot-coordinator fanout on every heartbeat (DoS vector).
+    const sweepSlot = Math.floor(Date.now() / 5_000);
+    let shouldSweep = sweepSlot % 6 === 0;
     if (force_sweep === true && !shouldSweep) {
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')

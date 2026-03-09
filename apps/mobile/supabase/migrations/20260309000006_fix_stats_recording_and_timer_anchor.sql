@@ -353,6 +353,7 @@ COMMENT ON FUNCTION public.process_disconnected_players IS
   'Turn carry-over: when it is the player''s active turn, uses LEAST(turn_started_at, '
   'last_seen_at) so the charcoal-grey disconnect ring picks up where the yellow turn ring left off. '
   'Phase B sole-human-left branch queries ALL still-disconnected humans, picks the latest '
-  'COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) as the voided player, '
+  'COALESCE(disconnect_timer_started_at, disconnected_at) as the voided player '
+  '(last_seen_at intentionally excluded to avoid reintroducing timer contamination), '
   'and records abandoned for the rest — ensuring every '
   'player receives a stat regardless of Phase B iteration order.';
