@@ -412,6 +412,7 @@ export interface Translations {
     readyStatusError: string;
     leaveRoomError: string;
     startGameError: string;
+    notAllPlayersReady: string;
     shareError: string;
     shareErrorMessage: string;
     rankedRequirement: string;
@@ -945,6 +946,7 @@ const en: Translations = {
     readyStatusError: 'Failed to update ready status',
     leaveRoomError: 'Failed to leave room',
     startGameError: 'Failed to start game',
+    notAllPlayersReady: 'All non-host players must be ready before starting',
     shareError: 'Share Error',
     shareErrorMessage: 'Unable to share room code',
     rankedRequirement: 'Ranked matches require 4 human players',
@@ -1418,6 +1420,7 @@ const ar: Translations = {
     readyStatusError: 'فشل تحديث حالة الجاهزية',
     leaveRoomError: 'فشل مغادرة الغرفة',
     startGameError: 'فشل بدء اللعبة',
+    notAllPlayersReady: 'يجب أن يكون جميع اللاعبين (عدا المضيف) مستعدين قبل البدء',
     shareError: 'خطأ في المشاركة',
     shareErrorMessage: 'فشلت مشاركة رمز الغرفة. حاول مرة أخرى.',
     rankedRequirement: 'تتطلب المباريات المصنفة 4 لاعبين بشريين',
@@ -1969,6 +1972,7 @@ const de: Translations = {
     readyStatusError: 'Fehler beim Aktualisieren des Bereitschaftsstatus',
     leaveRoomError: 'Fehler beim Verlassen des Raums',
     startGameError: 'Fehler beim Starten des Spiels',
+    notAllPlayersReady: 'Alle Nicht-Host-Spieler müssen bereit sein, bevor das Spiel beginnt',
     shareError: 'Fehler beim Teilen',
     shareErrorMessage: 'Raumcode konnte nicht geteilt werden. Bitte erneut versuchen.',
     rankedRequirement: 'Ranglistenspiele erfordern 4 menschliche Spieler',

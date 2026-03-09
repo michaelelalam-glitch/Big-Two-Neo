@@ -98,17 +98,29 @@ BEGIN
     );
   END IF;
 
-  -- 4. Find coordinator (first human player, i.e. the host)
-  SELECT user_id INTO v_coordinator_id
+  -- 4. Find coordinator using the authoritative rooms.host_id.
+  --    Prefer this over ORDER BY joined_at: host transfer selects by lowest player_index,
+  --    so the host may not be the earliest-joined player.
+  v_coordinator_id := v_room.host_id;
+
+  IF v_coordinator_id IS NULL THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Room host is not set'
+    );
+  END IF;
+
+  -- Verify the host is a non-bot participant in this room
+  PERFORM 1
   FROM room_players
-  WHERE room_id = p_room_id AND is_bot = false
-  ORDER BY joined_at ASC, user_id ASC
-  LIMIT 1;
+  WHERE room_id = p_room_id
+    AND user_id = v_coordinator_id
+    AND is_bot = false;
 
   IF NOT FOUND THEN
     RETURN json_build_object(
       'success', false,
-      'error', 'No human players found in room'
+      'error', 'Host is not a valid human player in this room'
     );
   END IF;
 
