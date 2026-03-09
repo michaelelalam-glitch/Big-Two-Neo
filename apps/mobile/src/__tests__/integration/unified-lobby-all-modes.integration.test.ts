@@ -198,41 +198,70 @@ describe('Suite 3 — Ready system (state logic)', () => {
     expect(isReady).toBe(false);
   });
 
-  it('all-players-ready check: 4 human players all ready → can auto-start', () => {
+  // ── Updated for Task #623: host is excluded from the readiness requirement ──
+
+  it('all non-host humans ready → host can start (host readiness not required)', () => {
+    // The host toggles is_host=true and is implicitly ready as the initiator.
+    // Only non-host, non-bot players must toggle ready.
     const players = [
-      { is_bot: false, is_ready: true },
-      { is_bot: false, is_ready: true },
-      { is_bot: false, is_ready: true },
-      { is_bot: false, is_ready: true },
+      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded from check
+      { is_bot: false, is_host: false, is_ready: true  },
+      { is_bot: false, is_host: false, is_ready: true  },
+      { is_bot: false, is_host: false, is_ready: true  },
     ];
-    const humanPlayers = players.filter(p => !p.is_bot);
-    const allReady = humanPlayers.length > 0 && humanPlayers.every(p => p.is_ready);
-    expect(allReady).toBe(true);
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    expect(allNonHostHumansReady).toBe(true);
   });
 
-  it('not all ready → cannot auto-start', () => {
+  it('one non-host human not ready → cannot start', () => {
     const players = [
-      { is_bot: false, is_ready: true },
-      { is_bot: false, is_ready: false }, // one not ready
-      { is_bot: true,  is_ready: true },
-      { is_bot: true,  is_ready: true },
+      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded
+      { is_bot: false, is_host: false, is_ready: false }, // NOT ready → blocks start
+      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: true,  is_host: false, is_ready: true  },
     ];
-    const humanPlayers = players.filter(p => !p.is_bot);
-    const allReady = humanPlayers.length > 0 && humanPlayers.every(p => p.is_ready);
-    expect(allReady).toBe(false);
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    expect(allNonHostHumansReady).toBe(false);
   });
 
-  it('bots are always considered ready (not counted for all-ready check)', () => {
-    // In the lobby, bots are pre-ready and shouldn't block the game from starting
+  it('bots excluded: bot not-ready does not block start', () => {
+    // Bots are auto-ready; even if is_ready were false they must not block start
     const players = [
-      { is_bot: false, is_ready: true },
-      { is_bot: true,  is_ready: true }, // bot — ignored for all-ready
-      { is_bot: true,  is_ready: true },
-      { is_bot: true,  is_ready: true },
+      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded
+      { is_bot: false, is_host: false, is_ready: true  }, // only non-host human — ready
+      { is_bot: true,  is_host: false, is_ready: false }, // bot — excluded
+      { is_bot: true,  is_host: false, is_ready: false }, // bot — excluded
     ];
-    const humanPlayers = players.filter(p => !p.is_bot);
-    const allReady = humanPlayers.length > 0 && humanPlayers.every(p => p.is_ready);
-    expect(allReady).toBe(true);
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    expect(allNonHostHumansReady).toBe(true);
+  });
+
+  it('no non-host humans (host solo + 3 bots) → allNonHostHumansReady true (empty set)', () => {
+    const players = [
+      { is_bot: false, is_host: true,  is_ready: false },
+      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: true,  is_host: false, is_ready: true  },
+    ];
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    expect(allNonHostHumansReady).toBe(true);
+  });
+
+  it('host start button disabled: some non-host humans not ready → allNonHostHumansReady false', () => {
+    // Simulates LobbyScreen allNonHostHumansReady memo — Start button should be disabled.
+    const players = [
+      { is_bot: false, is_host: true,  is_ready: false },
+      { is_bot: false, is_host: false, is_ready: true  },
+      { is_bot: false, is_host: false, is_ready: false }, // not ready → button disabled
+      { is_bot: true,  is_host: false, is_ready: true  },
+    ];
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    expect(allNonHostHumansReady).toBe(false);
   });
 });
 

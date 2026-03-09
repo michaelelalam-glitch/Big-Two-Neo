@@ -65,6 +65,13 @@ export default function LobbyScreen() {
   // Performance optimization: Calculate human player count once using useMemo
   const humanPlayerCount = useMemo(() => players.filter(p => !p.is_bot).length, [players]);
 
+  // All non-host, non-bot players must be ready before the host can start.
+  // The host is not required to toggle ready — they are implicitly ready as the initiator.
+  const allNonHostHumansReady = useMemo(
+    () => players.filter(p => !p.is_bot && !p.is_host).every(p => p.is_ready),
+    [players]
+  );
+
   useEffect(() => {
     loadPlayers();
     return subscribeToPlayers();
@@ -373,6 +380,13 @@ export default function LobbyScreen() {
       roomLogger.info('⏭️ [LobbyScreen] Start already in progress, ignoring...');
       return;
     }
+
+    // Guard: all non-host human players must be ready before the host can start
+    const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
+    if (nonHostHumans.some(p => !p.is_ready)) {
+      showError(i18n.t('lobby.notAllPlayersReady') || 'All players must be ready before starting');
+      return;
+    }
     
     try {
       isStartingRef.current = true;
@@ -644,19 +658,24 @@ export default function LobbyScreen() {
             <Text style={styles.rejoinButtonText}>🎮 Rejoin Game</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
-            onPress={handleToggleReady}
-            disabled={isTogglingReady}
-          >
-            {isTogglingReady ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
-            ) : (
-              <Text style={styles.readyButtonText}>
-                {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
-              </Text>
+          <>
+            {/* The host does not need to toggle ready — only non-host human players do. */}
+            {!isHost && (
+              <TouchableOpacity
+                style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
+                onPress={handleToggleReady}
+                disabled={isTogglingReady}
+              >
+                {isTogglingReady ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  <Text style={styles.readyButtonText}>
+                    {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </>
         )}
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
@@ -696,11 +715,12 @@ export default function LobbyScreen() {
             )}
             
             {/* Start button shows when less than 4 humans (consistent with bot count display) */}
+            {/* Disabled until all non-host human players have toggled ready */}
             {humanPlayerCount < 4 && (
               <TouchableOpacity
-                style={[styles.startButton, isStarting && styles.buttonDisabled]}
+                style={[styles.startButton, (isStarting || !allNonHostHumansReady) && styles.buttonDisabled]}
                 onPress={handleStartWithBots}
-                disabled={isStarting}
+                disabled={isStarting || !allNonHostHumansReady}
               >
                 {isStarting ? (
                   <>
