@@ -26,8 +26,8 @@ export interface UseTurnInactivityTimerOptions {
   room: { id: string; code: string } | null;
   /** Current list of room players */
   roomPlayers: Player[];
-  /** Broadcast a message to all connected clients */
-  broadcastMessage: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
+  /** Broadcast a message to all connected clients (optional — auto-play is server-authoritative) */
+  broadcastMessage?: (event: BroadcastEvent, data: BroadcastData) => Promise<void>;
   /** Clock-sync corrected timestamp (ms) */
   getCorrectedNow: () => number;
   /** Current authenticated user id */
@@ -46,7 +46,9 @@ export interface TurnInactivityTimer {
 }
 
 const TURN_TIMEOUT_MS = 60_000; // 60 seconds
-const POLLING_INTERVAL_MS = 100; // Same as useAutoPassTimer for consistency
+// 500ms polling: sufficient to detect expiry within half a second while keeping
+// re-renders to ~2/sec instead of ~10/sec during the local player's turn.
+const POLLING_INTERVAL_MS = 500;
 
 export function useTurnInactivityTimer({
   gameState,
@@ -62,7 +64,7 @@ export function useTurnInactivityTimer({
   const roomRef = useRef<{ id: string; code: string } | null>(null);
   const roomPlayersRef = useRef<Player[]>([]);
   const currentUserIdRef = useRef<string | null>(null);
-  const broadcastMessageRef = useRef<typeof broadcastMessage>(broadcastMessage);
+  const broadcastMessageRef = useRef<NonNullable<typeof broadcastMessage> | undefined>(broadcastMessage);
   const getCorrectedNowRef = useRef<typeof getCorrectedNow>(getCorrectedNow);
   const onAutoPlayRef = useRef<typeof onAutoPlay>(onAutoPlay);
 
@@ -151,10 +153,10 @@ export function useTurnInactivityTimer({
         onAutoPlayRef.current(result.cards || null, result.action);
       }
 
-      // Broadcast (best-effort)
+      // Broadcast (best-effort, optional)
       const players = roomPlayersRef.current;
       const myPlayer = players.find(p => p.user_id === userId);
-      if (myPlayer) {
+      if (myPlayer && broadcastMessageRef.current) {
         void broadcastMessageRef.current('turn_auto_played', {
           player_index: myPlayer.player_index,
         }).catch(() => {});

@@ -26,9 +26,9 @@ export default function HomeScreen() {
   // handleTimerExpired) can read it without causing stale-closure hook-dep warnings.
   // Fixes Copilot review comment: "currentRoom is not in the hook dependency array".
   const currentRoomRef = useRef<string | null>(null);
-  /** Guard: at most one scheduled 2s re-check can be pending at a time. */
+  /** Guard: at most one scheduled 1s re-check can be pending at a time. */
   const hasScheduledRecheckRef = useRef(false);
-  /** Holds the handle of the pending 2s re-check so it can be cleared on unmount. */
+  /** Holds the handle of the pending 1s re-check so it can be cleared on unmount. */
   const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);

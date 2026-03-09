@@ -253,8 +253,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pods-dir-
 
-      - name: 💾 Cache DerivedData (stable path, survives expo prebuild)
-        uses: actions/cache@v4
+      - name: 💾 Restore DerivedData cache (stable path, survives expo prebuild)
+        uses: actions/cache/restore@v4
         with:
           # DerivedData is stored OUTSIDE ios/ so that expo prebuild --clean
           # (which wipes ios/) does not destroy the incremental build cache.
@@ -264,12 +264,6 @@ jobs:
           key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
             ${{ runner.os }}-deriveddata-
-          # save-always: true ensures the cache is saved even when the build step
-          # (or any later step) fails or times out. Without this, a build timeout
-          # causes the post-cache step to be skipped → cache never saved → next
-          # run also misses the cache → another full 20-30 min rebuild → timeout
-          # again. This breaks the infinite cache-miss loop.
-          save-always: true
 
       - name: 📦 Install dependencies
         run: |
@@ -301,6 +295,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tail -100
         timeout-minutes: 35
+
+      - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
+        # Saving with if: always() ensures the cache is preserved even when the
+        # build times out — breaking the infinite cache-miss loop where every run
+        # does a full 20-30 min rebuild. actions/cache/restore@v4 above handles
+        # the restore; this dedicated save step handles the write-back.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/DerivedData/Big2Mobile
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |

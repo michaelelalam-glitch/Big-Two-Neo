@@ -503,7 +503,7 @@ Deno.serve(async (req) => {
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
+      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
 
       return new Response(
         JSON.stringify({
@@ -596,7 +596,7 @@ Deno.serve(async (req) => {
       console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
 
       // Trigger bot-coordinator if the exempt player is a bot
-      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
+      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
 
       return new Response(
         JSON.stringify({
@@ -634,7 +634,7 @@ Deno.serve(async (req) => {
     console.log('✅ [player-pass] Pass processed successfully');
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
+    void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
 
     return new Response(
       JSON.stringify({

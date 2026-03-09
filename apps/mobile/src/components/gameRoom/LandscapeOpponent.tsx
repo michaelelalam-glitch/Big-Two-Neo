@@ -68,7 +68,7 @@ export function LandscapeOpponent({
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
-  // Connection ring (orange) ALWAYS takes priority over turn ring (yellow)
+  // Connection ring (charcoal grey) ALWAYS takes priority over turn ring (yellow)
   const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
   const ringStartedAt: string | undefined = (() => {
     if (!showRing) {
@@ -98,7 +98,7 @@ export function LandscapeOpponent({
             <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
           )}
         </View>
-        {/* Countdown ring (yellow = turn, orange = disconnect) */}
+        {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
         {showRing && ringStartedAt && (
           <InactivityCountdownRing
             key={ringStartedAt}

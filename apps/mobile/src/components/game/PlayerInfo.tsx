@@ -59,10 +59,10 @@ export default function PlayerInfo({
           {/* Default avatar icon - matches landscape opponent emoji */}
           <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
         </View>
-        {/* Dual-mode countdown ring (yellow = turn, orange = disconnect) */}
+        {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
         {showRing && (
           <InactivityCountdownRing 
-            key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→orange transition
+            key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→charcoal-grey transition
             type={ringType}
             startedAt={ringStartedAt}
             onExpired={ringType === 'connection' ? onCountdownExpired : undefined}

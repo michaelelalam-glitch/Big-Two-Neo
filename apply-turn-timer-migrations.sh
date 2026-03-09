@@ -31,10 +31,10 @@ fi
 
 # Apply migrations in order
 echo "📝 Applying migration: 20260308000002_add_turn_inactivity_timer.sql"
-supabase db push --file supabase/migrations/20260308000002_add_turn_inactivity_timer.sql
+supabase db execute --file supabase/migrations/20260308000002_add_turn_inactivity_timer.sql
 
 echo "📝 Applying migration: 20260308000003_fix_turn_started_at_on_game_creation.sql"
-supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_on_game_creation.sql
+supabase db execute --file supabase/migrations/20260308000003_fix_turn_started_at_on_game_creation.sql
 
 echo ""
 echo "✅ Migrations applied successfully!"

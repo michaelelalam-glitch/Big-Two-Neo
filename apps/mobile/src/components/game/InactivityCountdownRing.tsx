@@ -73,6 +73,10 @@ export default function InactivityCountdownRing({
   });
   const rafIdRef = useRef<number | null>(null);
   const expiredFiredRef = useRef(false);
+  // Throttle React state updates to ~15fps to reduce render pressure while keeping
+  // the RAF loop running at native rate for precise expiry detection.
+  const lastRenderMsRef = useRef(0);
+  const RENDER_INTERVAL_MS = 66; // ~15fps
 
   const startTimeMs = React.useMemo(
     () => {
@@ -100,15 +104,23 @@ export default function InactivityCountdownRing({
     const remaining = Math.max(0, COUNTDOWN_DURATION_MS - elapsed);
     // CRITICAL: Clamp progress between 0 and 1 to prevent arc overflow
     const newProgress = Math.min(1, Math.max(0, remaining / COUNTDOWN_DURATION_MS));
-    setProgress(newProgress);
 
     if (newProgress > 0) {
+      // Only push a React state update at ~15fps to reduce render churn while
+      // keeping the RAF loop running at native rate for precise expiry detection.
+      if (now - lastRenderMsRef.current >= RENDER_INTERVAL_MS) {
+        lastRenderMsRef.current = now;
+        setProgress(newProgress);
+      }
       rafIdRef.current = requestAnimationFrame(tick);
-    } else if (!expiredFiredRef.current && onExpired) {
-      // Timer reached 0 — fire callback once
-      expiredFiredRef.current = true;
-      networkLogger.warn(`[InactivityRing] Timer expired: type=${type}`);
-      onExpired();
+    } else {
+      // Commit final progress=0 so the ring disappears, then fire callback once.
+      setProgress(0);
+      if (!expiredFiredRef.current && onExpired) {
+        expiredFiredRef.current = true;
+        networkLogger.warn(`[InactivityRing] Timer expired: type=${type}`);
+        onExpired();
+      }
     }
   }, [startTimeMs, onExpired, type]);
 

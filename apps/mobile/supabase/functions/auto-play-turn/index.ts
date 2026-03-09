@@ -29,14 +29,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface AutoPlayResponse {
-  success: boolean;
-  action: 'play' | 'pass' | 'timeout_not_reached' | 'not_your_turn';
-  cards?: Card[];
-  error?: string;
-  seconds_elapsed?: number;
-}
-
 /**
  * Replace an inactive human player with a bot after auto-play.
  * Mirrors the pattern used by process_disconnected_players():
@@ -242,6 +234,7 @@ Deno.serve(async (req) => {
       const cards = gameState.hands[p.player_index.toString()] || [];
       return Array.isArray(cards) ? cards.length : 0;
     });
+    console.log(`[auto-play-turn] Card counts by player_index: ${playerCardCounts.join(', ')}`);
 
     // Always play the highest valid combination for inactivity auto-play.
     // We intentionally bypass BotAI.getPlay() strategy (which can choose to save

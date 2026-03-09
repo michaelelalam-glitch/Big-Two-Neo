@@ -492,10 +492,9 @@ export function MultiplayerGame() {
     gameState: multiplayerGameState,
     room: roomInfo,
     roomPlayers: effectiveMultiplayerPlayers,
-    broadcastMessage: async (event, data) => {
-      // Re-use the broadcast pattern from useRealtime if needed
-      gameLogger.info('[MultiplayerGame] Broadcasting turn event:', event, data);
-    },
+    // broadcastMessage omitted — turn_auto_played is supplementary; auto-play is confirmed
+    // by the server-authoritative game_state update. Wire to useRealtime.broadcastMessage
+    // (once added to UseRealtimeReturn) when turn_auto_played needs to reach other clients.
     getCorrectedNow: () => Date.now(), // Use clock-sync if available
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
@@ -632,7 +631,15 @@ export function MultiplayerGame() {
         }
       }
 
-      setClientDisconnections(newMap);
+      // Only update if the map contents actually changed to avoid re-rendering
+      // the entire Game screen every second when nothing has changed.
+      setClientDisconnections(prev => {
+        if (prev.size === newMap.size &&
+            [...newMap.entries()].every(([k, v]) => prev.get(k) === v)) {
+          return prev;
+        }
+        return newMap;
+      });
     }, 1_000); // Poll every 1s for fast disconnect detection (presence leave backdates timestamps)
 
     return () => clearInterval(interval);
