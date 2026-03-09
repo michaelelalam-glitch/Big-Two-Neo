@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const { room_id, player_id, heartbeat_count } = body;
+    const { room_id, player_id, heartbeat_count, force_sweep } = body;
 
     if (!room_id || !player_id) {
       return new Response(
@@ -211,8 +211,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (count % 6 === 0) {
+    if (count % 6 === 0 || force_sweep === true) {
       // Periodic sweep: mark stale heartbeats as disconnected and replace with bots
+      // force_sweep=true is sent by the client when a disconnect countdown ring expires
+      // (ring hits 0) so the replacement happens immediately rather than waiting up to
+      // 30s for the next scheduled piggyback sweep.
       const sweepPromise = (async () => {
         try {
           const { data: sweepResult, error: sweepError } = await supabaseClient

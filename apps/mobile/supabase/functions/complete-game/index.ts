@@ -33,12 +33,10 @@ interface GameCompletionRequest {
   started_at: string;
   finished_at: string;
   game_completed: boolean; // Whether game reached natural conclusion (no forfeit)
-  /**
-   * The user_id of the last human player who left, triggering a voided outcome.
-   * Only set when game_completed=false and the room had no human players remaining.
-   * That player receives p_voided=true; all other non-completers receive abandoned.
-   */
-  voided_player_id?: string | null;
+  // NOTE: voided_player_id is intentionally NOT accepted from the client.
+  // The server deterministically computes who was the last human to leave by
+  // querying room_players.disconnected_at — this prevents a malicious client
+  // from setting voided_player_id to another player to avoid abandonment penalties.
 }
 
 const corsHeaders = {
@@ -239,6 +237,35 @@ Deno.serve(async (req: Request) => {
     // STEP 3: UPDATE PLAYER STATS (for each REAL player only, skip bots)
     // ============================================================================
 
+    // ── Determine voided player server-side ──────────────────────────────────
+    // Do NOT trust the client for this — a malicious caller could name any player
+    // as voided to deny them an "abandoned" stat.  Instead, find the human with
+    // the most-recent disconnected_at in the room: that is the last person to leave
+    // an unfinished game and the only one who qualifies for the voided outcome.
+    // Must be queried BEFORE Step 3b which deletes room_players rows.
+    let serverVoidedPlayerId: string | null = null;
+    if (!gameData.game_completed && gameData.room_id) {
+      const { data: lastGone } = await supabaseAdmin
+        .from('room_players')
+        .select('user_id, disconnected_at')
+        .eq('room_id', gameData.room_id)
+        .eq('is_bot', false)
+        .in('connection_status', ['disconnected', 'replaced_by_bot'])
+        .not('disconnected_at', 'is', null)
+        .order('disconnected_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastGone?.user_id) {
+        // Sanity check: the player must be in the submitted player list
+        const inList = gameData.players.some(p => p.user_id === lastGone.user_id);
+        if (inList) {
+          serverVoidedPlayerId = lastGone.user_id;
+          console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
+        }
+      }
+    }
+
     // Only update stats for real players (not bots)
     const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));
 
@@ -248,9 +275,10 @@ Deno.serve(async (req: Request) => {
       console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}`);
 
       // A player is voided when they were the last human to leave an unfinished game.
+      // serverVoidedPlayerId is computed from room_players above — never from the client.
       const isVoided = !gameData.game_completed &&
-        !!gameData.voided_player_id &&
-        player.user_id === gameData.voided_player_id;
+        !!serverVoidedPlayerId &&
+        player.user_id === serverVoidedPlayerId;
 
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,

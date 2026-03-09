@@ -202,7 +202,7 @@ export function MultiplayerGame() {
     return me?.id ?? null;
   }, [multiplayerPlayers, user?.id]);
 
-  const { reconnect: connectionReconnect, rejoinStatus } = useConnectionManager({
+  const { reconnect: connectionReconnect, rejoinStatus, forceSweep } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
@@ -654,6 +654,13 @@ export function MultiplayerGame() {
     setShowBotReplacedModal(true);
   }, []);
 
+  // Another player's disconnect countdown expired — trigger immediate bot replacement
+  // instead of waiting up to 30 s for the next heartbeat-piggyback sweep.
+  const handleOtherPlayerDisconnectExpired = useCallback(() => {
+    gameLogger.warn('[MultiplayerGame] Remote player disconnect countdown expired — forcing sweep');
+    forceSweep();
+  }, [forceSweep]);
+
   // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
   const enrichedLayoutPlayers = useMemo(() => {
     // Get turn timer started_at from game_state (shared state for ALL players)
@@ -677,11 +684,14 @@ export function MultiplayerGame() {
         // Merge client-side + server-side disconnect state
         isDisconnected: isClientDisconnected || player.isDisconnected,
         disconnectTimerStartedAt: clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt,
-        // Connection countdown callback: only local player handles expiry
-        onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : undefined,
+        // Connection countdown callback:
+        //   idx 0 (local player) → show RejoinModal when their own timer hits 0
+        //   idx > 0 (other players) → force process_disconnected_players immediately
+        //     so bot replacement happens right when the ring hits 0, not up to 30s later
+        onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : handleOtherPlayerDisconnectExpired,
       };
     });
-  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, multiplayerGameState?.turn_started_at, clientDisconnections]);
+  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, handleOtherPlayerDisconnectExpired, multiplayerGameState?.turn_started_at, clientDisconnections]);
 
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;

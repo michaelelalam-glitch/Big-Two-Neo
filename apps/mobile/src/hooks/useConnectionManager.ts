@@ -76,6 +76,13 @@ interface UseConnectionManagerReturn {
   reconnect: () => Promise<void>;
   /** Explicit leave — only call when the player intentionally exits */
   disconnect: () => Promise<void>;
+  /**
+   * Immediately triggers process_disconnected_players() via update-heartbeat.
+   * Call this when another player's disconnect countdown ring expires so bot
+   * replacement happens at once instead of waiting up to 30s for the next
+   * scheduled piggyback sweep.
+   */
+  forceSweep: () => void;
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -373,6 +380,22 @@ export function useConnectionManager({
     return stopHeartbeat;
   }, [stopHeartbeat]);
 
+  const forceSweep = useCallback(() => {
+    if (!enabled || !roomId || !playerId) return;
+    // Fire-and-forget: send a heartbeat with force_sweep=true so the server
+    // runs process_disconnected_players() immediately (no count%6 gate).
+    supabase.functions.invoke('update-heartbeat', {
+      body: {
+        room_id:     roomId,
+        player_id:   playerId,
+        heartbeat_count: heartbeatCountRef.current,
+        force_sweep: true,
+      },
+    }).catch((err: unknown) => {
+      console.warn('[useConnectionManager] forceSweep error:', err);
+    });
+  }, [enabled, roomId, playerId]);
+
   return {
     connectionStatus,
     isReconnecting,
@@ -380,5 +403,6 @@ export function useConnectionManager({
     rejoinStatus,
     reconnect,
     disconnect,
+    forceSweep,
   };
 }
