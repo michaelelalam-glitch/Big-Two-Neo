@@ -315,7 +315,7 @@ export default function HomeScreen() {
           destructive: true,
           onConfirm: async () => {
             try {
-              // Same safe-leave logic: backdate timer for playing rooms,
+              // Safe-leave logic: mark as disconnected for playing rooms,
               // delete immediately for non-playing rooms.
               const { data: membershipCheck, error: membershipError } = await supabase
                 .from('room_players')
@@ -329,13 +329,13 @@ export default function HomeScreen() {
               const shouldTreatAsPlaying =
                 !!membershipError || !membershipCheck || currentStatus === 'playing';
               if (shouldTreatAsPlaying) {
-                const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+                const now = new Date().toISOString();
                 let updateQuery = supabase
                   .from('room_players')
                   .update({
                     connection_status: 'disconnected',
-                    disconnected_at: new Date().toISOString(),
-                    disconnect_timer_started_at: expiredAnchor,
+                    disconnected_at: now,
+                    disconnect_timer_started_at: now,
                   })
                   .eq('user_id', user.id);
                 if (membershipCheck?.room_id) {
@@ -406,9 +406,9 @@ export default function HomeScreen() {
           // For PLAYING rooms: do NOT hard-delete the row.
           // The row must remain so process_disconnected_players can detect
           // the departure and record abandoned/voided stats correctly.
-          // Instead, backdate disconnect_timer_started_at so Phase B treats
-          // the timer as already expired; the cron will close the room and
-          // save stats within ≤30 s.
+          // Mark as disconnected with the real disconnect time so the server
+          // voided/abandoned attribution sorts correctly; the cron will close
+          // the room once the 60s timer elapses.
           // For all other rooms: delete immediately (original behaviour).
           const { data: membership, error: membershipQueryError } = await supabase
             .from('room_players')
@@ -424,20 +424,20 @@ export default function HomeScreen() {
             !!membershipQueryError || !membership || roomStatus === 'playing';
 
           if (treatAsPlaying) {
-            const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+            const now = new Date().toISOString();
             let updateQuery = supabase
               .from('room_players')
               .update({
                 connection_status: 'disconnected',
-                disconnected_at: new Date().toISOString(),
-                disconnect_timer_started_at: expiredAnchor,
+                disconnected_at: now,
+                disconnect_timer_started_at: now,
               })
               .eq('user_id', user.id);
             if (membership?.room_id) {
               updateQuery = updateQuery.eq('room_id', membership.room_id);
             }
             await updateQuery;
-            roomLogger.info('✅ Playing-room leave: timer backdated — cron will close room and record stats');
+            roomLogger.info('✅ Playing-room leave: marked disconnected — cron will close room and record stats');
           } else {
             let deleteQuery = supabase
               .from('room_players')

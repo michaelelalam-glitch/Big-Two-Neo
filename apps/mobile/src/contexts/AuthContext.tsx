@@ -630,13 +630,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // than deleting them — avoids destroying playing-room rows when
           // room status is unknown.
           authLogger.warn('⚠️ [AuthContext] memberships query failed — marking all rows disconnected as safe fallback:', membershipsError.message);
-          const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+          const now = new Date().toISOString();
           await supabase
             .from('room_players')
             .update({
               connection_status: 'disconnected',
-              disconnected_at: new Date().toISOString(),
-              disconnect_timer_started_at: expiredAnchor,
+              disconnected_at: now,
+              disconnect_timer_started_at: now,
             })
             .eq('user_id', currentUserId);
           // Skip the rest of the room cleanup and proceed to sign-out

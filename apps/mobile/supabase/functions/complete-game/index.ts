@@ -35,8 +35,10 @@ interface GameCompletionRequest {
   game_completed: boolean; // Whether game reached natural conclusion (no forfeit)
   // NOTE: voided_player_id is intentionally NOT accepted from the client.
   // The server deterministically computes who was the last human to leave by
-  // querying room_players.disconnected_at — this prevents a malicious client
-  // from setting voided_player_id to another player to avoid abandonment penalties.
+  // sorting on COALESCE(room_players.disconnect_timer_started_at, disconnected_at) DESC
+  // — this prevents a malicious client from setting voided_player_id to another
+  // player to avoid abandonment penalties. last_seen_at is intentionally excluded
+  // because it is contaminated by bot heartbeats for replaced players.
 }
 
 const corsHeaders = {
