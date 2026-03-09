@@ -288,17 +288,21 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ── Replace inactive player with bot ──
-      // The player was inactive for 60s. Mark them as a bot so the bot-coordinator
-      // takes over on subsequent turns. The client detects 'replaced_by_bot' via
-      // Realtime and shows the RejoinModal ("Reclaim My Seat").
-      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      // ── Conditionally replace with bot ──
+      // Only replace the player with a bot when they are actually disconnected.
+      // A connected user who simply timed out gets their turn auto-played but
+      // keeps their seat; bot replacement here would skip the "I'm Still Here"
+      // confirmation flow and prematurely lock out an active user.
+      const isDisconnectedPass = currentPlayer.connection_status === 'disconnected';
+      if (isDisconnectedPass) {
+        await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'pass',
-          replaced_by_bot: true,
+          replaced_by_bot: isDisconnectedPass,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -336,15 +340,21 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ── Replace inactive player with bot ──
-      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      // ── Conditionally replace with bot ──
+      // Only replace the player with a bot when they are actually disconnected.
+      // A connected user who simply timed out gets their turn auto-played but
+      // keeps their seat.
+      const isDisconnectedPlay = currentPlayer.connection_status === 'disconnected';
+      if (isDisconnectedPlay) {
+        await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'play',
           cards: cardsToPlay,
-          replaced_by_bot: true,
+          replaced_by_bot: isDisconnectedPlay,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

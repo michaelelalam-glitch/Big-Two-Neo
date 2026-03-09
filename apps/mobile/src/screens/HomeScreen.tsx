@@ -112,15 +112,20 @@ export default function HomeScreen() {
 
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
-                // ALWAYS anchor to the CLIENT clock using the server-computed seconds_left.
-                // Using disconnect_timer_started_at (a server timestamp) directly with
-                // client Date.now() causes clock-skew: if the server is ahead by N seconds,
-                // elapsed is negative and the countdown shows 60+N seconds (e.g. 80s).
-                // seconds_left is computed server-side (no client clock involved) so it
-                // gives the exact same remaining time as the in-game charcoal-grey disconnect ring.
-                const secondsLeft = statusData.seconds_left ?? 60;
-                const elapsed = 60 - secondsLeft;
-                setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+                // Anchor to disconnect_timer_started_at (same source as the in-game
+                // charcoal-grey ring) so both countdowns stay in sync.
+                // Clamp elapsed to >= 0 to handle the case where the server clock is
+                // ahead of the client — a negative elapsed would inflate the countdown.
+                if (statusData.disconnect_timer_started_at) {
+                  const serverTs = new Date(statusData.disconnect_timer_started_at).getTime();
+                  const elapsed = Math.max(0, Date.now() - serverTs);
+                  setDisconnectTimestamp(Date.now() - elapsed);
+                } else {
+                  // Fallback: back-compute from seconds_left if timestamp unavailable
+                  const secondsLeft = statusData.seconds_left ?? 60;
+                  const elapsed = 60 - secondsLeft;
+                  setDisconnectTimestamp(Date.now() - (elapsed * 1000));
+                }
               } else if (statusData.status === 'replaced_by_bot') {
                 // Already replaced — timer has elapsed; skip the countdown loop
                 // by using canRejoinAfterExpiry instead of setting timestamp to -61s

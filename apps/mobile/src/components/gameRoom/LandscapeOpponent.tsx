@@ -71,10 +71,15 @@ export function LandscapeOpponent({
   // Connection ring (orange) ALWAYS takes priority over turn ring (yellow)
   const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
   const ringStartedAt: string | undefined = (() => {
-    if (hasConnectionTimer && hasTurnTimer) {
-      return disconnectTimerStartedAt! < turnTimerStartedAt! ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+    if (!showRing) {
+      return undefined;
     }
-    return ringType === 'connection' ? disconnectTimerStartedAt! : turnTimerStartedAt!;
+    // Anchor connection ring strictly to disconnectTimerStartedAt so its
+    // countdown matches the server-side bot-replacement timer exactly.
+    if (ringType === 'connection') {
+      return disconnectTimerStartedAt!;
+    }
+    return turnTimerStartedAt!;
   })();
 
   
