@@ -765,10 +765,12 @@ export default function StatsScreen() {
                   <Text style={styles.completionDetailLabel}>🚪 {i18n.t('profile.abandoned')}</Text>
                   <Text style={styles.completionDetailValue}>{modeGamesAbandoned}</Text>
                 </View>
-                <View style={styles.completionRow}>
-                  <Text style={styles.completionDetailLabel}>🏳️ {i18n.t('profile.voided')}</Text>
-                  <Text style={styles.completionDetailValue}>{modeGamesVoided}</Text>
-                </View>
+                {modeGamesVoided > 0 && (
+                  <View style={styles.completionRow}>
+                    <Text style={styles.completionDetailLabel}>🏳️ {i18n.t('profile.voided')}</Text>
+                    <Text style={styles.completionDetailValue}>{modeGamesVoided}</Text>
+                  </View>
+                )}
                 {activeTab === 'overview' && (
                   <>
                     <View style={styles.completionRow}>

@@ -243,29 +243,48 @@ Deno.serve(async (req: Request) => {
     // the most-recent disconnected_at in the room: that is the last person to leave
     // an unfinished game and the only one who qualifies for the voided outcome.
     // Must be queried BEFORE Step 3b which deletes room_players rows.
+    //
+    // Two categories of "gone" humans:
+    //   1. is_bot=false, connection_status='disconnected': still-disconnected; has disconnected_at.
+    //   2. is_bot=true,  human_user_id IS NOT NULL:        replaced by bot; disconnected_at was
+    //      cleared on replacement, so these sort as NULLS LAST (= left earlier than category 1).
     let serverVoidedPlayerId: string | null = null;
     if (!gameData.game_completed && gameData.room_id) {
-      const { data: lastGone, error: lastGoneError } = await supabaseAdmin
+      const { data: allGoneRows, error: lastGoneError } = await supabaseAdmin
         .from('room_players')
-        .select('user_id, disconnected_at')
+        .select('user_id, human_user_id, disconnected_at, is_bot')
         .eq('room_id', gameData.room_id)
-        .eq('is_bot', false)
-        .in('connection_status', ['disconnected', 'replaced_by_bot'])
-        .not('disconnected_at', 'is', null)
-        .order('disconnected_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .in('connection_status', ['disconnected', 'replaced_by_bot']);
 
       if (lastGoneError) {
         console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', lastGoneError.message);
       }
 
-      if (lastGone?.user_id) {
-        // Sanity check: the player must be in the submitted player list
-        const inList = gameData.players.some(p => p.user_id === lastGone.user_id);
-        if (inList) {
-          serverVoidedPlayerId = lastGone.user_id;
-          console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
+      if (allGoneRows && allGoneRows.length > 0) {
+        // Derive effective human user IDs and sort by disconnected_at DESC, nulls last
+        // (null = already replaced = left earlier → not the voided player)
+        const candidates = allGoneRows
+          .map(r => ({
+            effectiveUserId: r.is_bot ? r.human_user_id : r.user_id,
+            disconnectedAt: r.disconnected_at as string | null,
+          }))
+          .filter(c => c.effectiveUserId != null);
+
+        candidates.sort((a, b) => {
+          if (!a.disconnectedAt && !b.disconnectedAt) return 0;
+          if (!a.disconnectedAt) return 1;
+          if (!b.disconnectedAt) return -1;
+          return new Date(b.disconnectedAt).getTime() - new Date(a.disconnectedAt).getTime();
+        });
+
+        const lastGone = candidates[0];
+        if (lastGone?.effectiveUserId) {
+          // Sanity check: the player must be in the submitted player list
+          const inList = gameData.players.some(p => p.user_id === lastGone.effectiveUserId);
+          if (inList) {
+            serverVoidedPlayerId = lastGone.effectiveUserId;
+            console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
+          }
         }
       }
     }
