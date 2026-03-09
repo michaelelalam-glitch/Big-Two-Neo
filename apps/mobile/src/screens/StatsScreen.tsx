@@ -179,6 +179,8 @@ interface GameHistoryEntry {
   bot_difficulty: string | null;
   game_duration_seconds: number | null;
   finished_at: string;
+  // Voided game: set when this player was the last human to leave an unfinished game
+  voided_user_id: string | null;
 }
 
 type StatsTab = 'overview' | 'casual' | 'private' | 'ranked';
@@ -327,17 +329,21 @@ export default function StatsScreen() {
   }, [stats, activeTab]);
 
   // Per-tab completion % clamped to 0-100
+  // Voided games are excluded from both numerator and denominator:
+  //   % = games_completed / (games_completed + games_abandoned)
   const modeCompletionRate = React.useMemo(() => {
     if (!stats) return 0;
-    if (activeTab === 'overview') {
-      // Use DB-stored completion_rate (already clamped in migration)
-      return Math.min(100, Math.max(0, stats.completion_rate || 0));
-    }
-    // For mode-specific tabs, derive denominator from the same per-mode
-    // completion counters to avoid mixing with legacy games_played.
-    const attempted = modeGamesCompleted + modeGamesAbandoned;
+    // Use the same client-side formula for all tabs (overview + per-mode) so
+    // voided games never inflate the denominator regardless of DB completion_rate.
+    const completed = activeTab === 'overview'
+      ? stats.games_completed || 0
+      : modeGamesCompleted;
+    const abandoned = activeTab === 'overview'
+      ? stats.games_abandoned || 0
+      : modeGamesAbandoned;
+    const attempted = completed + abandoned;
     if (attempted === 0) return 0;
-    return Math.min(100, Math.max(0, Math.round((modeGamesCompleted / attempted) * 100)));
+    return Math.min(100, Math.max(0, Math.round((completed / attempted) * 100)));
   }, [activeTab, stats, modeGamesCompleted, modeGamesAbandoned]);
 
   // ─── Per-tab performance stats (use mode-specific DB columns) ─────────────
@@ -466,21 +472,31 @@ export default function StatsScreen() {
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
+    // Voided: this player was the last human to leave before the game finished
+    const isVoided = isIncomplete && !!item.voided_user_id && item.voided_user_id === userId;
 
     return (
-      <View style={[styles.historyItem, isWinner && styles.historyItemWin, isIncomplete && styles.historyItemIncomplete]}>
+      <View style={[
+        styles.historyItem,
+        isWinner && styles.historyItemWin,
+        isVoided ? styles.historyItemVoided : (isIncomplete && styles.historyItemIncomplete),
+      ]}>
         <View style={styles.historyHeader}>
           <View style={styles.historyResult}>
-            <Text style={[styles.resultBadge, isWinner ? styles.winBadge : styles.lossBadge]}>
-              {isWinner ? '🏆 WIN' : '❌ LOSS'}
-            </Text>
+            {isVoided ? (
+              <Text style={[styles.resultBadge, styles.voidBadge]}>🚫 VOID</Text>
+            ) : (
+              <Text style={[styles.resultBadge, isWinner ? styles.winBadge : styles.lossBadge]}>
+                {isWinner ? '🏆 WIN' : '❌ LOSS'}
+              </Text>
+            )}
             <Text style={styles.historyCode}>Room: {item.room_code}</Text>
             {item.game_type && (
               <Text style={styles.gameTypeBadge}>
                 {item.game_type === 'ranked' ? '🏆' : item.game_type === 'private' ? '🔒' : '🎮'}
               </Text>
             )}
-            {isIncomplete && (
+            {isIncomplete && !isVoided && (
               <Text style={styles.incompleteBadge}>⚠️ Incomplete</Text>
             )}
           </View>
@@ -1161,6 +1177,11 @@ const styles = StyleSheet.create({
     borderRightColor: '#FF9500',
     opacity: 0.85,
   },
+  historyItemVoided: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#888888',
+    opacity: 0.75,
+  },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1185,6 +1206,10 @@ const styles = StyleSheet.create({
   },
   lossBadge: {
     backgroundColor: COLORS.error,
+    color: COLORS.white,
+  },
+  voidBadge: {
+    backgroundColor: '#666666',
     color: COLORS.white,
   },
   historyCode: {

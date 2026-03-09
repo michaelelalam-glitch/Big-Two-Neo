@@ -169,6 +169,63 @@ Deno.serve(async (req: Request) => {
     // STEP 3: RECORD GAME HISTORY (for audit trail)
     // ============================================================================
 
+    // ── Determine voided player server-side (before insert so voided_user_id is stored) ──
+    // Must also run before Step 3b which deletes room_players rows.
+    //
+    // Do NOT trust the client for this — a malicious caller could name any player
+    // as voided to deny them an "abandoned" stat.  Instead, find the human with
+    // the most-recent heartbeat-anchored disconnect timestamp in the room.
+    //
+    // Two categories of "gone" humans:
+    //   1. is_bot=false, connection_status='disconnected': still-disconnected;
+    //      disconnect_timer_started_at is the Phase-A heartbeat-anchored anchor.
+    //   2. is_bot=true,  human_user_id IS NOT NULL:        replaced by bot;
+    //      disconnected_at and disconnect_timer_started_at were both cleared on
+    //      replacement; last_seen_at is updated by bot heartbeats (contaminated).
+    //      Do NOT use last_seen_at in the sort key — fall back to NULL so replaced
+    //      humans always sort AFTER still-disconnected humans.
+    let serverVoidedPlayerId: string | null = null;
+    if (!gameData.game_completed && gameData.room_id) {
+      const { data: allGoneRows, error: lastGoneError } = await supabaseAdmin
+        .from('room_players')
+        .select('user_id, human_user_id, disconnect_timer_started_at, disconnected_at, is_bot')
+        .eq('room_id', gameData.room_id)
+        .in('connection_status', ['disconnected', 'replaced_by_bot']);
+
+      if (lastGoneError) {
+        console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', lastGoneError.message);
+      }
+
+      if (allGoneRows && allGoneRows.length > 0) {
+        // Sort by COALESCE(disconnect_timer_started_at, disconnected_at) DESC.
+        // last_seen_at is intentionally excluded: for replaced_by_bot rows it
+        // reflects bot heartbeats rather than the human's actual disconnect time.
+        const candidates = allGoneRows
+          .map(r => ({
+            effectiveUserId: r.is_bot ? r.human_user_id : r.user_id,
+            sortKey: r.disconnect_timer_started_at ?? r.disconnected_at as string | null,
+          }))
+          .filter(c => c.effectiveUserId != null);
+
+        candidates.sort((a, b) => {
+          if (!a.sortKey && !b.sortKey) return 0;
+          if (!a.sortKey) return 1;
+          if (!b.sortKey) return -1;
+          return new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime();
+        });
+
+        const lastGone = candidates[0];
+        if (lastGone?.effectiveUserId) {
+          // Sanity check: the player must be in the submitted player list
+          const inList = gameData.players.some(p => p.user_id === lastGone.effectiveUserId);
+          if (inList) {
+            serverVoidedPlayerId = lastGone.effectiveUserId;
+            console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
+          }
+        }
+      }
+    }
+
     // Filter out bot players - only record real user IDs in game_history
     // Bot user_ids like "bot_player-1" don't exist in auth.users and would violate FK constraints
     // NOTE: This results in NULL values for bot player_id columns in game_history, which is expected
@@ -221,6 +278,8 @@ Deno.serve(async (req: Request) => {
         game_duration_seconds: gameData.game_duration_seconds,
         started_at: gameData.started_at,
         finished_at: gameData.finished_at,
+        // Voided player: null for completed games, set when last human left an unfinished game
+        voided_user_id: serverVoidedPlayerId,
       });
 
     if (historyError) {
@@ -237,59 +296,8 @@ Deno.serve(async (req: Request) => {
     // STEP 3: UPDATE PLAYER STATS (for each REAL player only, skip bots)
     // ============================================================================
 
-    // ── Determine voided player server-side ──────────────────────────────────
-    // Do NOT trust the client for this — a malicious caller could name any player
-    // as voided to deny them an "abandoned" stat.  Instead, find the human with
-    // the most-recent disconnected_at in the room: that is the last person to leave
-    // an unfinished game and the only one who qualifies for the voided outcome.
-    // Must be queried BEFORE Step 3b which deletes room_players rows.
-    //
-    // Two categories of "gone" humans:
-    //   1. is_bot=false, connection_status='disconnected': still-disconnected; has disconnected_at.
-    //   2. is_bot=true,  human_user_id IS NOT NULL:        replaced by bot; disconnected_at was
-    //      cleared on replacement, so these sort as NULLS LAST (= left earlier than category 1).
-    let serverVoidedPlayerId: string | null = null;
-    if (!gameData.game_completed && gameData.room_id) {
-      const { data: allGoneRows, error: lastGoneError } = await supabaseAdmin
-        .from('room_players')
-        .select('user_id, human_user_id, disconnect_timer_started_at, last_seen_at, disconnected_at, is_bot')
-        .eq('room_id', gameData.room_id)
-        .in('connection_status', ['disconnected', 'replaced_by_bot']);
-
-      if (lastGoneError) {
-        console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', lastGoneError.message);
-      }
-
-      if (allGoneRows && allGoneRows.length > 0) {
-        // Derive effective human user IDs and sort by the heartbeat-based anchor
-        // COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) DESC
-        // so the "last to leave" is accurate even when multiple players are marked
-        // disconnected in the same sweep (disconnected_at = NOW() for all → non-deterministic).
-        const candidates = allGoneRows
-          .map(r => ({
-            effectiveUserId: r.is_bot ? r.human_user_id : r.user_id,
-            sortKey: r.disconnect_timer_started_at ?? r.last_seen_at ?? r.disconnected_at as string | null,
-          }))
-          .filter(c => c.effectiveUserId != null);
-
-        candidates.sort((a, b) => {
-          if (!a.sortKey && !b.sortKey) return 0;
-          if (!a.sortKey) return 1;
-          if (!b.sortKey) return -1;
-          return new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime();
-        });
-
-        const lastGone = candidates[0];
-        if (lastGone?.effectiveUserId) {
-          // Sanity check: the player must be in the submitted player list
-          const inList = gameData.players.some(p => p.user_id === lastGone.effectiveUserId);
-          if (inList) {
-            serverVoidedPlayerId = lastGone.effectiveUserId;
-            console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
-          }
-        }
-      }
-    }
+    // serverVoidedPlayerId is computed in STEP 3 above (before game_history insert)
+    // to allow storing voided_user_id in the audit trail.
 
     // Query for humans who were replaced by bots BEFORE room_players is deleted in Step 3b.
     // These players left mid-game and must receive an ABANDONED stat regardless of whether
