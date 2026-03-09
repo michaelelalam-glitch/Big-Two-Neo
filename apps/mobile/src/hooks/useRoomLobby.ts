@@ -263,10 +263,13 @@ export function useRoomLobby({
       if (ready && room) {
         const updatedPlayers = await supabase
           .from('room_players')
-          .select('is_ready, user_id')
+          .select('is_ready, user_id, is_host, is_bot')
           .eq('room_id', room.id);
 
-        const allReady = updatedPlayers.data?.every(p => p.is_ready) ?? false;
+        // Only non-host, non-bot players are required to be ready.
+        // The host is the initiator and bots are always ready.
+        const nonHostHumans = updatedPlayers.data?.filter(p => !p.is_host && !p.is_bot) ?? [];
+        const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
         const hostPlayer = roomPlayers.find(p => p.is_host);
 
         if (allReady && hostPlayer && hostPlayer.user_id) {
@@ -288,7 +291,9 @@ export function useRoomLobby({
   const startGame = useCallback(async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
     if (!isHost || !room) return;
 
-    const allReady = roomPlayers.every(p => p.is_ready);
+    // Only non-host, non-bot players must be ready. Bots are auto-ready; the host is the initiator.
+    const nonHostHumans = roomPlayers.filter(p => !p.is_host && !p.is_bot);
+    const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     if (!allReady) throw new Error('All players must be ready');
     if (roomPlayers.length < 2) throw new Error('Need at least 2 players to start');
 
