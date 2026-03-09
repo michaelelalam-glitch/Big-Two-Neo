@@ -294,7 +294,7 @@ export function useRoomLobby({
     // Only non-host, non-bot players must be ready. Bots are auto-ready; the host is the initiator.
     const nonHostHumans = roomPlayers.filter(p => !p.is_host && !p.is_bot);
     const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
-    if (!allReady) throw new Error('All players must be ready');
+    if (!allReady) throw new Error('All non-host players must be ready');
     if (roomPlayers.length < 2) throw new Error('Need at least 2 players to start');
 
     try {

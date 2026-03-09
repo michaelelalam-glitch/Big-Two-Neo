@@ -5,6 +5,10 @@
 -- Fix: Add a server-side guard that rejects the RPC call if any non-host, non-bot player
 --      has is_ready = false. This mirrors the frontend gate added in LobbyScreen.tsx.
 
+-- Drop the legacy 2-param overload so callers cannot bypass the ready+coordinator
+-- enforcement by invoking the old signature (start_game_with_bots(UUID, TEXT)).
+DROP FUNCTION IF EXISTS start_game_with_bots(UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION start_game_with_bots(
   p_room_id UUID,
   p_bot_count INTEGER,
@@ -124,7 +128,7 @@ BEGIN
   FROM room_players
   WHERE room_id = p_room_id
     AND is_bot = false
-    AND is_host = false
+    AND user_id <> v_coordinator_id  -- exclude coordinator instead of relying on is_host
     AND is_ready = false;
 
   IF v_unready_count > 0 THEN

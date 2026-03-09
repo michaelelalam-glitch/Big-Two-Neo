@@ -658,22 +658,24 @@ export default function LobbyScreen() {
             <Text style={styles.rejoinButtonText}>🎮 Rejoin Game</Text>
           </TouchableOpacity>
         ) : (
-          /* The host does not need to toggle ready — only non-host human players do. */
-          !isHost && (
-            <TouchableOpacity
-              style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
-              onPress={handleToggleReady}
-              disabled={isTogglingReady}
-            >
-              {isTogglingReady ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
-              ) : (
-                <Text style={styles.readyButtonText}>
-                  {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )
+          <>
+            {/* The host does not need to toggle ready — only non-host human players do. */}
+            {!isHost && (
+              <TouchableOpacity
+                style={[styles.readyButton, isReady && styles.readyButtonActive, isTogglingReady && styles.buttonDisabled]}
+                onPress={handleToggleReady}
+                disabled={isTogglingReady}
+              >
+                {isTogglingReady ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  <Text style={styles.readyButtonText}>
+                    {isReady ? `✓ ${i18n.t('lobby.ready')}` : i18n.t('lobby.readyUp')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         {/* Bot Filling Controls - Host only, for Casual/Private (NOT Ranked) */}
