@@ -28,6 +28,10 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- NOTE: Per-mode stat columns are initialised to DEFAULT 0 (or NULL for lowest_score).
+-- There is intentionally no historical backfill — per-mode tracking starts from the
+-- moment this migration runs.  Existing totals remain in the global columns; only
+-- games played after this migration will be reflected in per-mode breakdowns.
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -229,33 +233,55 @@ BEGIN
   )));
 
   -- ── Always-update block ───────────────────────────────────────────────────
+  -- Voided games only increment games_voided + timestamps; all win/loss/ELO/streak
+  -- counters are gated on NOT p_voided to prevent inflating stats.
   UPDATE player_stats SET
-    games_played           = games_played + 1,
-    games_won              = games_won  + CASE WHEN p_won THEN 1 ELSE 0 END,
-    games_lost             = games_lost + CASE WHEN NOT p_won THEN 1 ELSE 0 END,
-    win_rate               = v_new_win_rate,
-    current_win_streak     = CASE WHEN p_won THEN current_win_streak + 1 ELSE 0 END,
-    longest_win_streak     = GREATEST(longest_win_streak,
-                               CASE WHEN p_won THEN current_win_streak + 1 ELSE current_win_streak END),
-    current_loss_streak    = CASE WHEN NOT p_won THEN current_loss_streak + 1 ELSE 0 END,
+    games_played           = games_played + CASE WHEN NOT p_voided THEN 1 ELSE 0 END,
+    games_won              = games_won  + CASE WHEN (NOT p_voided AND p_won) THEN 1 ELSE 0 END,
+    games_lost             = games_lost + CASE WHEN (NOT p_voided AND NOT p_won) THEN 1 ELSE 0 END,
+    win_rate               = CASE WHEN NOT p_voided THEN v_new_win_rate ELSE win_rate END,
+    current_win_streak     = CASE
+                               WHEN p_voided THEN current_win_streak
+                               WHEN p_won    THEN current_win_streak + 1
+                               ELSE 0
+                             END,
+    longest_win_streak     = CASE
+                               WHEN p_voided THEN longest_win_streak
+                               ELSE GREATEST(
+                                 longest_win_streak,
+                                 CASE WHEN p_won THEN current_win_streak + 1 ELSE current_win_streak END
+                               )
+                             END,
+    current_loss_streak    = CASE
+                               WHEN p_voided  THEN current_loss_streak
+                               WHEN NOT p_won THEN current_loss_streak + 1
+                               ELSE 0
+                             END,
     -- Sync rank_points with casual_rank_points (overview ELO)
-    rank_points            = v_new_casual_rp,
+    rank_points            = CASE WHEN NOT p_voided THEN v_new_casual_rp ELSE rank_points END,
     -- Completion tracking (global)
-    games_completed        = COALESCE(games_completed, 0)  + CASE WHEN p_completed THEN 1 ELSE 0 END,
+    games_completed        = COALESCE(games_completed, 0)  + CASE WHEN (NOT p_voided AND p_completed) THEN 1 ELSE 0 END,
     games_abandoned        = COALESCE(games_abandoned, 0)  + CASE WHEN (NOT p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
     games_voided           = COALESCE(games_voided, 0)     + CASE WHEN p_voided THEN 1 ELSE 0 END,
-    completion_rate        = v_new_completion_rate,
+    completion_rate        = CASE WHEN NOT p_voided THEN v_new_completion_rate ELSE completion_rate END,
     current_completion_streak = CASE
-      WHEN p_completed THEN COALESCE(current_completion_streak, 0) + 1
+      WHEN p_voided     THEN current_completion_streak
+      WHEN p_completed  THEN COALESCE(current_completion_streak, 0) + 1
       ELSE 0
     END,
-    longest_completion_streak = GREATEST(
-      COALESCE(longest_completion_streak, 0),
-      CASE WHEN p_completed THEN COALESCE(current_completion_streak, 0) + 1 ELSE COALESCE(current_completion_streak, 0) END
-    ),
-    -- Cards left (global)
-    total_cards_left_in_hand = COALESCE(total_cards_left_in_hand, 0) + p_cards_left,
-    avg_cards_left_in_hand   = v_new_avg_cards_left,
+    longest_completion_streak = CASE
+      WHEN p_voided THEN COALESCE(longest_completion_streak, 0)
+      ELSE GREATEST(
+        COALESCE(longest_completion_streak, 0),
+        CASE WHEN p_completed THEN COALESCE(current_completion_streak, 0) + 1 ELSE COALESCE(current_completion_streak, 0) END
+      )
+    END,
+    -- Cards left (global) — skip for voided games
+    total_cards_left_in_hand = CASE
+      WHEN p_voided THEN COALESCE(total_cards_left_in_hand, 0)
+      ELSE COALESCE(total_cards_left_in_hand, 0) + p_cards_left
+    END,
+    avg_cards_left_in_hand   = CASE WHEN NOT p_voided THEN v_new_avg_cards_left ELSE avg_cards_left_in_hand END,
     last_game_at             = NOW(),
     updated_at               = NOW()
   WHERE user_id = p_user_id;
@@ -450,7 +476,8 @@ BEGIN
 
   -- ── rank_points_history: append entry using mode-specific points ──────────
   -- For overview graph: store casual_rank_points for casual games, ranked_rank_points
-  -- for ranked games (so the ranked-tab graph filters correctly), private = 0/null.
+  -- for ranked games (so the ranked-tab graph filters correctly); private games fall
+  -- through to the ELSE branch and also track casual ELO (no dedicated private ELO).
   -- The 'points' value stored is the NEW value after this game.
   v_history_entry := jsonb_build_object(
     'points',    CASE

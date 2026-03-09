@@ -605,8 +605,13 @@ export default function StatsScreen() {
             )}
           </View>
           <Text style={styles.username}>{profile.username}</Text>
-          {/* Overview shows casual ELO (canonical overview rank); ranked shows ranked ELO */}
-          <Text style={styles.rankPoints}>{stats.casual_rank_points || stats.rank_points} Rank Points</Text>
+          {/* Header: show ranked ELO on ranked tab, casual ELO otherwise */}
+          <Text style={styles.rankPoints}>
+            {activeTab === 'ranked'
+              ? (stats.ranked_rank_points ?? stats.casual_rank_points ?? stats.rank_points)
+              : (stats.casual_rank_points ?? stats.rank_points)}{' '}
+            Rank Points
+          </Text>
           {stats.global_rank && (
             <Text style={styles.globalRank}>#{stats.global_rank} Global</Text>
           )}
@@ -684,7 +689,7 @@ export default function StatsScreen() {
             {activeTab === 'overview' && (
               <>
                 {/* Overview rank = casual ELO (canonical; synced in migration 20260309000004) */}
-                {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || stats.rank_points, '⭐')}
+                {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points ?? stats.rank_points, '⭐')}
                 {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
               </>
             )}
