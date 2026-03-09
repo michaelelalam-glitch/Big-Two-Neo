@@ -177,7 +177,9 @@ BEGIN
     )
     VALUES (
       p_room_id,
-      gen_random_uuid(),
+      NULL, -- Bot players have no auth.users record; NULL bypasses the FK constraint
+            -- (room_players.user_id is nullable). All bot identification uses is_bot=true
+            -- and player_index rather than user_id.
       v_bot_name,
       true,
       p_bot_difficulty,

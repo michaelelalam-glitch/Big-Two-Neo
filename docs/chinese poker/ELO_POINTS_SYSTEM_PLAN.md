@@ -24,7 +24,7 @@
 ELO change is directly tied to the game-end threshold (100 pts). Each player's delta is:
 
 ```
-elo_change = ROUND( (101 - game_score) × bot_multiplier )
+elo_change = ROUND( (100 - game_score) × bot_multiplier )
 ```
 
 Where `game_score` = that player's cumulative card-penalty score at game end (the value already tracked in `game_history.player_N_score`).
@@ -51,7 +51,7 @@ The multiplier is determined by the **hardest** bot in the game (or 1.0 if no bo
 | C (3rd) | 70 | **+30** |
 | D (4th) | 120 | **−20** |
 
-> Note: the spec estimates −20 for Player D; the formula gives exactly −21 (101 − 120 = −21). The fractional rounding is consistent at all multipliers.
+> Note: with constant 100, Player D's delta is exactly −20 (100 − 120 = −20). The fractional rounding is consistent at all multipliers.
 
 ### Applied to
 

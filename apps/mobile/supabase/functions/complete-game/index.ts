@@ -210,7 +210,11 @@ Deno.serve(async (req: Request) => {
           .filter(c => c.effectiveUserId != null);
 
         candidates.sort((a, b) => {
-          if (!a.sortKey && !b.sortKey) return 0;
+          if (!a.sortKey && !b.sortKey) {
+            // Deterministic tiebreak when both timers are null (e.g., all replaced_by_bot rows):
+            // sort by user_id string so the chosen voidedPlayerId is stable across re-runs.
+            return (a.effectiveUserId ?? '').localeCompare(b.effectiveUserId ?? '');
+          }
           if (!a.sortKey) return 1;
           if (!b.sortKey) return -1;
           return new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime();
@@ -388,6 +392,11 @@ Deno.serve(async (req: Request) => {
           const K = 32;
           for (let a = 0; a < finishList.length; a++) {
             for (let b = a + 1; b < finishList.length; b++) {
+              // Skip equal finish_position pairs — e.g., two bot-replaced humans
+              // both set to position 4. Treating tied abandons as a winner/loser
+              // pair is arbitrary and unfair; no ELO should be exchanged.
+              if (finishList[a].finish_position === finishList[b].finish_position) continue;
+
               // Determine winner / loser of this pair by finish position
               const [winner, loser] =
                 finishList[a].finish_position < finishList[b].finish_position
