@@ -642,11 +642,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
 
         const playingRoomIds = (memberships ?? [])
-          .filter(m => (m.rooms as { status: string } | null)?.status === 'playing')
+          .filter(m => (m.rooms as unknown as { status: string } | null)?.status === 'playing')
           .map(m => m.room_id as string);
 
         const nonPlayingRoomIds = (memberships ?? [])
-          .filter(m => (m.rooms as { status: string } | null)?.status !== 'playing')
+          .filter(m => (m.rooms as unknown as { status: string } | null)?.status !== 'playing')
           .map(m => m.room_id as string);
 
         // Mark playing-room exits as disconnected (preserves row for stat recording).
@@ -654,19 +654,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // COALESCE(disconnect_timer_started_at, disconnected_at) anchor should
         // reflect server/heartbeat time, not a potentially skewed device clock.
         if (playingRoomIds.length > 0) {
-          const { error: disconnectError } = await supabase
-            .from('room_players')
-            .update({
-              connection_status: 'disconnected',
-              disconnected_at: new Date().toISOString(),
-            })
-            .eq('user_id', currentUserId)
-            .in('room_id', playingRoomIds);
-
-          if (disconnectError) {
-            authLogger.error('⚠️ [AuthContext] Failed to mark playing-room disconnect on sign-out:', disconnectError?.message);
+          // Invoke the mark-disconnected edge function per room so the server
+          // sets disconnect_timer_started_at — required for
+          // process_disconnected_players Phase B to process the row and avoid
+          // stuck 'playing' rooms.
+          const disconnectResults = await Promise.allSettled(
+            playingRoomIds.map(roomId =>
+              supabase.functions.invoke('mark-disconnected', { body: { room_id: roomId } })
+            )
+          );
+          const failedCount = disconnectResults.filter(
+            r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
+          ).length;
+          if (failedCount > 0) {
+            authLogger.warn(`⚠️ [AuthContext] ${failedCount} playing-room mark-disconnected call(s) failed on sign-out`);
           } else {
-            authLogger.info(`✅ [AuthContext] Marked ${playingRoomIds.length} playing-room row(s) as disconnected`);
+            authLogger.info(`✅ [AuthContext] Marked ${playingRoomIds.length} playing-room row(s) as disconnected via edge function`);
           }
         }
 

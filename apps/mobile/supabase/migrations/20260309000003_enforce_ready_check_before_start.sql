@@ -286,9 +286,12 @@ BEGIN
   );
 
 EXCEPTION WHEN OTHERS THEN
-  RETURN json_build_object('success', false, 'error', SQLERRM);
+  -- Do not expose internal schema/constraint details to the client.
+  -- Log server-side only; return a generic failure response.
+  RAISE WARNING '[start_game_with_bots] Unexpected error for room %: %', p_room_id, SQLERRM;
+  RETURN json_build_object('success', false, 'error', 'An unexpected error occurred. Please try again.');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 REVOKE EXECUTE ON FUNCTION start_game_with_bots(UUID, INTEGER, TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION start_game_with_bots(UUID, INTEGER, TEXT) TO authenticated, service_role;

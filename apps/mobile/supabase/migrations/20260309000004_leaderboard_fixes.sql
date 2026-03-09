@@ -153,18 +153,23 @@ WHERE completion_rate IS NULL OR completion_rate > 100 OR completion_rate < 0;
 
 -- Drop old signature to allow clean replacement
 DROP FUNCTION IF EXISTS update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER);
+DROP FUNCTION IF EXISTS update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION update_player_stats_after_game(
-  p_user_id         UUID,
-  p_won             BOOLEAN,
-  p_finish_position INTEGER,
-  p_score           INTEGER,
-  p_combos_played   JSONB,
-  p_game_type       TEXT    DEFAULT 'casual',
-  p_completed       BOOLEAN DEFAULT true,
-  p_cards_left      INTEGER DEFAULT 0,
+  p_user_id           UUID,
+  p_won               BOOLEAN,
+  p_finish_position   INTEGER,
+  p_score             INTEGER,
+  p_combos_played     JSONB,
+  p_game_type         TEXT    DEFAULT 'casual',
+  p_completed         BOOLEAN DEFAULT true,
+  p_cards_left        INTEGER DEFAULT 0,
   -- voided = last human left before game finished; distinct from abandoned
-  p_voided          BOOLEAN DEFAULT false
+  p_voided            BOOLEAN DEFAULT false,
+  -- Multiplier applied to casual ELO delta (1.0 = all-human, 0.9 = hard bots, etc.)
+  p_bot_multiplier    DECIMAL DEFAULT 1.0,
+  -- Pre-computed chess K=32 pairwise ELO delta for ranked/private games (0 for casual)
+  p_ranked_elo_change INTEGER DEFAULT 0
 ) RETURNS VOID AS $$
 DECLARE
   v_stats                RECORD;
@@ -175,6 +180,7 @@ DECLARE
   v_new_avg_cards_left   DECIMAL(5,2);
   v_rank_point_change    INTEGER;
   v_new_casual_rp        INTEGER;
+  v_new_ranked_rp        INTEGER;
   v_history_entry        JSONB;
   -- per-mode performance helpers
   v_mode_completed       INTEGER;
@@ -190,19 +196,26 @@ BEGIN
     SELECT * INTO v_stats FROM player_stats WHERE user_id = p_user_id;
   END IF;
 
-  -- ── Rank point change (ELO-style per finish position) ─────────────────────
+  -- ── Rank point change ───────────────────────────────────────────────────
+  -- Casual & private (casual column): score-based formula scaled by bot multiplier.
+  -- Lower game score = better result = larger positive ELO gain.
+  -- Formula: ROUND((100 - p_score) * p_bot_multiplier)
+  -- Ranked & private (ranked column): chess K=32 pairwise delta pre-computed
+  -- by the complete-game edge function and passed as p_ranked_elo_change.
   v_rank_point_change := CASE
-    WHEN p_won             THEN  25
-    WHEN p_finish_position = 2 THEN  10
-    WHEN p_finish_position = 3 THEN  -5
-    ELSE                           -15
+    WHEN p_game_type IN ('casual', 'private') THEN ROUND((100 - p_score) * p_bot_multiplier)::INTEGER
+    ELSE 0
   END;
 
-  -- Casual rank_points is the canonical "overview" ELO; private/ranked use
-  -- their own isolated columns. The legacy global rank_points is kept in
-  -- sync with casual_rank_points so the leaderboard views remain correct.
+  -- Casual rank_points is the canonical “overview” ELO; private games also
+  -- affect casual_rank_points (they share the same ELO pool).
+  -- The legacy global rank_points is kept in sync with casual_rank_points.
   v_new_casual_rp := COALESCE(v_stats.casual_rank_points, 1000) +
-    CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE 0 END;
+    CASE WHEN p_game_type IN ('casual', 'private') THEN v_rank_point_change ELSE 0 END;
+
+  -- Ranked ELO (chess K=32 pairwise) also applies to private games.
+  v_new_ranked_rp := COALESCE(v_stats.ranked_rank_points, 1000) +
+    CASE WHEN p_game_type IN ('ranked', 'private') THEN p_ranked_elo_change ELSE 0 END;
 
   -- ── Global win rate ────────────────────────────────────────────────────────
   v_new_win_rate := ROUND(
@@ -393,7 +406,7 @@ BEGIN
       ranked_games_won       = CASE WHEN p_voided THEN ranked_games_won ELSE COALESCE(ranked_games_won, 0) + CASE WHEN p_won THEN 1 ELSE 0 END END,
       ranked_games_lost      = CASE WHEN p_voided THEN ranked_games_lost ELSE COALESCE(ranked_games_lost, 0) + CASE WHEN NOT p_won THEN 1 ELSE 0 END END,
       ranked_win_rate        = CASE WHEN p_voided THEN ranked_win_rate ELSE v_new_mode_win_rate END,
-      ranked_rank_points     = CASE WHEN p_voided THEN ranked_rank_points ELSE COALESCE(ranked_rank_points, 1000) + v_rank_point_change END,
+      ranked_rank_points     = CASE WHEN p_voided THEN ranked_rank_points ELSE v_new_ranked_rp END,
       -- Completion
       ranked_games_completed = CASE WHEN p_voided THEN ranked_games_completed ELSE COALESCE(ranked_games_completed, 0) + CASE WHEN p_completed THEN 1 ELSE 0 END END,
       ranked_games_abandoned = COALESCE(ranked_games_abandoned, 0) + CASE WHEN (NOT p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
@@ -451,6 +464,9 @@ BEGIN
       private_games_won       = COALESCE(private_games_won, 0) + CASE WHEN (NOT p_voided AND p_won) THEN 1 ELSE 0 END,
       private_games_lost      = COALESCE(private_games_lost, 0) + CASE WHEN (NOT p_voided AND NOT p_won) THEN 1 ELSE 0 END,
       private_win_rate        = CASE WHEN NOT p_voided THEN v_new_mode_win_rate ELSE COALESCE(private_win_rate, 0) END,
+      -- ELO: private games affect both casual_rank_points and ranked_rank_points
+      casual_rank_points      = CASE WHEN NOT p_voided THEN v_new_casual_rp ELSE COALESCE(casual_rank_points, 1000) END,
+      ranked_rank_points      = CASE WHEN NOT p_voided THEN v_new_ranked_rp ELSE COALESCE(ranked_rank_points, 1000) END,
       -- Completion
       private_games_completed = COALESCE(private_games_completed, 0) + CASE WHEN (p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
       private_games_abandoned = COALESCE(private_games_abandoned, 0) + CASE WHEN (NOT p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
@@ -487,9 +503,9 @@ BEGIN
   IF NOT p_voided THEN
     v_history_entry := jsonb_build_object(
       'points',    CASE
-                     WHEN p_game_type = 'ranked' THEN COALESCE(v_stats.ranked_rank_points, 1000) + v_rank_point_change
-                     WHEN p_game_type = 'casual' THEN v_new_casual_rp
-                     ELSE v_new_casual_rp  -- private: no dedicated ELO, track casual ELO
+                     WHEN p_game_type = 'ranked'  THEN v_new_ranked_rp
+                     WHEN p_game_type = 'private' THEN v_new_casual_rp  -- private: graph tracks casual ELO
+                     ELSE v_new_casual_rp  -- casual
                    END,
       'is_win',    p_won,
       'game_type', p_game_type,
@@ -512,5 +528,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- PART 7: Permissions
 -- ============================================================================
 
-REVOKE EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN) TO service_role;
+REVOKE EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN, DECIMAL, INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN, DECIMAL, INTEGER) TO service_role;
