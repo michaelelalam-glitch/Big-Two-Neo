@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
     // 30s for the next scheduled piggyback sweep.
     // SECURITY: validate force_sweep against a server-derived condition — only honour
     // it when this room actually has a player with an expired disconnect timer
-    // (disconnect_timer_started_at older than 55 s).  Without this check any
+    // (disconnect_timer_started_at older than 60 s).  Without this check any
     // authenticated client could set force_sweep=true on every heartbeat to trigger
     // process_disconnected_players + bot-coordinator fanout continuously (DoS vector).
     let shouldSweep = count % 6 === 0;

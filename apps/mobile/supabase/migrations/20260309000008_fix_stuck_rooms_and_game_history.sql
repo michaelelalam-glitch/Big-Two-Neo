@@ -204,7 +204,8 @@ BEGIN
             player_1_username, player_2_username, player_3_username, player_4_username,
             player_1_was_bot,  player_2_was_bot,  player_3_was_bot,  player_4_was_bot,
             player_1_disconnected, player_2_disconnected,
-            player_3_disconnected, player_4_disconnected
+            player_3_disconnected, player_4_disconnected,
+            voided_user_id
           ) VALUES (
             v_room.id, v_room.code, v_game_type, FALSE,
             NULL,  -- no winner for abandoned/voided game
@@ -213,7 +214,8 @@ BEGIN
             v_p_usernames[1], v_p_usernames[2], v_p_usernames[3], v_p_usernames[4],
             v_p_was_bot[1],   v_p_was_bot[2],   v_p_was_bot[3],   v_p_was_bot[4],
             v_p_disconn[1],   v_p_disconn[2],
-            v_p_disconn[3],   v_p_disconn[4]
+            v_p_disconn[3],   v_p_disconn[4],
+            v_voided_user_id  -- NULL for non-voided / unknown
           );
         EXCEPTION WHEN OTHERS THEN
           RAISE WARNING '[process_disconnected_players] game_history insert failed for room %: %',
@@ -420,7 +422,8 @@ BEGIN
         EXCEPTION WHEN OTHERS THEN
           RAISE WARNING '[process_disconnected_players] Phase C abandoned stats failed for room %: %',
             rec.code, SQLERRM;
-        END;    END IF;
+        END;
+      END IF;
   END LOOP;
 
   RETURN jsonb_build_object(

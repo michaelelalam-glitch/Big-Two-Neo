@@ -620,10 +620,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         //   Deleting the row would make the room permanently stuck in 'playing'
         //   with no record of the player's abandonment.
         // For all other rooms (waiting, finished, ended): delete immediately.
-        const { data: memberships } = await supabase
+        const { data: memberships, error: membershipsError } = await supabase
           .from('room_players')
           .select('room_id, rooms!inner(status)')
           .eq('user_id', currentUserId);
+
+        if (membershipsError) {
+          // On query failure, mark all rows as disconnected (safe path) rather
+          // than deleting them — avoids destroying playing-room rows when
+          // room status is unknown.
+          authLogger.warn('⚠️ [AuthContext] memberships query failed — marking all rows disconnected as safe fallback:', membershipsError.message);
+          const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
+          await supabase
+            .from('room_players')
+            .update({
+              connection_status: 'disconnected',
+              disconnected_at: new Date().toISOString(),
+              disconnect_timer_started_at: expiredAnchor,
+            })
+            .eq('user_id', currentUserId);
+          // Skip the rest of the room cleanup and proceed to sign-out
+        } else {
 
         const playingRoomIds = (memberships ?? [])
           .filter(m => (m.rooms as { status: string } | null)?.status === 'playing')
@@ -684,6 +701,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
           authLogger.info('✅ [AuthContext] Successfully cleaned up all room data');
         }
+        } // end membershipsError else block
       }
 
       const { error } = await supabase.auth.signOut();

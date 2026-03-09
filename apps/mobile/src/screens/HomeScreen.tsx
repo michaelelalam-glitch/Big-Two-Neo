@@ -317,21 +317,40 @@ export default function HomeScreen() {
             try {
               // Same safe-leave logic: backdate timer for playing rooms,
               // delete immediately for non-playing rooms.
-              const { data: membershipCheck } = await supabase
+              const { data: membershipCheck, error: membershipError } = await supabase
                 .from('room_players')
-                .select('rooms!inner(status)')
+                .select('room_id, rooms!inner(status)')
                 .eq('user_id', user.id)
+                .eq('rooms.code', currentRoom)
                 .maybeSingle();
               const currentStatus = (membershipCheck?.rooms as { status: string } | null)?.status;
-              if (currentStatus === 'playing') {
+              // On query error or unknown status, default to the safe disconnect path
+              // so we never delete a row that might belong to an in-progress game.
+              const shouldTreatAsPlaying =
+                !!membershipError || !membershipCheck || currentStatus === 'playing';
+              if (shouldTreatAsPlaying) {
                 const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
-                await supabase.from('room_players').update({
-                  connection_status: 'disconnected',
-                  disconnected_at: new Date().toISOString(),
-                  disconnect_timer_started_at: expiredAnchor,
-                }).eq('user_id', user.id);
+                let updateQuery = supabase
+                  .from('room_players')
+                  .update({
+                    connection_status: 'disconnected',
+                    disconnected_at: new Date().toISOString(),
+                    disconnect_timer_started_at: expiredAnchor,
+                  })
+                  .eq('user_id', user.id);
+                if (membershipCheck?.room_id) {
+                  updateQuery = updateQuery.eq('room_id', membershipCheck.room_id);
+                }
+                await updateQuery;
               } else {
-                await supabase.from('room_players').delete().eq('user_id', user.id);
+                let deleteQuery = supabase
+                  .from('room_players')
+                  .delete()
+                  .eq('user_id', user.id);
+                if (membershipCheck?.room_id) {
+                  deleteQuery = deleteQuery.eq('room_id', membershipCheck.room_id);
+                }
+                await deleteQuery;
               }
               setCurrentRoom(null);
               setCurrentRoomStatus(undefined);
@@ -391,17 +410,22 @@ export default function HomeScreen() {
           // the timer as already expired; the cron will close the room and
           // save stats within ≤30 s.
           // For all other rooms: delete immediately (original behaviour).
-          const { data: membership } = await supabase
+          const { data: membership, error: membershipQueryError } = await supabase
             .from('room_players')
-            .select('rooms!inner(status)')
+            .select('room_id, rooms!inner(status)')
             .eq('user_id', user.id)
+            .eq('rooms.code', currentRoom)
             .maybeSingle();
 
           const roomStatus = (membership?.rooms as { status: string } | null)?.status;
+          // On query error or unknown status, default to the safe disconnect path
+          // so we never delete a row that might belong to an in-progress game.
+          const treatAsPlaying =
+            !!membershipQueryError || !membership || roomStatus === 'playing';
 
-          if (roomStatus === 'playing') {
+          if (treatAsPlaying) {
             const expiredAnchor = new Date(Date.now() - 65_000).toISOString();
-            await supabase
+            let updateQuery = supabase
               .from('room_players')
               .update({
                 connection_status: 'disconnected',
@@ -409,12 +433,20 @@ export default function HomeScreen() {
                 disconnect_timer_started_at: expiredAnchor,
               })
               .eq('user_id', user.id);
+            if (membership?.room_id) {
+              updateQuery = updateQuery.eq('room_id', membership.room_id);
+            }
+            await updateQuery;
             roomLogger.info('✅ Playing-room leave: timer backdated — cron will close room and record stats');
           } else {
-            const { error } = await supabase
+            let deleteQuery = supabase
               .from('room_players')
               .delete()
               .eq('user_id', user.id);
+            if (membership?.room_id) {
+              deleteQuery = deleteQuery.eq('room_id', membership.room_id);
+            }
+            const { error } = await deleteQuery;
             if (error) throw error;
             roomLogger.info('✅ Successfully left room - auto-cleanup triggered');
           }
