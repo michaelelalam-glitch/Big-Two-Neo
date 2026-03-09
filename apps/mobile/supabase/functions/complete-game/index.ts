@@ -245,7 +245,7 @@ Deno.serve(async (req: Request) => {
     // Must be queried BEFORE Step 3b which deletes room_players rows.
     let serverVoidedPlayerId: string | null = null;
     if (!gameData.game_completed && gameData.room_id) {
-      const { data: lastGone } = await supabaseAdmin
+      const { data: lastGone, error: lastGoneError } = await supabaseAdmin
         .from('room_players')
         .select('user_id, disconnected_at')
         .eq('room_id', gameData.room_id)
@@ -255,6 +255,10 @@ Deno.serve(async (req: Request) => {
         .order('disconnected_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (lastGoneError) {
+        console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', lastGoneError.message);
+      }
 
       if (lastGone?.user_id) {
         // Sanity check: the player must be in the submitted player list

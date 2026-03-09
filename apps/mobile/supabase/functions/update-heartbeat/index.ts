@@ -211,11 +211,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (count % 6 === 0 || force_sweep === true) {
-      // Periodic sweep: mark stale heartbeats as disconnected and replace with bots
-      // force_sweep=true is sent by the client when a disconnect countdown ring expires
-      // (ring hits 0) so the replacement happens immediately rather than waiting up to
-      // 30s for the next scheduled piggyback sweep.
+    // Determine whether to run the sweep this heartbeat.
+    // force_sweep=true is sent by the client when a disconnect countdown ring expires
+    // (ring hits 0) so the replacement happens immediately rather than waiting up to
+    // 30s for the next scheduled piggyback sweep.
+    // SECURITY: validate force_sweep against a server-derived condition — only honour
+    // it when this room actually has a player with an expired disconnect timer
+    // (disconnect_timer_started_at older than 55 s).  Without this check any
+    // authenticated client could set force_sweep=true on every heartbeat to trigger
+    // process_disconnected_players + bot-coordinator fanout continuously (DoS vector).
+    let shouldSweep = count % 6 === 0;
+    if (force_sweep === true && !shouldSweep) {
+      const { data: expiredTimer } = await supabaseClient
+        .from('room_players')
+        .select('id')
+        .eq('room_id', room_id)
+        .eq('is_bot', false)
+        .neq('connection_status', 'connected')
+        .not('disconnect_timer_started_at', 'is', null)
+        .lt('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      shouldSweep = !!expiredTimer;
+      if (!shouldSweep) {
+        console.log(`[update-heartbeat] force_sweep ignored: no expired disconnect timer in room ${room_id}`);
+      }
+    }
+
+    if (shouldSweep) {
+      // Periodic/forced sweep: mark stale heartbeats as disconnected and replace with bots
       const sweepPromise = (async () => {
         try {
           const { data: sweepResult, error: sweepError } = await supabaseClient
