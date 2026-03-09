@@ -223,7 +223,14 @@ Deno.serve(async (req) => {
     // Without that check any authenticated client could trigger process_disconnected_players
     // + bot-coordinator fanout on every heartbeat (DoS vector).
     const sweepSlot = Math.floor(Date.now() / 5_000);
-    let shouldSweep = sweepSlot % 6 === 0;
+    // Spread sweep load across the 30-second window using a deterministic per-room
+    // offset (0–5) derived from the first 4 bytes of the room UUID. This prevents
+    // a synchronized thundering-herd where every room sweeps at the same 5-second
+    // slot on the server clock.
+    const roomSweepOffset = room_id
+      ? parseInt(room_id.replace(/-/g, '').substring(0, 8), 16) % 6
+      : 0;
+    let shouldSweep = sweepSlot % 6 === roomSweepOffset;
     if (force_sweep === true && !shouldSweep) {
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')

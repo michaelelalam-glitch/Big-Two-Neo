@@ -337,15 +337,22 @@ export default function HomeScreen() {
                   });
                   if (invokeError) throw invokeError;
                 } else {
-                  // Room ID unknown (query failed or no membership): direct update as safe fallback.
-                  const { error: updateError } = await supabase
+                  // Room ID unknown (join query failed): re-query room_players without the
+                  // join to obtain room_id(s) and call mark-disconnected per room so the
+                  // server sets disconnect_timer_started_at — required for Phase B processing.
+                  // If this secondary query also fails or returns no rows, stopping heartbeats
+                  // is sufficient; Phase A will detect the stale heartbeat and anchor the timer.
+                  const { data: plainRows } = await supabase
                     .from('room_players')
-                    .update({
-                      connection_status: 'disconnected',
-                      disconnected_at: new Date().toISOString(),
-                    })
+                    .select('room_id')
                     .eq('user_id', user.id);
-                  if (updateError) throw updateError;
+                  if (plainRows && plainRows.length > 0) {
+                    await Promise.allSettled(
+                      plainRows.map(r =>
+                        supabase.functions.invoke('mark-disconnected', { body: { room_id: r.room_id } })
+                      )
+                    );
+                  }
                 }
               } else {
                 let deleteQuery = supabase
@@ -438,15 +445,22 @@ export default function HomeScreen() {
               });
               if (invokeError) throw invokeError;
             } else {
-              // Room ID unknown (query failed or no membership): direct update as safe fallback.
-              const { error: disconnectError } = await supabase
+              // Room ID unknown (join query failed): re-query room_players without the
+              // join to obtain room_id(s) and call mark-disconnected per room so the
+              // server sets disconnect_timer_started_at — required for Phase B processing.
+              // If this secondary query also fails or returns no rows, stopping heartbeats
+              // is sufficient; Phase A will detect the stale heartbeat and anchor the timer.
+              const { data: plainRows } = await supabase
                 .from('room_players')
-                .update({
-                  connection_status: 'disconnected',
-                  disconnected_at: new Date().toISOString(),
-                })
+                .select('room_id')
                 .eq('user_id', user.id);
-              if (disconnectError) throw disconnectError;
+              if (plainRows && plainRows.length > 0) {
+                await Promise.allSettled(
+                  plainRows.map(r =>
+                    supabase.functions.invoke('mark-disconnected', { body: { room_id: r.room_id } })
+                  )
+                );
+              }
             }
             roomLogger.info('✅ Playing-room leave: mark-disconnected called — cron will close room and record stats');
           } else {

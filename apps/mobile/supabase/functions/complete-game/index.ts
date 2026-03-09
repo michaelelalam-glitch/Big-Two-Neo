@@ -396,7 +396,7 @@ Deno.serve(async (req: Request) => {
 
               const expected = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
               const winnerDelta = Math.round(K * (1 - expected));
-              const loserDelta  = Math.round(K * (0 - (1 - expected)));
+              const loserDelta  = -winnerDelta; // enforce zero-sum per pair: avoids rating inflation/deflation from independent rounding
 
               rankedEloDeltaMap.set(winner.user_id, (rankedEloDeltaMap.get(winner.user_id) ?? 0) + winnerDelta);
               rankedEloDeltaMap.set(loser.user_id,  (rankedEloDeltaMap.get(loser.user_id)  ?? 0) + loserDelta);

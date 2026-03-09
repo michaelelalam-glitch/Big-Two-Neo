@@ -626,18 +626,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .eq('user_id', currentUserId);
 
         if (membershipsError) {
-          // On query failure, mark all rows as disconnected (safe path) rather
-          // than deleting them — avoids destroying playing-room rows when
-          // room status is unknown. Do not set disconnect_timer_started_at so the
-          // server COALESCE anchor remains uncontaminated by device clock.
-          authLogger.warn('⚠️ [AuthContext] memberships query failed — marking all rows disconnected as safe fallback:', membershipsError.message);
-          await supabase
+          // On query failure, re-query room_players without the join to get room_id(s)
+          // and call mark-disconnected per room so the server sets disconnect_timer_started_at
+          // — required for process_disconnected_players Phase B to process the row.
+          // If this secondary query also fails or returns no rows, sign-out stops
+          // heartbeats and Phase A will detect the stale heartbeat and anchor the timer.
+          authLogger.warn('⚠️ [AuthContext] memberships query failed — attempting mark-disconnected fallback:', membershipsError.message);
+          const { data: plainRows } = await supabase
             .from('room_players')
-            .update({
-              connection_status: 'disconnected',
-              disconnected_at: new Date().toISOString(),
-            })
+            .select('room_id')
             .eq('user_id', currentUserId);
+          if (plainRows && plainRows.length > 0) {
+            await Promise.allSettled(
+              plainRows.map(r =>
+                supabase.functions.invoke('mark-disconnected', { body: { room_id: r.room_id } })
+              )
+            );
+          }
           // Skip the rest of the room cleanup and proceed to sign-out
         } else {
 
