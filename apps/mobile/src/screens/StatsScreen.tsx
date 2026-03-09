@@ -767,7 +767,7 @@ export default function StatsScreen() {
                 </View>
                 {modeGamesVoided > 0 && (
                   <View style={styles.completionRow}>
-                    <Text style={styles.completionDetailLabel}>🏳️ Voided</Text>
+                    <Text style={styles.completionDetailLabel}>🏳️ {i18n.t('profile.voided')}</Text>
                     <Text style={styles.completionDetailValue}>{modeGamesVoided}</Text>
                   </View>
                 )}

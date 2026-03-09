@@ -515,6 +515,7 @@ export interface Translations {
     rankProgression: string;
     completed: string;
     abandoned: string;
+    voided: string;
     private: string;
     casualStats: string;
     privateStats: string;
@@ -1047,6 +1048,7 @@ const en: Translations = {
     rankProgression: 'Rank Progression',
     completed: 'Completed',
     abandoned: 'Abandoned',
+    voided: 'Voided',
     private: 'Private',
     casualStats: 'Casual Stats',
     privateStats: 'Private Stats',
@@ -1521,6 +1523,7 @@ const ar: Translations = {
     rankProgression: 'تقدم الترتيب',
     completed: 'مكتمل',
     abandoned: 'متخلى عنها',
+    voided: 'ملغى',
     private: 'خاص',
     casualStats: 'إحصاءات العادي',
     privateStats: 'إحصاءات الخاص',
@@ -2073,6 +2076,7 @@ const de: Translations = {
     rankProgression: 'Rangverlauf',
     completed: 'Abgeschlossen',
     abandoned: 'Abgebrochen',
+    voided: 'Annulliert',
     private: 'Privat',
     casualStats: 'Casual-Statistiken',
     privateStats: 'Privatspiel-Statistiken',

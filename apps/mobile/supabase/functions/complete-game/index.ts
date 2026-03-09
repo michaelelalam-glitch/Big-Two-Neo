@@ -33,6 +33,12 @@ interface GameCompletionRequest {
   started_at: string;
   finished_at: string;
   game_completed: boolean; // Whether game reached natural conclusion (no forfeit)
+  /**
+   * The user_id of the last human player who left, triggering a voided outcome.
+   * Only set when game_completed=false and the room had no human players remaining.
+   * That player receives p_voided=true; all other non-completers receive abandoned.
+   */
+  voided_player_id?: string | null;
 }
 
 const corsHeaders = {
@@ -241,6 +247,11 @@ Deno.serve(async (req: Request) => {
 
       console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}`);
 
+      // A player is voided when they were the last human to leave an unfinished game.
+      const isVoided = !gameData.game_completed &&
+        !!gameData.voided_player_id &&
+        player.user_id === gameData.voided_player_id;
+
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,
         p_won: won,
@@ -250,6 +261,7 @@ Deno.serve(async (req: Request) => {
         p_game_type: gameData.game_type,
         p_completed: gameData.game_completed,
         p_cards_left: player.cards_left,
+        p_voided: isVoided,
       });
 
       if (statsError) {
