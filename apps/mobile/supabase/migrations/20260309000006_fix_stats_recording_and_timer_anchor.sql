@@ -190,16 +190,19 @@ BEGIN
         END;
 
         -- Identify the VOIDED player: the still-disconnected (not-yet-replaced)
-        -- human with the LATEST disconnected_at.  Selecting this deterministically
-        -- (ORDER BY disconnected_at DESC) means the correct player is marked voided
-        -- regardless of which Phase B iteration happens to close the room first.
+        -- human with the latest *actual* disconnect anchor.  We use the same
+        -- heartbeat-based anchor as Phase A:
+        --   COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at)
+        -- so the "last to leave" matches real disconnect order even when multiple
+        -- players are marked disconnected in the same sweep (disconnected_at = NOW()
+        -- for all of them, making it non-deterministic).
         SELECT user_id
         INTO   v_voided_user_id
         FROM   public.room_players
         WHERE  room_id           = rec.room_id
           AND  is_bot            = FALSE
           AND  connection_status = 'disconnected'
-        ORDER BY disconnected_at DESC NULLS LAST
+        ORDER BY COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) DESC NULLS LAST
         LIMIT 1;
 
         -- Safety fallback: if the query returns nothing (unexpected), fall back
@@ -352,5 +355,6 @@ COMMENT ON FUNCTION public.process_disconnected_players IS
   'Turn carry-over: when it is the player''s active turn, uses LEAST(turn_started_at, '
   'last_seen_at) so the charcoal-grey disconnect ring picks up where the yellow turn ring left off. '
   'Phase B sole-human-left branch queries ALL still-disconnected humans, picks the latest '
-  'disconnected_at as the voided player, and records abandoned for the rest — ensuring every '
+  'COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) as the voided player, '
+  'and records abandoned for the rest — ensuring every '
   'player receives a stat regardless of Phase B iteration order.';

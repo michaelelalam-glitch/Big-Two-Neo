@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
     if (!gameData.game_completed && gameData.room_id) {
       const { data: allGoneRows, error: lastGoneError } = await supabaseAdmin
         .from('room_players')
-        .select('user_id, human_user_id, disconnected_at, is_bot')
+        .select('user_id, human_user_id, disconnect_timer_started_at, last_seen_at, disconnected_at, is_bot')
         .eq('room_id', gameData.room_id)
         .in('connection_status', ['disconnected', 'replaced_by_bot']);
 
@@ -261,20 +261,22 @@ Deno.serve(async (req: Request) => {
       }
 
       if (allGoneRows && allGoneRows.length > 0) {
-        // Derive effective human user IDs and sort by disconnected_at DESC, nulls last
-        // (null = already replaced = left earlier → not the voided player)
+        // Derive effective human user IDs and sort by the heartbeat-based anchor
+        // COALESCE(disconnect_timer_started_at, last_seen_at, disconnected_at) DESC
+        // so the "last to leave" is accurate even when multiple players are marked
+        // disconnected in the same sweep (disconnected_at = NOW() for all → non-deterministic).
         const candidates = allGoneRows
           .map(r => ({
             effectiveUserId: r.is_bot ? r.human_user_id : r.user_id,
-            disconnectedAt: r.disconnected_at as string | null,
+            sortKey: r.disconnect_timer_started_at ?? r.last_seen_at ?? r.disconnected_at as string | null,
           }))
           .filter(c => c.effectiveUserId != null);
 
         candidates.sort((a, b) => {
-          if (!a.disconnectedAt && !b.disconnectedAt) return 0;
-          if (!a.disconnectedAt) return 1;
-          if (!b.disconnectedAt) return -1;
-          return new Date(b.disconnectedAt).getTime() - new Date(a.disconnectedAt).getTime();
+          if (!a.sortKey && !b.sortKey) return 0;
+          if (!a.sortKey) return 1;
+          if (!b.sortKey) return -1;
+          return new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime();
         });
 
         const lastGone = candidates[0];

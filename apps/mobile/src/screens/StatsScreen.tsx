@@ -333,10 +333,12 @@ export default function StatsScreen() {
       // Use DB-stored completion_rate (already clamped in migration)
       return Math.min(100, Math.max(0, stats.completion_rate || 0));
     }
-    const played = modeGamesPlayed;
-    if (played === 0) return 0;
-    return Math.min(100, Math.max(0, Math.round((modeGamesCompleted / played) * 100)));
-  }, [activeTab, stats, modeGamesPlayed, modeGamesCompleted]);
+    // For mode-specific tabs, derive denominator from the same per-mode
+    // completion counters to avoid mixing with legacy games_played.
+    const attempted = modeGamesCompleted + modeGamesAbandoned;
+    if (attempted === 0) return 0;
+    return Math.min(100, Math.max(0, Math.round((modeGamesCompleted / attempted) * 100)));
+  }, [activeTab, stats, modeGamesCompleted, modeGamesAbandoned]);
 
   // ─── Per-tab performance stats (use mode-specific DB columns) ─────────────
   const perfStats = React.useMemo(() => {

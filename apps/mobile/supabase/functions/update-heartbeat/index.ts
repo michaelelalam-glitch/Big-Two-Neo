@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        .lt('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
+        .lt('disconnect_timer_started_at', new Date(Date.now() - 60_000).toISOString())
         .limit(1)
         .maybeSingle();
 
