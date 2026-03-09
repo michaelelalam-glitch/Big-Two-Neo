@@ -330,6 +330,82 @@ Deno.serve(async (req: Request) => {
     // Only update stats for real players (not bots)
     const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));
 
+    // ── Bot multiplier (applied to casual & private ELO formula) ─────────────
+    // Determined by the hardest bot present; 1.0 for all-human lobbies.
+    const botMultiplier =
+      gameData.bot_difficulty === 'easy'   ? 0.5 :
+      gameData.bot_difficulty === 'medium' ? 0.7 :
+      gameData.bot_difficulty === 'hard'   ? 0.9 : 1.0;
+
+    // ── Chess K=32 pairwise ELO (ranked & private games only) ────────────────
+    // Must be computed before the stats update loop so all players' current
+    // rated_rank_points are fetched simultaneously.
+    const rankedEloDeltaMap = new Map<string, number>();
+
+    if (gameData.game_type === 'ranked' || gameData.game_type === 'private') {
+      // Collect all real player user IDs (including bot-replaced humans at pos 4)
+      const allRealUserIds = [
+        ...realPlayerData.map(p => p.user_id),
+        ...botReplacedHumanIds,
+      ];
+
+      if (allRealUserIds.length > 0) {
+        const { data: ratingRows, error: ratingError } = await supabaseAdmin
+          .from('player_stats')
+          .select('user_id, ranked_rank_points')
+          .in('user_id', allRealUserIds);
+
+        if (ratingError) {
+          console.error('[Complete Game] Failed to fetch ranked_rank_points for ELO calc:', ratingError.message);
+          // Fall back to 0 delta for all players
+          allRealUserIds.forEach(id => rankedEloDeltaMap.set(id, 0));
+        } else {
+          // Build rating lookup (default 1000 for new players)
+          const ratingLookup = new Map<string, number>();
+          (ratingRows ?? []).forEach(r => {
+            ratingLookup.set(r.user_id as string, (r.ranked_rank_points as number) ?? 1000);
+          });
+          allRealUserIds.forEach(id => {
+            if (!ratingLookup.has(id)) ratingLookup.set(id, 1000);
+            rankedEloDeltaMap.set(id, 0);
+          });
+
+          // Build finish-position list for all real players
+          const finishList: Array<{ user_id: string; finish_position: number; rating: number }> = [
+            ...realPlayerData.map(p => ({
+              user_id: p.user_id,
+              finish_position: p.finish_position,
+              rating: ratingLookup.get(p.user_id) ?? 1000,
+            })),
+            ...botReplacedHumanIds.map(id => ({
+              user_id: id,
+              finish_position: 4, // abandoned players placed last
+              rating: ratingLookup.get(id) ?? 1000,
+            })),
+          ];
+
+          // Pairwise chess ELO: every unique pair (i, j) where pos_i < pos_j
+          const K = 32;
+          for (let a = 0; a < finishList.length; a++) {
+            for (let b = a + 1; b < finishList.length; b++) {
+              // Determine winner / loser of this pair by finish position
+              const [winner, loser] =
+                finishList[a].finish_position < finishList[b].finish_position
+                  ? [finishList[a], finishList[b]]
+                  : [finishList[b], finishList[a]];
+
+              const expected = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
+              const winnerDelta = Math.round(K * (1 - expected));
+              const loserDelta  = Math.round(K * (0 - (1 - expected)));
+
+              rankedEloDeltaMap.set(winner.user_id, (rankedEloDeltaMap.get(winner.user_id) ?? 0) + winnerDelta);
+              rankedEloDeltaMap.set(loser.user_id,  (rankedEloDeltaMap.get(loser.user_id)  ?? 0) + loserDelta);
+            }
+          }
+        }
+      }
+    }
+
     const statsUpdatePromises = realPlayerData.map(async (player) => {
       const won = player.user_id === gameData.winner_id;
 
@@ -357,6 +433,8 @@ Deno.serve(async (req: Request) => {
         p_completed: isCompleted,
         p_cards_left: player.cards_left,
         p_voided: isVoided,
+        p_bot_multiplier: botMultiplier,
+        p_ranked_elo_change: rankedEloDeltaMap.get(player.user_id) ?? 0,
       });
 
       if (statsError) {
@@ -381,6 +459,8 @@ Deno.serve(async (req: Request) => {
         p_completed: false,
         p_cards_left: 0,
         p_voided: false,
+        p_bot_multiplier: botMultiplier,
+        p_ranked_elo_change: rankedEloDeltaMap.get(humanUserId) ?? 0,
       });
 
       if (abandonedError) {

@@ -323,27 +323,30 @@ export default function HomeScreen() {
                 .eq('user_id', user.id)
                 .eq('rooms.code', currentRoom)
                 .maybeSingle();
-              const currentStatus = (membershipCheck?.rooms as { status: string } | null)?.status;
+              const currentStatus = (membershipCheck?.rooms as unknown as { status: string } | null)?.status;
               // On query error or unknown status, default to the safe disconnect path
               // so we never delete a row that might belong to an in-progress game.
               const shouldTreatAsPlaying =
                 !!membershipError || !membershipCheck || currentStatus === 'playing';
               if (shouldTreatAsPlaying) {
-                // Do not set disconnect_timer_started_at from the client; leave it
-                // NULL so COALESCE(disconnect_timer_started_at, disconnected_at) uses
-                // server-anchored ordering without device-clock contamination.
-                let updateQuery = supabase
-                  .from('room_players')
-                  .update({
-                    connection_status: 'disconnected',
-                    disconnected_at: new Date().toISOString(),
-                  })
-                  .eq('user_id', user.id);
                 if (membershipCheck?.room_id) {
-                  updateQuery = updateQuery.eq('room_id', membershipCheck.room_id);
+                  // Call edge function so the server sets disconnect_timer_started_at —
+                  // required for process_disconnected_players Phase B processing.
+                  const { error: invokeError } = await supabase.functions.invoke('mark-disconnected', {
+                    body: { room_id: membershipCheck.room_id },
+                  });
+                  if (invokeError) throw invokeError;
+                } else {
+                  // Room ID unknown (query failed or no membership): direct update as safe fallback.
+                  const { error: updateError } = await supabase
+                    .from('room_players')
+                    .update({
+                      connection_status: 'disconnected',
+                      disconnected_at: new Date().toISOString(),
+                    })
+                    .eq('user_id', user.id);
+                  if (updateError) throw updateError;
                 }
-                const { error: updateError } = await updateQuery;
-                if (updateError) throw updateError;
               } else {
                 let deleteQuery = supabase
                   .from('room_players')
@@ -420,30 +423,32 @@ export default function HomeScreen() {
             .eq('rooms.code', currentRoom)
             .maybeSingle();
 
-          const roomStatus = (membership?.rooms as { status: string } | null)?.status;
+          const roomStatus = (membership?.rooms as unknown as { status: string } | null)?.status;
           // On query error or unknown status, default to the safe disconnect path
           // so we never delete a row that might belong to an in-progress game.
           const treatAsPlaying =
             !!membershipQueryError || !membership || roomStatus === 'playing';
 
           if (treatAsPlaying) {
-            // Set connection_status and disconnected_at; leave disconnect_timer_started_at
-            // as NULL so COALESCE(disconnect_timer_started_at, disconnected_at) uses
-            // the server-anchored value from Phase A when available, avoiding
-            // device-clock contamination in voided/abandoned attribution.
-            let updateQuery = supabase
-              .from('room_players')
-              .update({
-                connection_status: 'disconnected',
-                disconnected_at: new Date().toISOString(),
-              })
-              .eq('user_id', user.id);
             if (membership?.room_id) {
-              updateQuery = updateQuery.eq('room_id', membership.room_id);
+              // Call edge function so the server sets disconnect_timer_started_at —
+              // required for process_disconnected_players Phase B processing.
+              const { error: invokeError } = await supabase.functions.invoke('mark-disconnected', {
+                body: { room_id: membership.room_id },
+              });
+              if (invokeError) throw invokeError;
+            } else {
+              // Room ID unknown (query failed or no membership): direct update as safe fallback.
+              const { error: disconnectError } = await supabase
+                .from('room_players')
+                .update({
+                  connection_status: 'disconnected',
+                  disconnected_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id);
+              if (disconnectError) throw disconnectError;
             }
-            const { error: disconnectError } = await updateQuery;
-            if (disconnectError) throw disconnectError;
-            roomLogger.info('✅ Playing-room leave: marked disconnected — cron will close room and record stats');
+            roomLogger.info('✅ Playing-room leave: mark-disconnected called — cron will close room and record stats');
           } else {
             let deleteQuery = supabase
               .from('room_players')
