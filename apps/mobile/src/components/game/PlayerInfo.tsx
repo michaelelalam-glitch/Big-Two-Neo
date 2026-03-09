@@ -33,7 +33,7 @@ export default function PlayerInfo({
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
-  // Connection ring (orange) ALWAYS takes priority over turn ring (yellow).
+  // Connection ring (charcoal grey) ALWAYS takes priority over turn ring (yellow).
   const ringType: 'turn' | 'connection' = hasConnectionTimer ? 'connection' : 'turn';
   // Always anchor the connection ring to disconnectTimerStartedAt so its
   // countdown matches the server-side bot-replacement timer exactly

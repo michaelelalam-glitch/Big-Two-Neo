@@ -2,7 +2,7 @@
 -- ADD TURN INACTIVITY TIMER SYSTEM
 -- ==========================================================================
 -- Tracks when a player's turn started to implement 60s turn timeout with auto-play
--- Orange ring countdown visible to current player during their turn
+-- Charcoal grey ring countdown visible to current player during their turn
 -- If timeout expires: auto-play highest valid cards OR pass
 
 -- 1. Add turn_started_at column to game_state

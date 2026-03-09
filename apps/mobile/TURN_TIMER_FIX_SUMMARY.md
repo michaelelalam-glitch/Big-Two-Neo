@@ -16,7 +16,7 @@
 ## How it works now:
 
 1. **Human's turn starts** → `turn_started_at` is set to NOW()
-2. **Orange ring appears** → Counts down from 60 seconds
+2. **Charcoal grey ring appears** → Counts down from 60 seconds
 3. **Timer expires** → Auto-play edge function is called:
    - Plays highest valid cards OR passes
    - Shows "I'm Still Here?" modal

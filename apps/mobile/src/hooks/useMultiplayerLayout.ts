@@ -131,7 +131,7 @@ export function useMultiplayerLayout({
     const isActive = (idx: number) => typeof currentTurn === 'number' && currentTurn === idx;
 
     // fix/rejoin: a player is "disconnected" (shows spinner overlay) when their
-    // connection_status = 'disconnected' (heartbeat stopped). The orange ring
+    // connection_status = 'disconnected' (heartbeat stopped). The charcoal grey ring
     // countdown shows the time until bot replacement.
     // Once replacement happens (status = 'replaced_by_bot'), the avatar shows
     // normally without spinner since the bot is actively playing.

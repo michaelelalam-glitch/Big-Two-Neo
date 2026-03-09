@@ -17,11 +17,11 @@
 **Fix:** Added state comparison in setTimerState — only update if remainingMs changed by >50ms  
 **Expected:** Far fewer slow render warnings, smoother gameplay
 
-### ✅ **3. Orange Ring Not Depleting (FIXED)**
-**Problem:** Orange countdown ring appears but doesn't animate  
+### ✅ **3. Charcoal Grey Ring Not Depleting (FIXED)**
+**Problem:** Charcoal grey countdown ring appears but doesn't animate  
 **Cause:** turnTimerStartedAt prop not passed to local player's PlayerInfo component  
 **Fix:** Changed GameView to use `layoutPlayersWithScores[0]` instead of `layoutPlayers[0]`  
-**Expected:** Orange ring depletes smoothly clockwise over 60 seconds
+**Expected:** Charcoal grey ring depletes smoothly clockwise over 60 seconds
 
 ### ✅ **4. Auto-Play Not Executing (REQUIRES MIGRATION)**
 **Problem:** Timer expires but nothing happens  
@@ -36,10 +36,10 @@
 **Expected:** Modal appears immediately after auto-play executes
 
 ### ✅ **6. Dual Ring System (YELLOW ON DISCONNECT)**
-**Problem:** Yellow ring doesn't replace orange on disconnect  
+**Problem:** Yellow ring doesn't replace yellow on disconnect  
 **Cause:** Same as #3 — prop not passed correctly  
 **Fix:** Same fix — now both ring types receive proper props  
-**Expected:** Yellow ring replaces orange if disconnect happens during turn
+**Expected:** Yellow ring replaces yellow if disconnect happens during turn
 
 ---
 
@@ -112,10 +112,10 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 
 ---
 
-### **STEP 4: Test Orange Ring (Turn Countdown)**
+### **STEP 4: Test Charcoal Grey Ring (Turn Countdown)**
 
 1. **Start NEW multiplayer game** (must be after migration + restart)
-2. **Wait for your turn** (orange ring should appear around your avatar)
+2. **Wait for your turn** (charcoal grey ring should appear around your avatar)
 3. **Observe ring:** Should deplete **clockwise** from 12 o'clock
 4. **Check console:** Should see:
    ```
@@ -127,7 +127,7 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 6. **Play/pass manually:** Ring should disappear immediately
 
 **✅ PASS CRITERIA:**
-- ✅ Orange ring appears when it's your turn
+- ✅ Charcoal grey ring appears when it's your turn
 - ✅ Ring depletes smoothly clockwise
 - ✅ Ring disappears after playing/passing
 
@@ -136,7 +136,7 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 ### **STEP 5: Test Auto-Play (60s Timeout)**
 
 1. **Start NEW multiplayer game**
-2. **Wait for your turn** (orange ring appears)
+2. **Wait for your turn** (charcoal grey ring appears)
 3. **Don't touch anything** — let timer run to 0
 4. **Wait full 60 seconds**
 5. **Expected behavior:**
@@ -184,21 +184,21 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 **Setup:** Need another device/simulator or another player
 
 1. **Start multiplayer game with 2+ players**
-2. **Player A (you):** Wait for your turn (orange ring appears)
-3. **Player B:** Observe Player A's avatar (orange ring visible from their perspective)
+2. **Player A (you):** Wait for your turn (charcoal grey ring appears)
+3. **Player B:** Observe Player A's avatar (charcoal grey ring visible from their perspective)
 4. **Player A:** Simulate disconnect:
    - **iOS:** Airplane mode
    - **Android:** Disable WiFi
    - **OR:** Force close app
 5. **Player B should see:**
-   - Orange ring **immediately replaced** by **yellow ring**
-   - Yellow ring continues countdown from where orange left off
+   - Charcoal grey ring **immediately replaced** by **yellow ring**
+   - Yellow ring continues countdown from where yellow left off
    - After 60s total (turn + disconnect), bot replaces Player A
 6. **Player A reconnects:** Should see RejoinModal ("Reclaim My Seat")
 
 **✅ PASS CRITERIA:**
-- ✅ Orange ring shows during player's turn
-- ✅ Yellow ring replaces orange on disconnect
+- ✅ Charcoal grey ring shows during player's turn
+- ✅ Yellow ring replaces yellow on disconnect
 - ✅ Countdown continues seamlessly (no restart)
 - ✅ After 60s total, bot replacement triggers
 - ✅ Reconnect shows rejoin modal
@@ -287,13 +287,13 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 
 - [ ] Console spam GONE (no repeated "Game mode" logs)
 - [ ] Slow render warnings <10 per minute
-- [ ] Orange ring appears on your turn
-- [ ] Orange ring depletes smoothly over 60s
+- [ ] Charcoal grey ring appears on your turn
+- [ ] Charcoal grey ring depletes smoothly over 60s
 - [ ] After 60s, auto-play executes (cards played OR pass)
 - [ ] Modal appears: "We played for you! Are you still here?"
 - [ ] "I'm Still Here" button dismisses modal
 - [ ] 30s modal timeout triggers disconnect flow
-- [ ] Yellow ring replaces orange on disconnect
+- [ ] Yellow ring replaces yellow on disconnect
 - [ ] Yellow ring continues from same position
 
 ---
@@ -301,10 +301,10 @@ supabase db push --file supabase/migrations/20260308000003_fix_turn_started_at_o
 ## 🎉 ALL TESTS PASSING?
 
 Congrats! The auto-pass timer system is now fully functional:
-- ✅ 60s turn countdown (orange ring)
+- ✅ 60s turn countdown (charcoal grey ring)
 - ✅ Auto-play-turn on timeout
 - ✅ "I'm Still Here?" popup
-- ✅ Dual-ring system (orange → yellow on disconnect)
+- ✅ Dual-ring system (charcoal grey → yellow on disconnect)
 - ✅ Bot replacement after 60s inactivity
 - ✅ No console spam
 - ✅ Smooth performance

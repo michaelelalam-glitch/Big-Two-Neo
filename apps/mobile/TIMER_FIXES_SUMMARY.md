@@ -263,7 +263,7 @@ WHERE trigger_name = 'trigger_update_turn_started_at';
 ⚠️ **Database Migrations:** PENDING (run `APPLY_TIMER_FIXES_NOW.sh`)  
 🎯 **Expected Result:** Fully functional auto-pass timer system with:
 - Clean console (no spam)
-- Orange ring visible to all players
+- Charcoal grey ring visible to all players
 - Clockwise depletion from 12 o'clock
 - Auto-play after 60s inactivity
 - Yellow ring + spinner on disconnect
