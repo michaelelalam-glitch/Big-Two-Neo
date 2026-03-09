@@ -291,6 +291,32 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Query for humans who were replaced by bots BEFORE room_players is deleted in Step 3b.
+    // These players left mid-game and must receive an ABANDONED stat regardless of whether
+    // the game completed or not.  The client sends their slot as user_id="bot_X" which
+    // would otherwise be silently filtered out by the realPlayerData filter below.
+    // Must be queried here — after this point Step 3b deletes the room_players rows.
+    let botReplacedHumanIds: string[] = [];
+    if (gameData.room_id) {
+      const { data: replacedRows, error: replacedError } = await supabaseAdmin
+        .from('room_players')
+        .select('human_user_id')
+        .eq('room_id', gameData.room_id)
+        .eq('is_bot', true)
+        .not('human_user_id', 'is', null);
+
+      if (replacedError) {
+        console.error('[Complete Game] Failed to query bot-replaced humans (abandoned stats may be missed):', replacedError.message);
+      } else {
+        botReplacedHumanIds = (replacedRows ?? [])
+          .map(r => r.human_user_id as string)
+          .filter(Boolean);
+        if (botReplacedHumanIds.length > 0) {
+          console.log(`[Complete Game] Found ${botReplacedHumanIds.length} bot-replaced human(s) — will record ABANDONED:`, botReplacedHumanIds);
+        }
+      }
+    }
+
     // Only update stats for real players (not bots)
     const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));
 
@@ -325,15 +351,51 @@ Deno.serve(async (req: Request) => {
       return { user_id: player.user_id, success: true };
     });
 
-    const statsResults = await Promise.all(statsUpdatePromises);
-    const failedUpdates = statsResults.filter(r => !r.success);
+    // Record ABANDONED for every human who was replaced by a bot.
+    // p_completed=false, p_voided=false → games_abandoned += 1, ELO penalty applied.
+    // These run in parallel with the main statsUpdatePromises.
+    const abandonedPromises = botReplacedHumanIds.map(async (humanUserId) => {
+      const { error: abandonedError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
+        p_user_id: humanUserId,
+        p_won: false,
+        p_finish_position: 4,
+        p_score: 0,
+        p_combos_played: {},
+        p_game_type: gameData.game_type,
+        p_completed: false,
+        p_cards_left: 0,
+        p_voided: false,
+      });
 
-    if (failedUpdates.length > 0) {
-      console.error('[Complete Game] Some stats updates failed:', failedUpdates);
+      if (abandonedError) {
+        console.error(`[Complete Game] Failed to record ABANDONED for bot-replaced user ${humanUserId}:`, abandonedError.message);
+        return { user_id: humanUserId, success: false, error: abandonedError.message };
+      }
+
+      console.log(`[Complete Game] ✅ Recorded ABANDONED for bot-replaced user: ${humanUserId}`);
+      return { user_id: humanUserId, success: true };
+    });
+
+    const [statsResults, abandonedResults] = await Promise.all([
+      Promise.all(statsUpdatePromises),
+      Promise.all(abandonedPromises),
+    ]);
+
+    const failedStats = statsResults.filter(r => !r.success);
+    const failedAbandoned = abandonedResults.filter(r => !r.success);
+
+    // Abandoned failures are non-blocking — the game completed successfully
+    // and the real player records were written.  Log them loudly but don't 500.
+    if (failedAbandoned.length > 0) {
+      console.error('[Complete Game] ⚠️ Failed to record ABANDONED for some bot-replaced players (non-blocking):', failedAbandoned);
+    }
+
+    if (failedStats.length > 0) {
+      console.error('[Complete Game] Some stats updates failed:', failedStats);
       return new Response(
         JSON.stringify({ 
           error: 'Partial failure updating stats', 
-          failed_players: failedUpdates,
+          failed_players: failedStats,
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
