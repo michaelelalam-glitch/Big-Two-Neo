@@ -368,7 +368,11 @@ export default function HomeScreen() {
               setCurrentRoom(null);
               setCurrentRoomStatus(undefined);
               setDisconnectTimestamp(null);
-              if (currentStatus !== 'playing') await checkCurrentRoom();
+              // Re-poll only when we took the non-playing delete path.
+              // shouldTreatAsPlaying is true when currentStatus is undefined
+              // (query error / no row), so checking currentStatus !== 'playing'
+              // would incorrectly trigger a re-poll in those error cases.
+              if (!shouldTreatAsPlaying) await checkCurrentRoom();
               resolve(true);
             } catch {
               showError('Failed to leave the room. Try again.');
@@ -501,7 +505,11 @@ export default function HomeScreen() {
           // Only re-poll for non-playing rooms; for playing rooms the
           // disconnected row would immediately re-surface the banner, and
           // the cron will resolve it within ≤30 s anyway.
-          if (roomStatus !== 'playing') {
+          // Use treatAsPlaying (not roomStatus) — roomStatus is undefined
+          // when the membership query errored, which is the same case
+          // where treatAsPlaying is true, so checking roomStatus !== 'playing'
+          // would incorrectly call checkCurrentRoom() in that error path.
+          if (!treatAsPlaying) {
             await checkCurrentRoom();
           }
         } catch (error: unknown) {

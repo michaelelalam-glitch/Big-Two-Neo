@@ -247,7 +247,9 @@ BEGIN
               p_user_id         := v_abandoned.user_id,
               p_won             := false,
               p_finish_position := 4,
-              p_score           := 0,
+              -- Use worst-case score so the ELO formula (100 - score) applies a
+              -- penalty (-100) rather than incorrectly rewarding abandonment (+100).
+              p_score           := 200,
               p_combos_played   := '{}'::jsonb,
               p_game_type       := v_game_type,
               p_completed       := false,
@@ -274,7 +276,9 @@ BEGIN
               p_user_id         := v_abandoned.human_user_id,
               p_won             := false,
               p_finish_position := 4,
-              p_score           := 0,
+              -- Use worst-case score so the ELO formula (100 - score) applies a
+              -- penalty (-100) rather than incorrectly rewarding abandonment (+100).
+              p_score           := 200,
               p_combos_played   := '{}'::jsonb,
               p_game_type       := v_game_type,
               p_completed       := false,

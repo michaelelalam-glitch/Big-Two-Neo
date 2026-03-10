@@ -456,13 +456,15 @@ Deno.serve(async (req: Request) => {
 
     // Record ABANDONED for every human who was replaced by a bot.
     // p_completed=false, p_voided=false → games_abandoned += 1, ELO penalty applied.
+    // p_score=200 so the ELO formula (100 - score) yields a penalty (−100 × multiplier)
+    // rather than rewarding abandonment with a large positive delta.
     // These run in parallel with the main statsUpdatePromises.
     const abandonedPromises = botReplacedHumanIds.map(async (humanUserId) => {
       const { error: abandonedError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: humanUserId,
         p_won: false,
         p_finish_position: 4,
-        p_score: 0,
+        p_score: 200,
         p_combos_played: {},
         p_game_type: gameData.game_type,
         p_completed: false,
