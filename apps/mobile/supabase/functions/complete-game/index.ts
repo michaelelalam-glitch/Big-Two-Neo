@@ -311,35 +311,63 @@ Deno.serve(async (req: Request) => {
     // would otherwise be silently filtered out by the realPlayerData filter below.
     // Must be queried here — after this point Step 3b deletes the room_players rows.
     let botReplacedHumanIds: string[] = [];
+    // Server-authoritative bot difficulty: queried from room_players, never trusted from the client.
+    // This prevents ELO manipulation via a spoofed bot_difficulty=null payload.
+    let serverBotDifficulty: string | null = null;
     if (gameData.room_id) {
+      // Fetch ALL bot rows (replacements + still-present bots) to get difficulty.
+      // Removing the human_user_id IS NOT NULL filter so regular bot rows also
+      // contribute their difficulty for the multiplier determination.
       const { data: replacedRows, error: replacedError } = await supabaseAdmin
         .from('room_players')
-        .select('human_user_id')
+        .select('human_user_id, bot_difficulty')
         .eq('room_id', gameData.room_id)
-        .eq('is_bot', true)
-        .not('human_user_id', 'is', null);
+        .eq('is_bot', true);
 
       if (replacedError) {
         console.error('[Complete Game] Failed to query bot-replaced humans (abandoned stats may be missed):', replacedError.message);
       } else {
+        // Collect human IDs that were replaced by bots.
         botReplacedHumanIds = (replacedRows ?? [])
-          .map(r => r.human_user_id as string)
-          .filter(Boolean);
+          .filter(r => r.human_user_id != null)
+          .map(r => r.human_user_id as string);
         if (botReplacedHumanIds.length > 0) {
           console.log(`[Complete Game] Found ${botReplacedHumanIds.length} bot-replaced human(s) — will record ABANDONED:`, botReplacedHumanIds);
         }
+
+        // Derive the hardest bot difficulty present in this game.
+        const difficulties = (replacedRows ?? [])
+          .map(r => r.bot_difficulty as string | null)
+          .filter(Boolean) as string[];
+        if (difficulties.includes('hard'))        serverBotDifficulty = 'hard';
+        else if (difficulties.includes('medium')) serverBotDifficulty = 'medium';
+        else if (difficulties.length > 0)         serverBotDifficulty = 'easy';
       }
     }
 
     // Only update stats for real players (not bots)
     const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));
 
-    // ── Bot multiplier (applied to casual & private ELO formula) ─────────────
-    // Determined by the hardest bot present; 1.0 for all-human lobbies.
-    const botMultiplier =
-      gameData.bot_difficulty === 'easy'   ? 0.5 :
-      gameData.bot_difficulty === 'medium' ? 0.7 :
-      gameData.bot_difficulty === 'hard'   ? 0.9 : 1.0;
+    // ── Bot multiplier (server-authoritative) ────────────────────────────────
+    // For games with a real room (room_id != null): derived exclusively from the
+    // server-queried room_players rows above — ignoring the client-supplied
+    // bot_difficulty field which an attacker could set to null (→ multiplier 1.0)
+    // to inflate their ELO gain in a bot game.
+    // For room_id=null (local casual games): no room_players exist to query, so
+    // we fall back to the client-supplied value. The ELO impact is limited since
+    // these are single-player games with no ranked/private modes.
+    let botMultiplier: number;
+    if (gameData.room_id !== null) {
+      botMultiplier =
+        serverBotDifficulty === 'hard'   ? 0.9 :
+        serverBotDifficulty === 'medium' ? 0.7 :
+        serverBotDifficulty === 'easy'   ? 0.5 : 1.0; // null → all-human lobby
+    } else {
+      botMultiplier =
+        gameData.bot_difficulty === 'easy'   ? 0.5 :
+        gameData.bot_difficulty === 'medium' ? 0.7 :
+        gameData.bot_difficulty === 'hard'   ? 0.9 : 1.0;
+    }
 
     // ── Chess K=32 pairwise ELO (ranked & private games only) ────────────────
     // Must be computed before the stats update loop so all players' current
@@ -378,7 +406,13 @@ Deno.serve(async (req: Request) => {
           const finishList: Array<{ user_id: string; finish_position: number; rating: number }> = [
             ...realPlayerData.map(p => ({
               user_id: p.user_id,
-              finish_position: p.finish_position,
+              // Disconnected (abandoned) players must not gain ELO by reporting a
+              // favourable finish position after leaving the game. Override to 4
+              // (last place) so they are treated as losers in every pairwise match-up,
+              // mirroring the bot-replaced path below which already hardcodes 4.
+              // The equal-position guard in the pairwise loop ensures two abandoned
+              // players at position 4 do not exchange ELO with each other.
+              finish_position: p.disconnected ? 4 : p.finish_position,
               rating: ratingLookup.get(p.user_id) ?? 1000,
             })),
             ...botReplacedHumanIds.map(id => ({

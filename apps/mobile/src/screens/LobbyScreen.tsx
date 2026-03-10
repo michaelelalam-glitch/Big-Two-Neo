@@ -40,8 +40,8 @@ interface RoomType {
 export default function LobbyScreen() {
   const navigation = useNavigation<LobbyScreenNavigationProp>();
   const route = useRoute<LobbyScreenRouteProp>();
-  const { roomCode } = route.params;
-  const { user } = useAuth();
+  const { roomCode, playAgain = false } = route.params;
+  const { user, profile } = useAuth();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +61,9 @@ export default function LobbyScreen() {
   const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
+  const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
   
   // Performance optimization: Calculate human player count once using useMemo
   const humanPlayerCount = useMemo(() => players.filter(p => !p.is_bot).length, [players]);
@@ -72,11 +75,41 @@ export default function LobbyScreen() {
     [players]
   );
 
+  // Always keep loadPlayersRef pointing at latest loadPlayers (avoids stale closures in subscriptions)
+  useEffect(() => {
+    loadPlayersRef.current = loadPlayers;
+  });
+
   useEffect(() => {
     loadPlayers();
-    return subscribeToPlayers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlayers and subscribeToPlayers intentionally excluded; they are defined in the component body without useCallback; adding them would cause the subscription to tear down and re-create on every render; roomCode is the correct trigger
+    return subscribeToRoomsTable();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlayers and subscribeToRoomsTable intentionally excluded; correct trigger is roomCode
   }, [roomCode]);
+
+  // Set up filtered room_players subscription only once roomId is known.
+  // Filtering by room_id prevents firing for other rooms' player changes (global subscription bug).
+  useEffect(() => {
+    if (!roomId) return;
+    const channel = supabase
+      .channel(`lobby-players:${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_players',
+          filter: `room_id=eq.${roomId}`,
+        },
+        () => {
+          loadPlayersRef.current();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- roomId is the correct trigger; loadPlayersRef is a stable ref
+  }, [roomId]);
 
   const getRoomId = async () => {
     const { data, error } = await supabase
@@ -100,7 +133,36 @@ export default function LobbyScreen() {
     if (data.status === 'playing') {
       setIsGameInProgress(true);
     }
-    
+
+    // Handle ended rooms: reset to 'waiting' for Play Again, otherwise send home.
+    if (data.status === 'ended') {
+      if (playAgain) {
+        // Reset the room so returning players land in a fresh waiting lobby
+        // with the same room code. join_room_atomic (called from loadPlayers)
+        // will re-add each player atomically with correct host assignment.
+        const { error: resetError } = await supabase
+          .from('rooms')
+          .update({ status: 'waiting' })
+          .eq('code', roomCode);
+        if (resetError) {
+          roomLogger.error('[LobbyScreen] Failed to reset ended room for Play Again:', resetError.message);
+          if (!isLeavingRef.current) {
+            isLeavingRef.current = true;
+            navigation.replace('Home');
+          }
+          return null;
+        }
+        roomLogger.info('[LobbyScreen] Room reset to waiting for Play Again');
+      } else {
+        roomLogger.info('[LobbyScreen] Room ended and not a play-again — navigating Home');
+        if (!isLeavingRef.current) {
+          isLeavingRef.current = true;
+          navigation.replace('Home');
+        }
+        return null;
+      }
+    }
+
     // Set matchmaking status (backward compatibility)
     setIsMatchmakingRoom(data.is_matchmaking || false);
     
@@ -133,11 +195,12 @@ export default function LobbyScreen() {
 
   const loadPlayers = async () => {
     try {
-      // Get roomId - either from state or fetch it
-      let currentRoomId = roomId;
+      // Get roomId - prefer the stable ref (always current), fall back to state, then fetch
+      let currentRoomId = roomIdRef.current || roomId;
       if (!currentRoomId) {
         currentRoomId = await getRoomId();
         if (!currentRoomId) return; // Room not found, getRoomId handles navigation
+        roomIdRef.current = currentRoomId;
         setRoomId(currentRoomId);
       }
       
@@ -228,6 +291,23 @@ export default function LobbyScreen() {
           all_user_ids: players.map(p => p.user_id),
         });
         setIsHost(false);
+
+        // Play Again: re-join the reset room atomically. join_room_atomic handles
+        // player_index assignment and host promotion so whichever player arrives
+        // first becomes the new host naturally.
+        if (playAgain && user && !isLeavingRef.current) {
+          const username = profile?.username || user.email?.split('@')[0] || 'Player';
+          roomLogger.info('[LobbyScreen] Play Again — auto-joining reset room as:', username);
+          const { error: joinError } = await supabase.rpc('join_room_atomic', {
+            p_room_code: roomCode,
+            p_user_id: user.id,
+            p_username: username,
+          });
+          if (joinError) {
+            roomLogger.error('[LobbyScreen] Failed to re-join for Play Again:', joinError.message);
+          }
+          // loadPlayers will be called again via the room_players realtime subscription
+        }
       }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -249,23 +329,12 @@ export default function LobbyScreen() {
     }
   };
 
-  const subscribeToPlayers = () => {
-    roomLogger.info(`[LobbyScreen] Setting up subscriptions for room: ${roomCode}`);
+  // Subscribes only to rooms table changes for this room (status updates, etc.)
+  // room_players changes are handled by a separate filtered subscription (see useEffect for roomId).
+  const subscribeToRoomsTable = () => {
+    roomLogger.info(`[LobbyScreen] Setting up rooms subscription for room: ${roomCode}`);
     const channel = supabase
-      .channel(`lobby:${roomCode}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'room_players',
-        },
-        () => {
-          // REMOVED: Console spam - fires on every player join/ready/state change
-          // roomLogger.info('[LobbyScreen] room_players changed, reloading players...');
-          loadPlayers();
-        }
-      )
+      .channel(`lobby-rooms:${roomCode}`)
       .on(
         'postgres_changes',
         {
@@ -301,11 +370,11 @@ export default function LobbyScreen() {
         }
       )
       .subscribe((status, err) => {
-        roomLogger.info(`[LobbyScreen] Subscription status: ${status}`, err ? { error: err } : {});
+        roomLogger.info(`[LobbyScreen] Rooms subscription status: ${status}`, err ? { error: err } : {});
       });
 
     return () => {
-      roomLogger.info(`[LobbyScreen] Unsubscribing from room: ${roomCode}`);
+      roomLogger.info(`[LobbyScreen] Unsubscribing from rooms channel: ${roomCode}`);
       supabase.removeChannel(channel);
     };
   };
@@ -476,7 +545,10 @@ export default function LobbyScreen() {
 
       // DO NOT manually navigate - let Realtime subscription handle navigation for ALL players
       // The subscription will fire when room status changes to 'playing'
+      // CRITICAL: Set isGameInProgress BEFORE clearing isStarting so the auto-start useEffect
+      // (which depends on isStarting) cannot re-fire handleStartWithBots a second time.
       roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
+      setIsGameInProgress(true);
       setIsStarting(false);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -732,9 +804,9 @@ export default function LobbyScreen() {
               </>
             )}
             
-            {/* Start button shows when less than 4 humans (consistent with bot count display) */}
-            {/* Disabled until all non-host human players have toggled ready */}
-            {humanPlayerCount < 4 && (
+            {/* Start button: shown when bots are needed OR when 4 humans are all ready */}
+            {/* Always visible for host so there's a manual fallback if auto-start misfires */}
+            {(humanPlayerCount < 4 || allNonHostHumansReady) && (
               <TouchableOpacity
                 style={[styles.startButton, (isStarting || !allNonHostHumansReady) && styles.buttonDisabled]}
                 onPress={handleStartWithBots}
@@ -745,6 +817,8 @@ export default function LobbyScreen() {
                     <ActivityIndicator color={COLORS.white} size="small" />
                     <Text style={[styles.startButtonText, { marginTop: 4 }]}>{i18n.t('lobby.starting')}...</Text>
                   </>
+                ) : humanPlayerCount >= 4 ? (
+                  <Text style={styles.startButtonText}>🎮 Start Game</Text>
                 ) : (
                   <Text style={styles.startButtonText}>
                     {i18n.t('lobby.startWithBotsCount', {

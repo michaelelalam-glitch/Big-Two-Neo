@@ -96,7 +96,7 @@ export function MultiplayerGame() {
       // Navigate to Lobby so the player can re-queue / rejoin the same room
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode } }],
+        routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
       });
     });
 

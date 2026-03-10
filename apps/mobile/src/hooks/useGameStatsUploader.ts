@@ -176,6 +176,44 @@ export function useGameStatsUploader({
         // produce a duplicate position and fail the edge-function [1,2,3,4] check.
         let safeGapPosition = nextFallbackPosition;
 
+        // ─── Derive per-player combo counts from server-authoritative play_history ─
+        // The multiplayer game server records every non-pass play in play_history with
+        // { position (= player_index), combo_type, passed }. We aggregate these here so
+        // each player's combos_played payload reflects actual server-verified plays
+        // rather than the previously hardcoded all-zero placeholder.
+        type ComboCounts = {
+          singles: number; pairs: number; triples: number; straights: number;
+          flushes: number; full_houses: number; four_of_a_kinds: number;
+          straight_flushes: number; royal_flushes: number;
+        };
+        const zeroCombos: ComboCounts = {
+          singles: 0, pairs: 0, triples: 0, straights: 0, flushes: 0,
+          full_houses: 0, four_of_a_kinds: 0, straight_flushes: 0, royal_flushes: 0,
+        };
+        const comboTypeToField: Record<string, keyof ComboCounts> = {
+          'single':          'singles',
+          'pair':            'pairs',
+          'triple':          'triples',
+          'straight':        'straights',
+          'flush':           'flushes',
+          'full house':      'full_houses',
+          'four of a kind':  'four_of_a_kinds',
+          'straight flush':  'straight_flushes',
+          'royal flush':     'royal_flushes',
+        };
+        const combosByPlayerIndex = new Map<number, ComboCounts>();
+        for (const entry of (multiplayerGameState.play_history ?? [])) {
+          if (entry.passed) continue;
+          const idx = entry.position;
+          if (!combosByPlayerIndex.has(idx)) {
+            combosByPlayerIndex.set(idx, { ...zeroCombos });
+          }
+          const counts = combosByPlayerIndex.get(idx)!;
+          const field = comboTypeToField[String(entry.combo_type).toLowerCase()];
+          if (field) counts[field]++;
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
         // Build players array
         const finishedAt = new Date().toISOString();
         const startedAt = gameStartedAt || new Date(Date.now() - 30 * 60 * 1000).toISOString(); // fallback 30min
@@ -219,23 +257,8 @@ export function useGameStatsUploader({
             // COMPLETED, which was the prior bug (hardcoded false for everyone).
             disconnected: player.connection_status === 'disconnected',
             original_username: null,
-            // NOTE: Multiplayer combo tracking is not yet implemented.
-            // All values are intentionally zero. Combo stats are available for
-            // local (offline) games via state.ts saveGameStatsToDatabase, but
-            // multiplayer games do not yet aggregate per-combo play counts.
-            // This is a known gap; a future task should derive combos from
-            // game_state.play_history entries on the server side.
-            combos_played: {
-              singles: 0,
-              pairs: 0,
-              triples: 0,
-              straights: 0,
-              flushes: 0,
-              full_houses: 0,
-              four_of_a_kinds: 0,
-              straight_flushes: 0,
-              royal_flushes: 0,
-            },
+            // Combo counts derived from server play_history (not from the client).
+            combos_played: combosByPlayerIndex.get(player.player_index) ?? { ...zeroCombos },
           };
         });
 
