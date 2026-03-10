@@ -595,12 +595,24 @@ export function MultiplayerGame() {
         //      timestamps to 'now', so a slightly-ahead server clock is safe.
         //   3. new Date().toISOString() — fallback when neither above is available.
         //
-        // We NEVER overwrite an existing client anchor with the server timestamp when the
-        // server anchor is LATER (heartbeat-sweep sets disconnect_timer_started_at ~30s
-        // after actual disconnect, well after the client already seeded the ring at ~12s).
-        // Overwriting with a later timestamp would visually replenish the ring to full.
+        // We NEVER overwrite an existing client anchor with a LATER server timestamp
+        // (would visually replenish the ring to full). We DO correct the anchor when the
+        // server provides an EARLIER timestamp — this fixes a bug where the client fell
+        // back to 'now' (STALE_THRESHOLD_MS = 12s after the last heartbeat) before Phase A
+        // ran and set disconnect_timer_started_at = last_seen_at (which is earlier by ~18s).
+        // Without this correction the ring depletes to empty ~12-18s before the server
+        // fires bot replacement, causing it to visually disappear with arc still showing.
         if (rp.connection_status === 'disconnected') {
-          if (!clientDisconnectStartRef.current[rp.player_index]) {
+          const existingAnchor = clientDisconnectStartRef.current[rp.player_index];
+          const serverAnchorMs = rp.disconnect_timer_started_at
+            ? new Date(rp.disconnect_timer_started_at).getTime()
+            : null;
+          const existingAnchorMs = existingAnchor ? new Date(existingAnchor).getTime() : null;
+          // Seed if not set yet; or correct downward if server anchor is strictly earlier
+          const needsUpdate =
+            !existingAnchor ||
+            (serverAnchorMs !== null && existingAnchorMs !== null && serverAnchorMs < existingAnchorMs);
+          if (needsUpdate) {
             const gs = multiplayerGameStateRef.current;
             const isTheirTurn = gs?.current_turn === rp.player_index;
             let anchor: string;
@@ -610,8 +622,6 @@ export function MultiplayerGame() {
               anchor = gs.turn_started_at;
               anchorType = 'turn_started_at';
             } else if (rp.disconnect_timer_started_at) {
-              // Use server's timer start for precise sync with server-side 60s window.
-              // Only used for the INITIAL seed — never overwrites an existing anchor.
               anchor = rp.disconnect_timer_started_at;
               anchorType = 'server_timer_ts';
             } else {
@@ -619,7 +629,9 @@ export function MultiplayerGame() {
               anchorType = 'now';
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
-            gameLogger.warn(`[MultiplayerGame] Client-side: seeding disconnect for player_index=${rp.player_index} (anchor=${anchorType})`);
+            gameLogger.warn(
+              `[MultiplayerGame] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`,
+            );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
           continue;
