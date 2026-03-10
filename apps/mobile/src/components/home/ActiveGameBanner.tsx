@@ -70,6 +70,8 @@ interface ActiveGameBannerProps {
    * Set by parent after the timer expires and it has checked the room:
    *   true  = humans still in game → show "Replace Bot & Rejoin" + "Leave"
    *   null  = timer hasn't expired yet (normal countdown mode)
+   * Note: false is no longer used — the "Replace Bot & Rejoin" button is always
+   * shown when botHasReplaced=true so the player always has an action available.
    */
   canRejoinAfterExpiry?: boolean | null;
 }
@@ -311,8 +313,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>{i18n.t('home.rejoin')}</Text>
           </TouchableOpacity>
-        ) : canRejoinAfterExpiry !== false ? (
-          // Timer expired AND bot took over — show Replace Bot & Rejoin
+        ) : (
+          // Timer expired — always show Replace Bot & Rejoin alongside Leave
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton]}
             onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
@@ -320,7 +322,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           >
             <Text style={styles.buttonText}>{i18n.t('home.replaceBotAndRejoin')}</Text>
           </TouchableOpacity>
-        ) : null /* canRejoinAfterExpiry===false: game running but replacement row absent — show only Leave */}
+        )}
 
         {/* Leave button (always shown) */}
         <TouchableOpacity
