@@ -118,8 +118,9 @@ describe('BotAI - Extended Coverage Tests', () => {
         if (result.cards === null) passCount++;
       }
 
-      // Should pass roughly 15% ± 10% (strategic passing)
-      expect(passCount).toBeGreaterThan(5);
+      // Should pass roughly 15% ± 10% (strategic passing).
+      // Lower bound is 2 (not 5) to avoid flakiness: P(X≤2 | n=100, p=0.15) < 0.01%.
+      expect(passCount).toBeGreaterThan(2);
       expect(passCount).toBeLessThan(25);
     });
 

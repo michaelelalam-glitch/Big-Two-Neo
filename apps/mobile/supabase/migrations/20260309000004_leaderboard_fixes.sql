@@ -200,6 +200,9 @@ BEGIN
   -- Casual & private (casual column): score-based formula scaled by bot multiplier.
   -- Lower game score = better result = larger positive ELO gain.
   -- Formula: ROUND((100 - p_score) * p_bot_multiplier)
+  -- The constant is intentionally 100 (not 101): a winner who scores 0 gains exactly
+  -- +100 ELO × multiplier; a player who scores 100 breaks even; an abandoned player
+  -- who is assigned p_score=200 receives a −100 × multiplier penalty.
   -- Ranked & private (ranked column): chess K=32 pairwise delta pre-computed
   -- by the complete-game edge function and passed as p_ranked_elo_change.
   v_rank_point_change := CASE

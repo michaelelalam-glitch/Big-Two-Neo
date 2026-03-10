@@ -432,11 +432,16 @@ Deno.serve(async (req: Request) => {
       // completed so games_abandoned / ELO penalty are applied correctly.
       const isCompleted = gameData.game_completed && !player.disconnected;
 
+      // Abandoned (disconnected, not voided) players receive a penalty score of 200 so
+      // the ELO formula (100 - p_score) yields a negative delta (−100 × multiplier)
+      // instead of rewarding a low game score earned before departure.
+      const effectiveScore = (!isCompleted && !isVoided) ? 200 : player.score;
+
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,
         p_won: won,
         p_finish_position: player.finish_position,
-        p_score: player.score,
+        p_score: effectiveScore,
         p_combos_played: player.combos_played,
         p_game_type: gameData.game_type,
         p_completed: isCompleted,
