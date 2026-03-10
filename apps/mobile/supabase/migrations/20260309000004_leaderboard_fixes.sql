@@ -273,8 +273,9 @@ BEGIN
                                WHEN NOT p_won THEN current_loss_streak + 1
                                ELSE 0
                              END,
-    -- Sync rank_points with casual_rank_points (overview ELO)
-    rank_points            = CASE WHEN NOT p_voided THEN v_new_casual_rp ELSE rank_points END,
+    -- Sync rank_points with casual_rank_points (casual games only — private games
+    -- must not alter the legacy rank_points column either).
+    rank_points            = CASE WHEN (NOT p_voided AND p_game_type = 'casual') THEN v_new_casual_rp ELSE rank_points END,
     -- Completion tracking (global)
     games_completed        = COALESCE(games_completed, 0)  + CASE WHEN (NOT p_voided AND p_completed) THEN 1 ELSE 0 END,
     games_abandoned        = COALESCE(games_abandoned, 0)  + CASE WHEN (NOT p_completed AND NOT p_voided) THEN 1 ELSE 0 END,

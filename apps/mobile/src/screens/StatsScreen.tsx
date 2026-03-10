@@ -226,12 +226,22 @@ export default function StatsScreen() {
       } else {
         // Fetch global_rank at read-time from leaderboard_ranked so it stays
         // accurate without relying on the stored (potentially stale) column.
-        const { data: rankRow } = await supabase
+        const { data: rankRow, error: rankError } = await supabase
           .from('leaderboard_ranked')
           .select('rank')
           .eq('user_id', userId)
           .maybeSingle();
-        setStats({ ...statsData, global_rank: rankRow?.rank ?? null });
+        if (rankError) {
+          // Log the failure and fall back to the stored global_rank from statsData.
+          statsLogger.error('[Stats] Rank query error:', rankError?.message || rankError?.code || 'Unknown error');
+          setStats({ ...statsData, global_rank: (statsData as any)?.global_rank ?? null });
+        } else {
+          setStats({
+            ...statsData,
+            // Prefer fresh rank from leaderboard_ranked; fall back to stored global_rank.
+            global_rank: rankRow?.rank ?? (statsData as any)?.global_rank ?? null,
+          });
+        }
       }
 
       // Fetch profile
@@ -753,14 +763,12 @@ export default function StatsScreen() {
             </View>
           </View>
 
-          {/* Total Points row — private / ranked only (shows mode-specific total) */}
-          {(activeTab === 'private' || activeTab === 'ranked') && (
+          {/* Total Points row — private only (ranked has a dedicated stat card above) */}
+          {activeTab === 'private' && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>{i18n.t('profile.totalScore')}</Text>
               <Text style={styles.infoValue}>
-                {activeTab === 'ranked'
-                  ? (stats.ranked_total_points || 0).toLocaleString()
-                  : (stats.private_total_points || 0).toLocaleString()}
+                {(stats.private_total_points || 0).toLocaleString()}
               </Text>
             </View>
           )}

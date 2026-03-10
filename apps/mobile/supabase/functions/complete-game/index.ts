@@ -369,9 +369,10 @@ Deno.serve(async (req: Request) => {
         gameData.bot_difficulty === 'hard'   ? 0.9 : 1.0;
     }
 
-    // ── Chess K=32 pairwise ELO (ranked & private games only) ────────────────
+    // ── Chess K=32 pairwise ELO (ranked games only) ────────────────────────────
     // Must be computed before the stats update loop so all players' current
     // rated_rank_points are fetched simultaneously.
+    // Private games are excluded — they do not affect ranked_rank_points.
     const rankedEloDeltaMap = new Map<string, number>();
 
     if (gameData.game_type === 'ranked') {
