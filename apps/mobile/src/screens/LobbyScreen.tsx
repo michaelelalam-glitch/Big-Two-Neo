@@ -114,7 +114,7 @@ export default function LobbyScreen() {
   const getRoomId = async () => {
     const { data, error } = await supabase
       .from('rooms')
-      .select('id, status, is_matchmaking, is_public, ranked_mode')
+      .select('id, status, is_matchmaking, is_public, ranked_mode, host_id')
       .eq('code', roomCode)
       .single();
     
@@ -137,22 +137,29 @@ export default function LobbyScreen() {
     // Handle ended rooms: reset to 'waiting' for Play Again, otherwise send home.
     if (data.status === 'ended') {
       if (playAgain) {
-        // Reset the room so returning players land in a fresh waiting lobby
-        // with the same room code. join_room_atomic (called from loadPlayers)
-        // will re-add each player atomically with correct host assignment.
-        const { error: resetError } = await supabase
-          .from('rooms')
-          .update({ status: 'waiting' })
-          .eq('code', roomCode);
-        if (resetError) {
-          roomLogger.error('[LobbyScreen] Failed to reset ended room for Play Again:', resetError.message);
-          if (!isLeavingRef.current) {
-            isLeavingRef.current = true;
-            navigation.replace('Home');
+        if (user?.id === data.host_id) {
+          // Only the original room host may reset status — other players would
+          // be rejected by the RLS UPDATE policy (host_id = auth.uid()).
+          const { error: resetError } = await supabase
+            .from('rooms')
+            .update({ status: 'waiting' })
+            .eq('code', roomCode);
+          if (resetError) {
+            roomLogger.error('[LobbyScreen] Failed to reset ended room for Play Again:', resetError.message);
+            if (!isLeavingRef.current) {
+              isLeavingRef.current = true;
+              navigation.replace('Home');
+            }
+            return null;
           }
-          return null;
+          roomLogger.info('[LobbyScreen] Room reset to waiting for Play Again (host)');
+        } else {
+          // Non-host: cannot update the room row.  Return the room_id so the
+          // subscription channel is established; subscribeToRoomsTable will
+          // call loadPlayers() once the host's reset fires status='waiting'.
+          roomLogger.info('[LobbyScreen] Play Again: non-host waiting for host to reset room');
+          return data.id;
         }
-        roomLogger.info('[LobbyScreen] Room reset to waiting for Play Again');
       } else {
         roomLogger.info('[LobbyScreen] Room ended and not a play-again — navigating Home');
         if (!isLeavingRef.current) {
@@ -366,6 +373,11 @@ export default function LobbyScreen() {
               // Pass botDifficulty so the host's selected difficulty is preserved in stats.
               navigation.replace('Game', { roomCode, forceNewGame: true, botDifficulty });
             }, 100);
+          } else if (payload.new?.status === 'waiting' && playAgain && !isLeavingRef.current) {
+            // Host has reset the room for Play Again — non-host players waiting
+            // on the ended room can now auto-join via join_room_atomic.
+            roomLogger.info('[LobbyScreen] Room reset to waiting (Play Again) — triggering auto-join');
+            loadPlayersRef.current();
           }
         }
       )
