@@ -93,9 +93,11 @@ export function MultiplayerGame() {
   useEffect(() => {
     setOnPlayAgain(() => () => {
       gameLogger.info('🔄 [MultiplayerGame] Play Again → navigating to Lobby with same room');
-      // Navigate to Lobby so the player can re-queue / rejoin the same room
+      // Navigate to Lobby so the player can re-queue / rejoin the same room.
+      // index: 1 makes Lobby the active screen; Home is kept in the back-stack
+      // so the user can still navigate home from the lobby.
       navigation.reset({
-        index: 0,
+        index: 1,
         routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
       });
     });

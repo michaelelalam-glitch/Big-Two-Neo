@@ -202,12 +202,14 @@ BEGIN
           INSERT INTO public.game_history (
             room_id, room_code, game_type, game_completed,
             winner_id, started_at, finished_at,
-            player1_id, player2_id, player3_id, player4_id,
-            player1_username, player2_username, player3_username, player4_username,
-            player1_orig_username, player2_orig_username, player3_orig_username, player4_orig_username,
-            player1_was_bot, player2_was_bot, player3_was_bot, player4_was_bot,
-            player1_disconnected, player2_disconnected, player3_disconnected, player4_disconnected,
-            voided_player_id
+            player_1_id,       player_2_id,       player_3_id,       player_4_id,
+            player_1_username, player_2_username, player_3_username, player_4_username,
+            player_1_original_username, player_2_original_username,
+            player_3_original_username, player_4_original_username,
+            player_1_was_bot,  player_2_was_bot,  player_3_was_bot,  player_4_was_bot,
+            player_1_disconnected, player_2_disconnected,
+            player_3_disconnected, player_4_disconnected,
+            voided_user_id
           ) VALUES (
             rec.room_id,
             v_room.code,
