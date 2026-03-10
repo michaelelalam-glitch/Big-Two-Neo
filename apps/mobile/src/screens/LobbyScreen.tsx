@@ -490,6 +490,24 @@ export default function LobbyScreen() {
     }
   };
 
+  // Auto-start when the room is full (4 humans) and every non-host has pressed ready.
+  // Applies to casual, private, and ranked rooms — no bots are needed.
+  // Only the host's client fires start_game_with_bots; isStartingRef prevents double-firing.
+  useEffect(() => {
+    if (
+      humanPlayerCount === 4 &&
+      allNonHostHumansReady &&
+      isHost &&
+      !isStarting &&
+      !isStartingRef.current &&
+      !isGameInProgress
+    ) {
+      roomLogger.info('[LobbyScreen] 🚀 Auto-starting: full room of 4 humans, all non-host players ready');
+      handleStartWithBots();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartWithBots is not memoised; isStartingRef is a stable ref
+  }, [humanPlayerCount, allNonHostHumansReady, isHost, isStarting, isGameInProgress]);
+
   const handleLeaveRoom = async () => {
     if (isLeavingRef.current || isLeaving) return;
     
@@ -752,7 +770,11 @@ export default function LobbyScreen() {
             <Text style={styles.rankedInfoText}>
               {humanPlayerCount < 4
                 ? i18n.t('lobby.waitingForMorePlayers') || 'Waiting for more players...'
-                : i18n.t('lobby.allReadyToStart') || 'All ready to start!'}
+                : isStarting
+                  ? i18n.t('lobby.starting') + '...' || 'Starting...'
+                  : allNonHostHumansReady
+                    ? i18n.t('lobby.allReadyToStart') || 'All ready to start!'
+                    : i18n.t('lobby.waitingForPlayers') || 'Waiting for players to ready up...'}
             </Text>
           </View>
         )}
@@ -760,7 +782,9 @@ export default function LobbyScreen() {
         {/* Non-host players: show waiting message in all non-ranked rooms */}
         {!roomType.isRanked && !isHost && !isGameInProgress && (
           <Text style={styles.waitingInfo}>
-            {i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
+            {humanPlayerCount === 4 && allNonHostHumansReady
+              ? i18n.t('lobby.starting') + '...' || 'Starting...'
+              : i18n.t('lobby.waitingForHost') || 'Waiting for host to start the game...'}
           </Text>
         )}
       </View>
