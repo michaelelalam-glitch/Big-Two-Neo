@@ -224,7 +224,14 @@ export default function StatsScreen() {
           throw statsError;
         }
       } else {
-        setStats(statsData);
+        // Fetch global_rank at read-time from leaderboard_ranked so it stays
+        // accurate without relying on the stored (potentially stale) column.
+        const { data: rankRow } = await supabase
+          .from('leaderboard_ranked')
+          .select('rank')
+          .eq('user_id', userId)
+          .maybeSingle();
+        setStats({ ...statsData, global_rank: rankRow?.rank ?? null });
       }
 
       // Fetch profile
@@ -345,7 +352,9 @@ export default function StatsScreen() {
     if (activeTab === 'overview') {
       return {
         avgPosition: stats.avg_finish_position,
-        totalPoints: stats.total_points,
+        totalPoints: (stats.casual_total_points || 0)
+          + (stats.ranked_total_points || 0)
+          + (stats.private_total_points || 0),
         highestScore: stats.highest_score,
         lowestScore: stats.lowest_score,
         avgScore: stats.avg_score_per_game,
@@ -714,6 +723,7 @@ export default function StatsScreen() {
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
                 {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.ranked_total_points || 0).toLocaleString(), '💎')}
               </>
             )}
             {activeTab === 'private' && (

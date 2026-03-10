@@ -374,7 +374,7 @@ Deno.serve(async (req: Request) => {
     // rated_rank_points are fetched simultaneously.
     const rankedEloDeltaMap = new Map<string, number>();
 
-    if (gameData.game_type === 'ranked' || gameData.game_type === 'private') {
+    if (gameData.game_type === 'ranked') {
       // Collect all real player user IDs (including bot-replaced humans at pos 4)
       const allRealUserIds = [
         ...realPlayerData.map(p => p.user_id),

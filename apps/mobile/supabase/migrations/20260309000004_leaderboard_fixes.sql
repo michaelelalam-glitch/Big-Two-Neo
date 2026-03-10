@@ -467,9 +467,7 @@ BEGIN
       private_games_won       = COALESCE(private_games_won, 0) + CASE WHEN (NOT p_voided AND p_won) THEN 1 ELSE 0 END,
       private_games_lost      = COALESCE(private_games_lost, 0) + CASE WHEN (NOT p_voided AND NOT p_won) THEN 1 ELSE 0 END,
       private_win_rate        = CASE WHEN NOT p_voided THEN v_new_mode_win_rate ELSE COALESCE(private_win_rate, 0) END,
-      -- ELO: private games affect both casual_rank_points and ranked_rank_points
-      casual_rank_points      = CASE WHEN NOT p_voided THEN v_new_casual_rp ELSE COALESCE(casual_rank_points, 1000) END,
-      ranked_rank_points      = CASE WHEN NOT p_voided THEN v_new_ranked_rp ELSE COALESCE(ranked_rank_points, 1000) END,
+      -- Private games do NOT affect rank_points; only total_points are tracked.
       -- Completion
       private_games_completed = COALESCE(private_games_completed, 0) + CASE WHEN (p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
       private_games_abandoned = COALESCE(private_games_abandoned, 0) + CASE WHEN (NOT p_completed AND NOT p_voided) THEN 1 ELSE 0 END,
@@ -498,16 +496,15 @@ BEGIN
   END IF;
 
   -- ── rank_points_history: append entry using mode-specific points ──────────
-  -- Voided games do not update ELO; skip history for them to avoid graph divergence.
-  -- For overview graph: store casual_rank_points for casual games, ranked_rank_points
-  -- for ranked games (so the ranked-tab graph filters correctly); private games fall
-  -- through to the ELSE branch and also track casual ELO (no dedicated private ELO).
+  -- Voided and private games do not change ELO; skip history for them to avoid
+  -- graph divergence. For the overview graph: store casual_rank_points for casual
+  -- games, ranked_rank_points for ranked games (so the ranked-tab graph filters
+  -- correctly). Private games are excluded — they have no ELO impact.
   -- The 'points' value stored is the NEW value after this game.
-  IF NOT p_voided THEN
+  IF NOT p_voided AND p_game_type <> 'private' THEN
     v_history_entry := jsonb_build_object(
       'points',    CASE
-                     WHEN p_game_type = 'ranked'  THEN v_new_ranked_rp
-                     WHEN p_game_type = 'private' THEN v_new_casual_rp  -- private: graph tracks casual ELO
+                     WHEN p_game_type = 'ranked' THEN v_new_ranked_rp
                      ELSE v_new_casual_rp  -- casual
                    END,
       'is_win',    p_won,
