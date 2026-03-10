@@ -21,6 +21,7 @@ CREATE OR REPLACE FUNCTION public.get_rejoin_status(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_rec          RECORD;

@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const { room_id, player_id, heartbeat_count, force_sweep } = body;
+    const { room_id, player_id, heartbeat_count, force_sweep, sweep_only } = body;
 
     if (!room_id || !player_id) {
       return new Response(
@@ -110,43 +110,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update heartbeat timestamp.
-    // NOTE: We deliberately do NOT clear disconnect_timer_started_at here.
-    // That persistent timer is only cleared by explicit reconnect (rejoin button)
-    // or active game actions (play-cards / player-pass).
-    // Request an exact count so updateCount is non-null and we can detect
-    // "0 rows matched" (race with bot replacement).
-    const { error: updateError, count: updateCount } = await supabaseClient
-      .from('room_players')
-      .update({
-        last_seen_at:      new Date().toISOString(),
-        connection_status: 'connected',
-        disconnected_at:   null,
-        // disconnect_timer_started_at is intentionally NOT touched here
-      }, { count: 'exact' })
-      .eq('id', player_id)
-      .eq('room_id', room_id)
-      // Guard against race: do not flip a replaced_by_bot row back to 'connected'.
-      // If the row was claimed by a bot between the ownership SELECT above and this
-      // UPDATE, user_id will no longer match (it was set to the bot's UUID) and
-      // connection_status will be 'replaced_by_bot' — either predicate rejects it.
-      .eq('user_id', user.id)
-      .neq('connection_status', 'replaced_by_bot');
+    // sweep_only=true: caller is a disconnected player triggering a forced sweep.
+    // Skip the heartbeat UPDATE so the row stays 'disconnected' and
+    // process_disconnected_players() can find and replace this player.
+    // A normal heartbeat would flip connection_status back to 'connected',
+    // causing Phase B to miss the player entirely.
+    if (!sweep_only) {
+      // Update heartbeat timestamp.
+      // NOTE: We deliberately do NOT clear disconnect_timer_started_at here.
+      // That persistent timer is only cleared by explicit reconnect (rejoin button)
+      // or active game actions (play-cards / player-pass).
+      // Request an exact count so updateCount is non-null and we can detect
+      // "0 rows matched" (race with bot replacement).
+      const { error: updateError, count: updateCount } = await supabaseClient
+        .from('room_players')
+        .update({
+          last_seen_at:      new Date().toISOString(),
+          connection_status: 'connected',
+          disconnected_at:   null,
+          // disconnect_timer_started_at is intentionally NOT touched here
+        }, { count: 'exact' })
+        .eq('id', player_id)
+        .eq('room_id', room_id)
+        // Guard against race: do not flip a replaced_by_bot row back to 'connected'.
+        // If the row was claimed by a bot between the ownership SELECT above and this
+        // UPDATE, user_id will no longer match (it was set to the bot's UUID) and
+        // connection_status will be 'replaced_by_bot' — either predicate rejects it.
+        .eq('user_id', user.id)
+        .neq('connection_status', 'replaced_by_bot');
 
-    if (updateError) {
-      console.error('❌ [update-heartbeat] Update failed:', updateError.message);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Heartbeat update failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      if (updateError) {
+        console.error('❌ [update-heartbeat] Update failed:', updateError.message);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Heartbeat update failed' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (updateCount === 0) {
-      console.warn('[update-heartbeat] Update matched 0 rows — player may have been replaced');
-      return new Response(
-        JSON.stringify({ success: false, replaced_by_bot: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (updateCount === 0) {
+        console.warn('[update-heartbeat] Update matched 0 rows — player may have been replaced');
+        return new Response(
+          JSON.stringify({ success: false, replaced_by_bot: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Every 6th heartbeat (~30 s at 5 s interval) run the sweep so bot-replacement
@@ -231,7 +238,9 @@ Deno.serve(async (req) => {
       ? parseInt(room_id.replace(/-/g, '').substring(0, 8), 16) % 6
       : 0;
     let shouldSweep = sweepSlot % 6 === roomSweepOffset;
-    if (force_sweep === true && !shouldSweep) {
+    // sweep_only also implies an immediate forced sweep; apply the same
+    // server-side validation (expired disconnect timer) to prevent DoS.
+    if ((force_sweep === true || sweep_only === true) && !shouldSweep) {
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')
         .select('id')

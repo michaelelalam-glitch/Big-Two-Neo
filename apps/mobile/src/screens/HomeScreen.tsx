@@ -625,23 +625,31 @@ export default function HomeScreen() {
     // happens right at the 60s mark rather than waiting up to 30s for the
     // next scheduled piggyback sweep on another player's heartbeat.
     try {
-      const { data: disconnRow } = await supabase
-        .from('room_players')
-        .select('id, room_id')
-        .eq('user_id', user.id)
-        .eq('connection_status', 'disconnected')
-        .maybeSingle();
+      // Constrain the lookup to the current room (by code) to avoid acting on a
+      // stale disconnected row from a previously abandoned room.
+      const roomCode = currentRoomRef.current;
+      if (roomCode) {
+        const { data: disconnRow } = await supabase
+          .from('room_players')
+          .select('id, room_id, rooms!inner(code)')
+          .eq('user_id', user.id)
+          .eq('connection_status', 'disconnected')
+          .eq('rooms.code', roomCode)
+          .maybeSingle();
 
-      if (disconnRow?.id && disconnRow?.room_id) {
-        // Fire-and-forget — the sweep is async; the polling loop below confirms replacement.
-        supabase.functions.invoke('update-heartbeat', {
-          body: {
-            room_id: disconnRow.room_id,
-            player_id: disconnRow.id,
-            heartbeat_count: 1,
-            force_sweep: true,
-          },
-        }).catch(() => {/* non-fatal */});
+        if (disconnRow?.id && disconnRow?.room_id) {
+          // sweep_only=true: skip the heartbeat UPDATE so this row stays
+          // 'disconnected' — Phase B needs to see it to trigger bot replacement.
+          // A normal heartbeat call would flip connection_status to 'connected'
+          // before the sweep runs, causing Phase B to miss this player.
+          supabase.functions.invoke('update-heartbeat', {
+            body: {
+              room_id: disconnRow.room_id,
+              player_id: disconnRow.id,
+              sweep_only: true,
+            },
+          }).catch(() => {/* non-fatal */});
+        }
       }
     } catch {
       // Non-fatal — polling below will still detect replacement
