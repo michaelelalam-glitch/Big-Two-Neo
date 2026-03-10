@@ -197,28 +197,30 @@ BEGIN
   END IF;
 
   -- ── Rank point change ───────────────────────────────────────────────────
-  -- Casual & private (casual column): score-based formula scaled by bot multiplier.
+  -- Casual only (casual column): score-based formula scaled by bot multiplier.
   -- Lower game score = better result = larger positive ELO gain.
   -- Formula: ROUND((100 - p_score) * p_bot_multiplier)
   -- The constant is intentionally 100 (not 101): a winner who scores 0 gains exactly
   -- +100 ELO × multiplier; a player who scores 100 breaks even; an abandoned player
   -- who is assigned p_score=200 receives a −100 × multiplier penalty.
-  -- Ranked & private (ranked column): chess K=32 pairwise delta pre-computed
+  -- Ranked only (ranked column): chess K=32 pairwise delta pre-computed
   -- by the complete-game edge function and passed as p_ranked_elo_change.
+  -- Private games are consequence-free: they do NOT affect any ELO / rank columns.
   v_rank_point_change := CASE
-    WHEN p_game_type IN ('casual', 'private') THEN ROUND((100 - p_score) * p_bot_multiplier)::INTEGER
+    WHEN p_game_type = 'casual' THEN ROUND((100 - p_score) * p_bot_multiplier)::INTEGER
     ELSE 0
   END;
 
-  -- Casual rank_points is the canonical “overview” ELO; private games also
-  -- affect casual_rank_points (they share the same ELO pool).
+  -- Casual rank_points is the canonical "overview" ELO for casual games only.
+  -- Private games do not affect casual_rank_points.
   -- The legacy global rank_points is kept in sync with casual_rank_points.
   v_new_casual_rp := COALESCE(v_stats.casual_rank_points, 1000) +
-    CASE WHEN p_game_type IN ('casual', 'private') THEN v_rank_point_change ELSE 0 END;
+    CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE 0 END;
 
-  -- Ranked ELO (chess K=32 pairwise) also applies to private games.
+  -- Ranked ELO (chess K=32 pairwise) applies to ranked games only.
+  -- Private games do not affect ranked ELO.
   v_new_ranked_rp := COALESCE(v_stats.ranked_rank_points, 1000) +
-    CASE WHEN p_game_type IN ('ranked', 'private') THEN p_ranked_elo_change ELSE 0 END;
+    CASE WHEN p_game_type = 'ranked' THEN p_ranked_elo_change ELSE 0 END;
 
   -- ── Global win rate ────────────────────────────────────────────────────────
   v_new_win_rate := ROUND(
