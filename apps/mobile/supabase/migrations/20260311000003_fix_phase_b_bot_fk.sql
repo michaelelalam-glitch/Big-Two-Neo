@@ -1,38 +1,32 @@
 -- ============================================================================
--- Migration: fix_phase_b_bot_fk
--- Branch: task/623-incomplete-games-recent-stats
+-- Migration: fix_phase_b_bot_fk_and_lte_threshold
+-- Branch: game/chinese-poker
 -- Date: 2026-03-11
+-- (Previously split across 000003 and 000005; squashed into a single file.)
 --
--- Problem:
---   Phase B of process_disconnected_players() builds player slots from ALL
---   room_players rows, including pure-bot rows (is_bot=TRUE, human_user_id IS NULL).
---   For those rows COALESCE(human_user_id, user_id) = bot's user_id UUID.
+-- Fix 1 — Phase B silent FK violation drops incomplete game history
+-- ---------------------------------------------------------------
+-- Phase B builds player slots from ALL room_players rows, including pure-bot
+-- rows (is_bot=TRUE, human_user_id IS NULL).  For those rows:
+--   COALESCE(human_user_id, user_id) = bot UUID
+-- game_history.player_X_id has FK → auth.users(id).  Bot UUIDs are NOT in
+-- auth.users (1854 bot rows, 0 in auth.users), so every INSERT triggered a FK
+-- violation caught by EXCEPTION WHEN OTHERS → silent WARNING, INSERT discarded.
+-- Consequence: neither the voided player nor any abandoned player could see the
+-- game in recent history.
 --
---   game_history.player_X_id has FK constraints → auth.users(id) ON DELETE SET NULL.
---   Bot user_ids in room_players are NOT present in auth.users (confirmed:
---   1854 bot rows, 0 in auth.users). So inserting a bot UUID into player_X_id
---   triggers a FK violation on every INSERT → caught by EXCEPTION WHEN OTHERS
---   → silent WARNING, INSERT discarded → NO game_history row written.
+-- Fix: null out player_X_id for pure-bot slots (is_bot=TRUE AND
+-- human_user_id IS NULL) in Phase B's slot-building loop, mirroring the
+-- complete-game edge function's realPlayers filter.
 --
---   Consequence: Phase B never successfully records an incomplete game.
---   Since Phase B already set the room to 'finished', Phase C (which only
---   processes status='playing') also never fires. Both the voided player AND
---   every abandoned player are permanently invisible in recent game history.
+-- Fix 2 — Phase B strict-less-than prevents exact-60s bot replacement
+-- -------------------------------------------------------------------
+-- Phase B used:  rp.disconnect_timer_started_at < NOW() - INTERVAL '60 seconds'
+-- At exactly T=60s the client ring fires and calls forceSweep, but T < T is
+-- FALSE, so the first sweep did nothing and replacement was delayed 1–4 seconds.
 --
--- Fix:
---   In Phase B's player-slot-building loop, null out player_X_id for pure-bot
---   slots (is_bot=TRUE AND human_user_id IS NULL). This mirrors the logic in
---   the complete-game edge function:
---     const realPlayers = gameData.players.map(p =>
---       p.user_id.startsWith('bot_') ? null : p.user_id);
---
---   After this fix:
---   • Phase B INSERT succeeds → game appears in both players' recent history
---   • Abandoned player's human_user_id (from their replaced_by_bot row) is stored
---     at the correct player_X_id slot → visible via player_X_id filter
---   • Voided player's user_id (still is_bot=FALSE at INSERT time) is stored at
---     their slot → visible via player_X_id filter
---   • voided_user_id is already correctly computed (query uses is_bot=FALSE filter)
+-- Fix: change < to <= so T=disconnect <= NOW()-60s is TRUE at ring expiry:
+--   rp.disconnect_timer_started_at <= NOW() - BOT_REPLACE_AFTER
 --
 -- ============================================================================
 
@@ -123,7 +117,7 @@ BEGIN
     WHERE  rp.is_bot             = FALSE
       AND  rp.connection_status  = 'disconnected'
       AND  rp.disconnect_timer_started_at IS NOT NULL
-      AND  rp.disconnect_timer_started_at < NOW() - BOT_REPLACE_AFTER
+      AND  rp.disconnect_timer_started_at <= NOW() - BOT_REPLACE_AFTER
       AND  r.status              = 'playing'
       AND  COALESCE((r.settings->>'is_offline')::BOOLEAN, FALSE) = FALSE
   LOOP
