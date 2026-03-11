@@ -33,6 +33,9 @@ export default function HomeScreen() {
   /** Room IDs the user has voluntarily left — suppresses banner re-appearance on next focus/app restart.
    * Keyed by room_id (stable UUID) rather than room code (reusable) to prevent cross-room collisions. */
   const voluntarilyLeftRoomsRef = useRef<Set<string>>(new Set());
+  /** True once the voluntarily-left Set has been loaded from AsyncStorage at least once.
+   * Guards checkCurrentRoom against showing a stale banner on cold start. */
+  const storageLoadedRef = useRef<boolean>(false);
   /** Tracks the room_id (UUID) for the room currently shown in the banner so the leave
    * handlers can persist it to voluntarilyLeftRoomsRef using the stable ID. */
   const currentRoomIdRef = useRef<string | null>(null);
@@ -72,7 +75,8 @@ export default function HomeScreen() {
           // Ignore parse error — start fresh
         }
       }
-    }).catch(() => {});
+      storageLoadedRef.current = true;
+    }).catch(() => { storageLoadedRef.current = true; });
   }, []);
 
   // Ranked matchmaking hook
@@ -94,6 +98,20 @@ export default function HomeScreen() {
 
   const checkCurrentRoom = React.useCallback(async () => {
     if (!user) return;
+
+    // Ensure voluntarily-left set is loaded before evaluating banner suppression.
+    // On cold start the loading useEffect may not have resolved yet; reading storage
+    // here closes the race window so the banner is never shown for a left room.
+    if (!storageLoadedRef.current) {
+      try {
+        const raw = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+        if (raw) {
+          const arr: string[] = JSON.parse(raw);
+          voluntarilyLeftRoomsRef.current = new Set(arr);
+        }
+      } catch { /* ignore — start fresh */ }
+      storageLoadedRef.current = true;
+    }
     
     try {
       const { data, error } = await supabase

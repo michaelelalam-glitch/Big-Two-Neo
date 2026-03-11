@@ -386,6 +386,7 @@ BEGIN
       WHERE  room_id       = rec.id
         AND  is_bot        = TRUE
         AND  human_user_id IS NOT NULL
+        AND  COALESCE(disconnect_timer_started_at, disconnected_at) IS NOT NULL
       ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC NULLS LAST,
                human_user_id::text
       LIMIT 1;
