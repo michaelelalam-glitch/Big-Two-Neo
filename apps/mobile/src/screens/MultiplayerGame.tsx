@@ -253,21 +253,16 @@ export function MultiplayerGame() {
     }
   }, [connectionReconnect]);
 
-  const handleLeaveRoomFromModal = useCallback(async () => {
-    gameLogger.info('[MultiplayerGame] Leaving room after bot replacement');
+  const handleLeaveRoomFromModal = useCallback(() => {
+    // Intentionally do NOT delete the replaced_by_bot row here.
+    // We navigate to Home and let the HomeScreen banner show
+    // "Replace Bot & Rejoin" + "Leave" — the permanent row deletion
+    // and voluntarily-left suppression happen only when the player
+    // explicitly presses "Leave" on that HomeScreen banner.
+    gameLogger.info('[MultiplayerGame] Leaving room after bot replacement — keeping replaced_by_bot row for HomeScreen banner');
     setShowBotReplacedModal(false);
-    if (user?.id) {
-      // Use SECURITY DEFINER RPC to bypass RLS — replaced rows have
-      // user_id = NULL so a client-side DELETE would be silently blocked.
-      const { error: rpcErr } = await supabase.rpc('delete_room_players_by_human_user_id', {
-        human_user_id: user.id,
-      });
-      if (rpcErr) {
-        gameLogger.error('[MultiplayerGame] Failed to delete room_player on leave:', rpcErr);
-      }
-    }
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-  }, [user?.id, navigation]);
+  }, [navigation]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
