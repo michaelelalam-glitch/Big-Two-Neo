@@ -528,6 +528,14 @@ export interface Translations {
     currentPoints: string;
     peakPoints: string;
     rankPointsProgression: string;
+    historyTabRecent: string;
+    historyTabWon: string;
+    historyTabLost: string;
+    historyTabIncomplete: string;
+    historyEmptyRecent: string;
+    historyEmptyWon: string;
+    historyEmptyLost: string;
+    historyEmptyIncomplete: string;
   };
   
   // Leaderboard Screen
@@ -1061,6 +1069,14 @@ const en: Translations = {
     currentPoints: 'Current Points',
     peakPoints: 'Peak Points',
     rankPointsProgression: 'Rank Points Progression',
+    historyTabRecent: '🕑 Recent',
+    historyTabWon: '🏆 Won',
+    historyTabLost: '❌ Lost',
+    historyTabIncomplete: '⚫ Incomplete',
+    historyEmptyRecent: 'No games yet.',
+    historyEmptyWon: 'No wins yet.',
+    historyEmptyLost: 'No losses.',
+    historyEmptyIncomplete: 'No incomplete games.',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -1536,6 +1552,14 @@ const ar: Translations = {
     currentPoints: 'النقاط الحالية',
     peakPoints: 'نقاط الذروة',
     rankPointsProgression: 'تطور نقاط الترتيب',
+    historyTabRecent: '🕑 الأخيرة',
+    historyTabWon: '🏆 الفوز',
+    historyTabLost: '❌ الخسارة',
+    historyTabIncomplete: '⚫ غير مكتملة',
+    historyEmptyRecent: 'لا توجد ألعاب بعد.',
+    historyEmptyWon: 'لا انتصارات بعد.',
+    historyEmptyLost: 'لا خسائر.',
+    historyEmptyIncomplete: 'لا توجد ألعاب غير مكتملة.',
   },
   leaderboard: {
     title: 'لوحة المتصدرين',
@@ -2089,6 +2113,14 @@ const de: Translations = {
     currentPoints: 'Aktuelle Punkte',
     peakPoints: 'Höchstpunktzahl',
     rankPointsProgression: 'Rangpunkte-Verlauf',
+    historyTabRecent: '🕑 Aktuell',
+    historyTabWon: '🏆 Gewonnen',
+    historyTabLost: '❌ Verloren',
+    historyTabIncomplete: '⚫ Unvollständig',
+    historyEmptyRecent: 'Noch keine Spiele.',
+    historyEmptyWon: 'Noch keine Siege.',
+    historyEmptyLost: 'Keine Niederlagen.',
+    historyEmptyIncomplete: 'Keine unvollständigen Spiele.',
   },
   leaderboard: {
     title: 'Bestenliste',
