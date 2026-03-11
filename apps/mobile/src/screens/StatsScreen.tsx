@@ -184,6 +184,7 @@ interface GameHistoryEntry {
 }
 
 type StatsTab = 'overview' | 'casual' | 'private' | 'ranked';
+type HistoryTab = 'recent' | 'won' | 'lost' | 'incomplete';
 
 export default function StatsScreen() {
   const route = useRoute<StatsScreenRouteProp>();
@@ -199,6 +200,7 @@ export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
+  const [historyTab, setHistoryTab] = useState<HistoryTab>('recent');
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -316,6 +318,15 @@ export default function StatsScreen() {
     if (activeTab === 'overview') return deduplicatedGameHistory;
     return deduplicatedGameHistory.filter((g) => g.game_type === activeTab);
   }, [deduplicatedGameHistory, activeTab]);
+
+  // History tab filter: within filteredGameHistory, further filter by outcome
+  const historyTabFiltered = React.useMemo(() => {
+    if (historyTab === 'recent') return filteredGameHistory;
+    if (historyTab === 'won') return filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId);
+    if (historyTab === 'lost') return filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId);
+    if (historyTab === 'incomplete') return filteredGameHistory.filter((g) => g.game_completed === false);
+    return filteredGameHistory;
+  }, [filteredGameHistory, historyTab, userId]);
 
   // Per-mode completed / abandoned / voided for completion section
   // Use DB-stored per-mode columns (from migration 20260309000004) for accuracy —
@@ -490,19 +501,19 @@ export default function StatsScreen() {
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
-    // Voided: THIS player was the last human to leave — they get a neutral grey
-    // "VOIDED" badge (the game couldn't continue without them; no penalty applies).
+    // Voided: THIS player was the last human to leave — neutral grey badge,
+    // no penalty applied.
     const isVoided = isIncomplete && item.voided_user_id === userId;
-    // Abandoned: the game is incomplete AND this player was NOT the voided player
-    // — they left before the game ended, earning a red "ABANDONED" badge.
-    // Abandoned: incomplete AND voided_user_id is known (non-null) AND this player
-    // is not the voided player. When voided_user_id is null (all humans left
-    // simultaneously with no determinable ordering) we fall back to VOIDED/grey
-    // rather than incorrectly labelling everyone as ABANDONED.
+    // Abandoned: incomplete AND voided_user_id is known (non-null) AND this
+    // player is not the voided player — they left early and earn a red badge.
+    // When voided_user_id is null (all humans left simultaneously with no
+    // determinable ordering) we treat everyone as neutral INCOMPLETE rather
+    // than incorrectly labelling them as ABANDONED.
     const isAbandoned = isIncomplete && item.voided_user_id != null && !isVoided;
 
-    // Neutral: incomplete game where voided_user_id is unknown (all humans left
-    // simultaneously — no determinable ordering, so no badge is appropriate).
+    // Neutral: incomplete game where this player is neither voided nor abandoned
+    // (voided_user_id is null — simultaneous disconnect; no blame can be assigned).
+    // These render a neutral ⚪ INCOMPLETE badge with historyItemIncomplete styling.
     const isNeutralIncomplete = isIncomplete && !isVoided && !isAbandoned;
 
     return (
@@ -893,12 +904,47 @@ export default function StatsScreen() {
         {filteredGameHistory.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
-            <FlatList
-              data={filteredGameHistory.slice(0, 20)}
-              renderItem={renderHistoryItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-            />
+
+            {/* History outcome filter tabs: Recent / Won / Lost / Incomplete */}
+            <View style={styles.historyTabBar}>
+              {([
+                { key: 'recent' as HistoryTab, label: '🕑 Recent', count: filteredGameHistory.length },
+                { key: 'won' as HistoryTab, label: '🏆 Won', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
+                { key: 'lost' as HistoryTab, label: '❌ Lost', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
+                { key: 'incomplete' as HistoryTab, label: '⚫ Incomplete', count: filteredGameHistory.filter((g) => g.game_completed === false).length },
+              ]).map(({ key, label, count }) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.historyTabButton, historyTab === key && styles.historyTabButtonActive]}
+                  onPress={() => setHistoryTab(key)}
+                >
+                  <Text style={[styles.historyTabText, historyTab === key && styles.historyTabTextActive]}>
+                    {label}
+                  </Text>
+                  {count > 0 && (
+                    <Text style={[styles.historyTabCount, historyTab === key && styles.historyTabCountActive]}>
+                      {count}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {historyTabFiltered.length > 0 ? (
+              <FlatList
+                data={historyTabFiltered.slice(0, 20)}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+              />
+            ) : (
+              <Text style={styles.historyEmptyText}>
+                {historyTab === 'won' ? 'No wins yet.' :
+                 historyTab === 'lost' ? 'No losses.' :
+                 historyTab === 'incomplete' ? 'No incomplete games.' :
+                 'No games yet.'}
+              </Text>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1039,6 +1085,56 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: COLORS.white,
+  },
+  // History outcome filter tabs (Recent / Won / Lost / Incomplete)
+  historyTabBar: {
+    flexDirection: 'row',
+    marginBottom: SPACING.md,
+    gap: SPACING.xs,
+  },
+  historyTabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: COLORS.secondary,
+    gap: 4,
+  },
+  historyTabButtonActive: {
+    backgroundColor: COLORS.accent + '33',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  historyTabText: {
+    color: COLORS.white + '88',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  historyTabTextActive: {
+    color: COLORS.white,
+  },
+  historyTabCount: {
+    color: COLORS.white + '66',
+    fontSize: 9,
+    fontWeight: '700',
+    backgroundColor: COLORS.white + '11',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  historyTabCountActive: {
+    color: COLORS.accent,
+    backgroundColor: COLORS.accent + '22',
+  },
+  historyEmptyText: {
+    color: COLORS.white + '66',
+    fontSize: FONT_SIZES.sm,
+    textAlign: 'center',
+    paddingVertical: SPACING.lg,
   },
   // Game Completion
   completionContainer: {
