@@ -524,12 +524,18 @@ BEGIN
       v_orig_usernames[v_idx] := v_slot.replaced_username;
     END LOOP;
 
+    -- Only set voided_uid when a real disconnect-timestamp anchor is available.
+    -- Bot-replacement NULLs both columns, so ordering without this guard would assign
+    -- an arbitrary voided_user_id to historical Phase-C-closed rows.  If no row has a
+    -- non-NULL anchor, v_voided_uid stays NULL and voided_user_id is left unchanged
+    -- by the COALESCE below (neutral/unknown — no incorrect VOIDED/ABANDONED badge).
     SELECT human_user_id INTO v_voided_uid
     FROM   public.room_players
     WHERE  room_id       = rec.room_id
       AND  is_bot        = TRUE
       AND  human_user_id IS NOT NULL
-    ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC NULLS LAST,
+      AND  COALESCE(disconnect_timer_started_at, disconnected_at) IS NOT NULL
+    ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC,
              human_user_id::text
     LIMIT 1;
 
