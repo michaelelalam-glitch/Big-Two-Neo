@@ -38,7 +38,17 @@
 -- live rooms has negligible DB cost (indexed scans on room_players + rooms).
 -- ============================================================================
 
--- Remove stale schedule if it exists from a previous deployment
+-- Remove stale schedules if they exist from previous deployments.
+-- The job was originally named 'process-disconnected-players'; later renamed to
+-- 'process-disconnected-players-every-minute'.  Unschedule both so deployments
+-- that still have the old name do not end up running duplicate sweeps every minute.
+DO $$
+BEGIN
+  PERFORM cron.unschedule('process-disconnected-players');
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END;
+$$;
 DO $$
 BEGIN
   PERFORM cron.unschedule('process-disconnected-players-every-minute');

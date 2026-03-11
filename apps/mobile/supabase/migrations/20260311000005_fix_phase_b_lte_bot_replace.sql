@@ -18,7 +18,7 @@
 --
 -- Fix:
 --   Change the comparison operator to <= (less-than-or-equal):
---------------------------------------------------------------------onds'
+--     rp.disconnect_timer_started_at <= NOW() - INTERVAL '60 seconds'
 --
 --   Now when the ring fires at exactly T=60s, T=disconnect <= T=disconnect is
 --   TRUE and the player is replaced immediately on the first forceSweep call.
