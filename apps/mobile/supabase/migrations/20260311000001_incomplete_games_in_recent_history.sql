@@ -35,7 +35,7 @@
 --     from all disconnected humans, not only the one in the current loop row.
 --     The current loop iterates over each disconnected player independently;
 --     when two disconnect simultaneously the "sole human" test fires for both.
---     We guard with an idempotent INSERT (ON CONFLICT DO NOTHING on room_id)
+--     We guard against double-insert with a best-effort SELECT EXISTS check
 --     and duplicate-room_code checks in the stats loop to prevent double-counting.
 --
 -- Notes:
@@ -98,7 +98,7 @@ DECLARE
   v_closed          INTEGER := 0;
   v_affected_codes  TEXT[]  := '{}';
   v_room_code       TEXT;
-  v_turn_elapsed    INTERVAL;
+  v_bot_multiplier  DECIMAL := 1.0;
   v_voided_user_id  UUID;
 
   -- Phase A anchor computation
@@ -158,10 +158,9 @@ BEGIN
 
   -- ── Phase B: Replace long-disconnected players with bots (or close room) ─
   FOR rec IN
-    SELECT rp.*, gs.current_turn, gs.turn_started_at
+    SELECT rp.*
     FROM   public.room_players rp
     JOIN   public.rooms r ON r.id = rp.room_id
-    LEFT JOIN public.game_state gs ON gs.room_id = r.id
     WHERE  rp.is_bot             = FALSE
       AND  rp.connection_status  = 'disconnected'
       -- Use persistent timer (survives heartbeat-resume cycles)
@@ -170,16 +169,6 @@ BEGIN
       AND  r.status              = 'playing'
       AND  COALESCE((r.settings->>'is_offline')::BOOLEAN, FALSE) = FALSE
   LOOP
-    -- Active-turn guard: if this player's turn is active and turn timer hasn't
-    -- expired yet (60s + 10s buffer for auto-play), skip replacement to let
-    -- auto-play-turn handle it first.
-    IF rec.current_turn = rec.player_index AND rec.turn_started_at IS NOT NULL THEN
-      v_turn_elapsed := NOW() - rec.turn_started_at;
-      IF v_turn_elapsed < INTERVAL '70 seconds' THEN
-        CONTINUE; -- Let auto-play handle this player
-      END IF;
-    END IF;
-
     SELECT * INTO v_room FROM public.rooms WHERE id = rec.room_id;
 
     -- Count remaining connected humans (excluding the disconnected player)
@@ -230,8 +219,9 @@ BEGIN
         END IF;
 
         -- ── Insert game_history for visible audit trail ────────────────────
-        -- Guard: skip if a row for this room already exists (can fire multiple
-        -- times if two players disconnect within the same sweep window).
+        -- Guard: best-effort skip if a row for this room already exists.
+        -- NOTE: This EXISTS check is not fully race-safe; concurrent runs of
+        --       this procedure could still double-insert for the same room_id.
         SELECT EXISTS (
           SELECT 1 FROM public.game_history WHERE room_id = rec.room_id
         ) INTO v_history_exists;
@@ -318,6 +308,22 @@ BEGIN
             v_voided_user_id, SQLERRM;
         END;
 
+        -- Derive bot multiplier for this room (mirrors complete-game server logic:
+        -- hardest bot_difficulty present wins; no bots → 1.0 for all-human game).
+        SELECT COALESCE(
+          CASE
+            WHEN bool_or(bot_difficulty = 'hard')   THEN 0.9
+            WHEN bool_or(bot_difficulty = 'medium') THEN 0.7
+            WHEN bool_or(bot_difficulty = 'easy')   THEN 0.5
+            ELSE 1.0
+          END,
+          1.0
+        )
+        INTO v_bot_multiplier
+        FROM public.room_players
+        WHERE room_id = rec.room_id
+          AND is_bot  = TRUE;
+
         -- ── Record ABANDONED for every other still-disconnected human ─────
         FOR v_abandoned IN
           SELECT user_id
@@ -337,7 +343,8 @@ BEGIN
               p_game_type       := v_game_type,
               p_completed       := false,
               p_cards_left      := 0,
-              p_voided          := false
+              p_voided          := false,
+              p_bot_multiplier  := v_bot_multiplier
             );
           EXCEPTION WHEN OTHERS THEN
             RAISE WARNING '[process_disconnected_players] abandoned stat failed for user %: %',
@@ -363,7 +370,8 @@ BEGIN
               p_game_type       := v_game_type,
               p_completed       := false,
               p_cards_left      := 0,
-              p_voided          := false
+              p_voided          := false,
+              p_bot_multiplier  := v_bot_multiplier
             );
           EXCEPTION WHEN OTHERS THEN
             RAISE WARNING '[process_disconnected_players] abandoned stat failed for bot-replaced user %: %',
@@ -467,6 +475,21 @@ BEGIN
         rec.code;
 
       -- Still record ABANDONED for any humans that were bot-replaced before rows vanished
+      -- Derive bot multiplier for this room (mirrors complete-game server logic).
+      SELECT COALESCE(
+        CASE
+          WHEN bool_or(bot_difficulty = 'hard')   THEN 0.9
+          WHEN bool_or(bot_difficulty = 'medium') THEN 0.7
+          WHEN bool_or(bot_difficulty = 'easy')   THEN 0.5
+          ELSE 1.0
+        END,
+        1.0
+      )
+      INTO v_bot_multiplier
+      FROM public.room_players
+      WHERE room_id = rec.id
+        AND is_bot  = TRUE;
+
       FOR v_abandoned IN
         SELECT rp.human_user_id
         FROM   public.room_players rp
@@ -488,7 +511,8 @@ BEGIN
                                  END,
             p_completed       := false,
             p_cards_left      := 0,
-            p_voided          := false
+            p_voided          := false,
+            p_bot_multiplier  := v_bot_multiplier
           );
         EXCEPTION WHEN OTHERS THEN
           RAISE WARNING '[process_disconnected_players] Phase C abandoned stat failed for room % user %: %',

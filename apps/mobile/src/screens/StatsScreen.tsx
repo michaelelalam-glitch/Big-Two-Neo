@@ -495,13 +495,21 @@ export default function StatsScreen() {
     const isVoided = isIncomplete && item.voided_user_id === userId;
     // Abandoned: the game is incomplete AND this player was NOT the voided player
     // — they left before the game ended, earning a red "ABANDONED" badge.
-    const isAbandoned = isIncomplete && !isVoided;
+    // Abandoned: incomplete AND voided_user_id is known (non-null) AND this player
+    // is not the voided player. When voided_user_id is null (all humans left
+    // simultaneously with no determinable ordering) we fall back to VOIDED/grey
+    // rather than incorrectly labelling everyone as ABANDONED.
+    const isAbandoned = isIncomplete && item.voided_user_id != null && !isVoided;
+
+    // Neutral: incomplete game where voided_user_id is unknown (all humans left
+    // simultaneously — no determinable ordering, so no badge is appropriate).
+    const isNeutralIncomplete = isIncomplete && !isVoided && !isAbandoned;
 
     return (
       <View style={[
         styles.historyItem,
         !isIncomplete && isWinner && styles.historyItemWin,
-        isVoided ? styles.historyItemVoided : (isAbandoned ? styles.historyItemAbandoned : undefined),
+        isVoided ? styles.historyItemVoided : (isAbandoned ? styles.historyItemAbandoned : (isNeutralIncomplete ? styles.historyItemIncomplete : undefined)),
       ]}>
         <View style={styles.historyHeader}>
           <View style={styles.historyResult}>
@@ -509,6 +517,8 @@ export default function StatsScreen() {
               <Text style={[styles.resultBadge, styles.voidBadge]}>⚫ VOIDED</Text>
             ) : isAbandoned ? (
               <Text style={[styles.resultBadge, styles.abandonedBadge]}>❌ ABANDONED</Text>
+            ) : isNeutralIncomplete ? (
+              <Text style={[styles.resultBadge, styles.incompleteBadge]}>⚪ INCOMPLETE</Text>
             ) : (
               <Text style={[styles.resultBadge, isWinner ? styles.winBadge : styles.lossBadge]}>
                 {isWinner ? '🏆 WIN' : '❌ LOSS'}
@@ -1192,15 +1202,15 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: COLORS.success,
   },
-  historyItemIncomplete: {
-    borderRightWidth: 4,
-    borderRightColor: '#FF9500',
-    opacity: 0.85,
-  },
   historyItemAbandoned: {
     borderLeftWidth: 4,
     borderLeftColor: COLORS.error,
     opacity: 0.85,
+  },
+  historyItemIncomplete: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#555555',
+    opacity: 0.70,
   },
   historyItemVoided: {
     borderLeftWidth: 4,
@@ -1236,6 +1246,10 @@ const styles = StyleSheet.create({
   voidBadge: {
     backgroundColor: '#555555',
     color: COLORS.white,
+  },
+  incompleteBadge: {
+    backgroundColor: '#444444',
+    color: COLORS.white + 'CC',
   },
   abandonedBadge: {
     backgroundColor: COLORS.error,
@@ -1285,11 +1299,6 @@ const styles = StyleSheet.create({
   },
   gameTypeBadge: {
     fontSize: FONT_SIZES.xs,
-  },
-  incompleteBadge: {
-    fontSize: FONT_SIZES.xs,
-    color: '#FF9500',
-    fontWeight: '600',
   },
   cardsLeftBadge: {
     fontSize: FONT_SIZES.xs,
