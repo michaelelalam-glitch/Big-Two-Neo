@@ -563,6 +563,9 @@ export function MultiplayerGame() {
   // skipped ones), giving us the freshest timestamp without causing re-renders.
   const [clientDisconnections, setClientDisconnections] = useState<Map<number, string>>(new Map());
   const clientDisconnectStartRef = useRef<Record<number, string>>({});
+  // Holds the ID of the 5s belt-and-suspenders forceSweep retry so it can be
+  // cancelled if the component unmounts before the timeout fires.
+  const sweepRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stable ref so the disconnect-staleness interval callback can read the latest
   // game state (current_turn / turn_started_at) without being re-created on every
@@ -638,8 +641,13 @@ export function MultiplayerGame() {
               // This matches the anchor Phase A will set (disconnect_timer_started_at = last_seen_at),
               // so when Phase A's Realtime event arrives there is no correction needed and the
               // ring depletes smoothly without a visual jump.
-              anchor = rp.last_seen_at ?? new Date().toISOString();
-              anchorType = 'last_seen_at';
+              if (rp.last_seen_at) {
+                anchor = rp.last_seen_at;
+                anchorType = 'last_seen_at';
+              } else {
+                anchor = new Date().toISOString();
+                anchorType = 'now';
+              }
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(
@@ -681,8 +689,14 @@ export function MultiplayerGame() {
               // preventing a later anchor-correction jump in the grey ring.
               // Do NOT use playerLastSeenAtRef here — it may be backdated by Presence
               // events (artificially early timestamp would cause the ring to expire immediately).
-              anchor = rp.last_seen_at ?? new Date().toISOString();
-              anchorType = 'last_seen_at';
+              if (rp.last_seen_at) {
+                anchor = rp.last_seen_at;
+                anchorType = 'last_seen_at';
+              } else {
+                // Fallback: no DB heartbeat timestamp available; use client "now".
+                anchor = new Date().toISOString();
+                anchorType = 'client_now';
+              }
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${anchorType})`);
@@ -720,6 +734,15 @@ export function MultiplayerGame() {
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realtimePlayers, user?.id]);
+
+  // Cancel the 5s sweep-retry timeout if the screen unmounts before it fires.
+  useEffect(() => {
+    return () => {
+      if (sweepRetryTimeoutRef.current !== null) {
+        clearTimeout(sweepRetryTimeoutRef.current);
+      }
+    };
+  }, []);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Countdown Expiry Handlers ──────────────────────────────────────────
@@ -739,7 +762,12 @@ export function MultiplayerGame() {
     // Belt-and-suspenders: retry at 5s covers server-clock-skew edge cases where the
     // first sweep fires slightly before the 60s threshold is reached server-side.
     // process_disconnected_players() is idempotent — multiple calls are safe.
-    setTimeout(() => forceSweep(), 5_000);
+    // Store the timeout ID so it can be cancelled if the screen unmounts first.
+    if (sweepRetryTimeoutRef.current !== null) clearTimeout(sweepRetryTimeoutRef.current);
+    sweepRetryTimeoutRef.current = setTimeout(() => {
+      sweepRetryTimeoutRef.current = null;
+      forceSweep();
+    }, 5_000);
   }, [forceSweep]);
 
   // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
