@@ -254,8 +254,9 @@ Deno.serve(async (req) => {
         .not('disconnect_timer_started_at', 'is', null)
         // 5-second grace window: if the server clock is slightly behind the client
         // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
-        // Using 55s here allows the sweep to proceed; Phase B still requires
-        // disconnect_timer_started_at < NOW() - 60s so no player is ever replaced early.
+        // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
+        // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
+        // not relax the actual replacement threshold — it only validates force_sweep.
         .lt('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
         .limit(1)
         .maybeSingle();

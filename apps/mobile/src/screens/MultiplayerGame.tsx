@@ -734,12 +734,11 @@ export function MultiplayerGame() {
   const handleOtherPlayerDisconnectExpired = useCallback(() => {
     gameLogger.warn('[MultiplayerGame] Remote player disconnect countdown expired — forcing sweep');
     forceSweep();
-    // Phase B condition: disconnect_timer_started_at < NOW() - 60s.
-    // At the exact moment the ring fires (elapsed = 60s) the check is T=0 < T=0
-    // which is FALSE (strictly less-than). A 1s retry guarantees T=0 < T=1 → TRUE.
+    // Phase B now uses <= (not <) so the first sweep at exactly T=60s is sufficient;
+    // the 1s retry is no longer needed.
+    // Belt-and-suspenders: retry at 5s covers server-clock-skew edge cases where the
+    // first sweep fires slightly before the 60s threshold is reached server-side.
     // process_disconnected_players() is idempotent — multiple calls are safe.
-    setTimeout(() => forceSweep(), 1_000);
-    // Belt-and-suspenders: a second retry at 5s covers server-clock-skew edge cases.
     setTimeout(() => forceSweep(), 5_000);
   }, [forceSweep]);
 
