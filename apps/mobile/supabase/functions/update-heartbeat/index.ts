@@ -257,7 +257,9 @@ Deno.serve(async (req) => {
         // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
         // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
         // not relax the actual replacement threshold — it only validates force_sweep.
-        .lt('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
+        // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-55s
+        // exactly) also passes validation rather than being deferred to the 5s retry.
+        .lte('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
         .limit(1)
         .maybeSingle();
 
