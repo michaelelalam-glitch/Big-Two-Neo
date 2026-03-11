@@ -36,7 +36,10 @@
 --     deleted (no human_user_id in any bot row) cannot be recovered.
 --
 -- Notes:
---   • Phase B is unchanged — it already populates player IDs correctly.
+--   • Phase B logic from the previous migration (20260311000001) is re-applied
+--     unchanged in this migration. Note: that version still assigned effective_user_id
+--     for pure-bot rows which can violate the game_history FK constraint; that is
+--     corrected in 20260311000003_fix_phase_b_bot_fk (nulls out pure-bot slot IDs).
 --   • complete-game edge function path is unchanged — it always has IDs.
 --   • Rooms with no replaced_by_bot data (e.g., all humans hard-deleted)
 --     still result in NULL player IDs — acceptable per prior migration note.
