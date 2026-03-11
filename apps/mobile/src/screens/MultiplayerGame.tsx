@@ -748,13 +748,29 @@ export function MultiplayerGame() {
         : null;
       const isClientDisconnected = clientDisconnectTimerStartedAt !== null;
 
+      // REJOIN FIX (#624): When the local player (idx 0) is on their turn, they are
+      // actively on the game screen. Always show the yellow turn ring, never the grey
+      // disconnect ring. The grey ring anchor (disconnect_timer_started_at) can linger
+      // on the DB row from the previous disconnect window even after reconnect, causing
+      // the yellow ring to be hidden. The server's auto-play deadline is always
+      // turn_started_at + 60s, so the yellow ring always uses turn_started_at.
+      // NOTE: The RejoinModal is triggered via the Realtime 'replaced_by_bot' update
+      // (not via ring onExpired), so bot-replacement UX is unaffected.
+      const suppressDisconnectRing = idx === 0 && player.isActive;
+
       return {
         ...player,
-        // Show turn ring on WHOEVER's turn it is (all players see it)
+        // Show turn ring on WHOEVER's turn it is (all players see it).
+        // Always anchor to turn_started_at — that's the server's auto-play deadline.
         turnTimerStartedAt: player.isActive ? turnStartedAt : null,
-        // Merge client-side + server-side disconnect state
-        isDisconnected: isClientDisconnected || player.isDisconnected,
-        disconnectTimerStartedAt: clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt,
+        // Merge client-side + server-side disconnect state.
+        // Local player on their turn: suppress grey ring so yellow turn ring is visible.
+        isDisconnected: suppressDisconnectRing
+          ? false
+          : (isClientDisconnected || player.isDisconnected),
+        disconnectTimerStartedAt: suppressDisconnectRing
+          ? null
+          : (clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt),
         // Connection countdown callback:
         //   idx 0 (local player) → show RejoinModal when their own timer hits 0
         //   idx > 0 (other players) → force process_disconnected_players immediately
