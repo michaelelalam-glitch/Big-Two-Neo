@@ -30,6 +30,8 @@ export default function HomeScreen() {
   const hasScheduledRecheckRef = useRef(false);
   /** Holds the handle of the pending 1s re-check so it can be cleared on unmount. */
   const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Room codes the user has voluntarily left — suppresses banner re-appearance on next focus/app restart. */
+  const voluntarilyLeftRoomsRef = useRef<Set<string>>(new Set());
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -53,6 +55,20 @@ export default function HomeScreen() {
         clearTimeout(recheckTimeoutRef.current);
       }
     };
+  }, []);
+
+  // Load voluntarily-left rooms from AsyncStorage so banner suppression survives app restarts.
+  useEffect(() => {
+    AsyncStorage.getItem('@big2_voluntarily_left_rooms').then((raw) => {
+      if (raw) {
+        try {
+          const arr: string[] = JSON.parse(raw);
+          voluntarilyLeftRoomsRef.current = new Set(arr);
+        } catch {
+          // Ignore parse error — start fresh
+        }
+      }
+    }).catch(() => {});
   }, []);
 
   // Ranked matchmaking hook
@@ -100,6 +116,15 @@ export default function HomeScreen() {
 
       const roomData = data as RoomPlayerWithRoom | null;
       if (roomData?.rooms?.code) {
+        // Suppress banner for rooms the user has voluntarily left (survives app restarts)
+        if (voluntarilyLeftRoomsRef.current.has(roomData.rooms.code)) {
+          roomLogger.info(`🚫 Suppressing banner for voluntarily-left room: ${roomData.rooms.code}`);
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+          setCanRejoinAfterExpiry(null);
+          return;
+        }
         setCurrentRoom(roomData.rooms.code);
         setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
         // Fetch server-side timer so the countdown survives app restarts.
@@ -181,6 +206,15 @@ export default function HomeScreen() {
 
           const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
           if (rd?.rooms?.code) {
+            // Suppress banner if user already voluntarily left this room
+            if (voluntarilyLeftRoomsRef.current.has(rd.rooms.code)) {
+              roomLogger.info(`🚫 Suppressing replaced-bot banner for voluntarily-left room: ${rd.rooms.code}`);
+              setCurrentRoom(null);
+              setCurrentRoomStatus(undefined);
+              setDisconnectTimestamp(null);
+              setCanRejoinAfterExpiry(null);
+              return;
+            }
             // We were replaced but the game still has humans — keep banner open
             roomLogger.info(`🤖 Bot replaced player in room ${rd.rooms.code} — keeping rejoin banner`);
             setCurrentRoom(rd.rooms.code);
@@ -497,6 +531,10 @@ export default function HomeScreen() {
           }
 
           showSuccess(i18n.t('home.leftRoom'));
+          // Persist voluntarily-left room so the banner doesn't resurface on focus/restart
+          voluntarilyLeftRoomsRef.current.add(currentRoom);
+          const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+          AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
           setCurrentRoom(null);
           setCurrentRoomStatus(undefined);
           setDisconnectTimestamp(null);
@@ -568,6 +606,10 @@ export default function HomeScreen() {
                 // worse than a silent RPC failure for this non-critical cleanup.
               }
             }
+            // Persist voluntarily-left room so the banner doesn't resurface if the RPC failed
+            voluntarilyLeftRoomsRef.current.add(gameInfo.roomCode);
+            const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+            AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
             setCurrentRoom(null);
             setCurrentRoomStatus(undefined);
             setDisconnectTimestamp(null);

@@ -223,22 +223,32 @@ BEGIN
 
         -- ── Determine VOIDED player (last human to leave by anchor time) ──────
         -- Prefer disconnect_timer_started_at; fall back to disconnected_at.
-        -- last_seen_at is excluded because bot heartbeats contaminate it for
-        -- replaced_by_bot rows.
-        SELECT COALESCE(rp.human_user_id, rp.user_id)
-        INTO   v_voided_user_id
-        FROM   public.room_players rp
-        WHERE  rp.room_id           = rec.room_id
-          AND  rp.is_bot            = FALSE
-          AND  rp.connection_status = 'disconnected'
-        ORDER BY COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) DESC NULLS LAST,
-                 COALESCE(rp.human_user_id, rp.user_id)::text  -- deterministic tiebreak
-        LIMIT  1;
-
-        -- Final safety: if still NULL (edge case), fall back to current loop row
-        IF v_voided_user_id IS NULL THEN
-          v_voided_user_id := rec.user_id;
-        END IF;
+        -- If multiple humans share the same max anchor (truly-simultaneous disconnects),
+        -- leave v_voided_user_id NULL to treat the game as neutral — no arbitrary
+        -- tiebreak, and no voided/abandoned stat writes for that edge case.
+        WITH eligible AS (
+          SELECT
+            COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) AS anchor,
+            COALESCE(rp.human_user_id, rp.user_id)                       AS player_id
+          FROM public.room_players rp
+          WHERE rp.room_id           = rec.room_id
+            AND rp.is_bot            = FALSE
+            AND rp.connection_status = 'disconnected'
+        ), max_anchor AS (
+          SELECT MAX(anchor) AS anchor
+          FROM eligible
+        ), candidates AS (
+          SELECT e.player_id
+          FROM eligible e
+          JOIN max_anchor m ON e.anchor = m.anchor
+          WHERE m.anchor IS NOT NULL
+        )
+        SELECT CASE
+                 WHEN (SELECT COUNT(*) FROM candidates) = 1
+                 THEN (SELECT player_id FROM candidates LIMIT 1)
+                 ELSE NULL
+               END
+        INTO v_voided_user_id;
 
         -- ── Insert game_history for visible audit trail ────────────────────
         -- Guard: best-effort skip if a row for this room already exists.
@@ -313,22 +323,25 @@ BEGIN
         END IF; -- NOT v_history_exists
 
         -- ── Record VOIDED stat for the last human to leave ────────────────
-        BEGIN
-          PERFORM update_player_stats_after_game(
-            p_user_id         := v_voided_user_id,
-            p_won             := false,
-            p_finish_position := 4,
-            p_score           := 0,
-            p_combos_played   := '{}'::jsonb,
-            p_game_type       := v_game_type,
-            p_completed       := false,
-            p_cards_left      := 0,
-            p_voided          := true
-          );
-        EXCEPTION WHEN OTHERS THEN
-          RAISE WARNING '[process_disconnected_players] voided stat failed for user %: %',
-            v_voided_user_id, SQLERRM;
-        END;
+        -- Skip when v_voided_user_id is NULL (tie / no identifiable last leaver).
+        IF v_voided_user_id IS NOT NULL THEN
+          BEGIN
+            PERFORM update_player_stats_after_game(
+              p_user_id         := v_voided_user_id,
+              p_won             := false,
+              p_finish_position := 4,
+              p_score           := 0,
+              p_combos_played   := '{}'::jsonb,
+              p_game_type       := v_game_type,
+              p_completed       := false,
+              p_cards_left      := 0,
+              p_voided          := true
+            );
+          EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING '[process_disconnected_players] voided stat failed for user %: %',
+              v_voided_user_id, SQLERRM;
+          END;
+        END IF;
 
         -- Derive bot multiplier for this room (mirrors complete-game server logic:
         -- hardest bot_difficulty present wins; no bots → 1.0 for all-human game).

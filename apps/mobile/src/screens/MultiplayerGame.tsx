@@ -140,13 +140,22 @@ export function MultiplayerGame() {
     connectToRoom: multiplayerConnectToRoom,
     isAutoPassInProgress,
     playerLastSeenAtRef,
+    refreshGameState,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
     onError: (error) => {
       gameLogger.error('[MultiplayerGame] Multiplayer error:', error.message);
       const msg = error.message?.toLowerCase() || '';
-      if (msg.includes('connection') || msg.includes('reconnect') || msg.includes('not your turn')) {
+      if (msg.includes('not your turn')) {
+        // Stale Realtime state caused the client to think it was our turn, but the
+        // server disagrees. Re-fetch authoritative game state so the UI immediately
+        // reflects the correct current_turn and the Play button reverts.
+        gameLogger.warn('⚠️ [MultiplayerGame] "Not your turn" — refreshing game state to re-sync UI');
+        refreshGameState();
+        return;
+      }
+      if (msg.includes('connection') || msg.includes('reconnect')) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed non-critical multiplayer error from UI');
         return;
       }
