@@ -903,52 +903,50 @@ export default function StatsScreen() {
         )}
 
         {/* Game History — all tabs; filtered by game_type for per-mode tabs */}
-        {filteredGameHistory.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{i18n.t('profile.recentGames')}</Text>
 
-            {/* History outcome filter tabs: Recent / Won / Lost / Incomplete */}
-            <View style={styles.historyTabBar}>
-              {([
-                { key: 'recent' as HistoryTab, label: '🕑 Recent', count: filteredGameHistory.length },
-                { key: 'won' as HistoryTab, label: '🏆 Won', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
-                { key: 'lost' as HistoryTab, label: '❌ Lost', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
-                { key: 'incomplete' as HistoryTab, label: '⚫ Incomplete', count: filteredGameHistory.filter((g) => g.game_completed === false).length },
-              ]).map(({ key, label, count }) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.historyTabButton, historyTab === key && styles.historyTabButtonActive]}
-                  onPress={() => setHistoryTab(key)}
-                >
-                  <Text style={[styles.historyTabText, historyTab === key && styles.historyTabTextActive]}>
-                    {label}
+          {/* History outcome filter tabs: Recent / Won / Lost / Incomplete */}
+          <View style={styles.historyTabBar}>
+            {([
+              { key: 'recent' as HistoryTab, label: '🕑 Recent', count: filteredGameHistory.length },
+              { key: 'won' as HistoryTab, label: '🏆 Won', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
+              { key: 'lost' as HistoryTab, label: '❌ Lost', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
+              { key: 'incomplete' as HistoryTab, label: '⚫ Incomplete', count: filteredGameHistory.filter((g) => g.game_completed === false).length },
+            ]).map(({ key, label, count }) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.historyTabButton, historyTab === key && styles.historyTabButtonActive]}
+                onPress={() => setHistoryTab(key)}
+              >
+                <Text style={[styles.historyTabText, historyTab === key && styles.historyTabTextActive]}>
+                  {label}
+                </Text>
+                {count > 0 && (
+                  <Text style={[styles.historyTabCount, historyTab === key && styles.historyTabCountActive]}>
+                    {count}
                   </Text>
-                  {count > 0 && (
-                    <Text style={[styles.historyTabCount, historyTab === key && styles.historyTabCountActive]}>
-                      {count}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {historyTabFiltered.length > 0 ? (
-              <FlatList
-                data={historyTabFiltered.slice(0, 20)}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-              />
-            ) : (
-              <Text style={styles.historyEmptyText}>
-                {historyTab === 'won' ? 'No wins yet.' :
-                 historyTab === 'lost' ? 'No losses.' :
-                 historyTab === 'incomplete' ? 'No incomplete games.' :
-                 'No games yet.'}
-              </Text>
-            )}
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+
+          {historyTabFiltered.length > 0 ? (
+            <FlatList
+              data={historyTabFiltered.slice(0, 20)}
+              renderItem={renderHistoryItem}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
+          ) : (
+            <Text style={styles.historyEmptyText}>
+              {historyTab === 'won' ? 'No wins yet.' :
+               historyTab === 'lost' ? 'No losses.' :
+               historyTab === 'incomplete' ? 'No incomplete games.' :
+               'No games yet.'}
+            </Text>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

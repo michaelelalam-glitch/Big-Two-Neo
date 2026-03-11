@@ -642,6 +642,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     };
   }, []);
 
+  const refreshGameState = useCallback(async (): Promise<void> => {
+    if (room?.id) {
+      await fetchGameState(room.id);
+    }
+  }, [room?.id, fetchGameState]);
+
   return {
     room,
     players: roomPlayers, // Expose as 'players' for backward compatibility
@@ -664,5 +670,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     error,
     isAutoPassInProgress,
     playerLastSeenAtRef,
+    refreshGameState,
   };
 }
