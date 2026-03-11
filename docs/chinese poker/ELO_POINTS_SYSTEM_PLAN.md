@@ -1,7 +1,7 @@
 # ELO & Points System — Implementation Plan
 
 **Branch:** `task/621-leaderboard-fixes`  
-**Date:** March 9, 2026
+**Date:** March 10, 2026 (updated: private games removed from ELO)
 
 ---
 
@@ -9,11 +9,12 @@
 
 | # | Area | Change |
 |---|------|--------|
-| 1 | Casual ELO | Replace flat +25/+10/–5/–15 with score-based formula |
-| 2 | Ranked ELO | Replace flat formula with chess ELO (K=32, pairwise) |
-| 3 | No ELO floor | Remove floor — players can go below 0 |
-| 4 | Total Points | Keep existing card-penalty calc; add Total Points card to Ranked UI tab |
-| 5 | global_rank | Source from `leaderboard_ranked`, not `leaderboard_casual` |
+| 1 | Casual ELO | Score-based formula — **casual games only** |
+| 2 | Ranked ELO | Chess ELO (K=32, pairwise) — **ranked games only** |
+| 3 | Private games | **No rank-point change** — only `private_total_points` is tracked |
+| 4 | No ELO floor | Remove floor — players can go below 0 |
+| 5 | Total Points | Keep existing card-penalty calc; add Total Points card to Ranked UI tab |
+| 6 | global_rank | Source from `leaderboard_ranked`, not `leaderboard_casual` |
 
 ---
 
@@ -55,9 +56,9 @@ The multiplier is determined by the **hardest** bot in the game (or 1.0 if no bo
 
 ### Applied to
 
-- `casual` games → `casual_rank_points`
-- `private` games → `casual_rank_points` (and `ranked_rank_points`, see §3)
+- `casual` games only → `casual_rank_points`
 - `rank_points` (legacy global column) stays in sync with `casual_rank_points` as today
+- **Private games are excluded** — they do not affect `casual_rank_points`
 
 ---
 
@@ -93,12 +94,28 @@ Because the chess formula requires **all 4 players' current `ranked_rank_points`
 
 ### Applied to
 
-- `ranked` games → `ranked_rank_points`
-- `private` games → `ranked_rank_points` (using the same pairwise chess formula, see §3)
+- `ranked` games only → `ranked_rank_points`
+- **Private games are excluded** — they do not affect `ranked_rank_points`
 
 ---
 
-## 3. No ELO Floor
+## 3. Private Games — Total Points Only
+
+Private games track the same card-penalty score (`private_total_points`) but **do not change any rank points**.
+
+| Column | Private game effect |
+|--------|---------------------|
+| `casual_rank_points` | ❌ No change |
+| `ranked_rank_points` | ❌ No change |
+| `rank_points` (legacy) | ❌ No change |
+| `private_total_points` | ✅ Incremented as normal |
+| `rank_points_history` | ❌ No entry added (no ELO change to graph) |
+
+This means private lobbies are a consequence-free practice environment: stats (win rate, combos, scores) are tracked, but your public leaderboard ratings are unaffected.
+
+---
+
+## 4. No ELO Floor
 
 Remove the implicit 1000-default guard. Both `casual_rank_points` and `ranked_rank_points` can drop below 0 (and below 1000). This is intentional — a player on a losing streak should see their rating reflect their performance.
 
@@ -106,7 +123,7 @@ Remove the implicit 1000-default guard. Both `casual_rank_points` and `ranked_ra
 
 ---
 
-## 4. Total Points
+## 5. Total Points
 
 ### No change to the calculation
 
@@ -146,18 +163,18 @@ This replaces the current `stats.total_points` (global column) in the Overview p
 
 ---
 
-## 5. global_rank → Ranked Leaderboard
+## 6. global_rank → Ranked Leaderboard
 
 `global_rank` currently reads from `leaderboard_casual` (which only includes players with `casual_games_played > 0`). Change it to read from `leaderboard_ranked`.
 
-### leaderboard_ranked view expansion
+### leaderboard_ranked view — no expansion needed
 
-Since private games will now affect `ranked_rank_points`, the ranked leaderboard view should include those players:
+Since private games do **not** affect `ranked_rank_points`, the `leaderboard_ranked` view WHERE clause stays as `ranked_games_played > 0`. Only players who have played actual ranked games appear on the ranked leaderboard.
 
 ```sql
--- New WHERE clause (replaces "ranked_games_played > 0")
-WHERE (ps.ranked_games_played + ps.private_games_played) > 0
-ORDER BY ps.ranked_rank_points DESC, (ps.ranked_games_won + ps.private_games_won) DESC;
+-- WHERE clause stays unchanged
+WHERE ps.ranked_games_played > 0
+ORDER BY ps.ranked_rank_points DESC, ps.ranked_games_won DESC;
 ```
 
 ### How global_rank gets populated
@@ -184,45 +201,48 @@ Then merge this into the stats object before setting state.
 
 ## Implementation Steps
 
-### Step 1 — New migration: `20260309000XXX_elo_overhaul.sql`
+### Step 1 — Migration: `20260309000004_leaderboard_fixes.sql` ✅ DONE
 
-1. Add `p_bot_multiplier DECIMAL` and `p_ranked_elo_change INTEGER` parameters to `update_player_stats_after_game`.
-2. Replace `v_rank_point_change` calculation with:
-   - Casual: `ROUND((100 - p_score) * p_bot_multiplier)`
-   - Ranked: use incoming `p_ranked_elo_change` directly
-   - Private (casual column): `ROUND((100 - p_score) * p_bot_multiplier)`
-   - Private (ranked column): use incoming `p_ranked_elo_change` directly
-3. Apply casual delta to `casual_rank_points` for `casual` AND `private` games.
-4. Apply ranked delta to `ranked_rank_points` for `ranked` AND `private` games.
-5. Sync `rank_points = v_new_casual_rp` (unchanged).
-6. Remove any ELO floor guards.
-7. Update `leaderboard_ranked` materialized view WHERE clause to include private game players.
-8. Grant + permissions block.
+1. ✅ Added `p_bot_multiplier DECIMAL` and `p_ranked_elo_change INTEGER` parameters.
+2. ✅ `v_rank_point_change`: `ROUND((100 - p_score) * p_bot_multiplier)` — casual only.
+3. ✅ `v_new_casual_rp`: applies delta for `p_game_type = 'casual'` only.
+4. ✅ `v_new_ranked_rp`: applies `p_ranked_elo_change` for `p_game_type = 'ranked'` only.
+5. ✅ Private game UPDATE block: no `casual_rank_points` / `ranked_rank_points` changes.
+6. ✅ `rank_points_history`: entry only written if `NOT p_voided AND p_game_type <> 'private'`.
+7. ✅ ELO floor guards removed.
+8. ✅ Permissions block present.
 
-### Step 2 — Edge function: `complete-game/index.ts`
+### Step 2 — Edge function: `complete-game/index.ts` ✅ DONE
 
-1. Compute `bot_multiplier` from `gameData.bot_difficulty`:
-   ```ts
-   const botMultiplier = gameData.bot_difficulty === 'easy' ? 0.5
-     : gameData.bot_difficulty === 'medium' ? 0.7
-     : gameData.bot_difficulty === 'hard'   ? 0.9
-     : 1.0; // null = all humans
+1. ✅ `botMultiplier` computed server-authoritatively from `room_players`.
+2. ✅ Chess K=32 pairwise ELO computed for **`ranked` games only** (private excluded).
+3. ✅ `p_bot_multiplier` and `p_ranked_elo_change` passed per player.
+4. ✅ Private games pass `p_ranked_elo_change = 0` (map is empty → `?? 0` fallback).
+
+### Step 3 — StatsScreen.tsx ⚠️ PARTIALLY DONE
+
+1. ❌ **TODO:** Add a `Total Points` stat card to the Ranked tab stats grid (currently only shows Rank Points + Global Rank).
+2. ❌ **TODO:** Change the Overview `Total Points` value from `stats.total_points` (legacy global) to:
+   ```tsx
+   const overviewTotalPoints = (stats.casual_total_points || 0)
+     + (stats.ranked_total_points || 0)
+     + (stats.private_total_points || 0);
    ```
-2. For `ranked` and `private` games only: before calling `update_player_stats_after_game`, fetch all real players' `ranked_rank_points` in a single query, compute pairwise chess ELO (K=32) deltas, map them to each player's `user_id`.
-3. Pass `p_bot_multiplier` and `p_ranked_elo_change` (for ranked/private) for each player.
-4. For casual games, `p_ranked_elo_change` = `0` (or unused — gate in SQL with `IF p_game_type IN ('ranked', 'private')`).
+3. ❌ **TODO:** Fetch `global_rank` from `leaderboard_ranked` directly in `fetchData()` instead of relying on the stored `global_rank` column:
+   ```ts
+   const { data: rankRow } = await supabase
+     .from('leaderboard_ranked')
+     .select('rank')
+     .eq('user_id', userId)
+     .maybeSingle();
+   const globalRank = rankRow?.rank ?? null;
+   ```
+   Then merge into the stats object before `setStats(...)`.
 
-### Step 3 — StatsScreen.tsx
-
-1. Add a `Total Points` stat card to the Ranked tab stats grid.
-2. Change the Overview `Total Points` value to `casual_total_points + ranked_total_points + private_total_points`.
-3. Fetch `global_rank` from `leaderboard_ranked` directly in `fetchData()` instead of relying on the stored `global_rank` column in `player_stats`.
-4. Merge the fetched rank into the stats object before `setStats(...)`.
-
-### Step 4 — redeploy edge function + apply migration
+### Step 4 — redeploy edge function + apply migration ⚠️ TODO
 
 ```bash
-# Apply migration
+# Apply migration to prod
 supabase db push  # or apply SQL manually to prod
 
 # Redeploy edge function
@@ -235,12 +255,13 @@ supabase functions deploy complete-game
 - [ ] Casual game: all-human lobby — winner with 0pts gets +100, 120pt player gets −20
 - [ ] Casual game: easy bots — winner gets +50 (100 × 0.5)
 - [ ] Ranked game: chess formula fires; higher-rated opponent beaten = larger delta
-- [ ] Private game: both `casual_rank_points` AND `ranked_rank_points` change
+- [ ] **Private game: `casual_rank_points` and `ranked_rank_points` are UNCHANGED; only `private_total_points` increments**
+- [ ] Private game: no entry added to `rank_points_history` graph
 - [ ] A player who goes negative ELO is displayed correctly (no clamp)
 - [ ] `global_rank` shows correct rank from `leaderboard_ranked`
-- [ ] Players only in casual show `#N/A` for `global_rank` (they are not on the ranked leaderboard)
+- [ ] Players only in casual/private show `#N/A` for `global_rank` (not on ranked leaderboard)
 - [ ] Ranked tab shows Total Points card (`ranked_total_points`)
-- [ ] Overview Total Points = sum of all three mode totals
+- [ ] Overview Total Points = sum of all three mode totals (not legacy `total_points` column)
 
 ---
 

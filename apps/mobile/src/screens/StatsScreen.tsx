@@ -224,7 +224,30 @@ export default function StatsScreen() {
           throw statsError;
         }
       } else {
-        setStats(statsData);
+        // Fetch global_rank at read-time from leaderboard_ranked so it stays
+        // accurate without relying on the stored (potentially stale) column.
+        const { data: rankRow, error: rankError } = await supabase
+          .from('leaderboard_ranked')
+          .select('rank')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (rankError) {
+          // Log the failure and fall back to the stored global_rank from statsData.
+          statsLogger.error('[Stats] Rank query error:', rankError?.message || rankError?.code || 'Unknown error');
+          setStats({ ...statsData, global_rank: (statsData as any)?.global_rank ?? null });
+        } else {
+          // rankRow being null means the user has no entry in leaderboard_ranked
+          // (ranked_games_played = 0 — the view filters out zero-game players).
+          // Do NOT fall back to the stored global_rank in that case — it would
+          // display a non-null rank for casual-only players, contradicting #N/A intent.
+          // Only fall back when the user has played ranked games but the materialized
+          // view is temporarily stale (rankRow null despite ranked_games_played > 0).
+          const rankedGamesPlayed = (statsData as any)?.ranked_games_played ?? 0;
+          setStats({
+            ...statsData,
+            global_rank: rankRow?.rank ?? (rankedGamesPlayed > 0 ? (statsData as any)?.global_rank ?? null : null),
+          });
+        }
       }
 
       // Fetch profile
@@ -345,7 +368,9 @@ export default function StatsScreen() {
     if (activeTab === 'overview') {
       return {
         avgPosition: stats.avg_finish_position,
-        totalPoints: stats.total_points,
+        totalPoints: (stats.casual_total_points || 0)
+          + (stats.ranked_total_points || 0)
+          + (stats.private_total_points || 0),
         highestScore: stats.highest_score,
         lowestScore: stats.lowest_score,
         avgScore: stats.avg_score_per_game,
@@ -465,8 +490,10 @@ export default function StatsScreen() {
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
-    // Voided: this player was the last human to leave before the game finished
-    const isVoided = isIncomplete && !!item.voided_user_id && item.voided_user_id === userId;
+    // Voided: voided_user_id being set means the game was officially voided
+    // (someone was the last human to leave). All participants in the game
+    // should see it as void — not just the player who triggered it.
+    const isVoided = isIncomplete && !!item.voided_user_id;
 
     return (
       <View style={[
@@ -714,6 +741,7 @@ export default function StatsScreen() {
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
                 {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                {renderStatCard(i18n.t('profile.totalPoints'), (stats.ranked_total_points || 0).toLocaleString(), '💎')}
               </>
             )}
             {activeTab === 'private' && (
@@ -743,14 +771,12 @@ export default function StatsScreen() {
             </View>
           </View>
 
-          {/* Total Points row — private / ranked only (shows mode-specific total) */}
-          {(activeTab === 'private' || activeTab === 'ranked') && (
+          {/* Total Points row — private only (ranked has a dedicated stat card above) */}
+          {activeTab === 'private' && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>{i18n.t('profile.totalScore')}</Text>
               <Text style={styles.infoValue}>
-                {activeTab === 'ranked'
-                  ? (stats.ranked_total_points || 0).toLocaleString()
-                  : (stats.private_total_points || 0).toLocaleString()}
+                {(stats.private_total_points || 0).toLocaleString()}
               </Text>
             </View>
           )}

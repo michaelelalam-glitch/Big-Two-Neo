@@ -619,18 +619,51 @@ export default function HomeScreen() {
 
     // STEP 1: Null disconnectTimestamp IMMEDIATELY so the countdown effect
     // cannot loop back and re-fire onTimerExpired while we do async work.
-    // botHasReplaced stays true (we fixed the banner to not clear it here).
     setDisconnectTimestamp(null);
 
-    // STEP 2: Poll for the replaced_by_bot row.
-    // process_disconnected_players runs every ~30 s (6th heartbeat), so we
-    // may need to wait up to 30 s after the 60-s client timer fires.
-    // Try up to 7 times × 5 s = 35 s max poll window.
-    const MAX_ATTEMPTS = 7;
-    const POLL_INTERVAL_MS = 5000;
+    // STEP 2: Trigger an immediate server-side sweep so the bot replacement
+    // happens right at the 60s mark rather than waiting up to 30s for the
+    // next scheduled piggyback sweep on another player's heartbeat.
+    try {
+      // Constrain the lookup to the current room (by code) to avoid acting on a
+      // stale disconnected row from a previously abandoned room.
+      const roomCode = currentRoomRef.current;
+      if (roomCode) {
+        const { data: disconnRow } = await supabase
+          .from('room_players')
+          .select('id, room_id, rooms!inner(code)')
+          .eq('user_id', user.id)
+          .eq('connection_status', 'disconnected')
+          .eq('rooms.code', roomCode)
+          .maybeSingle();
+
+        if (disconnRow?.id && disconnRow?.room_id) {
+          // sweep_only=true: skip the heartbeat UPDATE so this row stays
+          // 'disconnected' — Phase B needs to see it to trigger bot replacement.
+          // A normal heartbeat call would flip connection_status to 'connected'
+          // before the sweep runs, causing Phase B to miss this player.
+          supabase.functions.invoke('update-heartbeat', {
+            body: {
+              room_id: disconnRow.room_id,
+              player_id: disconnRow.id,
+              sweep_only: true,
+            },
+          }).catch(() => {/* non-fatal */});
+        }
+      }
+    } catch {
+      // Non-fatal — polling below will still detect replacement
+    }
+
+    // STEP 3: Poll for the replaced_by_bot row.
+    // With the forced sweep above, replacement should be near-instant (~2 s).
+    // Poll every 4 s for up to 9 attempts (≈ 38 s) as a safety net.
+    const MAX_ATTEMPTS = 9;
+    const FIRST_POLL_MS = 2000;
+    const POLL_INTERVAL_MS = 4000;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? FIRST_POLL_MS : POLL_INTERVAL_MS));
 
       try {
         // human_user_id is set when the bot takes over our slot.
@@ -646,35 +679,27 @@ export default function HomeScreen() {
           const roomStatus = (replacedRow as { rooms?: { status?: string } }).rooms?.status;
 
           if (!roomStatus || roomStatus === 'finished') {
-            // Room closed (all-bots game was auto-deleted by server sweep) — clear banner
+            // Room closed (all-bots → server auto-closed it) — clear banner
             setCurrentRoom(null);
             setCurrentRoomStatus(undefined);
             setCanRejoinAfterExpiry(null);
           } else {
-            // Room still playing — at least one human must be in it (server closes
-            // all-bot rooms automatically). Show "Replace Bot & Rejoin".
-            // NOTE: we intentionally skip counting humanPlayers here because after
-            // replacement our row has a bot UUID, so the RLS policy `user_id = auth.uid()`
-            // blocks reads of other players' rows, returning 0 even when humans exist.
+            // Room still playing — show "Replace Bot & Rejoin".
             setCanRejoinAfterExpiry(true);
           }
           return; // Done — exit poll loop
         }
 
-        // Replacement row not found yet — server sweep hasn't run.
-        // Banner already shows "🤖 A bot is playing for you" (botHasReplaced=true),
-        // so the user sees meaningful UI while we wait. Keep polling.
+        // Replacement row not found yet — keep polling.
       } catch {
         // Network blip — keep trying
       }
     }
 
     // After MAX_ATTEMPTS the replaced row still isn't there.
-    // This means either:
-    //   a) The room was already closed (game ended naturally), or
-    //   b) Something unexpected — play it safe and re-check.
-    // We do NOT call checkCurrentRoom() here as that could re-set
-    // disconnectTimestamp and restart the countdown.
+    // Keep showing "Replace Bot & Rejoin + Leave" — never hide the rejoin button
+    // just because the sweep was very late. The room may still be running and
+    // the replacement will appear once the sweep completes.
     try {
       const { data: replacedFinal } = await supabase
         .from('room_players')
@@ -684,9 +709,7 @@ export default function HomeScreen() {
         .maybeSingle();
 
       if (!replacedFinal) {
-        // No replaced row — verify the room is actually finished before clearing
-        // the banner. If the game is still playing (bot replacement may have been
-        // delayed), keep the banner so the user can press Leave when ready.
+        // Still no replaced row — check if room is still running.
         try {
           const { data: roomCheck } = await supabase
             .from('rooms')
@@ -694,9 +717,8 @@ export default function HomeScreen() {
             .eq('code', currentRoom)
             .maybeSingle();
           if (roomCheck?.status === 'playing') {
-            // Game still running but no replaced row yet. Keep banner;
-            // hide "Replace Bot & Rejoin" since there's nothing to claim.
-            setCanRejoinAfterExpiry(false);
+            // Room still running — bot replacement will happen; keep rejoin button.
+            setCanRejoinAfterExpiry(true);
             return;
           }
         } catch { /* ignore — fall through to clear */ }
@@ -714,8 +736,7 @@ export default function HomeScreen() {
         }
       }
     } catch {
-      // Safe fallback: keep banner in current state (botHasReplaced=true visible),
-      // user can manually tap Leave if needed.
+      // Safe fallback: keep banner in current state, user can tap Leave if needed.
     }
   }, [user, currentRoom]);
 

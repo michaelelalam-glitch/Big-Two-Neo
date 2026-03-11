@@ -490,7 +490,7 @@ export function MultiplayerGame() {
   // Shows yellow InactivityCountdownRing (60s to play/pass).
   // Separate from the charcoal-grey disconnect ring (connection inactivity).
   // When expired: auto-plays highest valid cards OR passes.
-  useTurnInactivityTimer({
+  const { isMyTurn: isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
     room: roomInfo,
     roomPlayers: effectiveMultiplayerPlayers,
@@ -506,6 +506,16 @@ export function MultiplayerGame() {
       setShowTurnAutoPlayModal(true);
     },
   });
+
+  // Auto-dismiss TurnAutoPlayModal when the turn moves away from the local player.
+  // This covers the case where the server processes the auto-play and advances the
+  // turn before the player manually dismisses the modal.
+  useEffect(() => {
+    if (!isTurnInactivityMyTurn && showTurnAutoPlayModal) {
+      setShowTurnAutoPlayModal(false);
+      setAutoPlayedCards(null);
+    }
+  }, [isTurnInactivityMyTurn, showTurnAutoPlayModal]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Computed values
@@ -572,25 +582,56 @@ export function MultiplayerGame() {
           continue;
         }
 
-        // Server-confirmed disconnect: preserve the client-detected start timestamp
-        // (seeding from client now if we don't have one yet).
+        // Server-confirmed disconnect: anchor the ring to the best available timestamp.
         // CRITICAL: Do NOT fall through to the stale-heartbeat check for disconnected
         // players — their last_seen_at is stale by design and would always trigger.
-        // More importantly, never switch to the raw server disconnect_timer_started_at
-        // for the ring animation: that timestamp comes from the server clock and can be
-        // seconds in the future relative to the client clock, causing the ring to
-        // normalise to "now" and replenish to full at the moment the server event arrives.
+        //
+        // Anchor selection priority (in order):
+        //   1. turn_started_at (turn carry-over) — ensures charcoal ring picks up where
+        //      the yellow ring left off, no visual jump.
+        //   2. rp.disconnect_timer_started_at (server timer anchor) — used when there is
+        //      NO existing client anchor yet, so the ring is precisely synced to the
+        //      server's 60-second window. InactivityCountdownRing normalises future
+        //      timestamps to 'now', so a slightly-ahead server clock is safe.
+        //   3. new Date().toISOString() — fallback when neither above is available.
+        //
+        // We NEVER overwrite an existing client anchor with a LATER server timestamp
+        // (would visually replenish the ring to full). We DO correct the anchor when the
+        // server provides an EARLIER timestamp — this fixes a bug where the client fell
+        // back to 'now' (STALE_THRESHOLD_MS = 12s after the last heartbeat) before Phase A
+        // ran and set disconnect_timer_started_at = last_seen_at (which is earlier by ~18s).
+        // Without this correction the ring depletes to empty ~12-18s before the server
+        // fires bot replacement, causing it to visually disappear with arc still showing.
         if (rp.connection_status === 'disconnected') {
-          if (!clientDisconnectStartRef.current[rp.player_index]) {
-            // Turn carry-over: if this player disconnected during their active turn, seed
-            // the disconnect ring from turn_started_at so the charcoal grey ring picks up
-            // exactly where the yellow turn ring left off (no jump back to full).
-            // Otherwise fall back to client-local now (fresh 60s countdown).
+          const existingAnchor = clientDisconnectStartRef.current[rp.player_index];
+          const serverAnchorMs = rp.disconnect_timer_started_at
+            ? new Date(rp.disconnect_timer_started_at).getTime()
+            : null;
+          const existingAnchorMs = existingAnchor ? new Date(existingAnchor).getTime() : null;
+          // Seed if not set yet; or correct downward if server anchor is strictly earlier
+          const needsUpdate =
+            !existingAnchor ||
+            (serverAnchorMs !== null && existingAnchorMs !== null && serverAnchorMs < existingAnchorMs);
+          if (needsUpdate) {
             const gs = multiplayerGameStateRef.current;
             const isTheirTurn = gs?.current_turn === rp.player_index;
-            const anchor = (isTheirTurn && gs?.turn_started_at) ? gs.turn_started_at : new Date().toISOString();
+            let anchor: string;
+            let anchorType: string;
+            if (isTheirTurn && gs?.turn_started_at) {
+              // Turn carry-over: continue countdown from where the yellow ring was
+              anchor = gs.turn_started_at;
+              anchorType = 'turn_started_at';
+            } else if (rp.disconnect_timer_started_at) {
+              anchor = rp.disconnect_timer_started_at;
+              anchorType = 'server_timer_ts';
+            } else {
+              anchor = new Date().toISOString();
+              anchorType = 'now';
+            }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
-            gameLogger.warn(`[MultiplayerGame] Client-side: seeding disconnect from server event for player_index=${rp.player_index} (anchor=${isTheirTurn ? 'turn_started_at' : 'now'})`);
+            gameLogger.warn(
+              `[MultiplayerGame] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`,
+            );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
           continue;
@@ -607,12 +648,26 @@ export function MultiplayerGame() {
           // Disconnect detected via stale heartbeat. If it's this player's turn, use
           // turn_started_at as the anchor so the charcoal grey ring continues the
           // turn countdown rather than restarting from 60s.
+          // If disconnect_timer_started_at is already set on the row (server may have
+          // fired the Realtime update before we detected staleness), prefer it over
+          // client-local now — same anchor-selection logic as the server-confirmed path.
           if (!clientDisconnectStartRef.current[rp.player_index]) {
             const gs = multiplayerGameStateRef.current;
             const isTheirTurn = gs?.current_turn === rp.player_index;
-            const anchor = (isTheirTurn && gs?.turn_started_at) ? gs.turn_started_at : new Date().toISOString();
+            let anchor: string;
+            let anchorType: string;
+            if (isTheirTurn && gs?.turn_started_at) {
+              anchor = gs.turn_started_at;
+              anchorType = 'turn_started_at';
+            } else if (rp.disconnect_timer_started_at) {
+              anchor = rp.disconnect_timer_started_at;
+              anchorType = 'server_timer_ts';
+            } else {
+              anchor = new Date().toISOString();
+              anchorType = 'now';
+            }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
-            gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${isTheirTurn ? 'turn_started_at' : 'now'})`);
+            gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${anchorType})`);
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
         } else {
