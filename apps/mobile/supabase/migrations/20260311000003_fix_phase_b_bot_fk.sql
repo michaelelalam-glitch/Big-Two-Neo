@@ -398,13 +398,18 @@ BEGIN
       END LOOP;
 
       v_voided_user_id := NULL;
+      -- Only determine voided player when a real disconnect-timestamp anchor exists.
+      -- Bot-replacement NULLs both disconnect_timer_started_at and disconnected_at on
+      -- replaced_by_bot rows, making COALESCE(...) meaningless.  If no row has a non-NULL
+      -- anchor we cannot determine ordering → leave voided_user_id NULL (neutral/unknown).
       SELECT human_user_id
       INTO   v_voided_user_id
       FROM   public.room_players
       WHERE  room_id       = rec.id
         AND  is_bot        = TRUE
         AND  human_user_id IS NOT NULL
-      ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC NULLS LAST,
+        AND  COALESCE(disconnect_timer_started_at, disconnected_at) IS NOT NULL
+      ORDER BY COALESCE(disconnect_timer_started_at, disconnected_at) DESC,
                human_user_id::text
       LIMIT 1;
 
