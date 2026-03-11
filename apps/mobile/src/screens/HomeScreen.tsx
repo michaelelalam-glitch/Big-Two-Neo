@@ -547,6 +547,8 @@ export default function HomeScreen() {
             voluntarilyLeftRoomsRef.current.add(stableRoomId);
             currentRoomIdRef.current = null;
             const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+            // Keep in-memory Set capped at 20 entries to match persisted state.
+            voluntarilyLeftRoomsRef.current = new Set(_leftArr);
             AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
           } else {
             // No stable room_id available; avoid persisting a potentially-colliding room code.
@@ -630,6 +632,8 @@ export default function HomeScreen() {
             if (stablePermanentRoomId) {
               voluntarilyLeftRoomsRef.current.add(stablePermanentRoomId);
               const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+              // Keep in-memory Set capped at 20 entries to match persisted state.
+              voluntarilyLeftRoomsRef.current = new Set(_leftArr);
               AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
             } else {
               roomLogger.warn('Permanent leave without currentRoomIdRef set; not persisting voluntarily-left room', {

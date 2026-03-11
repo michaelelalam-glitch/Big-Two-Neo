@@ -551,3 +551,9 @@ BEGIN
     WHERE id = rec.id;
   END LOOP;
 END $$;
+
+-- Restrict to service_role only (called by update-heartbeat edge function)
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM anon;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.process_disconnected_players() TO service_role;

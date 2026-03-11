@@ -258,53 +258,55 @@ BEGIN
           EXCEPTION WHEN OTHERS THEN
             RAISE WARNING '[process_disconnected_players] voided stat failed for user %: %', v_voided_user_id, SQLERRM;
           END;
-        END IF;
+          -- Derive bot difficulty multiplier and penalise abandoned players.
+          -- Both are inside the IS NOT NULL guard: when the tie case leaves
+          -- v_voided_user_id NULL we skip ALL stat writes and stay neutral.
+          SELECT COALESCE(
+            CASE
+              WHEN bool_or(bot_difficulty = 'hard')   THEN 0.9
+              WHEN bool_or(bot_difficulty = 'medium') THEN 0.7
+              WHEN bool_or(bot_difficulty = 'easy')   THEN 0.5
+              ELSE 1.0
+            END, 1.0
+          )
+          INTO v_bot_multiplier
+          FROM public.room_players WHERE room_id = rec.room_id AND is_bot = TRUE;
 
-        SELECT COALESCE(
-          CASE
-            WHEN bool_or(bot_difficulty = 'hard')   THEN 0.9
-            WHEN bool_or(bot_difficulty = 'medium') THEN 0.7
-            WHEN bool_or(bot_difficulty = 'easy')   THEN 0.5
-            ELSE 1.0
-          END, 1.0
-        )
-        INTO v_bot_multiplier
-        FROM public.room_players WHERE room_id = rec.room_id AND is_bot = TRUE;
+          FOR v_abandoned IN
+            SELECT user_id FROM public.room_players
+            WHERE room_id = rec.room_id AND is_bot = FALSE
+              AND connection_status = 'disconnected' AND user_id != v_voided_user_id
+          LOOP
+            BEGIN
+              PERFORM update_player_stats_after_game(
+                p_user_id := v_abandoned.user_id, p_won := false,
+                p_finish_position := 4, p_score := 200,
+                p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
+                p_completed := false, p_cards_left := 0,
+                p_voided := false, p_bot_multiplier := v_bot_multiplier
+              );
+            EXCEPTION WHEN OTHERS THEN
+              RAISE WARNING '[process_disconnected_players] abandoned stat failed for user %: %', v_abandoned.user_id, SQLERRM;
+            END;
+          END LOOP;
 
-        FOR v_abandoned IN
-          SELECT user_id FROM public.room_players
-          WHERE room_id = rec.room_id AND is_bot = FALSE
-            AND connection_status = 'disconnected' AND user_id != v_voided_user_id
-        LOOP
-          BEGIN
-            PERFORM update_player_stats_after_game(
-              p_user_id := v_abandoned.user_id, p_won := false,
-              p_finish_position := 4, p_score := 200,
-              p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
-              p_completed := false, p_cards_left := 0,
-              p_voided := false, p_bot_multiplier := v_bot_multiplier
-            );
-          EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING '[process_disconnected_players] abandoned stat failed for user %: %', v_abandoned.user_id, SQLERRM;
-          END;
-        END LOOP;
-
-        FOR v_abandoned IN
-          SELECT human_user_id FROM public.room_players
-          WHERE room_id = rec.room_id AND is_bot = TRUE AND human_user_id IS NOT NULL
-        LOOP
-          BEGIN
-            PERFORM update_player_stats_after_game(
-              p_user_id := v_abandoned.human_user_id, p_won := false,
-              p_finish_position := 4, p_score := 200,
-              p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
-              p_completed := false, p_cards_left := 0,
-              p_voided := false, p_bot_multiplier := v_bot_multiplier
-            );
-          EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING '[process_disconnected_players] abandoned stat failed for bot-replaced user %: %', v_abandoned.human_user_id, SQLERRM;
-          END;
-        END LOOP;
+          FOR v_abandoned IN
+            SELECT human_user_id FROM public.room_players
+            WHERE room_id = rec.room_id AND is_bot = TRUE AND human_user_id IS NOT NULL
+          LOOP
+            BEGIN
+              PERFORM update_player_stats_after_game(
+                p_user_id := v_abandoned.human_user_id, p_won := false,
+                p_finish_position := 4, p_score := 200,
+                p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
+                p_completed := false, p_cards_left := 0,
+                p_voided := false, p_bot_multiplier := v_bot_multiplier
+              );
+            EXCEPTION WHEN OTHERS THEN
+              RAISE WARNING '[process_disconnected_players] abandoned stat failed for bot-replaced user %: %', v_abandoned.human_user_id, SQLERRM;
+            END;
+          END LOOP;
+        END IF; -- v_voided_user_id IS NOT NULL
       END IF;
       CONTINUE;
     END IF;
@@ -489,3 +491,9 @@ BEGIN
   );
 END;
 $function$;
+
+-- Restrict to service_role only (called by update-heartbeat edge function)
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM anon;
+REVOKE ALL ON FUNCTION public.process_disconnected_players() FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.process_disconnected_players() TO service_role;
