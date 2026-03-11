@@ -244,16 +244,21 @@ BEGIN
           END;
         END IF;
 
-        BEGIN
-          PERFORM update_player_stats_after_game(
-            p_user_id := v_voided_user_id, p_won := false,
-            p_finish_position := 4, p_score := 0,
-            p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
-            p_completed := false, p_cards_left := 0, p_voided := true
-          );
-        EXCEPTION WHEN OTHERS THEN
-          RAISE WARNING '[process_disconnected_players] voided stat failed for user %: %', v_voided_user_id, SQLERRM;
-        END;
+        -- Only write voided/abandoned stats when v_voided_user_id is determinable.
+        -- When NULL (simultaneous disconnects with no ordering), treat the game as
+        -- neutral and skip stat writes entirely to avoid NULL user_id errors.
+        IF v_voided_user_id IS NOT NULL THEN
+          BEGIN
+            PERFORM update_player_stats_after_game(
+              p_user_id := v_voided_user_id, p_won := false,
+              p_finish_position := 4, p_score := 0,
+              p_combos_played := '{}'::jsonb, p_game_type := v_game_type,
+              p_completed := false, p_cards_left := 0, p_voided := true
+            );
+          EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING '[process_disconnected_players] voided stat failed for user %: %', v_voided_user_id, SQLERRM;
+          END;
+        END IF;
 
         SELECT COALESCE(
           CASE

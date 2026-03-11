@@ -540,11 +540,18 @@ export default function HomeScreen() {
 
           showSuccess(i18n.t('home.leftRoom'));
           // Persist voluntarily-left room so the banner doesn't resurface on focus/restart.
-          // Use the stable room_id (UUID) rather than the potentially-reused room code.
-          voluntarilyLeftRoomsRef.current.add(currentRoomIdRef.current ?? currentRoom);
-          currentRoomIdRef.current = null;
-          const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
-          AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
+          // Prefer membership.room_id (freshly queried above) then currentRoomIdRef —
+          // both are stable UUIDs. Never fall back to the room code (reusable string).
+          const stableRoomId = membership?.room_id ?? currentRoomIdRef.current;
+          if (stableRoomId) {
+            voluntarilyLeftRoomsRef.current.add(stableRoomId);
+            currentRoomIdRef.current = null;
+            const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+            AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
+          } else {
+            // No stable room_id available; avoid persisting a potentially-colliding room code.
+            currentRoomIdRef.current = null;
+          }
           setCurrentRoom(null);
           setCurrentRoomStatus(undefined);
           setDisconnectTimestamp(null);
@@ -617,11 +624,19 @@ export default function HomeScreen() {
               }
             }
             // Persist voluntarily-left room so the banner doesn't resurface if the RPC failed.
-            // Use the stable room_id ref (UUID) over the potentially-reused room code.
-            voluntarilyLeftRoomsRef.current.add(currentRoomIdRef.current ?? gameInfo.roomCode);
+            // Use the stable room_id ref (UUID) only — never fall back to the room code
+            // (reusable string) to avoid cross-room false-suppression collisions.
+            const stablePermanentRoomId = currentRoomIdRef.current;
+            if (stablePermanentRoomId) {
+              voluntarilyLeftRoomsRef.current.add(stablePermanentRoomId);
+              const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
+              AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
+            } else {
+              roomLogger.warn('Permanent leave without currentRoomIdRef set; not persisting voluntarily-left room', {
+                gameInfoRoomCode: gameInfo.roomCode,
+              });
+            }
             currentRoomIdRef.current = null;
-            const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
-            AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
             setCurrentRoom(null);
             setCurrentRoomStatus(undefined);
             setDisconnectTimestamp(null);

@@ -856,7 +856,7 @@ export default function StatsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.rankProgression')}</Text>
             <StreakGraph 
-              gameHistory={gameHistory.filter(g => g.game_completed !== false)} 
+              gameHistory={gameHistory.filter(g => g.game_completed === true)} 
               userId={userId} 
               rankPointsHistory={
                 activeTab === 'ranked'
