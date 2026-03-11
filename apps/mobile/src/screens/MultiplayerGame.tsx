@@ -634,8 +634,12 @@ export function MultiplayerGame() {
               anchor = rp.disconnect_timer_started_at;
               anchorType = 'server_timer_ts';
             } else {
-              anchor = new Date().toISOString();
-              anchorType = 'now';
+              // Use the player's actual last heartbeat time from the DB row as anchor.
+              // This matches the anchor Phase A will set (disconnect_timer_started_at = last_seen_at),
+              // so when Phase A's Realtime event arrives there is no correction needed and the
+              // ring depletes smoothly without a visual jump.
+              anchor = rp.last_seen_at ?? new Date().toISOString();
+              anchorType = 'last_seen_at';
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(
@@ -672,8 +676,13 @@ export function MultiplayerGame() {
               anchor = rp.disconnect_timer_started_at;
               anchorType = 'server_timer_ts';
             } else {
-              anchor = new Date().toISOString();
-              anchorType = 'now';
+              // Use the player's actual last heartbeat time from the DB row as anchor.
+              // This matches Phase A's anchor (disconnect_timer_started_at = last_seen_at),
+              // preventing a later anchor-correction jump in the grey ring.
+              // Do NOT use playerLastSeenAtRef here — it may be backdated by Presence
+              // events (artificially early timestamp would cause the ring to expire immediately).
+              anchor = rp.last_seen_at ?? new Date().toISOString();
+              anchorType = 'last_seen_at';
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(`[MultiplayerGame] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${anchorType})`);
@@ -725,11 +734,13 @@ export function MultiplayerGame() {
   const handleOtherPlayerDisconnectExpired = useCallback(() => {
     gameLogger.warn('[MultiplayerGame] Remote player disconnect countdown expired — forcing sweep');
     forceSweep();
-    // Belt-and-suspenders retry: if the server clock lags the client clock by a few
-    // seconds, the first forceSweep's validation gate (< NOW()-55s) might barely miss.
-    // A second call 4 s later is guaranteed past the expiry threshold server-side.
-    // process_disconnected_players() is idempotent — a double-trigger is a no-op.
-    setTimeout(() => forceSweep(), 4_000);
+    // Phase B condition: disconnect_timer_started_at < NOW() - 60s.
+    // At the exact moment the ring fires (elapsed = 60s) the check is T=0 < T=0
+    // which is FALSE (strictly less-than). A 1s retry guarantees T=0 < T=1 → TRUE.
+    // process_disconnected_players() is idempotent — multiple calls are safe.
+    setTimeout(() => forceSweep(), 1_000);
+    // Belt-and-suspenders: a second retry at 5s covers server-clock-skew edge cases.
+    setTimeout(() => forceSweep(), 5_000);
   }, [forceSweep]);
 
   // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
