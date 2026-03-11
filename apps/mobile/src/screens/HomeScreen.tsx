@@ -30,8 +30,12 @@ export default function HomeScreen() {
   const hasScheduledRecheckRef = useRef(false);
   /** Holds the handle of the pending 1s re-check so it can be cleared on unmount. */
   const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Room codes the user has voluntarily left — suppresses banner re-appearance on next focus/app restart. */
+  /** Room IDs the user has voluntarily left — suppresses banner re-appearance on next focus/app restart.
+   * Keyed by room_id (stable UUID) rather than room code (reusable) to prevent cross-room collisions. */
   const voluntarilyLeftRoomsRef = useRef<Set<string>>(new Set());
+  /** Tracks the room_id (UUID) for the room currently shown in the banner so the leave
+   * handlers can persist it to voluntarilyLeftRoomsRef using the stable ID. */
+  const currentRoomIdRef = useRef<string | null>(null);
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(undefined);
   const [disconnectTimestamp, setDisconnectTimestamp] = useState<number | null>(null);
   // Post-expiry rejoin state:
@@ -117,14 +121,16 @@ export default function HomeScreen() {
       const roomData = data as RoomPlayerWithRoom | null;
       if (roomData?.rooms?.code) {
         // Suppress banner for rooms the user has voluntarily left (survives app restarts)
-        if (voluntarilyLeftRoomsRef.current.has(roomData.rooms.code)) {
+        if (voluntarilyLeftRoomsRef.current.has(roomData.room_id)) {
           roomLogger.info(`🚫 Suppressing banner for voluntarily-left room: ${roomData.rooms.code}`);
           setCurrentRoom(null);
+          currentRoomIdRef.current = null;
           setCurrentRoomStatus(undefined);
           setDisconnectTimestamp(null);
           setCanRejoinAfterExpiry(null);
           return;
         }
+        currentRoomIdRef.current = roomData.room_id;
         setCurrentRoom(roomData.rooms.code);
         setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
         // Fetch server-side timer so the countdown survives app restarts.
@@ -207,9 +213,10 @@ export default function HomeScreen() {
           const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
           if (rd?.rooms?.code) {
             // Suppress banner if user already voluntarily left this room
-            if (voluntarilyLeftRoomsRef.current.has(rd.rooms.code)) {
+            if (voluntarilyLeftRoomsRef.current.has(rd.room_id)) {
               roomLogger.info(`🚫 Suppressing replaced-bot banner for voluntarily-left room: ${rd.rooms.code}`);
               setCurrentRoom(null);
+              currentRoomIdRef.current = null;
               setCurrentRoomStatus(undefined);
               setDisconnectTimestamp(null);
               setCanRejoinAfterExpiry(null);
@@ -217,6 +224,7 @@ export default function HomeScreen() {
             }
             // We were replaced but the game still has humans — keep banner open
             roomLogger.info(`🤖 Bot replaced player in room ${rd.rooms.code} — keeping rejoin banner`);
+            currentRoomIdRef.current = rd.room_id;
             setCurrentRoom(rd.rooms.code);
             setCurrentRoomStatus('playing');
             // Set canRejoinAfterExpiry=true directly (timer already expired server-side)
@@ -531,8 +539,10 @@ export default function HomeScreen() {
           }
 
           showSuccess(i18n.t('home.leftRoom'));
-          // Persist voluntarily-left room so the banner doesn't resurface on focus/restart
-          voluntarilyLeftRoomsRef.current.add(currentRoom);
+          // Persist voluntarily-left room so the banner doesn't resurface on focus/restart.
+          // Use the stable room_id (UUID) rather than the potentially-reused room code.
+          voluntarilyLeftRoomsRef.current.add(currentRoomIdRef.current ?? currentRoom);
+          currentRoomIdRef.current = null;
           const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
           AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
           setCurrentRoom(null);
@@ -606,8 +616,10 @@ export default function HomeScreen() {
                 // worse than a silent RPC failure for this non-critical cleanup.
               }
             }
-            // Persist voluntarily-left room so the banner doesn't resurface if the RPC failed
-            voluntarilyLeftRoomsRef.current.add(gameInfo.roomCode);
+            // Persist voluntarily-left room so the banner doesn't resurface if the RPC failed.
+            // Use the stable room_id ref (UUID) over the potentially-reused room code.
+            voluntarilyLeftRoomsRef.current.add(currentRoomIdRef.current ?? gameInfo.roomCode);
+            currentRoomIdRef.current = null;
             const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
             AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
             setCurrentRoom(null);

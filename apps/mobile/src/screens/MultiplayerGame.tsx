@@ -152,7 +152,12 @@ export function MultiplayerGame() {
         // server disagrees. Re-fetch authoritative game state so the UI immediately
         // reflects the correct current_turn and the Play button reverts.
         gameLogger.warn('⚠️ [MultiplayerGame] "Not your turn" — refreshing game state to re-sync UI');
-        refreshGameState();
+        void refreshGameState().catch((refreshError) => {
+          gameLogger.error(
+            '[MultiplayerGame] Failed to refresh game state after "Not your turn" error:',
+            refreshError,
+          );
+        });
         return;
       }
       if (msg.includes('connection') || msg.includes('reconnect')) {
