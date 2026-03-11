@@ -45,10 +45,14 @@
 -- ============================================================================
 
 -- ── Part A: Schema changes ─────────────────────────────────────────────────
+-- voided_user_id was first introduced in 20260309000007_add_voided_user_id_to_game_history.sql
+-- This block is idempotent: adds the column only if absent, and always (re)applies
+-- the FK constraint and COMMENT so environments that skipped migration 20260309000007
+-- don't drift silently.
 
 DO $$
 BEGIN
-  -- Add voided_user_id only if absent (safe to run multiple times)
+  -- Add column if absent (migration 20260309000007 already did this on main environments)
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public'
@@ -57,15 +61,33 @@ BEGIN
   ) THEN
     ALTER TABLE public.game_history
       ADD COLUMN voided_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
 
-    COMMENT ON COLUMN public.game_history.voided_user_id IS
-      'The user_id of the player who voided this game (last human to leave '
-      'before the game finished naturally). NULL for completed games or when '
-      'all humans left simultaneously and no ordering was determinable. '
-      'Set by: complete-game edge function (server-computed) or '
-      'process_disconnected_players() Phase B/C.';
+  -- Ensure the FK exists even if the column was created without it
+  IF NOT EXISTS (
+    SELECT 1
+    FROM   pg_constraint c
+    JOIN   pg_class t ON t.oid = c.conrelid
+    JOIN   pg_namespace n ON n.oid = t.relnamespace
+    WHERE  n.nspname = 'public'
+      AND  t.relname = 'game_history'
+      AND  c.conname = 'game_history_voided_user_id_fkey'
+  ) THEN
+    ALTER TABLE public.game_history
+      ADD CONSTRAINT game_history_voided_user_id_fkey
+      FOREIGN KEY (voided_user_id)
+      REFERENCES auth.users(id)
+      ON DELETE SET NULL;
   END IF;
 END $$;
+
+-- Always (re)set the column comment so it reflects the current write paths.
+COMMENT ON COLUMN public.game_history.voided_user_id IS
+  'The user_id of the player who voided this game (last human to leave '
+  'before the game finished naturally). NULL for completed games or when '
+  'all humans left simultaneously and no ordering was determinable. '
+  'Set by: complete-game edge function (server-computed) or '
+  'process_disconnected_players() Phase B (disconnect sweep).';
 
 -- ── Part B: Update process_disconnected_players() ─────────────────────────
 -- Full replacement — keeps all existing Phase A / Phase B / Phase C logic
