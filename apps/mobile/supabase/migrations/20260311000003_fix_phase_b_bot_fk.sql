@@ -151,17 +151,35 @@ BEGIN
           ELSE 'private'
         END;
 
-        SELECT COALESCE(rp.human_user_id, rp.user_id)
-        INTO   v_voided_user_id
-        FROM   public.room_players rp
-        WHERE  rp.room_id           = rec.room_id
-          AND  rp.is_bot            = FALSE
-          AND  rp.connection_status = 'disconnected'
-        ORDER BY COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) DESC NULLS LAST,
-                 COALESCE(rp.human_user_id, rp.user_id)::text
-        LIMIT  1;
-
-        IF v_voided_user_id IS NULL THEN v_voided_user_id := rec.user_id; END IF;
+        -- Tie-safe voided-player detection: pick the single latest-to-disconnect
+        -- human; if multiple players share the same max anchor (truly simultaneous
+        -- disconnects) we cannot determine ordering, so leave voided_user_id NULL.
+        -- The frontend treats NULL as a neutral "Incomplete" state for all players.
+        WITH disconnected_players AS (
+          SELECT
+            COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) AS anchor,
+            COALESCE(rp.human_user_id, rp.user_id)                       AS uid
+          FROM public.room_players rp
+          WHERE rp.room_id           = rec.room_id
+            AND rp.is_bot            = FALSE
+            AND rp.connection_status = 'disconnected'
+        ),
+        max_anchor AS (
+          SELECT MAX(anchor) AS anchor
+          FROM disconnected_players
+        ),
+        candidates AS (
+          SELECT dp.uid
+          FROM disconnected_players dp
+          JOIN max_anchor ma ON dp.anchor = ma.anchor
+          WHERE ma.anchor IS NOT NULL
+        )
+        SELECT CASE
+                 WHEN COUNT(*) = 1 THEN MAX(uid)
+                 ELSE NULL::UUID
+               END
+        INTO v_voided_user_id
+        FROM candidates;
 
         SELECT EXISTS (
           SELECT 1 FROM public.game_history WHERE room_id = rec.room_id

@@ -909,10 +909,10 @@ export default function StatsScreen() {
           {/* History outcome filter tabs: Recent / Won / Lost / Incomplete */}
           <View style={styles.historyTabBar}>
             {([
-              { key: 'recent' as HistoryTab, label: '🕑 Recent', count: filteredGameHistory.length },
-              { key: 'won' as HistoryTab, label: '🏆 Won', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
-              { key: 'lost' as HistoryTab, label: '❌ Lost', count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
-              { key: 'incomplete' as HistoryTab, label: '⚫ Incomplete', count: filteredGameHistory.filter((g) => g.game_completed === false).length },
+              { key: 'recent' as HistoryTab, label: i18n.t('profile.historyTabRecent'), count: filteredGameHistory.length },
+              { key: 'won' as HistoryTab, label: i18n.t('profile.historyTabWon'), count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
+              { key: 'lost' as HistoryTab, label: i18n.t('profile.historyTabLost'), count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
+              { key: 'incomplete' as HistoryTab, label: i18n.t('profile.historyTabIncomplete'), count: filteredGameHistory.filter((g) => g.game_completed === false).length },
             ]).map(({ key, label, count }) => (
               <TouchableOpacity
                 key={key}
@@ -940,10 +940,13 @@ export default function StatsScreen() {
             />
           ) : (
             <Text style={styles.historyEmptyText}>
-              {historyTab === 'won' ? 'No wins yet.' :
-               historyTab === 'lost' ? 'No losses.' :
-               historyTab === 'incomplete' ? 'No incomplete games.' :
-               'No games yet.'}
+              {historyTab === 'won'
+                ? i18n.t('profile.historyEmptyWon')
+                : historyTab === 'lost'
+                ? i18n.t('profile.historyEmptyLost')
+                : historyTab === 'incomplete'
+                ? i18n.t('profile.historyEmptyIncomplete')
+                : i18n.t('profile.historyEmptyRecent')}
             </Text>
           )}
         </View>
