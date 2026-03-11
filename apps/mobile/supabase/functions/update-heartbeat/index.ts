@@ -252,7 +252,11 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        .lt('disconnect_timer_started_at', new Date(Date.now() - 60_000).toISOString())
+        // 5-second grace window: if the server clock is slightly behind the client
+        // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
+        // Using 55s here allows the sweep to proceed; Phase B still requires
+        // disconnect_timer_started_at < NOW() - 60s so no player is ever replaced early.
+        .lt('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
         .limit(1)
         .maybeSingle();
 
