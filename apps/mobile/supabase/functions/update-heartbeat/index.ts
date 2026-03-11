@@ -245,6 +245,14 @@ Deno.serve(async (req) => {
     // sweepOnly also implies an immediate forced sweep; apply the same
     // server-side validation (expired disconnect timer) to prevent DoS.
     if ((force_sweep === true || sweepOnly) && !shouldSweep) {
+      // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
+      // 5-second grace window: if the server clock is slightly behind the client
+      // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
+      // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
+      // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
+      // not relax the actual replacement threshold — it only validates force_sweep.
+      // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-55s
+      // exactly) also passes validation rather than being deferred to the 5s retry.
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')
         .select('id')
@@ -252,13 +260,6 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        // 5-second grace window: if the server clock is slightly behind the client
-        // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
-        // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
-        // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
-        // not relax the actual replacement threshold — it only validates force_sweep.
-        // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-55s
-        // exactly) also passes validation rather than being deferred to the 5s retry.
         .lte('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
         .limit(1)
         .maybeSingle();
@@ -267,10 +268,37 @@ Deno.serve(async (req) => {
         console.warn(`[update-heartbeat] force_sweep validation query failed for room ${room_id}:`, expiredTimerError.message);
         // Keep shouldSweep=false on error so a query failure cannot be exploited
         // to trigger an unvalidated sweep.
+      } else if (expiredTimer) {
+        shouldSweep = true;
       } else {
-        shouldSweep = !!expiredTimer;
-        if (!shouldSweep) {
-          console.log(`[update-heartbeat] force_sweep ignored: no expired disconnect timer in room ${room_id}`);
+        // Secondary check: connected player with a stale heartbeat (>= HEARTBEAT_SLACK = 30s).
+        // This covers the gap where a player disconnects during their active turn: Phase A
+        // only runs on the periodic sweep schedule (~30s), so at exactly T+60s (when the turn
+        // ring fires) the player may still show as 'connected' with disconnect_timer_started_at
+        // = NULL.  Without this check the forced sweep is rejected, and bot replacement is
+        // delayed up to T+90s (next periodic sweep).  Allowing the sweep when a stale
+        // connected-player exists lets Phase A + Phase B run in the same call at T+60s,
+        // achieving the intended "replace after 60s from turn start" behaviour.
+        // This matches Phase A's eligibility criterion exactly (HEARTBEAT_SLACK constant),
+        // so it does not expand the attack surface beyond what the periodic sweep already does.
+        const { data: staleConnected, error: staleConnectedError } = await supabaseClient
+          .from('room_players')
+          .select('id')
+          .eq('room_id', room_id)
+          .eq('is_bot', false)
+          .eq('connection_status', 'connected')
+          .lte('last_seen_at', new Date(Date.now() - 30_000).toISOString())
+          .limit(1)
+          .maybeSingle();
+
+        if (staleConnectedError) {
+          console.warn(`[update-heartbeat] force_sweep stale-connected check failed for room ${room_id}:`, staleConnectedError.message);
+          // Keep shouldSweep=false on error.
+        } else {
+          shouldSweep = !!staleConnected;
+          if (!shouldSweep) {
+            console.log(`[update-heartbeat] force_sweep ignored: no expired disconnect timer or stale connected player in room ${room_id}`);
+          }
         }
       }
     }

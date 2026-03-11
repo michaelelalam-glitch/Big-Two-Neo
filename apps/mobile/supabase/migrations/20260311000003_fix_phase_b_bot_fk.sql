@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration: fix_phase_b_bot_fk_and_lte_threshold
+-- Migration: fix_phase_b_bot_fk
 -- Branch: game/chinese-poker
 -- Date: 2026-03-11
 -- (Previously split across 000003 and 000005; squashed into a single file.)
