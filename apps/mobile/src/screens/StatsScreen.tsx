@@ -490,21 +490,25 @@ export default function StatsScreen() {
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
-    // Voided: voided_user_id being set means the game was officially voided
-    // (someone was the last human to leave). All participants in the game
-    // should see it as void — not just the player who triggered it.
-    const isVoided = isIncomplete && !!item.voided_user_id;
+    // Voided: THIS player was the last human to leave — they get a neutral grey
+    // "VOIDED" badge (the game couldn't continue without them; no penalty applies).
+    const isVoided = isIncomplete && item.voided_user_id === userId;
+    // Abandoned: the game is incomplete AND this player was NOT the voided player
+    // — they left before the game ended, earning a red "ABANDONED" badge.
+    const isAbandoned = isIncomplete && !isVoided;
 
     return (
       <View style={[
         styles.historyItem,
-        isWinner && styles.historyItemWin,
-        isVoided ? styles.historyItemVoided : (isIncomplete && styles.historyItemIncomplete),
+        !isIncomplete && isWinner && styles.historyItemWin,
+        isVoided ? styles.historyItemVoided : (isAbandoned ? styles.historyItemAbandoned : undefined),
       ]}>
         <View style={styles.historyHeader}>
           <View style={styles.historyResult}>
             {isVoided ? (
-              <Text style={[styles.resultBadge, styles.voidBadge]}>🚫 VOID</Text>
+              <Text style={[styles.resultBadge, styles.voidBadge]}>⚫ VOIDED</Text>
+            ) : isAbandoned ? (
+              <Text style={[styles.resultBadge, styles.abandonedBadge]}>❌ ABANDONED</Text>
             ) : (
               <Text style={[styles.resultBadge, isWinner ? styles.winBadge : styles.lossBadge]}>
                 {isWinner ? '🏆 WIN' : '❌ LOSS'}
@@ -515,9 +519,6 @@ export default function StatsScreen() {
               <Text style={styles.gameTypeBadge}>
                 {item.game_type === 'ranked' ? '🏆' : item.game_type === 'private' ? '🔒' : '🎮'}
               </Text>
-            )}
-            {isIncomplete && !isVoided && (
-              <Text style={styles.incompleteBadge}>⚠️ Incomplete</Text>
             )}
           </View>
           <Text style={styles.historyTime}>{timeAgo}</Text>
@@ -832,7 +833,7 @@ export default function StatsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.rankProgression')}</Text>
             <StreakGraph 
-              gameHistory={gameHistory} 
+              gameHistory={gameHistory.filter(g => g.game_completed !== false)} 
               userId={userId} 
               rankPointsHistory={
                 activeTab === 'ranked'
@@ -1196,6 +1197,11 @@ const styles = StyleSheet.create({
     borderRightColor: '#FF9500',
     opacity: 0.85,
   },
+  historyItemAbandoned: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.error,
+    opacity: 0.85,
+  },
   historyItemVoided: {
     borderLeftWidth: 4,
     borderLeftColor: '#888888',
@@ -1228,7 +1234,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   voidBadge: {
-    backgroundColor: '#666666',
+    backgroundColor: '#555555',
+    color: COLORS.white,
+  },
+  abandonedBadge: {
+    backgroundColor: COLORS.error,
     color: COLORS.white,
   },
   historyCode: {
