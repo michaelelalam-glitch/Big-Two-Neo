@@ -267,10 +267,12 @@ export default function StatsScreen() {
       setProfile(profileData);
 
       // Fetch game history (last 100 games for graph)
+      // Also match by voided_user_id as a safety net for Phase-C-closed rooms
+      // where player_X_id may still be null (e.g., all humans hard-deleted).
       const { data: historyData, error: historyError } = await supabase
         .from('game_history')
         .select('*')
-        .or(`player_1_id.eq.${userId},player_2_id.eq.${userId},player_3_id.eq.${userId},player_4_id.eq.${userId}`)
+        .or(`player_1_id.eq.${userId},player_2_id.eq.${userId},player_3_id.eq.${userId},player_4_id.eq.${userId},voided_user_id.eq.${userId}`)
         .order('finished_at', { ascending: false })
         .limit(100);
 
