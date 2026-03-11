@@ -116,8 +116,8 @@ BEGIN
     JOIN   public.rooms r ON r.id = rp.room_id
     WHERE  rp.is_bot             = FALSE
       AND  rp.connection_status  = 'disconnected'
-      AND  rp.disconnect_timer_started_at IS NOT NULL
-      AND  rp.disconnect_timer_started_at <= NOW() - BOT_REPLACE_AFTER
+      AND  COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) IS NOT NULL
+      AND  COALESCE(rp.disconnect_timer_started_at, rp.disconnected_at) <= NOW() - BOT_REPLACE_AFTER
       AND  r.status              = 'playing'
       AND  COALESCE((r.settings->>'is_offline')::BOOLEAN, FALSE) = FALSE
   LOOP
