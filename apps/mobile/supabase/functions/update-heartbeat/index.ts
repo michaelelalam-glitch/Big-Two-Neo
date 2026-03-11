@@ -63,6 +63,10 @@ Deno.serve(async (req) => {
       );
     }
     const { room_id, player_id, heartbeat_count, force_sweep, sweep_only } = body;
+    // Normalize once to a strict boolean to avoid truthy/strict-equality inconsistency.
+    // e.g. a caller sending sweep_only='true' (string) would pass `if (!sweep_only)` but
+    // fail `sweep_only === true`, leaving the row stale without triggering a sweep.
+    const sweepOnly = sweep_only === true;
 
     if (!room_id || !player_id) {
       return new Response(
@@ -110,12 +114,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // sweep_only=true: caller is a disconnected player triggering a forced sweep.
+    // sweepOnly=true: caller is a disconnected player triggering a forced sweep.
     // Skip the heartbeat UPDATE so the row stays 'disconnected' and
     // process_disconnected_players() can find and replace this player.
     // A normal heartbeat would flip connection_status back to 'connected',
     // causing Phase B to miss the player entirely.
-    if (!sweep_only) {
+    if (!sweepOnly) {
       // Update heartbeat timestamp.
       // NOTE: We deliberately do NOT clear disconnect_timer_started_at here.
       // That persistent timer is only cleared by explicit reconnect (rejoin button)
@@ -238,9 +242,9 @@ Deno.serve(async (req) => {
       ? parseInt(room_id.replace(/-/g, '').substring(0, 8), 16) % 6
       : 0;
     let shouldSweep = sweepSlot % 6 === roomSweepOffset;
-    // sweep_only also implies an immediate forced sweep; apply the same
+    // sweepOnly also implies an immediate forced sweep; apply the same
     // server-side validation (expired disconnect timer) to prevent DoS.
-    if ((force_sweep === true || sweep_only === true) && !shouldSweep) {
+    if ((force_sweep === true || sweepOnly) && !shouldSweep) {
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')
         .select('id')

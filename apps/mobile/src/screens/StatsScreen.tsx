@@ -490,8 +490,10 @@ export default function StatsScreen() {
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
-    // Voided: this player was the last human to leave before the game finished
-    const isVoided = isIncomplete && !!item.voided_user_id && item.voided_user_id === userId;
+    // Voided: voided_user_id being set means the game was officially voided
+    // (someone was the last human to leave). All participants in the game
+    // should see it as void — not just the player who triggered it.
+    const isVoided = isIncomplete && !!item.voided_user_id;
 
     return (
       <View style={[
