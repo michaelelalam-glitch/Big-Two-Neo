@@ -260,6 +260,9 @@ export interface UseRealtimeReturn {
    *  Updated on every room_players Realtime UPDATE (even heartbeat-only ones).
    *  Used for client-side disconnect staleness detection. */
   playerLastSeenAtRef: { current: Record<string, string> };
+  /** Force-refetch game state from the DB. Use to re-sync after a stale-state
+   *  error (e.g. "Not your turn" caused by Realtime propagation lag). */
+  refreshGameState: () => Promise<void>;
 }
 
 // Realtime channel events
