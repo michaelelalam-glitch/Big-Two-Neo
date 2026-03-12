@@ -16,9 +16,9 @@ const corsHeaders = {
  * After the sweep, if any players were replaced with bots, triggers bot-coordinator
  * for the affected rooms so the newly-placed bot can start playing immediately.
  *
- * IMPORTANT: Does NOT clear disconnect_timer_started_at — that is a persistent
- * server-side timer that only resets via explicit reconnect_player() RPC or
- * active game actions (play-cards / player-pass).
+ * NOTE: Heartbeat clears disconnect_timer_started_at so the ring disappears as soon
+ * as a player resumes sending heartbeats. One source of truth: a live heartbeat means
+ * the player is back, no dual-condition check needed.
  *
  * NOTE: player_id is room_players.id and is validated server-side against auth.uid().
  */
@@ -129,10 +129,12 @@ Deno.serve(async (req) => {
       const { error: updateError, count: updateCount } = await supabaseClient
         .from('room_players')
         .update({
-          last_seen_at:      new Date().toISOString(),
-          connection_status: 'connected',
-          disconnected_at:   null,
-          // disconnect_timer_started_at is intentionally NOT touched here
+          last_seen_at:                 new Date().toISOString(),
+          connection_status:            'connected',
+          disconnected_at:              null,
+          // Clear the disconnect timer so the charcoal ring disappears the moment
+          // a player resumes heartbeats. A live heartbeat = player is back.
+          disconnect_timer_started_at:  null,
         }, { count: 'exact' })
         .eq('id', player_id)
         .eq('room_id', room_id)
