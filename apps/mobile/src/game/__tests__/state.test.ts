@@ -486,3 +486,125 @@ describe('Game State Manager - Bot Turn Execution', () => {
     expect(newState.roundHistory.length).toBe(initialHistoryLength);
   });
 });
+
+describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
+  let manager: GameStateManager;
+
+  beforeEach(() => {
+    manager = createGameStateManager();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    manager.destroy();
+  });
+
+  /** Build a minimal GameState-like object with N history entries spread across matchNumbers 1..N  */
+  function makeStateWithHistory(matchCount: number) {
+    const entries = Array.from({ length: matchCount }, (_, i) => ({
+      playerId: 'p1',
+      playerName: 'Player 1',
+      cards: [],
+      combo_type: 'Single' as const,
+      passed: false,
+      timestamp: Date.now(),
+      matchNumber: i + 1,
+    }));
+
+    return {
+      players: [],
+      currentPlayerIndex: 0,
+      lastPlay: null,
+      lastPlayPlayerIndex: 0,
+      consecutivePasses: 0,
+      isFirstPlayOfGame: true,
+      gameStarted: true,
+      gameEnded: false,
+      winnerId: null,
+      roundHistory: [],
+      gameRoundHistory: entries,
+      currentMatch: matchCount,
+      matchScores: [],
+      lastMatchWinnerId: null,
+      gameOver: false,
+      finalWinnerId: null,
+      startedAt: Date.now(),
+      auto_pass_timer: null,
+      played_cards: [],
+    };
+  }
+
+  test('loadState() prunes oversized legacy history (>20 matches)', async () => {
+    const legacyState = makeStateWithHistory(25); // 25 entries, matches 1-25
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(legacyState));
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+    const loaded = await manager.loadState();
+
+    // cutoff = 25 - 20 = 5; entries with matchNumber >= 5 are retained (matches 5-25 = 21 entries)
+    const cutoff = 25 - 20;
+    expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= cutoff)).toBe(true);
+    // The pruned array must be strictly smaller than the original 25
+    expect(loaded!.gameRoundHistory.length).toBeLessThan(25);
+    // Migration save must be triggered
+    expect(AsyncStorage.setItem).toHaveBeenCalled();
+  });
+
+  test('loadState() leaves history untouched when ≤20 matches', async () => {
+    const smallState = makeStateWithHistory(15);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(smallState));
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+    const loaded = await manager.loadState();
+
+    expect(loaded!.gameRoundHistory).toHaveLength(15);
+    // No needsMigration triggered by pruning — setItem should not have been called
+    // (no other migration fields are missing in this state)
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  test('startNewMatch() prunes entries older than currentMatch-20', async () => {
+    const config: GameConfig = { playerName: 'Player 1', botCount: 3, botDifficulty: 'medium' };
+    await manager.initializeGame(config);
+
+    // Manually inject history entries spanning matches 1-21 to simulate a long session
+    const state = manager.getState()!;
+    state.currentMatch = 21;
+    state.gameRoundHistory = Array.from({ length: 21 }, (_, i) => ({
+      playerId: 'p1',
+      playerName: 'Player 1',
+      cards: [],
+      combo_type: 'Single' as const,
+      passed: false,
+      timestamp: Date.now(),
+      matchNumber: i + 1,
+    }));
+    state.gameEnded = true;
+    state.winnerId = state.players[0].id;
+
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+    await manager.startNewMatch();
+
+    // After startNewMatch currentMatch becomes 22; cutoff = 22-20 = 2;
+    // entries with matchNumber < 2 (matchNumber === 1) should be removed
+    const newState = manager.getState()!;
+    expect(newState.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= 2)).toBe(true);
+    expect(newState.gameRoundHistory.length).toBe(20);
+  });
+
+  test('history entries pushed during play are tagged with currentMatch', async () => {
+    const config: GameConfig = { playerName: 'Player 1', botCount: 3, botDifficulty: 'medium' };
+    await manager.initializeGame(config);
+
+    const state = manager.getState()!;
+    const currentPlayer = state.players[state.currentPlayerIndex];
+    const card3D = currentPlayer.hand.find(c => c.id === '3D')!;
+
+    await manager.playCards([card3D.id]);
+
+    const newState = manager.getState()!;
+    const lastEntry = newState.gameRoundHistory[newState.gameRoundHistory.length - 1];
+    expect(lastEntry.matchNumber).toBe(newState.currentMatch);
+  });
+});

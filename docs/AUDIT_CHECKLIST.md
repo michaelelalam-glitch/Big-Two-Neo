@@ -7,20 +7,20 @@ Track progress on all audit findings. Check off items as they are resolved.
 ## 🔴 Critical — Fix First
 
 - [x] **C1** — Fix unbounded array growth in `GameStateManager`
-  - **File:** `src/game/state.ts`
+  - **File:** `apps/mobile/src/game/state.ts`
   - **Task:** #629
-  - **Fix:** Added `matchNumber` field to `RoundHistoryEntry`; tagged every push to `gameRoundHistory` with the current match number; added prune logic in `startNewMatch()` to filter entries older than `currentMatch - 20` once the session exceeds 20 matches. `played_cards` was already correctly cleared per match (no change required).
+  - **Fix:** Added `matchNumber` field to `RoundHistoryEntry`; tagged every push to `gameRoundHistory` with the current match number; added prune logic in `startNewMatch()` to filter entries older than `currentMatch - 20` once the session exceeds 20 matches. Also prunes on `loadState()` so users upgrading from older builds don't hit OOM before their first new match. `played_cards` was already correctly cleared per match (no change required).
   - **Branch:** `task/629-fix-unbounded-array-growth`
   - **Why:** `gameRoundHistory` grew indefinitely across matches → OOM on 2GB RAM devices; pruning caps in-memory + AsyncStorage serialised state to ≤ 20 matches of entries (~1 600 entries max).
 
 - [ ] **C2** — Fix `setInterval` timer leak on component unmount
-  - **File:** `src/game/state.ts`
+  - **File:** `apps/mobile/src/game/state.ts`
   - **Task:** #630
   - **Fix:** Ensure `GameStateManager.destroy()` is always called in the `useEffect` cleanup of every owner component
   - **Why:** 100ms interval runs forever if `destroy()` is skipped, draining battery and executing stale callbacks
 
 - [ ] **C3** — Fix broken push notification edge function
-  - **File:** `supabase/functions/send-push-notification/index.ts` (~line 67)
+  - **File:** `apps/mobile/supabase/functions/send-push-notification/index.ts` (~line 67)
   - **Task:** #632
   - **Fix:** Rename the duplicate `const now` declaration to eliminate `SyntaxError: Identifier 'now' has already been declared`
   - **Why:** Function crashes at runtime — no push notifications sent for game invites or turn reminders
@@ -29,21 +29,22 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Task:** #631
   - **Fix:**
     ```bash
-    git rm src/**/*.bak
+    git ls-files '*.bak'
+    git rm **/*.bak
     echo "*.bak" >> .gitignore
     git commit -m "chore: remove .bak files from version control"
     ```
-  - **Files to remove:**
-    - `src/screens/GameScreen.tsx.bak`
-    - `src/components/game/CardHand.tsx.bak`
-    - `src/components/game/GameControls.tsx.bak`
-    - `src/components/gameEnd/GameEndModal.tsx.bak`
-    - `src/hooks/useMatchmaking.ts.bak`
-    - `src/hooks/useRealtime.ts.bak`
-    - `src/hooks/useGameStateManager.ts.bak`
-    - `src/hooks/useConnectionManager.ts.bak`
-    - `src/hooks/usePlayHistoryTracking.ts.bak`
-    - `src/hooks/__tests__/useRealtime-timer-cancellation.test.ts.bak`
+  - **Files to remove:** Run `git ls-files '*.bak'` to list all tracked `.bak` files. Expected paths (under `apps/mobile/`):
+    - `apps/mobile/src/screens/GameScreen.tsx.bak`
+    - `apps/mobile/src/components/game/CardHand.tsx.bak`
+    - `apps/mobile/src/components/game/GameControls.tsx.bak`
+    - `apps/mobile/src/components/gameEnd/GameEndModal.tsx.bak`
+    - `apps/mobile/src/hooks/useMatchmaking.ts.bak`
+    - `apps/mobile/src/hooks/useRealtime.ts.bak`
+    - `apps/mobile/src/hooks/useGameStateManager.ts.bak`
+    - `apps/mobile/src/hooks/useConnectionManager.ts.bak`
+    - `apps/mobile/src/hooks/usePlayHistoryTracking.ts.bak`
+    - `apps/mobile/src/hooks/__tests__/useRealtime-timer-cancellation.test.ts.bak`
 
 ---
 

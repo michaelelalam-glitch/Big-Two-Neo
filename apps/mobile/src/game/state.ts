@@ -655,6 +655,28 @@ export class GameStateManager {
           });
         }
         
+        // C1 fix (upgrade path): prune a large gameRoundHistory that may have been
+        // persisted by an older build before the MAX_GAME_ROUND_HISTORY_MATCHES cap
+        // was introduced.  Without this guard, loading a large legacy state would
+        // still hit the same OOM before the user starts their next match.
+        const loadedState = this.state!;
+        if (loadedState.gameRoundHistory && loadedState.gameRoundHistory.length > 0) {
+          const currentMatch = loadedState.currentMatch ?? 0;
+          if (currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
+            const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
+            const before = loadedState.gameRoundHistory.length;
+            loadedState.gameRoundHistory = loadedState.gameRoundHistory.filter(
+              entry => (entry.matchNumber ?? 0) >= cutoff
+            );
+            if (loadedState.gameRoundHistory.length < before) {
+              gameLogger.info(
+                `✂️ [C1/loadState] Pruned legacy gameRoundHistory: ${before} → ${loadedState.gameRoundHistory.length} entries (cutoff match ${cutoff})`
+              );
+              needsMigration = true;
+            }
+          }
+        }
+
         // Only persist if migrations were actually applied
         if (needsMigration) {
           await this.saveState();
