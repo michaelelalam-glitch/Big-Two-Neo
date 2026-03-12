@@ -104,11 +104,17 @@ export default function MatchHistoryScreen() {
       if (error) throw error;
 
       const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: GameHistoryRow) => {
-        // Primary: game_history stores player slots in order of finish
-        // (player_1_* = 1st place, player_2_* = 2nd, ...). Use slot index
-        // directly so bot/null-id seats don't distort the ranking.
+        // For incomplete/abandoned games slot order reflects room seat order,
+        // not finish order, so position derivation from player_*_id index is
+        // unreliable. Render these entries as abandoned (sentinel 0 → 🚪).
+        //
+        // For completed games: game_history stores player slots in order of
+        // finish (player_1_* = 1st place, player_2_* = 2nd, ...). Use slot
+        // index directly so bot/null-id seats don't distort the ranking.
         let finalPosition: number;
-        if (item.player_1_id === user.id) {
+        if (item.game_completed !== true) {
+          finalPosition = 0; // abandoned/incomplete
+        } else if (item.player_1_id === user.id) {
           finalPosition = 1;
         } else if (item.player_2_id === user.id) {
           finalPosition = 2;
@@ -279,7 +285,7 @@ export default function MatchHistoryScreen() {
             </Text>
           </View>
 
-          {isRanked && (
+          {isRanked && item.elo_change !== null && (
             <View style={[
               styles.eloChangeContainer,
               eloPositive ? styles.eloPositive : styles.eloNegative
