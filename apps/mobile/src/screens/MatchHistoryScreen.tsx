@@ -49,7 +49,7 @@ interface GameHistoryRow {
  * Displays user's match history with:
  * - Last 20 matches per page (paginated)
  * - Room code, game type (casual/ranked/private)
- * - Final position derived from scores (1st = winner, 2–4 by ascending score)
+ * - Final position based on the player's position in the match lineup
  * - Match date/time
  */
 export default function MatchHistoryScreen() {
@@ -127,7 +127,14 @@ export default function MatchHistoryScreen() {
           ];
           allSlots.sort((a, b) => a.score - b.score);
           const rankIndex = allSlots.findIndex(s => s.id === user.id);
-          finalPosition = rankIndex >= 0 ? rankIndex + 1 : 4;
+          const isVoided = item.voided_user_id === user.id;
+          if (rankIndex >= 0) {
+            finalPosition = rankIndex + 1;
+          } else if (isVoided) {
+            finalPosition = 0; // sentinel: seat was taken over by a bot
+          } else {
+            finalPosition = 4;
+          }
         }
 
         const rawType = item.game_type ?? 'casual';
@@ -170,14 +177,20 @@ export default function MatchHistoryScreen() {
   };
 
   const getPositionOrdinal = (position: number): string => {
-    if (position === 1) return '1st';
-    if (position === 2) return '2nd';
-    if (position === 3) return '3rd';
-    return `${position}th`;
+    if (position === 0) return '—'; // voided/abandoned
+    const rem100 = position % 100;
+    if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
+    switch (position % 10) {
+      case 1: return `${position}st`;
+      case 2: return `${position}nd`;
+      case 3: return `${position}rd`;
+      default: return `${position}th`;
+    }
   };
 
   const getPositionEmoji = (position: number) => {
     switch (position) {
+      case 0: return '🚪'; // voided/abandoned
       case 1: return '🥇';
       case 2: return '🥈';
       case 3: return '🥉';
@@ -188,6 +201,7 @@ export default function MatchHistoryScreen() {
 
   const getPositionColor = (position: number) => {
     switch (position) {
+      case 0: return '#555555'; // voided/abandoned
       case 1: return '#FFD700'; // Gold
       case 2: return '#C0C0C0'; // Silver
       case 3: return '#CD7F32'; // Bronze
