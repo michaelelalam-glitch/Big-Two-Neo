@@ -42,7 +42,6 @@ import type { GameStateManager } from '../game/state';
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
-import { TurnAutoPlayModal } from '../components/game/TurnAutoPlayModal';
 import { GameView } from './GameView';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -67,11 +66,6 @@ export function MultiplayerGame() {
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
   const [botReplacedUsername, setBotReplacedUsername] = useState<string | null>(null);
-
-  // State for turn auto-play dialog
-  const [showTurnAutoPlayModal, setShowTurnAutoPlayModal] = useState(false);
-  const [autoPlayedCards, setAutoPlayedCards] = useState<Card[] | null>(null);
-  const [autoPlayAction, setAutoPlayAction] = useState<'play' | 'pass'>('pass');
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
@@ -509,22 +503,12 @@ export function MultiplayerGame() {
     getCorrectedNow: () => Date.now(), // Use clock-sync if available
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
-      gameLogger.info('[MultiplayerGame] Turn auto-played:', action, cards);
-      setAutoPlayedCards(cards);
-      setAutoPlayAction(action);
-      setShowTurnAutoPlayModal(true);
+      // Auto-play always triggers bot replacement (65s spec).
+      // The server will broadcast replaced_by_bot via Realtime; RejoinModal handles
+      // the reclaim flow. No "I'm Still Here?" modal needed.
+      gameLogger.info('[MultiplayerGame] Turn auto-played:', action, cards?.length ?? 0, 'cards — bot replacement in progress');
     },
   });
-
-  // Auto-dismiss TurnAutoPlayModal when the turn moves away from the local player.
-  // This covers the case where the server processes the auto-play and advances the
-  // turn before the player manually dismisses the modal.
-  useEffect(() => {
-    if (!isTurnInactivityMyTurn && showTurnAutoPlayModal) {
-      setShowTurnAutoPlayModal(false);
-      setAutoPlayedCards(null);
-    }
-  }, [isTurnInactivityMyTurn, showTurnAutoPlayModal]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Computed values
@@ -576,7 +560,7 @@ export function MultiplayerGame() {
   useEffect(() => { multiplayerGameStateRef.current = multiplayerGameState; }, [multiplayerGameState]);
 
   useEffect(() => {
-    const STALE_THRESHOLD_MS = 12_000; // 12s: fast detection, presence leave backdates to 60s
+    const STALE_THRESHOLD_MS = 30_000; // 30s: matches server Phase A threshold — one source of truth
     const interval = setInterval(() => {
       if (!realtimePlayers || realtimePlayers.length === 0) return;
 
@@ -703,19 +687,13 @@ export function MultiplayerGame() {
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
         } else {
-          // Player is live — only clear client detection when the server also has no
-          // active timer (disconnect_timer_started_at = null). If the server timer is
-          // still running (heartbeat race set connection_status back to 'connected'
-          // without clearing the persistent timer), keep our client-side start time.
+          // Player is live — heartbeat is fresh, clear any client-side detection.
+          // The heartbeat UPDATE on the server now always clears disconnect_timer_started_at,
+          // so there is no 'heartbeat-race' case where connection_status='connected' but
+          // the timer is still set. A live heartbeat means fully reconnected.
           if (clientDisconnectStartRef.current[rp.player_index]) {
-            if (!rp.disconnect_timer_started_at) {
-              gameLogger.info(`[MultiplayerGame] Client-side: player_index=${rp.player_index} reconnected (server timer cleared)`);
-              delete clientDisconnectStartRef.current[rp.player_index];
-            } else {
-              // Server timer still active despite 'connected' status (heartbeat race).
-              // Keep the client-detected start time so the ring animation is unaffected.
-              newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
-            }
+            gameLogger.info(`[MultiplayerGame] Client-side: player_index=${rp.player_index} reconnected`);
+            delete clientDisconnectStartRef.current[rp.player_index];
           }
         }
       }
@@ -729,7 +707,7 @@ export function MultiplayerGame() {
         }
         return newMap;
       });
-    }, 1_000); // Poll every 1s for fast disconnect detection (presence leave backdates timestamps)
+    }, 1_000); // Poll every 1s — presence-leave backdate still triggers within one cycle
 
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -875,39 +853,14 @@ export function MultiplayerGame() {
       />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
-          player with a bot. Offers "Reclaim My Seat" or "Leave Room". */}
+          or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".
+          Triggered by Realtime connection_status='replaced_by_bot' for both
+          disconnected players and connected-but-AFK players (65s spec). */}
       <RejoinModal
         visible={showBotReplacedModal}
         botUsername={botReplacedUsername}
         onReclaim={handleReclaimSeat}
         onLeaveRoom={handleLeaveRoomFromModal}
-      />
-
-      {/* Turn Auto-Play Modal — shown when 60s turn countdown expires and
-          auto-play-turn edge function plays/passes automatically. */}
-      <TurnAutoPlayModal
-        visible={showTurnAutoPlayModal}
-        action={autoPlayAction}
-        cards={autoPlayedCards}
-        onConfirm={() => {
-          gameLogger.info('[MultiplayerGame] Player confirmed: still here');
-          setShowTurnAutoPlayModal(false);
-          setAutoPlayedCards(null);
-        }}
-        onTimeout={async () => {
-          gameLogger.warn('[MultiplayerGame] Turn auto-play modal timed out — marking player disconnected');
-          setShowTurnAutoPlayModal(false);
-          setAutoPlayedCards(null);
-          // Mark player as disconnected → triggers bot replacement flow
-          if (roomInfo?.id) {
-            const { error } = await supabase.functions.invoke('mark-disconnected', {
-              body: { room_id: roomInfo.id },
-            });
-            if (error) {
-              gameLogger.error('[MultiplayerGame] Failed to mark player disconnected:', error);
-            }
-          }
-        }}
       />
     </>
   );

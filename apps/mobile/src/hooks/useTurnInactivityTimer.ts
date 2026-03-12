@@ -145,11 +145,10 @@ export function useTurnInactivityTimer({
 
       networkLogger.info(`⏰ [TurnTimer] ✅ Auto-play successful: ${result.action}`, result.cards ? `(${result.cards.length} cards)` : '', result.replaced_by_bot ? '(replaced by bot)' : '');
 
-      // If the server replaced the player with a bot, the Realtime subscription
-      // on room_players will fire and useConnectionManager will surface the
-      // RejoinModal automatically. Skip the TurnAutoPlayModal to avoid stacking
-      // two modals on top of each other.
-      if (!result.replaced_by_bot && onAutoPlayRef.current) {
+      // The server always replaces the inactive player with a bot (65s spec).
+      // The Realtime subscription will surface the RejoinModal automatically.
+      // Call onAutoPlay for logging/observability.
+      if (onAutoPlayRef.current) {
         onAutoPlayRef.current(result.cards || null, result.action);
       }
 

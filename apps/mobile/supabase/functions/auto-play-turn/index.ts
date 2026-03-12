@@ -281,21 +281,30 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ── Conditionally replace with bot ──
-      // Only replace the player with a bot when they are actually disconnected.
-      // A connected user who simply timed out gets their turn auto-played but
-      // keeps their seat; bot replacement here would skip the "I'm Still Here"
-      // confirmation flow and prematurely lock out an active user.
-      const isDisconnectedPass = currentPlayer.connection_status === 'disconnected';
-      if (isDisconnectedPass) {
-        await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
-      }
+      // Always replace the inactive player with a bot (65s spec):
+      // 60s inactivity → auto-play fires → immediate bot replacement.
+      // Connected-but-AFK players reclaim their seat via the RejoinModal.
+      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+
+      // Kick bot-coordinator so the newly-placed bot starts playing immediately
+      // without waiting for the next heartbeat watchdog cycle (~15s).
+      void fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          'x-bot-coordinator': 'true',
+        },
+        body: JSON.stringify({ room_code: room.code }),
+      }).catch((botErr: unknown) => {
+        console.warn('[auto-play-turn] bot-coordinator trigger failed (non-critical):', botErr);
+      });
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'pass',
-          replaced_by_bot: isDisconnectedPass,
+          replaced_by_bot: true,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -333,21 +342,31 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ── Conditionally replace with bot ──
-      // Only replace the player with a bot when they are actually disconnected.
-      // A connected user who simply timed out gets their turn auto-played but
-      // keeps their seat.
-      const isDisconnectedPlay = currentPlayer.connection_status === 'disconnected';
-      if (isDisconnectedPlay) {
-        await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
-      }
+      // Always replace the inactive player with a bot (65s spec):
+      // 60s inactivity → auto-play fires → immediate bot replacement.
+      // Connected-but-AFK players reclaim their seat via the RejoinModal.
+      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+
+      // Kick bot-coordinator so the newly-placed bot starts playing immediately
+      // without waiting for the next heartbeat watchdog cycle (~15s).
+      void fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          'x-bot-coordinator': 'true',
+        },
+        body: JSON.stringify({ room_code: room.code }),
+      }).catch((botErr: unknown) => {
+        console.warn('[auto-play-turn] bot-coordinator trigger failed (non-critical):', botErr);
+      });
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: 'play',
           cards: cardsToPlay,
-          replaced_by_bot: isDisconnectedPlay,
+          replaced_by_bot: true,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

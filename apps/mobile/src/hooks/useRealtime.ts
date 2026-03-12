@@ -196,7 +196,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .on('presence', { event: 'leave' }, ({ key: leftUserId, leftPresences: _leftPresences }) => {
         // When a player's presence leaves (WebSocket drops), immediately mark their
         // last_seen_at as stale so the client-side staleness detector in MultiplayerGame
-        // picks it up on the very next polling cycle (~1s) instead of waiting 35s.
+        // picks it up on the very next polling cycle (~1s) instead of waiting 30s.
         if (leftUserId && leftUserId !== userId) {
           networkLogger.warn(`[useRealtime] 🔌 Presence LEAVE detected for user ${leftUserId.substring(0, 8)} — marking stale for instant disconnect`);
           // Find the room_players row for this user via the ref-based mapping
@@ -207,6 +207,33 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               playerLastSeenAtRef.current[playerId] = staleTimestamp;
               networkLogger.info(`[useRealtime] ⚡ Backdated last_seen_at for playerId=${playerId.substring(0, 8)} (instant disconnect detection)`);
             }
+          }
+
+          // 10.6 robustness: also schedule a server-side force-sweep so that even
+          // if Realtime is unreliable (missed presence leaves), the server will
+          // start the 60-second disconnect timer at the right moment.
+          // We find the LOCAL player's room_players.id (not the leaving player's)
+          // because update-heartbeat validates against auth.uid() of the caller.
+          // The sweep_only flag skips updating our own heartbeat row; force_sweep
+          // runs process_disconnected_players() immediately when validated.
+          // This call will be rejected server-side if the player is not yet stale
+          // (< 30s silence), but that's fine — the staleness detector + ring
+          // expiry (forceSweep) handles the confirmed path. This is belt-and-suspenders.
+          let localPlayerId: string | null = null;
+          for (const [pid, uid] of Object.entries(playerIdToUserIdRef.current)) {
+            if (uid === userId) { localPlayerId = pid; break; }
+          }
+          if (localPlayerId) {
+            void supabase.functions.invoke('update-heartbeat', {
+              body: {
+                room_id:     roomId,
+                player_id:   localPlayerId,
+                sweep_only:  true,
+                force_sweep: true,
+              },
+            }).catch((err: unknown) => {
+              networkLogger.warn('[useRealtime] Presence-leave force-sweep failed (non-critical):', err);
+            });
           }
         }
       });
