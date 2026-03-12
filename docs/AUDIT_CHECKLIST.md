@@ -11,7 +11,7 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Task:** #629
   - **Fix:** Added `matchNumber` field to `RoundHistoryEntry`; tagged every push to `gameRoundHistory` with the current match number; added prune logic in `startNewMatch()` to filter entries older than `currentMatch - 20` once the session exceeds 20 matches. Also prunes on `loadState()` so users upgrading from older builds don't hit OOM before their first new match. `played_cards` was already correctly cleared per match (no change required).
   - **Branch:** `task/629-fix-unbounded-array-growth`
-  - **Why:** `gameRoundHistory` grew indefinitely across matches → OOM on 2GB RAM devices; pruning caps in-memory + AsyncStorage serialised state to ≤ 20 matches of entries (~1 600 entries max).
+  - **Why:** `gameRoundHistory` grew indefinitely across matches → OOM on 2GB RAM devices; pruning caps in-memory + AsyncStorage serialised state to the last 20 matches of entries.
 
 - [ ] **C2** — Fix `setInterval` timer leak on component unmount
   - **File:** `apps/mobile/src/game/state.ts`

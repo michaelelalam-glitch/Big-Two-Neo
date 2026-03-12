@@ -48,8 +48,8 @@ interface GameHistoryRow {
  *
  * Displays user's match history with:
  * - Last 20 matches per page (paginated)
- * - Room code, game type (casual/ranked/private)
- * - Final position based on the player's position in the match lineup
+ * - Room code, game type (casual/ranked/private/local)
+ * - Final position based on finish ranking derived from player scores (1–4, or 0 for incomplete/voided games)
  * - Match date/time
  */
 export default function MatchHistoryScreen() {
