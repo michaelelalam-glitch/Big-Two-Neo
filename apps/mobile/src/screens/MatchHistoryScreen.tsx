@@ -105,26 +105,17 @@ export default function MatchHistoryScreen() {
 
       const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: GameHistoryRow) => {
         // For incomplete/abandoned games slot order reflects room seat order,
-        // not finish order, so position derivation from player_*_id index is
-        // unreliable. Render these entries as abandoned (sentinel 0 → 🚪).
+        // not finish order — render as abandoned (sentinel 0 → 🚪).
         //
-        // For completed games: game_history stores player slots in order of
-        // finish (player_1_* = 1st place, player_2_* = 2nd, ...). Use slot
-        // index directly so bot/null-id seats don't distort the ranking.
+        // For completed games: complete-game edge function writes player_*_id
+        // slots in seat/payload order (NOT finish order). Derive position by
+        // sorting all 4 slots by score ascending (lowest score = 1st place in
+        // Big Two). Include bot/null-id seats in the sort so the ranking is
+        // not artificially compressed to only human players.
         let finalPosition: number;
         if (item.game_completed !== true) {
           finalPosition = 0; // abandoned/incomplete
-        } else if (item.player_1_id === user.id) {
-          finalPosition = 1;
-        } else if (item.player_2_id === user.id) {
-          finalPosition = 2;
-        } else if (item.player_3_id === user.id) {
-          finalPosition = 3;
-        } else if (item.player_4_id === user.id) {
-          finalPosition = 4;
         } else {
-          // Fallback (voided-only rows): rank ALL seats by score including
-          // bot/null-id seats so the ordering is not artificially compressed.
           const allSlots = [
             { id: item.player_1_id, score: item.player_1_score ?? 999 },
             { id: item.player_2_id, score: item.player_2_score ?? 999 },
@@ -139,7 +130,7 @@ export default function MatchHistoryScreen() {
           } else if (isVoided) {
             finalPosition = 0; // sentinel: seat was taken over by a bot
           } else {
-            finalPosition = 4;
+            finalPosition = 4; // fallback: user not found in any slot
           }
         }
 
@@ -156,6 +147,9 @@ export default function MatchHistoryScreen() {
           match_type: matchType,
           final_position: finalPosition,
           elo_change: null, // game_history has no per-player ELO delta column
+          // Note: `created_at` in MatchHistoryEntry is populated from
+          // game_history.finished_at (match completion time), not row
+          // creation time. The field is used only for display formatting.
           created_at: item.finished_at ?? '',
         };
       });
