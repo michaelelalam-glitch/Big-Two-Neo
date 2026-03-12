@@ -30,6 +30,10 @@ export default function HomeScreen() {
   const hasScheduledRecheckRef = useRef(false);
   /** Holds the handle of the pending 1s re-check so it can be cleared on unmount. */
   const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Single source of truth for the AsyncStorage key so typos can't cause
+  // banner-suppression misses across the load, write, and checkCurrentRoom paths.
+  const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
+
   /** Room IDs the user has voluntarily left — suppresses banner re-appearance on next focus/app restart.
    * Keyed by room_id (stable UUID) rather than room code (reusable) to prevent cross-room collisions. */
   const voluntarilyLeftRoomsRef = useRef<Set<string>>(new Set());
@@ -66,7 +70,7 @@ export default function HomeScreen() {
 
   // Load voluntarily-left rooms from AsyncStorage so banner suppression survives app restarts.
   useEffect(() => {
-    AsyncStorage.getItem('@big2_voluntarily_left_rooms').then((raw) => {
+    AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY).then((raw) => {
       if (raw) {
         try {
           const arr: string[] = JSON.parse(raw);
@@ -104,7 +108,7 @@ export default function HomeScreen() {
     // here closes the race window so the banner is never shown for a left room.
     if (!storageLoadedRef.current) {
       try {
-        const raw = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+        const raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
         if (raw) {
           const arr: string[] = JSON.parse(raw);
           voluntarilyLeftRoomsRef.current = new Set(arr);
@@ -567,7 +571,7 @@ export default function HomeScreen() {
             const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
             // Keep in-memory Set capped at 20 entries to match persisted state.
             voluntarilyLeftRoomsRef.current = new Set(_leftArr);
-            AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
+            AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, JSON.stringify(_leftArr)).catch(() => {});
           } else {
             // No stable room_id available; avoid persisting a potentially-colliding room code.
             currentRoomIdRef.current = null;
@@ -652,7 +656,7 @@ export default function HomeScreen() {
               const _leftArr = Array.from(voluntarilyLeftRoomsRef.current).slice(-20);
               // Keep in-memory Set capped at 20 entries to match persisted state.
               voluntarilyLeftRoomsRef.current = new Set(_leftArr);
-              AsyncStorage.setItem('@big2_voluntarily_left_rooms', JSON.stringify(_leftArr)).catch(() => {});
+              AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, JSON.stringify(_leftArr)).catch(() => {});
             } else {
               roomLogger.warn('Permanent leave without currentRoomIdRef set; not persisting voluntarily-left room', {
                 gameInfoRoomCode: gameInfo.roomCode,

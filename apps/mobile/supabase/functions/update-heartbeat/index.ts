@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Timing constants — keep these in sync with the SQL BOT_REPLACE_AFTER /
+// HEARTBEAT_SLACK values in process_disconnected_players() so drift is obvious.
+/** Grace window for force_sweep validation: 5 s less than BOT_REPLACE_AFTER (60 s)
+ *  so a client-side ring that fires at exactly T+60s still passes the server check
+ *  when the server clock is a few seconds behind the client clock. */
+const FORCE_SWEEP_GRACE_MS = 55_000;
+/** Matches Phase A's HEARTBEAT_SLACK (30 s). A player silent for this long is
+ *  considered disconnected and eligible for the stale-connected force_sweep path. */
+const HEARTBEAT_SLACK_MS = 30_000;
+
 /**
  * update-heartbeat edge function
  *
@@ -262,7 +272,7 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        .lte('disconnect_timer_started_at', new Date(Date.now() - 55_000).toISOString())
+        .lte('disconnect_timer_started_at', new Date(Date.now() - FORCE_SWEEP_GRACE_MS).toISOString())
         .limit(1)
         .maybeSingle();
 
@@ -273,7 +283,7 @@ Deno.serve(async (req) => {
       } else if (expiredTimer) {
         shouldSweep = true;
       } else {
-        // Secondary check: connected player with a stale heartbeat (>= HEARTBEAT_SLACK = 30s).
+        // Secondary check: connected player with a stale heartbeat (>= HEARTBEAT_SLACK_MS = 30s).
         // This covers the gap where a player disconnects during their active turn: Phase A
         // only runs on the periodic sweep schedule (~30s), so at exactly T+60s (when the turn
         // ring fires) the player may still show as 'connected' with disconnect_timer_started_at
@@ -289,7 +299,7 @@ Deno.serve(async (req) => {
           .eq('room_id', room_id)
           .eq('is_bot', false)
           .eq('connection_status', 'connected')
-          .lte('last_seen_at', new Date(Date.now() - 30_000).toISOString())
+          .lte('last_seen_at', new Date(Date.now() - HEARTBEAT_SLACK_MS).toISOString())
           .limit(1)
           .maybeSingle();
 

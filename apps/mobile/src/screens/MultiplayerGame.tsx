@@ -559,6 +559,20 @@ export function MultiplayerGame() {
   const multiplayerGameStateRef = useRef(multiplayerGameState);
   useEffect(() => { multiplayerGameStateRef.current = multiplayerGameState; }, [multiplayerGameState]);
 
+  // TURN RING CONTINUITY (#628): persist the last-known turn_started_at so the
+  // yellow ring anchor is never lost during brief null-gameState windows
+  // (e.g. when player_reconnected broadcast triggers a fetchGameState re-fetch
+  // and, on error, setGameState(null) fires before the retry succeeds).
+  // Without this, turnTimerStartedAt → null → ring unmounts → remounts with a
+  // potentially clock-skewed startedAt that startTimeMs normalises to 'now',
+  // making the ring appear to restart from 60 s.
+  const lastTurnStartedAtRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (multiplayerGameState?.turn_started_at) {
+      lastTurnStartedAtRef.current = multiplayerGameState.turn_started_at;
+    }
+  }, [multiplayerGameState?.turn_started_at]);
+
   useEffect(() => {
     const STALE_THRESHOLD_MS = 30_000; // 30s: matches server Phase A threshold — one source of truth
     const interval = setInterval(() => {
@@ -750,8 +764,10 @@ export function MultiplayerGame() {
 
   // Enrich layoutPlayersWithScores with countdown data for both turn and connection timers
   const enrichedLayoutPlayers = useMemo(() => {
-    // Get turn timer started_at from game_state (shared state for ALL players)
-    const turnStartedAt = multiplayerGameState?.turn_started_at || null;
+    // Get turn timer started_at from game_state (shared state for ALL players).
+    // Fall back to lastTurnStartedAtRef when gameState is briefly null (reconnect
+    // fetch error) so the ring anchor persists and never triggers a restart.
+    const turnStartedAt = multiplayerGameState?.turn_started_at ?? lastTurnStartedAtRef.current ?? null;
 
     // CRITICAL FIX: Pass turnTimerStartedAt to ALL players based on isActive (current turn)
     // Previously only passed to idx === 0 (local player), but the ring needs to be
