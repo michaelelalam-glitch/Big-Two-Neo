@@ -1370,16 +1370,24 @@ export class GameStateManager {
           this.state.gameRoundHistory = this.state.gameRoundHistory.slice(
             totalEntries - MAX_LEGACY_ROUND_HISTORY_ENTRIES
           );
+          gameLogger.info(
+            `✂️ [C1] Pruned gameRoundHistory using length-based cap due to legacy entries without matchNumber (from ${totalEntries} to ${this.state.gameRoundHistory.length} entries retained)`
+          );
+        } else {
+          gameLogger.debug(
+            `ℹ️ [C1] gameRoundHistory within legacy length-based cap; no pruning needed (${totalEntries} entries)`
+          );
         }
-        gameLogger.info(
-          `✂️ [C1] Pruned gameRoundHistory using length-based cap due to legacy entries without matchNumber (${this.state.gameRoundHistory.length} entries retained)`
-        );
       } else {
         // Normal path: all entries have matchNumber, prune by match index.
+        const beforeLength = this.state.gameRoundHistory.length;
         this.state.gameRoundHistory = this.state.gameRoundHistory.filter(
           entry => entry.matchNumber! >= cutoff
         );
-        gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${this.state.gameRoundHistory.length} entries retained)`);
+        const afterLength = this.state.gameRoundHistory.length;
+        if (afterLength < beforeLength) {
+          gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${afterLength} entries retained)`);
+        }
       }
     }
 
