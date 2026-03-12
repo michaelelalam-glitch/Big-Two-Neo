@@ -312,25 +312,25 @@ describe('GameStateManager - Extended Coverage Tests', () => {
 
       const loaded = await manager.loadState();
 
-      // Cutoff = 25 - 20 = 5; entries with matchNumber < 5 should be pruned
+      // Cutoff = 25 - 20 + 1 = 6; entries with matchNumber < 6 should be pruned.
+      // Keeps exactly MAX_GAME_ROUND_HISTORY_MATCHES = 20 matches (matches 6-25).
       expect(loaded).not.toBeNull();
-      expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= 5)).toBe(true);
-      // Entries for matches 5–25 = 21 entries retained
-      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(21);
+      expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= 6)).toBe(true);
+      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
       // AsyncStorage.setItem should have been called (needsMigration=true)
       expect(AsyncStorage.setItem).toHaveBeenCalled();
     });
 
     test('loadState uses length-based cap for legacy entries without matchNumber', async () => {
-      // All 30 entries are legacy (no matchNumber field)
-      const entries = Array.from({ length: 30 }, () => ({}));
+      // 2000 entries is well above MAX_LEGACY_ROUND_HISTORY_ENTRIES (20 * 80 = 1600)
+      const entries = Array.from({ length: 2000 }, () => ({}));
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(makePersistedState(entries, 25));
 
       const loaded = await manager.loadState();
 
       expect(loaded).not.toBeNull();
-      // Should be capped to MAX_GAME_ROUND_HISTORY_MATCHES = 20
-      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
+      // Should be capped to MAX_LEGACY_ROUND_HISTORY_ENTRIES = 1600
+      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(1600);
     });
 
     test('loadState does not prune when entries are within the cap', async () => {
@@ -388,8 +388,8 @@ describe('GameStateManager - Extended Coverage Tests', () => {
       await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'easy' });
 
       const state = manager.getState()!;
-      // 30 legacy entries with no matchNumber
-      state.gameRoundHistory = Array.from({ length: 30 }, () => ({
+      // 2000 legacy entries with no matchNumber — well above MAX_LEGACY_ROUND_HISTORY_ENTRIES (1600)
+      state.gameRoundHistory = Array.from({ length: 2000 }, () => ({
         playerId: 'p1', playerName: 'Player 1', cards: [],
         combo_type: 'unknown', timestamp: Date.now(), passed: true,
       }));
@@ -401,7 +401,8 @@ describe('GameStateManager - Extended Coverage Tests', () => {
       await manager.startNewMatch();
 
       const afterState = manager.getState()!;
-      expect(afterState.gameRoundHistory.length).toBeLessThanOrEqual(20);
+      // Should be capped to MAX_LEGACY_ROUND_HISTORY_ENTRIES = 1600
+      expect(afterState.gameRoundHistory.length).toBeLessThanOrEqual(1600);
     });
   });
 });

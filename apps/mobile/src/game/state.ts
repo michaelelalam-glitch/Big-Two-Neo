@@ -17,6 +17,12 @@ const GAME_STATE_KEY = '@big2_game_state';
 
 /** Maximum number of completed matches to retain in gameRoundHistory (C1 OOM fix). */
 const MAX_GAME_ROUND_HISTORY_MATCHES = 20;
+/**
+ * Maximum number of raw entries to retain for legacy saves that predate matchNumber
+ * tracking. Derived as MAX_GAME_ROUND_HISTORY_MATCHES × ~80 entries/match to avoid
+ * conflating a match-count cap with an entry-count cap.
+ */
+const MAX_LEGACY_ROUND_HISTORY_ENTRIES = MAX_GAME_ROUND_HISTORY_MATCHES * 80; // 1 600
 
 export interface Player {
   id: string;
@@ -663,7 +669,9 @@ export class GameStateManager {
         if (loadedState.gameRoundHistory && loadedState.gameRoundHistory.length > 0) {
           const currentMatch = loadedState.currentMatch ?? 0;
           if (currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
-            const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
+            // +1 aligns with startNewMatch(): keep exactly MAX matches ending at currentMatch.
+            // Without +1, cutoff = currentMatch - MAX retains MAX+1 matches (inclusive on both ends).
+            const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
             const before = loadedState.gameRoundHistory.length;
             const hasMatchNumbers = loadedState.gameRoundHistory.some(
               entry => typeof entry?.matchNumber === 'number'
@@ -680,10 +688,11 @@ export class GameStateManager {
                 needsMigration = true;
               }
             } else {
-              // Legacy upgrade path: entries predate matchNumber tracking; use a length-based
-              // cap so we don't treat every entry as match 0 and wipe the entire history.
+              // Legacy upgrade path: entries predate matchNumber tracking.
+              // Use MAX_LEGACY_ROUND_HISTORY_ENTRIES (match-count × max entries/match) so
+              // the cap is expressed in entries, not matches, avoiding conflation of the two.
               const targetLength = Math.min(
-                MAX_GAME_ROUND_HISTORY_MATCHES,
+                MAX_LEGACY_ROUND_HISTORY_ENTRIES,
                 loadedState.gameRoundHistory.length
               );
               if (before > targetLength) {
@@ -1350,12 +1359,12 @@ export class GameStateManager {
       const hasLegacyEntries = this.state.gameRoundHistory.some(entry => entry.matchNumber == null);
       if (hasLegacyEntries) {
         // Legacy upgrade path: some entries predate matchNumber tracking.
-        // Fall back to a length-based cap so we don't treat all legacy entries as match 0
-        // and delete them as soon as currentMatch exceeds the cutoff.
+        // Use MAX_LEGACY_ROUND_HISTORY_ENTRIES (not MAX_GAME_ROUND_HISTORY_MATCHES) so the
+        // cap is expressed in entries (matches × max-entries/match), not in match count.
         const totalEntries = this.state.gameRoundHistory.length;
-        if (totalEntries > MAX_GAME_ROUND_HISTORY_MATCHES) {
+        if (totalEntries > MAX_LEGACY_ROUND_HISTORY_ENTRIES) {
           this.state.gameRoundHistory = this.state.gameRoundHistory.slice(
-            totalEntries - MAX_GAME_ROUND_HISTORY_MATCHES
+            totalEntries - MAX_LEGACY_ROUND_HISTORY_ENTRIES
           );
         }
         gameLogger.info(
