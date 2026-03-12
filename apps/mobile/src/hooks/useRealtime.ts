@@ -439,7 +439,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           reject(new Error('Channel closed'));
         } else if (status === 'CHANNEL_ERROR') {
           clearTimeout(timeout);
-          reject(new Error('Channel error'));
+          // Brief delay gives Supabase a window to recover from transient
+          // network blips before the caller triggers a full reconnect cycle.
+          setTimeout(() => reject(new Error('Channel error')), 1_000);
         }
       });
     });

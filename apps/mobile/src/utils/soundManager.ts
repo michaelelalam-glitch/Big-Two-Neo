@@ -128,7 +128,6 @@ class SoundManager {
    */
   async playSound(type: SoundType): Promise<void> {
     if (!this.audioEnabled) {
-      uiLogger.debug(`[SoundManager] Audio disabled, skipping: ${type}`);
       return;
     }
 

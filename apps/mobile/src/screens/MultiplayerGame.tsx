@@ -542,7 +542,7 @@ export function MultiplayerGame() {
   // The server marks players as 'disconnected' via process_disconnected_players()
   // (pg_cron + heartbeat piggyback), but Realtime delivery of that change can be
   // unreliable. As a fallback, we detect stale last_seen_at timestamps directly:
-  // if a player's heartbeat hasn't updated for >12s they are treated as disconnected.
+  // if a player's heartbeat hasn't updated for >30s they are treated as disconnected.
   // playerLastSeenAtRef is updated on every Realtime UPDATE event (even heartbeat-only
   // skipped ones), giving us the freshest timestamp without causing re-renders.
   const [clientDisconnections, setClientDisconnections] = useState<Map<number, string>>(new Map());
@@ -589,8 +589,7 @@ export function MultiplayerGame() {
       localPlayerWasActiveRef.current =
         typeof currentTurn === 'number' && currentTurn === localIdx;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiplayerGameState?.turn_started_at, multiplayerGameState?.current_turn]);
+  }, [multiplayerGameState?.turn_started_at, multiplayerGameState?.current_turn, layoutPlayers[0]?.player_index]);
 
   useEffect(() => {
     const STALE_THRESHOLD_MS = 30_000; // 30s: matches server Phase A threshold — one source of truth
@@ -935,14 +934,6 @@ export function MultiplayerGame() {
       // Safety: if the player IS disconnecting, the staleness detector will
       // re-add them to clientDisconnections within 30s → guard deactivates.
       const clientClearedDuringTurn = idx > 0 && player.isActive && !isClientDisconnected;
-
-      // ── Diagnostic: log idx=0 ring data to trace 45s delay ──────────────
-      if (idx === 0 && isEffectivelyActive && turnStartedAt) {
-        const serverMs = new Date(turnStartedAt).getTime();
-        const clientMs = Date.now();
-        // eslint-disable-next-line no-console
-        console.warn(`[ENRICHED_DEBUG] idx=0 active | turnStartedAt=${turnStartedAt} | serverMs=${serverMs} | clientMs=${clientMs} | elapsed=${clientMs - serverMs}ms | isActive=${player.isActive} | suppress=${suppressDisconnectRing}`);
-      }
 
       return {
         ...player,

@@ -98,8 +98,6 @@ export default function InactivityCountdownRing({
       // Using Date.now() means the ring may finish slightly before/after the server auto-
       // plays (off by the skew amount), but it's always visually moving. This matches
       // what useTurnInactivityTimer does for the auto-play trigger.
-      // eslint-disable-next-line no-console
-      console.warn(`[RING_DEBUG] type=${type} startedAt=${startedAt} serverMs=${time} clientMs=${now} elapsed=${elapsed}ms`);
       if (elapsed < 0) {
         networkLogger.warn(`[InactivityRing] ⚠️ Clock skew: server ${Math.abs(elapsed)}ms ahead. Using Date.now() so ring depletes immediately.`);
         return now;
