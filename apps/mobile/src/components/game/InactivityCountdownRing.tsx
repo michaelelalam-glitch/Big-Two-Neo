@@ -92,8 +92,8 @@ export default function InactivityCountdownRing({
       // that re-evaluation could produce elapsed < 0 and snap startTimeMs to 'now',
       // resetting the ring to 60 s at the instant of the grey→yellow reconnect transition.
       if (elapsed < 0) {
-        networkLogger.warn(`[InactivityRing] ⚠️ Timer in FUTURE: type=${type}, startedAt=${startedAt}, elapsed=${elapsed}ms → NORMALIZING to NOW`);
-        return now; // Use current time as start time
+        networkLogger.warn(`[InactivityRing] ⚠️ Timer in FUTURE: type=${type}, startedAt=${startedAt}, elapsed=${elapsed}ms → using server timestamp (ring holds at 100% until client catches up)`);
+        return time; // Use server timestamp — ring stays at 100% for the skew duration, then depletes normally
       } else {
         const remaining = COUNTDOWN_DURATION_MS - elapsed;
         networkLogger.info(`[InactivityRing] 🔄 Timer initialized: type=${type}, elapsed=${elapsed}ms, remaining=${remaining}ms`);

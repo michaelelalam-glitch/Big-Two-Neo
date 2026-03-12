@@ -212,7 +212,7 @@ export function MultiplayerGame() {
     return me?.id ?? null;
   }, [multiplayerPlayers, user?.id]);
 
-  const { reconnect: connectionReconnect, rejoinStatus, forceSweep } = useConnectionManager({
+  const { reconnect: connectionReconnect, isReconnecting, rejoinStatus, forceSweep } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
@@ -627,7 +627,7 @@ export function MultiplayerGame() {
         // We NEVER overwrite an existing client anchor with a LATER server timestamp
         // (would visually replenish the ring to full). We DO correct the anchor when the
         // server provides an EARLIER timestamp — this fixes a bug where the client fell
-        // back to 'now' (STALE_THRESHOLD_MS = 12s after the last heartbeat) before Phase A
+        // back to 'now' (STALE_THRESHOLD_MS = 30s after the last heartbeat) before Phase A
         // ran and set disconnect_timer_started_at = last_seen_at (which is earlier by ~18s).
         // Without this correction the ring depletes to empty ~12-18s before the server
         // fires bot replacement, causing it to visually disappear with arc still showing.
@@ -676,6 +676,21 @@ export function MultiplayerGame() {
         }
 
         // Player is 'connected' — check for stale heartbeat
+        // SHORT-CIRCUIT: if the server's room_players row confirms the player is
+        // connected AND the disconnect timer has been cleared, they have definitively
+        // reconnected.  Do NOT let a presence-leave-backdated last_seen_at override
+        // this authoritative server state by re-seeding the grey ring.
+        if (rp.connection_status === 'connected' && !rp.disconnect_timer_started_at) {
+          if (clientDisconnectStartRef.current[rp.player_index] !== undefined) {
+            delete clientDisconnectStartRef.current[rp.player_index];
+            gameLogger.info(
+              `[MultiplayerGame] Stale-check shortcircuit: player_index=${rp.player_index} server-confirmed connected, clearing grey ring`,
+            );
+          }
+          // Do NOT add to newMap — player is live, no ring needed.
+          continue;
+        }
+
         // Use freshest last_seen_at: prefer ref (updated each heartbeat ping),
         // fall back to the value from the last meaningful state update.
         const lastSeenIso = playerLastSeenAtRef.current[rp.id] || rp.last_seen_at;
@@ -864,9 +879,17 @@ export function MultiplayerGame() {
       // non-null gameState confirmed this was the local player's turn, we treat them
       // as still active so both suppressDisconnectRing and turnTimerStartedAt remain
       // set — preventing a visible ring disappearance during the loading window.
+      // Also keep the ring alive when the local player is in the RejoinModal /
+      // reclaiming-their-seat flow (showBotReplacedModal or isReconnecting=true).
+      // During this window the bot may have played and advanced current_turn, so
+      // player.isActive and localPlayerWasActiveRef can both be false.  Without this
+      // guard suppressDisconnectRing deactivates → ring disappears → remounts fresh
+      // at 100 % the moment the new turn state loads.
+      const isInRejoinFlow = idx === 0 && (showBotReplacedModal || isReconnecting) && turnStartedAt !== null;
       const isEffectivelyActive =
         player.isActive ||
-        (idx === 0 && !multiplayerGameState && localPlayerWasActiveRef.current && turnStartedAt !== null);
+        (idx === 0 && !multiplayerGameState && localPlayerWasActiveRef.current && turnStartedAt !== null) ||
+        isInRejoinFlow;
 
       const suppressDisconnectRing = idx === 0 && isEffectivelyActive;
 
@@ -887,7 +910,9 @@ export function MultiplayerGame() {
         // Local player on their turn: suppress grey ring so yellow turn ring is visible.
         isDisconnected: suppressDisconnectRing
           ? false
-          : (isClientDisconnected || player.isDisconnected),
+          : serverConfirmedConnected
+            ? false
+            : (isClientDisconnected || player.isDisconnected),
         disconnectTimerStartedAt: suppressDisconnectRing
           ? null
           : ((serverConfirmedConnected ? null : clientDisconnectTimerStartedAt) || player.disconnectTimerStartedAt),
@@ -898,7 +923,7 @@ export function MultiplayerGame() {
         onCountdownExpired: idx === 0 ? handleLocalPlayerCountdownExpired : handleOtherPlayerDisconnectExpired,
       };
     });
-  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, handleOtherPlayerDisconnectExpired, multiplayerGameState?.turn_started_at, clientDisconnections]);
+  }, [layoutPlayersWithScores, handleLocalPlayerCountdownExpired, handleOtherPlayerDisconnectExpired, multiplayerGameState?.turn_started_at, multiplayerGameState?.current_turn, clientDisconnections, showBotReplacedModal, isReconnecting]);
 
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;

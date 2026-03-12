@@ -131,9 +131,8 @@ Deno.serve(async (req) => {
     // causing Phase B to miss the player entirely.
     if (!sweepOnly) {
       // Update heartbeat timestamp.
-      // NOTE: We deliberately do NOT clear disconnect_timer_started_at here.
-      // That persistent timer is only cleared by explicit reconnect (rejoin button)
-      // or active game actions (play-cards / player-pass).
+      // NOTE: Heartbeat now clears disconnect_timer_started_at atomically so the
+      // grey ring disappears the moment a player resumes sending heartbeats.
       // Request an exact count so updateCount is non-null and we can detect
       // "0 rows matched" (race with bot replacement).
       const { error: updateError, count: updateCount } = await supabaseClient
