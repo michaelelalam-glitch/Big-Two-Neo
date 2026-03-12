@@ -84,16 +84,25 @@ export default function InactivityCountdownRing({
       const now = Date.now();
       const elapsed = now - time;
       
-      // If timestamp is in the future (server clock ahead of client), clamp to now.
       // NOTE: `type` is intentionally NOT a dependency — it does not affect this
       // computation, and including it caused startTimeMs to re-evaluate (with a fresh
       // Date.now()) whenever the ring transitioned between 'turn' and 'connection' for
       // the SAME startedAt. On devices where the server clock is even slightly ahead,
       // that re-evaluation could produce elapsed < 0 and snap startTimeMs to 'now',
       // resetting the ring to 60 s at the instant of the grey→yellow reconnect transition.
+      //
+      // CLOCK SKEW HANDLING: When the server timestamp is in the future relative to the
+      // client (elapsed < 0), we use Date.now() so the ring starts depleting immediately.
+      // Sitting at 100% until the client catches up (the previous approach) caused the
+      // ring to appear frozen for the entire skew duration — on some devices up to ~45s.
+      // Using Date.now() means the ring may finish slightly before/after the server auto-
+      // plays (off by the skew amount), but it's always visually moving. This matches
+      // what useTurnInactivityTimer does for the auto-play trigger.
+      // eslint-disable-next-line no-console
+      console.warn(`[RING_DEBUG] type=${type} startedAt=${startedAt} serverMs=${time} clientMs=${now} elapsed=${elapsed}ms`);
       if (elapsed < 0) {
-        networkLogger.warn(`[InactivityRing] ⚠️ Timer in FUTURE: type=${type}, startedAt=${startedAt}, elapsed=${elapsed}ms → using server timestamp (ring holds at 100% until client catches up)`);
-        return time; // Use server timestamp — ring stays at 100% for the skew duration, then depletes normally
+        networkLogger.warn(`[InactivityRing] ⚠️ Clock skew: server ${Math.abs(elapsed)}ms ahead. Using Date.now() so ring depletes immediately.`);
+        return now;
       } else {
         const remaining = COUNTDOWN_DURATION_MS - elapsed;
         networkLogger.info(`[InactivityRing] 🔄 Timer initialized: type=${type}, elapsed=${elapsed}ms, remaining=${remaining}ms`);

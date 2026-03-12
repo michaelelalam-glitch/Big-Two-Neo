@@ -901,6 +901,14 @@ export function MultiplayerGame() {
       // clientDisconnectTimerStartedAt blocking the yellow turn ring.
       const serverConfirmedConnected = !player.isDisconnected && !player.disconnectTimerStartedAt;
 
+      // ── Diagnostic: log idx=0 ring data to trace 45s delay ──────────────
+      if (idx === 0 && isEffectivelyActive && turnStartedAt) {
+        const serverMs = new Date(turnStartedAt).getTime();
+        const clientMs = Date.now();
+        // eslint-disable-next-line no-console
+        console.warn(`[ENRICHED_DEBUG] idx=0 active | turnStartedAt=${turnStartedAt} | serverMs=${serverMs} | clientMs=${clientMs} | elapsed=${clientMs - serverMs}ms | isActive=${player.isActive} | suppress=${suppressDisconnectRing}`);
+      }
+
       return {
         ...player,
         // Show turn ring on WHOEVER's turn it is (all players see it).
