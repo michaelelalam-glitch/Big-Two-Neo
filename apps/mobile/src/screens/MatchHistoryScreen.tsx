@@ -25,6 +25,7 @@ interface GameHistoryRow {
   id: string;
   room_code: string;
   game_type: string | null;
+  game_completed: boolean | null;
   player_1_id: string | null;
   player_2_id: string | null;
   player_3_id: string | null;
@@ -34,6 +35,7 @@ interface GameHistoryRow {
   player_3_score: number | null;
   player_4_score: number | null;
   winner_id: string | null;
+  voided_user_id: string | null;
   finished_at: string;
 }
 
@@ -80,6 +82,7 @@ export default function MatchHistoryScreen() {
           id,
           room_code,
           game_type,
+          game_completed,
           player_1_id,
           player_2_id,
           player_3_id,
@@ -89,10 +92,11 @@ export default function MatchHistoryScreen() {
           player_3_score,
           player_4_score,
           winner_id,
+          voided_user_id,
           finished_at
         `)
         .or(
-          `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id}`
+          `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id},voided_user_id.eq.${user.id}`
         )
         .order('finished_at', { ascending: false })
         .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
@@ -100,18 +104,31 @@ export default function MatchHistoryScreen() {
       if (error) throw error;
 
       const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: GameHistoryRow) => {
-        // Determine final position by ranking all players by score ascending
-        // (0 = winner / first place, higher = worse finish).
-        const slots = [
-          { id: item.player_1_id, score: item.player_1_score ?? 999 },
-          { id: item.player_2_id, score: item.player_2_score ?? 999 },
-          { id: item.player_3_id, score: item.player_3_score ?? 999 },
-          { id: item.player_4_id, score: item.player_4_score ?? 999 },
-        ].filter(s => s.id != null);
-
-        slots.sort((a, b) => a.score - b.score);
-        const rankIndex = slots.findIndex(s => s.id === user.id);
-        const finalPosition = rankIndex >= 0 ? rankIndex + 1 : 4;
+        // Primary: game_history stores player slots in order of finish
+        // (player_1_* = 1st place, player_2_* = 2nd, ...). Use slot index
+        // directly so bot/null-id seats don't distort the ranking.
+        let finalPosition: number;
+        if (item.player_1_id === user.id) {
+          finalPosition = 1;
+        } else if (item.player_2_id === user.id) {
+          finalPosition = 2;
+        } else if (item.player_3_id === user.id) {
+          finalPosition = 3;
+        } else if (item.player_4_id === user.id) {
+          finalPosition = 4;
+        } else {
+          // Fallback (voided-only rows): rank ALL seats by score including
+          // bot/null-id seats so the ordering is not artificially compressed.
+          const allSlots = [
+            { id: item.player_1_id, score: item.player_1_score ?? 999 },
+            { id: item.player_2_id, score: item.player_2_score ?? 999 },
+            { id: item.player_3_id, score: item.player_3_score ?? 999 },
+            { id: item.player_4_id, score: item.player_4_score ?? 999 },
+          ];
+          allSlots.sort((a, b) => a.score - b.score);
+          const rankIndex = allSlots.findIndex(s => s.id === user.id);
+          finalPosition = rankIndex >= 0 ? rankIndex + 1 : 4;
+        }
 
         const rawType = item.game_type ?? 'casual';
         const matchType = (['casual', 'ranked', 'private', 'local'] as const).includes(
@@ -150,6 +167,13 @@ export default function MatchHistoryScreen() {
     if (!loading && hasMore) {
       loadMatches(page + 1);
     }
+  };
+
+  const getPositionOrdinal = (position: number): string => {
+    if (position === 1) return '1st';
+    if (position === 2) return '2nd';
+    if (position === 3) return '3rd';
+    return `${position}th`;
   };
 
   const getPositionEmoji = (position: number) => {
@@ -200,8 +224,8 @@ export default function MatchHistoryScreen() {
     const matchTypeLabel: Record<MatchHistoryEntry['match_type'], string> = {
       casual: i18n.t('matchmaking.casual'),
       ranked: i18n.t('matchmaking.ranked'),
-      private: 'Private',
-      local: 'Local',
+      private: i18n.t('profile.private'),
+      local: i18n.t('matchHistory.local'),
     };
     const matchTypeEmoji: Record<MatchHistoryEntry['match_type'], string> = {
       casual: '😊',
@@ -234,7 +258,10 @@ export default function MatchHistoryScreen() {
               styles.positionText,
               { color: getPositionColor(item.final_position) }
             ]}>
-              {i18n.t('matchHistory.position', { position: item.final_position })}
+              {i18n.t('matchHistory.position', {
+                ordinal: getPositionOrdinal(item.final_position),
+                position: item.final_position,
+              })}
             </Text>
           </View>
 

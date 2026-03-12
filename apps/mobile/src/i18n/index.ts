@@ -615,6 +615,7 @@ export interface Translations {
     minutesAgo: string;
     hoursAgo: string;
     daysAgo: string;
+    local: string;
   };
   
   // Ranked Leaderboard
@@ -1142,12 +1143,13 @@ const en: Translations = {
     title: 'Match History',
     noMatches: 'No Matches Yet',
     playFirstMatch: 'Play your first match to see your history here',
-    position: '{position}th Place',
+    position: '{{ordinal}} Place',
     elo: 'ELO',
     justNow: 'Just now',
-    minutesAgo: '{count}m ago',
-    hoursAgo: '{count}h ago',
-    daysAgo: '{count}d ago',
+    minutesAgo: '{{count}}m ago',
+    hoursAgo: '{{count}}h ago',
+    daysAgo: '{{count}}d ago',
+    local: 'Local',
   },
 };
 
@@ -1625,12 +1627,13 @@ const ar: Translations = {
     title: 'سجل المباريات',
     noMatches: 'لا توجد مباريات بعد',
     playFirstMatch: 'العب مباراتك الأولى لرؤية سجلك هنا',
-    position: 'المركز {position}',
+    position: 'المركز {{position}}',
     elo: 'ELO',
     justNow: 'الآن',
-    minutesAgo: 'منذ {count} د',
-    hoursAgo: 'منذ {count} س',
-    daysAgo: 'منذ {count} ي',
+    minutesAgo: 'منذ {{count}} د',
+    hoursAgo: 'منذ {{count}} س',
+    daysAgo: 'منذ {{count}} ي',
+    local: 'محلي',
   },
   howToPlay: {
     title: 'كيفية اللعب',
@@ -2186,12 +2189,13 @@ const de: Translations = {
     title: 'Spielverlauf',
     noMatches: 'Noch keine Spiele',
     playFirstMatch: 'Spiele dein erstes Spiel, um deinen Verlauf hier zu sehen',
-    position: '{position}. Platz',
+    position: '{{position}}. Platz',
     elo: 'ELO',
     justNow: 'Gerade eben',
-    minutesAgo: 'vor {count} Min.',
-    hoursAgo: 'vor {count} Std.',
-    daysAgo: 'vor {count} T.',
+    minutesAgo: 'vor {{count}} Min.',
+    hoursAgo: 'vor {{count}} Std.',
+    daysAgo: 'vor {{count}} T.',
+    local: 'Lokal',
   },
   howToPlay: {
     title: 'Spielanleitung',
