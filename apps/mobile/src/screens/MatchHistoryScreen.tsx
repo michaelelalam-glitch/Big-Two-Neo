@@ -15,20 +15,39 @@ type MatchHistoryNavigationProp = StackNavigationProp<RootStackParamList, 'Match
 interface MatchHistoryEntry {
   match_id: string;
   room_code: string;
-  match_type: 'casual' | 'ranked';
+  match_type: 'casual' | 'ranked' | 'private' | 'local';
   final_position: number;
   elo_change: number | null;
   created_at: string;
 }
 
+interface GameHistoryRow {
+  id: string;
+  room_code: string;
+  game_type: string | null;
+  player_1_id: string | null;
+  player_2_id: string | null;
+  player_3_id: string | null;
+  player_4_id: string | null;
+  player_1_score: number | null;
+  player_2_score: number | null;
+  player_3_score: number | null;
+  player_4_score: number | null;
+  winner_id: string | null;
+  finished_at: string;
+}
+
 /**
  * Match History Screen
- * 
+ *
+ * Reads from game_history (the table actually populated by the complete-game edge
+ * function). match_history / match_participants are legacy tables that are never
+ * written to and will always be empty.
+ *
  * Displays user's match history with:
- * - Last 50 matches (paginated)
- * - Room code, match type (casual/ranked)
- * - Final position (1st, 2nd, 3rd, 4th)
- * - ELO change (for ranked matches only)
+ * - Last 20 matches per page (paginated)
+ * - Room code, game type (casual/ranked/private)
+ * - Final position derived from scores (1st = winner, 2–4 by ascending score)
  * - Match date/time
  */
 export default function MatchHistoryScreen() {
@@ -42,23 +61,9 @@ export default function MatchHistoryScreen() {
   
   const PAGE_SIZE = 20;
 
-  // Note: Supabase client types !inner joins as arrays, even though PostgREST
-  // returns an object for to-one relationships. We keep the array type for
-  // TypeScript compatibility and access [0] with a defensive fallback.
-  interface MatchParticipantRow {
-    match_id: string;
-    final_position: number;
-    elo_change: number | null;
-    match_history: {
-      room_code: string;
-      match_type: 'casual' | 'ranked';
-      created_at: string;
-    }[];
-  }
-
   useEffect(() => {
     loadMatches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMatches intentionally excluded; it is defined in the component body without useCallback; user is the correct trigger (load history when the authenticated user changes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMatches intentionally excluded; user is the correct dependency trigger
   }, [user]);
 
   const loadMatches = async (pageNum: number = 0) => {
@@ -67,34 +72,61 @@ export default function MatchHistoryScreen() {
     try {
       setLoading(true);
       
-      // Query match_participants table joined with match_history
+      // game_history stores player slots (player_1_id … player_4_id).
+      // We find all games the current user participated in using an OR filter.
       const { data, error } = await supabase
-        .from('match_participants')
+        .from('game_history')
         .select(`
-          match_id,
-          final_position,
-          elo_change,
-          match_history!inner(
-            room_code,
-            match_type,
-            created_at
-          )
+          id,
+          room_code,
+          game_type,
+          player_1_id,
+          player_2_id,
+          player_3_id,
+          player_4_id,
+          player_1_score,
+          player_2_score,
+          player_3_score,
+          player_4_score,
+          winner_id,
+          finished_at
         `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false, foreignTable: 'match_history' })
+        .or(
+          `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id}`
+        )
+        .order('finished_at', { ascending: false })
         .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
       if (error) throw error;
 
-      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: MatchParticipantRow) => {
-        const history = Array.isArray(item.match_history) ? item.match_history[0] : item.match_history;
+      const formattedMatches: MatchHistoryEntry[] = (data || []).map((item: GameHistoryRow) => {
+        // Determine final position by ranking all players by score ascending
+        // (0 = winner / first place, higher = worse finish).
+        const slots = [
+          { id: item.player_1_id, score: item.player_1_score ?? 999 },
+          { id: item.player_2_id, score: item.player_2_score ?? 999 },
+          { id: item.player_3_id, score: item.player_3_score ?? 999 },
+          { id: item.player_4_id, score: item.player_4_score ?? 999 },
+        ].filter(s => s.id != null);
+
+        slots.sort((a, b) => a.score - b.score);
+        const rankIndex = slots.findIndex(s => s.id === user.id);
+        const finalPosition = rankIndex >= 0 ? rankIndex + 1 : 4;
+
+        const rawType = item.game_type ?? 'casual';
+        const matchType = (['casual', 'ranked', 'private', 'local'] as const).includes(
+          rawType as 'casual' | 'ranked' | 'private' | 'local'
+        )
+          ? (rawType as MatchHistoryEntry['match_type'])
+          : 'casual';
+
         return {
-          match_id: item.match_id,
-          room_code: history?.room_code ?? '',
-          match_type: history?.match_type ?? 'casual',
-          final_position: item.final_position,
-          elo_change: item.elo_change,
-          created_at: history?.created_at ?? '',
+          match_id: item.id,
+          room_code: item.room_code ?? '',
+          match_type: matchType,
+          final_position: finalPosition,
+          elo_change: null, // game_history has no per-player ELO delta column
+          created_at: item.finished_at ?? '',
         };
       });
 
@@ -165,6 +197,19 @@ export default function MatchHistoryScreen() {
     const eloChange = item.elo_change || 0;
     const eloPositive = eloChange > 0;
 
+    const matchTypeLabel: Record<MatchHistoryEntry['match_type'], string> = {
+      casual: i18n.t('matchmaking.casual'),
+      ranked: i18n.t('matchmaking.ranked'),
+      private: 'Private',
+      local: 'Local',
+    };
+    const matchTypeEmoji: Record<MatchHistoryEntry['match_type'], string> = {
+      casual: '😊',
+      ranked: '🏆',
+      private: '🔒',
+      local: '🎮',
+    };
+
     return (
       <View style={styles.matchCard}>
         <View style={styles.matchHeader}>
@@ -175,7 +220,7 @@ export default function MatchHistoryScreen() {
               isRanked && styles.matchTypeBadgeRanked
             ]}>
               <Text style={styles.matchTypeBadgeText}>
-                {isRanked ? '🏆' : '😊'} {i18n.t(`matchmaking.${item.match_type}`)}
+                {matchTypeEmoji[item.match_type]} {matchTypeLabel[item.match_type]}
               </Text>
             </View>
           </View>

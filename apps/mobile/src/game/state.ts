@@ -19,10 +19,12 @@ const GAME_STATE_KEY = '@big2_game_state';
 const MAX_GAME_ROUND_HISTORY_MATCHES = 20;
 /**
  * Maximum number of raw entries to retain for legacy saves that predate matchNumber
- * tracking. Derived as MAX_GAME_ROUND_HISTORY_MATCHES × ~80 entries/match to avoid
- * conflating a match-count cap with an entry-count cap.
+ * tracking. Derived as MAX_GAME_ROUND_HISTORY_MATCHES × ~200 entries/match — a
+ * conservative upper-bound for a pass-heavy single-card game — to avoid conflating
+ * a match-count cap with an entry-count cap while still approximating "20 matches
+ * worth" of history for upgraded users.
  */
-const MAX_LEGACY_ROUND_HISTORY_ENTRIES = MAX_GAME_ROUND_HISTORY_MATCHES * 80; // 1 600
+const MAX_LEGACY_ROUND_HISTORY_ENTRIES = MAX_GAME_ROUND_HISTORY_MATCHES * 200; // 4 000
 
 export interface Player {
   id: string;
@@ -668,46 +670,10 @@ export class GameStateManager {
         const loadedState = this.state!;
         if (loadedState.gameRoundHistory && loadedState.gameRoundHistory.length > 0) {
           const currentMatch = loadedState.currentMatch ?? 0;
-          if (currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
-            // +1 aligns with startNewMatch(): keep exactly MAX matches ending at currentMatch.
-            // Without +1, cutoff = currentMatch - MAX retains MAX+1 matches (inclusive on both ends).
-            const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
-            const before = loadedState.gameRoundHistory.length;
-            // Mirror startNewMatch(): treat mixed or all-legacy arrays as legacy.
-            // If ANY entry lacks matchNumber (pre-matchNumber build), using match-based
-            // pruning would silently drop those entries (undefined >= cutoff is false).
-            // Only use match-based pruning when every entry carries a matchNumber.
-            const hasLegacyEntries = loadedState.gameRoundHistory.some(
-              entry => entry.matchNumber == null
-            );
-            if (!hasLegacyEntries) {
-              // All entries have matchNumber → safe to filter by match cutoff
-              loadedState.gameRoundHistory = loadedState.gameRoundHistory.filter(
-                entry => entry.matchNumber! >= cutoff
-              );
-              if (loadedState.gameRoundHistory.length < before) {
-                gameLogger.info(
-                  `✂️ [C1/loadState] Pruned legacy gameRoundHistory: ${before} → ${loadedState.gameRoundHistory.length} entries (cutoff match ${cutoff})`
-                );
-                needsMigration = true;
-              }
-            } else {
-              // Legacy upgrade path: entries predate matchNumber tracking.
-              // Use MAX_LEGACY_ROUND_HISTORY_ENTRIES (match-count × max entries/match) so
-              // the cap is expressed in entries, not matches, avoiding conflation of the two.
-              const targetLength = Math.min(
-                MAX_LEGACY_ROUND_HISTORY_ENTRIES,
-                loadedState.gameRoundHistory.length
-              );
-              if (before > targetLength) {
-                loadedState.gameRoundHistory =
-                  loadedState.gameRoundHistory.slice(-targetLength);
-                gameLogger.info(
-                  `✂️ [C1/loadState] Pruned legacy gameRoundHistory without matchNumber: ${before} → ${loadedState.gameRoundHistory.length} entries (kept last ${targetLength})`
-                );
-                needsMigration = true;
-              }
-            }
+          const before = loadedState.gameRoundHistory.length;
+          this.pruneGameRoundHistory(loadedState.gameRoundHistory, currentMatch, 'loadState');
+          if (loadedState.gameRoundHistory.length < before) {
+            needsMigration = true;
           }
         }
 
@@ -1338,6 +1304,61 @@ export class GameStateManager {
   }
 
   /**
+   * Prune `gameRoundHistory` to stay within the configured caps.
+   *
+   * @param history         Reference to the array to mutate in-place.
+   * @param lastCompletedMatch
+   *        The number of the last **completed** match whose entries may be in
+   *        the array.  The caller is responsible for passing the right value:
+   *        - `loadState()` passes `currentMatch` (the current match, which
+   *          already has entries).
+   *        - `startNewMatch()` passes `currentMatch - 1` (the match that just
+   *          finished; the incremented value is the new match that has no
+   *          entries yet).
+   *        Using this convention, `cutoff = lastCompletedMatch - MAX + 1`
+   *        always retains exactly MAX matches worth of history.
+   * @param source  Label used in log messages.
+   */
+  private pruneGameRoundHistory(
+    history: RoundHistoryEntry[],
+    lastCompletedMatch: number,
+    source: string,
+  ): void {
+    if (lastCompletedMatch <= MAX_GAME_ROUND_HISTORY_MATCHES) return;
+
+    const cutoff = lastCompletedMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
+    const hasLegacyEntries = history.some(e => e.matchNumber == null);
+
+    if (hasLegacyEntries) {
+      // Legacy/mixed path: length-based cap so we don't drop entries that
+      // predate matchNumber tracking.
+      const totalEntries = history.length;
+      if (totalEntries > MAX_LEGACY_ROUND_HISTORY_ENTRIES) {
+        const removed = totalEntries - MAX_LEGACY_ROUND_HISTORY_ENTRIES;
+        history.splice(0, removed);
+        gameLogger.info(
+          `✂️ [C1/${source}] Pruned legacy gameRoundHistory using length-based cap: ${totalEntries} → ${history.length} entries retained`,
+        );
+      } else {
+        gameLogger.debug(
+          `ℹ️ [C1/${source}] gameRoundHistory within legacy length-based cap; no pruning needed (${totalEntries} entries)`,
+        );
+      }
+    } else {
+      // Normal path: all entries carry matchNumber → prune by match index.
+      const beforeLength = history.length;
+      // Filter in-place: keep entries from the last MAX_GAME_ROUND_HISTORY_MATCHES matches.
+      const kept = history.filter(e => e.matchNumber! >= cutoff);
+      if (kept.length < beforeLength) {
+        history.splice(0, history.length, ...kept);
+        gameLogger.info(
+          `✂️ [C1/${source}] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${history.length} entries retained)`,
+        );
+      }
+    }
+  }
+
+  /**
    * Start a new match (after previous match ended)
    * Winner of previous match starts first
    */
@@ -1358,38 +1379,9 @@ export class GameStateManager {
     // to prevent unbounded growth and OOM on long sessions.
     // Note: this does NOT affect the play-history UI, which reads from ScoreboardContext
     // (populated per-match from roundHistory, not from gameRoundHistory).
-    if (this.state.currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
-      const cutoff = this.state.currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
-      const hasLegacyEntries = this.state.gameRoundHistory.some(entry => entry.matchNumber == null);
-      if (hasLegacyEntries) {
-        // Legacy upgrade path: some entries predate matchNumber tracking.
-        // Use MAX_LEGACY_ROUND_HISTORY_ENTRIES (not MAX_GAME_ROUND_HISTORY_MATCHES) so the
-        // cap is expressed in entries (matches × max-entries/match), not in match count.
-        const totalEntries = this.state.gameRoundHistory.length;
-        if (totalEntries > MAX_LEGACY_ROUND_HISTORY_ENTRIES) {
-          this.state.gameRoundHistory = this.state.gameRoundHistory.slice(
-            totalEntries - MAX_LEGACY_ROUND_HISTORY_ENTRIES
-          );
-          gameLogger.info(
-            `✂️ [C1] Pruned gameRoundHistory using length-based cap due to legacy entries without matchNumber (from ${totalEntries} to ${this.state.gameRoundHistory.length} entries retained)`
-          );
-        } else {
-          gameLogger.debug(
-            `ℹ️ [C1] gameRoundHistory within legacy length-based cap; no pruning needed (${totalEntries} entries)`
-          );
-        }
-      } else {
-        // Normal path: all entries have matchNumber, prune by match index.
-        const beforeLength = this.state.gameRoundHistory.length;
-        this.state.gameRoundHistory = this.state.gameRoundHistory.filter(
-          entry => entry.matchNumber! >= cutoff
-        );
-        const afterLength = this.state.gameRoundHistory.length;
-        if (afterLength < beforeLength) {
-          gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${afterLength} entries retained)`);
-        }
-      }
-    }
+    // Pass (currentMatch - 1) = last COMPLETED match so the helper formula
+    // cutoff = lastCompletedMatch - MAX + 1 keeps exactly MAX matches.
+    this.pruneGameRoundHistory(this.state.gameRoundHistory, this.state.currentMatch - 1, 'startNewMatch');
 
     // Deal new cards (this will clear existing hands first)
     const deck = this.createDeck();
