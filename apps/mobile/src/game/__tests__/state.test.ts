@@ -534,9 +534,9 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
     };
   }
 
-  test('loadState() prunes oversized legacy history (>20 matches)', async () => {
-    const legacyState = makeStateWithHistory(25); // 25 entries, matches 1-25
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(legacyState));
+  test('loadState() prunes oversized matchNumber-based history (>20 matches)', async () => {
+    const taggedState = makeStateWithHistory(25); // 25 entries, all with matchNumber 1-25
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(taggedState));
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
     const loaded = await manager.loadState();
@@ -546,6 +546,35 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
     expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= cutoff)).toBe(true);
     // The pruned array must be bounded to exactly MAX_GAME_ROUND_HISTORY_MATCHES (20)
     expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
+    // Migration save must be triggered
+    expect(AsyncStorage.setItem).toHaveBeenCalled();
+  });
+
+  test('loadState() applies length-based cap for legacy entries without matchNumber', async () => {
+    // Simulate a pre-upgrade persisted state where entries have no matchNumber
+    const legacyEntries = Array.from({ length: 5000 }, (_, i) => ({
+      playerId: 'p1',
+      playerName: 'Player 1',
+      cards: [],
+      combo_type: 'Single' as const,
+      passed: false,
+      timestamp: Date.now() - i,
+      // No matchNumber — legacy format
+    }));
+    const legacyState = {
+      ...makeStateWithHistory(1),
+      gameRoundHistory: legacyEntries,
+      currentMatch: 25, // currentMatch > MAX so pruning is triggered
+    };
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(legacyState));
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+    const loaded = await manager.loadState();
+
+    // Legacy path: length-based cap — MAX_LEGACY_ROUND_HISTORY_ENTRIES = 20 * 200 = 4000
+    expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(4000);
+    // All retained entries should still have no matchNumber (legacy format preserved)
+    expect(loaded!.gameRoundHistory.every(e => e.matchNumber == null)).toBe(true);
     // Migration save must be triggered
     expect(AsyncStorage.setItem).toHaveBeenCalled();
   });

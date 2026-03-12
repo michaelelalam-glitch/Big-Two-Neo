@@ -178,6 +178,12 @@ export default function MatchHistoryScreen() {
 
   const getPositionOrdinal = (position: number): string => {
     if (position === 0) return '—'; // voided/abandoned
+    const lang = i18n.getLanguage();
+    // Non-English locales: return a plain number so the translation template
+    // (e.g. "{{ordinal}}. Platz" / "المركز {{ordinal}}") formats it natively
+    // without embedding English suffixes ("1st", "2nd", ...) mid-string.
+    if (lang === 'de' || lang === 'ar') return `${position}`;
+    // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
     switch (position % 10) {
