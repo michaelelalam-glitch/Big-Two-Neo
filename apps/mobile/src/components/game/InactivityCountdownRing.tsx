@@ -84,8 +84,13 @@ export default function InactivityCountdownRing({
       const now = Date.now();
       const elapsed = now - time;
       
-      // CRITICAL FIX: If timestamp is in future, normalize it to NOW
-      // This ensures the timer starts depleting immediately
+      // If timestamp is in the future (server clock ahead of client), clamp to now.
+      // NOTE: `type` is intentionally NOT a dependency — it does not affect this
+      // computation, and including it caused startTimeMs to re-evaluate (with a fresh
+      // Date.now()) whenever the ring transitioned between 'turn' and 'connection' for
+      // the SAME startedAt. On devices where the server clock is even slightly ahead,
+      // that re-evaluation could produce elapsed < 0 and snap startTimeMs to 'now',
+      // resetting the ring to 60 s at the instant of the grey→yellow reconnect transition.
       if (elapsed < 0) {
         networkLogger.warn(`[InactivityRing] ⚠️ Timer in FUTURE: type=${type}, startedAt=${startedAt}, elapsed=${elapsed}ms → NORMALIZING to NOW`);
         return now; // Use current time as start time
@@ -95,7 +100,8 @@ export default function InactivityCountdownRing({
         return time;
       }
     },
-    [startedAt, type],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [startedAt], // `type` intentionally omitted — see comment above
   );
 
   const tick = useCallback(() => {

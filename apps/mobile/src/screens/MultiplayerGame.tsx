@@ -754,6 +754,55 @@ export function MultiplayerGame() {
       }
     };
   }, []);
+
+  // ── Immediate reconnect clear ──────────────────────────────────────────────
+  // The 1s polling interval that normally clears clientDisconnections can be
+  // starved in a 4-player game: heartbeats arrive every ~1.25 s (5 s / 4 players),
+  // continuously restarting the setInterval before it fires. This means a stale
+  // grey-ring anchor can persist indefinitely after a player reconnects, blocking
+  // the yellow turn ring from appearing for observers.
+  //
+  // Fix: react directly to realtimePlayers changes. Whenever a player transitions
+  // to connection_status='connected' with disconnect_timer_started_at=null (server
+  // has confirmed they are fully reconnected), immediately wipe their entry from
+  // clientDisconnectStartRef and update the clientDisconnections state. This fires
+  // synchronously in the same React render batch as the realtimePlayers update,
+  // so the yellow ring appears on the next paint — no interval delay needed.
+  useEffect(() => {
+    if (!realtimePlayers || realtimePlayers.length === 0) return;
+
+    let changed = false;
+    for (const rp of realtimePlayers) {
+      if (rp.is_bot || typeof rp.player_index !== 'number') continue;
+      if (rp.user_id === user?.id) continue;
+      // Server confirmed reconnect: connected + no timer
+      if (
+        rp.connection_status === 'connected' &&
+        !rp.disconnect_timer_started_at &&
+        clientDisconnectStartRef.current[rp.player_index] !== undefined
+      ) {
+        delete clientDisconnectStartRef.current[rp.player_index];
+        changed = true;
+        gameLogger.info(
+          `[MultiplayerGame] Immediate clear: player_index=${rp.player_index} confirmed reconnected by server`,
+        );
+      }
+    }
+
+    if (changed) {
+      setClientDisconnections(prev => {
+        const newMap = new Map(prev);
+        for (const rp of realtimePlayers) {
+          if (typeof rp.player_index === 'number' &&
+              clientDisconnectStartRef.current[rp.player_index] === undefined) {
+            newMap.delete(rp.player_index);
+          }
+        }
+        return newMap;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimePlayers, user?.id]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Countdown Expiry Handlers ──────────────────────────────────────────
@@ -821,6 +870,14 @@ export function MultiplayerGame() {
 
       const suppressDisconnectRing = idx === 0 && isEffectivelyActive;
 
+      // Server-authoritative reconnect guard: if the server's room_players row says
+      // this player is connected with no disconnect timer, they have definitively
+      // reconnected. Discard any stale client-side detection so the grey ring clears
+      // immediately. Without this, a timing window between the immediate-clear effect
+      // above and the next enrichedLayoutPlayers re-evaluation could leave a stale
+      // clientDisconnectTimerStartedAt blocking the yellow turn ring.
+      const serverConfirmedConnected = !player.isDisconnected && !player.disconnectTimerStartedAt;
+
       return {
         ...player,
         // Show turn ring on WHOEVER's turn it is (all players see it).
@@ -833,7 +890,7 @@ export function MultiplayerGame() {
           : (isClientDisconnected || player.isDisconnected),
         disconnectTimerStartedAt: suppressDisconnectRing
           ? null
-          : (clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt),
+          : ((serverConfirmedConnected ? null : clientDisconnectTimerStartedAt) || player.disconnectTimerStartedAt),
         // Connection countdown callback:
         //   idx 0 (local player) → show RejoinModal when their own timer hits 0
         //   idx > 0 (other players) → force process_disconnected_players immediately
