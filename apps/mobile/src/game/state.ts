@@ -15,6 +15,9 @@ import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 
 const GAME_STATE_KEY = '@big2_game_state';
 
+/** Maximum number of completed matches to retain in gameRoundHistory (C1 OOM fix). */
+const MAX_GAME_ROUND_HISTORY_MATCHES = 20;
+
 export interface Player {
   id: string;
   name: string;
@@ -55,6 +58,8 @@ export interface RoundHistoryEntry {
   combo_type: ComboType;
   timestamp: number;
   passed: boolean;
+  /** Match number this entry belongs to. Used to prune gameRoundHistory (C1 OOM fix). */
+  matchNumber?: number;
 }
 
 export interface GameConfig {
@@ -475,6 +480,7 @@ export class GameStateManager {
       combo_type: 'unknown',
       timestamp: Date.now(),
       passed: true,
+      matchNumber: this.state.currentMatch,
     };
     this.state.roundHistory.push(passEntry);
     this.state.gameRoundHistory.push(passEntry); // Also add to game-wide history
@@ -888,13 +894,14 @@ export class GameStateManager {
     }
 
     // Add to history
-    const historyEntry = {
+    const historyEntry: RoundHistoryEntry = {
       playerId: player.id,
       playerName: player.name,
       cards,
       combo_type: combo,
       timestamp: Date.now(),
       passed: false,
+      matchNumber: this.state!.currentMatch,
     };
     this.state!.roundHistory.push(historyEntry);
     this.state!.gameRoundHistory.push(historyEntry); // Also add to game-wide history
@@ -1290,6 +1297,18 @@ export class GameStateManager {
 
     // Increment match number
     this.state.currentMatch++;
+
+    // C1 fix: prune gameRoundHistory to the last MAX_GAME_ROUND_HISTORY_MATCHES matches
+    // to prevent unbounded growth and OOM on long sessions.
+    // Note: this does NOT affect the play-history UI, which reads from ScoreboardContext
+    // (populated per-match from roundHistory, not from gameRoundHistory).
+    if (this.state.currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
+      const cutoff = this.state.currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
+      this.state.gameRoundHistory = this.state.gameRoundHistory.filter(
+        entry => (entry.matchNumber ?? 0) >= cutoff
+      );
+      gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${this.state.gameRoundHistory.length} entries retained)`);
+    }
 
     // Deal new cards (this will clear existing hands first)
     const deck = this.createDeck();
