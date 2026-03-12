@@ -144,10 +144,24 @@ export function useGameStateManager({
           gameLogger.info('✅ [useGameStateManager] Saved state cleared - starting fresh game');
         }
 
+        // C2 fix: if the component unmounted while clearState()/removeItem() were
+        // awaited, gameManagerRef.current was nulled by the cleanup.  Abort to
+        // prevent subscribing to or starting the timer on a discarded manager.
+        if (gameManagerRef.current !== manager) {
+          manager.destroy();
+          return;
+        }
+
         // CRITICAL FIX: Try to load saved game state first (for rejoin)
         gameLogger.info('🔄 [useGameStateManager] Checking for saved game state...');
         const savedState = forceNewGame ? null : await manager.loadState();
-        
+
+        // C2 fix: abort if unmounted while loadState() was awaited.
+        if (gameManagerRef.current !== manager) {
+          manager.destroy();
+          return;
+        }
+
         if (savedState) {
           gameLogger.info('✅ [useGameStateManager] Loaded saved game state - continuing from where you left off');
           setGameState(savedState);
@@ -416,6 +430,12 @@ export function useGameStateManager({
             botDifficulty: botDifficulty,
           });
 
+          // C2 fix: abort if unmounted while initializeGame() was awaited.
+          if (gameManagerRef.current !== manager) {
+            manager.destroy();
+            return;
+          }
+
           setGameState(initialState);
           setIsInitializing(false);
           gameLogger.info('✅ [useGameStateManager] New game initialized successfully');
@@ -451,6 +471,10 @@ export function useGameStateManager({
       unsubscribeFn?.();
       if (gameManagerRef.current) {
         gameManagerRef.current.destroy();
+        // C2 fix: null the ref so any in-flight async continuation inside initGame()
+        // can detect that the manager has been destroyed and abort early, preventing
+        // stale callbacks and timer restarts on an unmounted component.
+        gameManagerRef.current = null;
       }
       if (autoStartMatchTimeoutRef.current) {
         clearTimeout(autoStartMatchTimeoutRef.current);

@@ -172,7 +172,11 @@ export class GameStateManager {
 
   constructor() {
     this.state = null;
-    this.startTimerCountdown();
+    // C2 fix: timer is started lazily in initializeGame() / loadState() so the
+    // 100ms interval only runs when an active game is in progress.  Starting it
+    // here caused a permanent interval leak whenever a GameStateManager instance
+    // was created but destroy() was not subsequently called (e.g. during async
+    // init if the component unmounted before the setup completed).
   }
 
   /**
@@ -355,6 +359,8 @@ export class GameStateManager {
 
     await this.saveState();
     this.notifyListeners();
+    // C2 fix: start the auto-pass timer only after the game state is ready.
+    this.startTimerCountdown();
 
     return this.state;
   }
@@ -683,6 +689,8 @@ export class GameStateManager {
         }
         
         this.notifyListeners();
+        // C2 fix: restart the timer for the restored game session.
+        this.startTimerCountdown();
         return this.state;
       }
     } catch (error: unknown) {
