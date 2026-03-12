@@ -665,14 +665,35 @@ export class GameStateManager {
           if (currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
             const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
             const before = loadedState.gameRoundHistory.length;
-            loadedState.gameRoundHistory = loadedState.gameRoundHistory.filter(
-              entry => (entry.matchNumber ?? 0) >= cutoff
+            const hasMatchNumbers = loadedState.gameRoundHistory.some(
+              entry => typeof entry?.matchNumber === 'number'
             );
-            if (loadedState.gameRoundHistory.length < before) {
-              gameLogger.info(
-                `✂️ [C1/loadState] Pruned legacy gameRoundHistory: ${before} → ${loadedState.gameRoundHistory.length} entries (cutoff match ${cutoff})`
+            if (hasMatchNumbers) {
+              // New-format path: filter by match cutoff
+              loadedState.gameRoundHistory = loadedState.gameRoundHistory.filter(
+                entry => (entry.matchNumber as number) >= cutoff
               );
-              needsMigration = true;
+              if (loadedState.gameRoundHistory.length < before) {
+                gameLogger.info(
+                  `✂️ [C1/loadState] Pruned legacy gameRoundHistory: ${before} → ${loadedState.gameRoundHistory.length} entries (cutoff match ${cutoff})`
+                );
+                needsMigration = true;
+              }
+            } else {
+              // Legacy upgrade path: entries predate matchNumber tracking; use a length-based
+              // cap so we don't treat every entry as match 0 and wipe the entire history.
+              const targetLength = Math.min(
+                MAX_GAME_ROUND_HISTORY_MATCHES,
+                loadedState.gameRoundHistory.length
+              );
+              if (before > targetLength) {
+                loadedState.gameRoundHistory =
+                  loadedState.gameRoundHistory.slice(-targetLength);
+                gameLogger.info(
+                  `✂️ [C1/loadState] Pruned legacy gameRoundHistory without matchNumber: ${before} → ${loadedState.gameRoundHistory.length} entries (kept last ${targetLength})`
+                );
+                needsMigration = true;
+              }
             }
           }
         }
@@ -1326,10 +1347,27 @@ export class GameStateManager {
     // (populated per-match from roundHistory, not from gameRoundHistory).
     if (this.state.currentMatch > MAX_GAME_ROUND_HISTORY_MATCHES) {
       const cutoff = this.state.currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES;
-      this.state.gameRoundHistory = this.state.gameRoundHistory.filter(
-        entry => (entry.matchNumber ?? 0) >= cutoff
-      );
-      gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${this.state.gameRoundHistory.length} entries retained)`);
+      const hasLegacyEntries = this.state.gameRoundHistory.some(entry => entry.matchNumber == null);
+      if (hasLegacyEntries) {
+        // Legacy upgrade path: some entries predate matchNumber tracking.
+        // Fall back to a length-based cap so we don't treat all legacy entries as match 0
+        // and delete them as soon as currentMatch exceeds the cutoff.
+        const totalEntries = this.state.gameRoundHistory.length;
+        if (totalEntries > MAX_GAME_ROUND_HISTORY_MATCHES) {
+          this.state.gameRoundHistory = this.state.gameRoundHistory.slice(
+            totalEntries - MAX_GAME_ROUND_HISTORY_MATCHES
+          );
+        }
+        gameLogger.info(
+          `✂️ [C1] Pruned gameRoundHistory using length-based cap due to legacy entries without matchNumber (${this.state.gameRoundHistory.length} entries retained)`
+        );
+      } else {
+        // Normal path: all entries have matchNumber, prune by match index.
+        this.state.gameRoundHistory = this.state.gameRoundHistory.filter(
+          entry => entry.matchNumber! >= cutoff
+        );
+        gameLogger.info(`✂️ [C1] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${this.state.gameRoundHistory.length} entries retained)`);
+      }
     }
 
     // Deal new cards (this will clear existing hands first)

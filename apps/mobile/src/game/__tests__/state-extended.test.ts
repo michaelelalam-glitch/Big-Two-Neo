@@ -9,6 +9,11 @@ jest.mock('../../utils/soundManager', () => ({
     playSound: jest.fn(() => Promise.resolve()),
     cleanup: jest.fn(() => Promise.resolve()),
   },
+  soundManager: {
+    preloadAllSounds: jest.fn(() => Promise.resolve()),
+    playSound: jest.fn(() => Promise.resolve()),
+    cleanup: jest.fn(() => Promise.resolve()),
+  },
   SoundType: {
     GAME_START: 'GAME_START',
     HIGHEST_CARD: 'HIGHEST_CARD',
@@ -259,6 +264,144 @@ describe('GameStateManager - Extended Coverage Tests', () => {
 
     test('getState returns null before initialization', () => {
       expect(manager.getState()).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // C1 — gameRoundHistory pruning (OOM fix)
+  // ---------------------------------------------------------------------------
+  describe('C1 — gameRoundHistory pruning', () => {
+    /** Build a minimal serialised GameState with N round-history entries. */
+    function makePersistedState(
+      entries: Array<{ matchNumber?: number }>,
+      currentMatch: number
+    ): string {
+      const state = {
+        players: [],
+        currentPlayerIndex: 0,
+        roundHistory: [],
+        gameRoundHistory: entries.map(e => ({
+          playerId: 'p1',
+          playerName: 'Player 1',
+          cards: [],
+          combo_type: 'unknown',
+          timestamp: Date.now(),
+          passed: true,
+          ...e,
+        })),
+        tricksPlayed: 0,
+        currentMatch,
+        lastMatchWinnerId: null,
+        phase: 'waiting',
+        played_cards: [],
+        consecutivePasses: 0,
+        currentTrick: null,
+        scores: [],
+        matchScores: [],
+        gameOver: false,
+        winner: null,
+        auto_pass_timer: null,
+      };
+      return JSON.stringify(state);
+    }
+
+    test('loadState prunes entries older than cutoff when all have matchNumber', async () => {
+      // Simulate 25 matches worth of history (one entry per match, matchNumbers 1–25)
+      const entries = Array.from({ length: 25 }, (_, i) => ({ matchNumber: i + 1 }));
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(makePersistedState(entries, 25));
+
+      const loaded = await manager.loadState();
+
+      // Cutoff = 25 - 20 = 5; entries with matchNumber < 5 should be pruned
+      expect(loaded).not.toBeNull();
+      expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= 5)).toBe(true);
+      // Entries for matches 5–25 = 21 entries retained
+      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(21);
+      // AsyncStorage.setItem should have been called (needsMigration=true)
+      expect(AsyncStorage.setItem).toHaveBeenCalled();
+    });
+
+    test('loadState uses length-based cap for legacy entries without matchNumber', async () => {
+      // All 30 entries are legacy (no matchNumber field)
+      const entries = Array.from({ length: 30 }, () => ({}));
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(makePersistedState(entries, 25));
+
+      const loaded = await manager.loadState();
+
+      expect(loaded).not.toBeNull();
+      // Should be capped to MAX_GAME_ROUND_HISTORY_MATCHES = 20
+      expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
+    });
+
+    test('loadState does not prune when entries are within the cap', async () => {
+      const entries = Array.from({ length: 10 }, (_, i) => ({ matchNumber: i + 15 }));
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(makePersistedState(entries, 25));
+      (AsyncStorage.setItem as jest.Mock).mockClear();
+
+      const loaded = await manager.loadState();
+
+      expect(loaded).not.toBeNull();
+      expect(loaded!.gameRoundHistory.length).toBe(10);
+    });
+
+    test('startNewMatch tags new entries with current match number', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'easy' });
+
+      const state = manager.getState()!;
+      // Manually inject a round-history entry tagged with match 1
+      state.gameRoundHistory.push({
+        playerId: 'p1', playerName: 'Player 1', cards: [],
+        combo_type: 'unknown', timestamp: Date.now(), passed: true,
+        matchNumber: state.currentMatch,
+      });
+
+      expect(state.gameRoundHistory[0].matchNumber).toBe(state.currentMatch);
+    });
+
+    test('startNewMatch prunes entries older than cutoff after >20 matches', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'easy' });
+
+      const state = manager.getState()!;
+      // Simulate 25 existing entries tagged with matches 1–25
+      state.gameRoundHistory = Array.from({ length: 25 }, (_, i) => ({
+        playerId: 'p1', playerName: 'Player 1', cards: [],
+        combo_type: 'unknown', timestamp: Date.now(), passed: true,
+        matchNumber: i + 1,
+      }));
+      // Push currentMatch to 25 so pruning triggers (cutoff=6) when startNewMatch increments to 26
+      state.currentMatch = 25;
+      // startNewMatch requires gameEnded=true and gameOver=false
+      state.gameEnded = true;
+      state.gameOver = false;
+
+      await manager.startNewMatch();
+
+      const afterState = manager.getState()!;
+      // cutoff = 26 - 20 = 6; entries with matchNumber < 6 should be gone
+      expect(afterState.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= 6)).toBe(true);
+    });
+
+    test('startNewMatch uses length-based cap for legacy entries without matchNumber', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'easy' });
+
+      const state = manager.getState()!;
+      // 30 legacy entries with no matchNumber
+      state.gameRoundHistory = Array.from({ length: 30 }, () => ({
+        playerId: 'p1', playerName: 'Player 1', cards: [],
+        combo_type: 'unknown', timestamp: Date.now(), passed: true,
+      }));
+      state.currentMatch = 25; // ensures pruning condition triggers
+      // startNewMatch requires gameEnded=true and gameOver=false
+      state.gameEnded = true;
+      state.gameOver = false;
+
+      await manager.startNewMatch();
+
+      const afterState = manager.getState()!;
+      expect(afterState.gameRoundHistory.length).toBeLessThanOrEqual(20);
     });
   });
 });
