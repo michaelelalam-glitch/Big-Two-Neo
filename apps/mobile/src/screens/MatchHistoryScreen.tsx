@@ -19,7 +19,6 @@ interface MatchHistoryEntry {
   final_position: number;
   elo_change: number | null;
   created_at: string;
-  player_count: number;
 }
 
 /**
@@ -54,7 +53,6 @@ export default function MatchHistoryScreen() {
       room_code: string;
       match_type: 'casual' | 'ranked';
       created_at: string;
-      player_count: number;
     }[];
   }
 
@@ -79,8 +77,7 @@ export default function MatchHistoryScreen() {
           match_history!inner(
             room_code,
             match_type,
-            created_at,
-            player_count
+            created_at
           )
         `)
         .eq('user_id', user.id)
@@ -98,7 +95,6 @@ export default function MatchHistoryScreen() {
           final_position: item.final_position,
           elo_change: item.elo_change,
           created_at: history?.created_at ?? '',
-          player_count: history?.player_count ?? 4,
         };
       });
 
