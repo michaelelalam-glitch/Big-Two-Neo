@@ -38,11 +38,14 @@ const corsHeaders = {
  * The Realtime subscription on the client detects the status change and shows
  * the RejoinModal ("Reclaim My Seat").
  */
+/** Replaces the given player slot with a bot. Returns true if the DB update
+ *  succeeded, false if it failed (error is logged but not thrown so callers
+ *  can still return a successful auto-play response). */
 async function replacePlayerWithBot(
   client: ReturnType<typeof createClient>,
   player: any,
   roomId: string,
-): Promise<void> {
+): Promise<boolean> {
   const originalUserId = player.user_id;
   // Strip any stacked "Bot " prefixes so reclaim always restores the clean name.
   // e.g. "Bot Bot Alice" → "Alice", "Alice" → "Alice"
@@ -77,11 +80,12 @@ async function replacePlayerWithBot(
 
   if (error) {
     console.error(`[auto-play-turn] ❌ Failed to replace player with bot:`, error.message);
-  } else {
-    console.log(
-      `[auto-play-turn] 🤖 Player ${player.player_index} (${cleanUsername}) replaced by bot after inactivity`,
-    );
+    return false;
   }
+  console.log(
+    `[auto-play-turn] 🤖 Player ${player.player_index} (${cleanUsername}) replaced by bot after inactivity`,
+  );
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -284,7 +288,7 @@ Deno.serve(async (req) => {
       // Always replace the inactive player with a bot (65s spec):
       // 60s inactivity → auto-play fires → immediate bot replacement.
       // Connected-but-AFK players reclaim their seat via the RejoinModal.
-      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      const replacedPass = await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
 
       // Kick bot-coordinator so the newly-placed bot starts playing immediately
       // without waiting for the next heartbeat watchdog cycle (~15s).
@@ -304,7 +308,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           action: 'pass',
-          replaced_by_bot: true,
+          replaced_by_bot: replacedPass,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -345,7 +349,7 @@ Deno.serve(async (req) => {
       // Always replace the inactive player with a bot (65s spec):
       // 60s inactivity → auto-play fires → immediate bot replacement.
       // Connected-but-AFK players reclaim their seat via the RejoinModal.
-      await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
+      const replacedPlay = await replacePlayerWithBot(supabaseClient, currentPlayer, room.id);
 
       // Kick bot-coordinator so the newly-placed bot starts playing immediately
       // without waiting for the next heartbeat watchdog cycle (~15s).
@@ -366,7 +370,7 @@ Deno.serve(async (req) => {
           success: true, 
           action: 'play',
           cards: cardsToPlay,
-          replaced_by_bot: true,
+          replaced_by_bot: replacedPlay,
           seconds_elapsed: Math.floor(elapsed / 1000),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

@@ -567,11 +567,30 @@ export function MultiplayerGame() {
   // potentially clock-skewed startedAt that startTimeMs normalises to 'now',
   // making the ring appear to restart from 60 s.
   const lastTurnStartedAtRef = useRef<string | null>(null);
+  // RING REJOIN FIX (#629): persist whether the local player (idx 0) had the
+  // active turn when gameState was last non-null. When gameState temporarily
+  // becomes null (reconnect re-fetch, fetch error), isActive falls to false
+  // because current_turn is unknown. Without this ref, isEffectivelyActive
+  // becomes false → suppressDisconnectRing deactivates → turnTimerStartedAt
+  // returns null → the yellow ring disappears until gameState reloads.
+  // Only updated when gameState is authoritative (non-null); null windows
+  // leave the ref at its last known value so the ring persists.
+  const localPlayerWasActiveRef = useRef<boolean>(false);
   useEffect(() => {
     if (multiplayerGameState?.turn_started_at) {
       lastTurnStartedAtRef.current = multiplayerGameState.turn_started_at;
     }
-  }, [multiplayerGameState?.turn_started_at]);
+    // Only update the was-active flag when gameState is non-null (authoritative).
+    // When gameState is null (transient loading window), preserve the last known
+    // value so the yellow ring anchor remains continuous through the null window.
+    if (multiplayerGameState !== null) {
+      const currentTurn = multiplayerGameState.current_turn;
+      const localIdx = layoutPlayers[0]?.player_index;
+      localPlayerWasActiveRef.current =
+        typeof currentTurn === 'number' && currentTurn === localIdx;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerGameState?.turn_started_at, multiplayerGameState?.current_turn]);
 
   useEffect(() => {
     const STALE_THRESHOLD_MS = 30_000; // 30s: matches server Phase A threshold — one source of truth
@@ -788,13 +807,25 @@ export function MultiplayerGame() {
       // turn_started_at + 60s, so the yellow ring always uses turn_started_at.
       // NOTE: The RejoinModal is triggered via the Realtime 'replaced_by_bot' update
       // (not via ring onExpired), so bot-replacement UX is unaffected.
-      const suppressDisconnectRing = idx === 0 && player.isActive;
+      //
+      // RING REJOIN FIX (#629): Extend the active-turn guard to cover brief
+      // null-gameState windows. When multiplayerGameState is transiently null
+      // (fetchGameState re-fetch after reconnect), isActive falls to false because
+      // current_turn is unknown. If we have a preserved turn anchor AND the previous
+      // non-null gameState confirmed this was the local player's turn, we treat them
+      // as still active so both suppressDisconnectRing and turnTimerStartedAt remain
+      // set — preventing a visible ring disappearance during the loading window.
+      const isEffectivelyActive =
+        player.isActive ||
+        (idx === 0 && !multiplayerGameState && localPlayerWasActiveRef.current && turnStartedAt !== null);
+
+      const suppressDisconnectRing = idx === 0 && isEffectivelyActive;
 
       return {
         ...player,
         // Show turn ring on WHOEVER's turn it is (all players see it).
         // Always anchor to turn_started_at — that's the server's auto-play deadline.
-        turnTimerStartedAt: player.isActive ? turnStartedAt : null,
+        turnTimerStartedAt: isEffectivelyActive ? turnStartedAt : null,
         // Merge client-side + server-side disconnect state.
         // Local player on their turn: suppress grey ring so yellow turn ring is visible.
         isDisconnected: suppressDisconnectRing
