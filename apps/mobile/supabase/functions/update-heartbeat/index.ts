@@ -86,9 +86,10 @@ Deno.serve(async (req) => {
     }
 
     // Verify ownership (player_id = room_players.id, must belong to auth user)
+    // Also fetch player_index + username for the reconnect broadcast.
     const { data: player, error: playerError } = await supabaseClient
       .from('room_players')
-      .select('id, user_id, connection_status')
+      .select('id, user_id, connection_status, player_index, username')
       .eq('id', player_id)
       .eq('room_id', room_id)
       .maybeSingle();
@@ -168,6 +169,45 @@ Deno.serve(async (req) => {
           JSON.stringify({ success: false, replaced_by_bot: true }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // ── Reconnect broadcast ────────────────────────────────────────────────
+      // When a player transitions from disconnected → connected (heartbeat resumes
+      // after app foregrounded), broadcast player_reconnected so all other clients
+      // call fetchPlayers() and get fresh room_players data. Without this, clients
+      // rely solely on Realtime postgres_changes — which can be delayed or lost on
+      // mobile networks — leaving the grey ring stuck on the reconnected player.
+      if (player.connection_status === 'disconnected') {
+        const reconnectBroadcast = (async () => {
+          try {
+            const { data: roomRow } = await supabaseClient
+              .from('rooms')
+              .select('code')
+              .eq('id', room_id)
+              .maybeSingle();
+            if (roomRow?.code) {
+              const ch = supabaseClient.channel(`room:${roomRow.code}`);
+              await ch.send({
+                type: 'broadcast',
+                event: 'player_reconnected',
+                payload: {
+                  player_index: player.player_index,
+                  username: player.username,
+                  was_replaced: false,
+                },
+              });
+              await supabaseClient.removeChannel(ch);
+              console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${roomRow.code}`);
+            }
+          } catch (bcastErr: any) {
+            console.warn('[update-heartbeat] Reconnect broadcast error (non-critical):', bcastErr?.message);
+          }
+        })();
+        try {
+          (globalThis as any).EdgeRuntime?.waitUntil(reconnectBroadcast);
+        } catch (_) {
+          await reconnectBroadcast;
+        }
       }
     }
 

@@ -632,6 +632,28 @@ export function MultiplayerGame() {
         // Without this correction the ring depletes to empty ~12-18s before the server
         // fires bot replacement, causing it to visually disappear with arc still showing.
         if (rp.connection_status === 'disconnected') {
+          // ── Heartbeat freshness override ────────────────────────────────────
+          // The Realtime postgres_changes event that flips connection_status to
+          // 'connected' may arrive AFTER the next heartbeat update has already
+          // refreshed playerLastSeenAtRef. If the heartbeat ref shows a fresh
+          // timestamp, the player has reconnected — clear the grey ring instead
+          // of perpetuating it from stale Realtime data.
+          const hbIso = playerLastSeenAtRef.current[rp.id] || rp.last_seen_at;
+          if (hbIso) {
+            const hbStaleMs = now - new Date(hbIso).getTime();
+            if (hbStaleMs < STALE_THRESHOLD_MS) {
+              // Heartbeat is fresh — player reconnected but realtimePlayers
+              // state update hasn't been processed yet.
+              if (clientDisconnectStartRef.current[rp.player_index] !== undefined) {
+                delete clientDisconnectStartRef.current[rp.player_index];
+                gameLogger.info(
+                  `[MultiplayerGame] Heartbeat override: player_index=${rp.player_index} heartbeat fresh (${Math.round(hbStaleMs / 1000)}s) but connection_status=disconnected — clearing grey ring`,
+                );
+              }
+              continue; // Don't add to newMap — player is live
+            }
+          }
+
           const existingAnchor = clientDisconnectStartRef.current[rp.player_index];
           const serverAnchorMs = rp.disconnect_timer_started_at
             ? new Date(rp.disconnect_timer_started_at).getTime()
@@ -901,6 +923,19 @@ export function MultiplayerGame() {
       // clientDisconnectTimerStartedAt blocking the yellow turn ring.
       const serverConfirmedConnected = !player.isDisconnected && !player.disconnectTimerStartedAt;
 
+      // ── Client-alive guard for remote players ────────────────────────────
+      // When the client-side staleness detector has cleared this player from
+      // clientDisconnections (their heartbeat is fresh), AND it's their active
+      // turn, suppress the grey ring to let the yellow turn ring through.
+      // This handles the window where Realtime data is stale (postgres_changes
+      // event delayed/lost on mobile) but the heartbeat ref already confirms
+      // the player is alive. Without this, stale player.disconnectTimerStartedAt
+      // from layoutPlayersWithScores keeps the grey ring visible because
+      // serverConfirmedConnected is false (it reads the same stale data).
+      // Safety: if the player IS disconnecting, the staleness detector will
+      // re-add them to clientDisconnections within 30s → guard deactivates.
+      const clientClearedDuringTurn = idx > 0 && player.isActive && !isClientDisconnected;
+
       // ── Diagnostic: log idx=0 ring data to trace 45s delay ──────────────
       if (idx === 0 && isEffectivelyActive && turnStartedAt) {
         const serverMs = new Date(turnStartedAt).getTime();
@@ -916,14 +951,13 @@ export function MultiplayerGame() {
         turnTimerStartedAt: isEffectivelyActive ? turnStartedAt : null,
         // Merge client-side + server-side disconnect state.
         // Local player on their turn: suppress grey ring so yellow turn ring is visible.
-        isDisconnected: suppressDisconnectRing
+        // Remote player on their turn + client says alive: suppress grey ring (stale Realtime guard).
+        isDisconnected: (suppressDisconnectRing || serverConfirmedConnected || clientClearedDuringTurn)
           ? false
-          : serverConfirmedConnected
-            ? false
-            : (isClientDisconnected || player.isDisconnected),
-        disconnectTimerStartedAt: suppressDisconnectRing
+          : (isClientDisconnected || player.isDisconnected),
+        disconnectTimerStartedAt: (suppressDisconnectRing || serverConfirmedConnected || clientClearedDuringTurn)
           ? null
-          : ((serverConfirmedConnected ? null : clientDisconnectTimerStartedAt) || player.disconnectTimerStartedAt),
+          : (clientDisconnectTimerStartedAt || player.disconnectTimerStartedAt),
         // Connection countdown callback:
         //   idx 0 (local player) → show RejoinModal when their own timer hits 0
         //   idx > 0 (other players) → force process_disconnected_players immediately
