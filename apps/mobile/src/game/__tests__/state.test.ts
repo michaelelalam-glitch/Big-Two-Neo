@@ -541,11 +541,11 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
 
     const loaded = await manager.loadState();
 
-    // cutoff = 25 - 20 = 5; entries with matchNumber >= 5 are retained (matches 5-25 = 21 entries)
-    const cutoff = 25 - 20;
+    // cutoff = 25 - 20 + 1 = 6; entries with matchNumber >= 6 are retained (matches 6-25 = 20 entries)
+    const cutoff = 25 - 20 + 1;
     expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= cutoff)).toBe(true);
-    // The pruned array must be strictly smaller than the original 25
-    expect(loaded!.gameRoundHistory.length).toBeLessThan(25);
+    // The pruned array must be bounded to exactly MAX_GAME_ROUND_HISTORY_MATCHES (20)
+    expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
     // Migration save must be triggered
     expect(AsyncStorage.setItem).toHaveBeenCalled();
   });

@@ -673,13 +673,17 @@ export class GameStateManager {
             // Without +1, cutoff = currentMatch - MAX retains MAX+1 matches (inclusive on both ends).
             const cutoff = currentMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
             const before = loadedState.gameRoundHistory.length;
-            const hasMatchNumbers = loadedState.gameRoundHistory.some(
-              entry => typeof entry?.matchNumber === 'number'
+            // Mirror startNewMatch(): treat mixed or all-legacy arrays as legacy.
+            // If ANY entry lacks matchNumber (pre-matchNumber build), using match-based
+            // pruning would silently drop those entries (undefined >= cutoff is false).
+            // Only use match-based pruning when every entry carries a matchNumber.
+            const hasLegacyEntries = loadedState.gameRoundHistory.some(
+              entry => entry.matchNumber == null
             );
-            if (hasMatchNumbers) {
-              // New-format path: filter by match cutoff
+            if (!hasLegacyEntries) {
+              // All entries have matchNumber → safe to filter by match cutoff
               loadedState.gameRoundHistory = loadedState.gameRoundHistory.filter(
-                entry => (entry.matchNumber as number) >= cutoff
+                entry => entry.matchNumber! >= cutoff
               );
               if (loadedState.gameRoundHistory.length < before) {
                 gameLogger.info(
