@@ -23,11 +23,12 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Branch:** `task/630-fix-timer-interval-leak`
   - **Why:** 100ms interval ran permanently from manager creation regardless of game state. If `destroy()` was skipped (e.g. component unmounted during async init before `gameManagerRef.current` was visible to the cleanup), the interval leaked forever, draining battery and executing stale callbacks.
 
-- [ ] **C3** — Fix broken push notification edge function
+- [x] **C3** — Fix broken push notification edge function
   - **File:** `apps/mobile/supabase/functions/send-push-notification/index.ts` (~line 67)
   - **Task:** #632
-  - **Fix:** Rename the duplicate `const now` declaration to eliminate `SyntaxError: Identifier 'now' has already been declared`
-  - **Why:** Function crashes at runtime — no push notifications sent for game invites or turn reminders
+  - **Fix:** Removed the duplicate `const now = Math.floor(Date.now() / 1000)` declaration at ~line 67 inside `getAccessToken()`. The first `const now` (line 55, used for the cache-validity guard) is already in scope for the JWT `iat`/`exp` payload and `tokenExpiryTime` assignment — both reads used the same timestamp anyway. Added inline comment explaining the reuse to prevent future confusion.
+  - **Branch:** `task/632-fix-push-notification-syntax-error`
+  - **Why:** `SyntaxError: Identifier 'now' has already been declared` crashed the Deno runtime on every cold start — push notifications were never delivered for game invites or turn reminders.
 
 - [ ] **C4** — Remove `.bak` files from version control
   - **Task:** #631
