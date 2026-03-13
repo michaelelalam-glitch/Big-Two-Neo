@@ -123,6 +123,9 @@ async function broadcastGameEnded(
               finish();
             });
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // Channel failed — resolve the internal Promise immediately to free Deno
+          // runtime resources. The HTTP response is never delayed: all callers
+          // invoke `void broadcastGameEnded(...)` (fire-and-forget).
           clearTimeout(safetyTimeout);
           finish();
         }

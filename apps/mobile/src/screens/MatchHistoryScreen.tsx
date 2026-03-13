@@ -100,7 +100,11 @@ export default function MatchHistoryScreen() {
         .or(
           `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id},voided_user_id.eq.${user.id}`
         )
-        .order('finished_at', { ascending: false })
+        // finished_at is NULL for abandoned/incomplete games; nullsFirst:false keeps
+        // completed games at the top and groups abandoned entries at the bottom sorted
+        // by their creation time (mirrors the display fallback: finished_at ?? created_at).
+        .order('finished_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
         .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
       if (error) throw error;
