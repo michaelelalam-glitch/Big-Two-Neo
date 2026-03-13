@@ -75,7 +75,7 @@ interface UseDisconnectDetectionOptions {
   /** From usePlayerDisplayData — includes totalScore per seat. */
   layoutPlayersWithScores: LayoutPlayerWithScore[];
   /** From useMultiplayerLayout — used to determine local player's seat index. */
-  layoutPlayers: Array<{ player_index: number; isActive: boolean }>;
+  layoutPlayers: Array<{ player_index?: number; isActive: boolean }>;
   /** True while the RejoinModal is open. */
   showBotReplacedModal: boolean;
   /** True while useConnectionManager is executing a reconnect RPC. */

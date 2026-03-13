@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -261,15 +261,19 @@ export default function MatchHistoryScreen() {
     });
   };
 
-  // Computed once per component mount. i18n locale is stable for the lifetime
-  // of the screen so this is safe to define here rather than inside renderMatchCard
-  // (avoids allocating two new objects per FlatList row on every re-render).
-  const matchTypeLabel: Record<MatchHistoryEntry['match_type'], string> = {
-    casual: i18n.t('matchmaking.casual'),
-    ranked: i18n.t('matchmaking.ranked'),
-    private: i18n.t('profile.private'),
-    local: i18n.t('matchHistory.local'),
-  };
+  // Memoised by language so this only re-allocates when i18n locale changes
+  // (not on every component re-render). Avoids creating two new objects per
+  // FlatList row on unrelated state updates.
+  const matchTypeLabel = useMemo<Record<MatchHistoryEntry['match_type'], string>>(
+    () => ({
+      casual: i18n.t('matchmaking.casual'),
+      ranked: i18n.t('matchmaking.ranked'),
+      private: i18n.t('profile.private'),
+      local: i18n.t('matchHistory.local'),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [i18n.getLanguage()],
+  );
 
   const renderMatchCard = ({ item }: { item: MatchHistoryEntry }) => {
     const isRanked = item.match_type === 'ranked';

@@ -182,18 +182,44 @@ Deno.serve(async (req) => {
           try {
             // IMPORTANT: channel name must use room_id (UUID) to match the
             // client's Realtime subscription in useRealtime.ts joinChannel().
-            const ch = supabaseClient.channel(`room:${room_id}`);
-            await ch.send({
-              type: 'broadcast',
-              event: 'player_reconnected',
-              payload: {
-                player_index: player.player_index,
-                username: player.username,
-                was_replaced: false,
-              },
+            // Use subscribe→send→removeChannel pattern: supabase-js Realtime
+            // requires a SUBSCRIBED channel before send() is reliable; calling
+            // send() on an unsubscribed channel can silently drop the message.
+            const payload = {
+              player_index: player.player_index,
+              username: player.username,
+              was_replaced: false,
+            };
+            await new Promise<void>((resolve) => {
+              const ch = supabaseClient.channel(`room:${room_id}`);
+              let settled = false;
+              const finish = (): void => {
+                if (!settled) {
+                  settled = true;
+                  supabaseClient.removeChannel(ch).catch(() => {});
+                  resolve();
+                }
+              };
+              const safetyTimeout = setTimeout(finish, 5000);
+              ch.subscribe((status: string) => {
+                if (status === 'SUBSCRIBED') {
+                  ch.send({ type: 'broadcast', event: 'player_reconnected', payload })
+                    .then(() => {
+                      console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
+                      clearTimeout(safetyTimeout);
+                      finish();
+                    })
+                    .catch((e: unknown) => {
+                      console.warn('[update-heartbeat] Reconnect broadcast send error (non-critical):', e);
+                      clearTimeout(safetyTimeout);
+                      finish();
+                    });
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                  clearTimeout(safetyTimeout);
+                  finish();
+                }
+              });
             });
-            await supabaseClient.removeChannel(ch);
-            console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
           } catch (bcastErr: any) {
             console.warn('[update-heartbeat] Reconnect broadcast error (non-critical):', bcastErr?.message);
           }

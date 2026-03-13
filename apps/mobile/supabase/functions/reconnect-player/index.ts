@@ -109,20 +109,48 @@ Deno.serve(async (req) => {
     // This is fire-and-forget — we do not block the response on it.
     // IMPORTANT: channel name must be `room:${room_id}` (UUID) to match the
     // client's Realtime subscription in useRealtime.ts joinChannel().
+    // Use subscribe→send→removeChannel pattern: supabase-js Realtime requires
+    // a SUBSCRIBED channel before send() is reliable; calling send() on an
+    // unsubscribed channel can silently drop the message (especially on cold
+    // starts / flaky connections).
     (async () => {
       try {
-        const broadcastChannel = supabaseClient.channel(`room:${room_id}`);
-        await broadcastChannel.send({
-          type:    'broadcast',
-          event:   'player_reconnected',
-          payload: {
-            player_index: result.player_index,
-            username:     result.username,
-            was_replaced: result.was_replaced ?? false,
-          },
+        const broadcastPayload = {
+          player_index: result.player_index,
+          username:     result.username,
+          was_replaced: result.was_replaced ?? false,
+        };
+        await new Promise<void>((resolve) => {
+          const broadcastChannel = supabaseClient.channel(`room:${room_id}`);
+          let settled = false;
+          const finish = (): void => {
+            if (!settled) {
+              settled = true;
+              supabaseClient.removeChannel(broadcastChannel).catch(() => {});
+              resolve();
+            }
+          };
+          const safetyTimeout = setTimeout(finish, 5000);
+          broadcastChannel.subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              broadcastChannel
+                .send({ type: 'broadcast', event: 'player_reconnected', payload: broadcastPayload })
+                .then(() => {
+                  console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${room_id} (index ${result.player_index})`);
+                  clearTimeout(safetyTimeout);
+                  finish();
+                })
+                .catch((e: unknown) => {
+                  console.warn('[reconnect-player] Broadcast send error (non-critical):', e);
+                  clearTimeout(safetyTimeout);
+                  finish();
+                });
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              clearTimeout(safetyTimeout);
+              finish();
+            }
+          });
         });
-        await supabaseClient.removeChannel(broadcastChannel);
-        console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${room_id} (index ${result.player_index})`);
       } catch (bcastErr: any) {
         // Non-fatal — clients will also detect the change via postgres_changes
         console.warn('[reconnect-player] Broadcast error (non-critical):', bcastErr?.message);
