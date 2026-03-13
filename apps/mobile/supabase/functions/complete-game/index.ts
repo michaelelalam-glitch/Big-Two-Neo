@@ -189,6 +189,16 @@ Deno.serve(async (req: Request) => {
         console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
       } else if (existingRow) {
         console.log(`[Complete Game] ⏭️ Game already recorded for room ${gameData.room_id} — skipping duplicate`);
+        // Run idempotent room cleanup so the room is always closed even if the
+        // winning caller crashed after INSERT but before Step 3b.
+        if (gameData.room_id) {
+          try {
+            await supabaseAdmin.from('rooms').update({ status: 'ended' }).eq('id', gameData.room_id);
+            await supabaseAdmin.from('room_players').delete().eq('room_id', gameData.room_id);
+          } catch (e) {
+            console.warn('[Complete Game] Room cleanup in duplicate path failed (non-critical):', e);
+          }
+        }
         return new Response(
           JSON.stringify({
             success: true,
@@ -327,6 +337,16 @@ Deno.serve(async (req: Request) => {
       // Treat it the same as the dedup guard above: return 200, skip stats.
       if (historyError.code === '23505') {
         console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate, skipping`);
+        // Run idempotent room cleanup so a partial-failure recovery caller still
+        // closes the room even though it cannot update stats.
+        if (gameData.room_id) {
+          try {
+            await supabaseAdmin.from('rooms').update({ status: 'ended' }).eq('id', gameData.room_id);
+            await supabaseAdmin.from('room_players').delete().eq('room_id', gameData.room_id);
+          } catch (e) {
+            console.warn('[Complete Game] Room cleanup in 23505 path failed (non-critical):', e);
+          }
+        }
         return new Response(
           JSON.stringify({
             success: true,

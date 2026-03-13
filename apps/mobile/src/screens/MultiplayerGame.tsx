@@ -190,11 +190,13 @@ export function MultiplayerGame() {
   }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
-  // Retries up to 3 times with exponential backoff if the initial connection
-  // fails (common on cold app start when the Supabase connection isn't ready).
+  // Retries up to 3 times total (initial + 2 retries) with exponential backoff
+  // if the initial connection fails (common on cold app start when the Supabase
+  // connection isn't ready).
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const connectWithRetry = async (attempt: number) => {
       try {
@@ -202,10 +204,11 @@ export function MultiplayerGame() {
       } catch (error: unknown) {
         const err = error as Error;
         if (cancelled) return;
-        if (attempt < 3) {
+        if (attempt < 2) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
           gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise<void>(resolve => { retryTimer = setTimeout(resolve, delay); });
+          retryTimer = null;
           if (!cancelled) await connectWithRetry(attempt + 1);
         } else {
           console.error('[MultiplayerGame] ❌ Failed to connect after 3 attempts:', err);
@@ -217,7 +220,13 @@ export function MultiplayerGame() {
 
     connectWithRetry(0);
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, user?.id]);
 

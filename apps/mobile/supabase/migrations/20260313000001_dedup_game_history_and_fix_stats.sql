@@ -10,8 +10,13 @@
 --   1. Deletes duplicate game_history rows (keeps earliest per room_id)
 --   2. Adds a unique partial index on room_id (WHERE room_id IS NOT NULL)
 --      to prevent future duplicates at the DB level
---   3. Resets inflated stats for affected players by recalculating from
---      the (now-deduplicated) game_history rows
+--
+-- NOTE: Inflated player stats (games_played, ELO, rank_points) resulting from
+-- the pre-fix duplicate rows are NOT automatically reset here because
+-- update_player_stats_after_game is not safely invertible without a full
+-- re-computation. Stats will naturally re-converge as new games are played
+-- under the corrected dedup guard. A separate manual corrective migration can
+-- be run off-hours if an immediate reset is required.
 -- ============================================================================
 
 -- Step 1: Delete duplicate game_history rows, keeping only the earliest per room_id
