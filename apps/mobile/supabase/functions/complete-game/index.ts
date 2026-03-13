@@ -50,8 +50,15 @@ const corsHeaders = {
 // Called from both the normal path (Step 5) and the dedup/23505 short-circuit
 // paths so clients are never left waiting for a game_ended event even when the
 // winning caller crashes before reaching Step 5.
+//
+// Uses the same Promise-based subscribe→send→removeChannel pattern as
+// bot-coordinator/broadcastToRoom: channel.subscribe() is synchronous in
+// supabase-js v2 (returns a RealtimeChannel, not a Promise), so we wrap the
+// entire flow in a new Promise that resolves once the broadcast is sent (or on
+// error/timeout). A 5-second safety timeout prevents the edge function from
+// hanging forever if the channel subscription never completes.
 async function broadcastGameEnded(
-  client: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>,
+  client: ReturnType<typeof createClient>,
   gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position?: number }> }
 ): Promise<void> {
   if (!gameData.room_id) return;
@@ -73,19 +80,33 @@ async function broadcastGameEnded(
       final_scores: finalScores,
       room_code: gameData.room_code,
     };
-    const channel = client.channel(`room:${gameData.room_id}`);
-    await channel.subscribe(async (status: string) => {
-      if (status === 'SUBSCRIBED') {
-        const { error: broadcastError } = await channel.send({
-          type: 'broadcast',
-          event: 'game_ended',
-          payload: broadcastPayload,
-        });
-        if (broadcastError) {
-          console.error('[Complete Game] broadcastGameEnded: failed to send:', broadcastError);
+    await new Promise<void>((resolve) => {
+      const channel = client.channel(`room:${gameData.room_id}`);
+      let settled = false;
+      const finish = (): void => {
+        if (!settled) {
+          settled = true;
+          client.removeChannel(channel).catch(() => {});
+          resolve();
         }
-        await client.removeChannel(channel);
-      }
+      };
+      // Safety net: always resolve after 5 s to avoid blocking the edge function
+      const safetyTimeout = setTimeout(finish, 5000);
+      channel.subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          channel
+            .send({ type: 'broadcast', event: 'game_ended', payload: broadcastPayload })
+            .then(() => { clearTimeout(safetyTimeout); finish(); })
+            .catch((broadcastError: unknown) => {
+              console.error('[Complete Game] broadcastGameEnded: failed to send:', broadcastError);
+              clearTimeout(safetyTimeout);
+              finish();
+            });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          clearTimeout(safetyTimeout);
+          finish();
+        }
+      });
     });
   } catch (err) {
     console.warn('[Complete Game] broadcastGameEnded error (non-critical):', err);

@@ -221,6 +221,9 @@ export function MultiplayerGame() {
     const connectWithRetry = async (attempt: number) => {
       try {
         await multiplayerConnectToRoom(roomCode);
+        // Connection succeeded — re-enable onError toasts for the rest of the
+        // screen lifetime so genuine post-connection errors are shown to the user.
+        suppressConnectErrorsRef.current = false;
       } catch (error: unknown) {
         const err = error as Error;
         if (cancelled) return;
