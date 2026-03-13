@@ -64,18 +64,23 @@ async function broadcastGameEnded(
   if (!gameData.room_id) return;
   try {
     const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
+    // Sort by finish_position (already validated as 1–4, unique, winner=1) so the
+    // finalScores array is in finish order for display purposes.
+    // Use p.finish_position as the single source of truth for both finish_position
+    // and rank — avoids the mismatch that arose when finish_position was derived
+    // from a score sort (finishIdx+1) while rank came from the client-validated
+    // p.finish_position, which could diverge on ties or future rule changes.
     const finalScores = [...gameData.players]
-      .sort((a, b) => a.score - b.score)
-      .map((p, finishIdx) => ({
+      .sort((a, b) => a.finish_position - b.finish_position)
+      .map((p) => ({
         // player_index is the original seat/array index so it aligns with
         // game_winner_index (which also uses the original players array).
-        // finishIdx (0-based sort rank) is exposed as finish_position separately.
         player_index: gameData.players.findIndex(orig => orig.user_id === p.user_id),
         player_name: p.username,
         cumulative_score: p.score,
         points_added: 0,
-        finish_position: finishIdx + 1, // 1-based finish rank in score order
-        rank: p.finish_position,
+        finish_position: p.finish_position, // single source of truth: validated by Step 1
+        rank: p.finish_position,             // same field; kept for backwards-compat payload shape
         is_busted: p.score >= 101,
       }));
     const broadcastPayload = {
@@ -299,7 +304,38 @@ async function broadcastGameEnded(
         .maybeSingle();
 
       if (dupCheckError) {
-        console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
+        // If the error is because the stats_applied_at column doesn't exist yet
+        // (migration 00002 not yet applied), fall back to a simpler id-only query
+        // so dedup still works before that optional migration runs.
+        const isColumnMissing =
+          dupCheckError.message?.includes('stats_applied_at') ||
+          (dupCheckError as { code?: string }).code === '42703';
+        if (isColumnMissing) {
+          console.warn('[Complete Game] stats_applied_at column absent — using id-only fallback dedup');
+          const { data: fallbackRow, error: fallbackErr } = await supabaseAdmin
+            .from('game_history')
+            .select('id')
+            .eq('room_id', gameData.room_id)
+            .limit(1)
+            .maybeSingle();
+          if (!fallbackErr && fallbackRow) {
+            console.log(`[Complete Game] ⏭️ Dedup (fallback): game already recorded for room ${gameData.room_id} — skipping duplicate`);
+            const { error: roomEndErr } = await supabaseAdmin
+              .from('rooms')
+              .update({ status: 'finished' })
+              .eq('id', gameData.room_id);
+            if (roomEndErr) {
+              console.warn('[Complete Game] Failed to mark room finished in fallback dedup path:', roomEndErr.message);
+            }
+            await broadcastGameEnded(supabaseAdmin, gameData);
+            return new Response(
+              JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
+        }
       } else if (existingRow) {
         if (existingRow.stats_applied_at === null) {
           // stats_applied_at IS NULL means either:

@@ -203,10 +203,10 @@ export function MultiplayerGame() {
   }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
-  // Makes up to 3 total attempts (initial + 2 retries) with exponential backoff:
-  // delay after attempt 0 = 1 s, delay after attempt 1 = 2 s.
-  // if the initial connection fails (common on cold app start when the Supabase
-  // connection isn't ready).
+  // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
+  // delay after attempt 0 = 1 s, delay after attempt 1 = 2 s, delay after attempt 2 = 4 s.
+  // Retries guard against transient failures common on cold app start when the Supabase
+  // connection isn't fully ready.
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -228,9 +228,9 @@ export function MultiplayerGame() {
       } catch (error: unknown) {
         const err = error as Error;
         if (cancelled) return;
-        // Exponential back-off: 1 s after attempt 0, 2 s after attempt 1.
-        // 3 total attempts (0, 1, 2); actual delays 1 s → 2 s.
-        if (attempt < 2) {
+        // Exponential back-off: 1 s after attempt 0, 2 s after attempt 1, 4 s after attempt 2.
+        // 4 total attempts (0, 1, 2, 3); actual delays 1 s → 2 s → 4 s.
+        if (attempt < 3) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
           gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
           await new Promise<void>(resolve => {
@@ -243,7 +243,7 @@ export function MultiplayerGame() {
         } else {
           // Final attempt failed — allow the onError toast to show now.
           suppressConnectErrorsRef.current = false;
-          console.error('[MultiplayerGame] ❌ Failed to connect after 3 attempts:', err);
+          console.error('[MultiplayerGame] ❌ Failed to connect after 4 attempts:', err);
           gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
           showError(err?.message || 'Failed to connect to room');
         }
