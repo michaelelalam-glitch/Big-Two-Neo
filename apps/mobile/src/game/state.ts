@@ -209,12 +209,17 @@ export class GameStateManager {
         return;
       }
       // Between matches (gameEnded=true, gameOver=false): cancel any active
-      // auto-pass timer and return early. The interval keeps running (not
-      // cleared here); startNewMatch() explicitly clears and restarts it.
+      // auto-pass timer and clear the interval to avoid an idle 100ms busy loop
+      // while the match-end screen is visible. startNewMatch() will restart the
+      // interval via startTimerCountdown() when the next match begins.
       if (this.state?.gameEnded) {
         if (this.state.auto_pass_timer) {
           gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
           this.state.auto_pass_timer = null;
+        }
+        if (this.timerInterval !== null) {
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
         }
         return;
       }
