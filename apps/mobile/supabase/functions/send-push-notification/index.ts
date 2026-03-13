@@ -64,8 +64,7 @@ async function getAccessToken(): Promise<string> {
   const serviceAccount = JSON.parse(serviceAccountJson)
   
   // Use Google's JWT signing approach with proper base64url encoding
-  const now = Math.floor(Date.now() / 1000)
-  
+  // `now` is already declared above for the cache-validity check — reuse it
   const header = {
     alg: 'RS256',
     typ: 'JWT'
