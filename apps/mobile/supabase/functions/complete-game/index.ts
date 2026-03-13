@@ -168,6 +168,39 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
+    // STEP 2b: DEDUPLICATION GUARD — only ONE client should record per game
+    // ============================================================================
+    // In a 4-human game every client calls complete-game when game_phase →
+    // 'game_over'. Without this guard, game_history gets N rows and
+    // update_player_stats_after_game runs N× per player, quadrupling stats.
+    //
+    // The guard checks for an existing game_history row with the same room_id.
+    // The first caller wins; subsequent callers receive a 200 (not an error)
+    // because from each client's perspective the game *did* complete.
+    if (gameData.room_id) {
+      const { data: existingRow, error: dupCheckError } = await supabaseAdmin
+        .from('game_history')
+        .select('id')
+        .eq('room_id', gameData.room_id)
+        .limit(1)
+        .maybeSingle();
+
+      if (dupCheckError) {
+        console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
+      } else if (existingRow) {
+        console.log(`[Complete Game] ⏭️ Game already recorded for room ${gameData.room_id} — skipping duplicate`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Game already recorded by another client',
+            duplicate: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ============================================================================
     // STEP 3: RECORD GAME HISTORY (for audit trail)
     // ============================================================================
 
@@ -289,6 +322,20 @@ Deno.serve(async (req: Request) => {
       });
 
     if (historyError) {
+      // Unique constraint violation on room_id = race-condition duplicate.
+      // Another client's INSERT landed between our SELECT check and this INSERT.
+      // Treat it the same as the dedup guard above: return 200, skip stats.
+      if (historyError.code === '23505') {
+        console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate, skipping`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Game already recorded by another client (race)',
+            duplicate: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       console.error('[Complete Game] Failed to record game history:', historyError);
       return new Response(
         JSON.stringify({ error: 'Failed to record game history', details: historyError.message }),

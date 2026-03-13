@@ -189,15 +189,35 @@ export function MultiplayerGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multiplayerGameState?.game_phase]);
 
-  // Ensure multiplayer realtime channel is joined when entering the Game screen
+  // Ensure multiplayer realtime channel is joined when entering the Game screen.
+  // Retries up to 3 times with exponential backoff if the initial connection
+  // fails (common on cold app start when the Supabase connection isn't ready).
   useEffect(() => {
     if (!user?.id) return;
+    let cancelled = false;
 
-    multiplayerConnectToRoom(roomCode).catch((error: Error) => {
-      console.error('[MultiplayerGame] ❌ Failed to connect:', error);
-      gameLogger.error('[MultiplayerGame] Failed to connect:', error?.message || String(error));
-      showError(error?.message || 'Failed to connect to room');
-    });
+    const connectWithRetry = async (attempt: number) => {
+      try {
+        await multiplayerConnectToRoom(roomCode);
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (cancelled) return;
+        if (attempt < 3) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+          gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          if (!cancelled) await connectWithRetry(attempt + 1);
+        } else {
+          console.error('[MultiplayerGame] ❌ Failed to connect after 3 attempts:', err);
+          gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
+          showError(err?.message || 'Failed to connect to room');
+        }
+      }
+    };
+
+    connectWithRetry(0);
+
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, user?.id]);
 

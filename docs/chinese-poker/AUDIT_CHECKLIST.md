@@ -47,6 +47,18 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `apps/mobile/src/hooks/__tests__/useRealtime-timer-cancellation.test.ts.bak`
   - **Status:** `.gitignore` already contains `*.bak`. No further action required in version control.
 
+- [x] **C5** — Fix complete-game deduplication (4x stats + 4x history rows)
+  - **Files:** `apps/mobile/supabase/functions/complete-game/index.ts`, `apps/mobile/supabase/migrations/20260313000001_dedup_game_history_and_fix_stats.sql`
+  - **Branch:** `task/fix-dedup-stats-reconnect`
+  - **Fix:** Added deduplication guard in the edge function — checks for existing `game_history` row by `room_id` before INSERT. Returns 200 with `duplicate: true` for subsequent callers. Also handles `23505` (unique constraint violation) as a belt-and-suspenders race-condition guard. SQL migration deletes existing duplicates and adds a `UNIQUE` partial index on `room_id WHERE room_id IS NOT NULL`. Added `stats_applied_at` marker column (migration 20260313000002) so duplicate callers can distinguish "still in progress" from "truly failed". Step 3b now uses `status = 'finished'` consistently across all paths; `LobbyScreen` Play Again check widened to accept both `'ended'` and `'finished'`.
+  - **Why:** In a 4-human game, all 4 clients independently call `complete-game` when `game_phase → 'game_over'`. Without dedup: 4 `game_history` rows inserted, `update_player_stats_after_game` called 4× per player (quadrupling all stats, ELO, streaks, combos). First caller also deleted `room_players` in Step 3b, causing subsequent callers to fail voided-player computation.
+
+- [x] **C6** — Fix room connect timeout on rejoin after force-close
+  - **File:** `apps/mobile/src/screens/MultiplayerGame.tsx`
+  - **Branch:** `task/fix-dedup-stats-reconnect`
+  - **Fix:** Added retry logic (4 total attempts — attempt 0 + 3 retries — with exponential backoff: 1s, 2s, 4s) to the `multiplayerConnectToRoom` call in the mount `useEffect`. Added `suppressConnectErrorsRef` to suppress intermediate `onError` toasts while retries are in-flight; cleared immediately on success so post-connection errors remain visible. Cleanup resolves the pending delay Promise immediately so the async chain exits without hanging.
+  - **Why:** "Room query timeout after 5 seconds" error on first attempt after force-close; user had to manually navigate back and rejoin.
+
 - [x] **C7** — Fix broadcast channel name mismatch preventing rejoin game state refresh
   - **Files:** `apps/mobile/supabase/functions/reconnect-player/index.ts`, `apps/mobile/supabase/functions/update-heartbeat/index.ts`, `apps/mobile/src/screens/MultiplayerGame.tsx`
   - **Branch:** `task/fix-rejoin-broadcast-channel`
