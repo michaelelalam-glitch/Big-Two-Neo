@@ -41,7 +41,7 @@ interface UsePlayerDisplayDataOptions {
   multiplayerLayoutPlayers: LayoutPlayer[];
 }
 
-interface LayoutPlayerWithScore extends DisplayPlayer {
+export interface LayoutPlayerWithScore extends DisplayPlayer {
   totalScore: number;
 }
 
