@@ -112,10 +112,10 @@ export function useGameStateManager({
     }
 
     // Guard against re-entrant invocations: if initGame() is already running
-    // asynchronously for this exact room+difficulty combination and cleanup has
-    // not yet executed (i.e. isInitializedRef is still true from the previous
-    // run), bail out immediately to avoid spawning a second manager for the same
-    // room. In practice this fires if deps change and are immediately restored
+    // asynchronously for the same room+difficulty+player+gameType combination
+    // and cleanup has not yet executed (i.e. isInitializedRef is still true from
+    // the previous run), bail out immediately to avoid spawning a second manager.
+    // In practice this fires if deps change and are immediately restored
     // before the first async initGame() reaches its subscribe call.
     // Note: cleanup always resets isInitializedRef/initializedRoomRef, so a
     // normal dep-change re-run always proceeds past this guard.

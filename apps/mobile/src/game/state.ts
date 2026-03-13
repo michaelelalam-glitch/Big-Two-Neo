@@ -176,8 +176,9 @@ export class GameStateManager {
     // here.  Constructing the manager must never start a background interval because
     // the caller may abort initialisation (e.g. component unmounts before
     // initializeGame() runs) without calling destroy().  The interval
-    // self-terminates when the game reaches a terminal state (gameOver=true) and
-    // is cleared unconditionally by destroy() on component unmount.
+    // self-terminates when the game reaches a terminal state (gameOver=true) or
+    // when a match ends (gameEnded=true), and is cleared unconditionally by
+    // destroy() on component unmount.
   }
 
   /**
