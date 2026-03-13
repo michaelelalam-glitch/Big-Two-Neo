@@ -251,11 +251,22 @@ async function broadcastGameEnded(
     // (update_player_stats_after_game is NOT idempotent; re-running would
     // double-count). We log the failure visibly and still short-circuit.
     // Admin diagnostic: SELECT * FROM game_history WHERE stats_applied_at IS NULL;
+    //
+    // DEPLOYMENT ORDER: migration 20260313000002 (adds stats_applied_at) must be
+    // applied before this Edge Function is deployed. If the column is absent,
+    // PostgREST returns an error that is caught by the dupCheckError guard below
+    // — the function then falls through and processes the game normally rather than
+    // crashing, so there is no hard failure if the migration is delayed.
     if (gameData.room_id) {
       const { data: existingRow, error: dupCheckError } = await supabaseAdmin
         .from('game_history')
         .select('id, stats_applied_at')
         .eq('room_id', gameData.room_id)
+        // Prefer the most-complete row: stats_applied_at set > null, then earliest by created_at.
+        // During the brief window before the dedup migration runs, duplicate rows may exist;
+        // this ordering ensures we always find the fully-applied row if one exists.
+        .order('stats_applied_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 
@@ -277,10 +288,10 @@ async function broadcastGameEnded(
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin
             .from('rooms')
-            .update({ status: 'ended' })
+            .update({ status: 'finished' })
             .eq('id', gameData.room_id);
           if (roomEndErr) {
-            console.warn('[Complete Game] Failed to mark room ended in duplicate path:', roomEndErr.message);
+            console.warn('[Complete Game] Failed to mark room finished in duplicate path:', roomEndErr.message);
           }
           // Broadcast game_ended so clients are not blocked even if the winning
           // caller crashed before reaching Step 5. Idempotent from client side.
@@ -436,10 +447,10 @@ async function broadcastGameEnded(
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin
             .from('rooms')
-            .update({ status: 'ended' })
+            .update({ status: 'finished' })
             .eq('id', gameData.room_id);
           if (roomEndErr) {
-            console.warn('[Complete Game] Failed to mark room ended in 23505 path:', roomEndErr.message);
+            console.warn('[Complete Game] Failed to mark room finished in 23505 path:', roomEndErr.message);
           }
           // Broadcast game_ended so clients are not blocked if the winning
           // caller crashes before reaching Step 5. Idempotent from client side.

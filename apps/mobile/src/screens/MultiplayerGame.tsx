@@ -203,7 +203,8 @@ export function MultiplayerGame() {
   }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
-  // Retries up to 3 times total (initial + 2 retries) with exponential backoff
+  // Makes up to 3 total attempts (initial + 2 retries) with exponential backoff:
+  // delay after attempt 0 = 1 s, delay after attempt 1 = 2 s.
   // if the initial connection fails (common on cold app start when the Supabase
   // connection isn't ready).
   useEffect(() => {

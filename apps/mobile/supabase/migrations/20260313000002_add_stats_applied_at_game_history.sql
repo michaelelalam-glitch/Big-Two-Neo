@@ -25,8 +25,11 @@
 ALTER TABLE game_history
   ADD COLUMN IF NOT EXISTS stats_applied_at TIMESTAMPTZ DEFAULT NULL;
 
--- Backfill all pre-existing rows as fully applied so they are never flagged as
--- partial failures by the new dedup logic.
+-- Backfill pre-existing rows that have a room_id as fully applied so they are
+-- never flagged as partial failures by the new dedup logic. Scoped to
+-- room_id IS NOT NULL to avoid a full-table scan on local/casual-game rows
+-- (NULL room_id rows are never checked by the dedup guard).
 UPDATE game_history
   SET stats_applied_at = COALESCE(finished_at, created_at, NOW())
-  WHERE stats_applied_at IS NULL;
+  WHERE stats_applied_at IS NULL
+    AND room_id IS NOT NULL;
