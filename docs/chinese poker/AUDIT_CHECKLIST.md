@@ -33,8 +33,8 @@ Track progress on all audit findings. Check off items as they are resolved.
 - [x] **C4** — Remove `.bak` files from version control
   - **Task:** #631
   - **Branch:** `task/631-remove-bak-files`
-  - **Verification:** `git ls-files | grep '\.bak'` returns empty — no `.bak` files are tracked. The `*.bak` rule was present in `.gitignore` since commit `d92779a` (2026-03-08), so none of the 10 workspace `.bak` files were ever committed.
-  - **10 local `.bak` artifacts** (gitignored, never tracked):
+  - **Verification:** `git ls-files -- '*.bak'` produces no output — no `.bak` files are tracked. The `*.bak` rule was present in `.gitignore` since commit `d92779a` (2026-03-08), so the workspace `.bak` files were never committed.
+  - **Local `.bak` artifacts** (gitignored, never tracked; count may vary as developers create/remove workspace files):
     - `apps/mobile/src/screens/GameScreen.tsx.bak`
     - `apps/mobile/src/components/game/CardHand.tsx.bak`
     - `apps/mobile/src/components/game/GameControls.tsx.bak`
