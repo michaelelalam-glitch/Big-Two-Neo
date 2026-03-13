@@ -180,25 +180,20 @@ Deno.serve(async (req) => {
       if (player.connection_status === 'disconnected') {
         const reconnectBroadcast = (async () => {
           try {
-            const { data: roomRow } = await supabaseClient
-              .from('rooms')
-              .select('code')
-              .eq('id', room_id)
-              .maybeSingle();
-            if (roomRow?.code) {
-              const ch = supabaseClient.channel(`room:${roomRow.code}`);
-              await ch.send({
-                type: 'broadcast',
-                event: 'player_reconnected',
-                payload: {
-                  player_index: player.player_index,
-                  username: player.username,
-                  was_replaced: false,
-                },
-              });
-              await supabaseClient.removeChannel(ch);
-              console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${roomRow.code}`);
-            }
+            // IMPORTANT: channel name must use room_id (UUID) to match the
+            // client's Realtime subscription in useRealtime.ts joinChannel().
+            const ch = supabaseClient.channel(`room:${room_id}`);
+            await ch.send({
+              type: 'broadcast',
+              event: 'player_reconnected',
+              payload: {
+                player_index: player.player_index,
+                username: player.username,
+                was_replaced: false,
+              },
+            });
+            await supabaseClient.removeChannel(ch);
+            console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
           } catch (bcastErr: any) {
             console.warn('[update-heartbeat] Reconnect broadcast error (non-critical):', bcastErr?.message);
           }

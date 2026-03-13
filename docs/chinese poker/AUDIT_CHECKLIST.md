@@ -51,6 +51,12 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `apps/mobile/src/hooks/usePlayHistoryTracking.ts.bak`
     - `apps/mobile/src/hooks/__tests__/useRealtime-timer-cancellation.test.ts.bak`
 
+- [x] **C7** — Fix broadcast channel name mismatch preventing rejoin game state refresh
+  - **Files:** `apps/mobile/supabase/functions/reconnect-player/index.ts`, `apps/mobile/supabase/functions/update-heartbeat/index.ts`, `apps/mobile/src/screens/MultiplayerGame.tsx`
+  - **Branch:** `task/fix-rejoin-broadcast-channel`
+  - **Fix:** `reconnect-player` and `update-heartbeat` edge functions broadcast `player_reconnected` to `room:${roomRow.code}` (human-readable code like "LZEVGK"), but the client subscribes to `room:${roomId}` (UUID). The broadcast never reached the client, so `fetchGameState` was never called after reclaiming a seat from a bot → stale game view with wrong hand/turn. Fixed all edge function broadcasts to use `room:${room_id}` (UUID). Also added explicit `refreshGameState()` call in `handleReclaimSeat` as belt-and-suspenders fallback.
+  - **Why:** After tapping "Reclaim My Seat", the game state didn't refresh — user saw errors or stale data and had to navigate back and rejoin manually for it to work.
+
 ---
 
 ## 🟠 High Priority

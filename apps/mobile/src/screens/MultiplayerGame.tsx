@@ -238,6 +238,13 @@ export function MultiplayerGame() {
     gameLogger.info('[MultiplayerGame] Reclaiming seat from bot...');
     try {
       await connectionReconnect();
+      // Explicitly refresh game state after reclaim so the UI shows the human's
+      // hand and correct turn info. The server also broadcasts player_reconnected
+      // which triggers fetchGameState, but this explicit call is belt-and-suspenders
+      // in case the broadcast arrives late or is lost on a flaky mobile connection.
+      await refreshGameState().catch((err) => {
+        gameLogger.warn('[MultiplayerGame] Post-reclaim refreshGameState failed (non-fatal):', err instanceof Error ? err.message : String(err));
+      });
       setShowBotReplacedModal(false);
       setBotReplacedUsername(null);
       gameLogger.info('[MultiplayerGame] Seat reclaimed successfully');
@@ -245,7 +252,7 @@ export function MultiplayerGame() {
       gameLogger.error('[MultiplayerGame] Failed to reclaim seat from bot:', err instanceof Error ? err.message : String(err));
       // Keep modal open — user can retry or leave
     }
-  }, [connectionReconnect]);
+  }, [connectionReconnect, refreshGameState]);
 
   const handleLeaveRoomFromModal = useCallback(() => {
     // Intentionally do NOT delete the replaced_by_bot row here.
