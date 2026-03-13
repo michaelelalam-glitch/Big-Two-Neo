@@ -2378,7 +2378,14 @@ class I18nManager {
     
     let result = typeof value === 'string' ? value : path;
     
-    // Replace template variables like {{code}}, {{status}}, etc.
+    // Replace template variables using DOUBLE-BRACE syntax: {{key}}.
+    // This is the canonical interpolation format for this i18n engine.
+    // Usage:  i18n.t('section.key', { count: 5 })
+    // String: '{{count}}m ago'  →  '5m ago'
+    //
+    // NOTE: single-brace {key} is NOT handled by this engine. A few legacy
+    // strings (e.g. game.autoPassNoOneCanBeat) use component-level .replace()
+    // with single-brace — those strings must NOT be passed to t() with vars.
     if (vars && typeof result === 'string') {
       Object.keys(vars).forEach(key => {
         const placeholder = `{{${key}}}`;

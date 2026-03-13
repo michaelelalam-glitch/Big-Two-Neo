@@ -334,11 +334,13 @@ export function useDisconnectDetection({
   }, [userId]);
 
   // ── Immediate reconnect clear ──────────────────────────────────────────────
-  // The 1s polling interval can be starved in a 4-player game (heartbeats arrive
-  // every ~1.25 s, continuously restarting the interval before it fires), leaving
-  // a stale grey-ring anchor that blocks the yellow turn ring.  This effect reacts
-  // directly to realtimePlayers changes and wipes entries as soon as the server
-  // confirms connection_status='connected' + no pending timer.
+  // The 1s polling interval (above) is stable — it runs only once per userId
+  // and reads realtimePlayersRef, so Realtime heartbeats do NOT restart it.
+  // However the interval still has up to 1 s of lag between a server-confirmed
+  // reconnect and the stale grey-ring anchor being removed.  This effect removes
+  // the anchor in the same render cycle that realtimePlayers delivers the
+  // connection_status='connected' + disconnect_timer_started_at=null update,
+  // ensuring the yellow turn ring appears immediately on reconnect for observers.
   useEffect(() => {
     if (!realtimePlayers || realtimePlayers.length === 0) return;
 

@@ -25,14 +25,22 @@
 ALTER TABLE game_history
   ADD COLUMN IF NOT EXISTS stats_applied_at TIMESTAMPTZ DEFAULT NULL;
 
--- Backfill pre-existing rows that have a room_id as fully applied so they are
--- never flagged as partial failures by the new dedup logic. Scoped to
--- room_id IS NOT NULL to avoid updating local/casual-game rows (NULL room_id
--- rows are never checked by the dedup guard and do not need the marker).
+-- Backfill pre-existing rows that are definitively complete as fully applied
+-- so they are never flagged as partial failures by the new dedup logic.
+-- Guards:
+--   room_id IS NOT NULL    — skip local/casual-game rows (never checked by dedup)
+--   game_completed = TRUE  — skip abandoned/incomplete rows whose stats were
+--                            never written (they correctly remain IS NULL)
+--   finished_at IS NOT NULL — skip any row that may still be in-progress
+--                             (active games have finished_at = NULL; touching
+--                             them would incorrectly mark stats as done while
+--                             the winning caller is still running stats RPCs)
 -- Note: this UPDATE may still scan a large portion of game_history depending
 -- on available indexes; schedule during a low-traffic window if the table is
 -- large.
 UPDATE game_history
   SET stats_applied_at = COALESCE(finished_at, created_at, NOW())
   WHERE stats_applied_at IS NULL
-    AND room_id IS NOT NULL;
+    AND room_id IS NOT NULL
+    AND game_completed = TRUE
+    AND finished_at IS NOT NULL;

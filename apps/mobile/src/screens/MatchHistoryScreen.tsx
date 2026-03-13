@@ -123,18 +123,22 @@ export default function MatchHistoryScreen() {
           finalPosition = 0; // abandoned/incomplete
         } else {
           const allSlots = [
-            { id: item.player_1_id, score: item.player_1_score ?? 999 },
-            { id: item.player_2_id, score: item.player_2_score ?? 999 },
-            { id: item.player_3_id, score: item.player_3_score ?? 999 },
-            { id: item.player_4_id, score: item.player_4_score ?? 999 },
+            { id: item.player_1_id, score: item.player_1_score ?? Number.POSITIVE_INFINITY },
+            { id: item.player_2_id, score: item.player_2_score ?? Number.POSITIVE_INFINITY },
+            { id: item.player_3_id, score: item.player_3_score ?? Number.POSITIVE_INFINITY },
+            { id: item.player_4_id, score: item.player_4_score ?? Number.POSITIVE_INFINITY },
           ];
           allSlots.sort((a, b) => a.score - b.score);
           const rankIndex = allSlots.findIndex(s => s.id === user.id);
           const isVoided = item.voided_user_id === user.id;
-          if (rankIndex >= 0) {
-            finalPosition = rankIndex + 1;
-          } else if (isVoided) {
+          // isVoided is checked first: a voided player's user_id may still appear
+          // in a player_X_id slot (race window during bot replacement), so checking
+          // rankIndex first could incorrectly show a placement instead of the
+          // voided sentinel (0 → 🚪).
+          if (isVoided) {
             finalPosition = 0; // sentinel: seat was taken over by a bot
+          } else if (rankIndex >= 0) {
+            finalPosition = rankIndex + 1;
           } else {
             finalPosition = 4; // fallback: user not found in any slot
           }
