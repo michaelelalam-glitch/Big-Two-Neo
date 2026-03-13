@@ -193,8 +193,10 @@ export default function MatchHistoryScreen() {
     // Non-English locales: return a plain number so the translation template
     // (e.g. "{{ordinal}}. Platz" / "المركز {{ordinal}}") formats it natively
     // without embedding English suffixes ("1st", "2nd", ...) mid-string.
-    // Use startsWith to handle regional tags (e.g. 'de-DE', 'ar-SA').
-    if (lang.startsWith('de') || lang.startsWith('ar')) return `${position}`;
+    // Generalised to any non-en locale: only en* tags use ordinal suffixes;
+    // all others (de, ar, or any future locale) receive plain integers.
+    // Use startsWith to handle regional tags (e.g. 'en-US', 'de-DE', 'ar-SA').
+    if (!lang.startsWith('en')) return `${position}`;
     // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
@@ -290,10 +292,12 @@ export default function MatchHistoryScreen() {
               styles.positionText,
               { color: getPositionColor(item.final_position) }
             ]}>
-              {i18n.t('matchHistory.position', {
-                ordinal: getPositionOrdinal(item.final_position),
-                position: item.final_position,
-              })}
+              {item.final_position === 0
+                ? i18n.t('matchHistory.abandoned')
+                : i18n.t('matchHistory.position', {
+                    ordinal: getPositionOrdinal(item.final_position),
+                    position: item.final_position,
+                  })}
             </Text>
           </View>
 

@@ -373,21 +373,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         setIsLoading(true);
 
-        // 🎵 CRITICAL: Initialize audio/haptic managers on app startup
-        authLogger.info('🎵 [AuthContext] Initializing audio & haptic managers...');
-        try {
-          await Promise.all([
-            soundManager.initialize(),
-            hapticManager.initialize()
-          ]);
+        // 🎵 Initialize audio/haptic managers — fire-and-forget.
+        // Never block auth initialization (and therefore isLoading → false) on
+        // sound preloading.  On a cold Release build in CI, preloading audio
+        // assets from the bundle can take 30-60 s, which pushed setIsLoading(false)
+        // past the 90 s extendedWaitUntil in the e2e test, causing the sign-in
+        // screen to never appear.  Audio simply needs to be ready before gameplay,
+        // not before the sign-in screen renders.
+        authLogger.info('🎵 [AuthContext] Initializing audio & haptic managers (background)...');
+        void Promise.all([
+          soundManager.initialize(),
+          hapticManager.initialize(),
+        ]).then(() => {
           authLogger.info('✅ [AuthContext] Audio & haptic managers initialized');
-        } catch (audioError: unknown) {
-          // Non-blocking error - app continues without audio/haptics
+        }).catch((audioError: unknown) => {
           authLogger.error('⚠️ [AuthContext] Failed to initialize audio/haptic managers:', audioError instanceof Error ? audioError.message : String(audioError));
           authLogger.warn('⚠️ [AuthContext] App will continue without sound effects and vibration');
-          // User will notice missing audio/haptics naturally during gameplay
-          // No need for intrusive alert on startup
-        }
+        });
 
         // Get initial session
         const {

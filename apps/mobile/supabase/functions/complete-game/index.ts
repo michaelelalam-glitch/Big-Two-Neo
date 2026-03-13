@@ -73,12 +73,18 @@ async function broadcastGameEnded(
     // and rank — avoids the mismatch that arose when finish_position was derived
     // from a score sort (finishIdx+1) while rank came from the client-validated
     // p.finish_position, which could diverge on ties or future rule changes.
+    //
+    // Build a user_id → original-index map once (O(n)) so the .map() below and
+    // game_winner_index lookup are both O(1) instead of O(n²) findIndex calls.
+    const userIdToIndex = new Map<string, number>(
+      gameData.players.map((p, i) => [p.user_id, i]),
+    );
     const finalScores = [...gameData.players]
       .sort((a, b) => a.finish_position - b.finish_position)
       .map((p) => ({
         // player_index is the original seat/array index so it aligns with
         // game_winner_index (which also uses the original players array).
-        player_index: gameData.players.findIndex(orig => orig.user_id === p.user_id),
+        player_index: userIdToIndex.get(p.user_id) ?? -1,
         player_name: p.username,
         cumulative_score: p.score,
         points_added: 0,
@@ -88,7 +94,7 @@ async function broadcastGameEnded(
       }));
     const broadcastPayload = {
       game_winner_name: winnerPlayer?.username || 'Unknown',
-      game_winner_index: gameData.players.findIndex(p => p.user_id === gameData.winner_id),
+      game_winner_index: userIdToIndex.get(gameData.winner_id) ?? -1,
       final_scores: finalScores,
       room_code: gameData.room_code,
     };

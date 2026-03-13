@@ -251,7 +251,9 @@ export function MultiplayerGame() {
       }
     };
 
-    connectWithRetry(0);
+    // Fire-and-forget: the async retry chain manages its own lifecycle via the
+    // cancelled flag and retryTimerResolve; we don't need to await it here.
+    void connectWithRetry(0);
 
     return () => {
       cancelled = true;

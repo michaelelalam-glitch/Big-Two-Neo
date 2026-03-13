@@ -36,11 +36,14 @@ function disconnectMapReducer(
 ): Map<number, string> {
   // Equality guard — avoids re-renders when map contents haven't changed
   // (common outcome for the 1s polling interval in a connected game).
-  if (
-    state.size === action.map.size &&
-    [...action.map.entries()].every(([k, v]) => state.get(k) === v)
-  ) {
-    return state;
+  // Uses a plain for..of loop instead of [...entries()].every() to avoid
+  // allocating a temporary array on every 1s tick dispatch.
+  if (state.size === action.map.size) {
+    let equal = true;
+    for (const [k, v] of action.map) {
+      if (state.get(k) !== v) { equal = false; break; }
+    }
+    if (equal) return state;
   }
   return action.map;
 }
@@ -181,6 +184,12 @@ export function useDisconnectDetection({
     const STALE_THRESHOLD_MS = 30_000;
 
     const interval = setInterval(() => {
+      // Skip all processing until the authenticated user is known.
+      // userId is in the effect deps — the interval is torn down and re-created
+      // when auth resolves, so this guard only fires during the brief window
+      // between mount and the first non-undefined userId value.
+      if (!userId) return;
+
       const players = realtimePlayersRef.current;
       if (!players || players.length === 0) return;
 

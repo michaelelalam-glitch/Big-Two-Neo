@@ -610,6 +610,8 @@ export interface Translations {
     noMatches: string;
     playFirstMatch: string;
     position: string;
+    /** Shown instead of a placement when final_position === 0 (voided/abandoned). */
+    abandoned: string;
     elo: string;
     justNow: string;
     minutesAgo: string;
@@ -1144,6 +1146,7 @@ const en: Translations = {
     noMatches: 'No Matches Yet',
     playFirstMatch: 'Play your first match to see your history here',
     position: '{{ordinal}} Place',
+    abandoned: 'Abandoned',
     elo: 'ELO',
     justNow: 'Just now',
     minutesAgo: '{{count}}m ago',
@@ -1628,6 +1631,7 @@ const ar: Translations = {
     noMatches: 'لا توجد مباريات بعد',
     playFirstMatch: 'العب مباراتك الأولى لرؤية سجلك هنا',
     position: 'المركز {{ordinal}}',
+    abandoned: 'متخلى عنها',
     elo: 'ELO',
     justNow: 'الآن',
     minutesAgo: 'منذ {{count}} د',
@@ -2190,6 +2194,7 @@ const de: Translations = {
     noMatches: 'Noch keine Spiele',
     playFirstMatch: 'Spiele dein erstes Spiel, um deinen Verlauf hier zu sehen',
     position: '{{ordinal}}. Platz',
+    abandoned: 'Abgebrochen',
     elo: 'ELO',
     justNow: 'Gerade eben',
     minutesAgo: 'vor {{count}} Min.',
