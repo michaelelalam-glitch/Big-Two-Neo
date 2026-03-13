@@ -134,8 +134,9 @@ export default function LobbyScreen() {
       setIsGameInProgress(true);
     }
 
-    // Handle ended rooms: reset to 'waiting' for Play Again, otherwise send home.
-    if (data.status === 'ended') {
+    // Handle ended/finished rooms: reset to 'waiting' for Play Again, otherwise send home.
+    // Accept both 'ended' (legacy) and 'finished' (current complete-game Step 3b value).
+    if (data.status === 'ended' || data.status === 'finished') {
       if (playAgain) {
         if (user?.id === data.host_id) {
           // Only the original room host may reset status — other players would
