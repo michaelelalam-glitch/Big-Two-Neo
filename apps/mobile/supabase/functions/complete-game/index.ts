@@ -100,7 +100,15 @@ async function broadcastGameEnded(
         if (status === 'SUBSCRIBED') {
           channel
             .send({ type: 'broadcast', event: 'game_ended', payload: broadcastPayload })
-            .then(() => { clearTimeout(safetyTimeout); finish(); })
+            .then((result: unknown) => {
+              // Realtime send() resolves (not rejects) on error; check the result object.
+              const res = result as { error?: string } | null;
+              if (res?.error) {
+                console.error('[Complete Game] broadcastGameEnded: send returned error:', res.error);
+              }
+              clearTimeout(safetyTimeout);
+              finish();
+            })
             .catch((broadcastError: unknown) => {
               console.error('[Complete Game] broadcastGameEnded: failed to send:', broadcastError);
               clearTimeout(safetyTimeout);
@@ -256,12 +264,18 @@ async function broadcastGameEnded(
     // double-count). We log the failure visibly and still short-circuit.
     // Admin diagnostic: SELECT * FROM game_history WHERE stats_applied_at IS NULL;
     //
-    // ── DEPLOYMENT REQUIREMENTS (Step 2b) ──────────────────────────────────────
-    // REQUIRED before deploying this Edge Function:
-    //   migration 20260313000001 must be applied (adds the UNIQUE INDEX on
-    //   game_history(room_id)) — this is the primary race-safety guarantee.
-    //   Without it the 23505 path is unreachable and the SELECT-based dedup
-    //   is the only guard (sufficient but weaker than a DB constraint).
+    // ── DEPLOYMENT ORDER (Step 2b — single authoritative sequence) ────────────
+    // Step 1 — Deploy this Edge Function FIRST (safe before the index exists):
+    //   The SELECT-based dedup guard + 23505 handler return 200 for duplicates
+    //   instead of re-inserting, preventing new duplicates from the moment the
+    //   updated function goes live. The old function must be replaced before
+    //   migration 000001 runs so it cannot race-insert a duplicate between the
+    //   DELETE and CREATE UNIQUE INDEX steps inside that migration.
+    //
+    // Step 2 — Apply migration 20260313000001 (dedup existing rows + add UNIQUE
+    //   index on game_history(room_id)).  This is the primary race-safety
+    //   guarantee at the DB level; without it the 23505 path below is unreachable
+    //   and the SELECT-based dedup above is the only guard (sufficient but weaker).
     //
     // OPTIONAL (but strongly recommended for partial-failure observability):
     //   migration 20260313000002 may be applied any time before or after this
@@ -307,7 +321,7 @@ async function broadcastGameEnded(
         } else {
           console.log(`[Complete Game] ⏭️ Game fully recorded for room ${gameData.room_id} (stats_applied_at set) — skipping duplicate`);
         }
-        // Only mark the room as ended (idempotent). Do NOT delete room_players
+        // Only mark the room as finished (idempotent). Do NOT delete room_players
         // here — the winning caller may still be mid-way through Step 3, querying
         // room_players for bot-replaced humans / bot difficulty. Deleting rows
         // early would corrupt those queries.
@@ -468,7 +482,7 @@ async function broadcastGameEnded(
         // (non-idempotent function), but we mark the room ended and broadcast so
         // clients are not blocked. See admin diagnostic in Step 2b comment.
         console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate (race), skipping`);
-        // Only mark the room as ended (idempotent). Do NOT delete room_players —
+        // Only mark the room as finished (idempotent). Do NOT delete room_players —
         // the winning caller is still executing Step 3 and reads room_players.
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin

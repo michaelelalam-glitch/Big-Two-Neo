@@ -228,6 +228,8 @@ export function MultiplayerGame() {
       } catch (error: unknown) {
         const err = error as Error;
         if (cancelled) return;
+        // Exponential back-off: 1 s after attempt 0, 2 s after attempt 1.
+        // 3 total attempts (0, 1, 2); actual delays 1 s → 2 s.
         if (attempt < 2) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
           gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
