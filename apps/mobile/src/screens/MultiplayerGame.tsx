@@ -197,6 +197,9 @@ export function MultiplayerGame() {
     if (!user?.id) return;
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    // Stored resolve fn so the cleanup can unblock the awaiting Promise immediately
+    // rather than leaving the async chain hanging until the timeout fires.
+    let retryTimerResolve: (() => void) | null = null;
 
     const connectWithRetry = async (attempt: number) => {
       try {
@@ -207,8 +210,12 @@ export function MultiplayerGame() {
         if (attempt < 2) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
           gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
-          await new Promise<void>(resolve => { retryTimer = setTimeout(resolve, delay); });
+          await new Promise<void>(resolve => {
+            retryTimerResolve = resolve;
+            retryTimer = setTimeout(resolve, delay);
+          });
           retryTimer = null;
+          retryTimerResolve = null;
           if (!cancelled) await connectWithRetry(attempt + 1);
         } else {
           console.error('[MultiplayerGame] ❌ Failed to connect after 3 attempts:', err);
@@ -225,6 +232,12 @@ export function MultiplayerGame() {
       if (retryTimer !== null) {
         clearTimeout(retryTimer);
         retryTimer = null;
+      }
+      // Resolve the pending promise so the async chain exits immediately
+      // rather than hanging until the cancelledTimeout would have fired.
+      if (retryTimerResolve) {
+        retryTimerResolve();
+        retryTimerResolve = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

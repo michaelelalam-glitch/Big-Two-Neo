@@ -189,14 +189,22 @@ Deno.serve(async (req: Request) => {
         console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
       } else if (existingRow) {
         console.log(`[Complete Game] ⏭️ Game already recorded for room ${gameData.room_id} — skipping duplicate`);
-        // Run idempotent room cleanup so the room is always closed even if the
-        // winning caller crashed after INSERT but before Step 3b.
+        // Only mark the room as ended (idempotent). Do NOT delete room_players
+        // here — the winning caller may still be mid-way through Step 3, querying
+        // room_players for bot-replaced humans / bot difficulty. Deleting rows
+        // early would corrupt those queries.
+        //
+        // Known limitation: if the winning caller inserted game_history but then
+        // crashed before completing stats (returned 500), subsequent callers will
+        // short-circuit here and stats will not be applied for this game. A
+        // stats_applied_at marker would close this gap but is out of scope.
         if (gameData.room_id) {
-          try {
-            await supabaseAdmin.from('rooms').update({ status: 'ended' }).eq('id', gameData.room_id);
-            await supabaseAdmin.from('room_players').delete().eq('room_id', gameData.room_id);
-          } catch (e) {
-            console.warn('[Complete Game] Room cleanup in duplicate path failed (non-critical):', e);
+          const { error: roomEndErr } = await supabaseAdmin
+            .from('rooms')
+            .update({ status: 'ended' })
+            .eq('id', gameData.room_id);
+          if (roomEndErr) {
+            console.warn('[Complete Game] Failed to mark room ended in duplicate path:', roomEndErr.message);
           }
         }
         return new Response(
@@ -337,14 +345,17 @@ Deno.serve(async (req: Request) => {
       // Treat it the same as the dedup guard above: return 200, skip stats.
       if (historyError.code === '23505') {
         console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate, skipping`);
-        // Run idempotent room cleanup so a partial-failure recovery caller still
-        // closes the room even though it cannot update stats.
+        // Only mark the room as ended (idempotent). Do NOT delete room_players —
+        // the successful caller (which hit the unique index) is still executing
+        // Step 3 and reads room_players for bot-replaced humans / bot difficulty.
+        // See duplicate-path comment above for the known partial-completion limitation.
         if (gameData.room_id) {
-          try {
-            await supabaseAdmin.from('rooms').update({ status: 'ended' }).eq('id', gameData.room_id);
-            await supabaseAdmin.from('room_players').delete().eq('room_id', gameData.room_id);
-          } catch (e) {
-            console.warn('[Complete Game] Room cleanup in 23505 path failed (non-critical):', e);
+          const { error: roomEndErr } = await supabaseAdmin
+            .from('rooms')
+            .update({ status: 'ended' })
+            .eq('id', gameData.room_id);
+          if (roomEndErr) {
+            console.warn('[Complete Game] Failed to mark room ended in 23505 path:', roomEndErr.message);
           }
         }
         return new Response(
