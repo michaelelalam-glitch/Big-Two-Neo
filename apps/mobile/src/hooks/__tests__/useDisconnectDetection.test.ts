@@ -455,6 +455,79 @@ describe('useDisconnectDetection', () => {
       // departedPlayer's slot must not have a ghost grey ring.
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBeNull();
     });
+
+    // 9b -------------------------------------------------------------------------
+    it('prunes departed player ref in immediate-clear (race: clear fires before interval)', () => {
+      // Regression for r2930422867: if the immediate-clear effect fires for a
+      // reconnecting player BEFORE the 1s interval has had a chance to prune
+      // the departed player's ref entry, the rebuilt Map must not re-introduce
+      // a ghost anchor for the departed seat.
+      const staleTime = new Date(Date.now() - 40_000).toISOString();
+      const departedPlayer = makePlayer({
+        player_index: 1,
+        connection_status: 'disconnected',
+        last_seen_at: staleTime,
+      });
+      const stayingPlayer = makePlayer({
+        id: 'staying-db-id',
+        user_id: 'staying-user-id',
+        player_index: 2,
+        connection_status: 'disconnected',
+        last_seen_at: staleTime,
+      });
+      const layoutPlayers = [
+        { player_index: 0, isActive: false },
+        { player_index: 1, isActive: false },
+        { player_index: 2, isActive: false },
+      ];
+      const layoutBothDisconnected = [
+        makeLayoutPlayer({ player_index: 0, name: 'LocalPlayer' }),
+        makeDisconnectedLayoutPlayer({ player_index: 1, name: 'DepartedPlayer' }),
+        makeDisconnectedLayoutPlayer({ player_index: 2, name: 'StayingPlayer' }),
+      ];
+      const layoutStayingReconnected = [
+        makeLayoutPlayer({ player_index: 0, name: 'LocalPlayer' }),
+        makeLayoutPlayer({ player_index: 1, name: 'DepartedPlayer' }),
+        makeLayoutPlayer({ player_index: 2, name: 'StayingPlayer' }),
+      ];
+
+      const { result, rerender } = renderHook(
+        (props: HookProps) => useDisconnectDetection(props),
+        {
+          initialProps: makeProps({
+            realtimePlayers: [departedPlayer, stayingPlayer],
+            layoutPlayersWithScores: layoutBothDisconnected,
+            layoutPlayers,
+          }),
+        },
+      );
+
+      // Tick 1: both players seeded in clientDisconnectStartRef.
+      act(() => { jest.advanceTimersByTime(1_100); });
+      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).not.toBeNull();
+
+      // departedPlayer leaves AND stayingPlayer reconnects in the same render.
+      // We do NOT advance timers here, so the 1s interval has NOT pruned the
+      // ref yet — this is the race the fix targets.
+      const reconnectedStaying = {
+        ...stayingPlayer,
+        connection_status: 'connected' as const,
+        disconnect_timer_started_at: null,
+      };
+      act(() => {
+        rerender(makeProps({
+          // departedPlayer absent (room_players DELETE)
+          realtimePlayers: [reconnectedStaying],
+          layoutPlayersWithScores: layoutStayingReconnected,
+          layoutPlayers,
+        }));
+      });
+
+      // immediate-clear must prune the ref BEFORE rebuilding the Map, so the
+      // departed player does not reappear as a ghost grey ring.
+      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBeNull();
+      expect(result.current.enrichedLayoutPlayers[2].disconnectTimerStartedAt).toBeNull();
+    });
   });
 
   // 10 ----------------------------------------------------------------------

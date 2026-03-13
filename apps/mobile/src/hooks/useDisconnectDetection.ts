@@ -103,7 +103,11 @@ export function useDisconnectDetection({
 
   // ── Client-side disconnect map ─────────────────────────────────────────────
   // Maps playerIndex → ISO anchor timestamp for the grey disconnect ring.
-  // Managed via reducer (explicit transitions, testable without side-effects).
+  // Committed atomically via a single REPLACE action (equality guard prevents
+  // spurious re-renders). Per-player anchor mutations are staged in
+  // clientDisconnectStartRef (avoids stale closures inside the interval
+  // callback) and flushed to React state by dispatching REPLACE at the end
+  // of each interval tick and inside the immediate-clear effect.
   const [clientDisconnections, dispatch] = useReducer(
     disconnectMapReducer,
     new Map<number, string>(),
@@ -297,11 +301,15 @@ export function useDisconnectDetection({
         }
       }
 
-      // Prune the ref: delete entries for player_indexes no longer present in
-      // realtimePlayers (e.g. player left the room → room_players DELETE).
-      // Without this the immediate-clear effect, when it fires for a *different*
-      // reconnecting player (changed=true), rebuilds the Map from the ref and
-      // re-introduces a ghost disconnect entry for the departed seat.
+      // Prune the ref: delete entries whose player_index is not present in the
+      // current disconnected snapshot (newMap). This covers two cases:
+      //   1. Player left the room (room_players DELETE) — absent from
+      //      realtimePlayers so never iterated above → never added to newMap.
+      //   2. Player server-confirmed connected this tick — reached a `continue`
+      //      above → not added to newMap despite still being in realtimePlayers.
+      // Without this, the immediate-clear effect (fired by a *different*
+      // reconnecting player) rebuilds the Map from the ref and quietly
+      // re-introduces a ghost anchor for any cleared or departed seat.
       for (const key of Object.keys(clientDisconnectStartRef.current)) {
         if (!newMap.has(Number(key))) {
           delete clientDisconnectStartRef.current[Number(key)];
@@ -342,8 +350,22 @@ export function useDisconnectDetection({
     }
 
     if (changed) {
-      // Rebuild map from the ref (single source of truth); avoids stale
-      // closure over `clientDisconnections` state.
+      // Prune the ref before rebuilding: entries for players no longer present
+      // in realtimePlayers (departed seats) must not be re-introduced as ghost
+      // entries. This handles the race where this effect fires for a reconnecting
+      // player BEFORE the 1s interval has had a chance to prune the ref itself.
+      const activePIdx = new Set(
+        realtimePlayers
+          .map(p => p.player_index)
+          .filter((idx): idx is number => typeof idx === 'number'),
+      );
+      for (const key of Object.keys(clientDisconnectStartRef.current)) {
+        if (!activePIdx.has(Number(key))) {
+          delete clientDisconnectStartRef.current[Number(key)];
+        }
+      }
+      // Rebuild map from the pruned ref (single source of truth); avoids
+      // stale closure over `clientDisconnections` state.
       const newMap = new Map<number, string>();
       for (const [idx, anchor] of Object.entries(clientDisconnectStartRef.current)) {
         newMap.set(Number(idx), anchor);
