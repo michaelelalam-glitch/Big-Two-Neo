@@ -111,12 +111,13 @@ export function useGameStateManager({
       return;
     }
 
-// Prevent multiple initializations for the same room+difficulty+player.
-        // Including currentPlayerName ensures that if the profile loads after
-        // mount and changes the display name, the init guard is invalidated so
-        // the manager is re-created with the correct name rather than leaving a
-        // null ref after cleanup nulls the old one (C2 fix, comment 2).
-        const initKey = `${roomCode}:${botDifficulty}:${currentPlayerName}`;
+    // Prevent duplicate initializations: if the effect re-runs with identical
+    // deps (e.g. React Strict Mode double-invoke or a parent re-render without
+    // real changes), the guard returns early instead of creating a second manager.
+    // All effect deps are included in the key so the guard is invalidated whenever
+    // any dep changes — letting the new run create a fresh manager rather than
+    // leaving a null ref after cleanup resets the refs.
+    const initKey = `${roomCode}:${botDifficulty}:${currentPlayerName}:${String(isLocalGame)}`;
     if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;
     }
@@ -147,8 +148,8 @@ export function useGameStateManager({
           gameLogger.info('✅ [useGameStateManager] Saved state cleared - starting fresh game');
         }
 
-        // C2 fix: if the component unmounted while clearState()/removeItem() were
-        // awaited, gameManagerRef.current was nulled by the cleanup.  Abort to
+        // Guard: if the component unmounted while clearState()/removeItem() were
+        // awaited, the cleanup has already nulled gameManagerRef.current.  Abort to
         // prevent subscribing to or starting the timer on a discarded manager.
         if (gameManagerRef.current !== manager) {
           manager.destroy();
@@ -159,7 +160,7 @@ export function useGameStateManager({
         gameLogger.info('🔄 [useGameStateManager] Checking for saved game state...');
         const savedState = forceNewGame ? null : await manager.loadState();
 
-        // C2 fix: abort if unmounted while loadState() was awaited.
+        // Guard: abort if the component unmounted while loadState() was awaited.
         if (gameManagerRef.current !== manager) {
           manager.destroy();
           return;
@@ -237,15 +238,21 @@ export function useGameStateManager({
             // We need to subscribe FIRST so the startNewMatch notifyListeners triggers the subscriber
           }
 
+          // Guard: abort if the component unmounted while AsyncStorage.getItem()
+          // was awaited above — prevents calling soundManager or state setters on
+          // an already-unmounted component.
+          if (gameManagerRef.current !== manager) {
+            manager.destroy();
+            return;
+          }
+
           // Play notification sound
           soundManager.playSound(SoundType.TURN_NOTIFICATION);
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
         }
 
-        // C2 fix (comment 1): abort if the component unmounted while
-        // AsyncStorage.getItem(SCORE_HISTORY_KEY) was awaited inside the
-        // savedState branch above.  Without this guard, the continuation
-        // would still proceed to manager.subscribe() on a discarded manager.
+        // Guard: abort if the component unmounted at any point before reaching
+        // the subscribe call — prevents registering a listener on a discarded manager.
         if (gameManagerRef.current !== manager) {
           manager.destroy();
           return;
@@ -480,11 +487,16 @@ export function useGameStateManager({
     // Previously, cleanup was returned inside async initGame() where React couldn't reach it,
     // leaking subscriptions, timeouts, and the game manager on unmount/re-render.
     return () => {
+      // Reset init guards so a subsequent effect run (dep change or React Strict
+      // Mode double-invoke) creates a fresh manager rather than hitting the
+      // early-return guard on a now-stale initKey.
+      isInitializedRef.current = false;
+      initializedRoomRef.current = null;
       unsubscribeFn?.();
       if (gameManagerRef.current) {
         gameManagerRef.current.destroy();
-        // C2 fix: null the ref so any in-flight async continuation inside initGame()
-        // can detect that the manager has been destroyed and abort early, preventing
+        // Null the ref so any in-flight async continuation inside initGame() can
+        // detect that the manager has been torn down and abort early, preventing
         // stale callbacks and timer restarts on an unmounted component.
         gameManagerRef.current = null;
       }

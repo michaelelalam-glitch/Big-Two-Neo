@@ -33,6 +33,27 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
 }));
 
+describe('Game State Manager - Constructor', () => {
+  test('does not start a setInterval on construction', () => {
+    const spy = jest.spyOn(global, 'setInterval');
+    const manager = createGameStateManager();
+    expect(spy).not.toHaveBeenCalled();
+    manager.destroy();
+    spy.mockRestore();
+  });
+
+  test('starts interval only after initializeGame()', async () => {
+    const spy = jest.spyOn(global, 'setInterval');
+    const manager = createGameStateManager();
+    expect(spy).not.toHaveBeenCalled();
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    await manager.initializeGame({ playerName: 'Test', botCount: 3, botDifficulty: 'medium' });
+    expect(spy).toHaveBeenCalledTimes(1);
+    manager.destroy();
+    spy.mockRestore();
+  });
+});
+
 describe('Game State Manager - Initialization', () => {
   let manager: GameStateManager;
 

@@ -172,11 +172,12 @@ export class GameStateManager {
 
   constructor() {
     this.state = null;
-    // C2 fix: timer is started lazily in initializeGame() / loadState() so the
-    // 100ms interval only runs when an active game is in progress.  Starting it
-    // here caused a permanent interval leak whenever a GameStateManager instance
-    // was created but destroy() was not subsequently called (e.g. during async
-    // init if the component unmounted before the setup completed).
+    // The timer interval is started lazily in initializeGame() / loadState(), not
+    // here.  Constructing the manager must never start a background interval because
+    // the caller may abort initialisation (e.g. component unmounts before
+    // initializeGame() runs) without calling destroy().  The interval
+    // self-terminates when the game reaches a terminal state (gameOver=true) and
+    // is cleared unconditionally by destroy() on component unmount.
   }
 
   /**
@@ -193,10 +194,20 @@ export class GameStateManager {
     let lastNotifiedSecond: number | null = null;
     
     this.timerInterval = setInterval(() => {
-      // CRITICAL FIX: Stop timer if match/game has ended
-      if (this.state?.gameEnded || this.state?.gameOver) {
+      // Terminal state: the whole game is finished — clear the interval entirely
+      // so it does not keep firing on a completed manager.
+      if (this.state?.gameOver) {
+        if (this.timerInterval !== null) {
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
+        }
+        return;
+      }
+      // Between matches (gameEnded=true, gameOver=false): cancel any active
+      // auto-pass timer and wait; startNewMatch() will restart the interval.
+      if (this.state?.gameEnded) {
         if (this.state.auto_pass_timer) {
-          gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - game ended');
+          gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
           this.state.auto_pass_timer = null;
         }
         return;
