@@ -59,7 +59,7 @@ const corsHeaders = {
 // hanging forever if the channel subscription never completes.
 async function broadcastGameEnded(
   client: ReturnType<typeof createClient>,
-  gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position?: number }> }
+  gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position: number }> }
 ): Promise<void> {
   if (!gameData.room_id) return;
   try {
@@ -820,22 +820,23 @@ async function broadcastGameEnded(
     }
 
     // ============================================================================
-    // STEP 3b: CLOSE ROOM (mark ended + clean up room_players)
+    // STEP 3b: CLOSE ROOM (mark finished + clean up room_players)
     // ============================================================================
     // Prevents "reconnect to game" banner after game completion.
 
     if (gameData.room_id) {
       try {
-        // Mark room as ended so HomeScreen banner doesn't show it
+        // Mark room as finished so HomeScreen banner doesn't show it.
+        // Use 'finished' consistently with the dedup/23505 short-circuit paths above.
         const { error: roomUpd } = await supabaseAdmin
           .from('rooms')
-          .update({ status: 'ended' })
+          .update({ status: 'finished' })
           .eq('id', gameData.room_id);
 
         if (roomUpd) {
-          console.warn('[Complete Game] Failed to mark room as ended:', roomUpd.message);
+          console.warn('[Complete Game] Failed to mark room as finished:', roomUpd.message);
         } else {
-          console.log('[Complete Game] Room marked as ended');
+          console.log('[Complete Game] Room marked as finished');
         }
 
         // Remove all room_players entries so no user sees a stale banner
