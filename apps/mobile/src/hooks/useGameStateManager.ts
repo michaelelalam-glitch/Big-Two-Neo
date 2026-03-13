@@ -111,12 +111,12 @@ export function useGameStateManager({
       return;
     }
 
-    // Prevent duplicate initializations: if the effect re-runs with identical
-    // deps (e.g. React Strict Mode double-invoke or a parent re-render without
-    // real changes), the guard returns early instead of creating a second manager.
-    // All effect deps are included in the key so the guard is invalidated whenever
-    // any dep changes — letting the new run create a fresh manager rather than
-    // leaving a null ref after cleanup resets the refs.
+    // Prevent duplicate initializations: React Strict Mode double-invokes this
+    // effect in development (mount → cleanup → remount with identical deps).
+    // The key guard returns early on the second invocation instead of creating a
+    // second manager. All effect deps are included in the key so the guard is
+    // invalidated whenever any dep changes — letting the new run create a fresh
+    // manager rather than leaving a null ref after cleanup resets the refs.
     const initKey = `${roomCode}:${botDifficulty}:${currentPlayerName}:${String(isLocalGame)}`;
     if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;

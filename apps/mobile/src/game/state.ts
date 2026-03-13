@@ -201,6 +201,11 @@ export class GameStateManager {
           clearInterval(this.timerInterval);
           this.timerInterval = null;
         }
+        // Also clear any in-progress auto-pass countdown; if the game ends
+        // while a countdown is active the UI would otherwise show a stuck timer.
+        if (this.state.auto_pass_timer) {
+          this.state.auto_pass_timer = null;
+        }
         return;
       }
       // Between matches (gameEnded=true, gameOver=false): cancel any active
