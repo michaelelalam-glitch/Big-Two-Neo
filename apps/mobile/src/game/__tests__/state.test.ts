@@ -33,27 +33,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
 }));
 
-describe('Game State Manager - Constructor', () => {
-  test('does not start a setInterval on construction', () => {
-    const spy = jest.spyOn(global, 'setInterval');
-    const manager = createGameStateManager();
-    expect(spy).not.toHaveBeenCalled();
-    manager.destroy();
-    spy.mockRestore();
-  });
-
-  test('starts interval only after initializeGame()', async () => {
-    const spy = jest.spyOn(global, 'setInterval');
-    const manager = createGameStateManager();
-    expect(spy).not.toHaveBeenCalled();
-    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
-    await manager.initializeGame({ playerName: 'Test', botCount: 3, botDifficulty: 'medium' });
-    expect(spy).toHaveBeenCalledTimes(1);
-    manager.destroy();
-    spy.mockRestore();
-  });
-});
-
 describe('Game State Manager - Initialization', () => {
   let manager: GameStateManager;
 
@@ -661,6 +640,7 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
 
 describe('Game State Manager - lazy timer start (C2 leak fix)', () => {
   let setIntervalSpy: jest.SpyInstance;
+  let clearIntervalSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -668,10 +648,12 @@ describe('Game State Manager - lazy timer start (C2 leak fix)', () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     // Spy BEFORE creating any manager so we capture calls from the constructor.
     setIntervalSpy = jest.spyOn(global, 'setInterval');
+    clearIntervalSpy = jest.spyOn(global, 'clearInterval');
   });
 
   afterEach(() => {
     setIntervalSpy.mockRestore();
+    clearIntervalSpy.mockRestore();
   });
 
   test('constructor does NOT call setInterval', () => {
@@ -728,7 +710,6 @@ describe('Game State Manager - lazy timer start (C2 leak fix)', () => {
   });
 
   test('destroy() stops the interval and calling it twice is safe', async () => {
-    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
     const manager = createGameStateManager();
 
     await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'medium' });
@@ -739,7 +720,5 @@ describe('Game State Manager - lazy timer start (C2 leak fix)', () => {
     // Second destroy must be a no-op (timerInterval is null after first destroy)
     manager.destroy();
     expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
-
-    clearIntervalSpy.mockRestore();
   });
 });

@@ -204,7 +204,8 @@ export class GameStateManager {
         return;
       }
       // Between matches (gameEnded=true, gameOver=false): cancel any active
-      // auto-pass timer and wait; startNewMatch() will restart the interval.
+      // auto-pass timer and return early. The interval keeps running (not
+      // cleared here); startNewMatch() explicitly clears and restarts it.
       if (this.state?.gameEnded) {
         if (this.state.auto_pass_timer) {
           gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
@@ -1435,6 +1436,16 @@ export class GameStateManager {
     for (const player of this.state.players) {
       player.passed = false;
     }
+
+    // Restart the auto-pass interval for the new match. Clear it first in case
+    // it is still alive (early-returning while gameEnded was true) and hasn't
+    // ticked since gameEnded was set, so startTimerCountdown() always registers
+    // a fresh one rather than hitting the "already running" guard.
+    if (this.timerInterval !== null) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    this.startTimerCountdown();
 
     await this.saveState();
     this.notifyListeners();
