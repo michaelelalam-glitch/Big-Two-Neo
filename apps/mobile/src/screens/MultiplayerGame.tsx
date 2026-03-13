@@ -122,6 +122,11 @@ export function MultiplayerGame() {
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
 
+  // Suppresses the onError → showError toast while connectWithRetry is in progress.
+  // Without this, every failed intermediate attempt (attempt 0, 1) would surface
+  // an error toast to the user even when a later retry succeeds.
+  const suppressConnectErrorsRef = useRef(false);
+
   // Server-side multiplayer game state via Realtime
   const {
     gameState: multiplayerGameState,
@@ -156,6 +161,14 @@ export function MultiplayerGame() {
       }
       if (msg.includes('connection') || msg.includes('reconnect')) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed non-critical multiplayer error from UI');
+        return;
+      }
+      // Suppress connect errors while connectWithRetry has pending retries.
+      // This prevents showing an error toast on attempt 0/1 when attempt 1/2
+      // may still succeed. suppressConnectErrorsRef is cleared before the
+      // final-attempt showError call and on effect cleanup.
+      if (suppressConnectErrorsRef.current) {
+        gameLogger.warn('⚠️ [MultiplayerGame] Suppressed connect error during retry');
         return;
       }
       showError(error.message);
@@ -201,6 +214,10 @@ export function MultiplayerGame() {
     // rather than leaving the async chain hanging until the timeout fires.
     let retryTimerResolve: (() => void) | null = null;
 
+    // Suppress onError toasts while retries are in-flight so the user does not
+    // see an error on attempt 0/1 when a later retry may still succeed.
+    suppressConnectErrorsRef.current = true;
+
     const connectWithRetry = async (attempt: number) => {
       try {
         await multiplayerConnectToRoom(roomCode);
@@ -218,6 +235,8 @@ export function MultiplayerGame() {
           retryTimerResolve = null;
           if (!cancelled) await connectWithRetry(attempt + 1);
         } else {
+          // Final attempt failed — allow the onError toast to show now.
+          suppressConnectErrorsRef.current = false;
           console.error('[MultiplayerGame] ❌ Failed to connect after 3 attempts:', err);
           gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
           showError(err?.message || 'Failed to connect to room');
@@ -229,6 +248,7 @@ export function MultiplayerGame() {
 
     return () => {
       cancelled = true;
+      suppressConnectErrorsRef.current = false;
       if (retryTimer !== null) {
         clearTimeout(retryTimer);
         retryTimer = null;

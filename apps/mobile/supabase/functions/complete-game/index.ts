@@ -46,7 +46,53 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req: Request) => {
+// ─── Helper: broadcast game_ended to all room clients ────────────────────────
+// Called from both the normal path (Step 5) and the dedup/23505 short-circuit
+// paths so clients are never left waiting for a game_ended event even when the
+// winning caller crashes before reaching Step 5.
+async function broadcastGameEnded(
+  client: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>,
+  gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position?: number }> }
+): Promise<void> {
+  if (!gameData.room_id) return;
+  try {
+    const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
+    const finalScores = [...gameData.players]
+      .sort((a, b) => a.score - b.score)
+      .map((p, index) => ({
+        player_index: index,
+        player_name: p.username,
+        cumulative_score: p.score,
+        points_added: 0,
+        rank: p.finish_position,
+        is_busted: p.score >= 101,
+      }));
+    const broadcastPayload = {
+      game_winner_name: winnerPlayer?.username || 'Unknown',
+      game_winner_index: gameData.players.findIndex(p => p.user_id === gameData.winner_id),
+      final_scores: finalScores,
+      room_code: gameData.room_code,
+    };
+    const channel = client.channel(`room:${gameData.room_id}`);
+    await channel.subscribe(async (status: string) => {
+      if (status === 'SUBSCRIBED') {
+        const { error: broadcastError } = await channel.send({
+          type: 'broadcast',
+          event: 'game_ended',
+          payload: broadcastPayload,
+        });
+        if (broadcastError) {
+          console.error('[Complete Game] broadcastGameEnded: failed to send:', broadcastError);
+        }
+        await client.removeChannel(channel);
+      }
+    });
+  } catch (err) {
+    console.warn('[Complete Game] broadcastGameEnded error (non-critical):', err);
+  }
+}
+
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -177,10 +223,17 @@ Deno.serve(async (req: Request) => {
     // The guard checks for an existing game_history row with the same room_id.
     // The first caller wins; subsequent callers receive a 200 (not an error)
     // because from each client's perspective the game *did* complete.
+    //
+    // stats_applied_at tracks whether the winning caller completed all stats.
+    // When IS NULL the winner crashed between INSERT and stats RPCs — the
+    // state is partially failed. Stats cannot be re-applied automatically
+    // (update_player_stats_after_game is NOT idempotent; re-running would
+    // double-count). We log the failure visibly and still short-circuit.
+    // Admin diagnostic: SELECT * FROM game_history WHERE stats_applied_at IS NULL;
     if (gameData.room_id) {
       const { data: existingRow, error: dupCheckError } = await supabaseAdmin
         .from('game_history')
-        .select('id')
+        .select('id, stats_applied_at')
         .eq('room_id', gameData.room_id)
         .limit(1)
         .maybeSingle();
@@ -188,16 +241,18 @@ Deno.serve(async (req: Request) => {
       if (dupCheckError) {
         console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
       } else if (existingRow) {
-        console.log(`[Complete Game] ⏭️ Game already recorded for room ${gameData.room_id} — skipping duplicate`);
+        if (existingRow.stats_applied_at === null) {
+          // Partial failure: winning caller crashed after INSERT but before stats.
+          // Stats are unrecoverable here (non-idempotent function would double-count).
+          // Mark room ended + broadcast game_ended so clients are not blocked.
+          console.error(`[Complete Game] ⚠️ Partial failure detected for room ${gameData.room_id} — game_history exists but stats_applied_at is null. Stats may be missing. See admin diagnostic query.`);
+        } else {
+          console.log(`[Complete Game] ⏭️ Game fully recorded for room ${gameData.room_id} (stats_applied_at set) — skipping duplicate`);
+        }
         // Only mark the room as ended (idempotent). Do NOT delete room_players
         // here — the winning caller may still be mid-way through Step 3, querying
         // room_players for bot-replaced humans / bot difficulty. Deleting rows
         // early would corrupt those queries.
-        //
-        // Known limitation: if the winning caller inserted game_history but then
-        // crashed before completing stats (returned 500), subsequent callers will
-        // short-circuit here and stats will not be applied for this game. A
-        // stats_applied_at marker would close this gap but is out of scope.
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin
             .from('rooms')
@@ -206,11 +261,16 @@ Deno.serve(async (req: Request) => {
           if (roomEndErr) {
             console.warn('[Complete Game] Failed to mark room ended in duplicate path:', roomEndErr.message);
           }
+          // Broadcast game_ended so clients are not blocked even if the winning
+          // caller crashed before reaching Step 5. Idempotent from client side.
+          await broadcastGameEnded(supabaseAdmin, gameData);
         }
         return new Response(
           JSON.stringify({
             success: true,
-            message: 'Game already recorded by another client',
+            message: existingRow.stats_applied_at !== null
+              ? 'Game already recorded by another client'
+              : 'Game already recorded but stats may be partial — see server logs',
             duplicate: true,
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -344,11 +404,14 @@ Deno.serve(async (req: Request) => {
       // Another client's INSERT landed between our SELECT check and this INSERT.
       // Treat it the same as the dedup guard above: return 200, skip stats.
       if (historyError.code === '23505') {
-        console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate, skipping`);
+        // Race-condition duplicate: another caller's INSERT committed between our
+        // SELECT check and this INSERT. The winning caller may not have applied
+        // stats yet (stats_applied_at IS NULL). We cannot re-apply stats here
+        // (non-idempotent function), but we mark the room ended and broadcast so
+        // clients are not blocked. See admin diagnostic in Step 2b comment.
+        console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate (race), skipping`);
         // Only mark the room as ended (idempotent). Do NOT delete room_players —
-        // the successful caller (which hit the unique index) is still executing
-        // Step 3 and reads room_players for bot-replaced humans / bot difficulty.
-        // See duplicate-path comment above for the known partial-completion limitation.
+        // the winning caller is still executing Step 3 and reads room_players.
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin
             .from('rooms')
@@ -357,6 +420,9 @@ Deno.serve(async (req: Request) => {
           if (roomEndErr) {
             console.warn('[Complete Game] Failed to mark room ended in 23505 path:', roomEndErr.message);
           }
+          // Broadcast game_ended so clients are not blocked if the winning
+          // caller crashes before reaching Step 5. Idempotent from client side.
+          await broadcastGameEnded(supabaseAdmin, gameData);
         }
         return new Response(
           JSON.stringify({
@@ -631,6 +697,20 @@ Deno.serve(async (req: Request) => {
 
     console.log('[Complete Game] All player stats updated successfully');
 
+    // Mark stats_applied_at now that all stats RPCs have completed.
+    // This unlocks the dedup guard: any subsequent caller that finds this row
+    // will see stats_applied_at IS NOT NULL and know stats are complete.
+    if (gameData.room_id) {
+      const { error: statsAppliedErr } = await supabaseAdmin
+        .from('game_history')
+        .update({ stats_applied_at: new Date().toISOString() })
+        .eq('room_id', gameData.room_id)
+        .is('stats_applied_at', null); // only update if not already set (idempotent)
+      if (statsAppliedErr) {
+        console.warn('[Complete Game] Failed to set stats_applied_at (non-critical):', statsAppliedErr.message);
+      }
+    }
+
     // ============================================================================
     // STEP 3b: CLOSE ROOM (mark ended + clean up room_players)
     // ============================================================================
@@ -725,62 +805,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================================================
-    // STEP 5: BROADCAST game_ended EVENT TO ALL CLIENTS (CORRECTED)
+    // STEP 5: BROADCAST game_ended EVENT TO ALL CLIENTS
     // ============================================================================
-    // CRITICAL FIX: Properly broadcasts to subscribed clients
-    
-    if (gameData.room_id) {
-      try {
-        const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
-        const finalScores = gameData.players
-          .sort((a, b) => a.score - b.score) // Lowest score wins
-          .map((p, index) => ({
-            player_index: index,
-            player_name: p.username,
-            cumulative_score: p.score,
-            points_added: 0, // Final game doesn't add points
-            rank: p.finish_position,
-            is_busted: p.score >= 101,
-          }));
-        
-        const broadcastPayload = {
-          game_winner_name: winnerPlayer?.username || 'Unknown',
-          game_winner_index: gameData.players.findIndex(p => p.user_id === gameData.winner_id),
-          final_scores: finalScores,
-          room_code: gameData.room_code,
-        };
-        
-        console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id, broadcastPayload);
-        
-        // CORRECTED: Subscribe to channel, broadcast, then unsubscribe
-        const channel = supabaseAdmin.channel(`room:${gameData.room_id}`);
-        
-        await channel.subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            const { error: broadcastError } = await channel.send({
-              type: 'broadcast',
-              event: 'game_ended',
-              payload: broadcastPayload,
-            });
-            
-            if (broadcastError) {
-              console.error('[Complete Game] Failed to broadcast game_ended:', broadcastError);
-            } else {
-              console.log('[Complete Game] ✅ game_ended broadcast sent successfully');
-            }
-            
-            // Unsubscribe after sending
-            await supabaseAdmin.removeChannel(channel);
-          }
-        });
-        
-      } catch (broadcastError) {
-        console.error('[Complete Game] Error broadcasting game_ended:', broadcastError);
-        // Non-critical - continue
-      }
-    } else {
-      console.log('[Complete Game] No room_id, skipping broadcast (local game)');
-    }
+    // Uses the shared broadcastGameEnded helper (also called from dedup/23505
+    // short-circuit paths) so clients are unblocked even when the winning caller
+    // crashes before this step.
+    console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id);
+    await broadcastGameEnded(supabaseAdmin, gameData);
 
     // ============================================================================
     // STEP 6: REFRESH LEADERBOARD
