@@ -66,11 +66,15 @@ async function broadcastGameEnded(
     const winnerPlayer = gameData.players.find(p => p.user_id === gameData.winner_id);
     const finalScores = [...gameData.players]
       .sort((a, b) => a.score - b.score)
-      .map((p, index) => ({
-        player_index: index,
+      .map((p, finishIdx) => ({
+        // player_index is the original seat/array index so it aligns with
+        // game_winner_index (which also uses the original players array).
+        // finishIdx (0-based sort rank) is exposed as finish_position separately.
+        player_index: gameData.players.findIndex(orig => orig.user_id === p.user_id),
         player_name: p.username,
         cumulative_score: p.score,
         points_added: 0,
+        finish_position: finishIdx + 1, // 1-based finish rank in score order
         rank: p.finish_position,
         is_busted: p.score >= 101,
       }));
@@ -252,15 +256,25 @@ async function broadcastGameEnded(
     // double-count). We log the failure visibly and still short-circuit.
     // Admin diagnostic: SELECT * FROM game_history WHERE stats_applied_at IS NULL;
     //
-    // DEPLOYMENT ORDER: migration 20260313000002 (adds stats_applied_at) must be
-    // applied before this Edge Function is deployed. If the column is absent,
-    // PostgREST returns an error that is caught by the dupCheckError guard below
-    // — the function then falls through and processes the game normally rather than
-    // crashing, so there is no hard failure if the migration is delayed.
+    // ── DEPLOYMENT REQUIREMENTS (Step 2b) ──────────────────────────────────────
+    // REQUIRED before deploying this Edge Function:
+    //   migration 20260313000001 must be applied (adds the UNIQUE INDEX on
+    //   game_history(room_id)) — this is the primary race-safety guarantee.
+    //   Without it the 23505 path is unreachable and the SELECT-based dedup
+    //   is the only guard (sufficient but weaker than a DB constraint).
+    //
+    // OPTIONAL (but strongly recommended for partial-failure observability):
+    //   migration 20260313000002 may be applied any time before or after this
+    //   function is deployed. The SELECT below queries `stats_applied_at`;
+    //   if the column is absent PostgREST returns an error that is caught by
+    //   dupCheckError — the function falls through and processes the game
+    //   normally. Applying migration 00002 enables the age-based partial-failure
+    //   detection but is not required for correct deduplication.
+    // ──────────────────────────────────────────────────────────────────────────
     if (gameData.room_id) {
       const { data: existingRow, error: dupCheckError } = await supabaseAdmin
         .from('game_history')
-        .select('id, stats_applied_at')
+        .select('id, stats_applied_at, created_at')
         .eq('room_id', gameData.room_id)
         // Prefer the most-complete row: stats_applied_at set > null, then earliest by created_at.
         // During the brief window before the dedup migration runs, duplicate rows may exist;
@@ -274,10 +288,22 @@ async function broadcastGameEnded(
         console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
       } else if (existingRow) {
         if (existingRow.stats_applied_at === null) {
-          // Partial failure: winning caller crashed after INSERT but before stats.
-          // Stats are unrecoverable here (non-idempotent function would double-count).
-          // Mark room ended + broadcast game_ended so clients are not blocked.
-          console.error(`[Complete Game] ⚠️ Partial failure detected for room ${gameData.room_id} — game_history exists but stats_applied_at is null. Stats may be missing. See admin diagnostic query.`);
+          // stats_applied_at IS NULL means either:
+          //   a) Winning caller is still in-progress (stats RPCs not yet done) — normal race window.
+          //   b) Winning caller crashed before completing stats — true partial failure.
+          // Distinguish with a 30-second age threshold: fresh rows are likely in-progress;
+          // stale rows indicate a real crash. Only escalate to console.error for stale rows.
+          const rowAgeMs = existingRow.created_at
+            ? Date.now() - new Date(existingRow.created_at).getTime()
+            : Infinity;
+          if (rowAgeMs < 30_000) {
+            console.warn(`[Complete Game] ⏳ Dedup: game_history exists for room ${gameData.room_id}, stats_applied_at null (row age ${Math.round(rowAgeMs / 1000)}s) — likely in progress`);
+          } else {
+            // Row is stale (>30 s): winning caller almost certainly crashed.
+            // Stats are unrecoverable here (non-idempotent update_player_stats_after_game
+            // would double-count). Log as error for admin diagnosis.
+            console.error(`[Complete Game] ⚠️ Partial failure detected for room ${gameData.room_id} — game_history exists but stats_applied_at is null (row age ${Math.round(rowAgeMs / 1000)}s). Stats may be missing. Admin diagnostic: SELECT * FROM game_history WHERE stats_applied_at IS NULL;`);
+          }
         } else {
           console.log(`[Complete Game] ⏭️ Game fully recorded for room ${gameData.room_id} (stats_applied_at set) — skipping duplicate`);
         }

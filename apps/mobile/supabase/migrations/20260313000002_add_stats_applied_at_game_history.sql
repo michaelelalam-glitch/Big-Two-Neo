@@ -27,8 +27,11 @@ ALTER TABLE game_history
 
 -- Backfill pre-existing rows that have a room_id as fully applied so they are
 -- never flagged as partial failures by the new dedup logic. Scoped to
--- room_id IS NOT NULL to avoid a full-table scan on local/casual-game rows
--- (NULL room_id rows are never checked by the dedup guard).
+-- room_id IS NOT NULL to avoid updating local/casual-game rows (NULL room_id
+-- rows are never checked by the dedup guard and do not need the marker).
+-- Note: this UPDATE may still scan a large portion of game_history depending
+-- on available indexes; schedule during a low-traffic window if the table is
+-- large.
 UPDATE game_history
   SET stats_applied_at = COALESCE(finished_at, created_at, NOW())
   WHERE stats_applied_at IS NULL

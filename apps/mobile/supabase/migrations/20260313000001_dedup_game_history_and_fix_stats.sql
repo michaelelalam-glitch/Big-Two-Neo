@@ -20,12 +20,20 @@
 -- ============================================================================
 
 -- ============================================================================
--- DEPLOYMENT ORDER: deploy Edge Function first, THEN run this migration.
--- Rationale: the Edge Function's 23505 dedup guard is safe against new
--- duplicates regardless of whether this index exists. Running the migration
--- while the old code is still in production could hit a race where a new
--- duplicate is inserted between Step 1 (DELETE) and Step 2 (CREATE UNIQUE INDEX),
--- causing CREATE UNIQUE INDEX to fail. Deploy order eliminates that window.
+-- DEPLOYMENT ORDER (single authoritative sequence):
+--   1. Deploy the updated complete-game Edge Function (adds the SELECT-based
+--      dedup guard + 23505 handler that return 200 for duplicates instead of
+--      inserting again). This is safe even before the index exists.
+--   2. Run migration 20260313000001 (this file): dedup existing rows + add
+--      UNIQUE index to prevent future duplicates at the DB level.
+--      Rationale for EF first: the old code is still live during step 2 and
+--      could race-insert a duplicate between the DELETE (Step 1) and the
+--      CREATE UNIQUE INDEX (Step 2), causing the latter to fail. The updated
+--      EF eliminates that window by preventing new duplicate inserts.
+--   3. Run migration 20260313000002: adds stats_applied_at column (optional
+--      for correctness; enables partial-failure detection in the dedup guard).
+--      The Edge Function handles a missing column gracefully (falls through on
+--      PostgREST error) so this migration may be applied any time after step 2.
 -- ============================================================================
 
 -- Step 1: Delete duplicate game_history rows, keeping only the earliest per room_id
