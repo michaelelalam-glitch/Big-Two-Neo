@@ -204,8 +204,12 @@ export class GameStateManager {
         }
         // Also clear any in-progress auto-pass countdown; if the game ends
         // while a countdown is active the UI would otherwise show a stuck timer.
+        // notifyListeners() is called only when a timer was actually active so
+        // the UI immediately hides the countdown rather than waiting for an
+        // unrelated state update to trigger a re-render.
         if (this.state.auto_pass_timer) {
           this.state.auto_pass_timer = null;
+          this.notifyListeners();
         }
         return;
       }
@@ -217,6 +221,8 @@ export class GameStateManager {
         if (this.state.auto_pass_timer) {
           gameLogger.info('⏹️ [Auto-Pass Timer] Cancelled - match ended');
           this.state.auto_pass_timer = null;
+          // Notify listeners so the UI immediately hides the cancelled timer.
+          this.notifyListeners();
         }
         if (this.timerInterval !== null) {
           clearInterval(this.timerInterval);

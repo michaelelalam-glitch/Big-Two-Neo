@@ -41,6 +41,17 @@ interface GameHistoryRow {
 }
 
 /**
+ * Static lookup — defined once at module level (no i18n calls) so FlatList
+ * rows never allocate a new object during renderItem.
+ */
+const MATCH_TYPE_EMOJI: Record<MatchHistoryEntry['match_type'], string> = {
+  casual: '😊',
+  ranked: '🏆',
+  private: '🔒',
+  local: '🎮',
+};
+
+/**
  * Match History Screen
  *
  * Reads from game_history (the table actually populated by the complete-game edge
@@ -250,23 +261,20 @@ export default function MatchHistoryScreen() {
     });
   };
 
+  // Computed once per component mount. i18n locale is stable for the lifetime
+  // of the screen so this is safe to define here rather than inside renderMatchCard
+  // (avoids allocating two new objects per FlatList row on every re-render).
+  const matchTypeLabel: Record<MatchHistoryEntry['match_type'], string> = {
+    casual: i18n.t('matchmaking.casual'),
+    ranked: i18n.t('matchmaking.ranked'),
+    private: i18n.t('profile.private'),
+    local: i18n.t('matchHistory.local'),
+  };
+
   const renderMatchCard = ({ item }: { item: MatchHistoryEntry }) => {
     const isRanked = item.match_type === 'ranked';
     const eloChange = item.elo_change || 0;
     const eloPositive = eloChange > 0;
-
-    const matchTypeLabel: Record<MatchHistoryEntry['match_type'], string> = {
-      casual: i18n.t('matchmaking.casual'),
-      ranked: i18n.t('matchmaking.ranked'),
-      private: i18n.t('profile.private'),
-      local: i18n.t('matchHistory.local'),
-    };
-    const matchTypeEmoji: Record<MatchHistoryEntry['match_type'], string> = {
-      casual: '😊',
-      ranked: '🏆',
-      private: '🔒',
-      local: '🎮',
-    };
 
     return (
       <View style={styles.matchCard}>
@@ -278,7 +286,7 @@ export default function MatchHistoryScreen() {
               isRanked && styles.matchTypeBadgeRanked
             ]}>
               <Text style={styles.matchTypeBadgeText}>
-                {matchTypeEmoji[item.match_type]} {matchTypeLabel[item.match_type]}
+                {MATCH_TYPE_EMOJI[item.match_type]} {matchTypeLabel[item.match_type]}
               </Text>
             </View>
           </View>

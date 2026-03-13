@@ -14,7 +14,7 @@
  * and are flushed to React state via REPLACE at the end of each tick.
  */
 
-import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 
 import type {
   GameState as MultiplayerGameState,
@@ -81,7 +81,7 @@ interface UseDisconnectDetectionOptions {
   /** True while useConnectionManager is executing a reconnect RPC. */
   isReconnecting: boolean;
   /** Opens the RejoinModal when the local player's countdown expires. */
-  setShowBotReplacedModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowBotReplacedModal: Dispatch<SetStateAction<boolean>>;
 }
 
 interface UseDisconnectDetectionReturn {
