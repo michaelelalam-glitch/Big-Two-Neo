@@ -8,8 +8,10 @@
  * State machine transitions per remote player:
  *   connected → timeout_pending → disconnected → replaced_by_bot
  *
- * Uses useReducer so all clientDisconnections transitions are explicit and
- * testable without touching MultiplayerGame directly.
+ * clientDisconnections state is committed via a single REPLACE action (with
+ * equality guard) to avoid redundant re-renders.  Per-player anchor mutations
+ * flow through clientDisconnectStartRef (avoids stale closures in the interval)
+ * and are flushed to React state via REPLACE at the end of each tick.
  */
 
 import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
@@ -22,57 +24,25 @@ import { gameLogger } from '../utils/logger';
 import type { LayoutPlayerWithScore } from './usePlayerDisplayData';
 
 // ── Reducer ────────────────────────────────────────────────────────────────────
+// Only REPLACE is dispatched: the interval and immediate-clear effect both
+// build a full snapshot Map and commit it atomically at the end of each tick.
+// The equality check prevents spurious re-renders when the map is unchanged.
 
-type DisconnectMapAction =
-  | { type: 'SEED'; playerIndex: number; startedAt: string }
-  | { type: 'CORRECT'; playerIndex: number; startedAt: string }
-  | { type: 'CLEAR'; playerIndex: number }
-  | { type: 'REPLACE'; map: Map<number, string> };
+type DisconnectMapAction = { type: 'REPLACE'; map: Map<number, string> };
 
 function disconnectMapReducer(
   state: Map<number, string>,
   action: DisconnectMapAction,
 ): Map<number, string> {
-  switch (action.type) {
-    case 'SEED': {
-      if (state.has(action.playerIndex)) return state;
-      const next = new Map(state);
-      next.set(action.playerIndex, action.startedAt);
-      return next;
-    }
-    case 'CORRECT': {
-      const existing = state.get(action.playerIndex);
-      if (existing) {
-        const existingMs = new Date(existing).getTime();
-        const newMs = new Date(action.startedAt).getTime();
-        // Only correct downward — never move the anchor later (that would
-        // visually replenish the ring to full).
-        if (existingMs <= newMs) return state;
-      }
-      const next = new Map(state);
-      next.set(action.playerIndex, action.startedAt);
-      return next;
-    }
-    case 'CLEAR': {
-      if (!state.has(action.playerIndex)) return state;
-      const next = new Map(state);
-      next.delete(action.playerIndex);
-      return next;
-    }
-    case 'REPLACE': {
-      // Built-in equality check — avoids re-renders when map contents
-      // haven't changed (common in the 1s polling interval).
-      if (
-        state.size === action.map.size &&
-        [...action.map.entries()].every(([k, v]) => state.get(k) === v)
-      ) {
-        return state;
-      }
-      return action.map;
-    }
-    default:
-      return state;
+  // Equality guard — avoids re-renders when map contents haven't changed
+  // (common outcome for the 1s polling interval in a connected game).
+  if (
+    state.size === action.map.size &&
+    [...action.map.entries()].every(([k, v]) => state.get(k) === v)
+  ) {
+    return state;
   }
+  return action.map;
 }
 
 // ── Public types ───────────────────────────────────────────────────────────────
@@ -324,6 +294,17 @@ export function useDisconnectDetection({
             );
             delete clientDisconnectStartRef.current[rp.player_index];
           }
+        }
+      }
+
+      // Prune the ref: delete entries for player_indexes no longer present in
+      // realtimePlayers (e.g. player left the room → room_players DELETE).
+      // Without this the immediate-clear effect, when it fires for a *different*
+      // reconnecting player (changed=true), rebuilds the Map from the ref and
+      // re-introduces a ghost disconnect entry for the departed seat.
+      for (const key of Object.keys(clientDisconnectStartRef.current)) {
+        if (!newMap.has(Number(key))) {
+          delete clientDisconnectStartRef.current[Number(key)];
         }
       }
 
