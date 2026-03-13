@@ -107,27 +107,22 @@ Deno.serve(async (req) => {
     // Broadcast player_reconnected so all other clients know a human reclaimed
     // this seat and can stop waiting for a "bot" to make a move.
     // This is fire-and-forget — we do not block the response on it.
+    // IMPORTANT: channel name must be `room:${room_id}` (UUID) to match the
+    // client's Realtime subscription in useRealtime.ts joinChannel().
     (async () => {
       try {
-        const { data: roomRow } = await supabaseClient
-          .from('rooms')
-          .select('code')
-          .eq('id', room_id)
-          .maybeSingle();
-        if (roomRow?.code) {
-          const broadcastChannel = supabaseClient.channel(`room:${roomRow.code}`);
-          await broadcastChannel.send({
-            type:    'broadcast',
-            event:   'player_reconnected',
-            payload: {
-              player_index: result.player_index,
-              username:     result.username,
-              was_replaced: result.was_replaced ?? false,
-            },
-          });
-          await supabaseClient.removeChannel(broadcastChannel);
-          console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${roomRow.code} (index ${result.player_index})`);
-        }
+        const broadcastChannel = supabaseClient.channel(`room:${room_id}`);
+        await broadcastChannel.send({
+          type:    'broadcast',
+          event:   'player_reconnected',
+          payload: {
+            player_index: result.player_index,
+            username:     result.username,
+            was_replaced: result.was_replaced ?? false,
+          },
+        });
+        await supabaseClient.removeChannel(broadcastChannel);
+        console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${room_id} (index ${result.player_index})`);
       } catch (bcastErr: any) {
         // Non-fatal — clients will also detect the change via postgres_changes
         console.warn('[reconnect-player] Broadcast error (non-critical):', bcastErr?.message);
