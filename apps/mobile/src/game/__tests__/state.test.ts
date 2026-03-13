@@ -637,3 +637,88 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
     expect(lastEntry.matchNumber).toBe(newState.currentMatch);
   });
 });
+
+describe('Game State Manager - lazy timer start (C2 leak fix)', () => {
+  let setIntervalSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    // Spy BEFORE creating any manager so we capture calls from the constructor.
+    setIntervalSpy = jest.spyOn(global, 'setInterval');
+  });
+
+  afterEach(() => {
+    setIntervalSpy.mockRestore();
+  });
+
+  test('constructor does NOT call setInterval', () => {
+    const manager = createGameStateManager();
+    // The 100ms auto-pass interval must not be started until a game session exists.
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    manager.destroy();
+  });
+
+  test('initializeGame() starts exactly one interval', async () => {
+    const manager = createGameStateManager();
+    setIntervalSpy.mockClear(); // discard any unrelated setInterval calls from other modules
+
+    await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'medium' });
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 100);
+    manager.destroy();
+  });
+
+  test('loadState() re-starts the interval for a restored session', async () => {
+    const manager = createGameStateManager();
+
+    // Build a minimal saved state to satisfy loadState migration + assign
+    const savedState = {
+      players: [],
+      currentPlayerIndex: 0,
+      lastPlay: null,
+      lastPlayPlayerIndex: 0,
+      consecutivePasses: 0,
+      isFirstPlayOfGame: true,
+      gameStarted: true,
+      gameEnded: false,
+      winnerId: null,
+      roundHistory: [],
+      gameRoundHistory: [],
+      currentMatch: 1,
+      matchScores: [],
+      lastMatchWinnerId: null,
+      gameOver: false,
+      finalWinnerId: null,
+      startedAt: Date.now(),
+      auto_pass_timer: null,
+      played_cards: [],
+    };
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(savedState));
+
+    setIntervalSpy.mockClear();
+    await manager.loadState();
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 100);
+    manager.destroy();
+  });
+
+  test('destroy() stops the interval and calling it twice is safe', async () => {
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    const manager = createGameStateManager();
+
+    await manager.initializeGame({ playerName: 'Player 1', botCount: 3, botDifficulty: 'medium' });
+
+    manager.destroy();
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+
+    // Second destroy must be a no-op (timerInterval is null after first destroy)
+    manager.destroy();
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+
+    clearIntervalSpy.mockRestore();
+  });
+});

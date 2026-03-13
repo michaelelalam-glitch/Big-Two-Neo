@@ -111,9 +111,12 @@ export function useGameStateManager({
       return;
     }
 
-    // Prevent multiple initializations for the same room+difficulty
-    // Include botDifficulty in guard key
-    const initKey = `${roomCode}:${botDifficulty}`;
+// Prevent multiple initializations for the same room+difficulty+player.
+        // Including currentPlayerName ensures that if the profile loads after
+        // mount and changes the display name, the init guard is invalidated so
+        // the manager is re-created with the correct name rather than leaving a
+        // null ref after cleanup nulls the old one (C2 fix, comment 2).
+        const initKey = `${roomCode}:${botDifficulty}:${currentPlayerName}`;
     if (isInitializedRef.current && initializedRoomRef.current === initKey) {
       return;
     }
@@ -237,6 +240,15 @@ export function useGameStateManager({
           // Play notification sound
           soundManager.playSound(SoundType.TURN_NOTIFICATION);
           gameLogger.info('🎵 [Audio] Notification sound triggered for rejoined game');
+        }
+
+        // C2 fix (comment 1): abort if the component unmounted while
+        // AsyncStorage.getItem(SCORE_HISTORY_KEY) was awaited inside the
+        // savedState branch above.  Without this guard, the continuation
+        // would still proceed to manager.subscribe() on a discarded manager.
+        if (gameManagerRef.current !== manager) {
+          manager.destroy();
+          return;
         }
 
         // Track previous player index in a ref
