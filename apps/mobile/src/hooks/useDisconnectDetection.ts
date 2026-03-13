@@ -164,6 +164,15 @@ export function useDisconnectDetection({
     };
   }, []);
 
+  // ── Stable ref mirror for realtimePlayers ──────────────────────────────────
+  // Keeps the interval stable (deps = [userId] only). The interval reads
+  // this ref so it always sees the latest player list without being torn
+  // down and recreated on every Realtime update (~every 1.25 s per player).
+  const realtimePlayersRef = useRef(realtimePlayers);
+  useEffect(() => {
+    realtimePlayersRef.current = realtimePlayers;
+  }, [realtimePlayers]);
+
   // ── Main 1s staleness-detection interval ──────────────────────────────────
   // Detects player disconnects via stale last_seen_at timestamps as a fallback
   // for when Supabase Realtime delivery of connection_status changes is delayed.
@@ -172,12 +181,13 @@ export function useDisconnectDetection({
     const STALE_THRESHOLD_MS = 30_000;
 
     const interval = setInterval(() => {
-      if (!realtimePlayers || realtimePlayers.length === 0) return;
+      const players = realtimePlayersRef.current;
+      if (!players || players.length === 0) return;
 
       const now = Date.now();
       const newMap = new Map<number, string>();
 
-      for (const rp of realtimePlayers) {
+      for (const rp of players) {
         // Skip bots, invalid rows, and the local player.
         if (rp.is_bot || typeof rp.player_index !== 'number') continue;
         if (rp.user_id === userId) continue;
@@ -321,7 +331,7 @@ export function useDisconnectDetection({
 
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realtimePlayers, userId]);
+  }, [userId]);
 
   // ── Immediate reconnect clear ──────────────────────────────────────────────
   // The 1s polling interval can be starved in a 4-player game (heartbeats arrive

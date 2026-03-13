@@ -50,10 +50,22 @@ WHERE id IN (
 
 -- Step 2: Add unique partial index to prevent future duplicates
 -- room_id can be NULL for local/casual games, so we use a partial index.
--- NOTE: CREATE INDEX CONCURRENTLY is not supported inside a transaction block;
--- Supabase migrations run inside a transaction by default. The ACCESS EXCLUSIVE
--- lock here is brief for small tables. For large production tables, consider
--- running this step manually in a low-traffic window outside a transaction.
+--
+-- LOCKING NOTE: CREATE INDEX (without CONCURRENTLY) takes an ACCESS EXCLUSIVE
+-- lock on game_history for the duration of the index build.  Supabase
+-- migrations run inside a transaction, so CONCURRENTLY is not available here.
+-- For a small table this lock is brief and acceptable.
+--
+-- PRODUCTION RUNBOOK (large tables):
+--   If game_history has grown to millions of rows, run this step manually in a
+--   low-traffic window OUTSIDE a transaction to avoid blocking reads/writes:
+--
+--     CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
+--       idx_game_history_unique_room_id
+--       ON game_history (room_id)
+--       WHERE room_id IS NOT NULL;
+--
+--   Then re-run this migration (the IF NOT EXISTS guard makes it a no-op).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_unique_room_id
   ON game_history (room_id)
   WHERE room_id IS NOT NULL;

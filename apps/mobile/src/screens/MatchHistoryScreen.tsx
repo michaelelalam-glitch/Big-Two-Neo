@@ -36,7 +36,8 @@ interface GameHistoryRow {
   player_4_score: number | null;
   winner_id: string | null;
   voided_user_id: string | null;
-  finished_at: string;
+  finished_at: string | null;
+  created_at: string;
 }
 
 /**
@@ -93,7 +94,8 @@ export default function MatchHistoryScreen() {
           player_4_score,
           winner_id,
           voided_user_id,
-          finished_at
+          finished_at,
+          created_at
         `)
         .or(
           `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id},voided_user_id.eq.${user.id}`
@@ -148,9 +150,10 @@ export default function MatchHistoryScreen() {
           final_position: finalPosition,
           elo_change: null, // game_history has no per-player ELO delta column
           // Note: `created_at` in MatchHistoryEntry is populated from
-          // game_history.finished_at (match completion time), not row
-          // creation time. The field is used only for display formatting.
-          created_at: item.finished_at ?? '',
+          // game_history.finished_at (match completion time), falling back
+          // to row creation time when finished_at is null (incomplete games).
+          // The field is used only for display formatting.
+          created_at: item.finished_at ?? item.created_at ?? '',
         };
       });
 
@@ -182,7 +185,8 @@ export default function MatchHistoryScreen() {
     // Non-English locales: return a plain number so the translation template
     // (e.g. "{{ordinal}}. Platz" / "المركز {{ordinal}}") formats it natively
     // without embedding English suffixes ("1st", "2nd", ...) mid-string.
-    if (lang === 'de' || lang === 'ar') return `${position}`;
+    // Use startsWith to handle regional tags (e.g. 'de-DE', 'ar-SA').
+    if (lang.startsWith('de') || lang.startsWith('ar')) return `${position}`;
     // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;

@@ -55,8 +55,11 @@ const corsHeaders = {
 // bot-coordinator/broadcastToRoom: channel.subscribe() is synchronous in
 // supabase-js v2 (returns a RealtimeChannel, not a Promise), so we wrap the
 // entire flow in a new Promise that resolves once the broadcast is sent (or on
-// error/timeout). A 5-second safety timeout prevents the edge function from
-// hanging forever if the channel subscription never completes.
+// error/timeout). A 5-second safety timeout prevents the channel from leaking.
+//
+// FIRE-AND-FORGET: all call sites use `void broadcastGameEnded(...)` so the
+// edge function response is not held up by the Realtime subscribe→send flow.
+// Broadcast failures are logged but never cause the HTTP response to fail.
 async function broadcastGameEnded(
   client: ReturnType<typeof createClient>,
   gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position: number }> }
@@ -327,7 +330,7 @@ async function broadcastGameEnded(
             if (roomEndErr) {
               console.warn('[Complete Game] Failed to mark room finished in fallback dedup path:', roomEndErr.message);
             }
-            await broadcastGameEnded(supabaseAdmin, gameData);
+            void broadcastGameEnded(supabaseAdmin, gameData);
             return new Response(
               JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -371,7 +374,7 @@ async function broadcastGameEnded(
           }
           // Broadcast game_ended so clients are not blocked even if the winning
           // caller crashed before reaching Step 5. Idempotent from client side.
-          await broadcastGameEnded(supabaseAdmin, gameData);
+          void broadcastGameEnded(supabaseAdmin, gameData);
         }
         return new Response(
           JSON.stringify({
@@ -530,7 +533,7 @@ async function broadcastGameEnded(
           }
           // Broadcast game_ended so clients are not blocked if the winning
           // caller crashes before reaching Step 5. Idempotent from client side.
-          await broadcastGameEnded(supabaseAdmin, gameData);
+          void broadcastGameEnded(supabaseAdmin, gameData);
         }
         return new Response(
           JSON.stringify({
@@ -919,8 +922,11 @@ async function broadcastGameEnded(
     // Uses the shared broadcastGameEnded helper (also called from dedup/23505
     // short-circuit paths) so clients are unblocked even when the winning caller
     // crashes before this step.
+    // Fire-and-forget: the edge function response is not held waiting for the
+    // Realtime subscribe→send flow (up to 5 s). The HTTP response proceeds
+    // immediately to the leaderboard refresh step below.
     console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id);
-    await broadcastGameEnded(supabaseAdmin, gameData);
+    void broadcastGameEnded(supabaseAdmin, gameData);
 
     // ============================================================================
     // STEP 6: REFRESH LEADERBOARD
