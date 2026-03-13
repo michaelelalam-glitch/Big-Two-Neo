@@ -30,16 +30,11 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Branch:** `task/632-fix-push-notification-syntax-error`
   - **Why:** `SyntaxError: Identifier 'now' has already been declared` crashed the Deno runtime on every cold start — push notifications were never delivered for game invites or turn reminders.
 
-- [ ] **C4** — Remove `.bak` files from version control
+- [x] **C4** — Remove `.bak` files from version control
   - **Task:** #631
-  - **Fix:**
-    ```bash
-    git ls-files '*.bak'
-    git rm **/*.bak
-    echo "*.bak" >> .gitignore
-    git commit -m "chore: remove .bak files from version control"
-    ```
-  - **Files to remove:** Run `git ls-files '*.bak'` to list all tracked `.bak` files. Expected paths (under `apps/mobile/`):
+  - **Branch:** `task/631-remove-bak-files`
+  - **Verification:** `git ls-files | grep '\.bak'` returns empty — no `.bak` files are tracked. The `*.bak` rule was present in `.gitignore` since commit `d92779a` (2026-03-08), so none of the 10 workspace `.bak` files were ever committed.
+  - **10 local `.bak` artifacts** (gitignored, never tracked):
     - `apps/mobile/src/screens/GameScreen.tsx.bak`
     - `apps/mobile/src/components/game/CardHand.tsx.bak`
     - `apps/mobile/src/components/game/GameControls.tsx.bak`
@@ -50,6 +45,7 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `apps/mobile/src/hooks/useConnectionManager.ts.bak`
     - `apps/mobile/src/hooks/usePlayHistoryTracking.ts.bak`
     - `apps/mobile/src/hooks/__tests__/useRealtime-timer-cancellation.test.ts.bak`
+  - **Status:** `.gitignore` already contains `*.bak`. No further action required in version control.
 
 ---
 
