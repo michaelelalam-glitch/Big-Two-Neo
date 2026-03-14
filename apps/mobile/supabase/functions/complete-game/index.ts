@@ -116,6 +116,9 @@ async function broadcastGameEnded(
       // Safety net: always resolve after 5 s to avoid blocking the edge function
       const safetyTimeout = setTimeout(finish, 5000);
       channel.subscribe((status: string) => {
+        // Guard: if the safety timeout already fired and settled the Promise,
+        // ignore any late SUBSCRIBED / status callbacks to prevent double-send.
+        if (settled) return;
         if (status === 'SUBSCRIBED') {
           channel
             .send({ type: 'broadcast', event: 'game_ended', payload: broadcastPayload })

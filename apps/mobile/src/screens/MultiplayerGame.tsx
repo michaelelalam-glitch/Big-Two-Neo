@@ -223,6 +223,9 @@ export function MultiplayerGame() {
     const connectWithRetry = async (attempt: number) => {
       try {
         await multiplayerConnectToRoom(roomCode);
+        // If cleanup ran while we were awaiting (e.g. user navigated away),
+        // stop here — do not touch any refs/state after unmount.
+        if (cancelled) return;
         // Connection succeeded — re-enable onError toasts for the rest of the
         // screen lifetime so genuine post-connection errors are shown to the user.
         suppressConnectErrorsRef.current = false;

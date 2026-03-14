@@ -38,8 +38,10 @@ ALTER TABLE game_history
 -- Note: this UPDATE may still scan a large portion of game_history depending
 -- on available indexes; schedule during a low-traffic window if the table is
 -- large.
+-- finished_at IS NOT NULL is already required by the WHERE clause above,
+-- so finished_at will never be null here — use it directly instead of COALESCE.
 UPDATE game_history
-  SET stats_applied_at = COALESCE(finished_at, created_at, NOW())
+  SET stats_applied_at = finished_at
   WHERE stats_applied_at IS NULL
     AND room_id IS NOT NULL
     AND game_completed = TRUE

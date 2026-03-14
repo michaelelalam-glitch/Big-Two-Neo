@@ -202,6 +202,10 @@ Deno.serve(async (req) => {
               };
               const safetyTimeout = setTimeout(finish, 5000);
               ch.subscribe((status: string) => {
+                // Guard: if the safety timeout already fired and settled the
+                // Promise, ignore any late SUBSCRIBED / status callbacks to
+                // prevent double-send or post-cleanup work.
+                if (settled) return;
                 if (status === 'SUBSCRIBED') {
                   ch.send({ type: 'broadcast', event: 'player_reconnected', payload })
                     .then((result: any) => {
