@@ -2874,26 +2874,27 @@ COMMENT ON INDEX idx_room_players_is_spectator IS
 -- PART 1: Add Bot Columns to Players Table (Game State)
 -- ============================================================================
 
--- Add is_bot flag to players table
-ALTER TABLE players 
-ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE;
-
--- Add bot_difficulty column
-ALTER TABLE players
-ADD COLUMN IF NOT EXISTS bot_difficulty VARCHAR(10) DEFAULT 'medium'
-CHECK (bot_difficulty IN ('easy', 'medium', 'hard'));
-
--- Add bot_name column (for display purposes)
-ALTER TABLE players
-ADD COLUMN IF NOT EXISTS bot_name VARCHAR(50);
-
--- Index for efficient bot queries
-CREATE INDEX IF NOT EXISTS idx_players_is_bot ON players(room_id, is_bot);
-
--- Comments
-COMMENT ON COLUMN players.is_bot IS 'Whether this player is an AI bot (NULL user_id for bots)';
-COMMENT ON COLUMN players.bot_difficulty IS 'AI difficulty level for bot players (easy/medium/hard)';
-COMMENT ON COLUMN players.bot_name IS 'Display name for bot players (e.g., Bot 1, Bot 2)';
+-- Legacy `players` table bot-support columns.
+-- `players` has been superseded by `room_players` and no longer exists on fresh
+-- installs; these statements are a no-op when the table is absent.
+DO $$
+BEGIN
+  IF to_regclass('public.players') IS NOT NULL THEN
+    -- Add is_bot flag
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE;
+    -- Add bot_difficulty column
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS bot_difficulty VARCHAR(10) DEFAULT 'medium'
+      CHECK (bot_difficulty IN ('easy', 'medium', 'hard'));
+    -- Add bot_name column (for display purposes)
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS bot_name VARCHAR(50);
+    -- Index for efficient bot queries
+    CREATE INDEX IF NOT EXISTS idx_players_is_bot ON players(room_id, is_bot);
+    -- Comments
+    COMMENT ON COLUMN players.is_bot IS 'Whether this player is an AI bot (NULL user_id for bots)';
+    COMMENT ON COLUMN players.bot_difficulty IS 'AI difficulty level for bot players (easy/medium/hard)';
+    COMMENT ON COLUMN players.bot_name IS 'Display name for bot players (e.g., Bot 1, Bot 2)';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PART 2: Add Bot Coordinator to Rooms Table
@@ -2912,7 +2913,8 @@ COMMENT ON COLUMN rooms.bot_coordinator_id IS 'User ID of client coordinating bo
 -- Allow bot player creation by host
 -- Bots have NULL user_id, so need special policy
 DO $$ BEGIN
-  IF NOT EXISTS (
+  -- Guard: players table no longer exists on fresh installs (superseded by room_players)
+  IF to_regclass('public.players') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies 
     WHERE tablename = 'players' 
     AND policyname = 'Host can create bot players'
@@ -3076,13 +3078,16 @@ COMMENT ON FUNCTION is_bot_coordinator IS 'Check if current user is the bot coor
 -- VERIFICATION QUERIES (for testing)
 -- ============================================================================
 
--- Check columns exist
+-- Check columns exist (players assertions skipped on fresh installs where the
+-- legacy players table has been superseded by room_players)
 DO $$
 BEGIN
-  ASSERT (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'is_bot') = 1, 
-    'players.is_bot column missing';
-  ASSERT (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'bot_difficulty') = 1,
-    'players.bot_difficulty column missing';
+  IF to_regclass('public.players') IS NOT NULL THEN
+    ASSERT (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'is_bot') = 1, 
+      'players.is_bot column missing';
+    ASSERT (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'bot_difficulty') = 1,
+      'players.bot_difficulty column missing';
+  END IF;
   ASSERT (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'bot_coordinator_id') = 1,
     'rooms.bot_coordinator_id column missing';
     
@@ -3456,31 +3461,34 @@ COMMENT ON FUNCTION cleanup_abandoned_rooms() IS
 -- Add columns to support bot players in multiplayer games
 
 -- Add bot support to players table (game state)
+-- Guard: players table no longer exists on fresh installs; this is a no-op when absent.
 DO $$ 
 BEGIN
-  -- Add is_bot column
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'players' AND column_name = 'is_bot'
-  ) THEN
-    ALTER TABLE players ADD COLUMN is_bot BOOLEAN DEFAULT FALSE;
-  END IF;
-  
-  -- Add bot_difficulty column
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'players' AND column_name = 'bot_difficulty'
-  ) THEN
-    ALTER TABLE players ADD COLUMN bot_difficulty VARCHAR(10) DEFAULT 'medium' 
-      CHECK (bot_difficulty IN ('easy', 'medium', 'hard'));
-  END IF;
-  
-  -- Add bot_name column
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'players' AND column_name = 'bot_name'
-  ) THEN
-    ALTER TABLE players ADD COLUMN bot_name VARCHAR(50);
+  IF to_regclass('public.players') IS NOT NULL THEN
+    -- Add is_bot column
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'players' AND column_name = 'is_bot'
+    ) THEN
+      ALTER TABLE players ADD COLUMN is_bot BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    -- Add bot_difficulty column
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'players' AND column_name = 'bot_difficulty'
+    ) THEN
+      ALTER TABLE players ADD COLUMN bot_difficulty VARCHAR(10) DEFAULT 'medium' 
+        CHECK (bot_difficulty IN ('easy', 'medium', 'hard'));
+    END IF;
+    
+    -- Add bot_name column
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'players' AND column_name = 'bot_name'
+    ) THEN
+      ALTER TABLE players ADD COLUMN bot_name VARCHAR(50);
+    END IF;
   END IF;
 END $$;
 
@@ -3518,14 +3526,20 @@ BEGIN
 END $$;
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_players_is_bot ON players(room_id, is_bot);
-CREATE INDEX IF NOT EXISTS idx_players_bot_coordinator ON players(room_id) WHERE is_bot = FALSE;
+-- players indexes guarded: table no longer exists on fresh installs.
+DO $$
+BEGIN
+  IF to_regclass('public.players') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_players_is_bot ON players(room_id, is_bot);
+    CREATE INDEX IF NOT EXISTS idx_players_bot_coordinator ON players(room_id) WHERE is_bot = FALSE;
+    COMMENT ON COLUMN players.is_bot IS 'Whether this player is an AI bot (NULL user_id)';
+    COMMENT ON COLUMN players.bot_difficulty IS 'Bot difficulty level: easy, medium, hard';
+    COMMENT ON COLUMN players.bot_name IS 'Display name for bot player';
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_rooms_bot_coordinator ON rooms(bot_coordinator_id) WHERE bot_coordinator_id IS NOT NULL;
 
 -- Add documentation
-COMMENT ON COLUMN players.is_bot IS 'Whether this player is an AI bot (NULL user_id)';
-COMMENT ON COLUMN players.bot_difficulty IS 'Bot difficulty level: easy, medium, hard';
-COMMENT ON COLUMN players.bot_name IS 'Display name for bot player';
 COMMENT ON COLUMN rooms.bot_coordinator_id IS 'User ID of client coordinating bot moves (typically first human)';
 COMMENT ON COLUMN rooms.ranked_mode IS 'Whether this is a ranked game (no bots at start, only replace disconnects)';
 
