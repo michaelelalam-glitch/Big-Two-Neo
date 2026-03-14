@@ -106,11 +106,16 @@ export default function InactivityCountdownRing({
   // Keep stable refs for callbacks so we never need to re-schedule the Reanimated
   // animation just because the parent re-created its onExpired arrow function or
   // because the `type` prop changed (type is synced via typeRef + typeShared).
+  //
+  // Assigned synchronously during render (not via useEffect) so the ref is always
+  // current before any withTiming completion callback can fire via runOnJS.
+  // Using useEffect would leave a window between commit and effect execution where
+  // handleExpired() could read a stale onExpiredRef/typeRef value.
   const onExpiredRef = useRef(onExpired);
-  useEffect(() => { onExpiredRef.current = onExpired; }, [onExpired]);
+  onExpiredRef.current = onExpired;
 
   const typeRef = useRef(type);
-  useEffect(() => { typeRef.current = type; }, [type]);
+  typeRef.current = type;
 
   // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` change.
   // All three consumers (useSharedValue init, useState init, scheduling effect) share
@@ -162,7 +167,7 @@ export default function InactivityCountdownRing({
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
     networkLogger.info(
-      `[InactivityRing] Scheduling ${type} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`,
+      `[InactivityRing] Scheduling ${typeRef.current} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`,
     );
 
     if (remaining <= 0) {
