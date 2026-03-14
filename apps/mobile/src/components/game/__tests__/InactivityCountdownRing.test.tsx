@@ -284,14 +284,21 @@ describe('InactivityCountdownRing', () => {
     });
 
     it('schedules withTiming with full 60s duration on server-ahead clock skew', () => {
-      const futureTs = new Date(Date.now() + 1000).toISOString();
+      // Freeze Date.now for a deterministic duration assertion. Without freezing,
+      // the ±500ms tolerance band was fragile on slow CI / loaded workers.
+      const frozenNow = 1_700_000_000_000;
+      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(frozenNow);
+      // Server 1s ahead — below CLOCK_SKEW_WARN_THRESHOLD_MS (2s), so resolveStartTimeMs
+      // returns serverMs. elapsed in the effect is clamped to 0 → remaining = exactly 60s.
+      const futureTs = new Date(frozenNow + 1000).toISOString();
       render(
         <InactivityCountdownRing type="turn" startedAt={futureTs} />,
       );
+      dateSpy.mockRestore();
       expect(withTiming).toHaveBeenCalledTimes(1);
       const [, opts] = (withTiming as jest.Mock).mock.calls[0];
-      // elapsed was negative → treated as 0 → remaining ≈ COUNTDOWN_DURATION_MS
-      expect(opts.duration).toBeGreaterThan(COUNTDOWN_DURATION_MS - 500);
+      // elapsed clamped to 0 → remaining = COUNTDOWN_DURATION_MS exactly (no tolerance band)
+      expect(opts.duration).toBe(COUNTDOWN_DURATION_MS);
     });
   });
 });
