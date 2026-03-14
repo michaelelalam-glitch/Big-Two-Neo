@@ -4,6 +4,7 @@ import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '.
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from './InactivityCountdownRing';
+import { VideoTile } from './VideoTile';
 
 interface PlayerInfoProps {
   name: string;
@@ -18,6 +19,18 @@ interface PlayerInfoProps {
   turnTimerStartedAt?: string | null;
   /** Called when the countdown ring expires (timer reaches 0) */
   onCountdownExpired?: () => void;
+  // ── Task #651: in-game video chat ──────────────────────────────────────────
+  /** Whether this player's camera is actively streaming (undefined = video chat inactive) */
+  isCameraOn?: boolean;
+  /** Whether this is the local player's tile (adds tap-to-toggle) */
+  isLocalPlayer?: boolean;
+  /** Whether the video connection is being established */
+  isVideoChatConnecting?: boolean;
+  /** Called when the video tile is pressed (local player opt-in/out) */
+  /** Called when the local player presses their video tile to toggle camera */
+  onVideoChatToggle?: () => void;
+  /** Injected video stream element (RTCView/VideoView from the real SDK) */
+  videoStreamSlot?: React.ReactNode;
 }
 
 export default function PlayerInfo({
@@ -29,7 +42,13 @@ export default function PlayerInfo({
   disconnectTimerStartedAt,
   turnTimerStartedAt,
   onCountdownExpired,
+  isCameraOn,
+  isLocalPlayer = false,
+  isVideoChatConnecting = false,
+  onVideoChatToggle,
+  videoStreamSlot,
 }: PlayerInfoProps) {
+  const showVideoTile = isCameraOn !== undefined;
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
@@ -45,7 +64,10 @@ export default function PlayerInfo({
     return turnTimerStartedAt!;
   })();
   
-  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}`;
+  const videoChatLabel = showVideoTile
+    ? isCameraOn ? `, camera on` : `, camera off`
+    : '';
+  const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}${videoChatLabel}`;
   
   return (
     <View 
@@ -91,6 +113,19 @@ export default function PlayerInfo({
                 {formatScore(totalScore)}
               </Text>
             </View>
+          </View>
+        )}
+        {/* In-game video tile (Task #651) — absolute overlay, top-left of avatar */}
+        {showVideoTile && (
+          <View style={styles.videoTilePosition}>
+            <VideoTile
+              isCameraOn={!!isCameraOn}
+              isConnecting={isVideoChatConnecting}
+              isLocal={isLocalPlayer}
+              onCameraToggle={onVideoChatToggle}
+              videoStreamSlot={videoStreamSlot}
+              testID={`video-tile-${name}`}
+            />
           </View>
         )}
       </View>
@@ -160,6 +195,14 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     zIndex: 10,
+  },
+  // Task #651: video tile is anchored top-left of the avatar so it doesn't clash
+  // with the card-count badge (top-right) or score badge (bottom-left).
+  videoTilePosition: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    zIndex: 12,
   },
   // Disconnect overlay styles (fix/rejoin)
   avatarDisconnected: {

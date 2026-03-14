@@ -8,3 +8,4 @@ export { default as AutoPassTimer } from './AutoPassTimer';
 export { HelperButtons } from './HelperButtons';
 export { GameControls } from './GameControls';
 export { GameLayout } from './GameLayout';
+export { VideoTile } from './VideoTile';

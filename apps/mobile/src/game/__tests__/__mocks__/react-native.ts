@@ -16,6 +16,17 @@ export const StyleSheet = {
 export const View = 'View';
 export const Text = 'Text';
 export const Pressable = 'Pressable';
+
+export const PermissionsAndroid = {
+  PERMISSIONS: { CAMERA: 'android.permission.CAMERA' },
+  RESULTS: {
+    GRANTED: 'granted',
+    DENIED: 'denied',
+    NEVER_ASK_AGAIN: 'never_ask_again',
+  },
+  request: jest.fn().mockResolvedValue('granted'),
+  requestMultiple: jest.fn().mockResolvedValue({}),
+};
 export const ActivityIndicator = 'ActivityIndicator';
 export const TouchableOpacity = 'TouchableOpacity';
 export const ScrollView = 'ScrollView';
