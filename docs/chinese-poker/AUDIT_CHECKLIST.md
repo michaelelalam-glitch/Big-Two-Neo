@@ -242,7 +242,7 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Approach:** Evaluate Agora SDK, LiveKit, or Daily.co. Push-to-talk toggle in `GameControls`. Mute indicator per player in `PlayerInfo`. Requires microphone permission flow.
   - **Prerequisite:** F1 complete
 
-- [x] **F3** — In-game video chat *(in-progress — Task #651)*
+- [ ] **F3** — In-game video + audio chat *(in-progress — Task #651)*
   - **Task:** #651
   - **Approach:** Opt-in floating video tiles anchored near each `PlayerInfo`. Use same SDK as F2 (LiveKit recommended — supports audio + video). Camera permission required.
   - **Prerequisite:** F2 complete
