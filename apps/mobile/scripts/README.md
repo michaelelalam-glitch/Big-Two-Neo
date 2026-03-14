@@ -8,38 +8,51 @@ Utility scripts for maintaining the Big Two mobile app.
 
 | Script | Purpose |
 |--------|---------|
-| `deploy-edge-functions.sh` | Deploy all Supabase edge functions to the configured project. Run after modifying any `supabase/functions/` code. |
+| `deploy-edge-functions.sh` | Deploy all Supabase edge functions to the configured project. Run after modifying any `supabase/functions/` code. Override the project ref with `SUPABASE_PROJECT_REF` env var (default: `dppybucldqufbqhwnkxu`). |
 | `rebuild-native.sh` | Clean and rebuild the native iOS/Android modules (Expo prebuild + pod install). |
 
 ## Database / Migrations
 
+These scripts apply specific one-off migration files — they do **not** accept a generic `<file.sql>` argument.
+
 | Script | Purpose |
 |--------|---------|
-| `apply-migration.sh` | Apply a single SQL migration file to the local or remote Supabase database. Usage: `./scripts/apply-migration.sh <file.sql>` |
-| `apply-migration.mjs` | Node.js version of the migration runner. Reads `EXPO_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from env. Usage: `node scripts/apply-migration.mjs <file.sql>` |
-| `check-schema.mjs` | Print a summary of the live database schema (tables, columns, row estimates). Useful for verifying migration results. |
+| `apply-migration.sh` | Apply the matchmaking auto-start fix (`supabase/migrations/20251228000001_fix_matchmaking_auto_start.sql`) using `psql`. Requires `DATABASE_URL` env var (Connection URI from Supabase Dashboard → Settings → Database). |
+| `apply-migration.mjs` | Apply the client game-completion migration (`supabase/migrations/20251223000001_add_client_game_completion.sql`) via the Supabase `exec` RPC. Reads `EXPO_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from the shell environment. |
+| `check-schema.mjs` | Verify that the `game_state` table exists, list its columns, and print any RLS policies. Reads `EXPO_PUBLIC_SUPABASE_URL` from a local `.env` file (service-role key is bundled in the script). No arguments needed. |
 
 ## Diagnostics & Debugging
 
 | Script | Purpose |
 |--------|---------|
-| `debug-game-state.mjs` | Fetch and pretty-print the full game state for a given `room_id`. Usage: `node scripts/debug-game-state.mjs <room_id>` |
-| `diagnose-bot-cards.mjs` | Identify rooms where bot players have an incorrect or missing hand. Prints affected `room_id` values and player slots. |
-| `test-start-game.mjs` | Manually trigger the `start-game` edge function for a waiting room. Useful for smoke-testing matchmaking without a second client. Usage: `node scripts/test-start-game.mjs <room_id>` |
+| `debug-game-state.mjs` | List the 5 most-recent `game_state` rows (hands keys, current turn, game phase) and test anon-key RLS access. Reads `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` from a local `.env` file. No arguments needed. |
+| `diagnose-bot-cards.mjs` | Inspect the 3 most-recent `playing` rooms: checks whether a `game_state` row exists and prints hand sizes per player slot. Useful for diagnosing missing or corrupt bot hands. Credentials are hardcoded. No arguments needed. |
+| `test-start-game.mjs` | Create a temporary room, call the `start_game_with_bots` RPC with 3 medium-difficulty bots, verify that `game_state` is created correctly, then delete the room. Reads credentials from a local `.env` file. **Update the hardcoded `email`/`password` in the script before running.** No arguments needed. |
 
 ## Maintenance
 
 | Script | Purpose |
 |--------|---------|
-| `cleanup-stuck-rooms.mjs` | Find and delete rooms that have been in `waiting` status for more than 30 minutes (e.g. after a server crash). Prints affected rooms before deleting — review carefully. |
+| `cleanup-stuck-rooms.mjs` | Find rooms in `playing` status that have no corresponding `game_state` row (e.g. after a server crash mid-game) and reset them to `waiting` so they can be rejoined. Credentials are hardcoded. No arguments needed. |
 
 ---
 
-## Environment variables required by .mjs scripts
+## Credentials
 
+Scripts that require credentials use one of three approaches:
+
+| Approach | Scripts |
+|----------|---------|
+| Shell environment variables (`EXPO_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) | `apply-migration.mjs` |
+| `DATABASE_URL` shell env var (PostgreSQL connection URI) | `apply-migration.sh` |
+| Local `.env` file (same directory as the script) | `check-schema.mjs`, `debug-game-state.mjs`, `test-start-game.mjs` |
+| Hardcoded project URL + anon/service key | `cleanup-stuck-rooms.mjs`, `diagnose-bot-cards.mjs` |
+
+For scripts that read from `.env`, create `apps/mobile/scripts/.env`:
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
-Copy these from your Supabase project → Settings → API.
+Copy values from Supabase Dashboard → Settings → API.
