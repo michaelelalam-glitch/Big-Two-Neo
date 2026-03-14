@@ -94,7 +94,7 @@ export interface GameViewProps {
   isMountedRef: React.MutableRefObject<boolean>;
 }
 
-export function GameView(props: GameViewProps) {
+function GameViewComponent(props: GameViewProps) {
   const {
     isLocalAIGame,
     currentOrientation,
@@ -419,3 +419,10 @@ export function GameView(props: GameViewProps) {
     </Profiler>
   );
 }
+
+/**
+ * React.memo wrapper — bails out of re-renders when all props are reference-equal.
+ * Prevents the 50-prop subtree from re-rendering on every heartbeat/realtime tick
+ * that doesn't change game-visible state (H2 audit fix).
+ */
+export const GameView = React.memo(GameViewComponent);

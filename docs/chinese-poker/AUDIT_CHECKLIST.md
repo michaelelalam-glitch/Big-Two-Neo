@@ -75,11 +75,15 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Fix:** Created `src/hooks/useDisconnectDetection.ts` with `useReducer`-based `clientDisconnections` Map and explicit action types (`SEED`, `CORRECT`, `CLEAR`, `REPLACE`). Explicit states per remote seat: `connected → timeout_pending → disconnected → replaced_by_bot`. Full unit-test suite in `src/hooks/__tests__/useDisconnectDetection.test.ts`.
   - **Why:** 263-line `useEffect` with 6+ nesting levels is untestable and error-prone
 
-- [ ] **H2** — Wrap `GameView` in `React.memo`
-  - **File:** `src/screens/GameView.tsx`
+- [x] **H2** — Wrap `GameView` in `React.memo`
+  - **File:** `src/screens/GameView.tsx`, `src/screens/MultiplayerGame.tsx`, `src/screens/LocalAIGame.tsx`
   - **Task:** #635
-  - **Fix:** `export default React.memo(GameView)` and add `useCallback` to all callback props passed from `MultiplayerGame`
-  - **Why:** Without memo, every heartbeat or realtime tick triggers a full 50-prop subtree re-render
+  - **Branch:** `task/635-wrap-gameview-react-memo`
+  - **Fix:**
+    - `GameView.tsx`: Renamed inner function to `GameViewComponent`; added `export const GameView = React.memo(GameViewComponent)` at bottom with explanatory comment.
+    - `MultiplayerGame.tsx`: Destructured `setIsPlayHistoryOpen` and `setIsScoreboardExpanded` from `scoreboardContext`; wrapped `togglePlayHistory` and `toggleScoreboardExpanded` in `useCallback` (deps `[setIsPlayHistoryOpen]` / `[setIsScoreboardExpanded]`) so their references are stable; replaced two inline arrow functions in the JSX with the stable callbacks.
+    - `LocalAIGame.tsx`: Same `useCallback` pattern applied (both screens pass the same two props).
+  - **Why:** Without memo, every heartbeat or realtime tick triggers a full 50-prop subtree re-render. The two inline arrow functions for scoreboard toggles recreated a new function reference on every parent render, defeating `React.memo`. With `useCallback` + stable React setState-setter deps, both callbacks are permanently stable references.
 
 - [ ] **H3** — Migrate `InactivityCountdownRing` to Reanimated UI thread
   - **File:** `src/components/game/InactivityCountdownRing.tsx`
