@@ -136,11 +136,12 @@ Track progress on all audit findings. Check off items as they are resolved.
     - **Created** `apps/mobile/scripts/README.md` documenting all scripts with usage
   - **Why:** 18 files at root polluted workspace and confused `ls` output
 
-- [ ] **M2** — Squash Supabase migrations into a baseline
-  - **Location:** `supabase/migrations/` (128 files)
+- [x] **M2** — Squash Supabase migrations into a baseline
+  - **Location:** `supabase/migrations/` (131 files → 45 files)
   - **Task:** #640
-  - **Fix:** Run `supabase db dump --local > supabase/migrations/baseline.sql`, then delete old migration files. Keep only new migrations going forward.
-  - **Why:** 128 migrations slow CI and local DB reset
+  - **Branch:** `task/640-squash-supabase-migrations`
+  - **Fix:** Concatenated 80 pre-March-2026 timestamped migrations into a single `00000000000000_baseline.sql` (11,508 lines, 366 KB). Kept 44 March 2026 migrations as incremental files. Deleted 7 ad-hoc SQL files (`APPLY_FIX_NOW.sql`, `DELETE_STUCK_ROOMS.sql`, `EMERGENCY_FIX.sql`, `FIX_UPDATED_AT_COLUMN.sql`, `TEST_20251225000001_room_code_generation.sql`, `combined_migration.sql`, `fix-critical-bugs-dec26.sql`) that were not proper timestamped migrations. Each original migration is preserved as a commented `-- Source:` header inside the baseline for traceability.
+  - **Why:** 131 migration files slowed CI, local DB reset, and made schema reasoning difficult. Reduced to 45 files (66% fewer).
 
 - [ ] **M3** — Eliminate matchmaking race condition
   - **File:** `apps/mobile/src/hooks/useMatchmaking.ts`
