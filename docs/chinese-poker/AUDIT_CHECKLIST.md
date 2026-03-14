@@ -85,11 +85,20 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `LocalAIGame.tsx`: Same `useCallback` pattern applied (both screens pass the same two props).
   - **Why:** Without memo, every heartbeat or realtime tick triggers a full 50-prop subtree re-render. The two inline arrow functions for scoreboard toggles recreated a new function reference on every parent render, defeating `React.memo`. With `useCallback` + stable React setState-setter deps, both callbacks are permanently stable references.
 
-- [ ] **H3** — Migrate `InactivityCountdownRing` to Reanimated UI thread
+- [x] **H3** — Migrate `InactivityCountdownRing` to Reanimated UI thread
   - **File:** `apps/mobile/src/components/game/InactivityCountdownRing.tsx`
   - **Task:** #634
-  - **Fix:** Replace `requestAnimationFrame` + `setState` with `useSharedValue` + `useDerivedValue` from `react-native-reanimated`. All animation runs on UI thread.
-  - **Why:** RAF + setState fires JS-thread re-renders at ~15fps, competing with game logic
+  - **Branch:** `task/634-inactivity-ring-reanimated`
+  - **Fix:**
+    - Removed `requestAnimationFrame` loop + `useState(progress)` + `setProgress` at ~15fps.
+    - Replaced with `useSharedValue` (progress 0→1), `withTiming(0, { duration: remaining, easing: Easing.linear })` scheduled in a `useEffect` — animation runs entirely on the UI thread with zero JS-thread re-renders during the sweep.
+    - `useAnimatedProps` worklet computes `strokeDasharray`, `strokeDashoffset`, and `stroke` color per frame without touching the JS thread.
+    - `Animated.createAnimatedComponent(Circle)` connects animated props to the SVG arc.
+    - `typeShared` (`useSharedValue<'turn'|'connection'>`) lets the worklet pick the correct color when `type` prop changes without re-creating the animation.
+    - `cancelAnimation(progress)` in effect cleanup prevents stale `runOnJS(onExpired)` calls after unmount or re-schedule.
+    - Unit tests added: `InactivityCountdownRing.test.tsx` — 19 tests covering render, scheduling, arc geometry, color thresholds, onExpired, and clock-skew paths.
+    - Reanimated mock in `setup.ts` extended with `useAnimatedProps`, `cancelAnimation`, and `Easing.linear`.
+  - **Why:** RAF + setState fired JS-thread re-renders at ~15fps — every tick competed with game logic (heartbeat state, card animations). With Reanimated UI-thread, JS is only touched once on mount and once on expiry.
 
 - [ ] **H4** — Consolidate `GameView` props into `GameContext`
   - **Files:** `apps/mobile/src/screens/GameView.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`
