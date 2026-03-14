@@ -254,7 +254,13 @@ export function useVideoChat({
         setRemoteParticipants(adapterRef.current.getParticipants());
         setVideoChatEnabled(true);
         setIsLocalCameraOn(true);
-        gameLogger.info('[VideoChat] Local camera + mic enabled.');
+        // Log reflects what was actually enabled — mic may have been skipped if
+        // permission was denied. (r2935977905)
+        gameLogger.info(
+          micPermission === 'granted'
+            ? '[VideoChat] Local camera + mic enabled.'
+            : '[VideoChat] Local camera enabled (mic permission not granted — audio stream inactive).'
+        );
       } catch (err) {
         // Connection failure is non-fatal — video chat is always opt-in.
         // Best-effort cleanup so the adapter does not remain half-connected. (r2935394739)
