@@ -41,8 +41,10 @@ function getLastAnimatedProps(): Record<string, unknown> {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Seed useSharedValue so it returns a writable { value } object (setup.ts already does
-  // this globally, but clearAllMocks wipes it — re-implement the minimal version).
+  // Seed useSharedValue so it returns a writable { value } object.
+  // jest.clearAllMocks() only clears call history/results — it does NOT reset mock
+  // implementations. We re-implement here each beforeEach so that each test starts
+  // with fresh { value } instances and mutations from prior tests cannot bleed over.
   (useSharedValue as jest.Mock).mockImplementation((initial: unknown) => ({
     value: initial,
   }));
@@ -152,8 +154,9 @@ describe('InactivityCountdownRing', () => {
         <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
       );
       const arcProps = getLastAnimatedProps();
-      expect(Array.isArray(arcProps.strokeDasharray)).toBe(true);
-      const [visibleArc] = arcProps.strokeDasharray as number[];
+      // strokeDasharray is now a space-separated string (e.g. "119.38 81.68")
+      expect(typeof arcProps.strokeDasharray).toBe('string');
+      const [visibleArc] = (arcProps.strokeDasharray as string).split(' ').map(Number);
       expect(visibleArc).toBeGreaterThan(0);
     });
 
@@ -162,7 +165,7 @@ describe('InactivityCountdownRing', () => {
         <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
       );
       const arcProps = getLastAnimatedProps();
-      const [, gap] = arcProps.strokeDasharray as number[];
+      const [, gap] = (arcProps.strokeDasharray as string).split(' ').map(Number);
       expect(arcProps.strokeDashoffset).toBeCloseTo(-gap, 5);
     });
 
