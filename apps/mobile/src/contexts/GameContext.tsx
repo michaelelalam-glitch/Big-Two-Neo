@@ -142,7 +142,7 @@ export function GameContextProvider({ children, value }: GameContextProviderProp
  */
 export function useGameContext(): GameContextType {
   const ctx = useContext(GameContext);
-  if (!ctx) {
+  if (ctx === undefined) {
     throw new Error('useGameContext must be used within a GameContextProvider');
   }
   return ctx;
