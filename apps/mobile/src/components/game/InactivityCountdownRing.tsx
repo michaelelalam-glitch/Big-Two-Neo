@@ -26,7 +26,7 @@
  *   touched once on mount/remount to schedule the animation and once on expiry.
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -112,16 +112,21 @@ export default function InactivityCountdownRing({
   const typeRef = useRef(type);
   useEffect(() => { typeRef.current = type; }, [type]);
 
-  // Compute initial progress (0–1); avoid a flash-to-full on mount.
-  const computeInitialProgress = (iso: string): number => {
-    const t = resolveStartTimeMs(iso);
-    const elapsed = Math.max(0, Date.now() - t);
+  // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` change.
+  // All three consumers (useSharedValue init, useState init, scheduling effect) share
+  // the same T0 anchor so the clock-skew warning fires at most once per startedAt.
+  const startTimeMs = useMemo(() => resolveStartTimeMs(startedAt), [startedAt]);
+
+  // Initial progress fraction (0–1) at the moment this render executes.
+  // Seeded into useSharedValue on mount and used to determine initial visibility.
+  const initialProgress = useMemo(() => {
+    const elapsed = Math.max(0, Date.now() - startTimeMs);
     return Math.min(1, Math.max(0, (COUNTDOWN_DURATION_MS - elapsed) / COUNTDOWN_DURATION_MS));
-  };
+  }, [startTimeMs]);
 
   // --- Shared values (UI thread) ---
   // `progress` drives the arc geometry via useAnimatedProps — no setState involved.
-  const progress = useSharedValue(computeInitialProgress(startedAt));
+  const progress = useSharedValue(initialProgress);
   // `typeShared` lets the useAnimatedProps worklet pick the correct color without
   // restarting the animation when `type` prop changes. Synced from JS thread via
   // a separate useEffect so the color update arrives on the UI thread automatically.
@@ -130,7 +135,7 @@ export default function InactivityCountdownRing({
 
   // JS-side visibility: only used to mount/unmount the SVG element. One boolean
   // flag avoids keeping the entire render tree alive after expiry.
-  const [visible, setVisible] = useState(() => computeInitialProgress(startedAt) > 0);
+  const [visible, setVisible] = useState(initialProgress > 0);
 
   // Dispatched to JS when withTiming finishes — hides component and fires onExpired.
   // Stable (deps=[]) — reads type from typeRef so it does not create a closure over
@@ -144,12 +149,15 @@ export default function InactivityCountdownRing({
   }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
   // Schedule (or reschedule) the depletion animation whenever startedAt changes.
-  // type changes are handled exclusively via typeShared.value (color update on UI thread
-  // with no animation restart); adding `type` to deps would reset progress and restart
-  // withTiming on every turn→connection or connection→turn transition.
+  // Uses the memoised startTimeMs so resolveStartTimeMs() is not invoked a second
+  // time (skew warning already fired inside the useMemo above if applicable).
+  // type changes are handled exclusively via typeShared.value (color update on UI
+  // thread — no animation restart); adding `type` to deps would reset progress and
+  // restart withTiming on every turn→connection or connection→turn transition.
   useEffect(() => {
-    const t = resolveStartTimeMs(startedAt);
-    const elapsed = Math.max(0, Date.now() - t);
+    // Re-sample Date.now() at effect-execution time (slightly after render) for
+    // the most accurate remaining-ms value; startTimeMs is the stable T0 anchor.
+    const elapsed = Math.max(0, Date.now() - startTimeMs);
     const remaining = Math.max(0, COUNTDOWN_DURATION_MS - elapsed);
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
@@ -181,8 +189,9 @@ export default function InactivityCountdownRing({
       cancelAnimation(progress);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt]); // type → typeShared.value (color only, no animation restart);
-                   // handleExpired is stable (deps=[]); progress/typeShared are Reanimated stable refs
+  }, [startTimeMs]); // startTimeMs is memoised on [startedAt] — same trigger, no duplicate
+                     // resolveStartTimeMs call. type → typeShared.value (color only, no
+                     // animation restart); handleExpired, progress, typeShared are stable.
 
   // --- Animated props (UI thread worklet) ---
   // CLOCKWISE depletion from 12 o'clock:
@@ -210,7 +219,7 @@ export default function InactivityCountdownRing({
     <Animated.View
       style={styles.container}
       pointerEvents="none"
-      accessibilityLabel={type === 'turn' ? 'Turn countdown active' : 'Bot replacement countdown active'}
+      accessible={false}
     >
       <Svg width={RING_SIZE} height={RING_SIZE}>
         {/* Background track — static, no animation needed */}
