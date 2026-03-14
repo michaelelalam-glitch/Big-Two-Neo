@@ -43,6 +43,14 @@ import { networkLogger } from '../../utils/logger';
 /** Duration of both timers (must match server BOT_REPLACE_AFTER and TURN_TIMEOUT) */
 const COUNTDOWN_DURATION_MS = 60_000;
 
+/**
+ * Minimum server-ahead clock drift that is considered "real" skew and warrants a
+ * warning log. Drift smaller than this is treated as negligible jitter — the ring
+ * simply starts at 100% and runs for the full 60s. Matches the guard used in
+ * useTurnInactivityTimer to keep skew sensitivity consistent across the app.
+ */
+const CLOCK_SKEW_WARN_THRESHOLD_MS = 2_000;
+
 /** Ring visual settings */
 const RING_SIZE = LAYOUT.avatarSize; // 70px — same as avatar container
 const RING_STROKE_WIDTH = 4; // Slightly thinner than avatar border (4px) so it overlays cleanly
@@ -81,10 +89,13 @@ interface InactivityCountdownRingProps {
 function resolveStartTimeMs(startedAt: string): number {
   const serverMs = new Date(startedAt).getTime();
   const elapsed = Date.now() - serverMs;
-  if (elapsed < 0) {
-    networkLogger.warn(
-      `[InactivityRing] ⚠️ Clock skew: server ${Math.abs(elapsed)}ms ahead. Using Date.now().`,
-    );
+  // For significant server-ahead skew (> CLOCK_SKEW_WARN_THRESHOLD_MS), return
+  // Date.now() so the ring starts depleting immediately instead of appearing frozen
+  // at 100% for multiple seconds. For minor drift (≤ threshold), serverMs is used
+  // directly — the ring starts at ≈100% and runs for a few ms longer, which is
+  // imperceptible. The warning itself is emitted in a useEffect (not here) to avoid
+  // duplicate log lines under React 18 StrictMode double-invocation of pure functions.
+  if (elapsed < -CLOCK_SKEW_WARN_THRESHOLD_MS) {
     return Date.now();
   }
   return serverMs;
@@ -119,8 +130,23 @@ export default function InactivityCountdownRing({
 
   // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` change.
   // All three consumers (useSharedValue init, useState init, scheduling effect) share
-  // the same T0 anchor so the clock-skew warning fires at most once per startedAt.
+  // the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
   const startTimeMs = useMemo(() => resolveStartTimeMs(startedAt), [startedAt]);
+
+  // Log a one-time warning when the server clock is significantly ahead. Placed in a
+  // useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once per
+  // startedAt change even under React 18 StrictMode double-invocation of pure
+  // functions in development. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift
+  // and not logged.
+  useEffect(() => {
+    const serverMs = new Date(startedAt).getTime();
+    const skew = serverMs - Date.now(); // positive when server is ahead of client
+    if (skew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
+      networkLogger.warn(
+        `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`,
+      );
+    }
+  }, [startedAt]);
 
   // Initial progress fraction (0–1) at the moment this render executes.
   // Seeded into useSharedValue on mount and used to determine initial visibility.
@@ -128,6 +154,17 @@ export default function InactivityCountdownRing({
     const elapsed = Math.max(0, Date.now() - startTimeMs);
     return Math.min(1, Math.max(0, (COUNTDOWN_DURATION_MS - elapsed) / COUNTDOWN_DURATION_MS));
   }, [startTimeMs]);
+
+  // Static accessibility label derived from the initial ring state. Computed once per
+  // startedAt/type change — no per-frame JS updates. Screen readers announce the ring
+  // type and approximate remaining time without reintroducing JS-thread re-renders.
+  const accessibilityLabel = useMemo(() => {
+    const remainingSeconds = Math.max(0, Math.ceil(initialProgress * COUNTDOWN_DURATION_MS / 1000));
+    const action = type === 'turn' ? 'auto-play' : 'bot replacement';
+    return remainingSeconds > 0
+      ? `${type === 'turn' ? 'Turn' : 'Disconnect'} timer — about ${remainingSeconds}s until ${action}`
+      : `${type === 'turn' ? 'Turn' : 'Disconnect'} timer expired`;
+  }, [type, initialProgress]);
 
   // --- Shared values (UI thread) ---
   // `progress` drives the arc geometry via useAnimatedProps — no setState involved.
@@ -224,7 +261,8 @@ export default function InactivityCountdownRing({
     <Animated.View
       style={styles.container}
       pointerEvents="none"
-      accessible={false}
+      accessible={true}
+      accessibilityLabel={accessibilityLabel}
     >
       <Svg width={RING_SIZE} height={RING_SIZE}>
         {/* Background track — static, no animation needed */}
