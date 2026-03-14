@@ -119,7 +119,10 @@ describe('InactivityCountdownRing', () => {
       expect(withTiming).toHaveBeenCalledTimes(2);
     });
 
-    it('re-schedules withTiming when type changes for the same startedAt', () => {
+    it('does NOT re-schedule withTiming when only type changes (color handled by typeShared)', () => {
+      // The scheduling effect depends only on startedAt. When type changes, typeShared.value
+      // is updated via its own useEffect, and the useAnimatedProps worklet picks up the new
+      // color on the UI thread — no animation restart occurs.
       const ts = startedAt(5000);
       const { rerender } = render(
         <InactivityCountdownRing type="turn" startedAt={ts} />,
@@ -127,7 +130,7 @@ describe('InactivityCountdownRing', () => {
       rerender(
         <InactivityCountdownRing type="connection" startedAt={ts} />,
       );
-      expect(withTiming).toHaveBeenCalledTimes(2);
+      expect(withTiming).toHaveBeenCalledTimes(1);
     });
 
     it('does NOT call withTiming when the timer is already expired', () => {
