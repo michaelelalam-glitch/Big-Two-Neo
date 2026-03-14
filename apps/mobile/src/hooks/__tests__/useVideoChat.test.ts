@@ -26,6 +26,8 @@ function makeAdapter(overrides: Partial<VideoChatAdapter> = {}): VideoChatAdapte
     disconnect: base.disconnect.bind(base),
     enableCamera: base.enableCamera.bind(base),
     disableCamera: base.disableCamera.bind(base),
+    enableMicrophone: base.enableMicrophone.bind(base),
+    disableMicrophone: base.disableMicrophone.bind(base),
     getParticipants: base.getParticipants.bind(base),
     onParticipantsChanged: base.onParticipantsChanged.bind(base),
     onError: base.onError.bind(base),
@@ -47,6 +49,8 @@ describe('StubVideoChatAdapter', () => {
     await expect(adapter.disconnect()).resolves.toBeUndefined();
     await expect(adapter.enableCamera()).resolves.toBeUndefined();
     await expect(adapter.disableCamera()).resolves.toBeUndefined();
+    await expect(adapter.enableMicrophone()).resolves.toBeUndefined();
+    await expect(adapter.disableMicrophone()).resolves.toBeUndefined();
     expect(adapter.getParticipants()).toEqual([]);
     const unsubP = adapter.onParticipantsChanged(() => {});
     expect(typeof unsubP).toBe('function');
@@ -66,7 +70,9 @@ describe('useVideoChat — initial state', () => {
     );
     expect(result.current.videoChatEnabled).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.cameraPermissionStatus).toBe('undetermined');
+    expect(result.current.micPermissionStatus).toBe('undetermined');
     expect(result.current.remoteParticipants).toEqual([]);
   });
 });
@@ -85,15 +91,23 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
   });
   afterEach(() => { jest.restoreAllMocks(); });
 
-  it('calls connect + enableCamera on first toggle (Android, permission granted)', async () => {
+  it('calls connect + enableCamera + enableMicrophone on first toggle (Android, both permissions granted)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'android' });
-    jest.spyOn(PermissionsAndroid, 'request').mockResolvedValueOnce(
-      PermissionsAndroid.RESULTS.GRANTED
-    );
+    // First request = camera, second = microphone
+    jest.spyOn(PermissionsAndroid, 'request')
+      .mockResolvedValueOnce(PermissionsAndroid.RESULTS.GRANTED)
+      .mockResolvedValueOnce(PermissionsAndroid.RESULTS.GRANTED);
 
     const connectSpy = jest.fn().mockResolvedValue(undefined);
     const enableCameraSpy = jest.fn().mockResolvedValue(undefined);
-    const adapter = makeAdapter({ connect: connectSpy, enableCamera: enableCameraSpy });
+    const enableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const getParticipantsSpy = jest.fn().mockReturnValue([]);
+    const adapter = makeAdapter({
+      connect: connectSpy,
+      enableCamera: enableCameraSpy,
+      enableMicrophone: enableMicSpy,
+      getParticipants: getParticipantsSpy,
+    });
 
     const { result } = renderHook(() =>
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
@@ -105,8 +119,12 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
 
     expect(connectSpy).toHaveBeenCalledWith(ROOM_ID, USER_ID);
     expect(enableCameraSpy).toHaveBeenCalledTimes(1);
+    expect(enableMicSpy).toHaveBeenCalledTimes(1);
+    // getParticipants() seeds remoteParticipants immediately on opt-in (r2935394720)
+    expect(getParticipantsSpy).toHaveBeenCalledTimes(1);
     expect(result.current.videoChatEnabled).toBe(true);
     expect(result.current.isLocalCameraOn).toBe(true);
+    expect(result.current.isLocalMicOn).toBe(true);
 
     jest.restoreAllMocks();
   });
@@ -150,11 +168,17 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(result.current.videoChatEnabled).toBe(false);
   });
 
-  it('stays disabled and does not throw when connect() rejects', async () => {
+  it('stays disabled and calls best-effort cleanup when connect() rejects (r2935394739)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({
       connect: jest.fn().mockRejectedValue(new Error('Network error')),
+      disconnect: disconnectSpy,
+      disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
     });
 
     const { result } = renderHook(() =>
@@ -168,6 +192,11 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     // Non-fatal: video stays disabled, no thrown exception
     expect(result.current.videoChatEnabled).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
+    // Cleanup methods called to prevent lingering half-connected state
+    expect(disableCameraSpy).toHaveBeenCalledTimes(1);
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -175,14 +204,16 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
 // toggleVideoChat — opt-out path
 // ---------------------------------------------------------------------------
 
-describe('useVideoChat — opt-out (toggleVideoChat disables camera)', () => {
-  it('calls disableCamera + disconnect and resets state', async () => {
+describe('useVideoChat — opt-out (toggleVideoChat disables camera + mic)', () => {
+  it('calls disableMicrophone + disableCamera + disconnect and resets state', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
     const disconnectSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({
       disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
       disconnect: disconnectSpy,
     });
 
@@ -201,10 +232,12 @@ describe('useVideoChat — opt-out (toggleVideoChat disables camera)', () => {
       await result.current.toggleVideoChat();
     });
 
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
     expect(result.current.videoChatEnabled).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.remoteParticipants).toEqual([]);
   });
 });
@@ -235,7 +268,7 @@ describe('useVideoChat — remoteParticipants', () => {
     });
 
     const fakeParticipants: VideoChatParticipant[] = [
-      { participantId: 'player-2', isCameraOn: true, isConnecting: false },
+      { participantId: 'player-2', isCameraOn: true, isMicOn: true, isConnecting: false },
     ];
 
     act(() => {
@@ -284,5 +317,131 @@ describe('useVideoChat — requestCameraPermission', () => {
 
     expect(status).toBe('restricted');
     jest.restoreAllMocks();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// requestMicPermission
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — requestMicPermission', () => {
+  it('returns "granted" on iOS (optimistic, until real SDK is wired)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: CameraPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(result.current.micPermissionStatus).toBe('granted');
+  });
+
+  it('returns "denied" when Android mic permission is denied', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+    if (typeof (PermissionsAndroid as any).request !== 'function') {
+      (PermissionsAndroid as any).request = jest.fn();
+    }
+    jest.spyOn(PermissionsAndroid, 'request').mockResolvedValueOnce(
+      PermissionsAndroid.RESULTS.DENIED
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: CameraPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('denied');
+    expect(result.current.micPermissionStatus).toBe('denied');
+    jest.restoreAllMocks();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toggleMic
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — toggleMic', () => {
+  it('does nothing when video chat is not enabled', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const enableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ enableMicrophone: enableMicSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleMic();
+    });
+
+    expect(enableMicSpy).not.toHaveBeenCalled();
+    expect(result.current.isLocalMicOn).toBe(false);
+  });
+
+  it('mutes mic when video chat is active and mic is on', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ disableMicrophone: disableMicSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Opt in (enables both camera + mic on iOS with optimistic permission)
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.isLocalMicOn).toBe(true);
+
+    // Mute
+    await act(async () => {
+      await result.current.toggleMic();
+    });
+
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.isLocalMicOn).toBe(false);
+  });
+
+  it('unmutes mic when video chat is active and mic is muted', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const enableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      enableMicrophone: enableMicSpy,
+      disableMicrophone: disableMicSpy,
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Opt in
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.isLocalMicOn).toBe(true);
+
+    // Mute
+    await act(async () => {
+      await result.current.toggleMic();
+    });
+    expect(result.current.isLocalMicOn).toBe(false);
+
+    // Unmute (toggleMic when micPermissionStatus is already 'granted')
+    await act(async () => {
+      await result.current.toggleMic();
+    });
+    expect(result.current.isLocalMicOn).toBe(true);
+    // enableMic called once on opt-in + once on unmute
+    expect(enableMicSpy).toHaveBeenCalledTimes(2);
   });
 });

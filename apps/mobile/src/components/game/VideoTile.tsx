@@ -22,12 +22,16 @@ export const VIDEO_TILE_SIZE = 64;
 export interface VideoTileProps {
   /** Whether this player's camera is actively streaming */
   isCameraOn: boolean;
+  /** Whether this player's microphone is actively streaming audio */
+  isMicOn?: boolean;
   /** Whether the SDK connection is being established */
   isConnecting?: boolean;
   /** True for the local player's tile — adds tap-to-toggle behaviour */
   isLocal?: boolean;
   /** Called when the local player toggles their camera on/off by tapping the tile */
   onCameraToggle?: () => void;
+  /** Called when the local player toggles their microphone mute/unmute */
+  onMicToggle?: () => void;
   /**
    * Injected video stream element from the real SDK.
    * Pass <VideoView trackRef={trackRef} /> (LiveKit) or <VideoComponent /> (Daily).
@@ -46,19 +50,27 @@ export interface VideoTileProps {
  */
 export function VideoTile({
   isCameraOn,
+  isMicOn = false,
   isConnecting = false,
   isLocal = false,
   onCameraToggle,
+  onMicToggle,
   videoStreamSlot,
   testID,
 }: VideoTileProps) {
-  const cameraActiveLabel = isLocal
-    ? isCameraOn
-      ? 'Your camera is on. Tap to turn off.'
-      : 'Your camera is off. Tap to turn on.'
-    : isCameraOn
-      ? "Opponent's camera is on."
-      : "Opponent's camera is off.";
+  // Include connecting state in the accessibility label so screen-reader users
+  // are not mislead by an on/off label while a connection is in progress. (r2935394747)
+  const cameraActiveLabel = isConnecting
+    ? isLocal
+      ? 'Your video is connecting…'
+      : "Opponent's video is connecting…"
+    : isLocal
+      ? isCameraOn
+        ? 'Your camera is on. Tap to turn off.'
+        : 'Your camera is off. Tap to turn on.'
+      : isCameraOn
+        ? "Opponent's camera is on."
+        : "Opponent's camera is off.";
 
   const tileStyle: StyleProp<ViewStyle> = [styles.tile, !isCameraOn && styles.tileOff];
 
@@ -88,6 +100,12 @@ export function VideoTile({
               {isCameraOn ? 'LIVE' : 'OFF'}
             </Text>
           )}
+          {/* Mic indicator — shown in bottom-right corner when mic state is known */}
+          {isMicOn !== undefined && (
+            <Text style={styles.micIcon} accessible={false}>
+              {isMicOn ? '🎤' : '🔇'}
+            </Text>
+          )}
         </View>
       )}
 
@@ -99,15 +117,20 @@ export function VideoTile({
   );
 
   // Local player: use Pressable so tapping toggles camera.
+  // When onCameraToggle is not provided (e.g. feature partially initialised),
+  // render a disabled Pressable so it does not register as an actionable
+  // button for accessibility. (r2935394732)
   // Remote player: use View — the tile is read-only and onPress must never fire.
   if (isLocal) {
     return (
       <Pressable
         testID={testID}
         onPress={onCameraToggle}
+        disabled={!onCameraToggle || isConnecting}
         accessible
         accessibilityRole="button"
         accessibilityLabel={cameraActiveLabel}
+        accessibilityState={{ disabled: !onCameraToggle || isConnecting, busy: isConnecting }}
         style={tileStyle}
       >
         {content}
@@ -169,5 +192,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(10, 10, 10, 0.50)',
     borderRadius: BORDER_RADIUS,
+  },
+  micIcon: {
+    fontSize: 10,
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
   },
 });

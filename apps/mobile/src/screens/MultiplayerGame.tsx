@@ -657,17 +657,25 @@ export function MultiplayerGame() {
 
   // ── Task #651: in-game video chat ───────────────────────────────────────────
   // roomInfo?.id is the Supabase room UUID used as the LiveKit/Daily room key.
-  const { videoChatEnabled, isLocalCameraOn, remoteParticipants, toggleVideoChat } = useVideoChat({
+  const { videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteParticipants, toggleVideoChat, toggleMic } = useVideoChat({
     roomId: roomInfo?.id,
     userId: user?.id,
     // adapter: livekitAdapter,   ← plug in the real LiveKit adapter here once F2 is done
   });
 
-  // Build a stable Record<userId, camerState> from the SDK participant list
+  // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
   const remoteCameraStates = useMemo(
     () => Object.fromEntries(
       remoteParticipants.map(p => [p.participantId, { isCameraOn: p.isCameraOn, isConnecting: p.isConnecting }])
+    ),
+    [remoteParticipants],
+  );
+
+  // Build a stable Record<userId, micState> from participant list.
+  const remoteMicStates = useMemo(
+    () => Object.fromEntries(
+      remoteParticipants.map(p => [p.participantId, { isMicOn: p.isMicOn }])
     ),
     [remoteParticipants],
   );
@@ -728,8 +736,11 @@ export function MultiplayerGame() {
       // Task #651
       videoChatEnabled,
       isLocalCameraOn,
+      isLocalMicOn,
       remoteCameraStates,
+      remoteMicStates,
       toggleVideoChat,
+      toggleMic,
     }),
     [
       currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
@@ -746,7 +757,7 @@ export function MultiplayerGame() {
       handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
       handleSort, handleSmartSort, handleHint,
       isPlayerReady, emptyGameManagerRef, isMountedRef,
-      videoChatEnabled, isLocalCameraOn, remoteCameraStates, toggleVideoChat,
+      videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic,
     ],
   );
 

@@ -28,6 +28,8 @@ export interface VideoChatParticipant {
   /** Matches room_players.user_id so the caller can pair with MultiplayerPlayer */
   participantId: string;
   isCameraOn: boolean;
+  /** Whether the participant's microphone is actively streaming audio */
+  isMicOn: boolean;
   isConnecting: boolean;
 }
 
@@ -40,6 +42,8 @@ export interface VideoChatAdapter {
   disconnect(): Promise<void>;
   enableCamera(): Promise<void>;
   disableCamera(): Promise<void>;
+  enableMicrophone(): Promise<void>;
+  disableMicrophone(): Promise<void>;
   getParticipants(): VideoChatParticipant[];
   onParticipantsChanged(cb: (participants: VideoChatParticipant[]) => void): () => void;
   onError(cb: (error: Error) => void): () => void;
@@ -55,6 +59,8 @@ export class StubVideoChatAdapter implements VideoChatAdapter {
   async disconnect(): Promise<void> {}
   async enableCamera(): Promise<void> {}
   async disableCamera(): Promise<void> {}
+  async enableMicrophone(): Promise<void> {}
+  async disableMicrophone(): Promise<void> {}
   getParticipants(): VideoChatParticipant[] { return []; }
   onParticipantsChanged(_cb: (participants: VideoChatParticipant[]) => void): () => void { return () => {}; }
   onError(_cb: (error: Error) => void): () => void { return () => {}; }
@@ -81,14 +87,22 @@ export interface UseVideoChatReturn {
   videoChatEnabled: boolean;
   /** Whether the local camera is currently streaming */
   isLocalCameraOn: boolean;
+  /** Whether the local microphone is currently active */
+  isLocalMicOn: boolean;
   /** Permission status for the device camera */
   cameraPermissionStatus: CameraPermissionStatus;
-  /** Remote participants with their current camera state */
+  /** Permission status for the device microphone */
+  micPermissionStatus: CameraPermissionStatus;
+  /** Remote participants with their current camera and mic state */
   remoteParticipants: VideoChatParticipant[];
-  /** Toggle local video chat on/off. Requests camera permission if undetermined. */
+  /** Toggle local video+audio chat on/off. Requests camera+mic permissions if undetermined. */
   toggleVideoChat: () => Promise<void>;
+  /** Toggle local microphone mute/unmute while video chat is active. */
+  toggleMic: () => Promise<void>;
   /** Explicitly request camera permission (e.g. from a settings screen). */
   requestCameraPermission: () => Promise<CameraPermissionStatus>;
+  /** Explicitly request microphone permission (e.g. from a settings screen). */
+  requestMicPermission: () => Promise<CameraPermissionStatus>;
 }
 
 export function useVideoChat({
@@ -100,7 +114,9 @@ export function useVideoChat({
 
   const [videoChatEnabled, setVideoChatEnabled] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
+  const [isLocalMicOn, setIsLocalMicOn] = useState(false);
   const [cameraPermissionStatus, setCameraPermissionStatus] = useState<CameraPermissionStatus>('undetermined');
+  const [micPermissionStatus, setMicPermissionStatus] = useState<CameraPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
 
   // Keep adapter ref current if a new adapter is injected (e.g. in tests or hot-swap)
@@ -110,26 +126,37 @@ export function useVideoChat({
     }
   }, [adapterProp]);
 
-  // Subscribe to remote participant camera changes while video chat is active
+  // Subscribe to remote participant changes while video chat is active.
+  // adapterProp is included so the effect re-runs (and re-subscribes) if the
+  // adapter is hot-swapped — the old adapter is unsubscribed via the cleanup
+  // return before the new subscription is opened. (r2935394770)
   useEffect(() => {
     if (!videoChatEnabled) return;
     const unsubscribe = adapterRef.current.onParticipantsChanged(setRemoteParticipants);
     return unsubscribe;
-  }, [videoChatEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoChatEnabled, adapterProp]);
 
-  // Subscribe to SDK errors (log as non-fatal — video is opt-in)
+  // Subscribe to SDK errors (log as non-fatal — video is opt-in). (r2935394770)
   useEffect(() => {
     if (!videoChatEnabled) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
       gameLogger.warn('[VideoChat] SDK error (non-fatal):', err.message);
     });
     return unsubscribe;
-  }, [videoChatEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoChatEnabled, adapterProp]);
 
-  // Disconnect from video when roomId changes (navigating away mid-game) or on unmount
+  // Disconnect and fully reset UI state when roomId changes (room navigation)
+  // or on unmount. Resetting state ensures the tile/toggle never shows "enabled"
+  // while the adapter is disconnected. (r2935394756)
   useEffect(() => {
     return () => {
       adapterRef.current.disconnect().catch(() => {});
+      setVideoChatEnabled(false);
+      setIsLocalCameraOn(false);
+      setIsLocalMicOn(false);
+      setRemoteParticipants([]);
     };
   }, [roomId]);
 
@@ -165,16 +192,50 @@ export function useVideoChat({
     return 'granted';
   }, []);
 
+  const requestMicPermission = useCallback(async (): Promise<CameraPermissionStatus> => {
+    if (Platform.OS === 'android') {
+      try {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Microphone Permission',
+            message: 'Big Two needs microphone access to stream your audio during multiplayer games.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+        const status: CameraPermissionStatus =
+          result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' :
+          result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? 'restricted' : 'denied';
+        setMicPermissionStatus(status);
+        return status;
+      } catch {
+        setMicPermissionStatus('denied');
+        return 'denied';
+      }
+    }
+
+    // iOS: NSMicrophoneUsageDescription in Info.plist (added in app.json)
+    // triggers the system prompt on first non-stub enableMicrophone() call.
+    setMicPermissionStatus('granted');
+    return 'granted';
+  }, []);
+
   const toggleVideoChat = useCallback(async (): Promise<void> => {
     if (!roomId || !userId) return;
 
     if (!videoChatEnabled) {
       // ── Opt-in path ────────────────────────────────────────────────────────
-      let permission = cameraPermissionStatus;
-      if (permission === 'undetermined') {
-        permission = await requestCameraPermission();
+      // Request both camera AND mic permissions before connecting.
+      let camPermission = cameraPermissionStatus;
+      if (camPermission === 'undetermined') {
+        camPermission = await requestCameraPermission();
       }
-      if (permission !== 'granted') {
+      let micPermission = micPermissionStatus;
+      if (micPermission === 'undetermined') {
+        micPermission = await requestMicPermission();
+      }
+      if (camPermission !== 'granted') {
         gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
         return;
       }
@@ -182,30 +243,75 @@ export function useVideoChat({
       try {
         await adapterRef.current.connect(roomId, userId);
         await adapterRef.current.enableCamera();
+        // Enable mic if permission was granted; mic is non-blocking (audio-only block
+        // should not prevent video from streaming).
+        if (micPermission === 'granted') {
+          await adapterRef.current.enableMicrophone();
+          setIsLocalMicOn(true);
+        }
+        // Seed remote participants immediately from current SDK state so the UI
+        // shows existing participants without waiting for the next event. (r2935394720)
+        setRemoteParticipants(adapterRef.current.getParticipants());
         setVideoChatEnabled(true);
         setIsLocalCameraOn(true);
-        gameLogger.info('[VideoChat] Local camera enabled.');
+        gameLogger.info('[VideoChat] Local camera + mic enabled.');
       } catch (err) {
-        // Connection failure is non-fatal — video chat is always opt-in
-        gameLogger.warn('[VideoChat] Failed to enable camera:', err instanceof Error ? err.message : String(err));
+        // Connection failure is non-fatal — video chat is always opt-in.
+        // Best-effort cleanup so the adapter does not remain half-connected. (r2935394739)
+        gameLogger.warn('[VideoChat] Failed to enable video chat:', err instanceof Error ? err.message : String(err));
+        adapterRef.current.disableMicrophone().catch(() => {});
+        adapterRef.current.disableCamera().catch(() => {});
+        adapterRef.current.disconnect().catch(() => {});
+        setIsLocalMicOn(false);
       }
     } else {
       // ── Opt-out path ──────────────────────────────────────────────────────
+      await adapterRef.current.disableMicrophone().catch(() => {});
       await adapterRef.current.disableCamera().catch(() => {});
       await adapterRef.current.disconnect().catch(() => {});
       setVideoChatEnabled(false);
       setIsLocalCameraOn(false);
+      setIsLocalMicOn(false);
       setRemoteParticipants([]);
-      gameLogger.info('[VideoChat] Local camera disabled.');
+      gameLogger.info('[VideoChat] Local camera + mic disabled.');
     }
-  }, [roomId, userId, videoChatEnabled, cameraPermissionStatus, requestCameraPermission]);
+  }, [roomId, userId, videoChatEnabled, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
+
+  const toggleMic = useCallback(async (): Promise<void> => {
+    if (!videoChatEnabled) return;
+    if (isLocalMicOn) {
+      await adapterRef.current.disableMicrophone().catch(() => {});
+      setIsLocalMicOn(false);
+      gameLogger.info('[VideoChat] Microphone muted.');
+    } else {
+      let permission = micPermissionStatus;
+      if (permission === 'undetermined') {
+        permission = await requestMicPermission();
+      }
+      if (permission !== 'granted') {
+        gameLogger.info('[VideoChat] Mic permission not granted — mute toggle blocked.');
+        return;
+      }
+      try {
+        await adapterRef.current.enableMicrophone();
+        setIsLocalMicOn(true);
+        gameLogger.info('[VideoChat] Microphone unmuted.');
+      } catch (err) {
+        gameLogger.warn('[VideoChat] Failed to enable microphone:', err instanceof Error ? err.message : String(err));
+      }
+    }
+  }, [videoChatEnabled, isLocalMicOn, micPermissionStatus, requestMicPermission]);
 
   return {
     videoChatEnabled,
     isLocalCameraOn,
+    isLocalMicOn,
     cameraPermissionStatus,
+    micPermissionStatus,
     remoteParticipants,
     toggleVideoChat,
+    toggleMic,
     requestCameraPermission,
+    requestMicPermission,
   };
 }

@@ -20,7 +20,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Big Two uses your camera for the opt-in in-game video chat feature."
+        "NSCameraUsageDescription": "Big Two uses your camera for the opt-in in-game video chat feature.",
+        "NSMicrophoneUsageDescription": "Big Two uses your microphone for the opt-in in-game video + audio chat feature."
       }
     },
     "android": {

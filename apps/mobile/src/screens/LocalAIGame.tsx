@@ -301,8 +301,11 @@ export function LocalAIGame() {
       // Task #651: video chat is multiplayer-only; provide stable no-op values here
       videoChatEnabled: false,
       isLocalCameraOn: false,
+      isLocalMicOn: false,
       remoteCameraStates: {},
+      remoteMicStates: {},
       toggleVideoChat: async () => {},
+      toggleMic: async () => {},
     }),
     [
       currentOrientation, toggleOrientation, isInitializing,

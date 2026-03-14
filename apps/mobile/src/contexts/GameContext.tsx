@@ -112,18 +112,27 @@ export interface GameContextType {
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
   isMountedRef: React.MutableRefObject<boolean>;
 
-  // ── Task #651: in-game video chat ──────────────────────────────────────
+  // ── Task #651: in-game video + audio chat ──────────────────────────────
   /** Whether the local player has opted in to video chat. */
   videoChatEnabled: boolean;
   /** Whether the local camera is currently streaming. */
   isLocalCameraOn: boolean;
+  /** Whether the local microphone is currently active (unmuted). */
+  isLocalMicOn: boolean;
   /**
    * Per-player camera state for remote tiles. Key = user_id.
    * Populated from useVideoChat.remoteParticipants while videoChatEnabled=true.
    */
   remoteCameraStates: Record<string, { isCameraOn: boolean; isConnecting: boolean }>;
-  /** Toggle local camera on/off (requests camera permission if undetermined). */
+  /**
+   * Per-player mic state for remote tiles. Key = user_id.
+   * Populated from useVideoChat.remoteParticipants while videoChatEnabled=true.
+   */
+  remoteMicStates: Record<string, { isMicOn: boolean }>;
+  /** Toggle local video+audio chat on/off (requests camera+mic permissions if needed). */
   toggleVideoChat: () => Promise<void>;
+  /** Mute/unmute the local microphone while video chat is active. */
+  toggleMic: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

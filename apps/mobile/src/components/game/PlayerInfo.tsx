@@ -22,13 +22,16 @@ interface PlayerInfoProps {
   // ── Task #651: in-game video chat ──────────────────────────────────────────
   /** Whether this player's camera is actively streaming (undefined = video chat inactive) */
   isCameraOn?: boolean;
+  /** Whether this player's microphone is actively streaming audio */
+  isMicOn?: boolean;
   /** Whether this is the local player's tile (adds tap-to-toggle) */
   isLocalPlayer?: boolean;
   /** Whether the video connection is being established */
   isVideoChatConnecting?: boolean;
-  /** Called when the video tile is pressed (local player opt-in/out) */
   /** Called when the local player presses their video tile to toggle camera */
   onVideoChatToggle?: () => void;
+  /** Called when the local player presses the mic button to mute/unmute */
+  onMicToggle?: () => void;
   /** Injected video stream element (RTCView/VideoView from the real SDK) */
   videoStreamSlot?: React.ReactNode;
 }
@@ -43,12 +46,18 @@ export default function PlayerInfo({
   turnTimerStartedAt,
   onCountdownExpired,
   isCameraOn,
+  isMicOn,
   isLocalPlayer = false,
   isVideoChatConnecting = false,
   onVideoChatToggle,
+  onMicToggle,
   videoStreamSlot,
 }: PlayerInfoProps) {
-  const showVideoTile = isCameraOn !== undefined;
+  // Show the video tile when:
+  //  a) isCameraOn is explicitly provided (remote player camera state known), OR
+  //  b) This is the local player and the opt-in handler is wired (tile is the
+  //     entry point — even before camera is on the tile must be reachable). (r2935394764)
+  const showVideoTile = isCameraOn !== undefined || (isLocalPlayer && !!onVideoChatToggle);
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
@@ -120,9 +129,11 @@ export default function PlayerInfo({
           <View style={styles.videoTilePosition}>
             <VideoTile
               isCameraOn={!!isCameraOn}
+              isMicOn={isMicOn}
               isConnecting={isVideoChatConnecting}
               isLocal={isLocalPlayer}
               onCameraToggle={onVideoChatToggle}
+              onMicToggle={onMicToggle}
               videoStreamSlot={videoStreamSlot}
               testID={`video-tile-${name}`}
             />
