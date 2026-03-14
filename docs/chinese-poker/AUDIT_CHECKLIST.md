@@ -100,11 +100,17 @@ Track progress on all audit findings. Check off items as they are resolved.
     - Reanimated mock in `setup.ts` extended with `useAnimatedProps`, `cancelAnimation`, and `Easing.linear`.
   - **Why:** RAF + setState fired JS-thread re-renders at ~15fps — every tick competed with game logic (heartbeat state, card animations). With Reanimated UI-thread, JS is only touched once on mount and once on expiry.
 
-- [ ] **H4** — Consolidate `GameView` props into `GameContext`
-  - **Files:** `apps/mobile/src/screens/GameView.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`
+- [x] **H4** — Consolidate `GameView` props into `GameContext`
+  - **Files:** `apps/mobile/src/contexts/GameContext.tsx` (NEW), `apps/mobile/src/screens/GameView.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`, `apps/mobile/src/screens/LocalAIGame.tsx`
   - **Task:** #638
-  - **Fix:** Create `apps/mobile/src/contexts/GameContext.tsx` (or Zustand slice). Subscribe `GameView` and child components to context instead of receiving 50+ pass-through props.
-  - **Why:** 50 individual props make `GameView` API incomprehensible and block `React.memo` effectiveness
+  - **Branch:** `task/638-gameview-game-context`
+  - **Fix:**
+    - Created `GameContext.tsx` — defines `GameContextType` (mirrors the old `GameViewProps`), exports simple named types `LayoutPlayer` / `LayoutPlayerWithTimer`, provides `GameContextProvider` and `useGameContext()` hook (throws if used outside a provider).
+    - `GameView.tsx`: removed the `GameViewProps` interface and all 50+ prop parameters; `GameViewComponent` now calls `useGameContext()` at the top and destructures from there. `React.memo` wrapper retained — it now prevents any re-render that isn't driven by a context-value change.
+    - `MultiplayerGame.tsx`: imports `GameContextProvider` + `GameContextType`; builds `gameContextValue` via `React.useMemo` with full dep array (keeps reference stable so `React.memo` on `GameView` still bails out when game-visible state is unchanged); wraps `<GameView />` in `<GameContextProvider value={gameContextValue}>`.
+    - `LocalAIGame.tsx`: same pattern as `MultiplayerGame.tsx`; `<GameView />` is wrapped in `<GameContextProvider value={gameContextValue}>`.
+    - TypeScript: 0 errors. Unit tests: 1110 passed (integration suites requiring live Supabase credentials remain skipped).
+  - **Why:** 50 individual props made `GameView` API incomprehensible, forced calling code to list every prop explicitly (blocking refactors), and undermined `React.memo` effectiveness (any new callback risked recreating a reference). Context eliminates the prop explosion, centralises the game-view model, and makes individual child components able to subscribe to exactly the slice they need in future.
 
 - [ ] **H5** — Split `HomeScreen.tsx` into focused modules
   - **File:** `apps/mobile/src/screens/HomeScreen.tsx` (1,643 LOC)

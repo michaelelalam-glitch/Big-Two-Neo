@@ -32,6 +32,8 @@ import type { GameStateManager } from '../game/state';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { GameView } from './GameView';
+import { GameContextProvider } from '../contexts/GameContext';
+import type { GameContextType } from '../contexts/GameContext';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -244,55 +246,80 @@ export function LocalAIGame() {
   // Player is ready when it's their turn, game state exists, and game manager is initialized
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!gameState && !!gameManagerRef.current;
 
+  // Build the context value; useMemo keeps the object reference stable so that
+  // GameView (wrapped in React.memo) only re-renders when game-visible state
+  // actually changes (H2 + H4 audit fix).
+  const gameContextValue = React.useMemo<GameContextType>(
+    () => ({
+      isLocalAIGame: true,
+      currentOrientation,
+      toggleOrientation,
+      isInitializing,
+      isConnected: true,
+      showSettings,
+      setShowSettings,
+      effectivePlayerHand,
+      selectedCardIds,
+      setSelectedCardIds,
+      handleCardsReorder,
+      selectedCards,
+      customCardOrder,
+      setCustomCardOrder,
+      effectiveLastPlayedCards: lastPlayedCards,
+      effectiveLastPlayedBy: lastPlayedBy,
+      effectiveLastPlayComboType: lastPlayComboType,
+      effectiveLastPlayCombo: lastPlayCombo,
+      layoutPlayers,
+      layoutPlayersWithScores,
+      playerTotalScores,
+      currentPlayerName,
+      togglePlayHistory,
+      toggleScoreboardExpanded,
+      memoizedPlayerNames,
+      memoizedCurrentScores,
+      memoizedCardCounts,
+      memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState,
+      effectiveScoreboardCurrentPlayerIndex,
+      matchNumber,
+      isGameFinished,
+      displayOrderScoreHistory,
+      playHistoryByMatch,
+      handlePlayCards,
+      handlePass,
+      handlePlaySuccess,
+      handlePassSuccess,
+      handleCardHandPlayCards,
+      handleCardHandPass,
+      handleLeaveGame,
+      handleSort,
+      handleSmartSort,
+      handleHint,
+      isPlayerReady,
+      gameManagerRef,
+      isMountedRef,
+    }),
+    [
+      currentOrientation, toggleOrientation, isInitializing,
+      showSettings, setShowSettings,
+      effectivePlayerHand, selectedCardIds, setSelectedCardIds, handleCardsReorder,
+      selectedCards, customCardOrder, setCustomCardOrder,
+      lastPlayedCards, lastPlayedBy, lastPlayComboType, lastPlayCombo,
+      layoutPlayers, layoutPlayersWithScores, playerTotalScores, currentPlayerName,
+      togglePlayHistory, toggleScoreboardExpanded,
+      memoizedPlayerNames, memoizedCurrentScores, memoizedCardCounts, memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState, effectiveScoreboardCurrentPlayerIndex,
+      matchNumber, isGameFinished, displayOrderScoreHistory, playHistoryByMatch,
+      handlePlayCards, handlePass, handlePlaySuccess, handlePassSuccess,
+      handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
+      handleSort, handleSmartSort, handleHint,
+      isPlayerReady, gameManagerRef, isMountedRef,
+    ],
+  );
+
   return (
-    <GameView
-      isLocalAIGame={true}
-      currentOrientation={currentOrientation}
-      toggleOrientation={toggleOrientation}
-      isInitializing={isInitializing}
-      isConnected={true}
-      showSettings={showSettings}
-      setShowSettings={setShowSettings}
-      effectivePlayerHand={effectivePlayerHand}
-      selectedCardIds={selectedCardIds}
-      setSelectedCardIds={setSelectedCardIds}
-      handleCardsReorder={handleCardsReorder}
-      selectedCards={selectedCards}
-      customCardOrder={customCardOrder}
-      setCustomCardOrder={setCustomCardOrder}
-      effectiveLastPlayedCards={lastPlayedCards}
-      effectiveLastPlayedBy={lastPlayedBy}
-      effectiveLastPlayComboType={lastPlayComboType}
-      effectiveLastPlayCombo={lastPlayCombo}
-      layoutPlayers={layoutPlayers}
-      layoutPlayersWithScores={layoutPlayersWithScores}
-      playerTotalScores={playerTotalScores}
-      currentPlayerName={currentPlayerName}
-      togglePlayHistory={togglePlayHistory}
-      toggleScoreboardExpanded={toggleScoreboardExpanded}
-      memoizedPlayerNames={memoizedPlayerNames}
-      memoizedCurrentScores={memoizedCurrentScores}
-      memoizedCardCounts={memoizedCardCounts}
-      memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
-      effectiveAutoPassTimerState={effectiveAutoPassTimerState}
-      effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-      matchNumber={matchNumber}
-      isGameFinished={isGameFinished}
-      displayOrderScoreHistory={displayOrderScoreHistory}
-      playHistoryByMatch={playHistoryByMatch}
-      handlePlayCards={handlePlayCards}
-      handlePass={handlePass}
-      handlePlaySuccess={handlePlaySuccess}
-      handlePassSuccess={handlePassSuccess}
-      handleCardHandPlayCards={handleCardHandPlayCards}
-      handleCardHandPass={handleCardHandPass}
-      handleLeaveGame={handleLeaveGame}
-      handleSort={handleSort}
-      handleSmartSort={handleSmartSort}
-      handleHint={handleHint}
-      isPlayerReady={isPlayerReady}
-      gameManagerRef={gameManagerRef}
-      isMountedRef={isMountedRef}
-    />
+    <GameContextProvider value={gameContextValue}>
+      <GameView />
+    </GameContextProvider>
   );
 }

@@ -44,6 +44,8 @@ import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } f
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameView } from './GameView';
+import { GameContextProvider } from '../contexts/GameContext';
+import type { GameContextType } from '../contexts/GameContext';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -652,58 +654,83 @@ export function MultiplayerGame() {
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
+  // Build the context value; useMemo keeps the object reference stable so that
+  // GameView (wrapped in React.memo) only re-renders when game-visible state
+  // actually changes (H2 + H4 audit fix).
+  const gameContextValue = React.useMemo<GameContextType>(
+    () => ({
+      isLocalAIGame: false,
+      currentOrientation,
+      toggleOrientation,
+      isInitializing: !isMultiplayerDataReady,
+      isConnected,
+      showSettings,
+      setShowSettings,
+      roomCode,
+      effectivePlayerHand,
+      selectedCardIds,
+      setSelectedCardIds,
+      handleCardsReorder,
+      selectedCards,
+      customCardOrder,
+      setCustomCardOrder,
+      effectiveLastPlayedCards: multiplayerLastPlayedCards,
+      effectiveLastPlayedBy: multiplayerLastPlayedBy,
+      effectiveLastPlayComboType: multiplayerLastPlayComboType,
+      effectiveLastPlayCombo: multiplayerLastPlayCombo,
+      layoutPlayers,
+      layoutPlayersWithScores: enrichedLayoutPlayers,
+      playerTotalScores,
+      currentPlayerName,
+      togglePlayHistory,
+      toggleScoreboardExpanded,
+      memoizedPlayerNames,
+      memoizedCurrentScores,
+      memoizedCardCounts,
+      memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState,
+      effectiveScoreboardCurrentPlayerIndex,
+      matchNumber,
+      isGameFinished,
+      displayOrderScoreHistory,
+      playHistoryByMatch,
+      handlePlayCards,
+      handlePass,
+      handlePlaySuccess,
+      handlePassSuccess,
+      handleCardHandPlayCards,
+      handleCardHandPass,
+      handleLeaveGame,
+      handleSort,
+      handleSmartSort,
+      handleHint,
+      isPlayerReady,
+      gameManagerRef: emptyGameManagerRef,
+      isMountedRef,
+    }),
+    [
+      currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
+      showSettings, setShowSettings, roomCode,
+      effectivePlayerHand, selectedCardIds, setSelectedCardIds, handleCardsReorder,
+      selectedCards, customCardOrder, setCustomCardOrder,
+      multiplayerLastPlayedCards, multiplayerLastPlayedBy, multiplayerLastPlayComboType, multiplayerLastPlayCombo,
+      layoutPlayers, enrichedLayoutPlayers, playerTotalScores, currentPlayerName,
+      togglePlayHistory, toggleScoreboardExpanded,
+      memoizedPlayerNames, memoizedCurrentScores, memoizedCardCounts, memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState, effectiveScoreboardCurrentPlayerIndex,
+      matchNumber, isGameFinished, displayOrderScoreHistory, playHistoryByMatch,
+      handlePlayCards, handlePass, handlePlaySuccess, handlePassSuccess,
+      handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
+      handleSort, handleSmartSort, handleHint,
+      isPlayerReady, emptyGameManagerRef, isMountedRef,
+    ],
+  );
+
   return (
     <>
-      <GameView
-        isLocalAIGame={false}
-        currentOrientation={currentOrientation}
-        toggleOrientation={toggleOrientation}
-        isInitializing={!isMultiplayerDataReady}
-        isConnected={isConnected}
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        roomCode={roomCode}
-        effectivePlayerHand={effectivePlayerHand}
-        selectedCardIds={selectedCardIds}
-        setSelectedCardIds={setSelectedCardIds}
-        handleCardsReorder={handleCardsReorder}
-        selectedCards={selectedCards}
-        customCardOrder={customCardOrder}
-        setCustomCardOrder={setCustomCardOrder}
-        effectiveLastPlayedCards={multiplayerLastPlayedCards}
-        effectiveLastPlayedBy={multiplayerLastPlayedBy}
-        effectiveLastPlayComboType={multiplayerLastPlayComboType}
-        effectiveLastPlayCombo={multiplayerLastPlayCombo}
-        layoutPlayers={layoutPlayers}
-        layoutPlayersWithScores={enrichedLayoutPlayers}
-        playerTotalScores={playerTotalScores}
-        currentPlayerName={currentPlayerName}
-        togglePlayHistory={togglePlayHistory}
-        toggleScoreboardExpanded={toggleScoreboardExpanded}
-        memoizedPlayerNames={memoizedPlayerNames}
-        memoizedCurrentScores={memoizedCurrentScores}
-        memoizedCardCounts={memoizedCardCounts}
-        memoizedOriginalPlayerNames={memoizedOriginalPlayerNames}
-        effectiveAutoPassTimerState={effectiveAutoPassTimerState}
-        effectiveScoreboardCurrentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-        matchNumber={matchNumber}
-        isGameFinished={isGameFinished}
-        displayOrderScoreHistory={displayOrderScoreHistory}
-        playHistoryByMatch={playHistoryByMatch}
-        handlePlayCards={handlePlayCards}
-        handlePass={handlePass}
-        handlePlaySuccess={handlePlaySuccess}
-        handlePassSuccess={handlePassSuccess}
-        handleCardHandPlayCards={handleCardHandPlayCards}
-        handleCardHandPass={handleCardHandPass}
-        handleLeaveGame={handleLeaveGame}
-        handleSort={handleSort}
-        handleSmartSort={handleSmartSort}
-        handleHint={handleHint}
-        isPlayerReady={isPlayerReady}
-        gameManagerRef={emptyGameManagerRef}
-        isMountedRef={isMountedRef}
-      />
+      <GameContextProvider value={gameContextValue}>
+        <GameView />
+      </GameContextProvider>
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
           or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".

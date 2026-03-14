@@ -2,6 +2,10 @@
  * GameView - Shared presentation component for both Local AI and Multiplayer game modes.
  * Contains all JSX rendering (portrait, landscape, modals) with no game-mode-specific logic.
  * Created as part of Task #570: Split GameScreen component.
+ *
+ * H4 Audit fix (Task #638): all game-view state is now consumed from GameContext via
+ * useGameContext() instead of being threaded as 50+ individual props. Parent screens
+ * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
 import React, { Profiler } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
@@ -16,85 +20,9 @@ import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import { performanceMonitor } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
-import type { GameStateManager } from '../game/state';
-import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
-import type { AutoPassTimerState } from '../types/multiplayer';
+import { useGameContext } from '../contexts/GameContext';
 
-export interface GameViewProps {
-  // Mode
-  isLocalAIGame: boolean;
-
-  // Orientation
-  currentOrientation: 'portrait' | 'landscape';
-  toggleOrientation: () => void;
-
-  // State flags
-  isInitializing: boolean;
-  isConnected: boolean;
-
-  // Settings modal
-  showSettings: boolean;
-  setShowSettings: (show: boolean) => void;
-  roomCode?: string;
-
-  // Player hand & selection
-  effectivePlayerHand: Card[];
-  selectedCardIds: Set<string>;
-  setSelectedCardIds: (ids: Set<string>) => void;
-  handleCardsReorder: (cards: Card[]) => void;
-  selectedCards: Card[];
-  customCardOrder: string[];
-  setCustomCardOrder: (order: string[]) => void;
-
-  // Table state
-  effectiveLastPlayedCards: Card[];
-  effectiveLastPlayedBy: string | null;
-  effectiveLastPlayComboType: string | null;
-  effectiveLastPlayCombo: string | null;
-
-  // Layout players
-  layoutPlayers: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null }[];
-  layoutPlayersWithScores: { name: string; cardCount: number; score: number; isActive: boolean; player_index?: number; totalScore?: number; isDisconnected?: boolean; disconnectTimerStartedAt?: string | null; turnTimerStartedAt?: string | null; onCountdownExpired?: () => void }[];
-  playerTotalScores: number[];
-  currentPlayerName: string;
-
-  // Scoreboard UI toggles
-  togglePlayHistory: () => void;
-  toggleScoreboardExpanded: () => void;
-
-  // Scoreboard display data
-  memoizedPlayerNames: string[];
-  memoizedCurrentScores: number[];
-  memoizedCardCounts: number[];
-  memoizedOriginalPlayerNames: string[];
-  effectiveAutoPassTimerState: AutoPassTimerState | undefined;
-  effectiveScoreboardCurrentPlayerIndex: number;
-  matchNumber: number;
-  isGameFinished: boolean;
-  displayOrderScoreHistory: ScoreHistory[];
-  playHistoryByMatch: PlayHistoryMatch[];
-
-  // Actions
-  handlePlayCards: (cards: Card[]) => Promise<void>;
-  handlePass: () => Promise<void>;
-  handlePlaySuccess: () => void;
-  handlePassSuccess: () => void;
-  handleCardHandPlayCards: (cards: Card[]) => void;
-  handleCardHandPass: () => void;
-  handleLeaveGame: () => void;
-  handleSort: () => void;
-  handleSmartSort: () => void;
-  handleHint: () => void;
-
-  // Control state: is the player's turn and the game engine is ready?
-  isPlayerReady: boolean;
-
-  // For GameControls component
-  gameManagerRef: React.MutableRefObject<GameStateManager | null>;
-  isMountedRef: React.MutableRefObject<boolean>;
-}
-
-function GameViewComponent(props: GameViewProps) {
+function GameViewComponent() {
   const {
     isLocalAIGame,
     currentOrientation,
@@ -144,7 +72,7 @@ function GameViewComponent(props: GameViewProps) {
     isPlayerReady,
     gameManagerRef,
     isMountedRef,
-  } = props;
+  } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
 
@@ -421,8 +349,9 @@ function GameViewComponent(props: GameViewProps) {
 }
 
 /**
- * React.memo wrapper — bails out of re-renders when all props are reference-equal.
- * Prevents the 50-prop subtree from re-rendering on every heartbeat/realtime tick
- * that doesn't change game-visible state (H2 audit fix).
+ * React.memo wrapper — bails out of re-renders triggered by non-context state
+ * changes in parent screens (H2 audit fix).  Since GameViewComponent accepts no
+ * props, memo prevents any re-render that isn't driven by a GameContext value
+ * change.
  */
 export const GameView = React.memo(GameViewComponent);
