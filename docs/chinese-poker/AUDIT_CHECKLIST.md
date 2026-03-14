@@ -69,10 +69,10 @@ Track progress on all audit findings. Check off items as they are resolved.
 
 ## 🟠 High Priority
 
-- [ ] **H1** — Extract disconnect logic into a dedicated hook/reducer
+- [x] **H1** — Extract disconnect logic into a dedicated hook/reducer ✅
   - **File:** `src/screens/MultiplayerGame.tsx` lines 580–842
   - **Task:** #633
-  - **Fix:** Create `src/hooks/useDisconnectStateMachine.ts` with explicit states: `connected → timeout_pending → confirming → disconnected → recovering`. Use `useReducer` for transitions.
+  - **Fix:** Created `src/hooks/useDisconnectDetection.ts` with `useReducer`-based `clientDisconnections` Map and explicit action types (`SEED`, `CORRECT`, `CLEAR`, `REPLACE`). Explicit states per remote seat: `connected → timeout_pending → disconnected → replaced_by_bot`. Full unit-test suite in `src/hooks/__tests__/useDisconnectDetection.test.ts`.
   - **Why:** 263-line `useEffect` with 6+ nesting levels is untestable and error-prone
 
 - [ ] **H2** — Wrap `GameView` in `React.memo`

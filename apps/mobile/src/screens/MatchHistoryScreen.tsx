@@ -17,7 +17,9 @@ interface MatchHistoryEntry {
   room_code: string;
   match_type: 'casual' | 'ranked' | 'private' | 'local';
   final_position: number;
-  created_at: string;
+  /** Display timestamp: finished_at for completed games, created_at for incomplete rows.
+   * Named display_timestamp (not created_at) to avoid confusion with true row creation time. */
+  display_timestamp: string;
 }
 
 interface GameHistoryRow {
@@ -166,11 +168,11 @@ export default function MatchHistoryScreen() {
           room_code: item.room_code ?? '',
           match_type: matchType,
           final_position: finalPosition,
-          // Note: `created_at` in MatchHistoryEntry is populated from
-          // game_history.finished_at (match completion time), falling back
-          // to row creation time when finished_at is null (incomplete games).
-          // The field is used only for display formatting.
-          created_at: item.finished_at ?? item.created_at ?? '',
+          // display_timestamp: finished_at for completed games, falling back
+          // to row creation time when finished_at is null (incomplete/abandoned).
+          // Named display_timestamp, not created_at, to avoid confusion with the
+          // DB row's true creation timestamp.
+          display_timestamp: item.finished_at ?? item.created_at ?? '',
         };
       });
 
@@ -290,7 +292,7 @@ export default function MatchHistoryScreen() {
               </Text>
             </View>
           </View>
-          <Text style={styles.matchDate}>{formatDate(item.created_at)}</Text>
+          <Text style={styles.matchDate}>{formatDate(item.display_timestamp)}</Text>
         </View>
 
         <View style={styles.matchBody}>

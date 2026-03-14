@@ -358,6 +358,11 @@ export function useDisconnectDetection({
   // connection_status='connected' + disconnect_timer_started_at=null update,
   // ensuring the yellow turn ring appears immediately on reconnect for observers.
   useEffect(() => {
+    // Guard: skip until the authenticated user is known — without userId the
+    // `rp.user_id === userId` skip-local-player check won't match and the
+    // local seat could be incorrectly processed as a remote player during
+    // sign-in/sign-out races.
+    if (!userId) return;
     if (!realtimePlayers || realtimePlayers.length === 0) return;
 
     let changed = false;

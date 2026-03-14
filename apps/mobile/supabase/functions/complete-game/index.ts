@@ -347,7 +347,9 @@ async function broadcastGameEnded(
             if (roomEndErr) {
               console.warn('[Complete Game] Failed to mark room finished in fallback dedup path:', roomEndErr.message);
             }
-            void broadcastGameEnded(supabaseAdmin, gameData);
+            // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
+            // alive to complete the broadcast even after the HTTP response is returned.
+            try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
             return new Response(
               JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -391,7 +393,9 @@ async function broadcastGameEnded(
           }
           // Broadcast game_ended so clients are not blocked even if the winning
           // caller crashed before reaching Step 5. Idempotent from client side.
-          void broadcastGameEnded(supabaseAdmin, gameData);
+          // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
+          // alive to complete the broadcast even after the HTTP response is returned.
+          try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
         }
         return new Response(
           JSON.stringify({
@@ -939,11 +943,11 @@ async function broadcastGameEnded(
     // Uses the shared broadcastGameEnded helper (also called from dedup/23505
     // short-circuit paths) so clients are unblocked even when the winning caller
     // crashes before this step.
-    // Fire-and-forget: the edge function response is not held waiting for the
-    // Realtime subscribe→send flow (up to 5 s). The HTTP response proceeds
-    // immediately to the leaderboard refresh step below.
+    // Fire-and-forget via EdgeRuntime.waitUntil: Deno Deploy keeps the function
+    // alive to complete the Realtime subscribe→send flow (up to 5 s internal
+    // timeout) even after the HTTP response is returned in Step 7.
     console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id);
-    void broadcastGameEnded(supabaseAdmin, gameData);
+    try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
 
     // ============================================================================
     // STEP 6: REFRESH LEADERBOARD
