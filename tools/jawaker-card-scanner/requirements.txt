@@ -1,0 +1,7 @@
+# Jawaker Card Scanner — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+pytesseract>=0.3.13    # Tesseract OCR wrapper
+Pillow>=10.0.0         # Image processing
+mss>=9.0.0             # Fast cross-platform screen capture
+pywin32>=306           # Windows API (window detection & rect)
