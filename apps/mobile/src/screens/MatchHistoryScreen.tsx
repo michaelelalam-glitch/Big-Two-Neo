@@ -203,13 +203,14 @@ export default function MatchHistoryScreen() {
   const getPositionOrdinal = (position: number): string => {
     if (position === 0) return '—'; // voided/abandoned
     const lang = i18n.getLanguage();
-    // Non-English locales: return a plain number so the translation template
-    // (e.g. "{{ordinal}}. Platz" / "المركز {{ordinal}}") formats it natively
-    // without embedding English suffixes ("1st", "2nd", ...) mid-string.
+    // Non-English locales: return a locale-formatted number so the translation
+    // template (e.g. "{{ordinal}}. Platz" / "\u0627\u0644\u0645\u0631\u0643\u0632 {{ordinal}}") formats it natively
+    // without embedding English suffixes ("1st", "2nd", ...) mid-string, and so
+    // locale-native digits are used (e.g. Arabic-Indic \u0661\u0662\u0663 instead of 1/2/3).
     // Generalised to any non-en locale: only en* tags use ordinal suffixes;
-    // all others (de, ar, or any future locale) receive plain integers.
+    // all others (de, ar, or any future locale) receive plain locale-formatted integers.
     // Use startsWith to handle regional tags (e.g. 'en-US', 'de-DE', 'ar-SA').
-    if (!lang.startsWith('en')) return `${position}`;
+    if (!lang.startsWith('en')) return new Intl.NumberFormat(lang).format(position);
     // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;

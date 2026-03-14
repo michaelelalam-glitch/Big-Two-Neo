@@ -23,7 +23,7 @@
 -- ============================================================================
 
 ALTER TABLE game_history
-  ADD COLUMN IF NOT EXISTS stats_applied_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS stats_applied_at TIMESTAMPTZ;  -- nullable by default; no explicit DEFAULT NULL needed
 
 -- Backfill pre-existing rows that are definitively complete as fully applied
 -- so they are never flagged as partial failures by the new dedup logic.

@@ -954,8 +954,13 @@ async function broadcastGameEnded(
     // Fire-and-forget via EdgeRuntime.waitUntil: Deno Deploy keeps the function
     // alive to complete the Realtime subscribe→send flow (up to 5 s internal
     // timeout) even after the HTTP response is returned in Step 7.
-    console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id);
-    try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
+    // Only broadcast for multiplayer rooms; local/casual games have no room_id
+    // and no connected clients to unblock.  Skipping here avoids noisy logs like
+    // "Broadcasting game_ended to room: null" that would make prod monitoring harder.
+    if (gameData.room_id) {
+      console.log('[Complete Game] Broadcasting game_ended to room:', gameData.room_id);
+      try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
+    }
 
     // ============================================================================
     // STEP 6: REFRESH LEADERBOARD
