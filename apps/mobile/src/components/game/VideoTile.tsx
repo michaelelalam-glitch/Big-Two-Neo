@@ -80,8 +80,8 @@ export function VideoTile({
           color={COLORS.white}
           testID={`${testID ?? 'video-tile'}-connecting`}
         />
-      ) : videoStreamSlot ? (
-        /* Real SDK video stream — rendered when LiveKit/Daily adapter is wired */
+      ) : isCameraOn && videoStreamSlot ? (
+        /* Real SDK video stream — rendered only when camera is on (r2935977897) */
         videoStreamSlot
       ) : (
         /* Placeholder UI until SDK is installed */

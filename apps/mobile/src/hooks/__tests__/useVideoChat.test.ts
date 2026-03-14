@@ -18,6 +18,20 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Save and restore Platform.OS around every test so overrides applied via
+// Object.defineProperty do not leak across test files. Jest workers can run
+// multiple suites in the same process, so an unrestore'd override persists
+// and causes flaky failures in unrelated files. (r2935977911)
+let platformOSDescriptor: PropertyDescriptor | undefined;
+beforeEach(() => {
+  platformOSDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+});
+afterEach(() => {
+  if (platformOSDescriptor) {
+    Object.defineProperty(Platform, 'OS', platformOSDescriptor);
+  }
+});
+
 function makeAdapter(overrides: Partial<VideoChatAdapter> = {}): VideoChatAdapter {
   const base = new StubVideoChatAdapter();
   // Spread of a class instance omits prototype methods; bind them explicitly.
