@@ -242,10 +242,20 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Approach:** Evaluate Agora SDK, LiveKit, or Daily.co. Push-to-talk toggle in `GameControls`. Mute indicator per player in `PlayerInfo`. Requires microphone permission flow.
   - **Prerequisite:** F1 complete
 
-- [ ] **F3** — In-game video chat
+- [x] **F3** — In-game video chat *(in-progress — Task #651)*
   - **Task:** #651
   - **Approach:** Opt-in floating video tiles anchored near each `PlayerInfo`. Use same SDK as F2 (LiveKit recommended — supports audio + video). Camera permission required.
   - **Prerequisite:** F2 complete
+  - **Branch:** `task/651-in-game-video-chat`
+  - **Implementation (Task #651 — Phase 1: SDK-decoupled scaffold):**
+    - `src/hooks/useVideoChat.ts` — `VideoChatAdapter` interface + `StubVideoChatAdapter` (no-op); manages opt-in state, camera permission, and remote participant map; real LiveKit/Daily.co adapter is a follow-up when `@livekit/react-native` + `react-native-webrtc` are installed
+    - `src/components/game/VideoTile.tsx` — 64×64 PiP tile; renders placeholder icon (no SDK) or `videoStreamSlot` (real SDK); Pressable for local player (tap to toggle), View for remote (read-only)
+    - `src/contexts/GameContext.tsx` — Added `videoChatEnabled`, `isLocalCameraOn`, `remoteCameraStates`, `toggleVideoChat` fields
+    - `src/screens/MultiplayerGame.tsx` — `useVideoChat` wired; `remoteCameraStates` built from `remoteParticipants`
+    - `src/screens/LocalAIGame.tsx` — no-op stub values provided for all 4 new GameContext fields
+    - `src/components/game/PlayerInfo.tsx` — `VideoTile` rendered as absolute overlay (top-left, zIndex 12) inside `avatarContainer`
+    - `app.json` — `NSCameraUsageDescription` (iOS) + `android.permission.CAMERA` added
+    - **Tests:** 25 new unit tests (VideoTile: 15, useVideoChat: 10); all passing
 
 ---
 

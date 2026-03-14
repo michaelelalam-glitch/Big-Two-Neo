@@ -111,6 +111,19 @@ export interface GameContextType {
   // ── GameControls internals ─────────────────────────────────────────────
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
   isMountedRef: React.MutableRefObject<boolean>;
+
+  // ── Task #651: in-game video chat ──────────────────────────────────────
+  /** Whether the local player has opted in to video chat. */
+  videoChatEnabled: boolean;
+  /** Whether the local camera is currently streaming. */
+  isLocalCameraOn: boolean;
+  /**
+   * Per-player camera state for remote tiles. Key = user_id.
+   * Populated from useVideoChat.remoteParticipants while videoChatEnabled=true.
+   */
+  remoteCameraStates: Record<string, { isCameraOn: boolean; isConnecting: boolean }>;
+  /** Toggle local camera on/off (requests camera permission if undetermined). */
+  toggleVideoChat: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
