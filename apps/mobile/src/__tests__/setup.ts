@@ -61,10 +61,15 @@ jest.mock('react-native-reanimated', () => {
     },
     useSharedValue: jest.fn((initial) => ({ value: initial })),
     useAnimatedStyle: jest.fn((fn) => fn()),
+    // useAnimatedProps is used by InactivityCountdownRing (H3) to pass arc geometry
+    // to AnimatedCircle on the UI thread. In tests we call the worklet synchronously
+    // and return the static props object so renderers can assert on static values.
+    useAnimatedProps: jest.fn((fn) => fn()),
     withTiming: jest.fn((value) => value),
     withSpring: jest.fn((value) => value),
     runOnJS: jest.fn((fn) => fn),
-    Easing: { bezier: jest.fn() },
+    cancelAnimation: jest.fn(),
+    Easing: { bezier: jest.fn(), linear: jest.fn((t: number) => t) },
   };
 });
 
