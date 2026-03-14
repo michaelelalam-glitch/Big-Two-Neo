@@ -31,7 +31,6 @@ import { StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
-  useAnimatedStyle,
   withTiming,
   cancelAnimation,
   runOnJS,
@@ -104,10 +103,14 @@ export default function InactivityCountdownRing({
   startedAt,
   onExpired,
 }: InactivityCountdownRingProps) {
-  // Keep a stable ref for the callback so we never need to re-schedule the Reanimated
-  // animation just because the parent re-created its onExpired arrow function.
+  // Keep stable refs for callbacks so we never need to re-schedule the Reanimated
+  // animation just because the parent re-created its onExpired arrow function or
+  // because the `type` prop changed (type is synced via typeRef + typeShared).
   const onExpiredRef = useRef(onExpired);
   useEffect(() => { onExpiredRef.current = onExpired; }, [onExpired]);
+
+  const typeRef = useRef(type);
+  useEffect(() => { typeRef.current = type; }, [type]);
 
   // Compute initial progress (0–1); avoid a flash-to-full on mount.
   const computeInitialProgress = (iso: string): number => {
@@ -120,7 +123,8 @@ export default function InactivityCountdownRing({
   // `progress` drives the arc geometry via useAnimatedProps — no setState involved.
   const progress = useSharedValue(computeInitialProgress(startedAt));
   // `typeShared` lets the useAnimatedProps worklet pick the correct color without
-  // needing to re-create the worklet when `type` prop changes.
+  // restarting the animation when `type` prop changes. Synced from JS thread via
+  // a separate useEffect so the color update arrives on the UI thread automatically.
   const typeShared = useSharedValue<'turn' | 'connection'>(type);
   useEffect(() => { typeShared.value = type; }, [type, typeShared]);
 
@@ -129,11 +133,15 @@ export default function InactivityCountdownRing({
   const [visible, setVisible] = useState(() => computeInitialProgress(startedAt) > 0);
 
   // Dispatched to JS when withTiming finishes — hides component and fires onExpired.
+  // Stable (deps=[]) — reads type from typeRef so it does not create a closure over
+  // the `type` prop, which would force the scheduling effect to re-run on type changes
+  // and restart the animation.
   const handleExpired = useCallback(() => {
-    networkLogger.warn(`[InactivityRing] Timer expired: type=${type}`);
+    networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     setVisible(false);
     onExpiredRef.current?.();
-  }, [type]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
   // Schedule (or reschedule) the depletion animation whenever startedAt or type changes.
   useEffect(() => {
@@ -170,7 +178,8 @@ export default function InactivityCountdownRing({
       cancelAnimation(progress);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, type]); // handleExpired / progress intentionally stable across renders
+  }, [startedAt]); // type → typeShared.value (color only, no animation restart);
+                   // handleExpired is stable (deps=[]); progress/typeShared are Reanimated stable refs
 
   // --- Animated props (UI thread worklet) ---
   // CLOCKWISE depletion from 12 o'clock:
@@ -192,16 +201,11 @@ export default function InactivityCountdownRing({
     };
   });
 
-  // Fade the entire container out via opacity when not visible (avoids a layout flash).
-  const containerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: visible ? 1 : 0,
-  }));
-
   if (!visible) return null; // Timer expired — remove from render tree entirely.
 
   return (
     <Animated.View
-      style={[styles.container, containerAnimatedStyle]}
+      style={styles.container}
       pointerEvents="none"
       accessibilityLabel={type === 'turn' ? 'Turn countdown active' : 'Bot replacement countdown active'}
     >
