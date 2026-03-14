@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 import {
   withTiming,
   cancelAnimation,
@@ -88,18 +88,22 @@ describe('InactivityCountdownRing', () => {
 
   describe('Reanimated scheduling', () => {
     it('calls withTiming targeting 0 with duration ≈ remaining time on mount', () => {
+      // Freeze Date.now so startedAt(), resolveStartTimeMs(), useMemo, and the
+      // scheduling useEffect all share the same T0 anchor — no timing jitter and
+      // no ±500ms tolerance band needed.
+      const frozenNow = 1_700_000_000_000;
+      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(frozenNow);
       const elapsedMs = 10_000; // 10s elapsed → ~50s remaining
       render(
         <InactivityCountdownRing type="turn" startedAt={startedAt(elapsedMs)} />,
       );
+      dateSpy.mockRestore();
 
       expect(withTiming).toHaveBeenCalledTimes(1);
       const [targetValue, opts] = (withTiming as jest.Mock).mock.calls[0];
       expect(targetValue).toBe(0); // animates progress to 0
-      // Allow ±500ms tolerance for test execution time
-      const expectedRemaining = COUNTDOWN_DURATION_MS - elapsedMs;
-      expect(opts.duration).toBeGreaterThan(expectedRemaining - 500);
-      expect(opts.duration).toBeLessThanOrEqual(expectedRemaining + 500);
+      // With frozen Date.now the remaining-ms is exact (no wall-clock drift).
+      expect(opts.duration).toBe(COUNTDOWN_DURATION_MS - elapsedMs);
     });
 
     it('calls cancelAnimation on unmount to prevent stale completion callbacks', () => {
@@ -226,6 +230,46 @@ describe('InactivityCountdownRing', () => {
         />,
       );
       expect(onExpired).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onExpired and hides ring when withTiming completion fires with finished=true', () => {
+      // Tests the normal expiry path: withTiming completes → completion callback fires
+      // → runOnJS(handleExpired)() → onExpired called + ring hidden.
+      const onExpired = jest.fn();
+      const { toJSON } = render(
+        <InactivityCountdownRing
+          type="turn"
+          startedAt={startedAt(5000)}
+          onExpired={onExpired}
+        />,
+      );
+      // Extract the completion callback passed as withTiming's 3rd argument.
+      const completionCb = (withTiming as jest.Mock).mock.calls[0][2] as (
+        finished: boolean,
+      ) => void;
+      expect(completionCb).toBeDefined();
+      // Invoke inside act() so React processes the resulting setVisible(false) update.
+      act(() => { completionCb(true); });
+      expect(onExpired).toHaveBeenCalledTimes(1);
+      expect(toJSON()).toBeNull(); // ring removes itself from the render tree
+    });
+
+    it('does NOT call onExpired when completion fires with finished=false (animation cancelled)', () => {
+      // When cancelAnimation() aborts withTiming, the callback receives finished=false.
+      // handleExpired() must not be invoked to avoid hiding the ring prematurely.
+      const onExpired = jest.fn();
+      render(
+        <InactivityCountdownRing
+          type="turn"
+          startedAt={startedAt(5000)}
+          onExpired={onExpired}
+        />,
+      );
+      const completionCb = (withTiming as jest.Mock).mock.calls[0][2] as (
+        finished: boolean,
+      ) => void;
+      act(() => { completionCb(false); });
+      expect(onExpired).not.toHaveBeenCalled();
     });
   });
 
