@@ -184,7 +184,16 @@ export default function InactivityCountdownRing({
   // the `type` prop, which would force the scheduling effect to re-run on type changes
   // and restart the animation.
   const handleExpired = useCallback(() => {
-    networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
+    // Warn only when a handler is registered (actionable event): for display-only
+    // rings (onExpired={undefined}, e.g. opponent's PlayerInfo) use debug so
+    // normal expiry doesn't pollute production warn logs.
+    if (onExpiredRef.current) {
+      networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
+    } else {
+      networkLogger.debug(
+        `[InactivityRing] Timer expired with no onExpired handler: type=${typeRef.current}`,
+      );
+    }
     setVisible(false);
     onExpiredRef.current?.();
   // eslint-disable-next-line react-hooks/exhaustive-deps
