@@ -29,10 +29,25 @@
 --
 -- The IF NOT EXISTS guards below make this migration a safe no-op once the
 -- indexes already exist, so the migration runner can be applied afterward.
+--
+-- Lock / timeout protection:
+--   SET LOCAL lock_timeout = '5s'    → fail fast if any CREATE INDEX cannot
+--     acquire AutoExclusive in 5 s instead of blocking in-flight queries
+--     indefinitely.  A deploy failure is preferable to a read/write stall.
+--   SET LOCAL statement_timeout = '30s' → abort if the index build itself
+--     runs longer than 30 s (e.g. table is much larger than expected).
+--   Both are LOCAL so they revert at transaction end and do not affect the
+--   Supabase migration runner's wider session settings.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 DO $$
 BEGIN
+  -- Fail fast rather than block: if the lock cannot be acquired within 5 s
+  -- or the index build exceeds 30 s, the migration aborts with an error so
+  -- the operator knows to use the CONCURRENTLY runbook above.
+  EXECUTE 'SET LOCAL lock_timeout = ''5s''';
+  EXECUTE 'SET LOCAL statement_timeout = ''30s''';
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'game_history' AND indexname = 'idx_game_history_player_1_id'
   ) THEN

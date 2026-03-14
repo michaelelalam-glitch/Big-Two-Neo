@@ -13,9 +13,9 @@ import { showError } from '../utils';
 type MatchHistoryNavigationProp = StackNavigationProp<RootStackParamList, 'MatchHistory'>;
 
 interface MatchHistoryEntry {
-  match_id: string;
-  room_code: string;
-  match_type: 'casual' | 'ranked' | 'private' | 'local';
+  game_id: string;
+  room_code: string | null; // nullable in DB
+  game_type: 'casual' | 'ranked' | 'private' | 'local';
   final_position: number;
   /** Display timestamp: finished_at for completed games, created_at for incomplete rows.
    * Named display_timestamp (not created_at) to avoid confusion with true row creation time. */
@@ -45,7 +45,7 @@ interface GameHistoryRow {
  * Static lookup — defined once at module level (no i18n calls) so FlatList
  * rows never allocate a new object during renderItem.
  */
-const MATCH_TYPE_EMOJI: Record<MatchHistoryEntry['match_type'], string> = {
+const MATCH_TYPE_EMOJI: Record<MatchHistoryEntry['game_type'], string> = {
   casual: '😊',
   ranked: '🏆',
   private: '🔒',
@@ -164,13 +164,13 @@ export default function MatchHistoryScreen() {
         const matchType = (['casual', 'ranked', 'private', 'local'] as const).includes(
           rawType as 'casual' | 'ranked' | 'private' | 'local'
         )
-          ? (rawType as MatchHistoryEntry['match_type'])
+          ? (rawType as MatchHistoryEntry['game_type'])
           : 'casual';
 
         return {
-          match_id: item.id,
-          room_code: item.room_code ?? '',
-          match_type: matchType,
+          game_id: item.id,
+          room_code: item.room_code,
+          game_type: matchType,
           final_position: finalPosition,
           // display_timestamp: finished_at for completed games, falling back
           // to row creation time when finished_at is null (incomplete/abandoned).
@@ -204,9 +204,12 @@ export default function MatchHistoryScreen() {
     }
   };
 
+  // Computed once per render so all functions below share one global lookup
+  // instead of calling i18n.getLanguage() on every FlatList row invocation.
+  const currentLang = i18n.getLanguage();
+
   const getPositionOrdinal = (position: number): string => {
     if (position === 0) return '—'; // voided/abandoned
-    const lang = i18n.getLanguage();
     // Non-English locales: return a locale-formatted number so the translation
     // template (e.g. "{{ordinal}}. Platz" / "\u0627\u0644\u0645\u0631\u0643\u0632 {{ordinal}}") formats it natively
     // without embedding English suffixes ("1st", "2nd", ...) mid-string, and so
@@ -214,7 +217,7 @@ export default function MatchHistoryScreen() {
     // Generalised to any non-en locale: only en* tags use ordinal suffixes;
     // all others (de, ar, or any future locale) receive plain locale-formatted integers.
     // Use startsWith to handle regional tags (e.g. 'en-US', 'de-DE', 'ar-SA').
-    if (!lang.startsWith('en')) return new Intl.NumberFormat(lang).format(position);
+    if (!currentLang.startsWith('en')) return new Intl.NumberFormat(currentLang).format(position);
     // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
@@ -261,7 +264,7 @@ export default function MatchHistoryScreen() {
     if (diffHours < 24) return i18n.t('matchHistory.hoursAgo', { count: diffHours });
     if (diffDays < 7) return i18n.t('matchHistory.daysAgo', { count: diffDays });
     
-    return date.toLocaleDateString(i18n.getLanguage(), { 
+    return date.toLocaleDateString(currentLang, { 
       month: 'short', 
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
@@ -271,7 +274,7 @@ export default function MatchHistoryScreen() {
   // Memoised by language so this only re-allocates when i18n locale changes
   // (not on every component re-render). Avoids creating two new objects per
   // FlatList row on unrelated state updates.
-  const matchTypeLabel = useMemo<Record<MatchHistoryEntry['match_type'], string>>(
+  const matchTypeLabel = useMemo<Record<MatchHistoryEntry['game_type'], string>>(
     () => ({
       casual: i18n.t('matchmaking.casual'),
       ranked: i18n.t('matchmaking.ranked'),
@@ -279,11 +282,11 @@ export default function MatchHistoryScreen() {
       local: i18n.t('matchHistory.local'),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [i18n.getLanguage()],
+    [currentLang],
   );
 
   const renderMatchCard = ({ item }: { item: MatchHistoryEntry }) => {
-    const isRanked = item.match_type === 'ranked';
+    const isRanked = item.game_type === 'ranked';
 
     return (
       <View style={styles.matchCard}>
@@ -295,7 +298,7 @@ export default function MatchHistoryScreen() {
               isRanked && styles.matchTypeBadgeRanked
             ]}>
               <Text style={styles.matchTypeBadgeText}>
-                {MATCH_TYPE_EMOJI[item.match_type]} {matchTypeLabel[item.match_type]}
+                {MATCH_TYPE_EMOJI[item.game_type]} {matchTypeLabel[item.game_type]}
               </Text>
             </View>
           </View>
@@ -363,7 +366,7 @@ export default function MatchHistoryScreen() {
         <FlatList
           data={matches}
           renderItem={renderMatchCard}
-          keyExtractor={(item) => item.match_id}
+          keyExtractor={(item) => item.game_id}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           onEndReached={loadMore}

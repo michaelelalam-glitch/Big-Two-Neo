@@ -1344,21 +1344,21 @@ export class GameStateManager {
    * Prune `gameRoundHistory` to stay within the configured caps.
    *
    * @param history         Reference to the array to mutate in-place.
-   * @param lastCompletedMatch
-   *        The number of the last **completed** match whose entries may be in
-   *        the array.  The caller is responsible for passing the right value:
-   *        - `loadState()` passes `currentMatch` (the current match, which
-   *          already has entries).
+   * @param latestMatchNumberWithEntries
+   *        The highest match number that already has entries in the array.
+   *        The caller is responsible for passing the right value:
+   *        - `loadState()` passes `currentMatch` (the in-progress or current
+   *          match, which already has entries recorded).
    *        - `startNewMatch()` passes `currentMatch - 1` (the match that just
-   *          finished; the incremented value is the new match that has no
-   *          entries yet).
-   *        Using this convention, `cutoff = lastCompletedMatch - MAX + 1`
+   *          finished; the newly-incremented `currentMatch` has no entries yet).
+   *        Using this convention,
+   *        `cutoff = latestMatchNumberWithEntries - MAX + 1`
    *        always retains exactly MAX matches worth of history.
    * @param source  Label used in log messages.
    */
   private pruneGameRoundHistory(
     history: RoundHistoryEntry[],
-    lastCompletedMatch: number,
+    latestMatchNumberWithEntries: number,
     source: string,
   ): void {
     const hasLegacyEntries = history.some(e => e.matchNumber == null);
@@ -1385,9 +1385,9 @@ export class GameStateManager {
 
     // Normal path: all entries carry matchNumber → prune by match index.
     // No pruning needed for sessions within the configured match window.
-    if (lastCompletedMatch <= MAX_GAME_ROUND_HISTORY_MATCHES) return;
+    if (latestMatchNumberWithEntries <= MAX_GAME_ROUND_HISTORY_MATCHES) return;
 
-    const cutoff = lastCompletedMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
+    const cutoff = latestMatchNumberWithEntries - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
     const beforeLength = history.length;
     // Filter in-place: keep entries from the last MAX_GAME_ROUND_HISTORY_MATCHES matches.
     const kept = history.filter(e => e.matchNumber! >= cutoff);
@@ -1421,7 +1421,7 @@ export class GameStateManager {
     // Note: this does NOT affect the play-history UI, which reads from ScoreboardContext
     // (populated per-match from roundHistory, not from gameRoundHistory).
     // Pass (currentMatch - 1) = last COMPLETED match so the helper formula
-    // cutoff = lastCompletedMatch - MAX + 1 keeps exactly MAX matches.
+    // cutoff = latestMatchNumberWithEntries - MAX + 1 keeps exactly MAX matches.
     this.pruneGameRoundHistory(this.state.gameRoundHistory, this.state.currentMatch - 1, 'startNewMatch');
 
     // Deal new cards (this will clear existing hands first)
