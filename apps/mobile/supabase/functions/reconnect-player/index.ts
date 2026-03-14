@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     // a SUBSCRIBED channel before send() is reliable; calling send() on an
     // unsubscribed channel can silently drop the message (especially on cold
     // starts / flaky connections).
-    (async () => {
+    const broadcastPromise = (async () => {
       try {
         const broadcastPayload = {
           player_index: result.player_index,
@@ -165,6 +165,9 @@ Deno.serve(async (req) => {
         console.warn('[reconnect-player] Broadcast error (non-critical):', bcastErr?.message);
       }
     })();
+    // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function alive
+    // to complete the subscribe→send flow even after the HTTP response returns.
+    try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastPromise); } catch (_) {}
 
     return new Response(
       JSON.stringify({

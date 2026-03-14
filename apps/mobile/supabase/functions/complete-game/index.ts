@@ -57,9 +57,11 @@ const corsHeaders = {
 // entire flow in a new Promise that resolves once the broadcast is sent (or on
 // error/timeout). A 5-second safety timeout prevents the channel from leaking.
 //
-// FIRE-AND-FORGET: all call sites use `void broadcastGameEnded(...)` so the
-// edge function response is not held up by the Realtime subscribe→send flow.
-// Broadcast failures are logged but never cause the HTTP response to fail.
+// EdgeRuntime.waitUntil: all call sites register the returned Promise with
+// `EdgeRuntime.waitUntil(broadcastGameEnded(...))` so Deno Deploy keeps the
+// function alive to complete the subscribe→send flow even after the HTTP
+// response is returned. Broadcast failures are logged but never fail the
+// HTTP response.
 async function broadcastGameEnded(
   client: ReturnType<typeof createClient>,
   gameData: { room_id?: string | null; room_code?: string; winner_id: string; players: Array<{ user_id: string; username: string; score: number; finish_position: number }> }
@@ -139,7 +141,7 @@ async function broadcastGameEnded(
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           // Channel failed — resolve the internal Promise immediately to free Deno
           // runtime resources. The HTTP response is never delayed: all callers
-          // invoke `void broadcastGameEnded(...)` (fire-and-forget).
+          // register the returned Promise via EdgeRuntime.waitUntil(...).
           clearTimeout(safetyTimeout);
           finish();
         }
@@ -324,40 +326,44 @@ async function broadcastGameEnded(
         .maybeSingle();
 
       if (dupCheckError) {
-        // If the error is because the stats_applied_at column doesn't exist yet
-        // (migration 00002 not yet applied), fall back to a simpler id-only query
-        // so dedup still works before that optional migration runs.
+        // For any dedup check error (missing stats_applied_at column OR transient
+        // network/PostgREST failure), always run the id-only fallback so the function
+        // never processes a duplicate without first exhausting both dedup queries.
         const isColumnMissing =
           dupCheckError.message?.includes('stats_applied_at') ||
           (dupCheckError as { code?: string }).code === '42703';
         if (isColumnMissing) {
           console.warn('[Complete Game] stats_applied_at column absent — using id-only fallback dedup');
-          const { data: fallbackRow, error: fallbackErr } = await supabaseAdmin
-            .from('game_history')
-            .select('id')
-            .eq('room_id', gameData.room_id)
-            .limit(1)
-            .maybeSingle();
-          if (!fallbackErr && fallbackRow) {
-            console.log(`[Complete Game] ⏭️ Dedup (fallback): game already recorded for room ${gameData.room_id} — skipping duplicate`);
-            const { error: roomEndErr } = await supabaseAdmin
-              .from('rooms')
-              .update({ status: 'finished' })
-              .eq('id', gameData.room_id);
-            if (roomEndErr) {
-              console.warn('[Complete Game] Failed to mark room finished in fallback dedup path:', roomEndErr.message);
-            }
-            // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
-            // alive to complete the broadcast even after the HTTP response is returned.
-            try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
-            return new Response(
-              JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
-              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
         } else {
-          console.warn('[Complete Game] Dedup check failed (proceeding):', dupCheckError.message);
+          console.warn('[Complete Game] Dedup check failed — running id-only fallback before proceeding:', dupCheckError.message);
         }
+        const { data: fallbackRow, error: fallbackErr } = await supabaseAdmin
+          .from('game_history')
+          .select('id')
+          .eq('room_id', gameData.room_id)
+          .limit(1)
+          .maybeSingle();
+        if (!fallbackErr && fallbackRow) {
+          console.log(`[Complete Game] ⏭️ Dedup (fallback): game already recorded for room ${gameData.room_id} — skipping duplicate`);
+          const { error: roomEndErr } = await supabaseAdmin
+            .from('rooms')
+            .update({ status: 'finished' })
+            .eq('id', gameData.room_id);
+          if (roomEndErr) {
+            console.warn('[Complete Game] Failed to mark room finished in fallback dedup path:', roomEndErr.message);
+          }
+          // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
+          // alive to complete the broadcast even after the HTTP response is returned.
+          try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
+          return new Response(
+            JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (fallbackErr) {
+          console.warn('[Complete Game] Fallback id-only dedup also failed (proceeding):', fallbackErr.message);
+        }
+        // If fallbackRow is null, fall through: no existing row found; safe to proceed.
       } else if (existingRow) {
         if (existingRow.stats_applied_at === null) {
           // stats_applied_at IS NULL means either:
@@ -554,7 +560,9 @@ async function broadcastGameEnded(
           }
           // Broadcast game_ended so clients are not blocked if the winning
           // caller crashes before reaching Step 5. Idempotent from client side.
-          void broadcastGameEnded(supabaseAdmin, gameData);
+          // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
+          // alive to complete the broadcast even after the HTTP response is returned.
+          try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
         }
         return new Response(
           JSON.stringify({
