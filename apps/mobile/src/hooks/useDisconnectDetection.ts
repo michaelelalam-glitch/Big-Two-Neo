@@ -62,8 +62,12 @@ export interface EnrichedLayoutPlayer extends LayoutPlayerWithScore {
 }
 
 interface UseDisconnectDetectionOptions {
-  /** Live player rows from Supabase Realtime subscription. */
-  realtimePlayers: MultiplayerPlayer[];
+  /** Live player rows from Supabase Realtime subscription.
+   *  Typed as nullable to match the runtime reality — MultiplayerGame passes
+   *  the value directly from useRealtime which can be null/undefined before
+   *  the first subscription event arrives.
+   */
+  realtimePlayers: MultiplayerPlayer[] | null | undefined;
   /** Current authenticated user's id. */
   userId: string | undefined;
   /** Server-authoritative game state (may be null during reconnect re-fetches). */

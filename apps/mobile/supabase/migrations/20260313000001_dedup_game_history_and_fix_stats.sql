@@ -57,15 +57,35 @@ WHERE id IN (
 -- For a small table this lock is brief and acceptable.
 --
 -- PRODUCTION RUNBOOK (large tables):
---   If game_history has grown to millions of rows, run this step manually in a
---   low-traffic window OUTSIDE a transaction to avoid blocking reads/writes:
+-- PRODUCTION DEPLOYMENT NOTE
+-- ─────────────────────────────────────────────────────────────────────────────
+-- The CREATE UNIQUE INDEX below takes an ACCESS EXCLUSIVE lock on game_history
+-- inside a migration transaction. For production tables with millions of rows
+-- this can block reads and writes long enough to impact gameplay.
 --
---     CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
---       idx_game_history_unique_room_id
---       ON game_history (room_id)
---       WHERE room_id IS NOT NULL;
+-- RECOMMENDED FOR LARGE PRODUCTION TABLES:
+-- Run the index creation manually OUTSIDE a transaction before deploying:
 --
---   Then re-run this migration (the IF NOT EXISTS guard makes it a no-op).
-CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_unique_room_id
-  ON game_history (room_id)
-  WHERE room_id IS NOT NULL;
+--   CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
+--     idx_game_history_unique_room_id
+--     ON game_history (room_id)
+--     WHERE room_id IS NOT NULL;
+--
+-- The IF NOT EXISTS guard below makes this migration a safe no-op once the
+-- index already exists, so the migration runner can be applied afterward
+-- without any locking impact.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+  -- Skip index creation if it already exists (created manually via CONCURRENTLY
+  -- in a pre-deploy runbook step as described above).
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'game_history'
+      AND indexname = 'idx_game_history_unique_room_id'
+  ) THEN
+    CREATE UNIQUE INDEX idx_game_history_unique_room_id
+      ON game_history (room_id)
+      WHERE room_id IS NOT NULL;
+  END IF;
+END $$;

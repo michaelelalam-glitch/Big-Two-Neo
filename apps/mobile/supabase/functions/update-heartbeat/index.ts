@@ -204,8 +204,14 @@ Deno.serve(async (req) => {
               ch.subscribe((status: string) => {
                 if (status === 'SUBSCRIBED') {
                   ch.send({ type: 'broadcast', event: 'player_reconnected', payload })
-                    .then(() => {
-                      console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
+                    .then((result: any) => {
+                      // supabase-js Realtime send() resolves (not rejects) on
+                      // delivery failures; inspect the resolved value for errors.
+                      if (result?.error) {
+                        console.warn(`[update-heartbeat] Reconnect broadcast delivery failure (non-critical):`, result.error);
+                      } else {
+                        console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
+                      }
                       clearTimeout(safetyTimeout);
                       finish();
                     })
