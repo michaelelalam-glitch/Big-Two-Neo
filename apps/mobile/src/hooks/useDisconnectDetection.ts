@@ -27,6 +27,13 @@ import type { LayoutPlayerWithScore } from './usePlayerDisplayData';
 // Only REPLACE is dispatched: the interval and immediate-clear effect both
 // build a full snapshot Map and commit it atomically at the end of each tick.
 // The equality check prevents spurious re-renders when the map is unchanged.
+//
+// Earlier design notes (including the PR description for #633) described four
+// action types (SEED, CORRECT, CLEAR, REPLACE).  The implementation was
+// simplified before landing: all mutations produce a full snapshot and
+// dispatch a single REPLACE action.  The additional types were dropped because
+// a snapshot-replace with an equality guard achieves the same correctness
+// guarantees with less bookkeeping.
 
 type DisconnectMapAction = { type: 'REPLACE'; map: Map<number, string> };
 

@@ -14,7 +14,7 @@ type MatchHistoryNavigationProp = StackNavigationProp<RootStackParamList, 'Match
 
 interface MatchHistoryEntry {
   game_id: string;
-  room_code: string | null; // nullable in DB
+  room_code: string; // normalised from DB nullable via ?? ''
   game_type: 'casual' | 'ranked' | 'private' | 'local';
   final_position: number;
   /** Display timestamp: finished_at for completed games, created_at for incomplete rows.
@@ -24,7 +24,7 @@ interface MatchHistoryEntry {
 
 interface GameHistoryRow {
   id: string;
-  room_code: string | null; // nullable in DB; resolved to '' in MatchHistoryEntry
+  room_code: string | null; // nullable in DB; normalised to '' in the mapper
   game_type: string | null;
   game_completed: boolean | null;
   player_1_id: string | null;
@@ -169,7 +169,7 @@ export default function MatchHistoryScreen() {
 
         return {
           game_id: item.id,
-          room_code: item.room_code,
+          room_code: item.room_code ?? '',
           game_type: matchType,
           final_position: finalPosition,
           // display_timestamp: finished_at for completed games, falling back

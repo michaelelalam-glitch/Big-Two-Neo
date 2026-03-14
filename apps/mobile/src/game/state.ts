@@ -719,7 +719,12 @@ export class GameStateManager {
         
         this.notifyListeners();
         // C2 fix: restart the timer for the restored game session.
-        this.startTimerCountdown();
+        // Skip for terminal states (gameOver / gameEnded) — the interval
+        // would self-terminate on its first tick (100 ms later), but starting
+        // it is wasteful and adds an unnecessary wakeup cycle on cold restore.
+        if (!loadedState.gameOver && !loadedState.gameEnded) {
+          this.startTimerCountdown();
+        }
         return this.state;
       }
     } catch (error: unknown) {
