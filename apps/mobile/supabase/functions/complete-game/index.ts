@@ -81,10 +81,13 @@ async function broadcastGameEnded(
     );
     const finalScores = [...gameData.players]
       .sort((a, b) => a.finish_position - b.finish_position)
-      .map((p) => ({
+      .map((p, i) => ({
         // player_index is the original seat/array index so it aligns with
         // game_winner_index (which also uses the original players array).
-        player_index: userIdToIndex.get(p.user_id) ?? -1,
+        // Fallback to i (finish-order position, always 0-3) instead of -1
+        // to avoid emitting an out-of-range index that breaks client seat
+        // assumptions when the userIdToIndex lookup unexpectedly misses.
+        player_index: userIdToIndex.get(p.user_id) ?? i,
         player_name: p.username,
         cumulative_score: p.score,
         points_added: 0,
@@ -94,7 +97,9 @@ async function broadcastGameEnded(
       }));
     const broadcastPayload = {
       game_winner_name: winnerPlayer?.username || 'Unknown',
-      game_winner_index: userIdToIndex.get(gameData.winner_id) ?? -1,
+      // Fallback to finalScores[0]?.player_index (winner is first after sort
+      // by finish_position ascending) instead of -1 to keep index in range 0-3.
+      game_winner_index: userIdToIndex.get(gameData.winner_id) ?? finalScores[0]?.player_index ?? 0,
       final_scores: finalScores,
       room_code: gameData.room_code,
     };

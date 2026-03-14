@@ -184,15 +184,18 @@ export function useDisconnectDetection({
   // Detects player disconnects via stale last_seen_at timestamps as a fallback
   // for when Supabase Realtime delivery of connection_status changes is delayed.
   // STALE_THRESHOLD_MS mirrors the server Phase A threshold (30 s).
+  //
+  // The effect does NOT start at all when userId is undefined (pre-auth / logged-out)
+  // so no background wakeups occur in unauthenticated states.  The [userId] dep
+  // ensures the interval is created once auth resolves and cleared on sign-out.
   useEffect(() => {
+    // Don't install the interval until the authenticated user is known;
+    // skips background wakeups during logged-out / pre-auth states.
+    if (!userId) return;
+
     const STALE_THRESHOLD_MS = 30_000;
 
     const interval = setInterval(() => {
-      // Skip all processing until the authenticated user is known.
-      // userId is in the effect deps — the interval is torn down and re-created
-      // when auth resolves, so this guard only fires during the brief window
-      // between mount and the first non-undefined userId value.
-      if (!userId) return;
 
       const players = realtimePlayersRef.current;
       if (!players || players.length === 0) return;

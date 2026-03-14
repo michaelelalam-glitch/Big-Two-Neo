@@ -23,7 +23,7 @@ interface MatchHistoryEntry {
 
 interface GameHistoryRow {
   id: string;
-  room_code: string;
+  room_code: string | null; // nullable in DB; resolved to '' in MatchHistoryEntry
   game_type: string | null;
   game_completed: boolean | null;
   player_1_id: string | null;

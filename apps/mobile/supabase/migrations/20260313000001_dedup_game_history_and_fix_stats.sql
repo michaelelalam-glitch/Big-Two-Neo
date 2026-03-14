@@ -81,7 +81,8 @@ BEGIN
   -- in a pre-deploy runbook step as described above).
   IF NOT EXISTS (
     SELECT 1 FROM pg_indexes
-    WHERE tablename = 'game_history'
+    WHERE schemaname = 'public'
+      AND tablename = 'game_history'
       AND indexname = 'idx_game_history_unique_room_id'
   ) THEN
     CREATE UNIQUE INDEX idx_game_history_unique_room_id
