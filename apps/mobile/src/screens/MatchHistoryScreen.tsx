@@ -172,7 +172,9 @@ export default function MatchHistoryScreen() {
           // to row creation time when finished_at is null (incomplete/abandoned).
           // Named display_timestamp, not created_at, to avoid confusion with the
           // DB row's true creation timestamp.
-          display_timestamp: item.finished_at ?? item.created_at ?? '',
+          // created_at is a NOT NULL column in game_history so this is always a
+          // valid ISO string; no empty-string fallback needed.
+          display_timestamp: item.finished_at ?? item.created_at,
         };
       });
 

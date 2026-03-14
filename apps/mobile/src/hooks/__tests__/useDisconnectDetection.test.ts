@@ -136,6 +136,10 @@ describe('useDisconnectDetection', () => {
   });
 
   afterEach(() => {
+    // Clear all pending fake timers (e.g. the 5s retry setTimeout scheduled by
+    // onCountdownExpired) before restoring real timers so Jest does not carry
+    // open handles between tests, preventing flakiness and hangs.
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 

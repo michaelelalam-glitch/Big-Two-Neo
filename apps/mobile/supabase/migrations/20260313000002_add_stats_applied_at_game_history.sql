@@ -70,3 +70,10 @@ COMMENT ON FUNCTION mark_game_stats_applied(UUID) IS
   'Stamps game_history.stats_applied_at = now() for a given room_id when IS NULL. '
   'Used by the complete-game Edge Function to mark stats as fully applied using '
   'the authoritative DB clock instead of the edge-runtime clock.';
+
+-- Restrict execution to service_role only.
+-- SECURITY DEFINER functions are executable by PUBLIC by default; leaving that
+-- open would allow any authenticated role to stamp stats_applied_at for an
+-- arbitrary room_id, potentially masking partial-failure rows from diagnostics.
+REVOKE EXECUTE ON FUNCTION mark_game_stats_applied(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION mark_game_stats_applied(UUID) TO   service_role;
