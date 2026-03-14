@@ -112,14 +112,14 @@ Track progress on all audit findings. Check off items as they are resolved.
     - TypeScript: 0 errors. Unit tests: 1110 passed (integration suites requiring live Supabase credentials remain skipped).
   - **Why:** 50 individual props made `GameView` API incomprehensible, forced calling code to list every prop explicitly (blocking refactors), and undermined `React.memo` effectiveness (any new callback risked recreating a reference). Context eliminates the prop explosion, centralises the game-view model, and makes individual child components able to subscribe to exactly the slice they need in future.
 
-- [ ] **H5** — Split `HomeScreen.tsx` into focused modules
-  - **File:** `apps/mobile/src/screens/HomeScreen.tsx` (1,643 LOC)
+- [x] **H5** — Split `HomeScreen.tsx` into focused modules ✅ **(branch: `task/637-split-homescreen`)**
+  - **File:** `apps/mobile/src/screens/HomeScreen.tsx` (1,643 LOC → **544 LOC**)
   - **Task:** #637
-  - **Fix:** Extract into:
-    - `apps/mobile/src/hooks/useMatchmakingFlow.ts` — all matchmaking RPC + state logic
-    - `apps/mobile/src/hooks/useRoomCleanup.ts` — room cleanup on reconnect
-    - `apps/mobile/src/components/home/MatchmakingPanel.tsx` — the matchmaking UI section
-    - Keep `HomeScreen.tsx` as thin coordinator (~200 LOC)
+  - **Implemented:**
+    - `apps/mobile/src/hooks/useActiveGameBanner.ts` — all banner state, `checkCurrentRoom` (with `useFocusEffect`), `handleTimerExpired`, `handleLeaveCurrentRoom`, `handleBannerResume/Leave`, `handleReplaceBotAndRejoin`, `checkGameExclusivity`, `voluntarilyLeftRooms` AsyncStorage logic
+    - `apps/mobile/src/hooks/useMatchmakingFlow.ts` — all matchmaking RPC state (`isQuickPlaying`, `isRankedSearching`, modals), `handleQuickPlay`, `handleRankedMatch`, `handleCasualMatch`, `handleOfflinePractice`, `handleStartOfflineWithDifficulty`
+    - `HomeScreen.tsx` reduced to **544 LOC** (imports + two hook calls + JSX coordinator + styles); eliminates all recursive `setTimeout` polling
+  - **TypeScript:** 0 errors. Unit tests: 1110 passed (integration suites requiring live Supabase credentials remain skipped).
   - **Why:** Screen handles UI + matchmaking RPC + room cleanup + polling + AsyncStorage — impossible to test
 
 ---
