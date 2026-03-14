@@ -114,11 +114,10 @@ export function useActiveGameBanner(
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows found (player not in any active room) — normal case,
+        // fall through so roomData resolves to null below.
+        // All other errors are unexpected; log and abort.
         roomLogger.error('Error checking current room:', error?.message || error?.code || 'Unknown error');
-        if (error.code === 'PGRST116') {
-          await supabase.from('room_players').delete().eq('user_id', user.id);
-          roomLogger.info('🧹 Cleaned up zombie room_player entry');
-        }
         return;
       }
 
