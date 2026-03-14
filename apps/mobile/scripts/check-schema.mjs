@@ -22,7 +22,7 @@ envContent.split('\n').forEach(line => {
 });
 
 const supabaseUrl = envVars.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcHlidWNsZHF1ZmJxaHdua3h1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzkzMTI2MywiZXhwIjoyMDc5NTA3MjYzfQ.WtlbV0UbW8gF7SFmVaMGXCl6ksVMdU6q0-07Y88vSQk'; // Service role key from big2-multiplayer
+const supabaseServiceKey = envVars.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ Missing Supabase credentials');

@@ -1,7 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const supabaseUrl = 'https://dppybucldqufbqhwnkxu.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcHlidWNsZHF1ZmJxaHdua3h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MzEyNjMsImV4cCI6MjA3OTUwNzI2M30.NPr-oBDZrfJisJH5rzosMMYTL3GKbIVQ_nllmaTxyFE';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Read .env file manually
+const envPath = join(__dirname, '.env');
+const envContent = readFileSync(envPath, 'utf-8');
+const envVars = {};
+envContent.split('\n').forEach(line => {
+  const [key, ...valueParts] = line.split('=');
+  if (key && valueParts.length) {
+    envVars[key.trim()] = valueParts.join('=').trim();
+  }
+});
+
+const supabaseUrl = envVars.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = envVars.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase credentials — create apps/mobile/scripts/.env with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
