@@ -1429,8 +1429,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Manually refresh now
-REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
+-- Manually refresh now (non-concurrent: CONCURRENTLY is not permitted inside
+-- the implicit transaction block that Supabase wraps migrations in)
+REFRESH MATERIALIZED VIEW leaderboard_global;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION refresh_leaderboard() TO authenticated;
@@ -1713,7 +1714,8 @@ BEGIN
 END $$;
 
 -- Refresh the leaderboard materialized view to reflect changes
-REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
+-- (non-concurrent: CONCURRENTLY is not permitted inside a migration transaction)
+REFRESH MATERIALIZED VIEW leaderboard_global;
 
 
 -- --------------------------------------------------------------------------
@@ -1844,7 +1846,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Refresh leaderboard to reflect any changes
-REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_global;
+-- (non-concurrent: CONCURRENTLY is not permitted inside a migration transaction)
+REFRESH MATERIALIZED VIEW leaderboard_global;
 
 -- Verification query (run manually to check)
 -- SELECT 
