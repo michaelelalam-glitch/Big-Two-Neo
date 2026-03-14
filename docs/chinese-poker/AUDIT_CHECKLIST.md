@@ -126,16 +126,15 @@ Track progress on all audit findings. Check off items as they are resolved.
 
 ## 🟡 Medium Priority
 
-- [ ] **M1** — Move root scripts to `scripts/` directory
+- [x] **M1** — Move root scripts to `scripts/` directory ✅ **(branch: `task/636-move-scripts-to-scripts-dir`)**
   - **Location:** `/apps/mobile/*.mjs`, `/apps/mobile/*.sh` (18 files)
   - **Task:** #636
-  - **Fix:**
-    ```bash
-    mv apps/mobile/*.mjs apps/mobile/scripts/
-    mv apps/mobile/*.sh apps/mobile/scripts/
-    # Create apps/mobile/scripts/README.md documenting each script
-    ```
-  - **Why:** 18 scripts at root pollute workspace and confuse `ls` output
+  - **Implemented:**
+    - **Moved to `scripts/`** (permanent utilities): `apply-migration.mjs`, `apply-migration.sh`, `check-schema.mjs`, `cleanup-stuck-rooms.mjs`, `debug-game-state.mjs`, `diagnose-bot-cards.mjs`, `test-start-game.mjs`, `deploy-edge-functions.sh`
+    - **Deleted** (already-applied one-offs): `apply-fix-json-encoding.mjs`, `apply-fix-json-encoding.sh`, `apply-fix-navigation-bug.sh`, `apply-game-state-migration.mjs`, `apply-matchmaking-auto-start-fix.mjs`, `apply-rls-fix.mjs`, `apply-turn-timer-fix.sh`, `APPLY_AUTOPLAY_FIX.sh`, `APPLY_TIMER_FIXES_NOW.sh`, `TEST_AUTOPLAY_FIX.sh`
+    - **Moved to `docs/chinese-poker/`**: `APPLY_CARD_FIX_MIGRATION.md`, `AUTHENTICATION_SETUP_GUIDE.md`, `AUTOPLAY_FIX_DOCUMENTATION.md`, `TIMER_FIXES_SUMMARY.md`, `TROUBLESHOOTING_AUTOPLAY.md`, `TURN_TIMER_FIX_SUMMARY.md`
+    - **Created** `apps/mobile/scripts/README.md` documenting all scripts with usage
+  - **Why:** 18 files at root polluted workspace and confused `ls` output
 
 - [ ] **M2** — Squash Supabase migrations into a baseline
   - **Location:** `supabase/migrations/` (128 files)
