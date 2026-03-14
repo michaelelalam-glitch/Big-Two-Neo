@@ -6,6 +6,31 @@
 -- Do NOT edit. For schema changes going forward, create new timestamped migrations.
 -- ============================================================================
 
+-- ============================================================================
+-- CREATE TABLE: rooms  (prerequisite — was created outside migrations originally)
+-- The `rooms` table was created via the Supabase dashboard before any numbered
+-- migration was added to this project; it was never included in a migration file.
+-- Declaring it here ensures `supabase db reset` succeeds on a fresh database.
+-- All subsequent ALTER TABLE rooms ADD COLUMN IF NOT EXISTS guards in this
+-- baseline become no-ops when the table is freshly created with every column.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS rooms (
+  id                 UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code               VARCHAR(10)  UNIQUE NOT NULL,
+  host_id            UUID         REFERENCES auth.users(id) ON DELETE SET NULL,
+  status             TEXT         NOT NULL DEFAULT 'waiting',
+  max_players        INTEGER      NOT NULL DEFAULT 4,
+  -- columns added by subsequent migrations (IF NOT EXISTS guards below are
+  -- no-ops on a freshly created table):
+  fill_with_bots     BOOLEAN      DEFAULT FALSE,
+  is_public          BOOLEAN      DEFAULT TRUE,
+  is_matchmaking     BOOLEAN      DEFAULT FALSE,
+  bot_coordinator_id UUID         REFERENCES auth.users(id) ON DELETE SET NULL,
+  ranked_mode        BOOLEAN      DEFAULT FALSE,
+  updated_at         TIMESTAMPTZ  DEFAULT NOW(),
+  created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
 
 -- --------------------------------------------------------------------------
 -- Source: 20251205000001_mobile_lobby_schema.sql
@@ -4306,6 +4331,11 @@ COMMENT ON FUNCTION start_game_with_bots IS 'Start multiplayer game with mixed h
 -- --------------------------------------------------------------------------
 -- Source: 20251226000002_fix_matchmaking_room_flags.sql
 -- --------------------------------------------------------------------------
+-- Add is_matchmaking column if missing on databases upgraded from pre-baseline migrations
+-- (the column was added outside of migrations originally; the CREATE TABLE above
+-- covers fresh installs, this guard covers incremental upgrades)
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_matchmaking BOOLEAN DEFAULT FALSE;
+
 -- ============================================================================
 -- FIX: Matchmaking rooms MUST have is_matchmaking=true and ranked_mode flag
 -- ============================================================================

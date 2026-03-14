@@ -137,10 +137,10 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Why:** 18 files at root polluted workspace and confused `ls` output
 
 - [x] **M2** — Squash Supabase migrations into a baseline
-  - **Location:** `supabase/migrations/` (131 files → 45 files)
+  - **Location:** `apps/mobile/supabase/migrations/` (131 files → 45 files)
   - **Task:** #640
   - **Branch:** `task/640-squash-supabase-migrations`
-  - **Fix:** Concatenated 80 pre-March-2026 timestamped migrations into a single `00000000000000_baseline.sql` (11,508 lines, 366 KB). Kept 44 March 2026 migrations as incremental files. Deleted 7 ad-hoc SQL files (`APPLY_FIX_NOW.sql`, `DELETE_STUCK_ROOMS.sql`, `EMERGENCY_FIX.sql`, `FIX_UPDATED_AT_COLUMN.sql`, `TEST_20251225000001_room_code_generation.sql`, `combined_migration.sql`, `fix-critical-bugs-dec26.sql`) that were not proper timestamped migrations. Each original migration is preserved as a commented `-- Source:` header inside the baseline for traceability.
+  - **Fix:** Concatenated 80 pre-March-2026 timestamped migrations into a single `00000000000000_baseline.sql` (11,538 lines, 366 KB). Kept 44 March 2026 migrations as incremental files. Deleted 7 ad-hoc SQL files (`APPLY_FIX_NOW.sql`, `DELETE_STUCK_ROOMS.sql`, `EMERGENCY_FIX.sql`, `FIX_UPDATED_AT_COLUMN.sql`, `TEST_20251225000001_room_code_generation.sql`, `combined_migration.sql`, `fix-critical-bugs-dec26.sql`) that were not proper timestamped migrations. Each original migration is preserved as a commented `-- Source:` header inside the baseline for traceability. A `CREATE TABLE IF NOT EXISTS rooms` DDL was prepended to the baseline (the `rooms` table was originally created outside migrations via the Supabase dashboard and was absent from all prior migration files, causing `supabase db reset` to fail). An `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_matchmaking` guard was also added before its first use.
   - **Why:** 131 migration files slowed CI, local DB reset, and made schema reasoning difficult. Reduced to 45 files (66% fewer).
 
 - [ ] **M3** — Eliminate matchmaking race condition
