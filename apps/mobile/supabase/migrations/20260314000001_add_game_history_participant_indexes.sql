@@ -17,9 +17,10 @@
 -- ============================================================================
 
 -- CREATE INDEX CONCURRENTLY is not allowed inside a transaction. Supabase
--- migrations run in a transaction, so we use plain CREATE INDEX (ACCESS SHARE
--- lock on reads is still granted). For production tables with millions of rows,
--- run these manually OUTSIDE a transaction before deploying:
+-- migrations run in a transaction, so we use plain CREATE INDEX, which takes a
+-- SHARE lock: reads continue uninterrupted, but writes (INSERT/UPDATE/DELETE)
+-- are blocked for the duration of the index build. For production tables with
+-- millions of rows, run these manually OUTSIDE a transaction before deploying:
 --
 --   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_game_history_player_1_id ON game_history (player_1_id) WHERE player_1_id IS NOT NULL;
 --   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_game_history_player_2_id ON game_history (player_2_id) WHERE player_2_id IS NOT NULL;

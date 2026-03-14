@@ -541,11 +541,18 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
 
     const loaded = await manager.loadState();
 
-    // cutoff = 25 - 20 + 1 = 6; entries with matchNumber >= 6 are retained (matches 6-25 = 20 entries)
+    // cutoff = 25 - 20 + 1 = 6; entries with matchNumber >= 6 are retained (matches 6-25)
     const cutoff = 25 - 20 + 1;
-    expect(loaded!.gameRoundHistory.every(e => (e.matchNumber ?? 0) >= cutoff)).toBe(true);
-    // The pruned array must be bounded to exactly MAX_GAME_ROUND_HISTORY_MATCHES (20)
-    expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(20);
+    const retained = loaded!.gameRoundHistory;
+    expect(retained.every(e => (e.matchNumber ?? 0) >= cutoff)).toBe(true);
+    // Pruning keeps *all entries* for the last 20 distinct matches — the raw entry
+    // count can legitimately exceed 20 when a match contains multiple rounds.
+    // Assert on distinct matchNumbers, not raw length.
+    const distinctMatchNums = new Set(retained.map(e => e.matchNumber)).size;
+    expect(distinctMatchNums).toBeLessThanOrEqual(20);
+    // The latest matchNumber (25) must still be present after pruning.
+    const maxMatchNum = Math.max(...retained.map(e => e.matchNumber ?? 0));
+    expect(maxMatchNum).toBe(25);
     // Migration save must be triggered
     expect(AsyncStorage.setItem).toHaveBeenCalled();
   });

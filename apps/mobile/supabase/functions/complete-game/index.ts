@@ -117,6 +117,10 @@ async function broadcastGameEnded(
       };
       // Safety net: always resolve after 5 s to avoid blocking the edge function
       const safetyTimeout = setTimeout(finish, 5000);
+      // Wrap subscribe() so a synchronous throw (e.g. invalid channel state)
+      // immediately clears the safety timer and resolves the Promise rather
+      // than leaving a 5-second lingering timer in the Deno runtime.
+      try {
       channel.subscribe((status: string) => {
         // Guard: if the safety timeout already fired and settled the Promise,
         // ignore any late SUBSCRIBED / status callbacks to prevent double-send.
@@ -146,6 +150,13 @@ async function broadcastGameEnded(
           finish();
         }
       });
+      } catch (subscribeErr) {
+        // subscribe() threw synchronously — clean up immediately instead of
+        // waiting for the 5-second safety timeout to fire.
+        console.error('[Complete Game] broadcastGameEnded: subscribe threw:', subscribeErr);
+        clearTimeout(safetyTimeout);
+        finish();
+      }
     });
   } catch (err) {
     console.warn('[Complete Game] broadcastGameEnded error (non-critical):', err);

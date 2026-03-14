@@ -103,17 +103,20 @@ END $$;
 -- Step 2: Add unique partial index to prevent future duplicates
 -- room_id can be NULL for local/casual games, so we use a partial index.
 --
--- LOCKING NOTE: CREATE INDEX (without CONCURRENTLY) takes an ACCESS EXCLUSIVE
--- lock on game_history for the duration of the index build.  Supabase
--- migrations run inside a transaction, so CONCURRENTLY is not available here.
--- For a small table this lock is brief and acceptable.
+-- LOCKING NOTE: CREATE INDEX (without CONCURRENTLY) takes a SHARE lock on
+-- game_history for the duration of the index build.  A SHARE lock allows
+-- concurrent reads (SELECT continues) but blocks writes (INSERT, UPDATE,
+-- DELETE wait).  Supabase migrations run inside a transaction, so
+-- CONCURRENTLY is not available here.  For a small table this write-block
+-- is brief and acceptable.
 --
 -- PRODUCTION RUNBOOK (large tables):
 -- PRODUCTION DEPLOYMENT NOTE
 -- ─────────────────────────────────────────────────────────────────────────────
--- The CREATE UNIQUE INDEX below takes an ACCESS EXCLUSIVE lock on game_history
--- inside a migration transaction. For production tables with millions of rows
--- this can block reads and writes long enough to impact gameplay.
+-- The CREATE UNIQUE INDEX below takes a SHARE lock on game_history inside the
+-- migration transaction.  Reads continue uninterrupted; writes are blocked for
+-- the duration of the index build.  For production tables with millions of rows
+-- the write-block may be long enough to impact gameplay.
 --
 -- RECOMMENDED FOR LARGE PRODUCTION TABLES:
 -- Run the index creation manually OUTSIDE a transaction before deploying:

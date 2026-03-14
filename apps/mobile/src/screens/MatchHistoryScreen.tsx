@@ -208,6 +208,13 @@ export default function MatchHistoryScreen() {
   // instead of calling i18n.getLanguage() on every FlatList row invocation.
   const currentLang = i18n.getLanguage();
 
+  // Memoize the NumberFormat instance to avoid per-row allocations inside FlatList.
+  // Recreated only when the active language changes (rare — typically never mid-session).
+  const numberFormatter = React.useMemo(
+    () => new Intl.NumberFormat(currentLang),
+    [currentLang]
+  );
+
   const getPositionOrdinal = (position: number): string => {
     if (position === 0) return '—'; // voided/abandoned
     // Non-English locales: return a locale-formatted number so the translation
@@ -217,7 +224,7 @@ export default function MatchHistoryScreen() {
     // Generalised to any non-en locale: only en* tags use ordinal suffixes;
     // all others (de, ar, or any future locale) receive plain locale-formatted integers.
     // Use startsWith to handle regional tags (e.g. 'en-US', 'de-DE', 'ar-SA').
-    if (!currentLang.startsWith('en')) return new Intl.NumberFormat(currentLang).format(position);
+    if (!currentLang.startsWith('en')) return numberFormatter.format(position);
     // English: proper ordinal suffixes with 11/12/13 special-case.
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
