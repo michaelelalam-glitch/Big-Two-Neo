@@ -1,9 +1,22 @@
 -- ============================================================================
 -- BASELINE MIGRATION: Squashed from 80 individual migrations (Dec 2025 - Feb 2026)
 -- Generated: 2026-03-14T12:29:03Z
--- 
+--
 -- This single file replaces all migrations with timestamps before 20260301.
 -- Do NOT edit. For schema changes going forward, create new timestamped migrations.
+--
+-- ⚠️  IMPORTANT — for EXISTING databases (already migrated):
+--   This baseline must NOT be applied as a normal migration; it contains
+--   non-idempotent operations (CREATE POLICY, DROP TRIGGER, data deletes) that
+--   will fail or corrupt an already-migrated schema.
+--   Instead, mark it as already-applied WITHOUT running it:
+--     supabase migration repair --status applied 00000000000000
+--   Then continue applying only the post-baseline incremental migrations.
+--
+-- ✅  For FRESH databases (supabase db reset / new environment):
+--   This file runs normally. All statements are guarded (IF NOT EXISTS, DO $$
+--   BEGIN...END$$ blocks, CREATE OR REPLACE, etc.) so a clean install works
+--   end-to-end without manual intervention.
 -- ============================================================================
 
 -- ============================================================================
@@ -9078,7 +9091,7 @@ ALTER TABLE rooms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 CREATE OR REPLACE FUNCTION update_rooms_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at := NOW();  -- use := (PL/pgSQL assignment); = would also work but := is unambiguous
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
