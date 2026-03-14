@@ -70,13 +70,13 @@ Track progress on all audit findings. Check off items as they are resolved.
 ## 🟠 High Priority
 
 - [x] **H1** — Extract disconnect logic into a dedicated hook/reducer ✅
-  - **File:** `src/screens/MultiplayerGame.tsx` lines 580–842
+  - **File:** `apps/mobile/src/screens/MultiplayerGame.tsx` lines 580–842
   - **Task:** #633
-  - **Fix:** Created `src/hooks/useDisconnectDetection.ts` with `useReducer`-based `clientDisconnections` Map and explicit action types (`SEED`, `CORRECT`, `CLEAR`, `REPLACE`). Explicit states per remote seat: `connected → timeout_pending → disconnected → replaced_by_bot`. Full unit-test suite in `src/hooks/__tests__/useDisconnectDetection.test.ts`.
+  - **Fix:** Created `apps/mobile/src/hooks/useDisconnectDetection.ts` with `useReducer`-based `clientDisconnections` Map and explicit action types (`SEED`, `CORRECT`, `CLEAR`, `REPLACE`). Explicit states per remote seat: `connected → timeout_pending → disconnected → replaced_by_bot`. Full unit-test suite in `apps/mobile/src/hooks/__tests__/useDisconnectDetection.test.ts`.
   - **Why:** 263-line `useEffect` with 6+ nesting levels is untestable and error-prone
 
 - [x] **H2** — Wrap `GameView` in `React.memo`
-  - **File:** `src/screens/GameView.tsx`, `src/screens/MultiplayerGame.tsx`, `src/screens/LocalAIGame.tsx`
+  - **File:** `apps/mobile/src/screens/GameView.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`, `apps/mobile/src/screens/LocalAIGame.tsx`
   - **Task:** #635
   - **Branch:** `task/635-wrap-gameview-react-memo`
   - **Fix:**
@@ -86,24 +86,24 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Why:** Without memo, every heartbeat or realtime tick triggers a full 50-prop subtree re-render. The two inline arrow functions for scoreboard toggles recreated a new function reference on every parent render, defeating `React.memo`. With `useCallback` + stable React setState-setter deps, both callbacks are permanently stable references.
 
 - [ ] **H3** — Migrate `InactivityCountdownRing` to Reanimated UI thread
-  - **File:** `src/components/game/InactivityCountdownRing.tsx`
+  - **File:** `apps/mobile/src/components/game/InactivityCountdownRing.tsx`
   - **Task:** #634
   - **Fix:** Replace `requestAnimationFrame` + `setState` with `useSharedValue` + `useDerivedValue` from `react-native-reanimated`. All animation runs on UI thread.
   - **Why:** RAF + setState fires JS-thread re-renders at ~15fps, competing with game logic
 
 - [ ] **H4** — Consolidate `GameView` props into `GameContext`
-  - **Files:** `src/screens/GameView.tsx`, `src/screens/MultiplayerGame.tsx`
+  - **Files:** `apps/mobile/src/screens/GameView.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`
   - **Task:** #638
-  - **Fix:** Create `src/contexts/GameContext.tsx` (or Zustand slice). Subscribe `GameView` and child components to context instead of receiving 50+ pass-through props.
+  - **Fix:** Create `apps/mobile/src/contexts/GameContext.tsx` (or Zustand slice). Subscribe `GameView` and child components to context instead of receiving 50+ pass-through props.
   - **Why:** 50 individual props make `GameView` API incomprehensible and block `React.memo` effectiveness
 
 - [ ] **H5** — Split `HomeScreen.tsx` into focused modules
-  - **File:** `src/screens/HomeScreen.tsx` (1,643 LOC)
+  - **File:** `apps/mobile/src/screens/HomeScreen.tsx` (1,643 LOC)
   - **Task:** #637
   - **Fix:** Extract into:
-    - `src/hooks/useMatchmakingFlow.ts` — all matchmaking RPC + state logic
-    - `src/hooks/useRoomCleanup.ts` — room cleanup on reconnect
-    - `src/components/home/MatchmakingPanel.tsx` — the matchmaking UI section
+    - `apps/mobile/src/hooks/useMatchmakingFlow.ts` — all matchmaking RPC + state logic
+    - `apps/mobile/src/hooks/useRoomCleanup.ts` — room cleanup on reconnect
+    - `apps/mobile/src/components/home/MatchmakingPanel.tsx` — the matchmaking UI section
     - Keep `HomeScreen.tsx` as thin coordinator (~200 LOC)
   - **Why:** Screen handles UI + matchmaking RPC + room cleanup + polling + AsyncStorage — impossible to test
 
@@ -129,13 +129,13 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Why:** 128 migrations slow CI and local DB reset
 
 - [ ] **M3** — Eliminate matchmaking race condition
-  - **File:** `src/hooks/useMatchmaking.ts`
+  - **File:** `apps/mobile/src/hooks/useMatchmaking.ts`
   - **Task:** #641
   - **Fix:** Remove recursive `setTimeout` polling. Use Supabase Realtime as the single source of truth. Add a debounce guard on game-start transition.
   - **Why:** Polling + Realtime can both fire simultaneously, duplicating game-start actions
 
 - [ ] **M4** — Replace O(N) `.find()` lookups with O(1) Map in `useMultiplayerLayout`
-  - **File:** `src/hooks/useMultiplayerLayout.ts`
+  - **File:** `apps/mobile/src/hooks/useMultiplayerLayout.ts`
   - **Task:** #639
   - **Fix:**
     ```typescript
@@ -170,13 +170,13 @@ Track progress on all audit findings. Check off items as they are resolved.
 ## 🟢 Low Priority
 
 - [ ] **L1** — Add Error Boundaries around game screens
-  - **Files:** `src/navigation/AppNavigator.tsx`, `src/screens/MultiplayerGame.tsx`
+  - **Files:** `apps/mobile/src/navigation/AppNavigator.tsx`, `apps/mobile/src/screens/MultiplayerGame.tsx`
   - **Task:** #643
-  - **Fix:** Create `src/components/ErrorBoundary.tsx`. Wrap game screen stack in `AppNavigator` with `<GameErrorBoundary onRetry={reset}>`. Log errors to Sentry/LogRocket in `componentDidCatch`.
+  - **Fix:** Create `apps/mobile/src/components/ErrorBoundary.tsx`. Wrap game screen stack in `AppNavigator` with `<GameErrorBoundary onRetry={reset}>`. Log errors to Sentry/LogRocket in `componentDidCatch`.
   - **Why:** Any unhandled JS exception shows a blank white screen with no recovery path
 
 - [ ] **L2** — Add VoiceOver / accessibility support
-  - **Files:** `src/components/game/Card.tsx`, `src/components/game/GameControls.tsx`
+  - **Files:** `apps/mobile/src/components/game/Card.tsx`, `apps/mobile/src/components/game/GameControls.tsx`
   - **Task:** #645
   - **Fix:**
     - Add `accessibilityLabel`, `accessibilityRole="button"`, `accessibilityState={{ selected: isSelected }}` to `Card`
@@ -185,19 +185,19 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Why:** App is completely unusable with VoiceOver enabled
 
 - [ ] **L3** — Configure deep linking for room codes
-  - **File:** `src/navigation/AppNavigator.tsx`, `app.json`
+  - **File:** `apps/mobile/src/navigation/AppNavigator.tsx`, `app.json`
   - **Task:** #646
   - **Fix:** Add `scheme: "bigtwo"` to `app.json`. Configure `linking` prop on `NavigationContainer` with route `bigtwo://room/:roomCode`. Handle incoming URL in `useMatchmaking`.
   - **Why:** Players cannot share room links; hurts onboarding and social virality
 
 - [ ] **L4** — Expand Zustand store to reduce prop drilling
-  - **File:** `src/store/index.ts`
+  - **File:** `apps/mobile/src/store/index.ts`
   - **Task:** #647
   - **Fix:** Migrate auth state, current room metadata, active game state, and UI preferences into Zustand slices. Remove equivalent React context providers where possible.
   - **Why:** Store exists but is mostly empty — context and prop drilling persist throughout the app
 
 - [ ] **L5** — Increase card touch targets to iOS HIG 44px minimum
-  - **Files:** `src/components/game/Card.tsx`, `src/utils/cardOverlap.ts`
+  - **Files:** `apps/mobile/src/components/game/Card.tsx`, `apps/mobile/src/utils/cardOverlap.ts`
   - **Task:** #650
   - **Fix (quick):** Add `hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}` to the card gesture handler
   - **Fix (better):** Reduce overlap percentage in `cardOverlap.ts` for portrait orientation
