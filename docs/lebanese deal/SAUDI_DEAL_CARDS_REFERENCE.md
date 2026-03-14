@@ -83,6 +83,11 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 | **رحت فيها** (Deal Breaker) | 5م | ×2 | Steal an **entire complete set** from any player — most powerful steal |
 | **هات الجوكر** (Wild Steal) | 5م | ×1 | Steal any wild card from an opponent's placed set |
 | **أبرا كدبرا** (Abracadabra) | 7م | ×1 | Convert one of your complete sets to a different color; **cannot be countered** by Just Say No |
+| **سلم واستلم** (Hand Swap) | 3م | ×? | Swap your entire hand with another player's hand — cards do not need to be equal in value |
+| **سوق الهوامير** (Property Auction) | 2م | ×? | Buy any property at its printed value from any player, as long as it is **not** part of a complete set |
+| **تمت المصادرة** (Confiscation) | 2م | ×? | Take one property from an opponent that is **not** in a complete set (no payment required) |
+| **ازرررررف** (Run!) | 3م | ×? | Take one property from any player — it must **not** be part of a complete set |
+| **[اسم معلق — Blind Steal]** | ?م | ×? | Draw a **random card** from any player's hand and add it to yours — no choice of which card |
 
 ### 💰 Collect from All Players
 
@@ -90,6 +95,7 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 |---|---|---|---|
 | **طلع زكاتك** (Zakat) | 1م | ×1 | All opponents each pay you 1م |
 | **شبيك لبيك** (Birthday / At Your Service) | 1م | ×1 | Collect a chosen amount from **all** players |
+| **جاك يا مهنا ما تتمنى** (Lucky You) | 3م | ×? | Each player gives you **1 property card of their choice** from their placed properties |
 
 > ⚠️ Both "Collect from All" cards are **single copies** — no duplicates.
 
@@ -100,6 +106,8 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 | **تبطي عظم** (Just Say No) | 5م | ×2 | Counter | Refuse **any** action played against you |
 | **أقول لا يكثر** (Weak No) | 3م | ×1 | Counter | Refuse a rent demand only (limited — cannot block steals) |
 | **عدم تعرض** (Ultimate Shield) | 5م | ×1 | Shield | Protect **ALL** your properties from any theft/deal breaker for **2 full turns** |
+| **بالمشمش** (No Way / In Your Dreams) | 4م | ×? | Counter | Refuse **any** action played against you (single-use block; similar to Just Say No) |
+| **تغد بهم قبل يتعشون فيك** (Reversal) | 3م | ×? | Counter | When an opponent demands payment from you, the demand is reversed — they pay you instead |
 
 ### 🔒 Property Protection Cards
 
@@ -121,6 +129,9 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 | **تنقى لك** (Pick for Yourself) | 3م | ×1 | Take a property from the shared/community play area |
 | **طلع الدفايات يا الطيب** (Debt Collector) | 3م | ×1 | Force one chosen player to pay you 5م |
 | **أنهيييك** (I'll Finish You) | 6م | ×1 | High-value aggressive action against one player |
+| **ساهر لسلامتكم** (Watching Over You) | 2م | ×? | Choose one player — they must pay you a fine of **3م** |
+| **المستور** (Al-Mastur / The Hidden) | 2م | ×? | Choose a player — they must **reveal their entire hand** to you |
+| **[اسم معلق — Move Limiter]** | ?م | ×? | Choose a player — their **next turn is reduced to 1 move only** |
 
 ---
 
@@ -154,6 +165,17 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 | واسطة (Extra Turn) | ✅ Yes | ×2 |
 | حبتين السحب (Draw Two) | ✅ Yes | ×2 |
 | All other utility cards | ❌ No | ×1 each |
+| سلم واستلم (Hand Swap) | ❓ Unknown | copies TBC |
+| سوق الهوامير (Property Auction) | ❓ Unknown | copies TBC |
+| تمت المصادرة (Confiscation) | ❓ Unknown | copies TBC |
+| ازرررررف (Run!) | ❓ Unknown | copies TBC |
+| بالمشمش (No Way) | ❓ Unknown | copies TBC |
+| تغد بهم قبل يتعشون فيك (Reversal) | ❓ Unknown | copies TBC |
+| ساهر لسلامتكم (Watching Over You) | ❓ Unknown | copies TBC |
+| جاك يا مهنا ما تتمنى (Lucky You) | ❓ Unknown | copies TBC |
+| المستور (Al-Mastur) | ❓ Unknown | copies TBC |
+| [اسم معلق] Blind Steal | ❓ Unknown | name + copies TBC |
+| [اسم معلق] Move Limiter | ❓ Unknown | name + copies TBC |
 
 ---
 
@@ -169,4 +191,6 @@ All property cards are unique. Organized into 12 color-coded regional groups:
 
 ---
 
-*Reference compiled from: official Jawaker rules page + OCR analysis of card images — February 2026*
+*Reference compiled from: official Jawaker rules page + OCR analysis of card images — February 2026; updated March 2026 with 7 new cards confirmed from gameplay screenshots; updated March 14 2026 with 4 high-confidence cards from automated OCR scanner (المستور, جاك يا مهنا ما تتمنى, Blind Steal effect, Move Limiter effect)*
+
+> ⚠️ **Cards with ×? copy count** were observed in gameplay screenshots but their exact quantity in the deck has not yet been confirmed. Use additional gameplay sessions to determine duplicates.
