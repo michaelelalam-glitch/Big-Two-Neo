@@ -16,7 +16,7 @@
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS rooms (
   id                 UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  code               VARCHAR(10)  UNIQUE NOT NULL,
+  code               VARCHAR(10)  NOT NULL,
   host_id            UUID         REFERENCES auth.users(id) ON DELETE SET NULL,
   status             TEXT         NOT NULL DEFAULT 'waiting',
   max_players        INTEGER      NOT NULL DEFAULT 4,
@@ -5448,8 +5448,19 @@ END $$;
 -- ============================================================================
 
 -- Add unique constraint (prevents duplicate codes at database level)
-ALTER TABLE rooms 
-ADD CONSTRAINT rooms_code_unique UNIQUE (code);
+-- Guarded with IF NOT EXISTS so this is a no-op on databases that were already
+-- migrated incrementally and already have the constraint, and so fresh installs
+-- (where CREATE TABLE rooms above has no inline UNIQUE) get exactly one unique
+-- index on `code` — the named constraint below.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'rooms_code_unique' AND conrelid = 'rooms'::regclass
+  ) THEN
+    ALTER TABLE rooms ADD CONSTRAINT rooms_code_unique UNIQUE (code);
+  END IF;
+END $$;
 
 -- Add index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_rooms_code_lookup ON rooms(code) WHERE status IN ('waiting', 'playing');
