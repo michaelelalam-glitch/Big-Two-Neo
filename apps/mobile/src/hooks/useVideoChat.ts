@@ -119,12 +119,26 @@ export function useVideoChat({
   const [micPermissionStatus, setMicPermissionStatus] = useState<CameraPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
 
-  // Keep adapter ref current if a new adapter is injected (e.g. in tests or hot-swap)
+  // Keep adapter ref current if a new adapter is injected (e.g. in tests or hot-swap).
+  // If the hook is currently connected when the adapter is swapped, best-effort disconnect
+  // the previous adapter before switching — prevents a lingering connected session.
+  // (r2935998628)
   useEffect(() => {
-    if (adapterProp) {
+    if (!adapterProp) return;
+    const prevAdapter = adapterRef.current;
+    if (prevAdapter !== adapterProp) {
+      if (videoChatEnabled) {
+        prevAdapter.disableCamera().catch(() => {});
+        prevAdapter.disableMicrophone().catch(() => {});
+        prevAdapter.disconnect().catch(() => {});
+        setVideoChatEnabled(false);
+        setIsLocalCameraOn(false);
+        setIsLocalMicOn(false);
+        setRemoteParticipants([]);
+      }
       adapterRef.current = adapterProp;
     }
-  }, [adapterProp]);
+  }, [adapterProp, videoChatEnabled]);
 
   // Subscribe to remote participant changes while video chat is active.
   // adapterProp is included so the effect re-runs (and re-subscribes) if the
@@ -150,8 +164,12 @@ export function useVideoChat({
   // Disconnect and fully reset UI state when roomId changes (room navigation)
   // or on unmount. Resetting state ensures the tile/toggle never shows "enabled"
   // while the adapter is disconnected. (r2935394756)
+  // Mirror the opt-out path: disable tracks before disconnecting so that hardware
+  // capture stops immediately on room navigation/unmount. (r2935998629)
   useEffect(() => {
     return () => {
+      adapterRef.current.disableMicrophone().catch(() => {});
+      adapterRef.current.disableCamera().catch(() => {});
       adapterRef.current.disconnect().catch(() => {});
       setVideoChatEnabled(false);
       setIsLocalCameraOn(false);
@@ -184,11 +202,14 @@ export function useVideoChat({
     }
 
     // iOS: the NSCameraUsageDescription Info.plist entry (added in app.json)
-    // triggers the system prompt on the first non-stub enableCamera() call.
-    // The stub adapter is a no-op, so we optimistically report 'granted' here;
-    // when the real SDK is installed, replace with:
-    //   const { status } = await Camera.requestCameraPermissionsAsync();
-    setCameraPermissionStatus('granted');
+    // triggers the OS permission prompt on the first real enableCamera() call.
+    // The stub adapter is a no-op so we return 'granted' to allow stub-mode
+    // operation, but we intentionally DO NOT persist that into state — the
+    // state stays 'undetermined' so requestCameraPermission() is re-invoked
+    // on every toggleVideoChat() attempt, which is the right behaviour until
+    // the real SDK is installed and can report the actual OS decision.
+    // TODO(F3): replace with: const { status } = await Camera.requestCameraPermissionsAsync();
+    //           then setCameraPermissionStatus(status); return status; (r2935998616)
     return 'granted';
   }, []);
 
@@ -216,8 +237,11 @@ export function useVideoChat({
     }
 
     // iOS: NSMicrophoneUsageDescription in Info.plist (added in app.json)
-    // triggers the system prompt on first non-stub enableMicrophone() call.
-    setMicPermissionStatus('granted');
+    // triggers the OS permission prompt on first real enableMicrophone() call.
+    // Same stub-mode rationale as requestCameraPermission — do not persist a
+    // fake 'granted' into state; keep 'undetermined' until real SDK confirms.
+    // TODO(F3): replace with: const { status } = await Microphone.getPermissionsAsync();
+    //           then setMicPermissionStatus(status); return status; (r2935998619)
     return 'granted';
   }, []);
 
