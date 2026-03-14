@@ -27,6 +27,16 @@ CREATE TABLE IF NOT EXISTS rooms (
   is_matchmaking     BOOLEAN      DEFAULT FALSE,
   bot_coordinator_id UUID         REFERENCES auth.users(id) ON DELETE SET NULL,
   ranked_mode        BOOLEAN      DEFAULT FALSE,
+  -- game_mode / bot_difficulty were added via the Supabase dashboard before
+  -- any numbered migration existed; referenced by post-baseline migrations
+  -- (e.g. 20260308000004 SELECT r.game_mode, r.bot_difficulty FROM rooms r).
+  game_mode          TEXT         DEFAULT 'casual',
+  bot_difficulty     TEXT         DEFAULT 'medium',
+  -- started_at / ended_at were likewise dashboard-only; both are set inside
+  -- function bodies in this baseline (started_at) and by post-baseline
+  -- migrations (ended_at in 20260308000004: UPDATE rooms SET ended_at = NOW()).
+  started_at         TIMESTAMPTZ,
+  ended_at           TIMESTAMPTZ,
   updated_at         TIMESTAMPTZ  DEFAULT NOW(),
   created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
