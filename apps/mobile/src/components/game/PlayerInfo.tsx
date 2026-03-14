@@ -30,8 +30,6 @@ interface PlayerInfoProps {
   isVideoChatConnecting?: boolean;
   /** Called when the local player presses their video tile to toggle camera */
   onVideoChatToggle?: () => void;
-  /** Called when the local player presses the mic button to mute/unmute */
-  onMicToggle?: () => void;
   /** Injected video stream element (RTCView/VideoView from the real SDK) */
   videoStreamSlot?: React.ReactNode;
 }
@@ -50,7 +48,6 @@ export default function PlayerInfo({
   isLocalPlayer = false,
   isVideoChatConnecting = false,
   onVideoChatToggle,
-  onMicToggle,
   videoStreamSlot,
 }: PlayerInfoProps) {
   // Show the video tile when:
@@ -73,7 +70,7 @@ export default function PlayerInfo({
     return turnTimerStartedAt!;
   })();
   
-  const videoChatLabel = showVideoTile
+  const videoChatLabel = isCameraOn !== undefined
     ? isCameraOn ? `, camera on` : `, camera off`
     : '';
   const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}${videoChatLabel}`;
@@ -133,7 +130,6 @@ export default function PlayerInfo({
               isConnecting={isVideoChatConnecting}
               isLocal={isLocalPlayer}
               onCameraToggle={onVideoChatToggle}
-              onMicToggle={onMicToggle}
               videoStreamSlot={videoStreamSlot}
               testID={`video-tile-${name}`}
             />

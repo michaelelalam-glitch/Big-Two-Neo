@@ -18,7 +18,10 @@ export const Text = 'Text';
 export const Pressable = 'Pressable';
 
 export const PermissionsAndroid = {
-  PERMISSIONS: { CAMERA: 'android.permission.CAMERA' },
+  PERMISSIONS: {
+    CAMERA: 'android.permission.CAMERA',
+    RECORD_AUDIO: 'android.permission.RECORD_AUDIO',
+  },
   RESULTS: {
     GRANTED: 'granted',
     DENIED: 'denied',
