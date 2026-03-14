@@ -5455,12 +5455,18 @@ COMMENT ON FUNCTION start_game_with_bots IS
 -- STEP 1: Clean up existing duplicate room codes
 -- ============================================================================
 
--- Delete duplicate rooms, keeping only the oldest one for each code
+-- Delete duplicate rooms, keeping only the oldest one for each code (earliest created_at).
+-- NOTE: the original logic used `r1.id < r2.id` which compares UUID strings — UUID v4 values
+-- have no chronological ordering, so the "keep oldest" comment was misleading and the wrong
+-- row could be preserved on any non-empty run. Fixed to use `created_at` as the age anchor
+-- with `id` as a stable tiebreaker when two rooms share an identical timestamp.
 DELETE FROM rooms
 WHERE id IN (
   SELECT r2.id
   FROM rooms r1
-  INNER JOIN rooms r2 ON r1.code = r2.code AND r1.id < r2.id
+  INNER JOIN rooms r2 ON r1.code = r2.code
+    AND (r1.created_at < r2.created_at
+         OR (r1.created_at = r2.created_at AND r1.id < r2.id))
 );
 
 -- Verify no duplicates remain
