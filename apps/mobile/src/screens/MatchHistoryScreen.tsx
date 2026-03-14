@@ -17,7 +17,6 @@ interface MatchHistoryEntry {
   room_code: string;
   match_type: 'casual' | 'ranked' | 'private' | 'local';
   final_position: number;
-  elo_change: number | null;
   created_at: string;
 }
 
@@ -167,7 +166,6 @@ export default function MatchHistoryScreen() {
           room_code: item.room_code ?? '',
           match_type: matchType,
           final_position: finalPosition,
-          elo_change: null, // game_history has no per-player ELO delta column
           // Note: `created_at` in MatchHistoryEntry is populated from
           // game_history.finished_at (match completion time), falling back
           // to row creation time when finished_at is null (incomplete games).
@@ -277,8 +275,6 @@ export default function MatchHistoryScreen() {
 
   const renderMatchCard = ({ item }: { item: MatchHistoryEntry }) => {
     const isRanked = item.match_type === 'ranked';
-    const eloChange = item.elo_change || 0;
-    const eloPositive = eloChange > 0;
 
     return (
       <View style={styles.matchCard}>
@@ -313,16 +309,7 @@ export default function MatchHistoryScreen() {
             </Text>
           </View>
 
-          {isRanked && item.elo_change !== null && (
-            <View style={[
-              styles.eloChangeContainer,
-              eloPositive ? styles.eloPositive : styles.eloNegative
-            ]}>
-              <Text style={styles.eloChangeText}>
-                {eloPositive ? '+' : ''}{eloChange} {i18n.t('matchHistory.elo')}
-              </Text>
-            </View>
-          )}
+
         </View>
       </View>
     );
@@ -497,22 +484,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
-  eloChangeContainer: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 8,
-  },
-  eloPositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-  },
-  eloNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  eloChangeText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
+
   emptyContainer: {
     alignItems: 'center',
     padding: SPACING.xl,
