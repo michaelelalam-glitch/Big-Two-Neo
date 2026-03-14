@@ -59,6 +59,8 @@ export function MultiplayerGame() {
     restoreScoreHistory,
     scoreHistory,
     playHistoryByMatch,
+    setIsPlayHistoryOpen,
+    setIsScoreboardExpanded,
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, botDifficulty = 'medium' } = route.params;
@@ -636,6 +638,17 @@ export function MultiplayerGame() {
     setShowBotReplacedModal,
   });
 
+  // Stable callbacks for GameView — wrapped with useCallback so React.memo on GameView
+  // can bail out when these props haven't semantically changed (H2 audit fix).
+  const togglePlayHistory = useCallback(
+    () => setIsPlayHistoryOpen((prev: boolean) => !prev),
+    [setIsPlayHistoryOpen],
+  );
+  const toggleScoreboardExpanded = useCallback(
+    () => setIsScoreboardExpanded((prev: boolean) => !prev),
+    [setIsScoreboardExpanded],
+  );
+
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
@@ -665,8 +678,8 @@ export function MultiplayerGame() {
         layoutPlayersWithScores={enrichedLayoutPlayers}
         playerTotalScores={playerTotalScores}
         currentPlayerName={currentPlayerName}
-        togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
-        toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
+        togglePlayHistory={togglePlayHistory}
+        toggleScoreboardExpanded={toggleScoreboardExpanded}
         memoizedPlayerNames={memoizedPlayerNames}
         memoizedCurrentScores={memoizedCurrentScores}
         memoizedCardCounts={memoizedCardCounts}

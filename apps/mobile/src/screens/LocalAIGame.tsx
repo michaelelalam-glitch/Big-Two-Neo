@@ -4,7 +4,7 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,6 +47,8 @@ export function LocalAIGame() {
     scoreHistory,
     playHistoryByMatch,
     clearHistory,
+    setIsPlayHistoryOpen,
+    setIsScoreboardExpanded,
   } = scoreboardContext;
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
@@ -228,6 +230,17 @@ export function LocalAIGame() {
     multiplayerLayoutPlayers: [],
   });
 
+  // Stable callbacks for GameView — wrapped with useCallback so React.memo on GameView
+  // can bail out when these props haven't semantically changed (H2 audit fix).
+  const togglePlayHistory = useCallback(
+    () => setIsPlayHistoryOpen((prev: boolean) => !prev),
+    [setIsPlayHistoryOpen],
+  );
+  const toggleScoreboardExpanded = useCallback(
+    () => setIsScoreboardExpanded((prev: boolean) => !prev),
+    [setIsScoreboardExpanded],
+  );
+
   // Player is ready when it's their turn, game state exists, and game manager is initialized
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!gameState && !!gameManagerRef.current;
 
@@ -255,8 +268,8 @@ export function LocalAIGame() {
       layoutPlayersWithScores={layoutPlayersWithScores}
       playerTotalScores={playerTotalScores}
       currentPlayerName={currentPlayerName}
-      togglePlayHistory={() => scoreboardContext.setIsPlayHistoryOpen((prev: boolean) => !prev)}
-      toggleScoreboardExpanded={() => scoreboardContext.setIsScoreboardExpanded((prev: boolean) => !prev)}
+      togglePlayHistory={togglePlayHistory}
+      toggleScoreboardExpanded={toggleScoreboardExpanded}
       memoizedPlayerNames={memoizedPlayerNames}
       memoizedCurrentScores={memoizedCurrentScores}
       memoizedCardCounts={memoizedCardCounts}
