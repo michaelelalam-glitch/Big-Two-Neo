@@ -143,7 +143,10 @@ export default function InactivityCountdownRing({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
-  // Schedule (or reschedule) the depletion animation whenever startedAt or type changes.
+  // Schedule (or reschedule) the depletion animation whenever startedAt changes.
+  // type changes are handled exclusively via typeShared.value (color update on UI thread
+  // with no animation restart); adding `type` to deps would reset progress and restart
+  // withTiming on every turn→connection or connection→turn transition.
   useEffect(() => {
     const t = resolveStartTimeMs(startedAt);
     const elapsed = Math.max(0, Date.now() - t);
@@ -156,7 +159,7 @@ export default function InactivityCountdownRing({
 
     if (remaining <= 0) {
       // Already expired before mount; fire immediately without scheduling an animation.
-      setVisible(false);
+      // handleExpired() calls setVisible(false) internally — no separate call needed here.
       handleExpired();
       return;
     }
@@ -195,7 +198,7 @@ export default function InactivityCountdownRing({
       ? (isTurn ? TURN_COLOR_LOW : CONN_COLOR_LOW)
       : (isTurn ? TURN_COLOR_FULL : CONN_COLOR_FULL);
     return {
-      strokeDasharray: [visibleArc, gap] as unknown as string,
+      strokeDasharray: `${visibleArc} ${gap}`,
       strokeDashoffset: -gap,
       stroke,
     };
