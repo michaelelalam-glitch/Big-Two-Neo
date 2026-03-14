@@ -30,8 +30,6 @@ export interface VideoTileProps {
   isLocal?: boolean;
   /** Called when the local player toggles their camera on/off by tapping the tile */
   onCameraToggle?: () => void;
-  /** Called when the local player toggles their microphone mute/unmute */
-  onMicToggle?: () => void;
   /**
    * Injected video stream element from the real SDK.
    * Pass <VideoView trackRef={trackRef} /> (LiveKit) or <VideoComponent /> (Daily).
@@ -50,11 +48,10 @@ export interface VideoTileProps {
  */
 export function VideoTile({
   isCameraOn,
-  isMicOn = false,
+  isMicOn,
   isConnecting = false,
   isLocal = false,
   onCameraToggle,
-  onMicToggle,
   videoStreamSlot,
   testID,
 }: VideoTileProps) {
