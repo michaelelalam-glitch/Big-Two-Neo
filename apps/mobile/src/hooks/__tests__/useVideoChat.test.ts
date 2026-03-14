@@ -310,8 +310,11 @@ describe('useVideoChat — requestCameraPermission', () => {
       status = await result.current.requestCameraPermission();
     });
 
+    // Returns 'granted' so stub-mode operation proceeds, but intentionally does
+    // NOT persist to state — state stays 'undetermined' until the real SDK
+    // (expo-camera) is installed and can query the actual OS decision. (r2935998616)
     expect(status).toBe('granted');
-    expect(result.current.cameraPermissionStatus).toBe('granted');
+    expect(result.current.cameraPermissionStatus).toBe('undetermined');
   });
 
   it('returns "restricted" when Android returns NEVER_ASK_AGAIN', async () => {
@@ -351,8 +354,11 @@ describe('useVideoChat — requestMicPermission', () => {
       status = await result.current.requestMicPermission();
     });
 
+    // Returns 'granted' so stub-mode operation proceeds, but intentionally does
+    // NOT persist to state — state stays 'undetermined' until the real SDK
+    // can query the actual OS microphone decision. (r2935998619)
     expect(status).toBe('granted');
-    expect(result.current.micPermissionStatus).toBe('granted');
+    expect(result.current.micPermissionStatus).toBe('undetermined');
   });
 
   it('returns "denied" when Android mic permission is denied', async () => {
