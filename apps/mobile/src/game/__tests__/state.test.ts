@@ -579,6 +579,38 @@ describe('Game State Manager - gameRoundHistory pruning (C1 OOM fix)', () => {
     expect(AsyncStorage.setItem).toHaveBeenCalled();
   });
 
+  // Regression test for r2934562170: the legacy length-based cap was previously
+  // skipped when lastCompletedMatch <= MAX_GAME_ROUND_HISTORY_MATCHES (20), which
+  // allowed OOM-risk histories to persist on short sessions.
+  test('loadState() applies legacy length-based cap even when currentMatch ≤ 20', async () => {
+    const legacyEntries = Array.from({ length: 5000 }, (_, i) => ({
+      playerId: 'p1',
+      playerName: 'Player 1',
+      cards: [],
+      combo_type: 'Single' as const,
+      passed: false,
+      timestamp: Date.now() - i,
+      // No matchNumber — legacy format
+    }));
+    const legacyState = {
+      ...makeStateWithHistory(1),
+      gameRoundHistory: legacyEntries,
+      currentMatch: 15, // <= MAX_GAME_ROUND_HISTORY_MATCHES (20) — previously bypassed pruning entirely
+    };
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(legacyState));
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+    const loaded = await manager.loadState();
+
+    // Pruning must fire despite currentMatch being within the normal window:
+    // MAX_LEGACY_ROUND_HISTORY_ENTRIES = 20 * 200 = 4000
+    expect(loaded!.gameRoundHistory.length).toBeLessThanOrEqual(4000);
+    // Legacy entry format is preserved
+    expect(loaded!.gameRoundHistory.every(e => e.matchNumber == null)).toBe(true);
+    // Migration save must be triggered
+    expect(AsyncStorage.setItem).toHaveBeenCalled();
+  });
+
   test('loadState() leaves history untouched when ≤20 matches', async () => {
     const smallState = makeStateWithHistory(15);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(smallState));

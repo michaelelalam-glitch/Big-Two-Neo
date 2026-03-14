@@ -72,16 +72,33 @@
 --      and update the query planner statistics.
 --   4. Monitor pg_stat_activity for long-running transactions during the delete.
 -- ─────────────────────────────────────────────────────────────────────────────
-DELETE FROM game_history
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id,
-           ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at ASC, id ASC) AS rn
-    FROM game_history
+-- Guard: only run the DELETE when duplicates actually exist.
+-- This avoids a full table scan and unnecessary locking/WAL generation on
+-- already-clean environments (dev, CI, or post-runbook production tables).
+DO $$
+DECLARE
+  has_dups BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM game_history
     WHERE room_id IS NOT NULL
-  ) dupes
-  WHERE rn > 1
-);
+    GROUP BY room_id
+    HAVING COUNT(*) > 1
+  ) INTO has_dups;
+
+  IF has_dups THEN
+    DELETE FROM game_history
+    WHERE id IN (
+      SELECT id FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at ASC, id ASC) AS rn
+        FROM game_history
+        WHERE room_id IS NOT NULL
+      ) dupes
+      WHERE rn > 1
+    );
+  END IF;
+END $$;
 
 -- Step 2: Add unique partial index to prevent future duplicates
 -- room_id can be NULL for local/casual games, so we use a partial index.

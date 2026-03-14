@@ -1361,14 +1361,13 @@ export class GameStateManager {
     lastCompletedMatch: number,
     source: string,
   ): void {
-    if (lastCompletedMatch <= MAX_GAME_ROUND_HISTORY_MATCHES) return;
-
-    const cutoff = lastCompletedMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
     const hasLegacyEntries = history.some(e => e.matchNumber == null);
 
     if (hasLegacyEntries) {
-      // Legacy/mixed path: length-based cap so we don't drop entries that
-      // predate matchNumber tracking.
+      // Legacy/mixed path: length-based cap applies regardless of lastCompletedMatch.
+      // A legacy save can exceed MAX_LEGACY_ROUND_HISTORY_ENTRIES even during early
+      // matches (e.g. unusually long rounds or older builds producing large histories),
+      // so we must not skip this check based on match count alone.
       const totalEntries = history.length;
       if (totalEntries > MAX_LEGACY_ROUND_HISTORY_ENTRIES) {
         const removed = totalEntries - MAX_LEGACY_ROUND_HISTORY_ENTRIES;
@@ -1381,17 +1380,22 @@ export class GameStateManager {
           `ℹ️ [C1/${source}] gameRoundHistory within legacy length-based cap; no pruning needed (${totalEntries} entries)`,
         );
       }
-    } else {
-      // Normal path: all entries carry matchNumber → prune by match index.
-      const beforeLength = history.length;
-      // Filter in-place: keep entries from the last MAX_GAME_ROUND_HISTORY_MATCHES matches.
-      const kept = history.filter(e => e.matchNumber! >= cutoff);
-      if (kept.length < beforeLength) {
-        history.splice(0, history.length, ...kept);
-        gameLogger.info(
-          `✂️ [C1/${source}] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${history.length} entries retained)`,
-        );
-      }
+      return;
+    }
+
+    // Normal path: all entries carry matchNumber → prune by match index.
+    // No pruning needed for sessions within the configured match window.
+    if (lastCompletedMatch <= MAX_GAME_ROUND_HISTORY_MATCHES) return;
+
+    const cutoff = lastCompletedMatch - MAX_GAME_ROUND_HISTORY_MATCHES + 1;
+    const beforeLength = history.length;
+    // Filter in-place: keep entries from the last MAX_GAME_ROUND_HISTORY_MATCHES matches.
+    const kept = history.filter(e => e.matchNumber! >= cutoff);
+    if (kept.length < beforeLength) {
+      history.splice(0, history.length, ...kept);
+      gameLogger.info(
+        `✂️ [C1/${source}] Pruned gameRoundHistory: keeping entries from match ${cutoff}+ (${history.length} entries retained)`,
+      );
     }
   }
 

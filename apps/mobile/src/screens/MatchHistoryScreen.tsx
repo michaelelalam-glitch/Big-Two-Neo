@@ -109,6 +109,10 @@ export default function MatchHistoryScreen() {
           finished_at,
           created_at
         `)
+        // Performance: migration 20260314000001 adds B-tree partial indexes on each
+        // participant column (player_1_id…player_4_id, voided_user_id). Postgres can
+        // then satisfy this OR filter with a bitmap union of index scans instead of a
+        // sequential scan, keeping query cost low as game_history grows.
         .or(
           `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id},voided_user_id.eq.${user.id}`
         )
