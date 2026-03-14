@@ -178,6 +178,9 @@ Deno.serve(async (req) => {
       // rely solely on Realtime postgres_changes — which can be delayed or lost on
       // mobile networks — leaving the grey ring stuck on the reconnected player.
       if (player.connection_status === 'disconnected') {
+        // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
+        // so the edge runtime does not terminate the subscribe→send flow before
+        // it completes — even after the HTTP response has already been returned.
         const reconnectBroadcast = (async () => {
           try {
             // IMPORTANT: channel name must use room_id (UUID) to match the

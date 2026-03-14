@@ -46,3 +46,27 @@ UPDATE game_history
     AND room_id IS NOT NULL
     AND game_completed = TRUE
     AND finished_at IS NOT NULL;
+
+-- Helper function called by the complete-game Edge Function to stamp
+-- stats_applied_at using the database clock (authoritative, single source of
+-- truth) rather than the edge-runtime clock.  Edge clocks can drift; using
+-- DB now() ensures all stats_applied_at values are directly comparable to
+-- other DB timestamps (created_at, finished_at) for diagnostics and auditing.
+CREATE OR REPLACE FUNCTION mark_game_stats_applied(p_room_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE game_history
+     SET stats_applied_at = now()
+   WHERE room_id = p_room_id
+     AND stats_applied_at IS NULL;  -- idempotent: never overwrites a completed stamp
+END;
+$$;
+
+COMMENT ON FUNCTION mark_game_stats_applied(UUID) IS
+  'Stamps game_history.stats_applied_at = now() for a given room_id when IS NULL. '
+  'Used by the complete-game Edge Function to mark stats as fully applied using '
+  'the authoritative DB clock instead of the edge-runtime clock.';

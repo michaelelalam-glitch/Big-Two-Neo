@@ -37,6 +37,41 @@
 -- ============================================================================
 
 -- Step 1: Delete duplicate game_history rows, keeping only the earliest per room_id
+--
+-- PRODUCTION RUNBOOK (large tables — DELETE step):
+-- ─────────────────────────────────────────────────────────────────────────────
+-- This DELETE runs inside a Supabase migration transaction. On a large
+-- game_history table it can hold row locks for an extended period, generate
+-- significant WAL volume, and leave behind dead tuples that require a
+-- subsequent VACUUM to reclaim. For production tables with millions of rows:
+--
+--   1. Run during a low-traffic window (e.g., overnight maintenance).
+--   2. Consider a batched delete outside a long transaction if > 100k rows are
+--      affected. Example:
+--
+--      DO $$
+--      DECLARE rows_deleted INT;
+--      BEGIN
+--        LOOP
+--          DELETE FROM game_history
+--          WHERE id IN (
+--            SELECT id FROM (
+--              SELECT id, ROW_NUMBER() OVER (
+--                PARTITION BY room_id ORDER BY created_at ASC, id ASC
+--              ) AS rn
+--              FROM game_history WHERE room_id IS NOT NULL
+--            ) d WHERE rn > 1 LIMIT 1000
+--          );
+--          GET DIAGNOSTICS rows_deleted = ROW_COUNT;
+--          EXIT WHEN rows_deleted = 0;
+--          PERFORM pg_sleep(0.1); -- brief pause between batches
+--        END LOOP;
+--      END$$;
+--
+--   3. Run VACUUM ANALYZE game_history; after the delete to reclaim dead tuples
+--      and update the query planner statistics.
+--   4. Monitor pg_stat_activity for long-running transactions during the delete.
+-- ─────────────────────────────────────────────────────────────────────────────
 DELETE FROM game_history
 WHERE id IN (
   SELECT id FROM (

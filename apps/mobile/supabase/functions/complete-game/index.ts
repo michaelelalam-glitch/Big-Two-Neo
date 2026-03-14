@@ -840,12 +840,12 @@ async function broadcastGameEnded(
     // Mark stats_applied_at now that all stats RPCs have completed.
     // This unlocks the dedup guard: any subsequent caller that finds this row
     // will see stats_applied_at IS NOT NULL and know stats are complete.
+    // Use DB-side now() via RPC so the timestamp uses the authoritative
+    // database clock rather than the edge-runtime clock (which can drift),
+    // keeping stats_applied_at directly comparable to other DB timestamps.
     if (gameData.room_id) {
       const { error: statsAppliedErr } = await supabaseAdmin
-        .from('game_history')
-        .update({ stats_applied_at: new Date().toISOString() })
-        .eq('room_id', gameData.room_id)
-        .is('stats_applied_at', null); // only update if not already set (idempotent)
+        .rpc('mark_game_stats_applied', { p_room_id: gameData.room_id });
       if (statsAppliedErr) {
         console.warn('[Complete Game] Failed to set stats_applied_at (non-critical):', statsAppliedErr.message);
       }
