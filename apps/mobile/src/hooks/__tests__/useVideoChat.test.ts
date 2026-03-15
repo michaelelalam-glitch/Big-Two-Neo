@@ -166,6 +166,40 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     jest.restoreAllMocks();
   });
 
+  it('does not request mic permission when camera is denied (r2936027815)', async () => {
+    // Mic permission dialog must not appear if camera was denied — prompting
+    // for mic when video chat will be blocked anyway is unnecessary and confusing.
+    Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+    // Clear accumulated mock call history before creating the spy so the
+    // assertion is not polluted by calls from earlier tests in this suite.
+    jest.clearAllMocks();
+    const requestSpy = jest.spyOn(PermissionsAndroid, 'request')
+      .mockResolvedValueOnce(PermissionsAndroid.RESULTS.DENIED); // camera only
+
+    const adapter = makeAdapter();
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // CAMERA was requested (the gate check must have run).
+    expect(requestSpy).toHaveBeenCalledWith(
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      expect.any(Object)
+    );
+    // RECORD_AUDIO must NOT have been requested — mic dialog is skipped when
+    // camera is denied. (r2936027815)
+    expect(requestSpy).not.toHaveBeenCalledWith(
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      expect.any(Object)
+    );
+    expect(result.current.videoChatEnabled).toBe(false);
+    jest.restoreAllMocks();
+  });
+
   it('does not enable camera when roomId is undefined', async () => {
     const connectSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({ connect: connectSpy });
@@ -253,6 +287,65 @@ describe('useVideoChat — opt-out (toggleVideoChat disables camera + mic)', () 
     expect(result.current.isLocalCameraOn).toBe(false);
     expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.remoteParticipants).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// roomId change — state reset (r2936027821)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — roomId change resets state', () => {
+  it('disables camera + resets state when roomId changes while video is active (r2936027821)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
+      disconnect: disconnectSpy,
+    });
+
+    const { result, rerender } = renderHook(
+      ({ roomId }: { roomId: string }) =>
+        useVideoChat({ roomId, userId: USER_ID, adapter }),
+      { initialProps: { roomId: ROOM_ID } }
+    );
+
+    // Opt in
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.videoChatEnabled).toBe(true);
+
+    // Change roomId — simulates navigating to a different game room
+    await act(async () => {
+      rerender({ roomId: 'room-uuid-NEW' });
+    });
+
+    // Teardown must have fired
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
+    expect(disableCameraSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
+    // UI state must be reset (not left showing "enabled" for the new room)
+    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isLocalCameraOn).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
+    expect(result.current.remoteParticipants).toEqual([]);
+  });
+
+  it('does not disconnect on initial mount when roomId is first provided (r2936027821)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ disconnect: disconnectSpy });
+
+    renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // disconnect must NOT be called on first render — prevRoomIdRef starts undefined
+    expect(disconnectSpy).not.toHaveBeenCalled();
   });
 });
 

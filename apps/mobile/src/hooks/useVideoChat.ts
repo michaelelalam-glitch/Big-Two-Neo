@@ -166,13 +166,20 @@ export function useVideoChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoChatEnabled, adapterProp]);
 
-  // Disconnect and fully reset UI state when roomId changes (room navigation)
-  // or on unmount. Resetting state ensures the tile/toggle never shows "enabled"
-  // while the adapter is disconnected. (r2935394756)
-  // Mirror the opt-out path: disable tracks before disconnecting so that hardware
-  // capture stops immediately on room navigation/unmount. (r2935998629)
+  // Track the previous roomId so the roomId-change effect can distinguish
+  // a genuine room navigation from the initial mount. (r2936027821)
+  const prevRoomIdRef = useRef<string | undefined>(undefined);
+
+  // State reset + teardown when roomId changes (runs in the effect BODY, not in
+  // the cleanup return). This ensures setVideoChatEnabled / setIsLocalCameraOn /
+  // etc. are never called during unmount, which would produce React warnings
+  // about updating state on an unmounted component. (r2936027821)
+  // Mirror the opt-out path: disable tracks before disconnecting so hardware
+  // capture stops immediately on room navigation. (r2935998629)
   useEffect(() => {
-    return () => {
+    if (prevRoomIdRef.current !== undefined && prevRoomIdRef.current !== roomId) {
+      // roomId changed mid-session — tear down the current connection and reset
+      // all UI state so the tile/toggle never shows "enabled" for the new room.
       adapterRef.current.disableMicrophone().catch(() => {});
       adapterRef.current.disableCamera().catch(() => {});
       adapterRef.current.disconnect().catch(() => {});
@@ -180,8 +187,21 @@ export function useVideoChat({
       setIsLocalCameraOn(false);
       setIsLocalMicOn(false);
       setRemoteParticipants([]);
-    };
+    }
+    prevRoomIdRef.current = roomId;
   }, [roomId]);
+
+  // Hardware teardown on unmount ONLY — no setState here to avoid React warnings
+  // when the component is already being destroyed. State is discarded on unmount
+  // so there is nothing to reset. (r2936027821)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    return () => {
+      adapterRef.current.disableMicrophone().catch(() => {});
+      adapterRef.current.disableCamera().catch(() => {});
+      adapterRef.current.disconnect().catch(() => {});
+    };
+  }, []);
 
   const requestCameraPermission = useCallback(async (): Promise<CameraPermissionStatus> => {
     if (Platform.OS === 'android') {
@@ -255,22 +275,27 @@ export function useVideoChat({
 
     if (!videoChatEnabled) {
       // ── Opt-in path ────────────────────────────────────────────────────────
-      // Request both camera AND mic permissions before connecting.
-      // Re-request on 'denied' as well so users who previously denied can
-      // reconsider by tapping the toggle again — matching standard mobile UX.
-      // 'restricted' is intentionally excluded (go-to-Settings-only path). (r2936015516)
+      // Request camera permission first. Re-request on 'denied' so users who
+      // previously denied can reconsider by tapping the toggle again — matching
+      // standard mobile UX. 'restricted' is a go-to-Settings-only path and is
+      // intentionally excluded. (r2936015516)
       let camPermission = cameraPermissionStatus;
       if (camPermission === 'undetermined' || camPermission === 'denied') {
         camPermission = await requestCameraPermission();
       }
-      // Same re-request-on-denied logic for mic permission in the opt-in path. (r2936015516)
-      let micPermission = micPermissionStatus;
-      if (micPermission === 'undetermined' || micPermission === 'denied') {
-        micPermission = await requestMicPermission();
-      }
+      // Short-circuit before requesting mic: if camera permission was denied,
+      // skip the microphone permission dialog entirely — video chat will be
+      // blocked regardless, and prompting for mic when camera is denied is
+      // unnecessary and confusing on Android. (r2936027815)
       if (camPermission !== 'granted') {
         gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
         return;
+      }
+      // Request mic permission only after camera is confirmed granted.
+      // Re-request on 'denied' for the same UX reason as camera. (r2936015516)
+      let micPermission = micPermissionStatus;
+      if (micPermission === 'undetermined' || micPermission === 'denied') {
+        micPermission = await requestMicPermission();
       }
 
       try {
