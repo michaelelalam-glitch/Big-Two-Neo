@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -94,7 +95,7 @@ export default function GameSettingsModal({
 
   const handleCopyRoomCode = useCallback(() => {
     if (!roomCode) return;
-    Clipboard.setString(roomCode);
+    void Clipboard.setStringAsync(roomCode);
     if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
     Alert.alert(
       i18n.t('lobby.copiedTitle') || 'Copied!',
