@@ -37,7 +37,7 @@
   - Handles `RoomEvent.Disconnected` with explicit empty-participant notification on disconnect and `UnexpectedDisconnectError` on surprise drops
   - Callback isolation: try-catch in `_notifyParticipants()` and `_notifyError()` loops so one bad callback cannot block others
 - **`get-livekit-token` Supabase Edge Function** (`apps/mobile/supabase/functions/get-livekit-token/index.ts`):
-  - Validates Bearer auth token via Supabase admin client
+  - Validates caller via `supabase.auth.getUser()` (anon-key client + the caller's `Authorization` Bearer JWT forwarded in the request headers — no service-role key required)
   - Validates `roomId` UUID format with regex
   - Checks caller is a member of the room in `room_players` table
   - Mints a time-limited LiveKit JWT with room + identity claims
