@@ -139,8 +139,6 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(result.current.videoChatEnabled).toBe(true);
     expect(result.current.isLocalCameraOn).toBe(true);
     expect(result.current.isLocalMicOn).toBe(true);
-
-    jest.restoreAllMocks();
   });
 
   it('does not enable camera when Android permission is denied', async () => {
@@ -162,8 +160,6 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
 
     expect(connectSpy).not.toHaveBeenCalled();
     expect(result.current.videoChatEnabled).toBe(false);
-
-    jest.restoreAllMocks();
   });
 
   it('does not request mic permission when camera is denied (r2936027815)', async () => {
@@ -197,7 +193,6 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
       expect.any(Object)
     );
     expect(result.current.videoChatEnabled).toBe(false);
-    jest.restoreAllMocks();
   });
 
   it('does not enable camera when roomId is undefined', async () => {
@@ -456,7 +451,6 @@ describe('useVideoChat — requestCameraPermission', () => {
     });
 
     expect(status).toBe('restricted');
-    jest.restoreAllMocks();
   });
 
   it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {
@@ -522,7 +516,6 @@ describe('useVideoChat — requestMicPermission', () => {
 
     expect(status).toBe('denied');
     expect(result.current.micPermissionStatus).toBe('denied');
-    jest.restoreAllMocks();
   });
 
   it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {

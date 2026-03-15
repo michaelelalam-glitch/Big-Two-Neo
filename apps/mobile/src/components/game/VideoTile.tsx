@@ -56,10 +56,10 @@ export function VideoTile({
   testID,
 }: VideoTileProps) {
   // Include connecting state in the accessibility label so screen-reader users
-  // are not misled by an on/off label while a connection is in progress. (r2935394747)
+  // are not misled by an on/off label while a connection is in progress.
   // Omit "Tap to turn on/off" instructions when the tile is disabled (onCameraToggle
   // is absent) so screen readers don't announce an actionable instruction for an
-  // inert button. (r2936061507)
+  // inert button.
   const tappable = isLocal && !!onCameraToggle && !isConnecting;
   const cameraActiveLabel = isConnecting
     ? isLocal
@@ -85,7 +85,7 @@ export function VideoTile({
           testID={`${testID ?? 'video-tile'}-connecting`}
         />
       ) : isCameraOn && videoStreamSlot ? (
-        /* Real SDK video stream — rendered only when camera is on (r2935977897) */
+        /* Real SDK video stream — rendered only when camera is on */
         videoStreamSlot
       ) : (
         /* Placeholder UI until SDK is installed */
@@ -120,7 +120,7 @@ export function VideoTile({
   // Local player: use Pressable so tapping toggles camera.
   // When onCameraToggle is not provided (e.g. feature partially initialised),
   // render a disabled Pressable so it does not register as an actionable
-  // button for accessibility. (r2935394732)
+  // button for accessibility.
   // Remote player: use View — the tile is read-only and onPress must never fire.
   if (isLocal) {
     return (

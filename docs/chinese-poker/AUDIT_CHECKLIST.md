@@ -246,7 +246,7 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Task:** #651
   - **Approach:** Opt-in floating video tiles anchored near each `PlayerInfo`. Use same SDK as F2 (LiveKit recommended — supports audio + video). Camera permission required.
   - **Prerequisite:** F2 complete
-  - **Branch:** `task/651-in-game-video-chat`
+  - **PR:** [#134](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/134)
   - **Implementation (Task #651 — Phase 1: SDK-decoupled scaffold):**
     - `apps/mobile/src/hooks/useVideoChat.ts` — `VideoChatAdapter` interface + `StubVideoChatAdapter` (no-op); manages opt-in state, camera + mic permissions, and remote participant map; real LiveKit/Daily.co adapter is a follow-up when `@livekit/react-native` + `react-native-webrtc` are installed
     - `apps/mobile/src/components/game/VideoTile.tsx` — 64×64 PiP tile; renders placeholder icon (no SDK) or `videoStreamSlot` (real SDK); Pressable for local player (tap to toggle), View for remote (read-only)
