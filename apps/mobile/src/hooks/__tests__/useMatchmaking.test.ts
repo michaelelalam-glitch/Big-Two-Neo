@@ -73,6 +73,12 @@ const ROOM_CODE = 'ABCDEF';
 // Global mock setup
 // ---------------------------------------------------------------------------
 
+afterEach(() => {
+  // Restore setInterval / clearInterval spies so the real implementations are
+  // in place for subsequent tests (and for other test files in the same worker).
+  jest.restoreAllMocks();
+});
+
 beforeEach(() => {
   // resetAllMocks (not clearAllMocks) flushes mockResolvedValueOnce queues so
   // unconsumed one-time implementations from a previous test cannot leak.
