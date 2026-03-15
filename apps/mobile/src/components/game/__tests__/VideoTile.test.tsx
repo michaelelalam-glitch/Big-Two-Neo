@@ -119,18 +119,35 @@ describe('VideoTile — local player', () => {
 // ---------------------------------------------------------------------------
 
 describe('VideoTile — accessibility', () => {
-  it('announces "camera is on. Tap to turn off" for local tile with camera on', () => {
-    const { getByTestId } = renderTile({ isCameraOn: true, isLocal: true, testID: 'tile-a11y' });
+  it('announces "camera is on. Tap to turn off" for local tile with camera on and handler provided', () => {
+    const { getByTestId } = renderTile({ isCameraOn: true, isLocal: true, onCameraToggle: jest.fn(), testID: 'tile-a11y' });
     const tile = getByTestId('tile-a11y');
     expect(tile.props.accessibilityLabel).toContain('camera is on');
     expect(tile.props.accessibilityLabel).toContain('Tap to turn off');
   });
 
-  it('announces "camera is off. Tap to turn on" for local tile with camera off', () => {
-    const { getByTestId } = renderTile({ isCameraOn: false, isLocal: true, testID: 'tile-on-a11y' });
+  it('announces "camera is off. Tap to turn on" for local tile with camera off and handler provided', () => {
+    const { getByTestId } = renderTile({ isCameraOn: false, isLocal: true, onCameraToggle: jest.fn(), testID: 'tile-on-a11y' });
     const tile = getByTestId('tile-on-a11y');
     expect(tile.props.accessibilityLabel).toContain('off');
     expect(tile.props.accessibilityLabel).toContain('Tap to turn on');
+  });
+
+  it('omits "Tap to" instruction when local tile is disabled (no onCameraToggle) — r2936061507', () => {
+    // Without onCameraToggle the Pressable is disabled — the label must NOT include
+    // "Tap to" so screen readers don't announce an actionable instruction for an inert control.
+    const { getByTestId } = renderTile({ isCameraOn: false, isLocal: true, testID: 'disabled-tile' });
+    const tile = getByTestId('disabled-tile');
+    expect(tile.props.accessibilityLabel).toContain('camera is off');
+    expect(tile.props.accessibilityLabel).not.toContain('Tap to');
+    expect(tile.props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('omits "Tap to" instruction when local tile camera is on but no handler — r2936061507', () => {
+    const { getByTestId } = renderTile({ isCameraOn: true, isLocal: true, testID: 'disabled-on-tile' });
+    const tile = getByTestId('disabled-on-tile');
+    expect(tile.props.accessibilityLabel).toContain('camera is on');
+    expect(tile.props.accessibilityLabel).not.toContain('Tap to');
   });
 
   it('announces opponent camera state for remote tile', () => {

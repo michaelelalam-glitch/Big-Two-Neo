@@ -57,14 +57,18 @@ export function VideoTile({
 }: VideoTileProps) {
   // Include connecting state in the accessibility label so screen-reader users
   // are not misled by an on/off label while a connection is in progress. (r2935394747)
+  // Omit "Tap to turn on/off" instructions when the tile is disabled (onCameraToggle
+  // is absent) so screen readers don't announce an actionable instruction for an
+  // inert button. (r2936061507)
+  const tappable = isLocal && !!onCameraToggle && !isConnecting;
   const cameraActiveLabel = isConnecting
     ? isLocal
       ? 'Your video is connecting…'
       : "Opponent's video is connecting…"
     : isLocal
       ? isCameraOn
-        ? 'Your camera is on. Tap to turn off.'
-        : 'Your camera is off. Tap to turn on.'
+        ? tappable ? 'Your camera is on. Tap to turn off.' : 'Your camera is on.'
+        : tappable ? 'Your camera is off. Tap to turn on.' : 'Your camera is off.'
       : isCameraOn
         ? "Opponent's camera is on."
         : "Opponent's camera is off.";
