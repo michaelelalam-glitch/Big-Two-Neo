@@ -64,7 +64,7 @@ import { UnexpectedDisconnectError } from './useVideoChat';
 // MultiplayerGame checks `isLiveKitAvailable` before constructing this class.
 let _registerGlobals: (() => void) | null = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   _registerGlobals = (require('@livekit/react-native') as { registerGlobals: () => void }).registerGlobals;
 } catch {
   // @livekit/react-native is not linked — Expo Go or pre-prebuild dev build.
