@@ -110,7 +110,12 @@ export function useVideoChat({
   userId,
   adapter: adapterProp,
 }: UseVideoChatOptions): UseVideoChatReturn {
-  const adapterRef = useRef<VideoChatAdapter>(adapterProp ?? new StubVideoChatAdapter());
+  // Lazy-init: `useRef(new StubVideoChatAdapter())` would allocate a new stub on
+  // every render because JS evaluates all arguments before the function call,
+  // even though useRef only uses the first call's value. Using `??=` short-circuits
+  // the right-hand side once the ref is non-null. (r2936015541)
+  const adapterRef = useRef<VideoChatAdapter>(null!);
+  adapterRef.current ??= adapterProp ?? new StubVideoChatAdapter();
 
   const [videoChatEnabled, setVideoChatEnabled] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
@@ -251,12 +256,16 @@ export function useVideoChat({
     if (!videoChatEnabled) {
       // ── Opt-in path ────────────────────────────────────────────────────────
       // Request both camera AND mic permissions before connecting.
+      // Re-request on 'denied' as well so users who previously denied can
+      // reconsider by tapping the toggle again — matching standard mobile UX.
+      // 'restricted' is intentionally excluded (go-to-Settings-only path). (r2936015516)
       let camPermission = cameraPermissionStatus;
-      if (camPermission === 'undetermined') {
+      if (camPermission === 'undetermined' || camPermission === 'denied') {
         camPermission = await requestCameraPermission();
       }
+      // Same re-request-on-denied logic for mic permission in the opt-in path. (r2936015516)
       let micPermission = micPermissionStatus;
-      if (micPermission === 'undetermined') {
+      if (micPermission === 'undetermined' || micPermission === 'denied') {
         micPermission = await requestMicPermission();
       }
       if (camPermission !== 'granted') {
@@ -314,8 +323,10 @@ export function useVideoChat({
       setIsLocalMicOn(false);
       gameLogger.info('[VideoChat] Microphone muted.');
     } else {
+      // Re-request on 'denied' so users who previously denied can retry in-game.
+      // 'restricted' (NEVER_ASK_AGAIN / parental controls) is a go-to-Settings-only path. (r2936015523)
       let permission = micPermissionStatus;
-      if (permission === 'undetermined') {
+      if (permission === 'undetermined' || permission === 'denied') {
         permission = await requestMicPermission();
       }
       if (permission !== 'granted') {
