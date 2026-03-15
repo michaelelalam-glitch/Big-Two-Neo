@@ -157,10 +157,18 @@ export interface UseVideoChatReturn {
    */
   toggleCamera: () => Promise<void>;
   /**
-   * True while `toggleVideoChat` or `toggleVoiceChat` is executing an async
-   * enable/disable sequence. Use to disable buttons and show spinners.
+   * True while `toggleVideoChat` is executing an async enable/disable sequence
+   * (camera + mic connect/disconnect). Use to disable the Video button and show
+   * a spinner. Does NOT cover `toggleVoiceChat` — see `isAudioConnecting`.
    */
   isConnecting: boolean;
+  /**
+   * True while `toggleVoiceChat` is executing an async enable/disable sequence
+   * (mic-only connect/disconnect). Separate from `isConnecting` so only the
+   * Audio button shows a spinner when voice is toggling, without disabling the
+   * Video button at the same time.
+   */
+  isAudioConnecting: boolean;
   /** Toggle local microphone mute/unmute while video or voice chat is active. */
   toggleMic: () => Promise<void>;
   /** Explicitly request camera permission (e.g. from a settings screen). */
@@ -193,9 +201,11 @@ export function useVideoChat({
   const [cameraPermissionStatus, setCameraPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
-  // True while toggleVideoChat / toggleVoiceChat is executing — exposed to the UI so tiles can
-  // disable the toggle button and prevent re-entrant rapid taps.
-  const [isConnecting, setIsConnecting] = useState(false);
+  // Separate connecting states for video (camera+session) and audio (mic-only).
+  // Splitting lets the UI show a spinner only on the button that is in-flight
+  // rather than on both simultaneously.
+  const [isConnecting, setIsConnecting] = useState(false);     // video/session toggle
+  const [isAudioConnecting, setIsAudioConnecting] = useState(false);  // voice-only toggle
   // Ref companion: used to short-circuit re-entrant calls before setState
   // triggers a re-render (ref reads are synchronous, state reads are not).
   const isTogglingRef = useRef(false);
@@ -542,7 +552,7 @@ export function useVideoChat({
     if (isChatConnected && isLocalCameraOn) return;
 
     isTogglingRef.current = true;
-    setIsConnecting(true);
+    setIsAudioConnecting(true);
     try {
       if (!isChatConnected) {
         // ── Opt-in (voice only) ────────────────────────────────────────────
@@ -584,7 +594,7 @@ export function useVideoChat({
       }
     } finally {
       isTogglingRef.current = false;
-      setIsConnecting(false);
+      setIsAudioConnecting(false);
     }
   }, [roomId, userId, isChatConnected, isLocalCameraOn, micPermissionStatus, requestMicPermission]);
 
@@ -628,6 +638,7 @@ export function useVideoChat({
     isLocalCameraOn,
     isLocalMicOn,
     isConnecting,
+    isAudioConnecting,
     cameraPermissionStatus,
     micPermissionStatus,
     remoteParticipants,

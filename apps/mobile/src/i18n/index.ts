@@ -60,6 +60,9 @@ export interface Translations {
     muted: string;
     camera: string;
     microphone: string;
+    audio: string;
+    video: string;
+    sectionTitle: string;
   };
 
   // Game Selection Screen
@@ -670,6 +673,9 @@ const en: Translations = {
     muted: 'Muted',
     camera: 'Camera',
     microphone: 'Microphone',
+    audio: 'Audio',
+    video: 'Video',
+    sectionTitle: 'Chat',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1212,6 +1218,9 @@ const ar: Translations = {
     muted: 'مكتوم',
     camera: 'الكاميرا',
     microphone: 'الميكروفون',
+    audio: 'صوت',
+    video: 'فيديو',
+    sectionTitle: 'دردشة',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1784,6 +1793,9 @@ const de: Translations = {
     muted: 'Stummgeschaltet',
     camera: 'Kamera',
     microphone: 'Mikrofon',
+    audio: 'Audio',
+    video: 'Video',
+    sectionTitle: 'Chat',
   },
   gameSelection: {
     welcome: 'Willkommen,',

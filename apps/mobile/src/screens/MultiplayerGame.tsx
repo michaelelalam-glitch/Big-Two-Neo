@@ -49,14 +49,14 @@ import type { GameContextType } from '../contexts/GameContext';
 import Constants from 'expo-constants';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
-// to prevent the @livekit/react-native native module from being accessed at module-load time.
-// A static import would run registerGlobals() before isExpoGo is evaluated, crashing any
-// dev client that does not have LiveKit natively linked.
-// LiveKitVideoChatAdapter itself also calls registerGlobals() lazily in its constructor
-// (rather than at module-level) as a secondary safeguard.
-// We check both `executionEnvironment` (the canonical value) and `appOwnership` as a
-// fallback because some Expo Go builds / iOS betas return null for executionEnvironment
-// while still correctly setting appOwnership to 'expo'.
+// to prevent @livekit/react-native native module access at module-load time.
+// A static import would evaluate the module immediately, potentially crashing in
+// environments where the native module is not linked (Expo Go, CI, pre-prebuild builds).
+// The module exports `isLiveKitAvailable` which is set at module-eval time inside
+// a try/catch; checking it avoids constructing the adapter when the native module
+// is absent, without any error ever reaching React's renderer.
+// isExpoGo is kept as a fast-path to skip the require entirely when we know we
+// are in Expo Go (avoids any module evaluation overhead).
 const isExpoGo =
   Constants.executionEnvironment === 'storeClient' ||
   (Constants as unknown as { appOwnership?: string }).appOwnership === 'expo';
@@ -669,18 +669,24 @@ export function MultiplayerGame() {
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
-  // LiveKitVideoChatAdapter is used in native (EAS) builds; StubVideoChatAdapter
-  // is used in Expo Go where native WebRTC modules are unavailable.
-  // The require() is intentionally lazy so the @livekit/react-native native module
-  // is never accessed in Expo Go (or a dev client built before LiveKit was installed).
+  // LiveKitVideoChatAdapter is used in native (EAS) builds where
+  // @livekit/react-native is linked. StubVideoChatAdapter (no-op) is used in
+  // Expo Go and any other environment where the native module is absent.
+  // The require() is lazy so the module is only evaluated when needed.
+  // isLiveKitAvailable is exported by the module and set at module-eval time
+  // inside a try/catch, so it is safe to check without any throw risk.
   const videoChatAdapter = React.useMemo(() => {
     if (isExpoGo) return new StubVideoChatAdapter();
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { LiveKitVideoChatAdapter } = require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
+      const { LiveKitVideoChatAdapter, isLiveKitAvailable } = require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
+      if (!isLiveKitAvailable) {
+        gameLogger.info('[VideoChat] @livekit/react-native not linked — using stub adapter');
+        return new StubVideoChatAdapter();
+      }
       return new LiveKitVideoChatAdapter();
     } catch {
-      gameLogger.warn('[VideoChat] LiveKit native module unavailable, falling back to stub adapter');
+      gameLogger.warn('[VideoChat] LiveKit not available, falling back to stub adapter');
       return new StubVideoChatAdapter();
     }
   }, []);
@@ -695,8 +701,7 @@ export function MultiplayerGame() {
     toggleVoiceChat,
     toggleCamera,
     toggleMic,
-    isConnecting: isVideoChatConnecting,
-  } = useVideoChat({
+    isConnecting: isVideoChatConnecting,    isAudioConnecting,  } = useVideoChat({
     roomId:  roomInfo?.id,
     userId:  user?.id,
     adapter: videoChatAdapter,
@@ -784,6 +789,7 @@ export function MultiplayerGame() {
       toggleCamera,
       toggleMic,
       isVideoChatConnecting,
+      isAudioConnecting,
     }),
     [
       currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
@@ -803,7 +809,7 @@ export function MultiplayerGame() {
       isChatConnected, voiceChatEnabled, isLocalCameraOn, isLocalMicOn,
       remoteCameraStates, remoteMicStates,
       toggleVideoChat, toggleVoiceChat, toggleCamera, toggleMic,
-      isVideoChatConnecting,
+      isVideoChatConnecting, isAudioConnecting,
     ],
   );
 

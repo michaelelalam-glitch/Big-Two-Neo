@@ -81,6 +81,7 @@ function GameViewComponent() {
     toggleVoiceChat,
     toggleMic,
     isVideoChatConnecting,
+    isAudioConnecting,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -364,6 +365,7 @@ function GameViewComponent() {
           isLocalMicOn={isLocalMicOn}
           isLocalCameraOn={isLocalCameraOn}
           isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
+          isAudioChatConnecting={isMultiplayerGame ? isAudioConnecting : false}
           onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
           onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
           onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
