@@ -93,6 +93,18 @@ export class StubVideoChatAdapter implements VideoChatAdapter {
   onError(_cb: (error: Error) => void): () => void { return () => {}; }
 }
 
+/**
+ * Thrown by adapters to signal a non-client-initiated (unexpected) disconnect.
+ * Using a typed Error subclass lets the hook detect unexpected disconnects via
+ * `instanceof` rather than brittle message-string matching.
+ */
+export class UnexpectedDisconnectError extends Error {
+  constructor(message = 'Video chat session ended unexpectedly') {
+    super(message);
+    this.name = 'UnexpectedDisconnectError';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -259,7 +271,7 @@ export function useVideoChat({
       // Treat disconnect errors as fatal — reset the full session state so the
       // UI reflects the true "disconnected" state even without an explicit
       // toggleVideoChat() call.
-      if (err.message === 'LiveKit disconnected unexpectedly') {
+      if (err instanceof UnexpectedDisconnectError) {
         setIsChatConnected(false);
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);
