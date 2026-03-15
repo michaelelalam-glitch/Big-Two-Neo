@@ -235,16 +235,18 @@ export function useVideoChat({
       }
     }
 
-    // iOS: the NSCameraUsageDescription Info.plist entry (added in app.json)
-    // triggers the OS permission prompt on the first real enableCamera() call.
-    // The stub adapter is a no-op so we return 'granted' to allow stub-mode
-    // operation, but we intentionally DO NOT persist that into state — the
-    // state stays 'undetermined' so requestCameraPermission() is re-invoked
-    // on every toggleVideoChat() attempt, which is the right behaviour until
-    // the real SDK is installed and can report the actual OS decision.
-    // TODO(F3): replace with: const { status } = await Camera.requestCameraPermissionsAsync();
-    //           then setCameraPermissionStatus(status); return status; (r2935998616)
-    return 'granted';
+    if (Platform.OS === 'ios') {
+      // iOS: NSCameraUsageDescription in Info.plist triggers the OS prompt on
+      // the first real enableCamera() call. Stub is a no-op — return 'granted'
+      // to allow stub-mode operation, but intentionally DO NOT persist to state
+      // so requestCameraPermission() is re-invoked on every toggleVideoChat().
+      // TODO(F3): replace with Camera.requestCameraPermissionsAsync() (r2935998616)
+      return 'granted';
+    }
+
+    // Unsupported platform (e.g. web) — video chat is not supported.
+    // Block opt-in by returning 'restricted' (treated as go-to-Settings only). (r2936084479)
+    return 'restricted';
   }, []);
 
   const requestMicPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
@@ -270,13 +272,15 @@ export function useVideoChat({
       }
     }
 
-    // iOS: NSMicrophoneUsageDescription in Info.plist (added in app.json)
-    // triggers the OS permission prompt on first real enableMicrophone() call.
-    // Same stub-mode rationale as requestCameraPermission — do not persist a
-    // fake 'granted' into state; keep 'undetermined' until real SDK confirms.
-    // TODO(F3): replace with: const { status } = await Microphone.getPermissionsAsync();
-    //           then setMicPermissionStatus(status); return status; (r2935998619)
-    return 'granted';
+    if (Platform.OS === 'ios') {
+      // iOS: NSMicrophoneUsageDescription in Info.plist triggers OS prompt on
+      // first real enableMicrophone(). Same rationale as requestCameraPermission.
+      // TODO(F3): replace with Microphone.getPermissionsAsync() (r2935998619)
+      return 'granted';
+    }
+
+    // Unsupported platform (e.g. web) — mic capture not supported. (r2936084479)
+    return 'restricted';
   }, []);
 
   const toggleVideoChat = useCallback(async (): Promise<void> => {

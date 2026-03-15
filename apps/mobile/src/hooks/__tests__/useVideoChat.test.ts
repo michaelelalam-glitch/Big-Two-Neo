@@ -12,6 +12,7 @@ import {
   VideoChatAdapter,
   VideoChatParticipant,
   CameraPermissionStatus,
+  MediaPermissionStatus,
 } from '../useVideoChat';
 
 // ---------------------------------------------------------------------------
@@ -428,6 +429,24 @@ describe('useVideoChat — requestCameraPermission', () => {
     expect(status).toBe('restricted');
     jest.restoreAllMocks();
   });
+
+  it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'web' });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: CameraPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    // Web is not a supported video-chat platform; opt-in must be blocked.
+    expect(status).toBe('restricted');
+    // State should remain undetermined (nothing to persist)
+    expect(result.current.cameraPermissionStatus).toBe('undetermined');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -442,7 +461,7 @@ describe('useVideoChat — requestMicPermission', () => {
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
 
-    let status: CameraPermissionStatus = 'undetermined';
+    let status: MediaPermissionStatus = 'undetermined';
     await act(async () => {
       status = await result.current.requestMicPermission();
     });
@@ -467,7 +486,7 @@ describe('useVideoChat — requestMicPermission', () => {
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
 
-    let status: CameraPermissionStatus = 'undetermined';
+    let status: MediaPermissionStatus = 'undetermined';
     await act(async () => {
       status = await result.current.requestMicPermission();
     });
@@ -475,6 +494,22 @@ describe('useVideoChat — requestMicPermission', () => {
     expect(status).toBe('denied');
     expect(result.current.micPermissionStatus).toBe('denied');
     jest.restoreAllMocks();
+  });
+
+  it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'web' });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('restricted');
+    expect(result.current.micPermissionStatus).toBe('undetermined');
   });
 });
 
