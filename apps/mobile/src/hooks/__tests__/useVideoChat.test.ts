@@ -694,3 +694,71 @@ describe('useVideoChat — mic enable failure does not tear down camera (r293606
     expect(disconnectSpy).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// adapterRef synchronised during render — swap teardown via prevAdapterPropRef
+// (r2936112017)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — adapterProp synced during render (r2936112017)', () => {
+  it('tears down the old adapter when adapterProp is swapped while connected', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    // Adapter A — used for the initial connection
+    const disableCameraA = jest.fn().mockResolvedValue(undefined);
+    const disableMicA = jest.fn().mockResolvedValue(undefined);
+    const disconnectA = jest.fn().mockResolvedValue(undefined);
+    const adapterA = makeAdapter({ disableCamera: disableCameraA, disableMicrophone: disableMicA, disconnect: disconnectA });
+
+    const { result, rerender } = renderHook(
+      ({ adapter }: { adapter: typeof adapterA }) =>
+        useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter }),
+      { initialProps: { adapter: adapterA } }
+    );
+
+    // Enable video with adapterA
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.videoChatEnabled).toBe(true);
+
+    // Adapter B — injected while connected
+    const adapterB = makeAdapter();
+
+    // Swap the adapter — effect should run teardown on adapterA
+    await act(async () => {
+      rerender({ adapter: adapterB });
+    });
+
+    expect(disableCameraA).toHaveBeenCalledTimes(1);
+    expect(disableMicA).toHaveBeenCalledTimes(1);
+    expect(disconnectA).toHaveBeenCalledTimes(1);
+    // State reset to disabled after swap
+    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isLocalCameraOn).toBe(false);
+  });
+
+  it('does not tear down adapter on videoChatEnabled change when adapter is unchanged', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ disableCamera: disableCameraSpy, disconnect: disconnectSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Enable then opt-out — uses the opt-out path, not the swap-teardown effect
+    await act(async () => {
+      await result.current.toggleVideoChat(); // enable
+    });
+    await act(async () => {
+      await result.current.toggleVideoChat(); // opt-out
+    });
+
+    // disableCamera called once by the explicit opt-out path (not twice)
+    expect(disableCameraSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
+  });
+});
