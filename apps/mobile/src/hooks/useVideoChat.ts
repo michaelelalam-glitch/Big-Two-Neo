@@ -119,12 +119,18 @@ export function useVideoChat({
   userId,
   adapter: adapterProp,
 }: UseVideoChatOptions): UseVideoChatReturn {
-  // Lazy-init: `useRef(new StubVideoChatAdapter())` would allocate a new stub on
-  // every render because JS evaluates all arguments before the function call,
-  // even though useRef only uses the first call's value. Using `??=` short-circuits
-  // the right-hand side once the ref is non-null. (r2936015541)
   const adapterRef = useRef<VideoChatAdapter>(null!);
-  adapterRef.current ??= adapterProp ?? new StubVideoChatAdapter();
+  // Synchronize the ref during render so render-phase reads/callbacks in the
+  // same cycle always see the current adapter. With ??= alone, a change of
+  // adapterProp (undefined → real, or A → B) would not be reflected until the
+  // post-commit effect fires — too late for same-render calls. (r2936112017)
+  // When adapterProp is provided it always wins; otherwise lazy-init the stub
+  // once (avoids allocating a new StubVideoChatAdapter on every render). (r2936015541)
+  if (adapterProp != null) {
+    adapterRef.current = adapterProp;
+  } else {
+    adapterRef.current ??= new StubVideoChatAdapter();
+  }
 
   const [videoChatEnabled, setVideoChatEnabled] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
@@ -133,24 +139,28 @@ export function useVideoChat({
   const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
 
-  // Keep adapter ref current if a new adapter is injected (e.g. in tests or hot-swap).
-  // If the hook is currently connected when the adapter is swapped, best-effort disconnect
-  // the previous adapter before switching — prevents a lingering connected session.
-  // (r2935998628)
+  // Track the previous adapterProp so the swap-teardown effect can detect a
+  // genuine adapter change. adapterRef.current is already updated during render
+  // (above), so comparing adapterRef.current to adapterProp in the effect would
+  // always be equal — a separate prevAdapterPropRef is required. (r2936112017)
+  const prevAdapterPropRef = useRef<VideoChatAdapter | undefined>(undefined);
+
+  // Teardown the old adapter when adapterProp is hot-swapped (e.g. DI in tests).
+  // If the hook is currently connected when the adapter is swapped, best-effort
+  // disconnect the previous adapter before switching — prevents a lingering
+  // connected session. (r2935998628)
   useEffect(() => {
-    if (!adapterProp) return;
-    const prevAdapter = adapterRef.current;
-    if (prevAdapter !== adapterProp) {
-      if (videoChatEnabled) {
-        prevAdapter.disableCamera().catch(() => {});
-        prevAdapter.disableMicrophone().catch(() => {});
-        prevAdapter.disconnect().catch(() => {});
-        setVideoChatEnabled(false);
-        setIsLocalCameraOn(false);
-        setIsLocalMicOn(false);
-        setRemoteParticipants([]);
-      }
-      adapterRef.current = adapterProp;
+    const prevAdapter = prevAdapterPropRef.current;
+    prevAdapterPropRef.current = adapterProp;
+    if (!prevAdapter || !adapterProp || prevAdapter === adapterProp) return;
+    if (videoChatEnabled) {
+      prevAdapter.disableCamera().catch(() => {});
+      prevAdapter.disableMicrophone().catch(() => {});
+      prevAdapter.disconnect().catch(() => {});
+      setVideoChatEnabled(false);
+      setIsLocalCameraOn(false);
+      setIsLocalMicOn(false);
+      setRemoteParticipants([]);
     }
   }, [adapterProp, videoChatEnabled]);
 
@@ -321,9 +331,14 @@ export function useVideoChat({
         // hardware error or OS permission surprise does NOT propagate to the
         // outer catch and tear down the camera connection. Camera-only video chat
         // is fully supported even when mic fails. (r2936061511)
+        // Track whether mic was actually enabled — micPermission may be 'granted'
+        // but enableMicrophone() can still throw (hardware error, OS surprise).
+        // Base the log on the actual outcome, not the permission status. (r2936112010)
+        let micEnabled = false;
         if (micPermission === 'granted') {
           try {
             await adapterRef.current.enableMicrophone();
+            micEnabled = true;
             setIsLocalMicOn(true);
           } catch (micErr) {
             gameLogger.warn(
@@ -337,12 +352,12 @@ export function useVideoChat({
         setRemoteParticipants(adapterRef.current.getParticipants());
         setVideoChatEnabled(true);
         setIsLocalCameraOn(true);
-        // Log reflects what was actually enabled — mic may have been skipped if
-        // permission was denied. (r2935977905)
+        // Log reflects what was actually enabled — permission 'granted' does not
+        // guarantee enableMicrophone() succeeded (may have thrown). (r2936112010, r2935977905)
         gameLogger.info(
-          micPermission === 'granted'
+          micEnabled
             ? '[VideoChat] Local camera + mic enabled.'
-            : '[VideoChat] Local camera enabled (mic permission not granted — audio stream inactive).'
+            : '[VideoChat] Local camera enabled (mic not active — audio stream inactive).'
         );
       } catch (err) {
         // Connection failure is non-fatal — video chat is always opt-in.
