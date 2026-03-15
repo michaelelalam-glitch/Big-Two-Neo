@@ -517,9 +517,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: 'bold',
   },
-  contentScroll: {
-    // Reserved for future use — content is rendered in a plain View (no scroll).
-  },
   content: {
     padding: SPACING.lg,
   },

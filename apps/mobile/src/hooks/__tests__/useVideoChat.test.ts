@@ -12,6 +12,7 @@ import {
   VideoChatAdapter,
   VideoChatParticipant,
   MediaPermissionStatus,
+  UnexpectedDisconnectError,
 } from '../useVideoChat';
 
 // ---------------------------------------------------------------------------
@@ -715,6 +716,76 @@ describe('useVideoChat — mic enable failure does not tear down camera (#651)',
     // The outer catch path must NOT have fired — disableCamera/disconnect not called
     expect(disableCameraSpy).not.toHaveBeenCalled();
     expect(disconnectSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UnexpectedDisconnectError — fatal reset path (#651)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — UnexpectedDisconnectError resets session state', () => {
+  it('resets isChatConnected, camera, mic, and remoteParticipants on unexpected disconnect', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    let errorCb: ((err: Error) => void) | null = null;
+    const adapter = makeAdapter({
+      onError: (cb) => {
+        errorCb = cb;
+        return () => { errorCb = null; };
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Opt in — establishes the connected state and activates the onError subscription
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.isChatConnected).toBe(true);
+    expect(result.current.isLocalCameraOn).toBe(true);
+    expect(result.current.isLocalMicOn).toBe(true);
+
+    // Simulate the adapter firing an UnexpectedDisconnectError (surprise network drop)
+    act(() => {
+      errorCb!(new UnexpectedDisconnectError('server closed connection'));
+    });
+
+    expect(result.current.isChatConnected).toBe(false);
+    expect(result.current.isLocalCameraOn).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
+    expect(result.current.remoteParticipants).toEqual([]);
+  });
+
+  it('does not reset state for non-fatal adapter errors', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    let errorCb: ((err: Error) => void) | null = null;
+    const adapter = makeAdapter({
+      onError: (cb) => {
+        errorCb = cb;
+        return () => { errorCb = null; };
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.isChatConnected).toBe(true);
+
+    // Fire a generic (non-fatal) error — session must remain intact
+    act(() => {
+      errorCb!(new Error('transient jitter'));
+    });
+
+    expect(result.current.isChatConnected).toBe(true);
+    expect(result.current.isLocalCameraOn).toBe(true);
+    expect(result.current.isLocalMicOn).toBe(true);
   });
 });
 

@@ -1816,13 +1816,14 @@ const de: Translations = {
     sectionTitle: 'Chat',
     connectingVideo: 'Verbindung zum Video-Chat wird hergestellt',
     connectingVoice: 'Verbindung zum Sprach-Chat wird hergestellt',
-    tapTurnCameraOff: 'tippen zum Kamera ausschalten',
-    tapTurnCameraOn: 'tippen zum Kamera einschalten',
-    tapMute: 'tippen zum Stummschalten',
-    tapUnmute: 'tippen zum Stummschaltung aufheben',
+    tapTurnCameraOff: 'Zum Ausschalten der Kamera tippen',
+    tapTurnCameraOn: 'Zum Einschalten der Kamera tippen',
+    tapMute: 'Zum Stummschalten tippen',
+    tapUnmute: 'Stummschaltung aufheben',
   },
   gameSelection: {
     welcome: 'Willkommen,',
+
     subtitle: 'Wähle ein Spiel',
     chinesePokerTitle: 'Chinesisches Poker',
     chinesePokerDesc: 'Big Two — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
