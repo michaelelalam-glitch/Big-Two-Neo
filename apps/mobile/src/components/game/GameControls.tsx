@@ -213,7 +213,7 @@ export function GameControls({
               onPress={(isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
               disabled={isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)}
               accessibilityRole="button"
-              accessibilityLabel={isChatConnected && !isLocalCameraOn ? 'Leave voice chat' : 'Join voice chat'}
+              accessibilityLabel={isChatConnected && !isLocalCameraOn ? i18n.t('chat.leaveVoice') : i18n.t('chat.joinVoice')}
               accessibilityState={{ disabled: isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn), busy: isAudioChatConnecting }}
             >
               {isAudioChatConnecting
@@ -232,7 +232,7 @@ export function GameControls({
               onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
               disabled={isVideoChatConnecting}
               accessibilityRole="button"
-              accessibilityLabel={isChatConnected && isLocalCameraOn ? 'Leave video chat' : 'Join video chat'}
+              accessibilityLabel={isChatConnected && isLocalCameraOn ? i18n.t('chat.leaveVideo') : i18n.t('chat.joinVideo')}
               accessibilityState={{ disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
             >
               {isVideoChatConnecting
@@ -247,7 +247,7 @@ export function GameControls({
               onPress={isVideoChatConnecting ? undefined : onToggleMic}
               disabled={isVideoChatConnecting}
               accessibilityRole="button"
-              accessibilityLabel={isLocalMicOn ? 'Mute microphone' : 'Unmute microphone'}
+              accessibilityLabel={isLocalMicOn ? i18n.t('chat.tapMute') : i18n.t('chat.tapUnmute')}
               accessibilityState={{ disabled: isVideoChatConnecting }}
             >
               <Text style={styles.chatButtonText}>{isLocalMicOn ? '🎤' : '🔇'}</Text>
@@ -259,7 +259,7 @@ export function GameControls({
               onPress={isVideoChatConnecting ? undefined : onToggleCamera}
               disabled={isVideoChatConnecting}
               accessibilityRole="button"
-              accessibilityLabel={isLocalCameraOn ? 'Turn camera off' : 'Turn camera on'}
+              accessibilityLabel={isLocalCameraOn ? i18n.t('chat.tapTurnCameraOff') : i18n.t('chat.tapTurnCameraOn')}
               accessibilityState={{ disabled: isVideoChatConnecting }}
             >
               <Text style={styles.chatButtonText}>{isLocalCameraOn ? '📷' : '📵'}</Text>
