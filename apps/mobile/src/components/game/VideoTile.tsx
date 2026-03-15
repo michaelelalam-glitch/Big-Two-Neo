@@ -56,7 +56,7 @@ export function VideoTile({
   testID,
 }: VideoTileProps) {
   // Include connecting state in the accessibility label so screen-reader users
-  // are not mislead by an on/off label while a connection is in progress. (r2935394747)
+  // are not misled by an on/off label while a connection is in progress. (r2935394747)
   const cameraActiveLabel = isConnecting
     ? isLocal
       ? 'Your video is connecting…'

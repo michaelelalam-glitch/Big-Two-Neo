@@ -248,12 +248,12 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Prerequisite:** F2 complete
   - **Branch:** `task/651-in-game-video-chat`
   - **Implementation (Task #651 — Phase 1: SDK-decoupled scaffold):**
-    - `src/hooks/useVideoChat.ts` — `VideoChatAdapter` interface + `StubVideoChatAdapter` (no-op); manages opt-in state, camera permission, and remote participant map; real LiveKit/Daily.co adapter is a follow-up when `@livekit/react-native` + `react-native-webrtc` are installed
-    - `src/components/game/VideoTile.tsx` — 64×64 PiP tile; renders placeholder icon (no SDK) or `videoStreamSlot` (real SDK); Pressable for local player (tap to toggle), View for remote (read-only)
-    - `src/contexts/GameContext.tsx` — Added 7 new video+audio chat fields: `videoChatEnabled`, `isLocalCameraOn`, `isLocalMicOn`, `remoteCameraStates`, `remoteMicStates`, `toggleVideoChat`, `toggleMic`
-    - `src/screens/MultiplayerGame.tsx` — `useVideoChat` wired; `remoteCameraStates` built from `remoteParticipants`
-    - `src/screens/LocalAIGame.tsx` — no-op stub values provided for all 7 new GameContext video+audio chat fields
-    - `src/components/game/PlayerInfo.tsx` — `VideoTile` rendered as absolute overlay (top-left, zIndex 12) inside `avatarContainer`
+    - `apps/mobile/src/hooks/useVideoChat.ts` — `VideoChatAdapter` interface + `StubVideoChatAdapter` (no-op); manages opt-in state, camera + mic permissions, and remote participant map; real LiveKit/Daily.co adapter is a follow-up when `@livekit/react-native` + `react-native-webrtc` are installed
+    - `apps/mobile/src/components/game/VideoTile.tsx` — 64×64 PiP tile; renders placeholder icon (no SDK) or `videoStreamSlot` (real SDK); Pressable for local player (tap to toggle), View for remote (read-only)
+    - `apps/mobile/src/contexts/GameContext.tsx` — Added 7 new video+audio chat fields: `videoChatEnabled`, `isLocalCameraOn`, `isLocalMicOn`, `remoteCameraStates`, `remoteMicStates`, `toggleVideoChat`, `toggleMic`
+    - `apps/mobile/src/screens/MultiplayerGame.tsx` — `useVideoChat` wired; `remoteCameraStates` built from `remoteParticipants`
+    - `apps/mobile/src/screens/LocalAIGame.tsx` — no-op stub values provided for all 7 new GameContext video+audio chat fields
+    - `apps/mobile/src/components/game/PlayerInfo.tsx` — `VideoTile` rendered as absolute overlay (top-left, zIndex 12) inside `avatarContainer`
     - `app.json` — iOS: `NSCameraUsageDescription` + `NSMicrophoneUsageDescription` added to `infoPlist`; Android: `android.permission.CAMERA` added to `permissions` (`RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` already existed and were unchanged by this PR). Both camera and microphone permissions are intentionally included in Phase 1 because the scaffold wires `useVideoChat` which manages both video and audio streams.
     - **Tests:** 25 new unit tests (VideoTile: 15, useVideoChat: 10); all passing
 

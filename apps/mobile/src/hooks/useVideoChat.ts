@@ -1,5 +1,5 @@
 /**
- * useVideoChat — Manages opt-in in-game video chat state (Task #651).
+ * useVideoChat — Manages opt-in in-game video + audio chat state (Task #651).
  *
  * Architecture: provides a stable interface against which any video-chat SDK
  * (LiveKit, Daily.co, etc.) can be plugged in via the `VideoChatAdapter` interface.
@@ -7,11 +7,18 @@
  * should be wired in once `@livekit/react-native` + `react-native-webrtc` are
  * installed as native dependencies.
  *
+ * The full `VideoChatAdapter` contract includes both camera AND microphone controls:
+ *   connect / disconnect, enableCamera / disableCamera,
+ *   enableMicrophone / disableMicrophone, getParticipants,
+ *   onParticipantsChanged, onError.
+ * `GameContext` exposes 7 fields: videoChatEnabled, isLocalCameraOn, isLocalMicOn,
+ * remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic. (r2936044253)
+ *
  * Prerequisites:
  * - F2 (voice chat) and this feature should share the same LiveKit room session —
  *   pass the same `adapter` instance to both hooks once the SDK is installed.
- * - Camera permission must be declared in app.json (done in this PR) before
- *   requesting it at runtime.
+ * - Camera + microphone permissions must be declared in app.json (done in this PR)
+ *   before requesting them at runtime.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
