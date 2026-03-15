@@ -558,3 +558,105 @@ describe('useVideoChat — toggleMic', () => {
     expect(enableMicSpy).toHaveBeenCalledTimes(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// toggleVideoChat — opt-out even when roomId becomes undefined (r2936061509)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — opt-out allows teardown when roomId becomes undefined (r2936061509)', () => {
+  it('can opt out and reset state even when roomId is transiently undefined', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
+      disconnect: disconnectSpy,
+    });
+
+    const { result, rerender } = renderHook(
+      ({ roomId }: { roomId: string | undefined }) =>
+        useVideoChat({ roomId, userId: USER_ID, adapter }),
+      { initialProps: { roomId: ROOM_ID as string | undefined } }
+    );
+
+    // Opt in with a valid roomId
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.videoChatEnabled).toBe(true);
+
+    // roomId transiently disappears (e.g. partial re-render during navigation)
+    rerender({ roomId: undefined });
+
+    // Opt out must still work — the guard is in opt-in only
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
+    expect(disableCameraSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isLocalCameraOn).toBe(false);
+  });
+
+  it('still blocks opt-in when roomId is undefined', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const connectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ connect: connectSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: undefined, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    expect(connectSpy).not.toHaveBeenCalled();
+    expect(result.current.videoChatEnabled).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enableMicrophone failure is non-blocking — camera stays active (r2936061511)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — mic enable failure does not tear down camera (r2936061511)', () => {
+  it('leaves camera active when enableMicrophone throws', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const enableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const enableMicSpy = jest.fn().mockRejectedValue(new Error('Mic hardware error'));
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      enableCamera: enableCameraSpy,
+      enableMicrophone: enableMicSpy,
+      disconnect: disconnectSpy,
+      disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // Camera must be on — mic failure is non-blocking
+    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isLocalCameraOn).toBe(true);
+    // Mic is off (it threw)
+    expect(result.current.isLocalMicOn).toBe(false);
+    // The outer catch path must NOT have fired — disableCamera/disconnect not called
+    expect(disableCameraSpy).not.toHaveBeenCalled();
+    expect(disconnectSpy).not.toHaveBeenCalled();
+  });
+});

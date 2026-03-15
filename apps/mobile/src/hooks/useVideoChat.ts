@@ -278,10 +278,13 @@ export function useVideoChat({
   }, []);
 
   const toggleVideoChat = useCallback(async (): Promise<void> => {
-    if (!roomId || !userId) return;
-
     if (!videoChatEnabled) {
       // ── Opt-in path ────────────────────────────────────────────────────────
+      // Guard roomId + userId here (not at the top) so the opt-out path below
+      // can always run even when roomId/userId becomes transiently undefined
+      // while video chat is already active (e.g. a partial re-render during
+      // navigation). (r2936061509)
+      if (!roomId || !userId) return;
       // Request camera permission first. Re-request on 'denied' so users who
       // previously denied can reconsider by tapping the toggle again — matching
       // standard mobile UX. 'restricted' is a go-to-Settings-only path and is
@@ -308,11 +311,20 @@ export function useVideoChat({
       try {
         await adapterRef.current.connect(roomId, userId);
         await adapterRef.current.enableCamera();
-        // Enable mic if permission was granted; mic is non-blocking (audio-only block
-        // should not prevent video from streaming).
+        // Mic is opt-in and non-blocking: wrap in its own try/catch so a mic
+        // hardware error or OS permission surprise does NOT propagate to the
+        // outer catch and tear down the camera connection. Camera-only video chat
+        // is fully supported even when mic fails. (r2936061511)
         if (micPermission === 'granted') {
-          await adapterRef.current.enableMicrophone();
-          setIsLocalMicOn(true);
+          try {
+            await adapterRef.current.enableMicrophone();
+            setIsLocalMicOn(true);
+          } catch (micErr) {
+            gameLogger.warn(
+              '[VideoChat] Mic enable failed (non-fatal — camera still active):',
+              micErr instanceof Error ? micErr.message : String(micErr)
+            );
+          }
         }
         // Seed remote participants immediately from current SDK state so the UI
         // shows existing participants without waiting for the next event. (r2935394720)
