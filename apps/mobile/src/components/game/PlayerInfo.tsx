@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
+import { i18n } from '../../i18n';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from './InactivityCountdownRing';
@@ -161,10 +162,10 @@ export default function PlayerInfo({
               accessibilityRole="button"
               accessibilityLabel={
                 isVideoChatConnecting
-                  ? 'Connecting to video chat'
+                  ? i18n.t('chat.connectingVideo')
                   : isCameraOn
-                  ? 'Camera on — tap to leave video chat'
-                  : 'Camera off — tap to join video chat'
+                  ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.leaveVideo')}`
+                  : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
               }
               accessibilityState={{ disabled: !onVideoChatToggle || isVideoChatConnecting, busy: isVideoChatConnecting }}
             >

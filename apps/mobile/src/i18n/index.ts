@@ -63,6 +63,12 @@ export interface Translations {
     audio: string;
     video: string;
     sectionTitle: string;
+    connectingVideo: string;
+    connectingVoice: string;
+    tapTurnCameraOff: string;
+    tapTurnCameraOn: string;
+    tapMute: string;
+    tapUnmute: string;
   };
 
   // Game Selection Screen
@@ -676,6 +682,12 @@ const en: Translations = {
     audio: 'Audio',
     video: 'Video',
     sectionTitle: 'Chat',
+    connectingVideo: 'Connecting to video chat',
+    connectingVoice: 'Connecting to voice chat',
+    tapTurnCameraOff: 'tap to turn camera off',
+    tapTurnCameraOn: 'tap to turn camera on',
+    tapMute: 'tap to mute',
+    tapUnmute: 'tap to unmute',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1221,6 +1233,12 @@ const ar: Translations = {
     audio: 'صوت',
     video: 'فيديو',
     sectionTitle: 'دردشة',
+    connectingVideo: 'جاري الاتصال بمحادثة الفيديو',
+    connectingVoice: 'جاري الاتصال بالدردشة الصوتية',
+    tapTurnCameraOff: 'اضغط لإيقاف تشغيل الكاميرا',
+    tapTurnCameraOn: 'اضغط لتشغيل الكاميرا',
+    tapMute: 'اضغط لكتم الصوت',
+    tapUnmute: 'اضغط لإلغاء كتم الصوت',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1796,6 +1814,12 @@ const de: Translations = {
     audio: 'Audio',
     video: 'Video',
     sectionTitle: 'Chat',
+    connectingVideo: 'Verbindung zum Video-Chat wird hergestellt',
+    connectingVoice: 'Verbindung zum Sprach-Chat wird hergestellt',
+    tapTurnCameraOff: 'tippen zum Kamera ausschalten',
+    tapTurnCameraOn: 'tippen zum Kamera einschalten',
+    tapMute: 'tippen zum Stummschalten',
+    tapUnmute: 'tippen zum Stummschaltung aufheben',
   },
   gameSelection: {
     welcome: 'Willkommen,',

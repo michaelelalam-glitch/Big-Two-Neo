@@ -19,10 +19,8 @@
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
  *   @livekit/react-native-webrtc provides native WebRTC bindings. Its Xcode
  *   framework and Gradle dependency are wired automatically by `expo prebuild`
- *   via CocoaPods / Gradle auto-link. No Expo plugin entry in app.json is
- *   required for @livekit/react-native-webrtc — auto-linking handles it entirely.
- *   (The PR description that previously claimed a plugin entry was needed was
- *   incorrect; the current app.json does not include it and native builds work.)
+ *   via CocoaPods / Gradle auto-link — no Expo plugin entry in app.json is
+ *   needed for @livekit/react-native-webrtc; auto-linking handles it entirely.
  *
  * Expo Go compatibility (isLiveKitAvailable):
  *   `@livekit/react-native` checks its native module at initialisation and
@@ -224,16 +222,20 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
 
   // ── Internal event wiring ─────────────────────────────────────────────────
 
-  private _notifyParticipants(): void {
-    const snapshot = snapshotParticipants(this.room);
+  private _notifyParticipants(overrideSnapshot?: VideoChatParticipant[]): void {
+    const snapshot = overrideSnapshot ?? snapshotParticipants(this.room);
     for (const cb of this.participantsChangedCbs) {
-      cb(snapshot);
+      try { cb(snapshot); } catch (e) {
+        gameLogger.warn('[LiveKit] participantsChanged callback threw:', e instanceof Error ? e.message : String(e));
+      }
     }
   }
 
   private _notifyError(err: Error): void {
     for (const cb of this.errorCbs) {
-      cb(err);
+      try { cb(err); } catch (e) {
+        gameLogger.warn('[LiveKit] error callback threw:', e instanceof Error ? e.message : String(e));
+      }
     }
   }
 
@@ -252,12 +254,15 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       // Connection quality changes can flip `isConnecting`
       .on(RoomEvent.ConnectionQualityChanged, this._handleParticipantChange)
       // Disconnect / reconnect
-      .on(RoomEvent.Disconnected, (reason) => {
-        this._notifyParticipants(); // Clear remote participants on disconnect
+      .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+        // Explicitly pass an empty array — room.remoteParticipants may still
+        // hold stale entries during/after disconnect. Callers always see a
+        // clean empty state once the room disconnects.
+        this._notifyParticipants([]);
         // Only surface unexpected disconnects (network drop, server kick, etc.).
-        // CLIENT_INITIATED means adapter.disconnect() was called intentionally —
-        // do NOT treat normal leave flows as errors or useVideoChat would reset
-        // isChatConnected during the ordinary opt-out path.
+        // CLIENT_INITIATED means adapter.disconnect() was called intentionally.
+        // Undefined reason (e.g. server-initiated with no code) is treated as
+        // unexpected so the hook can surface it and reset state.
         if (reason !== DisconnectReason.CLIENT_INITIATED) {
           this._notifyError(new UnexpectedDisconnectError());
         }
