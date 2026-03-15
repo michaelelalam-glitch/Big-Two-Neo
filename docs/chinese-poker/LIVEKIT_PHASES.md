@@ -164,7 +164,7 @@ eas build --profile developmentDevice --platform android
 |-------|-------------|--------|
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
-| 3 | Native build configuration (prebuild, CocoaPods, Gradle) | 🔲 Todo |
+| 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
 | 4 | Permission UX — camera & microphone OS dialogs | 🔲 Todo |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
