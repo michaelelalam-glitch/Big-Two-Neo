@@ -20,10 +20,6 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
-jest.mock('expo-linear-gradient', () => ({
-  LinearGradient: 'LinearGradient',
-}));
-
 jest.mock('../Fireworks', () => ({
   Fireworks: 'Fireworks',
 }));
