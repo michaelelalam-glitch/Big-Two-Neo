@@ -152,11 +152,21 @@ Track progress on all audit findings. Check off items as they are resolved.
     - **SQL content of the 80 squashed migrations is otherwise faithful**: the concatenated function bodies, RLS policies, indexes, and triggers are identical to the originals; the schema-completeness guards and corrections listed above are the only deviations.
   - **Why:** 131 migration files slowed CI, local DB reset, and made schema reasoning difficult. Reduced to 45 files (66% fewer).
 
-- [ ] **M3** — Eliminate matchmaking race condition
+- [x] **M3** — Eliminate matchmaking race condition
   - **File:** `apps/mobile/src/hooks/useMatchmaking.ts`
   - **Task:** #641
-  - **Fix:** Remove recursive `setTimeout` polling. Use Supabase Realtime as the single source of truth. Add a debounce guard on game-start transition.
-  - **Why:** Polling + Realtime can both fire simultaneously, duplicating game-start actions
+  - **Branch:** `task/641-fix-matchmaking-race-condition`
+  - **Fix:**
+    - Removed `setInterval` polling entirely — `subscribeToWaitingRoom` (Realtime) is now the **single** source of truth for match detection. Eliminates the race where both the 2s polling interval and the Postgres-change event could call `setMatchFound` / `clearInterval` / `removeChannel` concurrently.
+    - Removed `checkForMatch` function (was the polling callback).
+    - Removed `pollIntervalRef` (no interval to track).
+    - Added `isStartingRef` — prevents a second concurrent call to `startMatchmaking` (e.g. user double-tapping "Find Match") from registering a duplicate Realtime subscription while the first `find-match` Edge Function call is still in-flight.
+    - Added `isCancelledRef` — set to `true` at the **top** of `cancelMatchmaking()` before any async work, so any Realtime event arriving after cancel (possible due to Supabase channel buffering) is silently ignored. A second guard inside the async room-code fetch also checks this flag, covering the race where the Realtime event arrives before cancel but the room-code DB fetch completes after cancel.
+    - `subscribeToWaitingRoom` now calls `supabase.removeChannel` when a match is detected, so the channel is torn down immediately rather than waiting for the next cancel/unmount.
+    - Unmount cleanup: now sets `isCancelledRef.current = true` in addition to removing the channel (prevents in-flight room-fetch callbacks from setting state after the component is gone).
+    - **Tests:** 18 new unit tests in `apps/mobile/src/hooks/__tests__/useMatchmaking.test.ts` covering: no-poll invariant, immediate match, Realtime-driven match detection, `isCancelledRef` guards (both Realtime callback and async room-fetch paths), `isStartingRef` debounce, `cancelMatchmaking` teardown, unmount cleanup, `resetMatch`, auth failure, and invalid-response error paths.
+    - Updated `apps/mobile/src/__tests__/__mocks__/supabase.ts`: added `auth.getUser` and `functions.invoke` to the shared mock so this and future tests can mock them without duplicating the stub.
+  - **Why:** Polling + Realtime fired simultaneously, duplicating game-start actions and causing double state transitions.
 
 - [ ] **M4** — Replace O(N) `.find()` lookups with O(1) Map in `useMultiplayerLayout`
   - **File:** `apps/mobile/src/hooks/useMultiplayerLayout.ts`
