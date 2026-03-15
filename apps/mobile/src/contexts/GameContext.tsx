@@ -113,11 +113,14 @@ export interface GameContextType {
   isMountedRef: React.MutableRefObject<boolean>;
 
   // ── Task #651 / #649: in-game video + audio chat ──────────────────────────
-  /** Whether the local player has opted in to video chat (camera + mic). */
-  videoChatEnabled: boolean;
+  /**
+   * True when the chat room session is active (video+mic OR voice-only).
+   * Use `isLocalCameraOn` to distinguish video from voice-only.
+   */
+  isChatConnected: boolean;
   /**
    * Whether the local player has opted in to voice-only chat (mic only — no camera).
-   * Derived: `videoChatEnabled && !isLocalCameraOn`.
+   * Derived: `isChatConnected && !isLocalCameraOn`.
    */
   voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming. */
@@ -126,16 +129,13 @@ export interface GameContextType {
   isLocalMicOn: boolean;
   /**
    * Per-player camera state for remote tiles. Key = user_id.
-   * Populated from useVideoChat.remoteParticipants while videoChatEnabled=true.
-   */
-  remoteCameraStates: Record<string, { isCameraOn: boolean; isConnecting: boolean }>;
-  /**
-   * Per-player mic state for remote tiles. Key = user_id.
-   * Populated from useVideoChat.remoteParticipants while videoChatEnabled=true.
+   * Populated from useVideoChat.remoteParticipants while isChatConnected=true.
    */
   remoteMicStates: Record<string, { isMicOn: boolean }>;
   /** Toggle local video+audio chat on/off (requests camera+mic permissions if needed). */
   toggleVideoChat: () => Promise<void>;
+  /** Toggle the local camera on/off while session is active (no connect/disconnect). */
+  toggleCamera: () => Promise<void>;
   /** Toggle voice-only chat (audio only — no camera) on/off. */
   toggleVoiceChat: () => Promise<void>;
   /** Mute/unmute the local microphone while video or voice chat is active. */

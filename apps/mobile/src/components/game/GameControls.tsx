@@ -31,8 +31,14 @@ interface GameControlsProps {
   isVideoChatConnecting?: boolean;
   /** Toggle voice-only chat on/off. */
   onToggleVoiceChat?: () => Promise<void>;
-  /** Toggle video+audio chat on/off. */
+  /**
+   * Join/leave the full video+audio session.
+   * Distinct from `onToggleCamera` which only enables/disables the camera track
+   * within an already-connected session.
+   */
   onToggleVideoChat?: () => Promise<void>;
+  /** Toggle the local camera track on/off within an already-connected session. */
+  onToggleCamera?: () => Promise<void>;
   /** Mute/unmute local microphone. */
   onToggleMic?: () => Promise<void>;
 }
@@ -61,6 +67,7 @@ export function GameControls({
   isVideoChatConnecting = false,
   onToggleVoiceChat,
   onToggleVideoChat,
+  onToggleCamera,
   onToggleMic,
 }: GameControlsProps) {
   const [isPlayingCards, setIsPlayingCards] = useState(false);
@@ -196,7 +203,7 @@ export function GameControls({
       </Pressable>
 
       {/* ── Voice / Video chat controls (multiplayer only) ─────────────── */}
-      {(onToggleVoiceChat || onToggleVideoChat) && (
+      {(onToggleVoiceChat || onToggleVideoChat || onToggleCamera) && (
         <View style={styles.chatControls}>
           {/* Mic mute/unmute — shown when a chat session is active */}
           {isInChatSession && onToggleMic && (
@@ -213,11 +220,11 @@ export function GameControls({
             </Pressable>
           )}
 
-          {/* Camera toggle — shown when a chat session is active */}
-          {isInChatSession && onToggleVideoChat && (
+          {/* Camera toggle — uses onToggleCamera (track on/off within session) */}
+          {isInChatSession && onToggleCamera && (
             <Pressable
               style={[styles.chatButton, isLocalCameraOn ? styles.chatButtonActive : styles.chatButtonMuted]}
-              onPress={onToggleVideoChat}
+              onPress={onToggleCamera}
               disabled={isVideoChatConnecting}
               accessibilityRole="button"
               accessibilityLabel={isLocalCameraOn ? 'Turn off camera' : 'Turn on camera'}

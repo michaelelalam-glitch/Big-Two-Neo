@@ -11,7 +11,7 @@
  *   connect / disconnect, enableCamera / disableCamera,
  *   enableMicrophone / disableMicrophone, getParticipants,
  *   onParticipantsChanged, onError.
- * `GameContext` exposes 7 fields: videoChatEnabled, isLocalCameraOn, isLocalMicOn,
+ * `GameContext` exposes 7 fields: isChatConnected, isLocalCameraOn, isLocalMicOn,
  * remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic.
  *
  * Prerequisites:
@@ -101,11 +101,16 @@ export interface UseVideoChatOptions {
 }
 
 export interface UseVideoChatReturn {
-  /** Whether the local player has opted in to video chat (camera + mic) */
-  videoChatEnabled: boolean;
+  /**
+   * True when the chat room session is connected (video + mic, OR voice-only).
+   * Use `isLocalCameraOn` to distinguish: `isChatConnected && isLocalCameraOn`
+   * means the camera is streaming; `isChatConnected && !isLocalCameraOn` means
+   * voice-only (microphone only). This was formerly called `isChatConnected`.
+   */
+  isChatConnected: boolean;
   /**
    * Whether the local player has opted in to voice-only chat (mic only, no camera).
-   * Derived: `videoChatEnabled && !isLocalCameraOn`.
+   * Derived: `isChatConnected && !isLocalCameraOn`.
    * True when `toggleVoiceChat` was used to join; false when `toggleVideoChat` was used.
    */
   voiceChatEnabled: boolean;
@@ -132,6 +137,13 @@ export interface UseVideoChatReturn {
    * When video chat is already active, this is a no-op (use toggleVideoChat to opt out).
    */
   toggleVoiceChat: () => Promise<void>;
+  /**
+   * Toggle the local camera on/off while a chat session is already connected.
+   * No-op when `isChatConnected` is false. Call `toggleVideoChat` to join the
+   * video session; use `toggleCamera` only to control the camera track within
+   * an active session.
+   */
+  toggleCamera: () => Promise<void>;
   /**
    * True while `toggleVideoChat` or `toggleVoiceChat` is executing an async
    * enable/disable sequence. Use to disable buttons and show spinners.
@@ -163,13 +175,13 @@ export function useVideoChat({
     adapterRef.current ??= new StubVideoChatAdapter();
   }
 
-  const [videoChatEnabled, setVideoChatEnabled] = useState(false);
+  const [isChatConnected, setIsChatConnected] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
   const [isLocalMicOn, setIsLocalMicOn] = useState(false);
   const [cameraPermissionStatus, setCameraPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
-  // True while toggleVideoChat is executing — exposed to the UI so tiles can
+  // True while toggleVideoChat / toggleVoiceChat is executing — exposed to the UI so tiles can
   // disable the toggle button and prevent re-entrant rapid taps.
   const [isConnecting, setIsConnecting] = useState(false);
   // Ref companion: used to short-circuit re-entrant calls before setState
@@ -192,44 +204,44 @@ export function useVideoChat({
     const prevAdapter = prevAdapterPropRef.current;
     prevAdapterPropRef.current = adapterProp;
     if (!prevAdapter || prevAdapter === adapterProp) return;
-    if (videoChatEnabled) {
+    if (isChatConnected) {
       prevAdapter.disableCamera().catch(() => {});
       prevAdapter.disableMicrophone().catch(() => {});
       prevAdapter.disconnect().catch(() => {});
-      setVideoChatEnabled(false);
+      setIsChatConnected(false);
       setIsLocalCameraOn(false);
       setIsLocalMicOn(false);
       setRemoteParticipants([]);
     }
-  }, [adapterProp, videoChatEnabled]);
+  }, [adapterProp, isChatConnected]);
 
   // Subscribe to remote participant changes while video chat is active.
   // adapterProp is included so the effect re-runs (and re-subscribes) if the
   // adapter is hot-swapped — the old adapter is unsubscribed via the cleanup
   // return before the new subscription is opened.
   useEffect(() => {
-    if (!videoChatEnabled) return;
+    if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onParticipantsChanged(setRemoteParticipants);
     return unsubscribe;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoChatEnabled, adapterProp]);
+  }, [isChatConnected, adapterProp]);
 
   // Subscribe to SDK errors (log as non-fatal — video is opt-in).
   useEffect(() => {
-    if (!videoChatEnabled) return;
+    if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
       gameLogger.warn('[VideoChat] SDK error (non-fatal):', err.message);
     });
     return unsubscribe;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoChatEnabled, adapterProp]);
+  }, [isChatConnected, adapterProp]);
 
   // Track the previous roomId so the roomId-change effect can distinguish
   // a genuine room navigation from the initial mount.
   const prevRoomIdRef = useRef<string | undefined>(undefined);
 
   // State reset + teardown when roomId changes (runs in the effect BODY, not in
-  // the cleanup return). This ensures setVideoChatEnabled / setIsLocalCameraOn /
+  // the cleanup return). This ensures setIsChatConnected / setIsLocalCameraOn /
   // etc. are never called during unmount, which would produce React warnings
   // about updating state on an unmounted component.
   // Mirror the opt-out path: disable tracks before disconnecting so hardware
@@ -242,25 +254,25 @@ export function useVideoChat({
       // disconnect/disable calls (and potential interference with a shared
       // adapter used by voice chat) when roomId changes but video is already
       // off.
-      videoChatEnabled
+      isChatConnected
     ) {
       // roomId changed mid-session — tear down the current connection and reset
       // all UI state so the tile/toggle never shows "enabled" for the new room.
       adapterRef.current.disableMicrophone().catch(() => {});
       adapterRef.current.disableCamera().catch(() => {});
       adapterRef.current.disconnect().catch(() => {});
-      setVideoChatEnabled(false);
+      setIsChatConnected(false);
       setIsLocalCameraOn(false);
       setIsLocalMicOn(false);
       setRemoteParticipants([]);
     }
     prevRoomIdRef.current = roomId;
-  // videoChatEnabled included so the effect sees the current session state when
-  // roomId fires. Re-runs on videoChatEnabled change are harmless: the roomId
+  // isChatConnected included so the effect sees the current session state when
+  // roomId fires. Re-runs on isChatConnected change are harmless: the roomId
   // comparison always fails (prevRoomIdRef.current === roomId) so no teardown
   // fires — only prevRoomIdRef.current is updated (no-op, same value).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, videoChatEnabled]);
+  }, [roomId, isChatConnected]);
 
   // Hardware teardown on unmount ONLY — no setState here to avoid React warnings
   // when the component is already being destroyed. State is discarded on unmount
@@ -355,7 +367,7 @@ export function useVideoChat({
     isTogglingRef.current = true;
     setIsConnecting(true);
     try {
-      if (!videoChatEnabled) {
+      if (!isChatConnected) {
         // ── Opt-in path ──────────────────────────────────────────────────────
         // Guard roomId + userId here (not at the top) so the opt-out path below
         // can always run even when roomId/userId becomes transiently undefined
@@ -411,7 +423,7 @@ export function useVideoChat({
           // Seed remote participants immediately from current SDK state so the UI
           // shows existing participants without waiting for the next event.
           setRemoteParticipants(adapterRef.current.getParticipants());
-          setVideoChatEnabled(true);
+          setIsChatConnected(true);
           setIsLocalCameraOn(true);
           // Log reflects what was actually enabled — permission 'granted' does not
           // guarantee enableMicrophone() succeeded (may have thrown).
@@ -429,7 +441,7 @@ export function useVideoChat({
           adapterRef.current.disconnect().catch(() => {});
           // Reset all local/remote state to mirror the opt-out path — ensures
           // the UI cannot remain in a partially-enabled state after a failure.
-          setVideoChatEnabled(false);
+          setIsChatConnected(false);
           setIsLocalCameraOn(false);
           setIsLocalMicOn(false);
           setRemoteParticipants([]);
@@ -439,7 +451,7 @@ export function useVideoChat({
         await adapterRef.current.disableMicrophone().catch(() => {});
         await adapterRef.current.disableCamera().catch(() => {});
         await adapterRef.current.disconnect().catch(() => {});
-        setVideoChatEnabled(false);
+        setIsChatConnected(false);
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
@@ -451,10 +463,10 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
-  }, [roomId, userId, videoChatEnabled, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
+  }, [roomId, userId, isChatConnected, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
-    if (!videoChatEnabled) return;
+    if (!isChatConnected) return;
     if (isLocalMicOn) {
       await adapterRef.current.disableMicrophone().catch(() => {});
       setIsLocalMicOn(false);
@@ -478,14 +490,14 @@ export function useVideoChat({
         gameLogger.warn('[VideoChat] Failed to enable microphone:', err instanceof Error ? err.message : String(err));
       }
     }
-  }, [videoChatEnabled, isLocalMicOn, micPermissionStatus, requestMicPermission]);
+  }, [isChatConnected, isLocalMicOn, micPermissionStatus, requestMicPermission]);
 
   /**
    * Toggle voice-only chat (audio only — no camera).
    *
    * - If a full video chat session is already active, this is a no-op: use
    *   `toggleVideoChat()` to opt out instead (prevents confusing half-teardowns).
-   * - If voice chat is already active (`videoChatEnabled && !isLocalCameraOn`),
+   * - If voice chat is already active (`isChatConnected && !isLocalCameraOn`),
    *   this disconnects the session.
    * - Otherwise, requests mic permission, connects to the room, and enables the
    *   microphone. Camera is never touched.
@@ -495,12 +507,12 @@ export function useVideoChat({
 
     // If video chat (camera on) is already active, ignore — user must use
     // toggleVideoChat to manage that session.
-    if (videoChatEnabled && isLocalCameraOn) return;
+    if (isChatConnected && isLocalCameraOn) return;
 
     isTogglingRef.current = true;
     setIsConnecting(true);
     try {
-      if (!videoChatEnabled) {
+      if (!isChatConnected) {
         // ── Opt-in (voice only) ────────────────────────────────────────────
         if (!roomId || !userId) return;
 
@@ -517,7 +529,7 @@ export function useVideoChat({
           await adapterRef.current.connect(roomId, userId);
           await adapterRef.current.enableMicrophone();
           setRemoteParticipants(adapterRef.current.getParticipants());
-          setVideoChatEnabled(true);
+          setIsChatConnected(true);
           // isLocalCameraOn remains false — this is the voice-only indicator.
           setIsLocalMicOn(true);
           gameLogger.info('[VoiceChat] Mic enabled (audio-only mode).');
@@ -525,7 +537,7 @@ export function useVideoChat({
           gameLogger.warn('[VoiceChat] Failed to enable voice chat:', err instanceof Error ? err.message : String(err));
           adapterRef.current.disableMicrophone().catch(() => {});
           adapterRef.current.disconnect().catch(() => {});
-          setVideoChatEnabled(false);
+          setIsChatConnected(false);
           setIsLocalMicOn(false);
           setRemoteParticipants([]);
         }
@@ -533,7 +545,7 @@ export function useVideoChat({
         // ── Opt-out (voice was on, camera was off) ─────────────────────────
         await adapterRef.current.disableMicrophone().catch(() => {});
         await adapterRef.current.disconnect().catch(() => {});
-        setVideoChatEnabled(false);
+        setIsChatConnected(false);
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
         gameLogger.info('[VoiceChat] Voice chat disconnected.');
@@ -542,13 +554,44 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
-  }, [roomId, userId, videoChatEnabled, isLocalCameraOn, micPermissionStatus, requestMicPermission]);
+  }, [roomId, userId, isChatConnected, isLocalCameraOn, micPermissionStatus, requestMicPermission]);
 
   // voiceChatEnabled is a derived value: connected but camera is off.
-  const voiceChatEnabled = videoChatEnabled && !isLocalCameraOn;
+  const voiceChatEnabled = isChatConnected && !isLocalCameraOn;
+
+  /**
+   * Toggle the local camera track on/off within an already-connected session.
+   * Must only be called while `isChatConnected` is true; no-op otherwise.
+   * This is independent from `toggleVideoChat` (which connects/disconnects the
+   * entire room session) and separate from `toggleVoiceChat`.
+   */
+  const toggleCamera = useCallback(async (): Promise<void> => {
+    if (!isChatConnected) return;
+    try {
+      if (isLocalCameraOn) {
+        await adapterRef.current.disableCamera();
+        setIsLocalCameraOn(false);
+        gameLogger.info('[VideoChat] Camera disabled (session remains active).');
+      } else {
+        let camPermission = cameraPermissionStatus;
+        if (camPermission === 'undetermined' || camPermission === 'denied') {
+          camPermission = await requestCameraPermission();
+        }
+        if (camPermission !== 'granted') {
+          gameLogger.info('[VideoChat] Camera permission not granted — camera toggle blocked.');
+          return;
+        }
+        await adapterRef.current.enableCamera();
+        setIsLocalCameraOn(true);
+        gameLogger.info('[VideoChat] Camera enabled (session already active).');
+      }
+    } catch (err) {
+      gameLogger.warn('[VideoChat] Camera toggle failed:', err instanceof Error ? err.message : String(err));
+    }
+  }, [isChatConnected, isLocalCameraOn, cameraPermissionStatus, requestCameraPermission]);
 
   return {
-    videoChatEnabled,
+    isChatConnected,
     voiceChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
@@ -558,6 +601,7 @@ export function useVideoChat({
     remoteParticipants,
     toggleVideoChat,
     toggleVoiceChat,
+    toggleCamera,
     toggleMic,
     requestCameraPermission,
     requestMicPermission,
