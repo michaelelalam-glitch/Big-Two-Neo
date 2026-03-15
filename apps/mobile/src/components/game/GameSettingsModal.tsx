@@ -213,7 +213,8 @@ export default function GameSettingsModal({
 
                   {/* Microphone button — always visible in multiplayer (landscape).
                       Not in session: tap to join voice-only.
-                      In session: tap to mute/unmute. */}
+                      Voice-only session (isInChatSession && !isLocalCameraOn): tap to leave voice chat.
+                      Video session: tap to mute/unmute. */}
                   {(onToggleVoiceChat || onToggleMic) && (
                     <Pressable
                       style={[
@@ -223,6 +224,9 @@ export default function GameSettingsModal({
                       ]}
                       onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
+                          await onToggleVoiceChat?.();
+                        } else if (!isLocalCameraOn) {
+                          // Voice-only session — mic button leaves chat instead of muting
                           await onToggleVoiceChat?.();
                         } else {
                           await onToggleMic?.();
@@ -235,6 +239,8 @@ export default function GameSettingsModal({
                           ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
                           ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
+                          : !isLocalCameraOn
+                          ? `${i18n.t('chat.microphone')} — ${i18n.t('chat.leaveVoice')}`
                           : isLocalMicOn
                           ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
                           : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
@@ -407,7 +413,8 @@ export default function GameSettingsModal({
 
                   {/* Microphone button — always visible in multiplayer.
                       Not in session: tap to join voice-only chat (calls onToggleVoiceChat).
-                      In session: tap to mute/unmute microphone (calls onToggleMic). */}
+                      Voice-only session (isInChatSession && !isLocalCameraOn): tap to leave voice chat.
+                      Video session: tap to mute/unmute microphone (calls onToggleMic). */}
                   {(onToggleVoiceChat || onToggleMic) && (
                     <Pressable
                       style={[
@@ -417,6 +424,9 @@ export default function GameSettingsModal({
                       ]}
                       onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
+                          await onToggleVoiceChat?.();
+                        } else if (!isLocalCameraOn) {
+                          // Voice-only session — mic button leaves chat instead of muting
                           await onToggleVoiceChat?.();
                         } else {
                           await onToggleMic?.();
@@ -429,6 +439,8 @@ export default function GameSettingsModal({
                           ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
                           ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
+                          : !isLocalCameraOn
+                          ? `${i18n.t('chat.microphone')} — ${i18n.t('chat.leaveVoice')}`
                           : isLocalMicOn
                           ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
                           : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
