@@ -197,7 +197,8 @@ export function GameControls({
         )}
       </Pressable>
 
-      {/* ── Voice / Video chat controls (multiplayer only) ─────────────── */}      {(onToggleVoiceChat || onToggleVideoChat) && (
+      {/* ── Voice / Video chat controls (multiplayer only) ─────────────── */}
+      {(onToggleVoiceChat || onToggleVideoChat) && (
         <>
           {onToggleVoiceChat && (
             <Pressable
@@ -262,7 +263,8 @@ export function GameControls({
             </Pressable>
           )}
         </>
-      )}    </View>
+      )}
+    </View>
   );
 }
 

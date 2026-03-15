@@ -48,9 +48,10 @@ import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import Constants from 'expo-constants';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
-import { LiveKitVideoChatAdapter } from '../hooks/LiveKitVideoChatAdapter';
-// Select adapter at runtime: LiveKit for native (EAS) builds; Stub for Expo Go.
-// Constants.executionEnvironment === 'storeClient' identifies Expo Go.
+// LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
+// to prevent the @livekit/react-native native module from being accessed at module-load time.
+// A static import would run registerGlobals() before isExpoGo is evaluated, crashing any
+// dev client that does not have LiveKit natively linked.
 const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -663,10 +664,19 @@ export function MultiplayerGame() {
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
   // LiveKitVideoChatAdapter is used in native (EAS) builds; StubVideoChatAdapter
   // is used in Expo Go where native WebRTC modules are unavailable.
-  const videoChatAdapter = React.useMemo(
-    () => isExpoGo ? new StubVideoChatAdapter() : new LiveKitVideoChatAdapter(),
-    [],
-  );
+  // The require() is intentionally lazy so the @livekit/react-native native module
+  // is never accessed in Expo Go (or a dev client built before LiveKit was installed).
+  const videoChatAdapter = React.useMemo(() => {
+    if (isExpoGo) return new StubVideoChatAdapter();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { LiveKitVideoChatAdapter } = require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
+      return new LiveKitVideoChatAdapter();
+    } catch {
+      gameLogger.warn('[VideoChat] LiveKit native module unavailable, falling back to stub adapter');
+      return new StubVideoChatAdapter();
+    }
+  }, []);
 
   const {
     isChatConnected,

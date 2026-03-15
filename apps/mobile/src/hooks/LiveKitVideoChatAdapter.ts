@@ -15,10 +15,11 @@
  *     rest of the app knows about. LiveKit can be swapped for Daily.co or any
  *     other SFU by implementing the same interface.
  *
- * Install prerequisites (run once, then `expo prebuild`):
+ * Install prerequisites (run once, then `expo prebuild --clean`):
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
- *   Note: @livekit/react-native-webrtc ships no Expo config plugin — do NOT add
- *   it to app.json plugins. Native linking is handled by `expo prebuild` / CocoaPods.
+ *   Note: @livekit/react-native-webrtc does NOT need an entry in app.json plugins.
+ *   Its native code is linked automatically by `expo prebuild` via CocoaPods / Gradle
+ *   (the PR description that mentioned adding a plugin entry was incorrect).
  *
  * Wire in:
  *   const livekitAdapter = useMemo(() => new LiveKitVideoChatAdapter(), []);
