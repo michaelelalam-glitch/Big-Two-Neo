@@ -119,8 +119,9 @@ export interface GameContextType {
    */
   isChatConnected: boolean;
   /**
-   * Whether the local player has opted in to voice-only chat (mic only — no camera).
-   * Derived: `isChatConnected && !isLocalCameraOn`.
+   * Session is connected with the camera off (voice-only mode).
+   * Derived: `isChatConnected && !isLocalCameraOn`. Does NOT guarantee that the
+   * mic is unmuted — check `isLocalMicOn` to confirm audio is sending.
    */
   voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming. */

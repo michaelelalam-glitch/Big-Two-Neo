@@ -58,6 +58,8 @@ export interface Translations {
     joinVideo: string;
     leaveVideo: string;
     muted: string;
+    camera: string;
+    microphone: string;
   };
 
   // Game Selection Screen
@@ -666,6 +668,8 @@ const en: Translations = {
     joinVideo: 'Join Video Chat',
     leaveVideo: 'Leave Video Chat',
     muted: 'Muted',
+    camera: 'Camera',
+    microphone: 'Microphone',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1206,6 +1210,8 @@ const ar: Translations = {
     joinVideo: 'انضم إلى محادثة الفيديو',
     leaveVideo: 'غادر محادثة الفيديو',
     muted: 'مكتوم',
+    camera: 'الكاميرا',
+    microphone: 'الميكروفون',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1776,6 +1782,8 @@ const de: Translations = {
     joinVideo: 'Video-Chat beitreten',
     leaveVideo: 'Video-Chat verlassen',
     muted: 'Stummgeschaltet',
+    camera: 'Kamera',
+    microphone: 'Mikrofon',
   },
   gameSelection: {
     welcome: 'Willkommen,',

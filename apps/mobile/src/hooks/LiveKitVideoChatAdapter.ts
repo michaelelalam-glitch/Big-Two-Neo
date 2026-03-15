@@ -17,10 +17,17 @@
  *
  * Install prerequisites (run once, then `expo prebuild --clean`):
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
- *   @livekit/react-native-webrtc provides native WebRTC bindings. It does NOT
- *   require a separate entry in app.json plugins — its Xcode framework and
- *   Gradle dependency are wired automatically by `expo prebuild` (CocoaPods /
- *   Gradle auto-link). No app.json plugin configuration is needed.
+ *   @livekit/react-native-webrtc provides native WebRTC bindings. Its Xcode
+ *   framework and Gradle dependency are wired automatically by `expo prebuild`
+ *   (CocoaPods / Gradle auto-link). No app.json plugin entry is needed.
+ *
+ * IMPORTANT — Expo Go compatibility:
+ *   `@livekit/react-native` checks for its native module at initialisation and
+ *   throws if it is not linked. To avoid crashing in Expo Go (where the native
+ *   module is absent), `registerGlobals()` is called lazily inside the
+ *   constructor via `require()` rather than as a module-level static import.
+ *   MultiplayerGame guards instantiation with `isExpoGo` and a try/catch so
+ *   this class is never instantiated in Expo Go.
  *
  * Wire in:
  *   const livekitAdapter = useMemo(() => new LiveKitVideoChatAdapter(), []);
@@ -34,18 +41,9 @@ import {
   RemoteParticipant,
   RoomOptions,
 } from 'livekit-client';
-import { registerGlobals } from '@livekit/react-native';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { VideoChatAdapter, VideoChatParticipant } from './useVideoChat';
-
-// Register LiveKit's custom WebRTC globals once per JS runtime.
-// @livekit/react-native guards against multiple calls internally.
-try {
-  registerGlobals();
-} catch (e) {
-  gameLogger.warn('[LiveKit] registerGlobals() failed (non-fatal):', String(e));
-}
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -92,6 +90,19 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private errorCbs: Array<(error: Error) => void> = [];
 
   constructor() {
+    // Lazily call registerGlobals() so that the `@livekit/react-native` native
+    // module is only accessed at instantiation time (never at module load time).
+    // This prevents the "package not linked" crash when the module is imported
+    // in an environment where the native module is unavailable (e.g. if the
+    // isExpoGo guard in MultiplayerGame fails to detect Expo Go).
+    // @livekit/react-native guards against multiple calls internally.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { registerGlobals } = require('@livekit/react-native') as { registerGlobals: () => void };
+      registerGlobals();
+    } catch (e) {
+      gameLogger.warn('[LiveKit] registerGlobals() failed (non-fatal):', String(e));
+    }
     this.room = new Room(ROOM_OPTIONS);
     this._attachRoomEvents();
   }
@@ -100,11 +111,16 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
 
   async connect(roomId: string, participantId: string): Promise<void> {
     // Fetch a fresh token from our Supabase Edge Function.
+    // `participantId` is the Supabase user UUID; the server uses it as the
+    // LiveKit participant identity. Pass it as `displayName` so the Edge
+    // Function prefers it over the email-prefix fallback. To show a
+    // human-readable username instead, plumb the player's in-game `username`
+    // through `UseVideoChatOptions` and forward it here.
     const { data, error } = await supabase.functions.invoke<{
       token: string;
       livekitUrl: string;
     }>('get-livekit-token', {
-      body: { roomId },
+      body: { roomId, displayName: participantId },
     });
 
     if (error || !data?.token || !data?.livekitUrl) {

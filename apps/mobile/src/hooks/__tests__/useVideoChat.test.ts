@@ -1045,7 +1045,7 @@ describe('useVideoChat — toggleCamera (camera track toggle within session)', (
     });
 
     // toggleVoiceChat (voice-only) never enables the camera,
-    // so enableCamera is called exactly once — by toggleCamera below.
+    // so enableCamera is called exactly once — by the toggleCamera() call above.
     expect(enableCameraSpy).toHaveBeenCalledTimes(1);
     expect(result.current.isLocalCameraOn).toBe(true);
     // Session must remain active

@@ -118,12 +118,12 @@ export interface UseVideoChatReturn {
    */
   isChatConnected: boolean;
   /**
-   * Whether the local player is in voice-only chat (mic active, camera off).
+   * Whether the session is connected with the camera off (voice-only mode).
    * Derived: `isChatConnected && !isLocalCameraOn`.
-   * True whenever the session is connected and the camera is not streaming —
-   * regardless of whether the session was started via `toggleVoiceChat` or
-   * the camera was subsequently turned off via `toggleCamera` after joining
-   * via `toggleVideoChat`.
+   * True whenever the session is connected and the camera is NOT streaming —
+   * regardless of whether the mic is muted and regardless of how the session
+   * was started (`toggleVoiceChat` or `toggleVideoChat` + camera disabled).
+   * Does NOT guarantee the microphone is unmuted; check `isLocalMicOn` for that.
    */
   voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming */
