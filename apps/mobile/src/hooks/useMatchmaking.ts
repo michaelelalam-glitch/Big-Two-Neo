@@ -35,21 +35,28 @@ interface UseMatchmakingReturn {
 
 /**
  * Hook for managing matchmaking (Quick Play feature)
- * 
- * Features:
- * - Joins waiting room and polls for matches
- * - Real-time updates on waiting player count
- * - Auto-cancels on unmount or timeout
- * - Skill-based matchmaking (±200 ELO)
- * - Region-based matching
- * 
+ *
+ * Uses Supabase Realtime as the **single** source of truth for match detection.
+ * A one-shot `find-match` call registers the user in the waiting room (and
+ * resolves immediately when a match is already available). After that,
+ * Postgres-change events on `waiting_room` drive all state updates — there is
+ * no polling interval, which eliminates the dual-source race condition where
+ * both polling and Realtime could previously call `setMatchFound` concurrently.
+ *
+ * Race-condition guards:
+ * - `isStartingRef` — prevents a second concurrent call to `startMatchmaking`
+ *   from creating a duplicate Realtime subscription.
+ * - `isCancelledRef` — prevents a Realtime callback that arrives after
+ *   `cancelMatchmaking()` from incorrectly transitioning the hook back into a
+ *   "match found" state.
+ *
  * Usage:
  * ```tsx
  * const { isSearching, matchFound, roomCode, startMatchmaking, cancelMatchmaking } = useMatchmaking();
- * 
+ *
  * // Start searching
  * await startMatchmaking('Player1', 1200, 'na');
- * 
+ *
  * // When matchFound is true, navigate to room with roomCode
  * if (matchFound && roomCode) {
  *   navigation.navigate('Lobby', { roomCode });
@@ -63,13 +70,25 @@ export function useMatchmaking(): UseMatchmakingReturn {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const pollIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const channelRef = useRef<RealtimeChannel | null>(null);
   const userIdRef = useRef<string | null>(null);
+  /** Prevents concurrent duplicate calls to startMatchmaking. */
+  const isStartingRef = useRef(false);
+  /** Set to true by cancelMatchmaking so in-flight Realtime callbacks are ignored. */
+  const isCancelledRef = useRef(false);
 
   /**
-   * Start searching for a match
+   * Start searching for a match.
+   *
+   * Calls `find-match` once to register the user in the waiting room.
+   * If a match is immediately available the function resolves it
+   * synchronously. Otherwise a Realtime subscription on `waiting_room`
+   * drives all further state transitions — no polling interval is started.
+   *
+   * The `isStartingRef` guard prevents a second concurrent invocation (e.g.
+   * the user tapping "Find Match" twice in rapid succession) from creating a
+   * duplicate Realtime subscription.
    */
   const startMatchmaking = useCallback(async (
     username: string,
@@ -77,6 +96,11 @@ export function useMatchmaking(): UseMatchmakingReturn {
     region: string = 'global',
     matchType: 'casual' | 'ranked' = 'casual'
   ) => {
+    // Debounce: ignore if a start is already in flight or search is active
+    if (isStartingRef.current || isSearching) return;
+    isStartingRef.current = true;
+    isCancelledRef.current = false;
+
     try {
       setError(null);
       setIsSearching(true);
@@ -92,7 +116,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       userIdRef.current = user.id;
 
-      // Call find-match Edge Function
+      // One-shot call: registers user in the waiting room and returns an
+      // immediate match if one was already available.
       const { data, error: matchError } = await supabase.functions.invoke('find-match', {
         body: {
           username,
@@ -124,84 +149,36 @@ export function useMatchmaking(): UseMatchmakingReturn {
       }
 
       if (result.matched) {
-        // Match found immediately!
+        // Immediate match — resolve without subscribing
         setMatchFound(true);
         setRoomCode(result.room_code ?? null);
         setRoomId(result.room_id ?? null);
         setIsSearching(false);
         setWaitingCount(4);
       } else {
-        // No match yet, start polling
+        // Waiting — subscribe to Realtime for match notification (no polling)
         setWaitingCount(result.waiting_count);
-        
-        // Subscribe to waiting room changes
         subscribeToWaitingRoom(user.id);
-        
-        // Poll every 2 seconds for matches
-        pollIntervalRef.current = setInterval(async () => {
-          await checkForMatch(user.id, username, skillRating, region, matchType);
-        }, 2000);
       }
     } catch (err) {
       console.error('Error starting matchmaking:', err);
       setError(err instanceof Error ? err.message : 'Failed to start matchmaking');
       setIsSearching(false);
+    } finally {
+      isStartingRef.current = false;
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearching]);
 
   /**
-   * Check if a match has been found
-   */
-  const checkForMatch = async (
-    userId: string,
-    username: string,
-    skillRating: number,
-    region: string,
-    matchType: 'casual' | 'ranked' = 'casual'
-  ) => {
-    try {
-      const { data, error: matchError } = await supabase.functions.invoke('find-match', {
-        body: {
-          username,
-          skill_rating: skillRating,
-          region,
-          match_type: matchType,
-        },
-      });
-
-      if (matchError) throw matchError;
-
-      const result = data as { matched: boolean; room_code?: string; room_id?: string; waiting_count: number };
-
-      if (result.matched) {
-        // Match found!
-        setMatchFound(true);
-        setRoomCode(result.room_code ?? null);
-        setRoomId(result.room_id ?? null);
-        setIsSearching(false);
-        setWaitingCount(4);
-        
-        // Stop polling
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        
-        // Unsubscribe from waiting room
-        if (channelRef.current) {
-          supabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-        }
-      } else {
-        setWaitingCount(result.waiting_count);
-      }
-    } catch (err) {
-      console.error('Error checking for match:', err);
-    }
-  };
-
-  /**
-   * Subscribe to waiting room changes for real-time updates
+   * Subscribe to waiting room changes for real-time match notification.
+   *
+   * Only one subscription is active at a time; any pre-existing channel is
+   * torn down before creating the new one.
+   *
+   * The `isCancelledRef` guard ensures that a Realtime event delivered after
+   * `cancelMatchmaking()` (possible due to buffering) does not incorrectly
+   * transition the hook back into "match found" state.
    */
   const subscribeToWaitingRoom = (userId: string) => {
     // Clean up existing channel
@@ -220,8 +197,19 @@ export function useMatchmaking(): UseMatchmakingReturn {
           table: 'waiting_room',
         },
         (payload) => {
-          
-          // If this user was matched, stop searching
+          // Ignore events that arrive after cancelMatchmaking() was called
+          if (isCancelledRef.current) return;
+
+          // Update waiting count on any row change
+          if (
+            payload.eventType === 'INSERT' ||
+            (payload.eventType === 'UPDATE' && !('matched_room_id' in payload.new))
+          ) {
+            // Count update is a best-effort UI hint handled via a follow-up
+            // fetch; we don't attempt to count rows from change events alone.
+          }
+
+          // If this user was matched, resolve the search
           if (
             payload.eventType === 'UPDATE' &&
             payload.new &&
@@ -231,24 +219,26 @@ export function useMatchmaking(): UseMatchmakingReturn {
           ) {
             const entry = payload.new as WaitingRoomEntry;
             if (entry.matched_room_id) {
-              // Fetch room details
+              // Fetch room code then resolve
               supabase
                 .from('rooms')
                 .select('code')
                 .eq('id', entry.matched_room_id)
                 .single()
                 .then(({ data: room }) => {
+                  // Guard again in case cancel raced the async fetch
+                  if (isCancelledRef.current) return;
                   if (room) {
                     setMatchFound(true);
                     setRoomCode(room.code);
                     setRoomId(entry.matched_room_id);
                     setIsSearching(false);
                     setWaitingCount(4);
-                    
-                    // Stop polling
-                    if (pollIntervalRef.current) {
-                      clearInterval(pollIntervalRef.current);
-                      pollIntervalRef.current = null;
+
+                    // Tear down channel — no further events needed
+                    if (channelRef.current) {
+                      supabase.removeChannel(channelRef.current);
+                      channelRef.current = null;
                     }
                   }
                 });
@@ -262,18 +252,20 @@ export function useMatchmaking(): UseMatchmakingReturn {
   };
 
   /**
-   * Cancel matchmaking
+   * Cancel matchmaking.
+   *
+   * Sets `isCancelledRef` before any async work so that any Realtime callback
+   * already enqueued (but not yet delivered) sees the cancelled flag and
+   * does not transition to "match found".
    */
   const cancelMatchmaking = useCallback(async () => {
     try {
       const userId = userIdRef.current;
       if (!userId) return;
 
-      // Stop polling
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
+      // Mark cancelled before async teardown so enqueued Realtime
+      // callbacks are ignored even if they fire during the await below.
+      isCancelledRef.current = true;
 
       // Unsubscribe from channel
       if (channelRef.current) {
@@ -310,12 +302,10 @@ export function useMatchmaking(): UseMatchmakingReturn {
     setWaitingCount(0);
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — tear down Realtime channel only (no interval to clear)
   useEffect(() => {
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      isCancelledRef.current = true;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
