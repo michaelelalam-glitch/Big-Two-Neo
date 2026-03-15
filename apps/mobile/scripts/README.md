@@ -17,8 +17,8 @@ These scripts apply specific one-off migration files — they do **not** accept 
 
 | Script | Purpose |
 |--------|---------|
-| `apply-migration.sh` | Apply the matchmaking auto-start fix (`supabase/migrations/20251228000001_fix_matchmaking_auto_start.sql`) using `psql`. Requires `DATABASE_URL` env var (Connection URI from Supabase Dashboard → Settings → Database). |
-| `apply-migration.mjs` | **Legacy — no longer functional.** Originally applied `supabase/migrations/20251223000001_add_client_game_completion.sql` via a Supabase `exec` RPC. That migration has been squashed into `00000000000000_baseline.sql` (task #640) and no `exec` RPC is defined in the current schema. To apply new migrations use `apply-migration.sh` (psql) or the Supabase CLI (`supabase db push`). |
+| `apply-migration.sh` | **Legacy — no longer needed.** Originally applied the matchmaking auto-start fix via `psql` (`supabase/migrations/20251228000001_fix_matchmaking_auto_start.sql`). That migration has been squashed into `00000000000000_baseline.sql`, and this one-off script is retained only for historical reference. For new migrations, use the Supabase CLI (`supabase db push`) or your standard migration workflow. Requires `DATABASE_URL` env var (Connection URI from Supabase Dashboard → Settings → Database) if you inspect or repurpose it. |
+| `apply-migration.mjs` | **Legacy — no longer functional.** Originally applied `supabase/migrations/20251223000001_add_client_game_completion.sql` via a Supabase `exec` RPC. That migration has been squashed into `00000000000000_baseline.sql` (task #640) and no `exec` RPC is defined in the current schema. To apply new migrations use the Supabase CLI (`supabase db push`) or invoke `psql` directly with your migration files. |
 | `check-schema.mjs` | Verify that the `game_state` table exists, list its columns, and print any RLS policies. Reads `EXPO_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from a local `.env` file. No arguments needed. |
 
 ## Diagnostics & Debugging
