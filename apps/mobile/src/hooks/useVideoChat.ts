@@ -272,6 +272,11 @@ export function useVideoChat({
       // UI reflects the true "disconnected" state even without an explicit
       // toggleVideoChat() call.
       if (err instanceof UnexpectedDisconnectError) {
+        // Best-effort adapter teardown so hardware capture stops even if the
+        // adapter itself hasn't fully cleaned up after the unexpected drop.
+        adapterRef.current.disableMicrophone().catch(() => {});
+        adapterRef.current.disableCamera().catch(() => {});
+        adapterRef.current.disconnect().catch(() => {});
         setIsChatConnected(false);
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);

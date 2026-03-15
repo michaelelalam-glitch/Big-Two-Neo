@@ -45,7 +45,7 @@
 - **`useVideoChat` hook** — `toggleVoiceChat`, `toggleVideoChat`, `toggleCamera`, `toggleMic`, voice-only → video upgrade path
 - **`GameSettingsModal`** — portrait mode wrapped in `ScrollView` for small devices; all accessibility labels via `i18n.t()`
 - **`PlayerInfo`** — connecting spinner overlay; accessible labels using i18n
-- **i18n** — 6 new `chat.*` keys: `connectingVideo`, `connectingVoice`, `tapTurnCameraOff`, `tapTurnCameraOn`, `tapMute`, `tapUnmute`
+- **i18n** — 16 new `chat.*` keys: `joinVoice`, `leaveVoice`, `joinVideo`, `leaveVideo`, `muted`, `camera`, `microphone`, `audio`, `video`, `sectionTitle`, `connectingVideo`, `connectingVoice`, `tapTurnCameraOff`, `tapTurnCameraOn`, `tapMute`, `tapUnmute`
 - **Tests:** 39 / 39 passing; TypeScript: 0 errors
 
 ### State after this phase
