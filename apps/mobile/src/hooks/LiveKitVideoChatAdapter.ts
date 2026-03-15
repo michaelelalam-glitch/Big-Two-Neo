@@ -50,6 +50,7 @@ import {
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { VideoChatAdapter, VideoChatParticipant } from './useVideoChat';
+import { UnexpectedDisconnectError } from './useVideoChat';
 
 // ---------------------------------------------------------------------------
 // Expo Go / unlinked-build guard
@@ -258,7 +259,7 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
         // do NOT treat normal leave flows as errors or useVideoChat would reset
         // isChatConnected during the ordinary opt-out path.
         if (reason !== DisconnectReason.CLIENT_INITIATED) {
-          this._notifyError(new Error('LiveKit disconnected unexpectedly'));
+          this._notifyError(new UnexpectedDisconnectError());
         }
       })
       .on(RoomEvent.MediaDevicesError, (err: Error) => {

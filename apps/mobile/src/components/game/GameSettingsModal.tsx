@@ -200,7 +200,7 @@ export default function GameSettingsModal({
                           ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — tap to turn camera off`
                           : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to turn camera on`
                       }
-                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
+                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
                     >
                       {isVideoChatConnecting
                         ? <ActivityIndicator size="small" color="#fff" />
@@ -393,7 +393,7 @@ export default function GameSettingsModal({
                           ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — tap to turn camera off`
                           : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to turn camera on`
                       }
-                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
+                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
                     >
                       <Text style={styles.menuItemText}>
                         {isLocalCameraOn ? '📷' : '📵'} {i18n.t('chat.camera')}
