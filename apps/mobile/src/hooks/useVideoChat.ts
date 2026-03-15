@@ -170,14 +170,16 @@ export function useVideoChat({
   // always be equal — a separate prevAdapterPropRef is required.
   const prevAdapterPropRef = useRef<VideoChatAdapter | undefined>(undefined);
 
-  // Teardown the old adapter when adapterProp is hot-swapped (e.g. DI in tests).
+  // Teardown the old adapter when adapterProp is hot-swapped (e.g. DI in tests),
+  // including the case where adapterProp changes to undefined (real → undefined).
   // If the hook is currently connected when the adapter is swapped, best-effort
   // disconnect the previous adapter before switching — prevents a lingering
-  // connected session.
+  // connected session. The !adapterProp guard is intentionally absent so that
+  // removing the injected adapter while connected still triggers cleanup.
   useEffect(() => {
     const prevAdapter = prevAdapterPropRef.current;
     prevAdapterPropRef.current = adapterProp;
-    if (!prevAdapter || !adapterProp || prevAdapter === adapterProp) return;
+    if (!prevAdapter || prevAdapter === adapterProp) return;
     if (videoChatEnabled) {
       prevAdapter.disableCamera().catch(() => {});
       prevAdapter.disableMicrophone().catch(() => {});
@@ -321,9 +323,10 @@ export function useVideoChat({
     }
 
     if (Platform.OS === 'ios') {
-      // iOS: NSMicrophoneUsageDescription in Info.plist triggers OS prompt on
-      // first real enableMicrophone(). Same rationale as requestCameraPermission.
-      // TODO(F3): replace with Microphone.getPermissionsAsync()
+      // iOS: NSMicrophoneUsageDescription in Info.plist triggers the OS prompt on
+      // the first real enableMicrophone() call. Same rationale as requestCameraPermission.
+      // TODO(F3): replace with Audio.requestPermissionsAsync() from expo-av
+      //          (or the LiveKit / Daily SDK's own permission flow once wired in)
       return 'granted';
     }
 

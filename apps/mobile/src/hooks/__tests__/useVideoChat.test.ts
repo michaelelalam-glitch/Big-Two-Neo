@@ -21,7 +21,7 @@ import {
 // Save and restore Platform.OS around every test so overrides applied via
 // Object.defineProperty do not leak across test files. Jest workers can run
 // multiple suites in the same process, so an unrestore'd override persists
-// and causes flaky failures in unrelated files. (r2935977911)
+// and causes flaky failures in unrelated files. (#651)
 let platformOSDescriptor: PropertyDescriptor | undefined;
 beforeEach(() => {
   platformOSDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
@@ -134,7 +134,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(connectSpy).toHaveBeenCalledWith(ROOM_ID, USER_ID);
     expect(enableCameraSpy).toHaveBeenCalledTimes(1);
     expect(enableMicSpy).toHaveBeenCalledTimes(1);
-    // getParticipants() seeds remoteParticipants immediately on opt-in (r2935394720)
+    // getParticipants() seeds remoteParticipants immediately on opt-in (#651)
     expect(getParticipantsSpy).toHaveBeenCalledTimes(1);
     expect(result.current.videoChatEnabled).toBe(true);
     expect(result.current.isLocalCameraOn).toBe(true);
@@ -162,7 +162,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(result.current.videoChatEnabled).toBe(false);
   });
 
-  it('does not request mic permission when camera is denied (r2936027815)', async () => {
+  it('does not request mic permission when camera is denied (#651)', async () => {
     // Mic permission dialog must not appear if camera was denied — prompting
     // for mic when video chat will be blocked anyway is unnecessary and confusing.
     Object.defineProperty(Platform, 'OS', { get: () => 'android' });
@@ -187,7 +187,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
       expect.any(Object)
     );
     // RECORD_AUDIO must NOT have been requested — mic dialog is skipped when
-    // camera is denied. (r2936027815)
+    // camera is denied. (#651)
     expect(requestSpy).not.toHaveBeenCalledWith(
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       expect.any(Object)
@@ -211,7 +211,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(result.current.videoChatEnabled).toBe(false);
   });
 
-  it('stays disabled and calls best-effort cleanup when connect() rejects (r2935394739)', async () => {
+  it('stays disabled and calls best-effort cleanup when connect() rejects (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const disconnectSpy = jest.fn().mockResolvedValue(undefined);
@@ -286,11 +286,11 @@ describe('useVideoChat — opt-out (toggleVideoChat disables camera + mic)', () 
 });
 
 // ---------------------------------------------------------------------------
-// roomId change — state reset (r2936027821)
+// roomId change — state reset (#651)
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — roomId change resets state', () => {
-  it('disables camera + resets state when roomId changes while video is active (r2936027821)', async () => {
+  it('disables camera + resets state when roomId changes while video is active (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
@@ -330,7 +330,7 @@ describe('useVideoChat — roomId change resets state', () => {
     expect(result.current.remoteParticipants).toEqual([]);
   });
 
-  it('does not disconnect on initial mount when roomId is first provided (r2936027821)', async () => {
+  it('does not disconnect on initial mount when roomId is first provided (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
     const disconnectSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({ disconnect: disconnectSpy });
@@ -343,7 +343,7 @@ describe('useVideoChat — roomId change resets state', () => {
     expect(disconnectSpy).not.toHaveBeenCalled();
   });
 
-  it('does not disconnect when roomId changes but video chat is not enabled (r2936131168)', async () => {
+  it('does not disconnect when roomId changes but video chat is not enabled (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
@@ -363,7 +363,7 @@ describe('useVideoChat — roomId change resets state', () => {
 
     // Video chat was never enabled — the hook is in the default off state
     // Changing roomId should NOT trigger any adapter teardown because there
-    // is no active session to tear down. (r2936131168)
+    // is no active session to tear down. (#651)
     await act(async () => {
       rerender({ roomId: 'room-uuid-NEW' });
     });
@@ -430,7 +430,7 @@ describe('useVideoChat — requestCameraPermission', () => {
 
     // Returns 'granted' so stub-mode operation proceeds, but intentionally does
     // NOT persist to state — state stays 'undetermined' until the real SDK
-    // (expo-camera) is installed and can query the actual OS decision. (r2935998616)
+    // (expo-camera) is installed and can query the actual OS decision. (#651)
     expect(status).toBe('granted');
     expect(result.current.cameraPermissionStatus).toBe('undetermined');
   });
@@ -453,7 +453,7 @@ describe('useVideoChat — requestCameraPermission', () => {
     expect(status).toBe('restricted');
   });
 
-  it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {
+  it('returns "restricted" on web / unsupported platforms (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'web' });
 
     const { result } = renderHook(() =>
@@ -491,7 +491,7 @@ describe('useVideoChat — requestMicPermission', () => {
 
     // Returns 'granted' so stub-mode operation proceeds, but intentionally does
     // NOT persist to state — state stays 'undetermined' until the real SDK
-    // can query the actual OS microphone decision. (r2935998619)
+    // can query the actual OS microphone decision. (#651)
     expect(status).toBe('granted');
     expect(result.current.micPermissionStatus).toBe('undetermined');
   });
@@ -518,7 +518,7 @@ describe('useVideoChat — requestMicPermission', () => {
     expect(result.current.micPermissionStatus).toBe('denied');
   });
 
-  it('returns "restricted" on web / unsupported platforms (r2936084479)', async () => {
+  it('returns "restricted" on web / unsupported platforms (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'web' });
 
     const { result } = renderHook(() =>
@@ -617,10 +617,10 @@ describe('useVideoChat — toggleMic', () => {
 });
 
 // ---------------------------------------------------------------------------
-// toggleVideoChat — opt-out even when roomId becomes undefined (r2936061509)
+// toggleVideoChat — opt-out even when roomId becomes undefined (#651)
 // ---------------------------------------------------------------------------
 
-describe('useVideoChat — opt-out allows teardown when roomId becomes undefined (r2936061509)', () => {
+describe('useVideoChat — opt-out allows teardown when roomId becomes undefined (#651)', () => {
   it('can opt out and reset state even when roomId is transiently undefined', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
@@ -679,10 +679,10 @@ describe('useVideoChat — opt-out allows teardown when roomId becomes undefined
 });
 
 // ---------------------------------------------------------------------------
-// enableMicrophone failure is non-blocking — camera stays active (r2936061511)
+// enableMicrophone failure is non-blocking — camera stays active (#651)
 // ---------------------------------------------------------------------------
 
-describe('useVideoChat — mic enable failure does not tear down camera (r2936061511)', () => {
+describe('useVideoChat — mic enable failure does not tear down camera (#651)', () => {
   it('leaves camera active when enableMicrophone throws', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
@@ -720,10 +720,10 @@ describe('useVideoChat — mic enable failure does not tear down camera (r293606
 
 // ---------------------------------------------------------------------------
 // adapterRef synchronised during render — swap teardown via prevAdapterPropRef
-// (r2936112017)
+// adapterProp synced during render / adapter hot-swap (#651)
 // ---------------------------------------------------------------------------
 
-describe('useVideoChat — adapterProp synced during render (r2936112017)', () => {
+describe('useVideoChat — adapterProp synced during render (#651)', () => {
   it('tears down the old adapter when adapterProp is swapped while connected', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
@@ -784,13 +784,48 @@ describe('useVideoChat — adapterProp synced during render (r2936112017)', () =
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('tears down old adapter when adapterProp changes to undefined while connected (#651)', async () => {
+    // r2936183676 — the !adapterProp guard was removed so that real→undefined
+    // also triggers best-effort cleanup, not just A→B swaps.
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const disableCameraA = jest.fn().mockResolvedValue(undefined);
+    const disableMicA = jest.fn().mockResolvedValue(undefined);
+    const disconnectA = jest.fn().mockResolvedValue(undefined);
+    const adapterA = makeAdapter({ disableCamera: disableCameraA, disableMicrophone: disableMicA, disconnect: disconnectA });
+
+    const { result, rerender } = renderHook(
+      ({ adapter }: { adapter: typeof adapterA | undefined }) =>
+        useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter }),
+      { initialProps: { adapter: adapterA as typeof adapterA | undefined } }
+    );
+
+    // Enable video with adapterA
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    expect(result.current.videoChatEnabled).toBe(true);
+
+    // Remove the injected adapter (real → undefined) — teardown must still fire
+    await act(async () => {
+      rerender({ adapter: undefined });
+    });
+
+    expect(disableCameraA).toHaveBeenCalledTimes(1);
+    expect(disableMicA).toHaveBeenCalledTimes(1);
+    expect(disconnectA).toHaveBeenCalledTimes(1);
+    // State reset to disabled after removal
+    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isLocalCameraOn).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// toggleVideoChat re-entrant guard — isConnecting state (r2936131172)
+// toggleVideoChat re-entrant guard — isConnecting state (#651)
 // ---------------------------------------------------------------------------
 
-describe('useVideoChat — toggleVideoChat re-entrant guard (r2936131172)', () => {
+describe('useVideoChat — toggleVideoChat re-entrant guard (#651)', () => {
   it('isConnecting starts false and is false after a complete toggle', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
@@ -810,7 +845,7 @@ describe('useVideoChat — toggleVideoChat re-entrant guard (r2936131172)', () =
     expect(result.current.videoChatEnabled).toBe(true);
   });
 
-  it('second toggleVideoChat call is ignored while first is in-flight (r2936131172)', async () => {
+  it('second toggleVideoChat call is ignored while first is in-flight (#651)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     let resolveConnect!: () => void;
