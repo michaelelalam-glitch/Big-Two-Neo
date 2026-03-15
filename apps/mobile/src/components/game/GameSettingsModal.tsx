@@ -288,7 +288,7 @@ export default function GameSettingsModal({
             </View>
           ) : (
             /* PORTRAIT MODE: Scrollable vertical layout */
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
               {/* Sound Settings */}
               <Pressable 
                 style={styles.menuItem}

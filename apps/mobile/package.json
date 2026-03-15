@@ -89,8 +89,10 @@
     ]
   },
   "pnpm": {
-    "overrides": {
-      "react-dom": "19.1.0"
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react-dom>react": "19.1.0"
+      }
     }
   },
   "private": true

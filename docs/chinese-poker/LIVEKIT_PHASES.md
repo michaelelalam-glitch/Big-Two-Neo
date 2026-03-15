@@ -60,7 +60,7 @@
 
 ### What needs to happen
 - Run `expo prebuild --clean` to generate the `/ios` and `/android` native projects from the current `app.json` config
-- Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json` (already scaffolded — verify it is correct)
+- ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking and does **not** require a manual entry in `app.json` plugins. `LiveKitVideoChatAdapter.ts` documents this explicitly. Run `expo prebuild --clean` and autolinking will resolve the native module automatically.
 - **iOS:** Run `pod install` in `/ios`; agree to microphone + camera usage description entries in `Info.plist`
 - **Android:** Confirm `CAMERA` and `RECORD_AUDIO` permissions are in `AndroidManifest.xml`; check Gradle dependency resolution for `livekit-android`
 - Build and run on a real device (not Expo Go — native modules require a custom dev client or a production build)
