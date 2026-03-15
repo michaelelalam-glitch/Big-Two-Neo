@@ -211,22 +211,18 @@ export function useMatchmaking(): UseMatchmakingReturn {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'waiting_room',
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           // Ignore events that arrive after cancelMatchmaking() was called
           if (isCancelledRef.current) return;
 
-          // If this user was matched, resolve the search
-          if (
-            payload.eventType === 'UPDATE' &&
-            payload.new &&
-            'user_id' in payload.new &&
-            payload.new.user_id === userId &&
-            payload.new.status === 'matched'
-          ) {
+          // Subscription is already filtered to UPDATE events for this user;
+          // only act when the row transitions to 'matched'.
+          if (payload.new && payload.new.status === 'matched') {
             const entry = payload.new as WaitingRoomEntry;
             if (entry.matched_room_id) {
               // Guard: if another buffered/duplicate UPDATE already started a
