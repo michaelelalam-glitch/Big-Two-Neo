@@ -108,13 +108,12 @@ Deno.serve(async (req: Request) => {
   // or local dev if not configured). LiveKit vars must be set manually.
   const supabaseUrl     = Deno.env.get('SUPABASE_URL')      ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const missingVars = [
-    !LIVEKIT_API_KEY    && 'LIVEKIT_API_KEY',
-    !LIVEKIT_API_SECRET && 'LIVEKIT_API_SECRET',
-    !LIVEKIT_URL        && 'LIVEKIT_URL',
-    !supabaseUrl        && 'SUPABASE_URL',
-    !supabaseAnonKey    && 'SUPABASE_ANON_KEY',
-  ].filter(Boolean);
+  const missingVars: string[] = [];
+  if (!LIVEKIT_API_KEY)    missingVars.push('LIVEKIT_API_KEY');
+  if (!LIVEKIT_API_SECRET) missingVars.push('LIVEKIT_API_SECRET');
+  if (!LIVEKIT_URL)        missingVars.push('LIVEKIT_URL');
+  if (!supabaseUrl)        missingVars.push('SUPABASE_URL');
+  if (!supabaseAnonKey)    missingVars.push('SUPABASE_ANON_KEY');
   if (missingVars.length > 0) {
     return new Response(
       JSON.stringify({ error: `Server misconfiguration: missing ${missingVars.join(', ')}` }),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -193,12 +193,12 @@ export default function GameSettingsModal({
                       accessibilityRole="button"
                       accessibilityLabel={
                         isVideoChatConnecting
-                          ? 'Connecting to video chat'
+                          ? i18n.t('chat.connectingVideo')
                           : !isInChatSession
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to join video chat`
+                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
                           : isLocalCameraOn
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — tap to turn camera off`
-                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to turn camera on`
+                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
+                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
                       }
                       accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
                     >
@@ -232,12 +232,12 @@ export default function GameSettingsModal({
                       accessibilityRole="button"
                       accessibilityLabel={
                         isAudioChatConnecting
-                          ? 'Connecting to voice chat'
+                          ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — tap to join voice chat`
+                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
                           : isLocalMicOn
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — tap to mute`
-                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — tap to unmute`
+                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
+                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
                       }
                       accessibilityState={{ checked: isLocalMicOn, disabled: isAudioChatConnecting || isVideoChatConnecting, busy: isAudioChatConnecting }}
                     >
@@ -287,8 +287,8 @@ export default function GameSettingsModal({
               </Pressable>
             </View>
           ) : (
-            /* PORTRAIT MODE: Non-scrolling vertical layout */
-            <View style={styles.content}>
+            /* PORTRAIT MODE: Scrollable vertical layout */
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
               {/* Sound Settings */}
               <Pressable 
                 style={styles.menuItem}
@@ -386,12 +386,12 @@ export default function GameSettingsModal({
                       accessibilityRole="button"
                       accessibilityLabel={
                         isVideoChatConnecting
-                          ? 'Connecting to video chat'
+                          ? i18n.t('chat.connectingVideo')
                           : !isInChatSession
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to join video chat`
+                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
                           : isLocalCameraOn
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — tap to turn camera off`
-                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — tap to turn camera on`
+                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
+                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
                       }
                       accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
                     >
@@ -426,12 +426,12 @@ export default function GameSettingsModal({
                       accessibilityRole="button"
                       accessibilityLabel={
                         isAudioChatConnecting
-                          ? 'Connecting to voice chat'
+                          ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — tap to join voice chat`
+                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
                           : isLocalMicOn
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — tap to mute`
-                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — tap to unmute`
+                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
+                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
                       }
                       accessibilityState={{ checked: isLocalMicOn, disabled: isAudioChatConnecting || isVideoChatConnecting, busy: isAudioChatConnecting }}
                     >
@@ -465,7 +465,7 @@ export default function GameSettingsModal({
                   {i18n.t('game.leaveGame')}
                 </Text>
               </Pressable>
-            </View>
+            </ScrollView>
           )}
         </View>
       </Pressable>
