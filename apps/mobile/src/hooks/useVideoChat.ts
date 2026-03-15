@@ -248,11 +248,24 @@ export function useVideoChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChatConnected, adapterProp]);
 
-  // Subscribe to SDK errors (log as non-fatal — video is opt-in).
+  // Subscribe to SDK errors. Disconnect errors (emitted by LiveKitVideoChat-
+  // Adapter on RoomEvent.Disconnected) are treated as fatal: reset all local
+  // and remote chat state so the UI never sticks in a "connected" state after
+  // an unexpected network drop or server-side kick.
   useEffect(() => {
     if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
-      gameLogger.warn('[VideoChat] SDK error (non-fatal):', err.message);
+      gameLogger.warn('[VideoChat] SDK error:', err.message);
+      // Treat disconnect errors as fatal — reset the full session state so the
+      // UI reflects the true "disconnected" state even without an explicit
+      // toggleVideoChat() call.
+      if (err.message.startsWith('LiveKit disconnected')) {
+        setIsChatConnected(false);
+        setIsLocalCameraOn(false);
+        setIsLocalMicOn(false);
+        setRemoteParticipants([]);
+        gameLogger.warn('[VideoChat] Session reset after unexpected disconnect.');
+      }
     });
     return unsubscribe;
   // eslint-disable-next-line react-hooks/exhaustive-deps

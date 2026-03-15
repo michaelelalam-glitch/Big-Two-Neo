@@ -310,6 +310,7 @@ export function LocalAIGame() {
       toggleVoiceChat: async () => {},
       toggleMic: async () => {},
       isVideoChatConnecting: false,
+      isAudioConnecting: false,
     }),
     [
       currentOrientation, toggleOrientation, isInitializing,
