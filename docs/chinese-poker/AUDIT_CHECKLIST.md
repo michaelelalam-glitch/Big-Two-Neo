@@ -254,7 +254,7 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `src/screens/MultiplayerGame.tsx` — `useVideoChat` wired; `remoteCameraStates` built from `remoteParticipants`
     - `src/screens/LocalAIGame.tsx` — no-op stub values provided for all 7 new GameContext video+audio chat fields
     - `src/components/game/PlayerInfo.tsx` — `VideoTile` rendered as absolute overlay (top-left, zIndex 12) inside `avatarContainer`
-    - `app.json` — iOS: `NSCameraUsageDescription` + `NSMicrophoneUsageDescription` added to `infoPlist`; Android: `android.permission.CAMERA`, `android.permission.RECORD_AUDIO`, `android.permission.MODIFY_AUDIO_SETTINGS` added to `permissions`. Both camera and microphone permissions are intentionally included in Phase 1 because the scaffold wires `useVideoChat` which manages both video and audio streams.
+    - `app.json` — iOS: `NSCameraUsageDescription` + `NSMicrophoneUsageDescription` added to `infoPlist`; Android: `android.permission.CAMERA` added to `permissions` (`RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` already existed and were unchanged by this PR). Both camera and microphone permissions are intentionally included in Phase 1 because the scaffold wires `useVideoChat` which manages both video and audio streams.
     - **Tests:** 25 new unit tests (VideoTile: 15, useVideoChat: 10); all passing
 
 ---
