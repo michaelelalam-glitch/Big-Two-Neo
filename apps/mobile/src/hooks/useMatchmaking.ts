@@ -114,6 +114,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
         throw new Error('User not authenticated');
       }
 
+      // Bail out if cancel() was called while getUser() was in flight
+      if (isCancelledRef.current) {
+        setIsSearching(false);
+        return;
+      }
+
       userIdRef.current = user.id;
 
       // One-shot call: registers user in the waiting room and returns an
@@ -129,6 +135,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
       if (matchError) {
         throw matchError;
+      }
+
+      // Bail out if cancel() was called while find-match was in flight
+      if (isCancelledRef.current) {
+        setIsSearching(false);
+        return;
       }
 
       // Runtime validation before type casting
@@ -200,15 +212,6 @@ export function useMatchmaking(): UseMatchmakingReturn {
           // Ignore events that arrive after cancelMatchmaking() was called
           if (isCancelledRef.current) return;
 
-          // Update waiting count on any row change
-          if (
-            payload.eventType === 'INSERT' ||
-            (payload.eventType === 'UPDATE' && !('matched_room_id' in payload.new))
-          ) {
-            // Count update is a best-effort UI hint handled via a follow-up
-            // fetch; we don't attempt to count rows from change events alone.
-          }
-
           // If this user was matched, resolve the search
           if (
             payload.eventType === 'UPDATE' &&
@@ -225,21 +228,37 @@ export function useMatchmaking(): UseMatchmakingReturn {
                 .select('code')
                 .eq('id', entry.matched_room_id)
                 .single()
-                .then(({ data: room }) => {
+                .then(({ data: room, error: roomError }) => {
                   // Guard again in case cancel raced the async fetch
                   if (isCancelledRef.current) return;
-                  if (room) {
-                    setMatchFound(true);
-                    setRoomCode(room.code);
-                    setRoomId(entry.matched_room_id);
+                  if (roomError || !room) {
+                    setError('Failed to fetch room details');
                     setIsSearching(false);
-                    setWaitingCount(4);
-
-                    // Tear down channel — no further events needed
                     if (channelRef.current) {
                       supabase.removeChannel(channelRef.current);
                       channelRef.current = null;
                     }
+                    return;
+                  }
+                  setMatchFound(true);
+                  setRoomCode(room.code);
+                  setRoomId(entry.matched_room_id);
+                  setIsSearching(false);
+                  setWaitingCount(4);
+
+                  // Tear down channel — no further events needed
+                  if (channelRef.current) {
+                    supabase.removeChannel(channelRef.current);
+                    channelRef.current = null;
+                  }
+                })
+                .catch((err) => {
+                  if (isCancelledRef.current) return;
+                  setError(err instanceof Error ? err.message : 'Failed to fetch room details');
+                  setIsSearching(false);
+                  if (channelRef.current) {
+                    supabase.removeChannel(channelRef.current);
+                    channelRef.current = null;
                   }
                 });
             }
@@ -260,12 +279,15 @@ export function useMatchmaking(): UseMatchmakingReturn {
    */
   const cancelMatchmaking = useCallback(async () => {
     try {
+      // Mark cancelled immediately — fires even when userId is not yet set,
+      // so startMatchmaking bails out if cancel races the getUser() /
+      // find-match awaits, and any buffered Realtime events are ignored.
+      isCancelledRef.current = true;
+      setIsSearching(false);
+      setWaitingCount(0);
+
       const userId = userIdRef.current;
       if (!userId) return;
-
-      // Mark cancelled before async teardown so enqueued Realtime
-      // callbacks are ignored even if they fire during the await below.
-      isCancelledRef.current = true;
 
       // Unsubscribe from channel
       if (channelRef.current) {
@@ -282,8 +304,6 @@ export function useMatchmaking(): UseMatchmakingReturn {
         console.error('Error canceling matchmaking:', cancelError || data);
       }
 
-      setIsSearching(false);
-      setWaitingCount(0);
       setError(null);
       userIdRef.current = null;
     } catch (err) {
