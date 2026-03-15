@@ -474,7 +474,7 @@ export function useVideoChat({
         try {
           await adapterRef.current.enableCamera();
           setIsLocalCameraOn(true);
-          gameLogger.info('[VideoChat] Upgraded from voice-only to camera + mic.');
+          gameLogger.info('[VideoChat] Camera enabled — upgraded from voice-only to video.');
         } catch (err) {
           gameLogger.warn('[VideoChat] Camera enable failed during voice→video upgrade:', err instanceof Error ? err.message : String(err));
         }
