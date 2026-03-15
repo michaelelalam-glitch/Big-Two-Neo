@@ -243,30 +243,29 @@ export function useMatchmaking(): UseMatchmakingReturn {
               }
 
               // Fetch room code then resolve
-              supabase
-                .from('rooms')
-                .select('code')
-                .eq('id', entry.matched_room_id)
-                .single()
-                .then(({ data: room, error: roomError }) => {
-                  // Guard again in case cancel raced the async fetch
-                  if (isCancelledRef.current) return;
-                  if (roomError || !room) {
-                    setError('Failed to fetch room details');
-                    setIsSearching(false);
-                    return;
-                  }
-                  setMatchFound(true);
-                  setRoomCode(room.code);
-                  setRoomId(entry.matched_room_id);
+              (async () => {
+                const { data: room, error: roomError } = await supabase
+                  .from('rooms')
+                  .select('code')
+                  .eq('id', entry.matched_room_id)
+                  .single();
+
+                if (isCancelledRef.current) return;
+                if (roomError || !room) {
+                  setError('Failed to fetch room details');
                   setIsSearching(false);
-                  setWaitingCount(4);
-                })
-                .catch((err) => {
-                  if (isCancelledRef.current) return;
-                  setError(err instanceof Error ? err.message : 'Failed to fetch room details');
-                  setIsSearching(false);
-                });
+                  return;
+                }
+                setMatchFound(true);
+                setRoomCode(room.code);
+                setRoomId(entry.matched_room_id);
+                setIsSearching(false);
+                setWaitingCount(4);
+              })().catch((err: unknown) => {
+                if (isCancelledRef.current) return;
+                setError(err instanceof Error ? err.message : 'Failed to fetch room details');
+                setIsSearching(false);
+              });
             }
           }
         }

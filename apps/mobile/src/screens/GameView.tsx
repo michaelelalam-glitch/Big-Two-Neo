@@ -72,11 +72,14 @@ function GameViewComponent() {
     isPlayerReady,
     gameManagerRef,
     isMountedRef,
-    // Task #651 video chat
+    // Task #651 / #649 video + voice chat
     videoChatEnabled,
+    voiceChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
     toggleVideoChat,
+    toggleVoiceChat,
+    toggleMic,
     isVideoChatConnecting,
   } = useGameContext();
 
@@ -316,6 +319,13 @@ function GameViewComponent() {
                 playerHand={effectivePlayerHand}
                 onPlayCards={handlePlayCards}
                 onPass={handlePass}
+                isInChatSession={isMultiplayerGame && (videoChatEnabled || voiceChatEnabled)}
+                isLocalMicOn={isLocalMicOn}
+                isLocalCameraOn={isLocalCameraOn}
+                isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
+                onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
+                onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
+                onToggleMic={isMultiplayerGame && (videoChatEnabled || voiceChatEnabled) ? toggleMic : undefined}
               />
             </View>
 

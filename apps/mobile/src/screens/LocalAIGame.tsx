@@ -298,13 +298,15 @@ export function LocalAIGame() {
       isPlayerReady,
       gameManagerRef,
       isMountedRef,
-      // Task #651: video chat is multiplayer-only; provide stable no-op values here
+      // Task #651 / #649: video + voice chat is multiplayer-only; no-op stubs here
       videoChatEnabled: false,
+      voiceChatEnabled: false,
       isLocalCameraOn: false,
       isLocalMicOn: false,
       remoteCameraStates: {},
       remoteMicStates: {},
       toggleVideoChat: async () => {},
+      toggleVoiceChat: async () => {},
       toggleMic: async () => {},
       isVideoChatConnecting: false,
     }),
