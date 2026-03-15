@@ -11,7 +11,6 @@ import {
   StubVideoChatAdapter,
   VideoChatAdapter,
   VideoChatParticipant,
-  CameraPermissionStatus,
   MediaPermissionStatus,
 } from '../useVideoChat';
 
@@ -399,7 +398,7 @@ describe('useVideoChat — requestCameraPermission', () => {
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
 
-    let status: CameraPermissionStatus = 'undetermined';
+    let status: MediaPermissionStatus = 'undetermined';
     await act(async () => {
       status = await result.current.requestCameraPermission();
     });
@@ -421,7 +420,7 @@ describe('useVideoChat — requestCameraPermission', () => {
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
 
-    let status: CameraPermissionStatus = 'undetermined';
+    let status: MediaPermissionStatus = 'undetermined';
     await act(async () => {
       status = await result.current.requestCameraPermission();
     });
@@ -437,7 +436,7 @@ describe('useVideoChat — requestCameraPermission', () => {
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
 
-    let status: CameraPermissionStatus = 'undetermined';
+    let status: MediaPermissionStatus = 'undetermined';
     await act(async () => {
       status = await result.current.requestCameraPermission();
     });
