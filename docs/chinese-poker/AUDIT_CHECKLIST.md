@@ -178,23 +178,24 @@ Track progress on all audit findings. Check off items as they are resolved.
     - `multiplayerSeatIndex` lookups are by `user_id`/`human_user_id` (not `player_index`) — unchanged (separate concern, already correct).
   - **Why:** 13 linear O(N) `.find()` calls per memo re-evaluation (12 in `multiplayerLayoutPlayers` + 1 in `multiplayerLastPlayedBy`). With N=4 players each scan is short, but the map eliminates the repeated array iteration entirely and scales cleanly if player count increases.
 
-- [ ] **M5** — Add missing ESLint peer dependencies
-  - **File:** `package.json`
+- [x] **M5** — Add missing ESLint peer dependencies
+  - **File:** `apps/mobile/package.json`
   - **Task:** #642
-  - **Fix:**
-    ```bash
-    pnpm add -D eslint-plugin-react-hooks eslint-plugin-react-native
-    ```
-  - **Why:** Missing peer deps cause ESLint to fail silently or use wrong plugin versions
+  - **Branch:** `task/642-644-fix-deps`
+  - **Fix:** Added 5 missing explicit `devDependencies` that `.eslintrc.js` requires but were only transitively available (causing ESLint to silently fall back to wrong plugin versions):
+    - `@typescript-eslint/parser@^8.50.0`
+    - `@typescript-eslint/eslint-plugin@^8.50.0`
+    - `eslint-plugin-react@^7.37.5`
+    - `eslint-plugin-react-hooks@^5.2.0`
+    - `@jest/globals@~29.7.0` (used directly in 2 test files: `five-card-combo-classification.test.ts`, `LandscapeIntegration.test.ts`)
+  - **Why:** Missing peer deps cause ESLint to fail silently or use wrong plugin versions; `@jest/globals` was imported but absent from `devDependencies`
 
-- [ ] **M6** — Remove unused `expo-linear-gradient`
-  - **File:** `package.json`
+- [x] **M6** — Remove unused `expo-linear-gradient`
+  - **File:** `apps/mobile/package.json`
   - **Task:** #644
-  - **Fix:**
-    ```bash
-    pnpm remove expo-linear-gradient
-    ```
-  - **Why:** Confirmed unused by depcheck; adds native build weight for no benefit
+  - **Branch:** `task/642-644-fix-deps`
+  - **Fix:** Ran `pnpm remove expo-linear-gradient`. No production source file imports it — `GameEndModal.tsx` had only a comment referencing it; `LandscapeOvalTable` never imported it. Removed stale `jest.mock('expo-linear-gradient', ...)` from two test files (`LandscapeOvalTable.test.tsx`, `GameEndModal.test.tsx`) that were mocking a package no longer in the dependency graph. 26/26 affected tests still pass.
+  - **Why:** Confirmed unused by source-code grep; adds native build weight (React Native module link) for no benefit
 
 ---
 
