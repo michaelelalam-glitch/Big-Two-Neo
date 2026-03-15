@@ -134,9 +134,10 @@ export interface GameContextType {
   /** Mute/unmute the local microphone while video chat is active. */
   toggleMic: () => Promise<void>;
   /**
-   * True while toggleVideoChat or toggleMic is in-flight (async connect /
-   * permission dialogs / enable calls). Use to disable the VideoTile button
-   * and show a spinner during transitions.
+   * True while toggleVideoChat is in-flight (async connect / permission
+   * dialogs / enable calls). Use to disable the VideoTile button and show a
+   * spinner during transitions. Note: toggleMic does not currently set this
+   * flag (mic in-flight state will be wired in task 649).
    */
   isVideoChatConnecting: boolean;
 }
