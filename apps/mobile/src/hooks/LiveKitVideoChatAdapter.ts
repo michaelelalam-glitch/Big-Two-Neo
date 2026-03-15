@@ -45,6 +45,7 @@ import {
   Track,
   RemoteParticipant,
   RoomOptions,
+  DisconnectReason,
 } from 'livekit-client';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
@@ -111,8 +112,13 @@ function snapshotParticipants(room: Room): VideoChatParticipant[] {
 // ---------------------------------------------------------------------------
 
 const ROOM_OPTIONS: RoomOptions = {
-  adaptiveStream: true,
-  dynacast:       true,
+  // Disable adaptive stream and dynacast for a 4-player mobile card game.
+  // adaptiveStream pauses video tracks when tiles are small/off-screen —
+  // in a game UI, video tiles are always small, which makes adaptive stream
+  // permanently pause all remote video. dynacast at a 4-player scale is
+  // unnecessary overhead. Both must be off for reliable audio and video.
+  adaptiveStream: false,
+  dynacast: false,
   // Audio defaults — let LiveKit handle echo cancellation and noise suppression.
   audioCaptureDefaults: {
     echoCancellation:    true,
@@ -247,11 +253,13 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       // Disconnect / reconnect
       .on(RoomEvent.Disconnected, (reason) => {
         this._notifyParticipants(); // Clear remote participants on disconnect
-        // Surface unexpected disconnects as errors so useVideoChat can reset
-        // isChatConnected and local track flags — prevents the UI from staying
-        // stuck in a “connected” state after a network drop or server-side kick.
-        const msg = reason ? `LiveKit disconnected: ${reason}` : 'LiveKit disconnected unexpectedly';
-        this._notifyError(new Error(msg));
+        // Only surface unexpected disconnects (network drop, server kick, etc.).
+        // CLIENT_INITIATED means adapter.disconnect() was called intentionally —
+        // do NOT treat normal leave flows as errors or useVideoChat would reset
+        // isChatConnected during the ordinary opt-out path.
+        if (reason !== DisconnectReason.CLIENT_INITIATED) {
+          this._notifyError(new Error('LiveKit disconnected unexpectedly'));
+        }
       })
       .on(RoomEvent.MediaDevicesError, (err: Error) => {
         gameLogger.warn('[LiveKit] Media device error:', err.message);
