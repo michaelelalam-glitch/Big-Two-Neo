@@ -30,7 +30,7 @@
 
 | Task ID | Title | Priority | Status | Notes |
 |---------|-------|----------|--------|-------|
-| #396 | Install required dependencies | Critical | ✅ Completed | expo-linear-gradient, react-native-svg (already installed) |
+| #396 | Install required dependencies | Critical | ✅ Completed | ~~expo-linear-gradient~~ (removed in audit M6, Mar 2026), react-native-svg (still installed) |
 | #403 | Setup TypeScript interfaces for Game End feature | High | ✅ Completed | Created src/types/gameEnd.ts with all interfaces |
 | #404 | Create GameEndContext provider | High | ✅ Completed | Created src/contexts/GameEndContext.tsx with state management |
 | #405 | Build Fireworks animation component | High | ✅ Completed | Created src/components/gameEnd/Fireworks.tsx |
@@ -163,9 +163,7 @@
 ### December 16, 2025
 - ✅ Created 29 tasks in admin dashboard
 - ✅ Created progress tracking document
-- ✅ **Task #396 Complete:** Installed expo-linear-gradient (v15.0.8)
-  - Verified iOS setup with pod install (ExpoLinearGradient installed)
-  - Verified Android setup with gradle clean (expo-linear-gradient configured)
+- ✅ **Task #396 Complete:** ~~Installed expo-linear-gradient (v15.0.8)~~ — **`expo-linear-gradient` was removed in audit task M6 (Mar 2026)**. No production source file imported it at removal time; `GameEndModal.tsx` used a plain `View` background instead of `LinearGradient`.
   - Confirmed react-native-svg (v15.12.1) already installed
   - Confirmed react-native-safe-area-context (v5.6.2) already installed
   - Confirmed expo-haptics (v15.0.8) already installed

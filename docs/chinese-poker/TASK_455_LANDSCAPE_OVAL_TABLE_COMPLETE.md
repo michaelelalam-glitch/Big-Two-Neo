@@ -43,7 +43,7 @@
 ```
 
 **Key Implementation Details:**
-- Uses `expo-linear-gradient` for poker table gradient
+- ~~Uses `expo-linear-gradient` for poker table gradient~~ — **`expo-linear-gradient` was removed from the project in audit task M6 (Mar 2026)**. The gradient was already replaced with a plain `View`-based background before removal; `LandscapeOvalTable.tsx` no longer imports this package.
 - Cards displayed at "center" size (70×98pt) - closest to migration plan's 48×67pt
 - Memoized card positioning to prevent React freeze
 - Sorts cards using `sortCardsForDisplay` utility
@@ -177,7 +177,7 @@ Time:        3.44s
 
 ### Component Dependencies:
 - `react`, `react-native` - Core framework
-- `expo-linear-gradient` - Poker table gradient
+- ~~`expo-linear-gradient` - Poker table gradient~~ — **removed (audit M6, Mar 2026)**; gradient replaced with plain `View` background
 - `../LandscapeCard` - Card rendering (center size)
 - `../../utils/cardSorting` - Sort cards for display
 - `../../i18n` - Internationalization
@@ -281,10 +281,8 @@ Time:        3.44s
 ### Challenge 5: Jest Mock for expo-linear-gradient
 **Problem:** Jest couldn't resolve `expo-linear-gradient` module  
 **Solution:** Created proper mock that renders as View component
-**Impact:** ✅ All tests passing
-
----
-
+**Impact:** ✅ All tests passing  
+> **Update (audit M6, Mar 2026):** `expo-linear-gradient` has since been removed from the project. The `jest.mock` for this package was also removed from `LandscapeOvalTable.test.tsx` — tests continue to pass.
 **Task #455 Status:** ✅ **COMPLETE**  
 **Overall Progress:** Phase 1: 100% ✅ | Phase 2: 40% 🔄 | Total: 33% (6/18 tasks)
 
