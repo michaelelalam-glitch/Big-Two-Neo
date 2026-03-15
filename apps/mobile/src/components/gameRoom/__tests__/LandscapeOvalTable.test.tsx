@@ -11,14 +11,6 @@ import { LandscapeOvalTable } from '../LandscapeOvalTable';
 import type { Card } from '../../../game/types';
 
 // Mock dependencies
-jest.mock('expo-linear-gradient', () => ({
-  LinearGradient: ({ children, testID, style, ...props }: any) => {
-    const React = require('react');
-    const { View } = require('react-native');
-    return React.createElement(View, { testID, style, ...props }, children);
-  },
-}));
-
 jest.mock('../../../i18n', () => ({
   i18n: {
     t: (key: string) => {
