@@ -20,6 +20,21 @@ interface GameControlsProps {
   playerHand: Card[];
   onPlayCards: (cards: Card[]) => Promise<void>;
   onPass: () => Promise<void>;
+  // ── Task #649 / #651: voice + video chat controls ──────────────────────
+  /** Whether the local player is in a voice or video chat session. */
+  isInChatSession?: boolean;
+  /** Whether the local microphone is currently active (unmuted). */
+  isLocalMicOn?: boolean;
+  /** Whether the local camera is currently streaming. */
+  isLocalCameraOn?: boolean;
+  /** Whether a chat connect/disconnect is in-flight. */
+  isVideoChatConnecting?: boolean;
+  /** Toggle voice-only chat on/off. */
+  onToggleVoiceChat?: () => Promise<void>;
+  /** Toggle video+audio chat on/off. */
+  onToggleVideoChat?: () => Promise<void>;
+  /** Mute/unmute local microphone. */
+  onToggleMic?: () => Promise<void>;
 }
 
 /**
@@ -39,6 +54,14 @@ export function GameControls({
   playerHand,
   onPlayCards,
   onPass,
+  // Chat controls (optional — only wired in multiplayer)
+  isInChatSession = false,
+  isLocalMicOn = false,
+  isLocalCameraOn = false,
+  isVideoChatConnecting = false,
+  onToggleVoiceChat,
+  onToggleVideoChat,
+  onToggleMic,
 }: GameControlsProps) {
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
@@ -171,6 +194,91 @@ export function GameControls({
           <Text style={styles.actionButtonText}>{i18n.t('game.play')}</Text>
         )}
       </Pressable>
+
+      {/* ── Voice / Video chat controls (multiplayer only) ─────────────── */}
+      {(onToggleVoiceChat || onToggleVideoChat) && (
+        <View style={styles.chatControls}>
+          {/* Mic mute/unmute — shown when a chat session is active */}
+          {isInChatSession && onToggleMic && (
+            <Pressable
+              style={[styles.chatButton, isLocalMicOn ? styles.chatButtonActive : styles.chatButtonMuted]}
+              onPress={onToggleMic}
+              disabled={isVideoChatConnecting}
+              accessibilityRole="button"
+              accessibilityLabel={isLocalMicOn ? 'Mute microphone' : 'Unmute microphone'}
+              accessibilityState={{ disabled: isVideoChatConnecting }}
+              testID="game-controls-mic-toggle"
+            >
+              <Text style={styles.chatButtonIcon}>{isLocalMicOn ? '🎤' : '🔇'}</Text>
+            </Pressable>
+          )}
+
+          {/* Camera toggle — shown when a chat session is active */}
+          {isInChatSession && onToggleVideoChat && (
+            <Pressable
+              style={[styles.chatButton, isLocalCameraOn ? styles.chatButtonActive : styles.chatButtonMuted]}
+              onPress={onToggleVideoChat}
+              disabled={isVideoChatConnecting}
+              accessibilityRole="button"
+              accessibilityLabel={isLocalCameraOn ? 'Turn off camera' : 'Turn on camera'}
+              accessibilityState={{ disabled: isVideoChatConnecting }}
+              testID="game-controls-camera-toggle"
+            >
+              <Text style={styles.chatButtonIcon}>{isLocalCameraOn ? '📷' : '📵'}</Text>
+            </Pressable>
+          )}
+
+          {/* Voice chat toggle — join/leave voice-only session */}
+          {onToggleVoiceChat && (
+            <Pressable
+              style={[
+                styles.chatButton,
+                (isInChatSession && !isLocalCameraOn) ? styles.chatButtonActive : styles.chatButtonInactive,
+                isVideoChatConnecting && styles.buttonDisabled,
+              ]}
+              onPress={isVideoChatConnecting ? undefined : onToggleVoiceChat}
+              disabled={isVideoChatConnecting}
+              accessibilityRole="button"
+              accessibilityLabel={(isInChatSession && !isLocalCameraOn) ? 'Leave voice chat' : 'Join voice chat'}
+              accessibilityState={{ disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
+              testID="game-controls-voice-toggle"
+            >
+              {isVideoChatConnecting ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.chatButtonIcon}>
+                  {(isInChatSession && !isLocalCameraOn) ? '🔊' : '🔈'}
+                </Text>
+              )}
+            </Pressable>
+          )}
+
+          {/* Video chat toggle — join/leave video+audio session */}
+          {onToggleVideoChat && (
+            <Pressable
+              style={[
+                styles.chatButton,
+                (isInChatSession && isLocalCameraOn) ? styles.chatButtonActive : styles.chatButtonInactive,
+                isVideoChatConnecting && styles.buttonDisabled,
+              ]}
+              onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
+              disabled={isVideoChatConnecting}
+              accessibilityRole="button"
+              accessibilityLabel={(isInChatSession && isLocalCameraOn) ? 'Leave video chat' : 'Join video chat'}
+              accessibilityState={{ disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
+              testID="game-controls-video-toggle"
+            >
+              {isVideoChatConnecting ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.chatButtonIcon}>
+                  {(isInChatSession && isLocalCameraOn) ? '🎥' : '📹'}
+                </Text>
+              )}
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -213,5 +321,42 @@ const styles = StyleSheet.create({
   },
   passButtonText: {
     color: '#D1D5DB', // MATCH LANDSCAPE: Light gray text (was COLORS.gray.light)
+  },
+  // ── Chat control styles ────────────────────────────────────────────────
+  chatControls: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    alignItems: 'center',
+    marginLeft: SPACING.sm,
+  },
+  chatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  chatButtonActive: {
+    backgroundColor: '#2563EB', // Blue — in session
+    borderWidth: 2,
+    borderColor: '#60A5FA',
+  },
+  chatButtonMuted: {
+    backgroundColor: '#7F1D1D', // Dark red — muted/camera off but session active
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  chatButtonInactive: {
+    backgroundColor: '#374151', // Dark gray — not in session
+    borderWidth: 1,
+    borderColor: '#6B7280',
+  },
+  chatButtonIcon: {
+    fontSize: 18,
   },
 });

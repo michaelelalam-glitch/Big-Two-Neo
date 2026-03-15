@@ -112,9 +112,14 @@ export interface GameContextType {
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;
   isMountedRef: React.MutableRefObject<boolean>;
 
-  // ── Task #651: in-game video + audio chat ──────────────────────────────
-  /** Whether the local player has opted in to video chat. */
+  // ── Task #651 / #649: in-game video + audio chat ──────────────────────────
+  /** Whether the local player has opted in to video chat (camera + mic). */
   videoChatEnabled: boolean;
+  /**
+   * Whether the local player has opted in to voice-only chat (mic only — no camera).
+   * Derived: `videoChatEnabled && !isLocalCameraOn`.
+   */
+  voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming. */
   isLocalCameraOn: boolean;
   /** Whether the local microphone is currently active (unmuted). */
@@ -131,13 +136,14 @@ export interface GameContextType {
   remoteMicStates: Record<string, { isMicOn: boolean }>;
   /** Toggle local video+audio chat on/off (requests camera+mic permissions if needed). */
   toggleVideoChat: () => Promise<void>;
-  /** Mute/unmute the local microphone while video chat is active. */
+  /** Toggle voice-only chat (audio only — no camera) on/off. */
+  toggleVoiceChat: () => Promise<void>;
+  /** Mute/unmute the local microphone while video or voice chat is active. */
   toggleMic: () => Promise<void>;
   /**
-   * True while toggleVideoChat is in-flight (async connect / permission
-   * dialogs / enable calls). Use to disable the VideoTile button and show a
-   * spinner during transitions. Note: toggleMic does not currently set this
-   * flag (mic in-flight state will be wired in task 649).
+   * True while toggleVideoChat or toggleVoiceChat is in-flight (async connect /
+   * permission dialogs / enable calls). Use to disable the VideoTile button and
+   * show a spinner during transitions.
    */
   isVideoChatConnecting: boolean;
 }

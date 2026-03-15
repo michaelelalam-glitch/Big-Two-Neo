@@ -101,8 +101,14 @@ export interface UseVideoChatOptions {
 }
 
 export interface UseVideoChatReturn {
-  /** Whether the local player has opted in to video chat */
+  /** Whether the local player has opted in to video chat (camera + mic) */
   videoChatEnabled: boolean;
+  /**
+   * Whether the local player has opted in to voice-only chat (mic only, no camera).
+   * Derived: `videoChatEnabled && !isLocalCameraOn`.
+   * True when `toggleVoiceChat` was used to join; false when `toggleVideoChat` was used.
+   */
+  voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming */
   isLocalCameraOn: boolean;
   /** Whether the local microphone is currently active */
@@ -120,12 +126,18 @@ export interface UseVideoChatReturn {
   /** Toggle local video+audio chat on/off. Requests camera+mic permissions if undetermined. */
   toggleVideoChat: () => Promise<void>;
   /**
-   * True while `toggleVideoChat` is executing an async enable/disable sequence.
-   * Pass to VideoTile/PlayerInfo so the UI can disable the toggle button and
-   * show a spinner during transitions (prevents re-entrant rapid taps).
+   * Toggle voice-only chat (audio only — no camera) on/off.
+   * Requests microphone permission only. The local camera is never enabled.
+   * When voice chat is already active, calling this disconnects the session.
+   * When video chat is already active, this is a no-op (use toggleVideoChat to opt out).
+   */
+  toggleVoiceChat: () => Promise<void>;
+  /**
+   * True while `toggleVideoChat` or `toggleVoiceChat` is executing an async
+   * enable/disable sequence. Use to disable buttons and show spinners.
    */
   isConnecting: boolean;
-  /** Toggle local microphone mute/unmute while video chat is active. */
+  /** Toggle local microphone mute/unmute while video or voice chat is active. */
   toggleMic: () => Promise<void>;
   /** Explicitly request camera permission (e.g. from a settings screen). */
   requestCameraPermission: () => Promise<MediaPermissionStatus>;
@@ -468,8 +480,76 @@ export function useVideoChat({
     }
   }, [videoChatEnabled, isLocalMicOn, micPermissionStatus, requestMicPermission]);
 
+  /**
+   * Toggle voice-only chat (audio only — no camera).
+   *
+   * - If a full video chat session is already active, this is a no-op: use
+   *   `toggleVideoChat()` to opt out instead (prevents confusing half-teardowns).
+   * - If voice chat is already active (`videoChatEnabled && !isLocalCameraOn`),
+   *   this disconnects the session.
+   * - Otherwise, requests mic permission, connects to the room, and enables the
+   *   microphone. Camera is never touched.
+   */
+  const toggleVoiceChat = useCallback(async (): Promise<void> => {
+    if (isTogglingRef.current) return;
+
+    // If video chat (camera on) is already active, ignore — user must use
+    // toggleVideoChat to manage that session.
+    if (videoChatEnabled && isLocalCameraOn) return;
+
+    isTogglingRef.current = true;
+    setIsConnecting(true);
+    try {
+      if (!videoChatEnabled) {
+        // ── Opt-in (voice only) ────────────────────────────────────────────
+        if (!roomId || !userId) return;
+
+        let micPermission = micPermissionStatus;
+        if (micPermission === 'undetermined' || micPermission === 'denied') {
+          micPermission = await requestMicPermission();
+        }
+        if (micPermission !== 'granted') {
+          gameLogger.info('[VoiceChat] Mic permission not granted — voice chat blocked.');
+          return;
+        }
+
+        try {
+          await adapterRef.current.connect(roomId, userId);
+          await adapterRef.current.enableMicrophone();
+          setRemoteParticipants(adapterRef.current.getParticipants());
+          setVideoChatEnabled(true);
+          // isLocalCameraOn remains false — this is the voice-only indicator.
+          setIsLocalMicOn(true);
+          gameLogger.info('[VoiceChat] Mic enabled (audio-only mode).');
+        } catch (err) {
+          gameLogger.warn('[VoiceChat] Failed to enable voice chat:', err instanceof Error ? err.message : String(err));
+          adapterRef.current.disableMicrophone().catch(() => {});
+          adapterRef.current.disconnect().catch(() => {});
+          setVideoChatEnabled(false);
+          setIsLocalMicOn(false);
+          setRemoteParticipants([]);
+        }
+      } else {
+        // ── Opt-out (voice was on, camera was off) ─────────────────────────
+        await adapterRef.current.disableMicrophone().catch(() => {});
+        await adapterRef.current.disconnect().catch(() => {});
+        setVideoChatEnabled(false);
+        setIsLocalMicOn(false);
+        setRemoteParticipants([]);
+        gameLogger.info('[VoiceChat] Voice chat disconnected.');
+      }
+    } finally {
+      isTogglingRef.current = false;
+      setIsConnecting(false);
+    }
+  }, [roomId, userId, videoChatEnabled, isLocalCameraOn, micPermissionStatus, requestMicPermission]);
+
+  // voiceChatEnabled is a derived value: connected but camera is off.
+  const voiceChatEnabled = videoChatEnabled && !isLocalCameraOn;
+
   return {
     videoChatEnabled,
+    voiceChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
     isConnecting,
@@ -477,6 +557,7 @@ export function useVideoChat({
     micPermissionStatus,
     remoteParticipants,
     toggleVideoChat,
+    toggleVoiceChat,
     toggleMic,
     requestCameraPermission,
     requestMicPermission,

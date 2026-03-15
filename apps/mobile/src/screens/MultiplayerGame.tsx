@@ -47,6 +47,7 @@ import { GameView } from './GameView';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat } from '../hooks/useVideoChat';
+import { LiveKitVideoChatAdapter } from '../hooks/LiveKitVideoChatAdapter';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -655,12 +656,26 @@ export function MultiplayerGame() {
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
-  // ── Task #651: in-game video chat ───────────────────────────────────────────
-  // roomInfo?.id is the Supabase room UUID used as the LiveKit/Daily room key.
-  const { videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteParticipants, toggleVideoChat, toggleMic, isConnecting: isVideoChatConnecting } = useVideoChat({
-    roomId: roomInfo?.id,
-    userId: user?.id,
-    // adapter: livekitAdapter,   ← plug in the real LiveKit adapter here once F2 is done
+  // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
+  // One LiveKit adapter instance per game session — stable via useMemo so it is
+  // not re-created on every render. The adapter is connected/disconnected by the
+  // useVideoChat hook through the connect() / disconnect() methods.
+  const livekitAdapter = React.useMemo(() => new LiveKitVideoChatAdapter(), []);
+
+  const {
+    videoChatEnabled,
+    voiceChatEnabled,
+    isLocalCameraOn,
+    isLocalMicOn,
+    remoteParticipants,
+    toggleVideoChat,
+    toggleVoiceChat,
+    toggleMic,
+    isConnecting: isVideoChatConnecting,
+  } = useVideoChat({
+    roomId:  roomInfo?.id,
+    userId:  user?.id,
+    adapter: livekitAdapter,
   });
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
@@ -733,13 +748,15 @@ export function MultiplayerGame() {
       isPlayerReady,
       gameManagerRef: emptyGameManagerRef,
       isMountedRef,
-      // Task #651
+      // Task #651 / #649
       videoChatEnabled,
+      voiceChatEnabled,
       isLocalCameraOn,
       isLocalMicOn,
       remoteCameraStates,
       remoteMicStates,
       toggleVideoChat,
+      toggleVoiceChat,
       toggleMic,
       isVideoChatConnecting,
     }),
@@ -758,7 +775,9 @@ export function MultiplayerGame() {
       handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
       handleSort, handleSmartSort, handleHint,
       isPlayerReady, emptyGameManagerRef, isMountedRef,
-      videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic,
+      videoChatEnabled, voiceChatEnabled, isLocalCameraOn, isLocalMicOn,
+      remoteCameraStates, remoteMicStates,
+      toggleVideoChat, toggleVoiceChat, toggleMic,
       isVideoChatConnecting,
     ],
   );
