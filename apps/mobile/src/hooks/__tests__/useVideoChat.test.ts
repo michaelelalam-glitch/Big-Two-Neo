@@ -82,7 +82,7 @@ describe('useVideoChat — initial state', () => {
     const { result } = renderHook(() =>
       useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
     );
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
     expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.cameraPermissionStatus).toBe('undetermined');
@@ -136,7 +136,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(enableMicSpy).toHaveBeenCalledTimes(1);
     // getParticipants() seeds remoteParticipants immediately on opt-in (#651)
     expect(getParticipantsSpy).toHaveBeenCalledTimes(1);
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
     expect(result.current.isLocalCameraOn).toBe(true);
     expect(result.current.isLocalMicOn).toBe(true);
   });
@@ -159,7 +159,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     });
 
     expect(connectSpy).not.toHaveBeenCalled();
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
   });
 
   it('does not request mic permission when camera is denied (#651)', async () => {
@@ -192,7 +192,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       expect.any(Object)
     );
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
   });
 
   it('does not enable camera when roomId is undefined', async () => {
@@ -208,7 +208,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     });
 
     expect(connectSpy).not.toHaveBeenCalled();
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
   });
 
   it('stays disabled and calls best-effort cleanup when connect() rejects (#651)', async () => {
@@ -233,7 +233,7 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     });
 
     // Non-fatal: video stays disabled, no thrown exception
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
     expect(result.current.isLocalMicOn).toBe(false);
     // Cleanup methods called to prevent lingering half-connected state
@@ -268,7 +268,7 @@ describe('useVideoChat — opt-out (toggleVideoChat disables camera + mic)', () 
     await act(async () => {
       await result.current.toggleVideoChat();
     });
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
 
     // Then: opt out
     await act(async () => {
@@ -278,7 +278,7 @@ describe('useVideoChat — opt-out (toggleVideoChat disables camera + mic)', () 
     expect(disableMicSpy).toHaveBeenCalledTimes(1);
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
     expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.remoteParticipants).toEqual([]);
@@ -312,7 +312,7 @@ describe('useVideoChat — roomId change resets state', () => {
     await act(async () => {
       await result.current.toggleVideoChat();
     });
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
 
     // Change roomId — simulates navigating to a different game room
     await act(async () => {
@@ -324,7 +324,7 @@ describe('useVideoChat — roomId change resets state', () => {
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
     // UI state must be reset (not left showing "enabled" for the new room)
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
     expect(result.current.isLocalMicOn).toBe(false);
     expect(result.current.remoteParticipants).toEqual([]);
@@ -643,7 +643,7 @@ describe('useVideoChat — opt-out allows teardown when roomId becomes undefined
     await act(async () => {
       await result.current.toggleVideoChat();
     });
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
 
     // roomId transiently disappears (e.g. partial re-render during navigation)
     rerender({ roomId: undefined });
@@ -656,7 +656,7 @@ describe('useVideoChat — opt-out allows teardown when roomId becomes undefined
     expect(disableMicSpy).toHaveBeenCalledTimes(1);
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
   });
 
@@ -674,7 +674,7 @@ describe('useVideoChat — opt-out allows teardown when roomId becomes undefined
     });
 
     expect(connectSpy).not.toHaveBeenCalled();
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
   });
 });
 
@@ -708,7 +708,7 @@ describe('useVideoChat — mic enable failure does not tear down camera (#651)',
     });
 
     // Camera must be on — mic failure is non-blocking
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
     expect(result.current.isLocalCameraOn).toBe(true);
     // Mic is off (it threw)
     expect(result.current.isLocalMicOn).toBe(false);
@@ -743,7 +743,7 @@ describe('useVideoChat — adapterProp synced during render (#651)', () => {
     await act(async () => {
       await result.current.toggleVideoChat();
     });
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
 
     // Adapter B — injected while connected
     const adapterB = makeAdapter();
@@ -757,11 +757,11 @@ describe('useVideoChat — adapterProp synced during render (#651)', () => {
     expect(disableMicA).toHaveBeenCalledTimes(1);
     expect(disconnectA).toHaveBeenCalledTimes(1);
     // State reset to disabled after swap
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
   });
 
-  it('does not tear down adapter on videoChatEnabled change when adapter is unchanged', async () => {
+  it('does not tear down adapter on isChatConnected change when adapter is unchanged', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
@@ -805,7 +805,7 @@ describe('useVideoChat — adapterProp synced during render (#651)', () => {
     await act(async () => {
       await result.current.toggleVideoChat();
     });
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
 
     // Remove the injected adapter (real → undefined) — teardown must still fire
     await act(async () => {
@@ -816,7 +816,7 @@ describe('useVideoChat — adapterProp synced during render (#651)', () => {
     expect(disableMicA).toHaveBeenCalledTimes(1);
     expect(disconnectA).toHaveBeenCalledTimes(1);
     // State reset to disabled after removal
-    expect(result.current.videoChatEnabled).toBe(false);
+    expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
   });
 });
@@ -842,7 +842,7 @@ describe('useVideoChat — toggleVideoChat re-entrant guard (#651)', () => {
 
     // After the toggle resolves, isConnecting must return to false
     expect(result.current.isConnecting).toBe(false);
-    expect(result.current.videoChatEnabled).toBe(true);
+    expect(result.current.isChatConnected).toBe(true);
   });
 
   it('second toggleVideoChat call is ignored while first is in-flight (#651)', async () => {

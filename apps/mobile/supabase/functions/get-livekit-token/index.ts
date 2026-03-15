@@ -103,6 +103,25 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: CORS_HEADERS });
   }
 
+  // ── Config validation (fail fast) ──────────────────────────────────────────
+  // Read Supabase vars first (they are auto-injected but could be missing in CI
+  // or local dev if not configured). LiveKit vars must be set manually.
+  const supabaseUrl     = Deno.env.get('SUPABASE_URL')      ?? '';
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const missingVars = [
+    !LIVEKIT_API_KEY    && 'LIVEKIT_API_KEY',
+    !LIVEKIT_API_SECRET && 'LIVEKIT_API_SECRET',
+    !LIVEKIT_URL        && 'LIVEKIT_URL',
+    !supabaseUrl        && 'SUPABASE_URL',
+    !supabaseAnonKey    && 'SUPABASE_ANON_KEY',
+  ].filter(Boolean);
+  if (missingVars.length > 0) {
+    return new Response(
+      JSON.stringify({ error: `Server misconfiguration: missing ${missingVars.join(', ')}` }),
+      { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
@@ -119,8 +138,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const supabaseUrl     = Deno.env.get('SUPABASE_URL')      ?? '';
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -158,6 +175,24 @@ Deno.serve(async (req: Request) => {
     typeof displayName === 'string' && displayName.trim()
       ? displayName.trim().slice(0, 64)
       : (user.email?.split('@')[0] ?? user.id.slice(0, 8));
+
+  // ── Authorization: verify caller is a member of the requested room ──────────
+  // Any authenticated user can reach this point; we must ensure they are
+  // actually a participant in `roomId` before issuing a token. Without this
+  // check any authenticated user could join any room they know the UUID of.
+  const { data: membership, error: membershipError } = await supabase
+    .from('room_players')
+    .select('id')
+    .eq('room_id', roomId.trim())
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden: you are not a member of this room' }),
+      { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
 
   // ── Mint LiveKit token ──────────────────────────────────────────────────
   try {

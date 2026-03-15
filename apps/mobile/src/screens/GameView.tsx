@@ -73,11 +73,12 @@ function GameViewComponent() {
     gameManagerRef,
     isMountedRef,
     // Task #651 / #649 video + voice chat
-    videoChatEnabled,
+    isChatConnected,
     voiceChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
     toggleVideoChat,
+    toggleCamera,
     toggleVoiceChat,
     toggleMic,
     isVideoChatConnecting,
@@ -285,7 +286,7 @@ function GameViewComponent() {
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.playerInfoContainer}>
               {/* Task #651 — wire video tile for local player (opt-in entry point).
-                  Only active in multiplayer; LocalAIGame sets videoChatEnabled=false.
+                  Only active in multiplayer; LocalAIGame sets isChatConnected=false.
                   Remote player tiles are deferred until the real SDK is installed
                   and a player_index↔participantId join can be performed. */}
               <PlayerInfo
@@ -298,8 +299,8 @@ function GameViewComponent() {
                 turnTimerStartedAt={layoutPlayersWithScores[0]?.turnTimerStartedAt}
                 onCountdownExpired={layoutPlayersWithScores[0]?.onCountdownExpired}
                 isLocalPlayer={isMultiplayerGame}
-                isCameraOn={isMultiplayerGame && videoChatEnabled ? isLocalCameraOn : undefined}
-                isMicOn={isMultiplayerGame && videoChatEnabled ? isLocalMicOn : undefined}
+                isCameraOn={isMultiplayerGame && isChatConnected ? isLocalCameraOn : undefined}
+                isMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
               />
@@ -319,13 +320,14 @@ function GameViewComponent() {
                 playerHand={effectivePlayerHand}
                 onPlayCards={handlePlayCards}
                 onPass={handlePass}
-                isInChatSession={isMultiplayerGame && (videoChatEnabled || voiceChatEnabled)}
+                isInChatSession={isMultiplayerGame && (isChatConnected || voiceChatEnabled)}
                 isLocalMicOn={isLocalMicOn}
                 isLocalCameraOn={isLocalCameraOn}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
                 onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
                 onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
-                onToggleMic={isMultiplayerGame && (videoChatEnabled || voiceChatEnabled) ? toggleMic : undefined}
+                onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
+                onToggleMic={isMultiplayerGame && (isChatConnected || voiceChatEnabled) ? toggleMic : undefined}
               />
             </View>
 

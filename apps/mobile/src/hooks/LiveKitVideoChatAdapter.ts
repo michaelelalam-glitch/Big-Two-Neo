@@ -60,8 +60,11 @@ function participantToState(p: RemoteParticipant): VideoChatParticipant {
     participantId: p.identity,
     isCameraOn:    cameraPublication?.isEnabled === true && cameraPublication?.isSubscribed === true,
     isMicOn:       micPublication?.isEnabled    === true && micPublication?.isSubscribed    === true,
-    isConnecting:  p.connectionQuality === 'unknown' ||
-                   !cameraPublication || !micPublication,
+    // isConnecting reflects connection quality only — not track presence.
+    // A participant with no camera/mic publication is simply not publishing those
+    // tracks (audio-only or camera-off), not "connecting". Using track absence
+    // would permanently mark voice-only participants as connecting.
+    isConnecting:  p.connectionQuality === 'unknown',
   };
 }
 
