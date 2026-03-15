@@ -283,11 +283,11 @@ export default function GameSettingsModal({
                     >
                       <Text style={styles.menuItemText}>
                         {(isInChatSession && !isLocalCameraOn) ? '🔊' : '🔈'}{' '}
-                        {(isInChatSession && !isLocalCameraOn) ? 'Leave Voice Chat' : 'Join Voice Chat'}
+                        {(isInChatSession && !isLocalCameraOn) ? i18n.t('chat.leaveVoice') : i18n.t('chat.joinVoice')}
                       </Text>
                       {isVideoChatConnecting
                         ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={styles.menuItemValue}>{(isInChatSession && !isLocalCameraOn) ? 'On' : 'Off'}</Text>
+                        : <Text style={styles.menuItemValue}>{(isInChatSession && !isLocalCameraOn) ? i18n.t('common.on') : i18n.t('common.off')}</Text>
                       }
                     </Pressable>
                   )}
@@ -307,11 +307,11 @@ export default function GameSettingsModal({
                     >
                       <Text style={styles.menuItemText}>
                         {(isInChatSession && isLocalCameraOn) ? '🎥' : '📹'}{' '}
-                        {(isInChatSession && isLocalCameraOn) ? 'Leave Video Chat' : 'Join Video Chat'}
+                        {(isInChatSession && isLocalCameraOn) ? i18n.t('chat.leaveVideo') : i18n.t('chat.joinVideo')}
                       </Text>
                       {isVideoChatConnecting
                         ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={styles.menuItemValue}>{(isInChatSession && isLocalCameraOn) ? 'On' : 'Off'}</Text>
+                        : <Text style={styles.menuItemValue}>{(isInChatSession && isLocalCameraOn) ? i18n.t('common.on') : i18n.t('common.off')}</Text>
                       }
                     </Pressable>
                   )}
@@ -335,15 +335,17 @@ export default function GameSettingsModal({
                   {/* Mic toggle — only shown when in a session */}
                   {isInChatSession && onToggleMic && (
                     <Pressable
-                      style={styles.menuItem}
-                      onPress={onToggleMic}
+                      style={[styles.menuItem, isVideoChatConnecting && styles.disabledItem]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleMic}
+                      disabled={isVideoChatConnecting}
                       accessibilityRole="button"
                       accessibilityLabel={isLocalMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                      accessibilityState={{ disabled: isVideoChatConnecting }}
                     >
                       <Text style={styles.menuItemText}>
                         {isLocalMicOn ? '🎤' : '🔇'} Microphone
                       </Text>
-                      <Text style={styles.menuItemValue}>{isLocalMicOn ? 'On' : 'Muted'}</Text>
+                      <Text style={styles.menuItemValue}>{isLocalMicOn ? i18n.t('common.on') : i18n.t('chat.muted')}</Text>
                     </Pressable>
                   )}
                 </>

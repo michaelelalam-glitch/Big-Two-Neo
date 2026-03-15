@@ -131,6 +131,11 @@ export interface GameContextType {
    * Per-player camera state for remote tiles. Key = user_id.
    * Populated from useVideoChat.remoteParticipants while isChatConnected=true.
    */
+  remoteCameraStates: Record<string, { isCameraOn: boolean; isConnecting: boolean }>;
+  /**
+   * Per-player mic state for remote tiles. Key = user_id.
+   * Populated from useVideoChat.remoteParticipants while isChatConnected=true.
+   */
   remoteMicStates: Record<string, { isMicOn: boolean }>;
   /** Toggle local video+audio chat on/off (requests camera+mic permissions if needed). */
   toggleVideoChat: () => Promise<void>;

@@ -1,24 +1,33 @@
 /**
- * useVideoChat — Manages opt-in in-game video + audio chat state (Task #651).
+ * useVideoChat — Manages opt-in in-game video + audio chat state (Tasks #649 / #651).
  *
  * Architecture: provides a stable interface against which any video-chat SDK
  * (LiveKit, Daily.co, etc.) can be plugged in via the `VideoChatAdapter` interface.
- * The default adapter is a `StubVideoChatAdapter` (no-op); the real LiveKit adapter
- * should be wired in once `@livekit/react-native` + `react-native-webrtc` are
- * installed as native dependencies.
+ * The default adapter is a `StubVideoChatAdapter` (no-op); inject a
+ * `LiveKitVideoChatAdapter` instance (via the `adapter` prop) in native builds.
  *
  * The full `VideoChatAdapter` contract includes both camera AND microphone controls:
  *   connect / disconnect, enableCamera / disableCamera,
  *   enableMicrophone / disableMicrophone, getParticipants,
  *   onParticipantsChanged, onError.
- * `GameContext` exposes 7 fields: isChatConnected, isLocalCameraOn, isLocalMicOn,
- * remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic.
+ *
+ * Return value (11 fields exposed via GameContext):
+ *   isChatConnected   — true while the room session is active (voice OR video).
+ *   voiceChatEnabled  — derived: isChatConnected && !isLocalCameraOn.
+ *   isLocalCameraOn   — true when the local camera track is publishing.
+ *   isLocalMicOn      — true when the local mic track is unmuted.
+ *   isConnecting      — true while an async connect/disconnect is in-flight.
+ *   remoteParticipants — live array of remote peer states (camera, mic, quality).
+ *   toggleVideoChat   — join/leave the full video+audio session (camera+mic).
+ *   toggleVoiceChat   — join/leave a voice-only session (mic only, no camera).
+ *   toggleCamera      — enable/disable camera track within an active session.
+ *   toggleMic         — mute/unmute microphone within an active session.
+ *   requestCamera/MicPermission — imperative permission helpers.
  *
  * Prerequisites:
- * - F2 (voice chat) and this feature should share the same LiveKit room session —
- *   pass the same `adapter` instance to both hooks once the SDK is installed.
- * - Camera + microphone permissions must be declared in app.json (done in this PR)
- *   before requesting them at runtime.
+ * - `@livekit/react-native` + `livekit-client` must be installed and
+ *   `expo prebuild` run before using `LiveKitVideoChatAdapter` in a native build.
+ * - Camera + microphone permissions are declared in app.json.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';

@@ -29,10 +29,7 @@ import {
   Room,
   RoomEvent,
   Track,
-  TrackPublication,
-  Participant,
   RemoteParticipant,
-  ConnectionState,
   RoomOptions,
 } from 'livekit-client';
 import { registerGlobals } from '@livekit/react-native';
@@ -89,7 +86,6 @@ const ROOM_OPTIONS: RoomOptions = {
 
 export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private room: Room;
-  private livekitUrl = '';
   private participantsChangedCbs: Array<(participants: VideoChatParticipant[]) => void> = [];
   private errorCbs: Array<(error: Error) => void> = [];
 
@@ -117,7 +113,6 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       );
     }
 
-    this.livekitUrl = data.livekitUrl;
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
     await this.room.connect(data.livekitUrl, data.token);
     gameLogger.info('[LiveKit] Connected.');
