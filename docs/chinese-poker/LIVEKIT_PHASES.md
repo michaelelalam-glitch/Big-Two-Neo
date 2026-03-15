@@ -68,7 +68,7 @@
 ### Remaining device steps (run once, not in source)
 ```bash
 # From apps/mobile/
-expo prebuild --clean        # regenerates ios/ and android/ from app.json
+npx expo prebuild --clean    # regenerates ios/ and android/ from app.json
 cd ios && pod install         # links @livekit/react-native-webrtc + other pods
 cd ..
 eas build --profile developmentDevice --platform ios

@@ -96,14 +96,19 @@ export default function GameSettingsModal({
     onLeaveGame();
   };
 
-  const handleCopyRoomCode = useCallback(() => {
+  const handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
     // Lazy-load expo-clipboard so requireNativeModule only fires on press,
     // not at bundle-load time — avoids crash in Expo Go when the native
     // ExpoClipboard module is not included in the running client.
-    import('expo-clipboard')
-      .then((mod) => mod.setStringAsync(roomCode))
-      .catch(() => { /* clipboard unavailable in this environment */ });
+    // Await the write so the success feedback only fires after the promise
+    // resolves — prevents a success alert/haptic on a failed clipboard write.
+    try {
+      const mod = await import('expo-clipboard');
+      await mod.setStringAsync(roomCode);
+    } catch {
+      // clipboard unavailable in this environment — still show the alert
+    }
     if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
     Alert.alert(
       i18n.t('lobby.copiedTitle') || 'Copied!',
