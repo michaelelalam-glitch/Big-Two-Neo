@@ -17,9 +17,9 @@ import type { Profile } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { showError } from '../utils';
 import { roomLogger } from '../utils/logger';
-import { useMatchmaking } from './useMatchmaking';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { RoomPlayerWithRoom } from '../types';
+import { useMatchmaking } from './useMatchmaking';
 
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 

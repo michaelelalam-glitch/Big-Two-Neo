@@ -20,25 +20,6 @@ interface GameControlsProps {
   playerHand: Card[];
   onPlayCards: (cards: Card[]) => Promise<void>;
   onPass: () => Promise<void>;
-  // ── Voice / Video chat controls (multiplayer only) ──────────────────────
-  /** Whether connected to a chat session (voice or video). */
-  isChatConnected?: boolean;
-  /** Whether the local camera is on (distinguishes video from voice-only). */
-  isLocalCameraOn?: boolean;
-  /** Whether the local mic is active. */
-  isLocalMicOn?: boolean;
-  /** True while video connect/disconnect is in-flight. */
-  isVideoChatConnecting?: boolean;
-  /** True while voice-only connect/disconnect is in-flight. Independent spinner from video. */
-  isAudioChatConnecting?: boolean;
-  /** Toggle voice-only chat (audio only). */
-  onToggleVoiceChat?: () => Promise<void>;
-  /** Join/leave the full video+audio session. */
-  onToggleVideoChat?: () => Promise<void>;
-  /** Toggle the local camera track on/off within an active session. */
-  onToggleCamera?: () => Promise<void>;
-  /** Mute/unmute the local microphone. */
-  onToggleMic?: () => Promise<void>;
 }
 
 /**
@@ -58,15 +39,6 @@ export function GameControls({
   playerHand,
   onPlayCards,
   onPass,
-  isChatConnected = false,
-  isLocalCameraOn = false,
-  isLocalMicOn = false,
-  isVideoChatConnecting = false,
-  isAudioChatConnecting = false,
-  onToggleVoiceChat,
-  onToggleVideoChat,
-  onToggleCamera,
-  onToggleMic,
 }: GameControlsProps) {
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
@@ -200,73 +172,6 @@ export function GameControls({
         )}
       </Pressable>
 
-      {/* ── Voice / Video chat controls (multiplayer only) ─────────────── */}
-      {(onToggleVoiceChat || onToggleVideoChat) && (
-        <>
-          {onToggleVoiceChat && (
-            <Pressable
-              style={[
-                styles.chatButton,
-                isChatConnected && !isLocalCameraOn && styles.chatButtonActive,
-                (isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) && styles.buttonDisabled,
-              ]}
-              onPress={(isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
-              disabled={isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)}
-              accessibilityRole="button"
-              accessibilityLabel={isChatConnected && !isLocalCameraOn ? i18n.t('chat.leaveVoice') : i18n.t('chat.joinVoice')}
-              accessibilityState={{ disabled: isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn), busy: isAudioChatConnecting }}
-            >
-              {isAudioChatConnecting
-                ? <ActivityIndicator size="small" color={COLORS.white} />
-                : <Text style={styles.chatButtonText}>{isChatConnected && !isLocalCameraOn ? '🔊' : '🔈'}</Text>
-              }
-            </Pressable>
-          )}
-          {onToggleVideoChat && (
-            <Pressable
-              style={[
-                styles.chatButton,
-                isChatConnected && isLocalCameraOn && styles.chatButtonActive,
-                isVideoChatConnecting && styles.buttonDisabled,
-              ]}
-              onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
-              disabled={isVideoChatConnecting}
-              accessibilityRole="button"
-              accessibilityLabel={isChatConnected && isLocalCameraOn ? i18n.t('chat.leaveVideo') : i18n.t('chat.joinVideo')}
-              accessibilityState={{ disabled: isVideoChatConnecting, busy: isVideoChatConnecting }}
-            >
-              {isVideoChatConnecting
-                ? <ActivityIndicator size="small" color={COLORS.white} />
-                : <Text style={styles.chatButtonText}>{isChatConnected && isLocalCameraOn ? '🎥' : '📹'}</Text>
-              }
-            </Pressable>
-          )}
-          {isChatConnected && onToggleMic && (
-            <Pressable
-              style={[styles.chatButton, isVideoChatConnecting && styles.buttonDisabled]}
-              onPress={isVideoChatConnecting ? undefined : onToggleMic}
-              disabled={isVideoChatConnecting}
-              accessibilityRole="button"
-              accessibilityLabel={isLocalMicOn ? i18n.t('chat.tapMute') : i18n.t('chat.tapUnmute')}
-              accessibilityState={{ disabled: isVideoChatConnecting }}
-            >
-              <Text style={styles.chatButtonText}>{isLocalMicOn ? '🎤' : '🔇'}</Text>
-            </Pressable>
-          )}
-          {isChatConnected && onToggleCamera && (
-            <Pressable
-              style={[styles.chatButton, isVideoChatConnecting && styles.buttonDisabled]}
-              onPress={isVideoChatConnecting ? undefined : onToggleCamera}
-              disabled={isVideoChatConnecting}
-              accessibilityRole="button"
-              accessibilityLabel={isLocalCameraOn ? i18n.t('chat.tapTurnCameraOff') : i18n.t('chat.tapTurnCameraOn')}
-              accessibilityState={{ disabled: isVideoChatConnecting }}
-            >
-              <Text style={styles.chatButtonText}>{isLocalCameraOn ? '📷' : '📵'}</Text>
-            </Pressable>
-          )}
-        </>
-      )}
     </View>
   );
 }
@@ -309,27 +214,5 @@ const styles = StyleSheet.create({
   },
   passButtonText: {
     color: '#D1D5DB', // MATCH LANDSCAPE: Light gray text (was COLORS.gray.light)
-  },
-  chatButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#374151',
-    borderWidth: 1,
-    borderColor: '#6b7280',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  chatButtonActive: {
-    backgroundColor: '#065f46',
-    borderColor: '#10b981',
-  },
-  chatButtonText: {
-    fontSize: 18,
   },
 });

@@ -12,6 +12,13 @@ export interface WaitingRoomEntry {
   matched_room_id: string | null;
   joined_at: string;
   matched_at: string | null;
+  /**
+   * r2936724700: Server-written queue size. When the Edge Function updates this
+   * field on the user's row (on INSERT/DELETE in the waiting room), the existing
+   * filtered UPDATE subscription delivers the new count and drives the UI,
+   * removing the need for a separate broad subscription.
+   */
+  waiting_count?: number;
 }
 
 export interface MatchResult {
@@ -219,6 +226,21 @@ export function useMatchmaking(): UseMatchmakingReturn {
         (payload) => {
           // Ignore events that arrive after cancelMatchmaking() was called
           if (isCancelledRef.current) return;
+
+          // r2936724697: Defensive user-id guard. The server-side filter is the
+          // primary guard, but add an explicit check so any buffered/misdelivered
+          // cross-user event (or test simulation) cannot transition this user's
+          // state incorrectly.
+          if (payload.new && (payload.new as WaitingRoomEntry).user_id !== userId) return;
+
+          // r2936724700: Keep waitingCount current from server-written field.
+          // When the Edge Function writes waiting_count to the user's row on each
+          // queue INSERT/DELETE, this filtered UPDATE drives the UI without a
+          // separate broad subscription.
+          const updatedEntry = payload.new as WaitingRoomEntry;
+          if (typeof updatedEntry.waiting_count === 'number') {
+            setWaitingCount(updatedEntry.waiting_count);
+          }
 
           // Subscription is already filtered to UPDATE events for this user;
           // only act when the row transitions to 'matched'.

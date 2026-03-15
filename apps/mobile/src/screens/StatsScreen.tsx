@@ -236,7 +236,7 @@ export default function StatsScreen() {
         if (rankError) {
           // Log the failure and fall back to the stored global_rank from statsData.
           statsLogger.error('[Stats] Rank query error:', rankError?.message || rankError?.code || 'Unknown error');
-          setStats({ ...statsData, global_rank: (statsData as any)?.global_rank ?? null });
+          setStats({ ...statsData, global_rank: statsData.global_rank ?? null });
         } else {
           // rankRow being null means the user has no entry in leaderboard_ranked
           // (ranked_games_played = 0 — the view filters out zero-game players).
@@ -244,10 +244,10 @@ export default function StatsScreen() {
           // display a non-null rank for casual-only players, contradicting #N/A intent.
           // Only fall back when the user has played ranked games but the materialized
           // view is temporarily stale (rankRow null despite ranked_games_played > 0).
-          const rankedGamesPlayed = (statsData as any)?.ranked_games_played ?? 0;
+          const rankedGamesPlayed = statsData.ranked_games_played ?? 0;
           setStats({
             ...statsData,
-            global_rank: rankRow?.rank ?? (rankedGamesPlayed > 0 ? (statsData as any)?.global_rank ?? null : null),
+            global_rank: rankRow?.rank ?? (rankedGamesPlayed > 0 ? statsData.global_rank ?? null : null),
           });
         }
       }

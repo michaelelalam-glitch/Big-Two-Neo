@@ -128,8 +128,8 @@ const ROOM_OPTIONS: RoomOptions = {
 
 export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private room: Room;
-  private participantsChangedCbs: Array<(participants: VideoChatParticipant[]) => void> = [];
-  private errorCbs: Array<(error: Error) => void> = [];
+  private participantsChangedCbs: ((participants: VideoChatParticipant[]) => void)[] = [];
+  private errorCbs: ((error: Error) => void)[] = [];
 
   constructor() {
     // _registerGlobals is set at module-evaluation time (see top of file).
