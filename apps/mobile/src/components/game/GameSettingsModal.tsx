@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -133,9 +133,14 @@ export default function GameSettingsModal({
             </Pressable>
           </View>
 
-          {/* LANDSCAPE MODE: Single row layout */}
+          {/* LANDSCAPE MODE: Scrollable single-row layout */}
           {isLandscape ? (
-            <View style={styles.contentLandscape}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.contentLandscape}
+              keyboardShouldPersistTaps="handled"
+            >
               <Pressable 
                 style={styles.menuItemLandscape}
                 onPress={handleToggleSound}
@@ -166,6 +171,87 @@ export default function GameSettingsModal({
 
               <View style={styles.dividerLandscape} />
 
+              {/* Voice / Video chat controls — landscape, multiplayer only */}
+              {(onToggleVoiceChat || onToggleVideoChat) && (
+                <>
+                  {/* Voice chat */}
+                  {onToggleVoiceChat && (
+                    <Pressable
+                      style={[
+                        styles.menuItemLandscape,
+                        isInChatSession && !isLocalCameraOn && styles.chatActiveItemLandscape,
+                        (isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
+                      ]}
+                      onPress={(isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
+                      disabled={isVideoChatConnecting || (isInChatSession && isLocalCameraOn)}
+                      accessibilityRole="button"
+                      accessibilityLabel={(isInChatSession && !isLocalCameraOn) ? 'Leave voice chat' : 'Join voice chat'}
+                    >
+                      {isVideoChatConnecting
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.menuItemTextLandscape}>{(isInChatSession && !isLocalCameraOn) ? '🔊' : '🔈'}</Text>
+                      }
+                      <Text style={styles.menuItemLabelLandscape}>{(isInChatSession && !isLocalCameraOn) ? i18n.t('chat.leaveVoice') : i18n.t('chat.joinVoice')}</Text>
+                      <Text style={styles.menuItemValueLandscape}>{(isInChatSession && !isLocalCameraOn) ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Video chat */}
+                  {onToggleVideoChat && (
+                    <Pressable
+                      style={[
+                        styles.menuItemLandscape,
+                        isInChatSession && isLocalCameraOn && styles.chatActiveItemLandscape,
+                        isVideoChatConnecting && styles.disabledItem,
+                      ]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
+                      disabled={isVideoChatConnecting}
+                      accessibilityRole="button"
+                      accessibilityLabel={(isInChatSession && isLocalCameraOn) ? 'Leave video chat' : 'Join video chat'}
+                    >
+                      {isVideoChatConnecting
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.menuItemTextLandscape}>{(isInChatSession && isLocalCameraOn) ? '🎥' : '📹'}</Text>
+                      }
+                      <Text style={styles.menuItemLabelLandscape}>{(isInChatSession && isLocalCameraOn) ? i18n.t('chat.leaveVideo') : i18n.t('chat.joinVideo')}</Text>
+                      <Text style={styles.menuItemValueLandscape}>{(isInChatSession && isLocalCameraOn) ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Camera toggle — only when in a session */}
+                  {isInChatSession && onToggleCamera && (
+                    <Pressable
+                      style={[styles.menuItemLandscape, isVideoChatConnecting && styles.disabledItem]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleCamera}
+                      disabled={isVideoChatConnecting}
+                      accessibilityRole="button"
+                      accessibilityLabel={isLocalCameraOn ? 'Turn camera off' : 'Turn camera on'}
+                    >
+                      <Text style={styles.menuItemTextLandscape}>{isLocalCameraOn ? '📷' : '📵'}</Text>
+                      <Text style={styles.menuItemLabelLandscape}>Camera</Text>
+                      <Text style={styles.menuItemValueLandscape}>{isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Mic toggle — only when in a session */}
+                  {isInChatSession && onToggleMic && (
+                    <Pressable
+                      style={[styles.menuItemLandscape, isVideoChatConnecting && styles.disabledItem]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleMic}
+                      disabled={isVideoChatConnecting}
+                      accessibilityRole="button"
+                      accessibilityLabel={isLocalMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                    >
+                      <Text style={styles.menuItemTextLandscape}>{isLocalMicOn ? '🎤' : '🔇'}</Text>
+                      <Text style={styles.menuItemLabelLandscape}>Mic</Text>
+                      <Text style={styles.menuItemValueLandscape}>{isLocalMicOn ? i18n.t('common.on') : i18n.t('chat.muted')}</Text>
+                    </Pressable>
+                  )}
+
+                  <View style={styles.dividerLandscape} />
+                </>
+              )}
+
               {/* Room Code in landscape — tap to copy */}
               {roomCode ? (
                 <Pressable
@@ -191,10 +277,15 @@ export default function GameSettingsModal({
                   {i18n.t('game.leaveGame')}
                 </Text>
               </Pressable>
-            </View>
+            </ScrollView>
           ) : (
-            /* PORTRAIT MODE: Original vertical layout */
-            <View style={styles.content}>
+            /* PORTRAIT MODE: Scrollable vertical layout */
+            <ScrollView
+              style={styles.contentScroll}
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Sound Settings */}
               <Pressable 
                 style={styles.menuItem}
@@ -363,7 +454,7 @@ export default function GameSettingsModal({
                   {i18n.t('game.leaveGame')}
                 </Text>
               </Pressable>
-            </View>
+            </ScrollView>
           )}
         </View>
       </Pressable>
@@ -415,8 +506,16 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: 'bold',
   },
+  contentScroll: {
+    maxHeight: 420,
+  },
   content: {
     padding: SPACING.lg,
+  },
+  chatActiveItemLandscape: {
+    borderWidth: 1,
+    borderColor: '#60A5FA',
+    backgroundColor: '#1E3A5F',
   },
   menuItem: {
     flexDirection: 'row',
