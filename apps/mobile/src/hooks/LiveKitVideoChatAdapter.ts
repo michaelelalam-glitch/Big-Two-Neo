@@ -19,8 +19,10 @@
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
  *   @livekit/react-native-webrtc provides native WebRTC bindings. Its Xcode
  *   framework and Gradle dependency are wired automatically by `expo prebuild`
- *   via CocoaPods / Gradle auto-link. No app.json plugin entry is needed for
- *   @livekit/react-native-webrtc — auto-linking handles it entirely.
+ *   via CocoaPods / Gradle auto-link. No Expo plugin entry in app.json is
+ *   required for @livekit/react-native-webrtc — auto-linking handles it entirely.
+ *   (The PR description that previously claimed a plugin entry was needed was
+ *   incorrect; the current app.json does not include it and native builds work.)
  *
  * Expo Go compatibility (isLiveKitAvailable):
  *   `@livekit/react-native` checks its native module at initialisation and
@@ -82,10 +84,16 @@ function participantToState(p: RemoteParticipant): VideoChatParticipant {
   const cameraPublication = p.getTrackPublication(Track.Source.Camera);
   const micPublication    = p.getTrackPublication(Track.Source.Microphone);
 
+  // Derive camera/mic state from publication *presence* and remote-mute state,
+  // not from `isSubscribed`. `isSubscribed` reflects the local subscription
+  // state (can be false due to adaptiveStream/dynacast or background unsubscribes)
+  // even when the remote participant is actively publishing. Using mute state
+  // means we correctly show "on" whenever the track exists and is not muted,
+  // regardless of whether we are currently subscribed.
   return {
     participantId: p.identity,
-    isCameraOn:    cameraPublication?.isEnabled === true && cameraPublication?.isSubscribed === true,
-    isMicOn:       micPublication?.isEnabled    === true && micPublication?.isSubscribed    === true,
+    isCameraOn:    cameraPublication != null && !cameraPublication.isMuted,
+    isMicOn:       micPublication    != null && !micPublication.isMuted,
     // isConnecting reflects connection quality only — not track presence.
     // A participant with no camera/mic publication is simply not publishing those
     // tracks (audio-only or camera-off), not "connecting". Using track absence
@@ -237,8 +245,13 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       // Connection quality changes can flip `isConnecting`
       .on(RoomEvent.ConnectionQualityChanged, this._handleParticipantChange)
       // Disconnect / reconnect
-      .on(RoomEvent.Disconnected, () => {
+      .on(RoomEvent.Disconnected, (reason) => {
         this._notifyParticipants(); // Clear remote participants on disconnect
+        // Surface unexpected disconnects as errors so useVideoChat can reset
+        // isChatConnected and local track flags — prevents the UI from staying
+        // stuck in a “connected” state after a network drop or server-side kick.
+        const msg = reason ? `LiveKit disconnected: ${reason}` : 'LiveKit disconnected unexpectedly';
+        this._notifyError(new Error(msg));
       })
       .on(RoomEvent.MediaDevicesError, (err: Error) => {
         gameLogger.warn('[LiveKit] Media device error:', err.message);

@@ -27,8 +27,10 @@ interface GameControlsProps {
   isLocalCameraOn?: boolean;
   /** Whether the local mic is active. */
   isLocalMicOn?: boolean;
-  /** True while a connect/disconnect is in-flight. */
+  /** True while video connect/disconnect is in-flight. */
   isVideoChatConnecting?: boolean;
+  /** True while voice-only connect/disconnect is in-flight. Independent spinner from video. */
+  isAudioChatConnecting?: boolean;
   /** Toggle voice-only chat (audio only). */
   onToggleVoiceChat?: () => Promise<void>;
   /** Join/leave the full video+audio session. */
@@ -60,6 +62,7 @@ export function GameControls({
   isLocalCameraOn = false,
   isLocalMicOn = false,
   isVideoChatConnecting = false,
+  isAudioChatConnecting = false,
   onToggleVoiceChat,
   onToggleVideoChat,
   onToggleCamera,
@@ -205,15 +208,15 @@ export function GameControls({
               style={[
                 styles.chatButton,
                 isChatConnected && !isLocalCameraOn && styles.chatButtonActive,
-                (isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) && styles.buttonDisabled,
+                (isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) && styles.buttonDisabled,
               ]}
-              onPress={(isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
-              disabled={isVideoChatConnecting || (isChatConnected && isLocalCameraOn)}
+              onPress={(isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
+              disabled={isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn)}
               accessibilityRole="button"
               accessibilityLabel={isChatConnected && !isLocalCameraOn ? 'Leave voice chat' : 'Join voice chat'}
-              accessibilityState={{ disabled: isVideoChatConnecting || (isChatConnected && isLocalCameraOn), busy: isVideoChatConnecting }}
+              accessibilityState={{ disabled: isAudioChatConnecting || isVideoChatConnecting || (isChatConnected && isLocalCameraOn), busy: isAudioChatConnecting }}
             >
-              {isVideoChatConnecting
+              {isAudioChatConnecting
                 ? <ActivityIndicator size="small" color={COLORS.white} />
                 : <Text style={styles.chatButtonText}>{isChatConnected && !isLocalCameraOn ? '🔊' : '🔈'}</Text>
               }

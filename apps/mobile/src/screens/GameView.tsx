@@ -368,8 +368,8 @@ function GameViewComponent() {
           isAudioChatConnecting={isMultiplayerGame ? isAudioConnecting : false}
           onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
           onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
-          onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
-          onToggleMic={isMultiplayerGame && isChatConnected ? toggleMic : undefined}
+          onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
+          onToggleMic={isMultiplayerGame ? toggleMic : undefined}
         />
       </View>
     </Profiler>
