@@ -11,11 +11,34 @@ export const Platform = {
 export const StyleSheet = {
   create: (styles: any) => styles,
   flatten: (style: any) => style,
+  // Required by VideoTile.tsx offOverlay style — spreading undefined throws at
+  // import time. (r2936015535)
+  absoluteFillObject: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+  },
 };
 
 export const View = 'View';
 export const Text = 'Text';
 export const Pressable = 'Pressable';
+
+export const PermissionsAndroid = {
+  PERMISSIONS: {
+    CAMERA: 'android.permission.CAMERA',
+    RECORD_AUDIO: 'android.permission.RECORD_AUDIO',
+  },
+  RESULTS: {
+    GRANTED: 'granted',
+    DENIED: 'denied',
+    NEVER_ASK_AGAIN: 'never_ask_again',
+  },
+  request: jest.fn().mockResolvedValue('granted'),
+  requestMultiple: jest.fn().mockResolvedValue({}),
+};
 export const ActivityIndicator = 'ActivityIndicator';
 export const TouchableOpacity = 'TouchableOpacity';
 export const ScrollView = 'ScrollView';

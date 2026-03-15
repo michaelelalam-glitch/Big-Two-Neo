@@ -72,6 +72,12 @@ function GameViewComponent() {
     isPlayerReady,
     gameManagerRef,
     isMountedRef,
+    // Task #651 video chat
+    videoChatEnabled,
+    isLocalCameraOn,
+    isLocalMicOn,
+    toggleVideoChat,
+    isVideoChatConnecting,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -275,6 +281,10 @@ function GameViewComponent() {
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.playerInfoContainer}>
+              {/* Task #651 — wire video tile for local player (opt-in entry point).
+                  Only active in multiplayer; LocalAIGame sets videoChatEnabled=false.
+                  Remote player tiles are deferred until the real SDK is installed
+                  and a player_index↔participantId join can be performed. */}
               <PlayerInfo
                 name={layoutPlayersWithScores[0]?.name ?? currentPlayerName}
                 cardCount={layoutPlayersWithScores[0]?.cardCount ?? effectivePlayerHand.length}
@@ -284,6 +294,11 @@ function GameViewComponent() {
                 disconnectTimerStartedAt={layoutPlayersWithScores[0]?.disconnectTimerStartedAt}
                 turnTimerStartedAt={layoutPlayersWithScores[0]?.turnTimerStartedAt}
                 onCountdownExpired={layoutPlayersWithScores[0]?.onCountdownExpired}
+                isLocalPlayer={isMultiplayerGame}
+                isCameraOn={isMultiplayerGame && videoChatEnabled ? isLocalCameraOn : undefined}
+                isMicOn={isMultiplayerGame && videoChatEnabled ? isLocalMicOn : undefined}
+                onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
+                isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
               />
             </View>
 

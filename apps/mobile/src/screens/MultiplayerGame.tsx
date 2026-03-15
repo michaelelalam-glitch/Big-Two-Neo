@@ -46,6 +46,7 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameView } from './GameView';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import { useVideoChat } from '../hooks/useVideoChat';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -654,6 +655,31 @@ export function MultiplayerGame() {
   // Player is ready when it's their turn and multiplayer game state exists
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
+  // ── Task #651: in-game video chat ───────────────────────────────────────────
+  // roomInfo?.id is the Supabase room UUID used as the LiveKit/Daily room key.
+  const { videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteParticipants, toggleVideoChat, toggleMic, isConnecting: isVideoChatConnecting } = useVideoChat({
+    roomId: roomInfo?.id,
+    userId: user?.id,
+    // adapter: livekitAdapter,   ← plug in the real LiveKit adapter here once F2 is done
+  });
+
+  // Build a stable Record<userId, cameraState> from the SDK participant list
+  // so GameView / PlayerInfo can look up each player's camera state by user_id.
+  const remoteCameraStates = useMemo(
+    () => Object.fromEntries(
+      remoteParticipants.map(p => [p.participantId, { isCameraOn: p.isCameraOn, isConnecting: p.isConnecting }])
+    ),
+    [remoteParticipants],
+  );
+
+  // Build a stable Record<userId, micState> from participant list.
+  const remoteMicStates = useMemo(
+    () => Object.fromEntries(
+      remoteParticipants.map(p => [p.participantId, { isMicOn: p.isMicOn }])
+    ),
+    [remoteParticipants],
+  );
+
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
   // actually changes (H2 + H4 audit fix).
@@ -707,6 +733,15 @@ export function MultiplayerGame() {
       isPlayerReady,
       gameManagerRef: emptyGameManagerRef,
       isMountedRef,
+      // Task #651
+      videoChatEnabled,
+      isLocalCameraOn,
+      isLocalMicOn,
+      remoteCameraStates,
+      remoteMicStates,
+      toggleVideoChat,
+      toggleMic,
+      isVideoChatConnecting,
     }),
     [
       currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
@@ -723,6 +758,8 @@ export function MultiplayerGame() {
       handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
       handleSort, handleSmartSort, handleHint,
       isPlayerReady, emptyGameManagerRef, isMountedRef,
+      videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic,
+      isVideoChatConnecting,
     ],
   );
 

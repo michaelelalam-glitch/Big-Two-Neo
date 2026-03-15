@@ -242,10 +242,20 @@ Track progress on all audit findings. Check off items as they are resolved.
   - **Approach:** Evaluate Agora SDK, LiveKit, or Daily.co. Push-to-talk toggle in `GameControls`. Mute indicator per player in `PlayerInfo`. Requires microphone permission flow.
   - **Prerequisite:** F1 complete
 
-- [ ] **F3** — In-game video chat
+- [ ] **F3** — In-game video + audio chat *(in-progress — Task #651)*
   - **Task:** #651
   - **Approach:** Opt-in floating video tiles anchored near each `PlayerInfo`. Use same SDK as F2 (LiveKit recommended — supports audio + video). Camera permission required.
   - **Prerequisite:** F2 complete
+  - **PR:** [#134](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/134)
+  - **Implementation (Task #651 — Phase 1: SDK-decoupled scaffold):**
+    - `apps/mobile/src/hooks/useVideoChat.ts` — `VideoChatAdapter` interface + `StubVideoChatAdapter` (no-op); manages opt-in state, camera + mic permissions, and remote participant map; real LiveKit/Daily.co adapter is a follow-up when `@livekit/react-native` + `react-native-webrtc` are installed
+    - `apps/mobile/src/components/game/VideoTile.tsx` — 64×64 PiP tile; renders placeholder icon (no SDK) or `videoStreamSlot` (real SDK); Pressable for local player (tap to toggle), View for remote (read-only)
+    - `apps/mobile/src/contexts/GameContext.tsx` — Added 7 new video+audio chat fields: `videoChatEnabled`, `isLocalCameraOn`, `isLocalMicOn`, `remoteCameraStates`, `remoteMicStates`, `toggleVideoChat`, `toggleMic`
+    - `apps/mobile/src/screens/MultiplayerGame.tsx` — `useVideoChat` wired; `remoteCameraStates` built from `remoteParticipants`
+    - `apps/mobile/src/screens/LocalAIGame.tsx` — no-op stub values provided for all 7 new GameContext video+audio chat fields
+    - `apps/mobile/src/components/game/PlayerInfo.tsx` — `VideoTile` rendered as absolute overlay (top-left, zIndex 12) inside `avatarContainer`
+    - `app.json` — iOS: `NSCameraUsageDescription` + `NSMicrophoneUsageDescription` added to `infoPlist`; Android: `android.permission.CAMERA` added to `permissions` (`RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` already existed and were unchanged by this PR). Both camera and microphone permissions are intentionally included in Phase 1 because the scaffold wires `useVideoChat` which manages both video and audio streams.
+    - **Tests:** 40 new unit tests (VideoTile: 17, useVideoChat: 23); all passing
 
 ---
 
