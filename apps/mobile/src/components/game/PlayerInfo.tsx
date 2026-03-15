@@ -131,7 +131,6 @@ export default function PlayerInfo({
               isLocal={isLocalPlayer}
               onCameraToggle={onVideoChatToggle}
               videoStreamSlot={videoStreamSlot}
-              testID={`video-tile-${name}`}
             />
           </View>
         )}
