@@ -44,7 +44,6 @@
     },
     "plugins": [
       "expo-dev-client",
-      "@livekit/react-native-webrtc",
       [
         "expo-build-properties",
         {

@@ -17,7 +17,8 @@
  *
  * Install prerequisites (run once, then `expo prebuild`):
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
- *   Add "@livekit/react-native-webrtc" to the plugins array in app.json.
+ *   Note: @livekit/react-native-webrtc ships no Expo config plugin — do NOT add
+ *   it to app.json plugins. Native linking is handled by `expo prebuild` / CocoaPods.
  *
  * Wire in:
  *   const livekitAdapter = useMemo(() => new LiveKitVideoChatAdapter(), []);
