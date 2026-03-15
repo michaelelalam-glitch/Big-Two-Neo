@@ -88,5 +88,10 @@
       "prettier --write"
     ]
   },
+  "pnpm": {
+    "overrides": {
+      "react-dom": "19.1.0"
+    }
+  },
   "private": true
 }

@@ -190,7 +190,7 @@ export default function GameSettingsModal({
                         }
                       }}
                       disabled={isVideoChatConnecting || isAudioChatConnecting}
-                      accessibilityRole="button"
+                      accessibilityRole="switch"
                       accessibilityLabel={
                         isVideoChatConnecting
                           ? i18n.t('chat.connectingVideo')
@@ -229,7 +229,7 @@ export default function GameSettingsModal({
                         }
                       }}
                       disabled={isAudioChatConnecting || isVideoChatConnecting}
-                      accessibilityRole="button"
+                      accessibilityRole="switch"
                       accessibilityLabel={
                         isAudioChatConnecting
                           ? i18n.t('chat.connectingVoice')
@@ -383,7 +383,7 @@ export default function GameSettingsModal({
                         }
                       }}
                       disabled={isVideoChatConnecting || isAudioChatConnecting}
-                      accessibilityRole="button"
+                      accessibilityRole="switch"
                       accessibilityLabel={
                         isVideoChatConnecting
                           ? i18n.t('chat.connectingVideo')
@@ -423,7 +423,7 @@ export default function GameSettingsModal({
                         }
                       }}
                       disabled={isAudioChatConnecting || isVideoChatConnecting}
-                      accessibilityRole="button"
+                      accessibilityRole="switch"
                       accessibilityLabel={
                         isAudioChatConnecting
                           ? i18n.t('chat.connectingVoice')
