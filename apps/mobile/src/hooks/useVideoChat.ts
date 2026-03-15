@@ -259,7 +259,7 @@ export function useVideoChat({
       // Treat disconnect errors as fatal — reset the full session state so the
       // UI reflects the true "disconnected" state even without an explicit
       // toggleVideoChat() call.
-      if (err.message.startsWith('LiveKit disconnected')) {
+      if (err.message === 'LiveKit disconnected unexpectedly') {
         setIsChatConnected(false);
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);

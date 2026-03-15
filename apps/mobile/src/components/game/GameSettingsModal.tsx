@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -123,7 +123,7 @@ export default function GameSettingsModal({
       supportedOrientations={['portrait', 'landscape']}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={[styles.modalContainer, isLandscape && styles.modalContainerLandscape]} onStartShouldSetResponder={() => true}>
+        <View style={[styles.modalContainer, isLandscape && styles.modalContainerLandscape, { maxHeight: height * 0.88 }]} onStartShouldSetResponder={() => true}>
           <View style={[styles.header, isLandscape && styles.headerLandscape]}>
             <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>{i18n.t('game.settings')}</Text>
             <Pressable 
@@ -136,14 +136,9 @@ export default function GameSettingsModal({
             </Pressable>
           </View>
 
-          {/* LANDSCAPE MODE: Scrollable single-row layout */}
+          {/* LANDSCAPE MODE: Single-row layout (no scroll) */}
           {isLandscape ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.contentLandscape}
-              keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.contentLandscape}>
               <Pressable 
                 style={styles.menuItemLandscape}
                 onPress={handleToggleSound}
@@ -185,16 +180,16 @@ export default function GameSettingsModal({
                       style={[
                         styles.menuItemLandscape,
                         isInChatSession && isLocalCameraOn && styles.chatActiveItemLandscape,
-                        isVideoChatConnecting && styles.disabledItem,
+                        (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
-                      onPress={isVideoChatConnecting ? undefined : async () => {
+                      onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVideoChat?.();
                         } else {
                           await onToggleCamera?.();
                         }
                       }}
-                      disabled={isVideoChatConnecting}
+                      disabled={isVideoChatConnecting || isAudioChatConnecting}
                       accessibilityRole="button"
                       accessibilityLabel={
                         isVideoChatConnecting
@@ -290,15 +285,10 @@ export default function GameSettingsModal({
                   {i18n.t('game.leaveGame')}
                 </Text>
               </Pressable>
-            </ScrollView>
+            </View>
           ) : (
-            /* PORTRAIT MODE: Scrollable vertical layout */
-            <ScrollView
-              style={styles.contentScroll}
-              contentContainerStyle={styles.content}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
+            /* PORTRAIT MODE: Non-scrolling vertical layout */
+            <View style={styles.content}>
               {/* Sound Settings */}
               <Pressable 
                 style={styles.menuItem}
@@ -383,16 +373,16 @@ export default function GameSettingsModal({
                       style={[
                         styles.menuItem,
                         isInChatSession && isLocalCameraOn && styles.chatActiveItem,
-                        isVideoChatConnecting && styles.disabledItem,
+                        (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
-                      onPress={isVideoChatConnecting ? undefined : async () => {
+                      onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVideoChat?.();
                         } else {
                           await onToggleCamera?.();
                         }
                       }}
-                      disabled={isVideoChatConnecting}
+                      disabled={isVideoChatConnecting || isAudioChatConnecting}
                       accessibilityRole="button"
                       accessibilityLabel={
                         isVideoChatConnecting
@@ -475,7 +465,7 @@ export default function GameSettingsModal({
                   {i18n.t('game.leaveGame')}
                 </Text>
               </Pressable>
-            </ScrollView>
+            </View>
           )}
         </View>
       </Pressable>
@@ -528,7 +518,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   contentScroll: {
-    maxHeight: 420,
+    // Reserved for future use — content is rendered in a plain View (no scroll).
   },
   content: {
     padding: SPACING.lg,
@@ -600,8 +590,8 @@ const styles = StyleSheet.create({
   },
   // LANDSCAPE MODE STYLES - Compact horizontal layout
   modalContainerLandscape: {
-    width: '90%',
-    maxWidth: 700,
+    width: '96%',
+    maxWidth: 800,
   },
   headerLandscape: {
     paddingVertical: SPACING.sm,
@@ -612,10 +602,11 @@ const styles = StyleSheet.create({
   },
   contentLandscape: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     gap: SPACING.sm,
   },
   menuItemLandscape: {

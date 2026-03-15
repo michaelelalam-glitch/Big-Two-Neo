@@ -701,7 +701,9 @@ export function MultiplayerGame() {
     toggleVoiceChat,
     toggleCamera,
     toggleMic,
-    isConnecting: isVideoChatConnecting,    isAudioConnecting,  } = useVideoChat({
+    isConnecting: isVideoChatConnecting,
+    isAudioConnecting,
+  } = useVideoChat({
     roomId:  roomInfo?.id,
     userId:  user?.id,
     adapter: videoChatAdapter,
