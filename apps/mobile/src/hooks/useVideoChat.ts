@@ -12,7 +12,7 @@
  *   enableMicrophone / disableMicrophone, getParticipants,
  *   onParticipantsChanged, onError.
  * `GameContext` exposes 7 fields: videoChatEnabled, isLocalCameraOn, isLocalMicOn,
- * remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic. (r2936044253)
+ * remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic.
  *
  * Prerequisites:
  * - F2 (voice chat) and this feature should share the same LiveKit room session —
@@ -30,8 +30,6 @@ import { gameLogger } from '../utils/logger';
 // ---------------------------------------------------------------------------
 
 export type MediaPermissionStatus = 'undetermined' | 'granted' | 'denied' | 'restricted';
-/** @deprecated Use {@link MediaPermissionStatus}. Kept for backward compatibility. */
-export type CameraPermissionStatus = MediaPermissionStatus;
 
 export interface VideoChatParticipant {
   /** Matches room_players.user_id so the caller can pair with MultiplayerPlayer */
@@ -109,7 +107,7 @@ export interface UseVideoChatReturn {
   /**
    * True while `toggleVideoChat` is executing an async enable/disable sequence.
    * Pass to VideoTile/PlayerInfo so the UI can disable the toggle button and
-   * show a spinner during transitions (prevents re-entrant rapid taps). (r2936131172)
+   * show a spinner during transitions (prevents re-entrant rapid taps).
    */
   isConnecting: boolean;
   /** Toggle local microphone mute/unmute while video chat is active. */
@@ -129,9 +127,9 @@ export function useVideoChat({
   // Synchronize the ref during render so render-phase reads/callbacks in the
   // same cycle always see the current adapter. With ??= alone, a change of
   // adapterProp (undefined → real, or A → B) would not be reflected until the
-  // post-commit effect fires — too late for same-render calls. (r2936112017)
+  // post-commit effect fires — too late for same-render calls.
   // When adapterProp is provided it always wins; otherwise lazy-init the stub
-  // once (avoids allocating a new StubVideoChatAdapter on every render). (r2936015541)
+  // once (avoids allocating a new StubVideoChatAdapter on every render).
   if (adapterProp != null) {
     adapterRef.current = adapterProp;
   } else {
@@ -145,22 +143,22 @@ export function useVideoChat({
   const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
   // True while toggleVideoChat is executing — exposed to the UI so tiles can
-  // disable the toggle button and prevent re-entrant rapid taps. (r2936131172)
+  // disable the toggle button and prevent re-entrant rapid taps.
   const [isConnecting, setIsConnecting] = useState(false);
   // Ref companion: used to short-circuit re-entrant calls before setState
-  // triggers a re-render (ref reads are synchronous, state reads are not). (r2936131172)
+  // triggers a re-render (ref reads are synchronous, state reads are not).
   const isTogglingRef = useRef(false);
 
   // Track the previous adapterProp so the swap-teardown effect can detect a
   // genuine adapter change. adapterRef.current is already updated during render
   // (above), so comparing adapterRef.current to adapterProp in the effect would
-  // always be equal — a separate prevAdapterPropRef is required. (r2936112017)
+  // always be equal — a separate prevAdapterPropRef is required.
   const prevAdapterPropRef = useRef<VideoChatAdapter | undefined>(undefined);
 
   // Teardown the old adapter when adapterProp is hot-swapped (e.g. DI in tests).
   // If the hook is currently connected when the adapter is swapped, best-effort
   // disconnect the previous adapter before switching — prevents a lingering
-  // connected session. (r2935998628)
+  // connected session.
   useEffect(() => {
     const prevAdapter = prevAdapterPropRef.current;
     prevAdapterPropRef.current = adapterProp;
@@ -179,7 +177,7 @@ export function useVideoChat({
   // Subscribe to remote participant changes while video chat is active.
   // adapterProp is included so the effect re-runs (and re-subscribes) if the
   // adapter is hot-swapped — the old adapter is unsubscribed via the cleanup
-  // return before the new subscription is opened. (r2935394770)
+  // return before the new subscription is opened.
   useEffect(() => {
     if (!videoChatEnabled) return;
     const unsubscribe = adapterRef.current.onParticipantsChanged(setRemoteParticipants);
@@ -187,7 +185,7 @@ export function useVideoChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoChatEnabled, adapterProp]);
 
-  // Subscribe to SDK errors (log as non-fatal — video is opt-in). (r2935394770)
+  // Subscribe to SDK errors (log as non-fatal — video is opt-in).
   useEffect(() => {
     if (!videoChatEnabled) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
@@ -198,15 +196,15 @@ export function useVideoChat({
   }, [videoChatEnabled, adapterProp]);
 
   // Track the previous roomId so the roomId-change effect can distinguish
-  // a genuine room navigation from the initial mount. (r2936027821)
+  // a genuine room navigation from the initial mount.
   const prevRoomIdRef = useRef<string | undefined>(undefined);
 
   // State reset + teardown when roomId changes (runs in the effect BODY, not in
   // the cleanup return). This ensures setVideoChatEnabled / setIsLocalCameraOn /
   // etc. are never called during unmount, which would produce React warnings
-  // about updating state on an unmounted component. (r2936027821)
+  // about updating state on an unmounted component.
   // Mirror the opt-out path: disable tracks before disconnecting so hardware
-  // capture stops immediately on room navigation. (r2935998629)
+  // capture stops immediately on room navigation.
   useEffect(() => {
     if (
       prevRoomIdRef.current !== undefined &&
@@ -214,7 +212,7 @@ export function useVideoChat({
       // Only tear down when there is an active session — avoids unnecessary
       // disconnect/disable calls (and potential interference with a shared
       // adapter used by voice chat) when roomId changes but video is already
-      // off. (r2936131168)
+      // off.
       videoChatEnabled
     ) {
       // roomId changed mid-session — tear down the current connection and reset
@@ -231,13 +229,13 @@ export function useVideoChat({
   // videoChatEnabled included so the effect sees the current session state when
   // roomId fires. Re-runs on videoChatEnabled change are harmless: the roomId
   // comparison always fails (prevRoomIdRef.current === roomId) so no teardown
-  // fires — only prevRoomIdRef.current is updated (no-op, same value). (r2936131168)
+  // fires — only prevRoomIdRef.current is updated (no-op, same value).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, videoChatEnabled]);
 
   // Hardware teardown on unmount ONLY — no setState here to avoid React warnings
   // when the component is already being destroyed. State is discarded on unmount
-  // so there is nothing to reset. (r2936027821)
+  // so there is nothing to reset.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     return () => {
@@ -275,12 +273,12 @@ export function useVideoChat({
       // the first real enableCamera() call. Stub is a no-op — return 'granted'
       // to allow stub-mode operation, but intentionally DO NOT persist to state
       // so requestCameraPermission() is re-invoked on every toggleVideoChat().
-      // TODO(F3): replace with Camera.requestCameraPermissionsAsync() (r2935998616)
+      // TODO(F3): replace with Camera.requestCameraPermissionsAsync()
       return 'granted';
     }
 
     // Unsupported platform (e.g. web) — video chat is not supported.
-    // Block opt-in by returning 'restricted' (treated as go-to-Settings only). (r2936084479)
+    // Block opt-in by returning 'restricted' (treated as go-to-Settings only).
     return 'restricted';
   }, []);
 
@@ -310,11 +308,11 @@ export function useVideoChat({
     if (Platform.OS === 'ios') {
       // iOS: NSMicrophoneUsageDescription in Info.plist triggers OS prompt on
       // first real enableMicrophone(). Same rationale as requestCameraPermission.
-      // TODO(F3): replace with Microphone.getPermissionsAsync() (r2935998619)
+      // TODO(F3): replace with Microphone.getPermissionsAsync()
       return 'granted';
     }
 
-    // Unsupported platform (e.g. web) — mic capture not supported. (r2936084479)
+    // Unsupported platform (e.g. web) — mic capture not supported.
     return 'restricted';
   }, []);
 
@@ -322,7 +320,7 @@ export function useVideoChat({
     // Re-entrant guard: if a previous toggle is still executing (e.g. waiting
     // for connect() or permission dialogs), ignore this call. Use both a ref
     // (synchronous, checked before any await) and state (triggers re-render so
-    // the tile can show a spinner and be disabled). (r2936131172)
+    // the tile can show a spinner and be disabled).
     if (isTogglingRef.current) return;
     isTogglingRef.current = true;
     setIsConnecting(true);
@@ -332,12 +330,12 @@ export function useVideoChat({
       // Guard roomId + userId here (not at the top) so the opt-out path below
       // can always run even when roomId/userId becomes transiently undefined
       // while video chat is already active (e.g. a partial re-render during
-      // navigation). (r2936061509)
+      // navigation).
       if (!roomId || !userId) return;
       // Request camera permission first. Re-request on 'denied' so users who
       // previously denied can reconsider by tapping the toggle again — matching
       // standard mobile UX. 'restricted' is a go-to-Settings-only path and is
-      // intentionally excluded. (r2936015516)
+      // intentionally excluded.
       let camPermission = cameraPermissionStatus;
       if (camPermission === 'undetermined' || camPermission === 'denied') {
         camPermission = await requestCameraPermission();
@@ -345,13 +343,13 @@ export function useVideoChat({
       // Short-circuit before requesting mic: if camera permission was denied,
       // skip the microphone permission dialog entirely — video chat will be
       // blocked regardless, and prompting for mic when camera is denied is
-      // unnecessary and confusing on Android. (r2936027815)
+      // unnecessary and confusing on Android.
       if (camPermission !== 'granted') {
         gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
         return;
       }
       // Request mic permission only after camera is confirmed granted.
-      // Re-request on 'denied' for the same UX reason as camera. (r2936015516)
+      // Re-request on 'denied' for the same UX reason as camera.
       let micPermission = micPermissionStatus;
       if (micPermission === 'undetermined' || micPermission === 'denied') {
         micPermission = await requestMicPermission();
@@ -363,10 +361,10 @@ export function useVideoChat({
         // Mic is opt-in and non-blocking: wrap in its own try/catch so a mic
         // hardware error or OS permission surprise does NOT propagate to the
         // outer catch and tear down the camera connection. Camera-only video chat
-        // is fully supported even when mic fails. (r2936061511)
+        // is fully supported even when mic fails.
         // Track whether mic was actually enabled — micPermission may be 'granted'
         // but enableMicrophone() can still throw (hardware error, OS surprise).
-        // Base the log on the actual outcome, not the permission status. (r2936112010)
+        // Base the log on the actual outcome, not the permission status.
         let micEnabled = false;
         if (micPermission === 'granted') {
           try {
@@ -381,12 +379,12 @@ export function useVideoChat({
           }
         }
         // Seed remote participants immediately from current SDK state so the UI
-        // shows existing participants without waiting for the next event. (r2935394720)
+        // shows existing participants without waiting for the next event.
         setRemoteParticipants(adapterRef.current.getParticipants());
         setVideoChatEnabled(true);
         setIsLocalCameraOn(true);
         // Log reflects what was actually enabled — permission 'granted' does not
-        // guarantee enableMicrophone() succeeded (may have thrown). (r2936112010, r2935977905)
+        // guarantee enableMicrophone() succeeded (may have thrown).
         gameLogger.info(
           micEnabled
             ? '[VideoChat] Local camera + mic enabled.'
@@ -394,7 +392,7 @@ export function useVideoChat({
         );
       } catch (err) {
         // Connection failure is non-fatal — video chat is always opt-in.
-        // Best-effort cleanup so the adapter does not remain half-connected. (r2935394739)
+        // Best-effort cleanup so the adapter does not remain half-connected.
         gameLogger.warn('[VideoChat] Failed to enable video chat:', err instanceof Error ? err.message : String(err));
         adapterRef.current.disableMicrophone().catch(() => {});
         adapterRef.current.disableCamera().catch(() => {});
@@ -419,7 +417,7 @@ export function useVideoChat({
     }
     } finally {
       // Always clear the in-flight guard — even if an error escapes or an early
-      // return fires (try/finally guarantees execution). (r2936131172)
+      // return fires (try/finally guarantees execution).
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
@@ -433,7 +431,7 @@ export function useVideoChat({
       gameLogger.info('[VideoChat] Microphone muted.');
     } else {
       // Re-request on 'denied' so users who previously denied can retry in-game.
-      // 'restricted' (NEVER_ASK_AGAIN / parental controls) is a go-to-Settings-only path. (r2936015523)
+      // 'restricted' (NEVER_ASK_AGAIN / parental controls) is a go-to-Settings-only path.
       let permission = micPermissionStatus;
       if (permission === 'undetermined' || permission === 'denied') {
         permission = await requestMicPermission();
