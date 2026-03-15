@@ -411,6 +411,10 @@ export interface Translations {
     copy: string;
     share: string;
     codeCopied: string;
+    copiedTitle: string;
+    copiedMessage: string;
+    shareTitle: string;
+    shareMessage: string;
     minPlayers: string;
     inviteFriends: string;
     emptySlot: string;
@@ -975,6 +979,10 @@ const en: Translations = {
     copy: 'Copy',
     share: 'Share',
     codeCopied: 'Room code copied!',
+    copiedTitle: 'Copied!',
+    copiedMessage: 'Room code {{roomCode}} has been copied to your clipboard.',
+    shareTitle: 'Join Big Two Game',
+    shareMessage: 'Join my Big Two game! Room code: {{roomCode}}',
     minPlayers: 'Need at least 2 players to start',
     inviteFriends: 'Share this code with friends',
     emptySlot: 'Empty Slot',
@@ -1478,6 +1486,10 @@ const ar: Translations = {
     copy: '📋 نسخ',
     share: '📤 مشاركة',
     codeCopied: 'تم نسخ رمز الغرفة!',
+    copiedTitle: 'تم النسخ!',
+    copiedMessage: 'تم نسخ رمز الغرفة {{roomCode}} إلى الحافظة.',
+    shareTitle: 'انضم إلى لعبة Big Two',
+    shareMessage: 'انضم إلى لعبتي في Big Two! رمز الغرفة: {{roomCode}}',
     minPlayers: 'تحتاج إلى لاعبين على الأقل للبدء',
     inviteFriends: 'شارك هذا الرمز مع الأصدقاء',
     emptySlot: 'فتحة فارغة',
@@ -2060,6 +2072,10 @@ const de: Translations = {
     copy: '📋 Kopieren',
     share: '📤 Teilen',
     codeCopied: 'Raumcode kopiert!',
+    copiedTitle: 'Kopiert!',
+    copiedMessage: 'Raumcode {{roomCode}} wurde in die Zwischenablage kopiert.',
+    shareTitle: 'Big Two Spiel beitreten',
+    shareMessage: 'Tritt meinem Big Two Spiel bei! Raumcode: {{roomCode}}',
     minPlayers: 'Mindestens 2 Spieler erforderlich',
     inviteFriends: 'Teile diesen Code mit Freunden',
     emptySlot: 'Leerer Platz',
