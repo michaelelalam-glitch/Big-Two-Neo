@@ -22,7 +22,7 @@
 
 jest.mock('../../services/supabase');
 
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { useMatchmaking } from '../useMatchmaking';
 import { supabase } from '../../services/supabase';
 
@@ -89,7 +89,7 @@ beforeEach(() => {
     data: null,
     error: null,
   });
-  (supabase.removeChannel as jest.Mock) = jest.fn();
+  supabase.removeChannel = jest.fn() as unknown as typeof supabase.removeChannel;
 });
 
 // ---------------------------------------------------------------------------
