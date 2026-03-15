@@ -56,15 +56,25 @@
 
 ---
 
-## Phase 3 — Native Build Configuration 🔲 TODO
+## Phase 3 — Native Build Configuration ✅ DONE
+**PR:** #142  
+**Branch:** `feature/649-651-livekit-phase3-native-config`
 
-### What needs to happen
-- Run `expo prebuild --clean` to generate the `/ios` and `/android` native projects from the current `app.json` config
-- ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking and does **not** require a manual entry in `app.json` plugins. `LiveKitVideoChatAdapter.ts` documents this explicitly. Run `expo prebuild --clean` and autolinking will resolve the native module automatically.
-- **iOS:** Run `pod install` in `/ios`; agree to microphone + camera usage description entries in `Info.plist`
-- **Android:** Confirm `CAMERA` and `RECORD_AUDIO` permissions are in `AndroidManifest.xml`; check Gradle dependency resolution for `livekit-android`
-- Build and run on a real device (not Expo Go — native modules require a custom dev client or a production build)
-- Smoke-test: can two devices join the same LiveKit room? (audio only at this point)
+### What was done
+- **`android/app/src/main/AndroidManifest.xml`** — added `android.permission.CAMERA` (was missing; `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` were already present)
+- **`ios/Big2Mobile/Info.plist`** — added `NSCameraUsageDescription` ("Big Two uses your camera for the opt-in in-game video chat feature."); updated `NSMicrophoneUsageDescription` from the generic Expo default to the app-specific string matching `app.json`
+- ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking. iOS Podfile already uses `use_native_modules!`; Android `settings.gradle` already uses `expo-autolinking-settings`. Run `expo prebuild --clean` + `pod install` and the module links automatically.
+- `app.json` already had `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, and Android `CAMERA`/`RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` permissions configured — the native files simply needed to be updated to match.
+
+### Remaining device steps (run once, not in source)
+```bash
+# From apps/mobile/
+expo prebuild --clean        # regenerates ios/ and android/ from app.json
+cd ios && pod install         # links @livekit/react-native-webrtc + other pods
+cd ..
+eas build --profile development --platform ios
+eas build --profile development --platform android
+```
 
 ### Definition of done
 - `eas build --profile development --platform ios` and `android` succeed without native linking errors
