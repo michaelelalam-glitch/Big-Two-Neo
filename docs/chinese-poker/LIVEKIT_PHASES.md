@@ -61,10 +61,9 @@
 **Branch:** `feature/649-651-livekit-phase3-native-config`
 
 ### What was done
-- **`android/app/src/main/AndroidManifest.xml`** — added `android.permission.CAMERA` (was missing; `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` were already present)
-- **`ios/Big2Mobile/Info.plist`** — added `NSCameraUsageDescription` ("Big Two uses your camera for the opt-in in-game video chat feature."); updated `NSMicrophoneUsageDescription` from the generic Expo default to the app-specific string matching `app.json`
+- **`app.json`** is the source of truth for all native permissions. It already had `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, and Android `CAMERA`/`RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` configured — no edits were needed. The generated native files (`ios/` and `android/`) are gitignored prebuild artifacts; they will reflect these values after `expo prebuild --clean`.
+- **`eas.json`** — added a `developmentDevice` profile (`developmentClient: true`, `simulator: false`) for physical-device development-client builds.
 - ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking. iOS Podfile already uses `use_native_modules!`; Android `settings.gradle` already uses `expo-autolinking-settings`. Run `expo prebuild --clean` + `pod install` and the module links automatically.
-- `app.json` already had `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, and Android `CAMERA`/`RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` permissions configured — the native files simply needed to be updated to match.
 
 ### Remaining device steps (run once, not in source)
 ```bash
@@ -72,12 +71,12 @@
 expo prebuild --clean        # regenerates ios/ and android/ from app.json
 cd ios && pod install         # links @livekit/react-native-webrtc + other pods
 cd ..
-eas build --profile development --platform ios
-eas build --profile development --platform android
+eas build --profile developmentDevice --platform ios
+eas build --profile developmentDevice --platform android
 ```
 
 ### Definition of done
-- `eas build --profile development --platform ios` and `android` succeed without native linking errors
+- `eas build --profile developmentDevice --platform ios` and `android` succeed without native linking errors
 - App launches on physical device without crash on import of `@livekit/react-native`
 
 ---
