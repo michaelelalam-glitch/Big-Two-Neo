@@ -51,7 +51,18 @@ export interface VideoChatAdapter {
   disableCamera(): Promise<void>;
   enableMicrophone(): Promise<void>;
   disableMicrophone(): Promise<void>;
+  /**
+   * Returns the list of **remote** participants currently in the room.
+   * Adapters must exclude the local participant from this list so callers
+   * can use it directly to build per-player remote camera/mic state without
+   * additional filtering.
+   */
   getParticipants(): VideoChatParticipant[];
+  /**
+   * Subscribes to remote participant list changes.
+   * The `participants` array passed to `cb` must also exclude the local
+   * participant (same contract as `getParticipants`).
+   */
   onParticipantsChanged(cb: (participants: VideoChatParticipant[]) => void): () => void;
   onError(cb: (error: Error) => void): () => void;
 }
@@ -100,7 +111,11 @@ export interface UseVideoChatReturn {
   cameraPermissionStatus: MediaPermissionStatus;
   /** Permission status for the device microphone */
   micPermissionStatus: MediaPermissionStatus;
-  /** Remote participants with their current camera and mic state */
+  /**
+   * Remote participants with their current camera and mic state.
+   * The local participant is never included (adapters are required to exclude
+   * it — see the `getParticipants` / `onParticipantsChanged` contract).
+   */
   remoteParticipants: VideoChatParticipant[];
   /** Toggle local video+audio chat on/off. Requests camera+mic permissions if undetermined. */
   toggleVideoChat: () => Promise<void>;
@@ -325,96 +340,96 @@ export function useVideoChat({
     isTogglingRef.current = true;
     setIsConnecting(true);
     try {
-    if (!videoChatEnabled) {
-      // ── Opt-in path ────────────────────────────────────────────────────────
-      // Guard roomId + userId here (not at the top) so the opt-out path below
-      // can always run even when roomId/userId becomes transiently undefined
-      // while video chat is already active (e.g. a partial re-render during
-      // navigation).
-      if (!roomId || !userId) return;
-      // Request camera permission first. Re-request on 'denied' so users who
-      // previously denied can reconsider by tapping the toggle again — matching
-      // standard mobile UX. 'restricted' is a go-to-Settings-only path and is
-      // intentionally excluded.
-      let camPermission = cameraPermissionStatus;
-      if (camPermission === 'undetermined' || camPermission === 'denied') {
-        camPermission = await requestCameraPermission();
-      }
-      // Short-circuit before requesting mic: if camera permission was denied,
-      // skip the microphone permission dialog entirely — video chat will be
-      // blocked regardless, and prompting for mic when camera is denied is
-      // unnecessary and confusing on Android.
-      if (camPermission !== 'granted') {
-        gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
-        return;
-      }
-      // Request mic permission only after camera is confirmed granted.
-      // Re-request on 'denied' for the same UX reason as camera.
-      let micPermission = micPermissionStatus;
-      if (micPermission === 'undetermined' || micPermission === 'denied') {
-        micPermission = await requestMicPermission();
-      }
-
-      try {
-        await adapterRef.current.connect(roomId, userId);
-        await adapterRef.current.enableCamera();
-        // Mic is opt-in and non-blocking: wrap in its own try/catch so a mic
-        // hardware error or OS permission surprise does NOT propagate to the
-        // outer catch and tear down the camera connection. Camera-only video chat
-        // is fully supported even when mic fails.
-        // Track whether mic was actually enabled — micPermission may be 'granted'
-        // but enableMicrophone() can still throw (hardware error, OS surprise).
-        // Base the log on the actual outcome, not the permission status.
-        let micEnabled = false;
-        if (micPermission === 'granted') {
-          try {
-            await adapterRef.current.enableMicrophone();
-            micEnabled = true;
-            setIsLocalMicOn(true);
-          } catch (micErr) {
-            gameLogger.warn(
-              '[VideoChat] Mic enable failed (non-fatal — camera still active):',
-              micErr instanceof Error ? micErr.message : String(micErr)
-            );
-          }
+      if (!videoChatEnabled) {
+        // ── Opt-in path ──────────────────────────────────────────────────────
+        // Guard roomId + userId here (not at the top) so the opt-out path below
+        // can always run even when roomId/userId becomes transiently undefined
+        // while video chat is already active (e.g. a partial re-render during
+        // navigation).
+        if (!roomId || !userId) return;
+        // Request camera permission first. Re-request on 'denied' so users who
+        // previously denied can reconsider by tapping the toggle again — matching
+        // standard mobile UX. 'restricted' is a go-to-Settings-only path and is
+        // intentionally excluded.
+        let camPermission = cameraPermissionStatus;
+        if (camPermission === 'undetermined' || camPermission === 'denied') {
+          camPermission = await requestCameraPermission();
         }
-        // Seed remote participants immediately from current SDK state so the UI
-        // shows existing participants without waiting for the next event.
-        setRemoteParticipants(adapterRef.current.getParticipants());
-        setVideoChatEnabled(true);
-        setIsLocalCameraOn(true);
-        // Log reflects what was actually enabled — permission 'granted' does not
-        // guarantee enableMicrophone() succeeded (may have thrown).
-        gameLogger.info(
-          micEnabled
-            ? '[VideoChat] Local camera + mic enabled.'
-            : '[VideoChat] Local camera enabled (mic not active — audio stream inactive).'
-        );
-      } catch (err) {
-        // Connection failure is non-fatal — video chat is always opt-in.
-        // Best-effort cleanup so the adapter does not remain half-connected.
-        gameLogger.warn('[VideoChat] Failed to enable video chat:', err instanceof Error ? err.message : String(err));
-        adapterRef.current.disableMicrophone().catch(() => {});
-        adapterRef.current.disableCamera().catch(() => {});
-        adapterRef.current.disconnect().catch(() => {});
-        // Reset all local/remote state to mirror the opt-out path — ensures
-        // the UI cannot remain in a partially-enabled state after a failure.
+        // Short-circuit before requesting mic: if camera permission was denied,
+        // skip the microphone permission dialog entirely — video chat will be
+        // blocked regardless, and prompting for mic when camera is denied is
+        // unnecessary and confusing on Android.
+        if (camPermission !== 'granted') {
+          gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
+          return;
+        }
+        // Request mic permission only after camera is confirmed granted.
+        // Re-request on 'denied' for the same UX reason as camera.
+        let micPermission = micPermissionStatus;
+        if (micPermission === 'undetermined' || micPermission === 'denied') {
+          micPermission = await requestMicPermission();
+        }
+
+        try {
+          await adapterRef.current.connect(roomId, userId);
+          await adapterRef.current.enableCamera();
+          // Mic is opt-in and non-blocking: wrap in its own try/catch so a mic
+          // hardware error or OS permission surprise does NOT propagate to the
+          // outer catch and tear down the camera connection. Camera-only video chat
+          // is fully supported even when mic fails.
+          // Track whether mic was actually enabled — micPermission may be 'granted'
+          // but enableMicrophone() can still throw (hardware error, OS surprise).
+          // Base the log on the actual outcome, not the permission status.
+          let micEnabled = false;
+          if (micPermission === 'granted') {
+            try {
+              await adapterRef.current.enableMicrophone();
+              micEnabled = true;
+              setIsLocalMicOn(true);
+            } catch (micErr) {
+              gameLogger.warn(
+                '[VideoChat] Mic enable failed (non-fatal — camera still active):',
+                micErr instanceof Error ? micErr.message : String(micErr)
+              );
+            }
+          }
+          // Seed remote participants immediately from current SDK state so the UI
+          // shows existing participants without waiting for the next event.
+          setRemoteParticipants(adapterRef.current.getParticipants());
+          setVideoChatEnabled(true);
+          setIsLocalCameraOn(true);
+          // Log reflects what was actually enabled — permission 'granted' does not
+          // guarantee enableMicrophone() succeeded (may have thrown).
+          gameLogger.info(
+            micEnabled
+              ? '[VideoChat] Local camera + mic enabled.'
+              : '[VideoChat] Local camera enabled (mic not active — audio stream inactive).'
+          );
+        } catch (err) {
+          // Connection failure is non-fatal — video chat is always opt-in.
+          // Best-effort cleanup so the adapter does not remain half-connected.
+          gameLogger.warn('[VideoChat] Failed to enable video chat:', err instanceof Error ? err.message : String(err));
+          adapterRef.current.disableMicrophone().catch(() => {});
+          adapterRef.current.disableCamera().catch(() => {});
+          adapterRef.current.disconnect().catch(() => {});
+          // Reset all local/remote state to mirror the opt-out path — ensures
+          // the UI cannot remain in a partially-enabled state after a failure.
+          setVideoChatEnabled(false);
+          setIsLocalCameraOn(false);
+          setIsLocalMicOn(false);
+          setRemoteParticipants([]);
+        }
+      } else {
+        // ── Opt-out path ────────────────────────────────────────────────────
+        await adapterRef.current.disableMicrophone().catch(() => {});
+        await adapterRef.current.disableCamera().catch(() => {});
+        await adapterRef.current.disconnect().catch(() => {});
         setVideoChatEnabled(false);
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
+        gameLogger.info('[VideoChat] Local camera + mic disabled.');
       }
-    } else {
-      // ── Opt-out path ──────────────────────────────────────────────────────
-      await adapterRef.current.disableMicrophone().catch(() => {});
-      await adapterRef.current.disableCamera().catch(() => {});
-      await adapterRef.current.disconnect().catch(() => {});
-      setVideoChatEnabled(false);
-      setIsLocalCameraOn(false);
-      setIsLocalMicOn(false);
-      setRemoteParticipants([]);
-      gameLogger.info('[VideoChat] Local camera + mic disabled.');
-    }
     } finally {
       // Always clear the in-flight guard — even if an error escapes or an early
       // return fires (try/finally guarantees execution).
