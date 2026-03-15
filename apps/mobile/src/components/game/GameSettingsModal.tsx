@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+// r2936796183: expo-clipboard loaded lazily (dynamic import) so that
+// requireNativeModule('ExpoClipboard') only fires on the first copy press,
+// not at module-load time — prevents Expo Go crash when the native module
+// is not bundled in the running Expo Go client.
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -95,7 +98,12 @@ export default function GameSettingsModal({
 
   const handleCopyRoomCode = useCallback(() => {
     if (!roomCode) return;
-    void Clipboard.setStringAsync(roomCode);
+    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
+    // not at bundle-load time — avoids crash in Expo Go when the native
+    // ExpoClipboard module is not included in the running client.
+    import('expo-clipboard')
+      .then((mod) => mod.setStringAsync(roomCode))
+      .catch(() => { /* clipboard unavailable in this environment */ });
     if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
     Alert.alert(
       i18n.t('lobby.copiedTitle') || 'Copied!',
