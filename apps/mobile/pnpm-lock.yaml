@@ -42,8 +42,8 @@ importers:
         specifier: ^1.0.10
         version: 1.0.10(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       expo-clipboard:
-        specifier: ^55.0.8
-        version: 55.0.8(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: ^8.0.8
+        version: 8.0.8(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-constants:
         specifier: ~18.0.12
         version: 18.0.12(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
@@ -2410,8 +2410,8 @@ packages:
     peerDependencies:
       expo: '*'
 
-  expo-clipboard@55.0.8:
-    resolution: {integrity: sha512-s0Hkop+dc6m09LwzUAWweNI0gzLAaX5CgEGR8TMdOdSPKTPc2rCl8h8Ji/cUNM1wYoJQ4Wysa15E8If/Vlu7WA==}
+  expo-clipboard@8.0.8:
+    resolution: {integrity: sha512-VKoBkHIpZZDJTB0jRO4/PZskHdMNOEz3P/41tmM6fDuODMpqhvyWK053X0ebspkxiawJX9lX33JXHBCvVsTTOA==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -8035,7 +8035,7 @@ snapshots:
       expo: 54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       semver: 7.7.3
 
-  expo-clipboard@55.0.8(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  expo-clipboard@8.0.8(expo@54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       expo: 54.0.29(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react: 19.1.0
