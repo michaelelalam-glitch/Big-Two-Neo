@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from './InactivityCountdownRing';
-import { VideoTile } from './VideoTile';
 
 interface PlayerInfoProps {
   name: string;
@@ -32,6 +31,74 @@ interface PlayerInfoProps {
   onVideoChatToggle?: () => void;
   /** Injected video stream element (RTCView/VideoView from the real SDK) */
   videoStreamSlot?: React.ReactNode;
+}
+
+// ---------------------------------------------------------------------------
+// Avatar video content helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders the inner content of the avatar when video chat state is known.
+ * - Camera ON + videoStreamSlot: live video feed fills the avatar
+ * - Camera ON + no slot: stub LIVE placeholder (SDK not yet wired)
+ * - Camera OFF: profile photo with a small camera-off badge
+ */
+function renderAvatarVideoContent({
+  isCameraOn,
+  isMicOn,
+  isLocalPlayer,
+  isDisconnected,
+  isVideoChatConnecting,
+  videoStreamSlot,
+}: {
+  isCameraOn: boolean;
+  isMicOn?: boolean;
+  isLocalPlayer: boolean;
+  isDisconnected: boolean;
+  isVideoChatConnecting: boolean;
+  videoStreamSlot?: React.ReactNode;
+}): React.ReactNode {
+  if (isVideoChatConnecting) {
+    return <ActivityIndicator size="small" color={COLORS.white} />;
+  }
+
+  if (isCameraOn) {
+    return videoStreamSlot ? (
+      // Real SDK video stream fills the full avatar circle
+      <View style={avatarStyles.videoFill}>{videoStreamSlot}</View>
+    ) : (
+      // Stub placeholder until LiveKit SDK is installed
+      <View style={avatarStyles.videoPlaceholder}>
+        <Text style={avatarStyles.videoPlaceholderIcon}>📷</Text>
+        {isLocalPlayer && (
+          <View style={avatarStyles.liveBadge}>
+            <Text style={avatarStyles.liveBadgeText}>LIVE</Text>
+          </View>
+        )}
+        {isMicOn !== undefined && (
+          <View style={avatarStyles.micIndicator}>
+            <Text style={avatarStyles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // Camera off — show profile photo and a small camera-off indicator
+  return (
+    <>
+      <Text style={[avatarStyles.avatarProfileIcon, isDisconnected && avatarStyles.avatarIconFaded]}>👤</Text>
+      {/* Camera-off badge so viewers know video is available but currently off */}
+      <View style={avatarStyles.cameraOffBadge} pointerEvents="none">
+        <Text style={avatarStyles.cameraOffIcon}>📵</Text>
+      </View>
+      {isMicOn !== undefined && (
+        <View style={avatarStyles.micIndicator}>
+          <Text style={avatarStyles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+        </View>
+      )}
+    </>
+  );
 }
 
 export default function PlayerInfo({
@@ -83,10 +150,31 @@ export default function PlayerInfo({
     >
       {/* Avatar with turn indicator */}
       <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
-        <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
-          {/* Default avatar icon - matches landscape opponent emoji */}
-          <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
-        </View>
+        {/* Avatar body — video feed replaces profile photo when camera is on */}
+        {showVideoTile ? (
+          // Video-aware avatar: tap to toggle camera (local player only)
+          isLocalPlayer ? (
+            <Pressable
+              style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}
+              onPress={onVideoChatToggle}
+              disabled={!onVideoChatToggle || isVideoChatConnecting}
+              accessibilityRole="button"
+              accessibilityLabel={videoChatLabel}
+              accessibilityState={{ disabled: !onVideoChatToggle || isVideoChatConnecting, busy: isVideoChatConnecting }}
+            >
+              {renderAvatarVideoContent({ isCameraOn: !!isCameraOn, isMicOn, isLocalPlayer, isDisconnected, isVideoChatConnecting, videoStreamSlot })}
+            </Pressable>
+          ) : (
+            <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
+              {renderAvatarVideoContent({ isCameraOn: !!isCameraOn, isMicOn, isLocalPlayer, isDisconnected, isVideoChatConnecting: false, videoStreamSlot })}
+            </View>
+          )
+        ) : (
+          // Standard avatar — no video chat
+          <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
+            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+          </View>
+        )}
         {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
         {showRing && (
           <InactivityCountdownRing 
@@ -119,19 +207,6 @@ export default function PlayerInfo({
                 {formatScore(totalScore)}
               </Text>
             </View>
-          </View>
-        )}
-        {/* In-game video tile (Task #651) — absolute overlay, top-left of avatar */}
-        {showVideoTile && (
-          <View style={styles.videoTilePosition}>
-            <VideoTile
-              isCameraOn={!!isCameraOn}
-              isMicOn={isMicOn}
-              isConnecting={isVideoChatConnecting}
-              isLocal={isLocalPlayer}
-              onCameraToggle={onVideoChatToggle}
-              videoStreamSlot={videoStreamSlot}
-            />
           </View>
         )}
       </View>
@@ -202,14 +277,6 @@ const styles = StyleSheet.create({
     right: -6,
     zIndex: 10,
   },
-  // Task #651: video tile is anchored top-left of the avatar so it doesn't clash
-  // with the card-count badge (top-right) or score badge (bottom-left).
-  videoTilePosition: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    zIndex: 12,
-  },
   // Disconnect overlay styles (fix/rejoin)
   avatarDisconnected: {
     opacity: 0.5,
@@ -230,6 +297,70 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   nameBadgeDisconnected: {
+    opacity: 0.6,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Styles shared by renderAvatarVideoContent (defined at module level to avoid
+// recreation on every render — React Native StyleSheet.create is idempotent).
+// ---------------------------------------------------------------------------
+const avatarStyles = StyleSheet.create({
+  videoFill: {
+    width: '100%',
+    height: '100%',
+    borderRadius: LAYOUT.avatarInnerRadius,
+    overflow: 'hidden',
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: LAYOUT.avatarInnerRadius,
+    backgroundColor: '#1a3a5c',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoPlaceholderIcon: {
+    fontSize: LAYOUT.avatarIconSize,
+    textAlign: 'center',
+  },
+  liveBadge: {
+    position: 'absolute',
+    bottom: 2,
+    alignSelf: 'center',
+    backgroundColor: '#dc2626',
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  liveBadgeText: {
+    color: COLORS.white,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  micIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+  },
+  micIndicatorIcon: {
+    fontSize: 10,
+  },
+  cameraOffBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+  },
+  cameraOffIcon: {
+    fontSize: 10,
+  },
+  // Profile photo (camera off) styles — mirrors main styles.avatarIcon
+  avatarProfileIcon: {
+    fontSize: LAYOUT.avatarIconSize,
+    textAlign: 'center',
+  },
+  avatarIconFaded: {
     opacity: 0.6,
   },
 });

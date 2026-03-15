@@ -320,14 +320,6 @@ function GameViewComponent() {
                 playerHand={effectivePlayerHand}
                 onPlayCards={handlePlayCards}
                 onPass={handlePass}
-                isInChatSession={isMultiplayerGame && (isChatConnected || voiceChatEnabled)}
-                isLocalMicOn={isLocalMicOn}
-                isLocalCameraOn={isLocalCameraOn}
-                isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
-                onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
-                onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
-                onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
-                onToggleMic={isMultiplayerGame && (isChatConnected || voiceChatEnabled) ? toggleMic : undefined}
               />
             </View>
 
@@ -369,6 +361,14 @@ function GameViewComponent() {
           onClose={() => setShowSettings(false)}
           onLeaveGame={handleLeaveGame}
           roomCode={roomCode}
+          isInChatSession={isMultiplayerGame && (isChatConnected || voiceChatEnabled)}
+          isLocalMicOn={isLocalMicOn}
+          isLocalCameraOn={isLocalCameraOn}
+          isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
+          onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
+          onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
+          onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
+          onToggleMic={isMultiplayerGame && (isChatConnected || voiceChatEnabled) ? toggleMic : undefined}
         />
       </View>
     </Profiler>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -10,6 +10,23 @@ interface GameSettingsModalProps {
   onLeaveGame: () => void;
   /** Room code to display (multiplayer only) */
   roomCode?: string;
+  // ── Voice / video chat controls (multiplayer only) ──────────────────────────
+  /** Whether the local player is in a chat session (voice or video) */
+  isInChatSession?: boolean;
+  /** Whether the local microphone is active */
+  isLocalMicOn?: boolean;
+  /** Whether the local camera is streaming */
+  isLocalCameraOn?: boolean;
+  /** Whether a chat connect/disconnect is in-flight */
+  isVideoChatConnecting?: boolean;
+  /** Toggle voice-only chat */
+  onToggleVoiceChat?: () => Promise<void>;
+  /** Join/leave full video+audio session */
+  onToggleVideoChat?: () => Promise<void>;
+  /** Toggle camera track on/off within an active session */
+  onToggleCamera?: () => Promise<void>;
+  /** Mute/unmute microphone */
+  onToggleMic?: () => Promise<void>;
 }
 
 export default function GameSettingsModal({
@@ -17,6 +34,14 @@ export default function GameSettingsModal({
   onClose,
   onLeaveGame,
   roomCode,
+  isInChatSession = false,
+  isLocalMicOn = false,
+  isLocalCameraOn = false,
+  isVideoChatConnecting = false,
+  onToggleVoiceChat,
+  onToggleVideoChat,
+  onToggleCamera,
+  onToggleMic,
 }: GameSettingsModalProps) {
   // Detect orientation
   const { width, height } = useWindowDimensions();
@@ -238,6 +263,92 @@ export default function GameSettingsModal({
 
               <View style={styles.divider} />
 
+              {/* Voice / Video chat controls — Multiplayer only */}
+              {(onToggleVoiceChat || onToggleVideoChat) && (
+                <>
+                  <Text style={styles.sectionHeader}>🎙️ Chat</Text>
+
+                  {/* Voice chat toggle */}
+                  {onToggleVoiceChat && (
+                    <Pressable
+                      style={[
+                        styles.menuItem,
+                        isInChatSession && !isLocalCameraOn && styles.chatActiveItem,
+                        (isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
+                      ]}
+                      onPress={(isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
+                      disabled={isVideoChatConnecting || (isInChatSession && isLocalCameraOn)}
+                      accessibilityRole="button"
+                      accessibilityLabel={(isInChatSession && !isLocalCameraOn) ? 'Leave voice chat' : 'Join voice chat'}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {(isInChatSession && !isLocalCameraOn) ? '🔊' : '🔈'}{' '}
+                        {(isInChatSession && !isLocalCameraOn) ? 'Leave Voice Chat' : 'Join Voice Chat'}
+                      </Text>
+                      {isVideoChatConnecting
+                        ? <ActivityIndicator size="small" color={COLORS.white} />
+                        : <Text style={styles.menuItemValue}>{(isInChatSession && !isLocalCameraOn) ? 'On' : 'Off'}</Text>
+                      }
+                    </Pressable>
+                  )}
+
+                  {/* Video chat toggle (join/leave full video session) */}
+                  {onToggleVideoChat && (
+                    <Pressable
+                      style={[
+                        styles.menuItem,
+                        isInChatSession && isLocalCameraOn && styles.chatActiveItem,
+                        isVideoChatConnecting && styles.disabledItem,
+                      ]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
+                      disabled={isVideoChatConnecting}
+                      accessibilityRole="button"
+                      accessibilityLabel={(isInChatSession && isLocalCameraOn) ? 'Leave video chat' : 'Join video chat'}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {(isInChatSession && isLocalCameraOn) ? '🎥' : '📹'}{' '}
+                        {(isInChatSession && isLocalCameraOn) ? 'Leave Video Chat' : 'Join Video Chat'}
+                      </Text>
+                      {isVideoChatConnecting
+                        ? <ActivityIndicator size="small" color={COLORS.white} />
+                        : <Text style={styles.menuItemValue}>{(isInChatSession && isLocalCameraOn) ? 'On' : 'Off'}</Text>
+                      }
+                    </Pressable>
+                  )}
+
+                  {/* Camera toggle — only shown when in a session */}
+                  {isInChatSession && onToggleCamera && (
+                    <Pressable
+                      style={[styles.menuItem, isVideoChatConnecting && styles.disabledItem]}
+                      onPress={isVideoChatConnecting ? undefined : onToggleCamera}
+                      disabled={isVideoChatConnecting}
+                      accessibilityRole="button"
+                      accessibilityLabel={isLocalCameraOn ? 'Turn camera off' : 'Turn camera on'}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {isLocalCameraOn ? '📷' : '📵'} Camera
+                      </Text>
+                      <Text style={styles.menuItemValue}>{isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Mic toggle — only shown when in a session */}
+                  {isInChatSession && onToggleMic && (
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={onToggleMic}
+                      accessibilityRole="button"
+                      accessibilityLabel={isLocalMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {isLocalMicOn ? '🎤' : '🔇'} Microphone
+                      </Text>
+                      <Text style={styles.menuItemValue}>{isLocalMicOn ? 'On' : 'Muted'}</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+
               {/* Leave Game - Only shown in game */}
               <Pressable
                 style={[styles.menuItem, styles.leaveGameItem]}
@@ -337,6 +448,21 @@ const styles = StyleSheet.create({
   },
   leaveGameText: {
     color: COLORS.danger,
+  },
+  sectionHeader: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray.light,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xs,
+  },
+  chatActiveItem: {
+    borderWidth: 1,
+    borderColor: '#60A5FA',
+    backgroundColor: '#1E3A5F',
   },
   disabledItem: {
     opacity: 0.5,

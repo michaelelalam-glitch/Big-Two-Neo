@@ -105,13 +105,16 @@ export interface UseVideoChatReturn {
    * True when the chat room session is connected (video + mic, OR voice-only).
    * Use `isLocalCameraOn` to distinguish: `isChatConnected && isLocalCameraOn`
    * means the camera is streaming; `isChatConnected && !isLocalCameraOn` means
-   * voice-only (microphone only). This was formerly called `isChatConnected`.
+   * voice-only (microphone only). This was formerly called `videoChatEnabled`.
    */
   isChatConnected: boolean;
   /**
-   * Whether the local player has opted in to voice-only chat (mic only, no camera).
+   * Whether the local player is in voice-only chat (mic active, camera off).
    * Derived: `isChatConnected && !isLocalCameraOn`.
-   * True when `toggleVoiceChat` was used to join; false when `toggleVideoChat` was used.
+   * True whenever the session is connected and the camera is not streaming —
+   * regardless of whether the session was started via `toggleVoiceChat` or
+   * the camera was subsequently turned off via `toggleCamera` after joining
+   * via `toggleVideoChat`.
    */
   voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming */
@@ -446,8 +449,28 @@ export function useVideoChat({
           setIsLocalMicOn(false);
           setRemoteParticipants([]);
         }
+      } else if (!isLocalCameraOn) {
+        // ── Upgrade: voice-only → video — enable camera without disconnecting ──
+        // The user is already connected (audio-only). Pressing "join video chat"
+        // should enable the camera track rather than tearing down the session and
+        // re-connecting, which would create a noticeable audio gap for other players.
+        let camPermission = cameraPermissionStatus;
+        if (camPermission === 'undetermined' || camPermission === 'denied') {
+          camPermission = await requestCameraPermission();
+        }
+        if (camPermission !== 'granted') {
+          gameLogger.info('[VideoChat] Camera permission not granted — voice→video upgrade blocked.');
+          return;
+        }
+        try {
+          await adapterRef.current.enableCamera();
+          setIsLocalCameraOn(true);
+          gameLogger.info('[VideoChat] Upgraded from voice-only to camera + mic.');
+        } catch (err) {
+          gameLogger.warn('[VideoChat] Camera enable failed during voice→video upgrade:', err instanceof Error ? err.message : String(err));
+        }
       } else {
-        // ── Opt-out path ────────────────────────────────────────────────────
+        // ── Opt-out path — camera is on, disconnect the full session ────────────
         await adapterRef.current.disableMicrophone().catch(() => {});
         await adapterRef.current.disableCamera().catch(() => {});
         await adapterRef.current.disconnect().catch(() => {});
@@ -463,7 +486,7 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
-  }, [roomId, userId, isChatConnected, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
+  }, [roomId, userId, isChatConnected, isLocalCameraOn, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
     if (!isChatConnected) return;

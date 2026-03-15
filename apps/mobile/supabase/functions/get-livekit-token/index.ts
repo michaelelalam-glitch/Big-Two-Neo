@@ -169,6 +169,17 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // Validate roomId is a UUID before passing it to the DB query.
+  // room_players.room_id is a UUID column — a non-UUID string would cause a
+  // Postgres type error that would be incorrectly surfaced as 403 below.
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_REGEX.test(roomId.trim())) {
+    return new Response(
+      JSON.stringify({ error: 'roomId must be a valid UUID' }),
+      { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+
   // Participant identity = stable Supabase user UUID.
   // Display name falls back to email prefix → id prefix.
   const safeDisplayName =
@@ -187,7 +198,15 @@ Deno.serve(async (req: Request) => {
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (membershipError || !membership) {
+  if (membershipError) {
+    // A DB error (e.g. table missing, RLS policy) is a server-side failure, not
+    // a client authorisation error — return 500 so production logs surface it.
+    return new Response(
+      JSON.stringify({ error: 'Failed to verify room membership' }),
+      { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+  if (!membership) {
     return new Response(
       JSON.stringify({ error: 'Forbidden: you are not a member of this room' }),
       { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
