@@ -51,6 +51,15 @@ export interface Translations {
     continue: string;
   };
 
+  // In-game chat controls
+  chat: {
+    joinVoice: string;
+    leaveVoice: string;
+    joinVideo: string;
+    leaveVideo: string;
+    muted: string;
+  };
+
   // Game Selection Screen
   gameSelection: {
     welcome: string;
@@ -651,6 +660,13 @@ const en: Translations = {
     comingSoon: 'Coming Soon',
     continue: 'Continue',
   },
+  chat: {
+    joinVoice: 'Join Voice Chat',
+    leaveVoice: 'Leave Voice Chat',
+    joinVideo: 'Join Video Chat',
+    leaveVideo: 'Leave Video Chat',
+    muted: 'Muted',
+  },
   gameSelection: {
     welcome: 'Welcome,',
     subtitle: 'Choose a game to play',
@@ -1183,6 +1199,13 @@ const ar: Translations = {
     daily: 'يومي',
     comingSoon: 'قريبًا',
     continue: 'متابعة',
+  },
+  chat: {
+    joinVoice: 'انضم إلى الدردشة الصوتية',
+    leaveVoice: 'غادر الدردشة الصوتية',
+    joinVideo: 'انضم إلى محادثة الفيديو',
+    leaveVideo: 'غادر محادثة الفيديو',
+    muted: 'مكتوم',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1746,6 +1769,13 @@ const de: Translations = {
     daily: 'Täglich',
     comingSoon: 'Bald verfügbar',
     continue: 'Weiter',
+  },
+  chat: {
+    joinVoice: 'Sprach-Chat beitreten',
+    leaveVoice: 'Sprach-Chat verlassen',
+    joinVideo: 'Video-Chat beitreten',
+    leaveVideo: 'Video-Chat verlassen',
+    muted: 'Stummgeschaltet',
   },
   gameSelection: {
     welcome: 'Willkommen,',

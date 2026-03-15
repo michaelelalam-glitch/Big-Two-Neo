@@ -46,9 +46,12 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameView } from './GameView';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import Constants from 'expo-constants';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
-// LiveKitVideoChatAdapter is for native builds (after `expo prebuild`).
-// StubVideoChatAdapter is used here for Expo Go / JS-only bundler compatibility.
+import { LiveKitVideoChatAdapter } from '../hooks/LiveKitVideoChatAdapter';
+// Select adapter at runtime: LiveKit for native (EAS) builds; Stub for Expo Go.
+// Constants.executionEnvironment === 'storeClient' identifies Expo Go.
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -658,9 +661,12 @@ export function MultiplayerGame() {
   const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
 
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
-  // Using StubVideoChatAdapter for Expo Go compatibility.
-  // Swap to LiveKitVideoChatAdapter after `expo prebuild` + EAS build.
-  const stubAdapter = React.useMemo(() => new StubVideoChatAdapter(), []);
+  // LiveKitVideoChatAdapter is used in native (EAS) builds; StubVideoChatAdapter
+  // is used in Expo Go where native WebRTC modules are unavailable.
+  const videoChatAdapter = React.useMemo(
+    () => isExpoGo ? new StubVideoChatAdapter() : new LiveKitVideoChatAdapter(),
+    [],
+  );
 
   const {
     isChatConnected,
@@ -676,7 +682,7 @@ export function MultiplayerGame() {
   } = useVideoChat({
     roomId:  roomInfo?.id,
     userId:  user?.id,
-    adapter: stubAdapter,
+    adapter: videoChatAdapter,
   });
 
   // Build a stable Record<userId, cameraState> from the SDK participant list

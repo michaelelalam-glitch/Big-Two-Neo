@@ -159,7 +159,13 @@ export default function PlayerInfo({
               onPress={onVideoChatToggle}
               disabled={!onVideoChatToggle || isVideoChatConnecting}
               accessibilityRole="button"
-              accessibilityLabel={videoChatLabel}
+              accessibilityLabel={
+                isVideoChatConnecting
+                  ? 'Connecting to video chat'
+                  : isCameraOn
+                  ? 'Camera on — tap to leave video chat'
+                  : 'Camera off — tap to join video chat'
+              }
               accessibilityState={{ disabled: !onVideoChatToggle || isVideoChatConnecting, busy: isVideoChatConnecting }}
             >
               {renderAvatarVideoContent({ isCameraOn: !!isCameraOn, isMicOn, isLocalPlayer, isDisconnected, isVideoChatConnecting, videoStreamSlot })}
