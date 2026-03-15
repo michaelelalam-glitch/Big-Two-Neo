@@ -77,6 +77,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
   const isStartingRef = useRef(false);
   /** Set to true by cancelMatchmaking so in-flight Realtime callbacks are ignored. */
   const isCancelledRef = useRef(false);
+  /**
+   * Set to true as soon as a matched UPDATE is observed so that subsequent
+   * duplicate/buffered events for the same row cannot start a second
+   * concurrent room-code fetch.
+   */
+  const isResolvingMatchRef = useRef(false);
 
   /**
    * Start searching for a match.
@@ -100,6 +106,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
     if (isStartingRef.current || isSearching) return;
     isStartingRef.current = true;
     isCancelledRef.current = false;
+    isResolvingMatchRef.current = false;
 
     try {
       setError(null);
@@ -222,6 +229,19 @@ export function useMatchmaking(): UseMatchmakingReturn {
           ) {
             const entry = payload.new as WaitingRoomEntry;
             if (entry.matched_room_id) {
+              // Guard: if another buffered/duplicate UPDATE already started a
+              // room-code fetch, skip this one entirely.
+              if (isResolvingMatchRef.current) return;
+              isResolvingMatchRef.current = true;
+
+              // Tear down channel immediately — no further events are needed
+              // and removing it here prevents additional buffered events from
+              // passing the guard above before removeChannel takes effect.
+              if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
+              }
+
               // Fetch room code then resolve
               supabase
                 .from('rooms')
@@ -234,10 +254,6 @@ export function useMatchmaking(): UseMatchmakingReturn {
                   if (roomError || !room) {
                     setError('Failed to fetch room details');
                     setIsSearching(false);
-                    if (channelRef.current) {
-                      supabase.removeChannel(channelRef.current);
-                      channelRef.current = null;
-                    }
                     return;
                   }
                   setMatchFound(true);
@@ -245,21 +261,11 @@ export function useMatchmaking(): UseMatchmakingReturn {
                   setRoomId(entry.matched_room_id);
                   setIsSearching(false);
                   setWaitingCount(4);
-
-                  // Tear down channel — no further events needed
-                  if (channelRef.current) {
-                    supabase.removeChannel(channelRef.current);
-                    channelRef.current = null;
-                  }
                 })
                 .catch((err) => {
                   if (isCancelledRef.current) return;
                   setError(err instanceof Error ? err.message : 'Failed to fetch room details');
                   setIsSearching(false);
-                  if (channelRef.current) {
-                    supabase.removeChannel(channelRef.current);
-                    channelRef.current = null;
-                  }
                 });
             }
           }
@@ -283,6 +289,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
       // so startMatchmaking bails out if cancel races the getUser() /
       // find-match awaits, and any buffered Realtime events are ignored.
       isCancelledRef.current = true;
+      isResolvingMatchRef.current = false;
       setIsSearching(false);
       setWaitingCount(0);
 
