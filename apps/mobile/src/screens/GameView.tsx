@@ -77,6 +77,7 @@ function GameViewComponent() {
     isLocalCameraOn,
     isLocalMicOn,
     toggleVideoChat,
+    isVideoChatConnecting,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -297,6 +298,7 @@ function GameViewComponent() {
                 isCameraOn={isMultiplayerGame && videoChatEnabled ? isLocalCameraOn : undefined}
                 isMicOn={isMultiplayerGame && videoChatEnabled ? isLocalMicOn : undefined}
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
+                isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
               />
             </View>
 

@@ -306,6 +306,7 @@ export function LocalAIGame() {
       remoteMicStates: {},
       toggleVideoChat: async () => {},
       toggleMic: async () => {},
+      isVideoChatConnecting: false,
     }),
     [
       currentOrientation, toggleOrientation, isInitializing,

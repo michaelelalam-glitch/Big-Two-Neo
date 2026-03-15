@@ -657,7 +657,7 @@ export function MultiplayerGame() {
 
   // ── Task #651: in-game video chat ───────────────────────────────────────────
   // roomInfo?.id is the Supabase room UUID used as the LiveKit/Daily room key.
-  const { videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteParticipants, toggleVideoChat, toggleMic } = useVideoChat({
+  const { videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteParticipants, toggleVideoChat, toggleMic, isConnecting: isVideoChatConnecting } = useVideoChat({
     roomId: roomInfo?.id,
     userId: user?.id,
     // adapter: livekitAdapter,   ← plug in the real LiveKit adapter here once F2 is done
@@ -741,6 +741,7 @@ export function MultiplayerGame() {
       remoteMicStates,
       toggleVideoChat,
       toggleMic,
+      isVideoChatConnecting,
     }),
     [
       currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
@@ -758,6 +759,7 @@ export function MultiplayerGame() {
       handleSort, handleSmartSort, handleHint,
       isPlayerReady, emptyGameManagerRef, isMountedRef,
       videoChatEnabled, isLocalCameraOn, isLocalMicOn, remoteCameraStates, remoteMicStates, toggleVideoChat, toggleMic,
+      isVideoChatConnecting,
     ],
   );
 
