@@ -168,18 +168,15 @@ Track progress on all audit findings. Check off items as they are resolved.
     - Updated `apps/mobile/src/__tests__/__mocks__/supabase.ts`: added `auth.getUser` and `functions.invoke` to the shared mock so this and future tests can mock them without duplicating the stub.
   - **Why:** Polling + Realtime fired simultaneously, duplicating game-start actions and causing double state transitions.
 
-- [ ] **M4** — Replace O(N) `.find()` lookups with O(1) Map in `useMultiplayerLayout`
+- [x] **M4** — Replace O(N) `.find()` lookups with O(1) Map in `useMultiplayerLayout`
   - **File:** `apps/mobile/src/hooks/useMultiplayerLayout.ts`
   - **Task:** #639
-  - **Fix:**
-    ```typescript
-    const playerMap = useMemo(
-      () => new Map(players.map(p => [p.id, p])),
-      [players]
-    );
-    // Replace all .find(p => p.id === x) with playerMap.get(x)
-    ```
-  - **Why:** 4 chained `.find()` calls per render — avoidable overhead
+  - **Branch:** `task/639-optimize-multiplayer-layout-map`
+  - **Fix:** Added `playerByIndexMap` useMemo (`new Map(multiplayerPlayers.map(p => [p.player_index, p]))`) immediately after the hook argument destructure, depending only on `[multiplayerPlayers]`. Replaced all 13 `multiplayerPlayers.find(pl => pl.player_index === idx)` calls with `playerByIndexMap.get(idx)`:
+    - `multiplayerLastPlayedBy` (1 call) → `playerByIndexMap.get(playerIdx)` — dep array tightened from `[multiplayerLastPlay, multiplayerPlayers]` to `[multiplayerLastPlay, playerByIndexMap]`
+    - `multiplayerLayoutPlayers` — `getName`, `isDisconnected`, `getDisconnectTimerStartedAt` each call the Map for 4 seats (12 total) — dep array tightened from `[multiplayerPlayers, …]` to `[playerByIndexMap, …]`
+    - `multiplayerSeatIndex` lookups are by `user_id`/`human_user_id` (not `player_index`) — unchanged (separate concern, already correct).
+  - **Why:** 13 linear O(N) `.find()` calls per memo re-evaluation (12 in `multiplayerLayoutPlayers` + 1 in `multiplayerLastPlayedBy`). With N=4 players each scan is short, but the map eliminates the repeated array iteration entirely and scales cleanly if player count increases.
 
 - [ ] **M5** — Add missing ESLint peer dependencies
   - **File:** `package.json`
