@@ -258,10 +258,13 @@ pnpm remove expo-linear-gradient
 
 `depcheck` reports ESLint peer dependencies are missing from `devDependencies`. This causes ESLint to fail silently or use mismatched plugin versions.
 
-**Fix:**
+**Fix (applied — M5, Mar 2026 in `apps/mobile/package.json`):**
 ```bash
-pnpm add -D eslint-plugin-react-hooks eslint-plugin-react-native
+# Run from apps/mobile/
+pnpm add -D @typescript-eslint/parser@^8 @typescript-eslint/eslint-plugin@^8 \
+  eslint-plugin-react@^7 eslint-plugin-react-hooks@^5 "@jest/globals@~29.7.0"
 ```
+> Note: the earlier draft of this report listed `eslint-plugin-react-native` — that package was **not** added (it is not referenced by `.eslintrc.js`). The fix targets the packages actually declared in `.eslintrc.js`: `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-react`, `eslint-plugin-react-hooks`. `@jest/globals` was also added as it is directly imported in two test files.
 
 ### D3 — Deep Linking Not Configured
 **File:** `src/navigation/AppNavigator.tsx`  
