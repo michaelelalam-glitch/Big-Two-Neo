@@ -347,6 +347,36 @@ describe('useVideoChat — roomId change resets state', () => {
     // disconnect must NOT be called on first render — prevRoomIdRef starts undefined
     expect(disconnectSpy).not.toHaveBeenCalled();
   });
+
+  it('does not disconnect when roomId changes but video chat is not enabled (r2936131168)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const disableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      disableCamera: disableCameraSpy,
+      disableMicrophone: disableMicSpy,
+      disconnect: disconnectSpy,
+    });
+
+    const { rerender } = renderHook(
+      ({ roomId }: { roomId: string }) =>
+        useVideoChat({ roomId, userId: USER_ID, adapter }),
+      { initialProps: { roomId: ROOM_ID } }
+    );
+
+    // Video chat was never enabled — the hook is in the default off state
+    // Changing roomId should NOT trigger any adapter teardown because there
+    // is no active session to tear down. (r2936131168)
+    await act(async () => {
+      rerender({ roomId: 'room-uuid-NEW' });
+    });
+
+    expect(disableMicSpy).not.toHaveBeenCalled();
+    expect(disableCameraSpy).not.toHaveBeenCalled();
+    expect(disconnectSpy).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -760,5 +790,66 @@ describe('useVideoChat — adapterProp synced during render (r2936112017)', () =
     // disableCamera called once by the explicit opt-out path (not twice)
     expect(disableCameraSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toggleVideoChat re-entrant guard — isConnecting state (r2936131172)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — toggleVideoChat re-entrant guard (r2936131172)', () => {
+  it('isConnecting starts false and is false after a complete toggle', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    expect(result.current.isConnecting).toBe(false);
+
+    // Opt in
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // After the toggle resolves, isConnecting must return to false
+    expect(result.current.isConnecting).toBe(false);
+    expect(result.current.videoChatEnabled).toBe(true);
+  });
+
+  it('second toggleVideoChat call is ignored while first is in-flight (r2936131172)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+
+    let resolveConnect!: () => void;
+    const connectSpy = jest.fn().mockReturnValue(
+      new Promise<void>((resolve) => { resolveConnect = resolve; })
+    );
+    const enableCameraSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ connect: connectSpy, enableCamera: enableCameraSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Fire the first toggle without awaiting — leave it in-flight on connect()
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    result.current.toggleVideoChat();
+
+    // Fire the second toggle; isTogglingRef is already true so it returns early
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // Resolve connect() to let the first toggle complete
+    await act(async () => {
+      resolveConnect();
+    });
+
+    // connect() must only have been called once — the second call was short-circuited
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(enableCameraSpy).toHaveBeenCalledTimes(1);
+
+    // isConnecting should be false once the first toggle finishes
+    expect(result.current.isConnecting).toBe(false);
   });
 });
