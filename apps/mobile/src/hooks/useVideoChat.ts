@@ -29,7 +29,9 @@ import { gameLogger } from '../utils/logger';
 // Types
 // ---------------------------------------------------------------------------
 
-export type CameraPermissionStatus = 'undetermined' | 'granted' | 'denied' | 'restricted';
+export type MediaPermissionStatus = 'undetermined' | 'granted' | 'denied' | 'restricted';
+/** @deprecated Use {@link MediaPermissionStatus}. Kept for backward compatibility. */
+export type CameraPermissionStatus = MediaPermissionStatus;
 
 export interface VideoChatParticipant {
   /** Matches room_players.user_id so the caller can pair with MultiplayerPlayer */
@@ -97,9 +99,9 @@ export interface UseVideoChatReturn {
   /** Whether the local microphone is currently active */
   isLocalMicOn: boolean;
   /** Permission status for the device camera */
-  cameraPermissionStatus: CameraPermissionStatus;
+  cameraPermissionStatus: MediaPermissionStatus;
   /** Permission status for the device microphone */
-  micPermissionStatus: CameraPermissionStatus;
+  micPermissionStatus: MediaPermissionStatus;
   /** Remote participants with their current camera and mic state */
   remoteParticipants: VideoChatParticipant[];
   /** Toggle local video+audio chat on/off. Requests camera+mic permissions if undetermined. */
@@ -107,9 +109,9 @@ export interface UseVideoChatReturn {
   /** Toggle local microphone mute/unmute while video chat is active. */
   toggleMic: () => Promise<void>;
   /** Explicitly request camera permission (e.g. from a settings screen). */
-  requestCameraPermission: () => Promise<CameraPermissionStatus>;
+  requestCameraPermission: () => Promise<MediaPermissionStatus>;
   /** Explicitly request microphone permission (e.g. from a settings screen). */
-  requestMicPermission: () => Promise<CameraPermissionStatus>;
+  requestMicPermission: () => Promise<MediaPermissionStatus>;
 }
 
 export function useVideoChat({
@@ -127,8 +129,8 @@ export function useVideoChat({
   const [videoChatEnabled, setVideoChatEnabled] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
   const [isLocalMicOn, setIsLocalMicOn] = useState(false);
-  const [cameraPermissionStatus, setCameraPermissionStatus] = useState<CameraPermissionStatus>('undetermined');
-  const [micPermissionStatus, setMicPermissionStatus] = useState<CameraPermissionStatus>('undetermined');
+  const [cameraPermissionStatus, setCameraPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
+  const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
 
   // Keep adapter ref current if a new adapter is injected (e.g. in tests or hot-swap).
@@ -210,7 +212,7 @@ export function useVideoChat({
     };
   }, []);
 
-  const requestCameraPermission = useCallback(async (): Promise<CameraPermissionStatus> => {
+  const requestCameraPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
     if (Platform.OS === 'android') {
       try {
         const result = await PermissionsAndroid.request(
@@ -222,7 +224,7 @@ export function useVideoChat({
             buttonNegative: 'Deny',
           }
         );
-        const status: CameraPermissionStatus =
+        const status: MediaPermissionStatus =
           result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' :
           result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? 'restricted' : 'denied';
         setCameraPermissionStatus(status);
@@ -245,7 +247,7 @@ export function useVideoChat({
     return 'granted';
   }, []);
 
-  const requestMicPermission = useCallback(async (): Promise<CameraPermissionStatus> => {
+  const requestMicPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
     if (Platform.OS === 'android') {
       try {
         const result = await PermissionsAndroid.request(
@@ -257,7 +259,7 @@ export function useVideoChat({
             buttonNegative: 'Deny',
           }
         );
-        const status: CameraPermissionStatus =
+        const status: MediaPermissionStatus =
           result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' :
           result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? 'restricted' : 'denied';
         setMicPermissionStatus(status);
@@ -345,7 +347,12 @@ export function useVideoChat({
         adapterRef.current.disableMicrophone().catch(() => {});
         adapterRef.current.disableCamera().catch(() => {});
         adapterRef.current.disconnect().catch(() => {});
+        // Reset all local/remote state to mirror the opt-out path — ensures
+        // the UI cannot remain in a partially-enabled state after a failure.
+        setVideoChatEnabled(false);
+        setIsLocalCameraOn(false);
         setIsLocalMicOn(false);
+        setRemoteParticipants([]);
       }
     } else {
       // ── Opt-out path ──────────────────────────────────────────────────────
