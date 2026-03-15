@@ -52,6 +52,8 @@ import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 // to prevent the @livekit/react-native native module from being accessed at module-load time.
 // A static import would run registerGlobals() before isExpoGo is evaluated, crashing any
 // dev client that does not have LiveKit natively linked.
+// LiveKitVideoChatAdapter itself also calls registerGlobals() lazily in its constructor
+// (rather than at module-level) as a secondary safeguard.
 // We check both `executionEnvironment` (the canonical value) and `appOwnership` as a
 // fallback because some Expo Go builds / iOS betas return null for executionEnvironment
 // while still correctly setting appOwnership to 'expo'.

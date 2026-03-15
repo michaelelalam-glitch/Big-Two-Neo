@@ -74,7 +74,6 @@ function GameViewComponent() {
     isMountedRef,
     // Task #651 / #649 video + voice chat
     isChatConnected,
-    voiceChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
     toggleVideoChat,
@@ -361,14 +360,14 @@ function GameViewComponent() {
           onClose={() => setShowSettings(false)}
           onLeaveGame={handleLeaveGame}
           roomCode={roomCode}
-          isInChatSession={isMultiplayerGame && (isChatConnected || voiceChatEnabled)}
+          isInChatSession={isMultiplayerGame && isChatConnected}
           isLocalMicOn={isLocalMicOn}
           isLocalCameraOn={isLocalCameraOn}
           isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
           onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
           onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
           onToggleCamera={isMultiplayerGame && isChatConnected ? toggleCamera : undefined}
-          onToggleMic={isMultiplayerGame && (isChatConnected || voiceChatEnabled) ? toggleMic : undefined}
+          onToggleMic={isMultiplayerGame && isChatConnected ? toggleMic : undefined}
         />
       </View>
     </Profiler>
