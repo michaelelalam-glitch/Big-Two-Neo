@@ -180,11 +180,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // Participant identity = stable Supabase user UUID.
-  // Display name falls back to email prefix → id prefix.
+  // Display name falls back to the first 8 chars of user.id (non-PII).
+  // Deliberately avoid using user.email or its prefix — the email is PII
+  // and would be exposed to other LiveKit participants via the token name claim.
   const safeDisplayName =
     typeof displayName === 'string' && displayName.trim()
       ? displayName.trim().slice(0, 64)
-      : (user.email?.split('@')[0] ?? user.id.slice(0, 8));
+      : user.id.slice(0, 8);
 
   // ── Authorization: verify caller is a member of the requested room ──────────
   // Any authenticated user can reach this point; we must ensure they are

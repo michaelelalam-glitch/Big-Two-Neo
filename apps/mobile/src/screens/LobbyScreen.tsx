@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Clipboard, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
+// expo-clipboard loaded lazily (dynamic import) to prevent ExpoClipboard
+// native module requirement at bundle-load time — avoids crash in Expo Go.
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -416,8 +418,15 @@ export default function LobbyScreen() {
     }
   };
 
-  const handleCopyCode = () => {
-    Clipboard.setString(roomCode);
+  const handleCopyCode = async () => {
+    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
+    // not at bundle-load time — avoids crash in Expo Go.
+    try {
+      const mod = await import('expo-clipboard');
+      await mod.setStringAsync(roomCode);
+    } catch {
+      // clipboard unavailable in this environment — still show the alert
+    }
     Alert.alert(
       i18n.t('lobby.copiedTitle') || 'Copied!',
       i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
