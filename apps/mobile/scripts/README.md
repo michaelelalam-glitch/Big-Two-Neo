@@ -18,7 +18,7 @@ These scripts apply specific one-off migration files — they do **not** accept 
 | Script | Purpose |
 |--------|---------|
 | `apply-migration.sh` | Apply the matchmaking auto-start fix (`supabase/migrations/20251228000001_fix_matchmaking_auto_start.sql`) using `psql`. Requires `DATABASE_URL` env var (Connection URI from Supabase Dashboard → Settings → Database). |
-| `apply-migration.mjs` | Apply the client game-completion migration (`supabase/migrations/20251223000001_add_client_game_completion.sql`) via the Supabase `exec` RPC. Reads `EXPO_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from the shell environment. |
+| `apply-migration.mjs` | **Legacy — no longer functional.** Originally applied `supabase/migrations/20251223000001_add_client_game_completion.sql` via a Supabase `exec` RPC. That migration has been squashed into `00000000000000_baseline.sql` (task #640) and no `exec` RPC is defined in the current schema. To apply new migrations use `apply-migration.sh` (psql) or the Supabase CLI (`supabase db push`). |
 | `check-schema.mjs` | Verify that the `game_state` table exists, list its columns, and print any RLS policies. Reads `EXPO_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from a local `.env` file. No arguments needed. |
 
 ## Diagnostics & Debugging
@@ -43,7 +43,7 @@ Scripts that require credentials use one of three approaches:
 
 | Approach | Scripts |
 |----------|---------|
-| Shell environment variables (`EXPO_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) | `apply-migration.mjs` |
+| Shell environment variables (`EXPO_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) | `apply-migration.mjs` (**legacy**) |
 | `DATABASE_URL` shell env var (PostgreSQL connection URI) | `apply-migration.sh` |
 | Local `.env` file (same directory as the script) | `check-schema.mjs`, `debug-game-state.mjs`, `test-start-game.mjs`, `cleanup-stuck-rooms.mjs`, `diagnose-bot-cards.mjs` |
 
