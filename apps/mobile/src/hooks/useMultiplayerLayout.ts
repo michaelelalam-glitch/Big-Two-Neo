@@ -43,6 +43,14 @@ export function useMultiplayerLayout({
   multiplayerGameState,
   userId,
 }: UseMultiplayerLayoutOptions) {
+  // O(1) lookup map: player_index → Player.  Rebuilt only when multiplayerPlayers changes.
+  // Eliminates 12 linear O(N) .find() calls per multiplayerLayoutPlayers re-evaluation
+  // (3 lookups × 4 layout seats) plus the 1 call in multiplayerLastPlayedBy.
+  const playerByIndexMap = React.useMemo(
+    () => new Map(multiplayerPlayers.map((p) => [p.player_index, p])),
+    [multiplayerPlayers],
+  );
+
   const multiplayerSeatIndex = React.useMemo(() => {
     // Primary lookup: match by user_id.
     // Fallback: match by human_user_id for rejoin/bot-replacement scenarios where
@@ -74,9 +82,9 @@ export function useMultiplayerLayout({
   const multiplayerLastPlayedBy = React.useMemo(() => {
     const playerIdx = multiplayerLastPlay?.player_index ?? multiplayerLastPlay?.position;
     if (typeof playerIdx !== 'number') return null;
-    const p = multiplayerPlayers.find((pl) => pl.player_index === playerIdx);
+    const p = playerByIndexMap.get(playerIdx);
     return p?.username ?? `Player ${playerIdx + 1}`;
-  }, [multiplayerLastPlay, multiplayerPlayers]);
+  }, [multiplayerLastPlay, playerByIndexMap]);
 
   const multiplayerLastPlayComboType: string | null =
     (multiplayerLastPlay?.combo_type as string | null) ?? null;
@@ -110,7 +118,7 @@ export function useMultiplayerLayout({
 
   const multiplayerLayoutPlayers: LayoutPlayer[] = React.useMemo(() => {
     const getName = (idx: number): string => {
-      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      const p = playerByIndexMap.get(idx);
       // Server already sets username to 'Bot <original name>' when replacing with a bot.
       // Do NOT add another 'Bot ' prefix here — that would produce 'Bot Bot <name>'.
       return p?.username ?? `Player ${idx + 1}`;
@@ -136,7 +144,7 @@ export function useMultiplayerLayout({
     // Once replacement happens (status = 'replaced_by_bot'), the avatar shows
     // normally without spinner since the bot is actively playing.
     const isDisconnected = (idx: number): boolean => {
-      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      const p = playerByIndexMap.get(idx);
       if (!p) return false;
       // Show spinner whenever explicitly disconnected (not just when cardCount=0)
       return p.connection_status === 'disconnected';
@@ -144,7 +152,7 @@ export function useMultiplayerLayout({
 
     /** Get disconnect_timer_started_at for a player (non-null while 60s countdown is active) */
     const getDisconnectTimerStartedAt = (idx: number): string | null => {
-      const p = multiplayerPlayers.find((pl) => pl.player_index === idx);
+      const p = playerByIndexMap.get(idx);
       if (!p) return null;
       // Show countdown whenever the timer is running, regardless of connection_status.
       // This handles:
@@ -167,7 +175,7 @@ export function useMultiplayerLayout({
       { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left), disconnectTimerStartedAt: getDisconnectTimerStartedAt(left) },
       { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right), disconnectTimerStartedAt: getDisconnectTimerStartedAt(right) },
     ];
-  }, [multiplayerPlayers, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
+  }, [playerByIndexMap, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
 
   return {
     multiplayerSeatIndex,
