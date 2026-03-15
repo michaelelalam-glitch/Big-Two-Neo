@@ -106,6 +106,12 @@ export interface UseVideoChatReturn {
   remoteParticipants: VideoChatParticipant[];
   /** Toggle local video+audio chat on/off. Requests camera+mic permissions if undetermined. */
   toggleVideoChat: () => Promise<void>;
+  /**
+   * True while `toggleVideoChat` is executing an async enable/disable sequence.
+   * Pass to VideoTile/PlayerInfo so the UI can disable the toggle button and
+   * show a spinner during transitions (prevents re-entrant rapid taps). (r2936131172)
+   */
+  isConnecting: boolean;
   /** Toggle local microphone mute/unmute while video chat is active. */
   toggleMic: () => Promise<void>;
   /** Explicitly request camera permission (e.g. from a settings screen). */
@@ -138,6 +144,12 @@ export function useVideoChat({
   const [cameraPermissionStatus, setCameraPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
+  // True while toggleVideoChat is executing — exposed to the UI so tiles can
+  // disable the toggle button and prevent re-entrant rapid taps. (r2936131172)
+  const [isConnecting, setIsConnecting] = useState(false);
+  // Ref companion: used to short-circuit re-entrant calls before setState
+  // triggers a re-render (ref reads are synchronous, state reads are not). (r2936131172)
+  const isTogglingRef = useRef(false);
 
   // Track the previous adapterProp so the swap-teardown effect can detect a
   // genuine adapter change. adapterRef.current is already updated during render
@@ -196,7 +208,15 @@ export function useVideoChat({
   // Mirror the opt-out path: disable tracks before disconnecting so hardware
   // capture stops immediately on room navigation. (r2935998629)
   useEffect(() => {
-    if (prevRoomIdRef.current !== undefined && prevRoomIdRef.current !== roomId) {
+    if (
+      prevRoomIdRef.current !== undefined &&
+      prevRoomIdRef.current !== roomId &&
+      // Only tear down when there is an active session — avoids unnecessary
+      // disconnect/disable calls (and potential interference with a shared
+      // adapter used by voice chat) when roomId changes but video is already
+      // off. (r2936131168)
+      videoChatEnabled
+    ) {
       // roomId changed mid-session — tear down the current connection and reset
       // all UI state so the tile/toggle never shows "enabled" for the new room.
       adapterRef.current.disableMicrophone().catch(() => {});
@@ -208,7 +228,12 @@ export function useVideoChat({
       setRemoteParticipants([]);
     }
     prevRoomIdRef.current = roomId;
-  }, [roomId]);
+  // videoChatEnabled included so the effect sees the current session state when
+  // roomId fires. Re-runs on videoChatEnabled change are harmless: the roomId
+  // comparison always fails (prevRoomIdRef.current === roomId) so no teardown
+  // fires — only prevRoomIdRef.current is updated (no-op, same value). (r2936131168)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, videoChatEnabled]);
 
   // Hardware teardown on unmount ONLY — no setState here to avoid React warnings
   // when the component is already being destroyed. State is discarded on unmount
@@ -294,6 +319,14 @@ export function useVideoChat({
   }, []);
 
   const toggleVideoChat = useCallback(async (): Promise<void> => {
+    // Re-entrant guard: if a previous toggle is still executing (e.g. waiting
+    // for connect() or permission dialogs), ignore this call. Use both a ref
+    // (synchronous, checked before any await) and state (triggers re-render so
+    // the tile can show a spinner and be disabled). (r2936131172)
+    if (isTogglingRef.current) return;
+    isTogglingRef.current = true;
+    setIsConnecting(true);
+    try {
     if (!videoChatEnabled) {
       // ── Opt-in path ────────────────────────────────────────────────────────
       // Guard roomId + userId here (not at the top) so the opt-out path below
@@ -384,6 +417,12 @@ export function useVideoChat({
       setRemoteParticipants([]);
       gameLogger.info('[VideoChat] Local camera + mic disabled.');
     }
+    } finally {
+      // Always clear the in-flight guard — even if an error escapes or an early
+      // return fires (try/finally guarantees execution). (r2936131172)
+      isTogglingRef.current = false;
+      setIsConnecting(false);
+    }
   }, [roomId, userId, videoChatEnabled, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
@@ -417,6 +456,7 @@ export function useVideoChat({
     videoChatEnabled,
     isLocalCameraOn,
     isLocalMicOn,
+    isConnecting,
     cameraPermissionStatus,
     micPermissionStatus,
     remoteParticipants,
