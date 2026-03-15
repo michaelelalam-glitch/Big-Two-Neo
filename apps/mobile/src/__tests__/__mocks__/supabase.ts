@@ -25,8 +25,12 @@ const mockSupabaseClient = {
   })),
   auth: {
     getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+    getUser: jest.fn(() => Promise.resolve({ data: { user: null }, error: null })),
     signInWithOAuth: jest.fn(() => Promise.resolve({ data: null, error: null })),
     signOut: jest.fn(() => Promise.resolve({ error: null })),
+  },
+  functions: {
+    invoke: jest.fn(() => Promise.resolve({ data: null, error: null })),
   },
   channel: jest.fn(() => ({
     on: jest.fn(() => ({
