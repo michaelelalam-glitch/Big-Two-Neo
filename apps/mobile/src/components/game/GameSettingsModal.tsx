@@ -17,8 +17,10 @@ interface GameSettingsModalProps {
   isLocalMicOn?: boolean;
   /** Whether the local camera is streaming */
   isLocalCameraOn?: boolean;
-  /** Whether a chat connect/disconnect is in-flight */
+  /** Whether the video chat connect/disconnect is in-flight */
   isVideoChatConnecting?: boolean;
+  /** Whether the audio-only connect/disconnect is in-flight */
+  isAudioChatConnecting?: boolean;
   /** Toggle voice-only chat */
   onToggleVoiceChat?: () => Promise<void>;
   /** Join/leave full video+audio session */
@@ -38,6 +40,7 @@ export default function GameSettingsModal({
   isLocalMicOn = false,
   isLocalCameraOn = false,
   isVideoChatConnecting = false,
+  isAudioChatConnecting = false,
   onToggleVoiceChat,
   onToggleVideoChat,
   onToggleCamera,
@@ -180,19 +183,19 @@ export default function GameSettingsModal({
                       style={[
                         styles.menuItemLandscape,
                         isInChatSession && styles.chatActiveItemLandscape,
-                        (isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
+                        (isAudioChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
                       ]}
-                      onPress={(isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
-                      disabled={isVideoChatConnecting || (isInChatSession && isLocalCameraOn)}
+                      onPress={(isAudioChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
+                      disabled={isAudioChatConnecting || (isInChatSession && isLocalCameraOn)}
                       accessibilityRole="switch"
-                      accessibilityLabel={`Audio chat, currently ${isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}`}
-                      accessibilityState={{ checked: isInChatSession, disabled: isVideoChatConnecting || (isInChatSession && isLocalCameraOn) }}
+                      accessibilityLabel={`${i18n.t('chat.audio')} chat, currently ${isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}`}
+                      accessibilityState={{ checked: isInChatSession, disabled: isAudioChatConnecting || (isInChatSession && isLocalCameraOn) }}
                     >
-                      {isVideoChatConnecting
+                      {isAudioChatConnecting
                         ? <ActivityIndicator size="small" color="#fff" />
                         : <Text style={styles.menuItemTextLandscape}>{isInChatSession ? '🔊' : '🔈'}</Text>
                       }
-                      <Text style={styles.menuItemLabelLandscape}>Audio</Text>
+                      <Text style={styles.menuItemLabelLandscape}>{i18n.t('chat.audio')}</Text>
                       <Text style={styles.menuItemValueLandscape}>{isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}</Text>
                     </Pressable>
                   )}
@@ -215,7 +218,7 @@ export default function GameSettingsModal({
                         ? <ActivityIndicator size="small" color="#fff" />
                         : <Text style={styles.menuItemTextLandscape}>{isInChatSession && isLocalCameraOn ? '🎥' : '📹'}</Text>
                       }
-                      <Text style={styles.menuItemLabelLandscape}>Video</Text>
+                      <Text style={styles.menuItemLabelLandscape}>{i18n.t('chat.video')}</Text>
                       <Text style={styles.menuItemValueLandscape}>{isInChatSession && isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}</Text>
                     </Pressable>
                   )}
@@ -361,7 +364,7 @@ export default function GameSettingsModal({
               {/* Voice / Video chat controls — Multiplayer only */}
               {(onToggleVoiceChat || onToggleVideoChat) && (
                 <>
-                  <Text style={styles.sectionHeader}>🎙️ Chat</Text>
+                  <Text style={styles.sectionHeader}>🎙️ {i18n.t('chat.sectionTitle')}</Text>
 
                   {/* Audio toggle — ON if any chat session is active */}
                   {onToggleVoiceChat && (
@@ -369,18 +372,18 @@ export default function GameSettingsModal({
                       style={[
                         styles.menuItem,
                         isInChatSession && styles.chatActiveItem,
-                        (isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
+                        (isAudioChatConnecting || (isInChatSession && isLocalCameraOn)) && styles.disabledItem,
                       ]}
-                      onPress={(isVideoChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
-                      disabled={isVideoChatConnecting || (isInChatSession && isLocalCameraOn)}
+                      onPress={(isAudioChatConnecting || (isInChatSession && isLocalCameraOn)) ? undefined : onToggleVoiceChat}
+                      disabled={isAudioChatConnecting || (isInChatSession && isLocalCameraOn)}
                       accessibilityRole="switch"
-                      accessibilityLabel={`Audio chat, currently ${isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}`}
-                      accessibilityState={{ checked: isInChatSession, disabled: isVideoChatConnecting || (isInChatSession && isLocalCameraOn) }}
+                      accessibilityLabel={`${i18n.t('chat.audio')} chat, currently ${isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}`}
+                      accessibilityState={{ checked: isInChatSession, disabled: isAudioChatConnecting || (isInChatSession && isLocalCameraOn) }}
                     >
                       <Text style={styles.menuItemText}>
-                        {isInChatSession ? '🔊' : '🔈'} Audio
+                        {isInChatSession ? '🔊' : '🔈'} {i18n.t('chat.audio')}
                       </Text>
-                      {isVideoChatConnecting
+                      {isAudioChatConnecting
                         ? <ActivityIndicator size="small" color={COLORS.white} />
                         : <Text style={styles.menuItemValue}>{isInChatSession ? i18n.t('common.on') : i18n.t('common.off')}</Text>
                       }
@@ -398,11 +401,11 @@ export default function GameSettingsModal({
                       onPress={isVideoChatConnecting ? undefined : onToggleVideoChat}
                       disabled={isVideoChatConnecting}
                       accessibilityRole="switch"
-                      accessibilityLabel={`Video chat, currently ${isInChatSession && isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}`}
+                      accessibilityLabel={`${i18n.t('chat.video')} chat, currently ${isInChatSession && isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}`}
                       accessibilityState={{ checked: isInChatSession && isLocalCameraOn, disabled: isVideoChatConnecting }}
                     >
                       <Text style={styles.menuItemText}>
-                        {isInChatSession && isLocalCameraOn ? '🎥' : '📹'} Video
+                        {isInChatSession && isLocalCameraOn ? '🎥' : '📹'} {i18n.t('chat.video')}
                       </Text>
                       {isVideoChatConnecting
                         ? <ActivityIndicator size="small" color={COLORS.white} />

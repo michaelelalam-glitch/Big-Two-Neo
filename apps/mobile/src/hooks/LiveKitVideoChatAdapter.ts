@@ -19,15 +19,18 @@
  *   pnpm add @livekit/react-native livekit-client @livekit/react-native-webrtc
  *   @livekit/react-native-webrtc provides native WebRTC bindings. Its Xcode
  *   framework and Gradle dependency are wired automatically by `expo prebuild`
- *   (CocoaPods / Gradle auto-link). No app.json plugin entry is needed.
+ *   via CocoaPods / Gradle auto-link. No app.json plugin entry is needed for
+ *   @livekit/react-native-webrtc — auto-linking handles it entirely.
  *
- * IMPORTANT — Expo Go compatibility:
- *   `@livekit/react-native` checks for its native module at initialisation and
- *   throws if it is not linked. To avoid crashing in Expo Go (where the native
- *   module is absent), `registerGlobals()` is called lazily inside the
- *   constructor via `require()` rather than as a module-level static import.
- *   MultiplayerGame guards instantiation with `isExpoGo` and a try/catch so
- *   this class is never instantiated in Expo Go.
+ * Expo Go compatibility (isLiveKitAvailable):
+ *   `@livekit/react-native` checks its native module at initialisation and
+ *   throws if it is not linked. To prevent this error from surfacing inside
+ *   React's render phase (where caught errors are re-thrown in dev/Expo Go for
+ *   developer visibility), the `require('@livekit/react-native')` call is made
+ *   at MODULE EVALUATION TIME inside a module-level try/catch — not inside the
+ *   constructor. This ensures the error is fully absorbed before React ever
+ *   sees it. The exported `isLiveKitAvailable` flag lets MultiplayerGame decide
+ *   whether to construct this adapter or fall back to StubVideoChatAdapter.
  *
  * Wire in:
  *   const livekitAdapter = useMemo(() => new LiveKitVideoChatAdapter(), []);
@@ -44,6 +47,32 @@ import {
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { VideoChatAdapter, VideoChatParticipant } from './useVideoChat';
+
+// ---------------------------------------------------------------------------
+// Expo Go / unlinked-build guard
+// ---------------------------------------------------------------------------
+
+// Try to load @livekit/react-native at module-evaluation time (inside a
+// module-level try/catch). If it throws (native module not linked — Expo Go,
+// pre-prebuild dev client) the error is absorbed here so that:
+//   (a) the module evaluates successfully and can be safely require()'d, and
+//   (b) React's renderer never sees the throw (caught errors inside useMemo
+//       are re-thrown in dev mode for developer visibility — module-level
+//       errors are not).
+// MultiplayerGame checks `isLiveKitAvailable` before constructing this class.
+let _registerGlobals: (() => void) | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  _registerGlobals = (require('@livekit/react-native') as { registerGlobals: () => void }).registerGlobals;
+} catch {
+  // @livekit/react-native is not linked — Expo Go or pre-prebuild dev build.
+}
+
+/**
+ * True when `@livekit/react-native` is linked and `LiveKitVideoChatAdapter`
+ * can be safely instantiated. Always `false` in Expo Go.
+ */
+export const isLiveKitAvailable = _registerGlobals !== null;
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -90,19 +119,16 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private errorCbs: Array<(error: Error) => void> = [];
 
   constructor() {
-    // Lazily call registerGlobals() so that the `@livekit/react-native` native
-    // module is only accessed at instantiation time (never at module load time).
-    // This prevents the "package not linked" crash when the module is imported
-    // in an environment where the native module is unavailable (e.g. if the
-    // isExpoGo guard in MultiplayerGame fails to detect Expo Go).
-    // @livekit/react-native guards against multiple calls internally.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { registerGlobals } = require('@livekit/react-native') as { registerGlobals: () => void };
-      registerGlobals();
-    } catch (e) {
-      gameLogger.warn('[LiveKit] registerGlobals() failed (non-fatal):', String(e));
+    // _registerGlobals is set at module-evaluation time (see top of file).
+    // If it is null, @livekit/react-native is not linked; throw so the caller
+    // (MultiplayerGame useMemo try/catch) falls back to StubVideoChatAdapter.
+    if (!_registerGlobals) {
+      throw new Error(
+        '[LiveKit] @livekit/react-native is not linked. ' +
+        'Check isLiveKitAvailable before constructing LiveKitVideoChatAdapter.',
+      );
     }
+    _registerGlobals();
     this.room = new Room(ROOM_OPTIONS);
     this._attachRoomEvents();
   }
