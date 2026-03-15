@@ -23,7 +23,7 @@ module.exports = {
     
     // TypeScript rules
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     // TEMPORARY: keep this as 'warn' while we migrate away from `any`.
     // - New and modified code should avoid `any` and use precise types (or generics/unknown) instead.
     // - Existing `any` usages in legacy modules should be either refactored or explicitly documented

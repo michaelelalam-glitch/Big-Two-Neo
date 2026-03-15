@@ -320,15 +320,6 @@ function GameViewComponent() {
                 playerHand={effectivePlayerHand}
                 onPlayCards={handlePlayCards}
                 onPass={handlePass}
-                isChatConnected={isMultiplayerGame ? isChatConnected : false}
-                isLocalCameraOn={isLocalCameraOn}
-                isLocalMicOn={isLocalMicOn}
-                isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
-                isAudioChatConnecting={isMultiplayerGame ? isAudioConnecting : false}
-                onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
-                onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
-                onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
-                onToggleMic={isMultiplayerGame ? toggleMic : undefined}
               />
             </View>
 

@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
@@ -33,7 +34,6 @@ import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { supabase } from '../services/supabase';
 import { showError } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
@@ -43,11 +43,10 @@ import type { GameStateManager } from '../game/state';
 import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
-import { GameView } from './GameView';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
-import Constants from 'expo-constants';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
+import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
 // A static import would evaluate the module immediately, potentially crashing in
@@ -592,7 +591,7 @@ export function MultiplayerGame() {
   // Shows yellow InactivityCountdownRing (60s to play/pass).
   // Separate from the charcoal-grey disconnect ring (connection inactivity).
   // When expired: auto-plays highest valid cards OR passes.
-  const { isMyTurn: isTurnInactivityMyTurn } = useTurnInactivityTimer({
+  const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
     room: roomInfo,
     roomPlayers: effectiveMultiplayerPlayers,

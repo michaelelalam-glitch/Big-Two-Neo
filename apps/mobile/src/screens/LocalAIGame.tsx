@@ -31,9 +31,9 @@ import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
-import { GameView } from './GameView';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import { GameView } from './GameView';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;

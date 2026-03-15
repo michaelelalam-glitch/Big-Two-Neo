@@ -262,6 +262,36 @@ describe('Realtime match detection', () => {
     expect(result.current.matchFound).toBe(false);
     expect(result.current.isSearching).toBe(true);
   });
+
+  it('updates waitingCount from server-written waiting_count field in UPDATE payload', async () => {
+    const channel = makeMockChannel();
+    (supabase.channel as jest.Mock).mockReturnValue(channel);
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: { matched: false, waiting_count: 2 },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useMatchmaking());
+    await act(async () => {
+      await result.current.startMatchmaking('Player1');
+    });
+
+    expect(result.current.waitingCount).toBe(2);
+
+    // Server writes waiting_count=3 to the user's row (queue grew)
+    await act(async () => {
+      channel._postgresHandler!({
+        eventType: 'UPDATE',
+        new: { user_id: USER_ID, status: 'waiting', waiting_count: 3 },
+        old: {},
+      });
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(result.current.waitingCount).toBe(3);
+    expect(result.current.matchFound).toBe(false);
+    expect(result.current.isSearching).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

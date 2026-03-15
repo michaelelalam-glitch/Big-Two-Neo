@@ -86,7 +86,7 @@ interface UseDisconnectDetectionOptions {
   /** From usePlayerDisplayData — includes totalScore per seat. */
   layoutPlayersWithScores: LayoutPlayerWithScore[];
   /** From useMultiplayerLayout — used to determine local player's seat index. */
-  layoutPlayers: Array<{ player_index?: number; isActive: boolean }>;
+  layoutPlayers: { player_index?: number; isActive: boolean }[];
   /** True while the RejoinModal is open. */
   showBotReplacedModal: boolean;
   /** True while useConnectionManager is executing a reconnect RPC. */
@@ -500,6 +500,7 @@ export function useDisconnectDetection({
           idx === 0 ? handleLocalPlayerCountdownExpired : handleOtherPlayerDisconnectExpired,
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState object tracked via subproperties; adding full object causes excessive re-renders
   }, [
     layoutPlayersWithScores,
     handleLocalPlayerCountdownExpired,
