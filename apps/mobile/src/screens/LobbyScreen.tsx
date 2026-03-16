@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+let Clipboard: typeof import('expo-clipboard') | null = null;
+try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -420,8 +423,10 @@ export default function LobbyScreen() {
   const handleCopyCode = async () => {
     let copySucceeded = false;
     try {
-      await Clipboard.setStringAsync(roomCode);
-      copySucceeded = true;
+      if (Clipboard) {
+        await Clipboard.setStringAsync(roomCode);
+        copySucceeded = true;
+      }
     } catch {
       // clipboard unavailable in this environment
     }

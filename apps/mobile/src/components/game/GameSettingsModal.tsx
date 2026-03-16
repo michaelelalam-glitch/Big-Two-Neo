@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+let Clipboard: typeof import('expo-clipboard') | null = null;
+try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -97,8 +100,10 @@ export default function GameSettingsModal({
     if (!roomCode) return;
     let copySucceeded = false;
     try {
-      await Clipboard.setStringAsync(roomCode);
-      copySucceeded = true;
+      if (Clipboard) {
+        await Clipboard.setStringAsync(roomCode);
+        copySucceeded = true;
+      }
     } catch {
       // clipboard unavailable in this environment
     }

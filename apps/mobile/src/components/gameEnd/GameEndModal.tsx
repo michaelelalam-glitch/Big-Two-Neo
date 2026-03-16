@@ -31,7 +31,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
+// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+let Clipboard: typeof import('expo-clipboard') | null = null;
+try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
@@ -147,7 +150,7 @@ export const GameEndModal: React.FC = () => {
     }).start();
   };
 
-  const SHARE_RESULTS_TITLE = 'Big Two Game Results';
+  const SHARE_RESULTS_TITLE = i18n.t('gameEnd.shareResultsTitle');
 
   // Share results functionality
   const handleShare = async () => {
@@ -186,8 +189,10 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     let copySucceeded = false;
     try {
-      await Clipboard.setStringAsync(resultsText);
-      copySucceeded = true;
+      if (Clipboard) {
+        await Clipboard.setStringAsync(resultsText);
+        copySucceeded = true;
+      }
     } catch {
       // clipboard unavailable
     }

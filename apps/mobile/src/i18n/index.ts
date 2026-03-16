@@ -385,6 +385,7 @@ export interface Translations {
     returnToMenuTitle: string;
     returnToMenuMessage: string;
     leaveGame: string;
+    shareResultsTitle: string;
     shareError: string;
     shareErrorMessage: string;
     restartError: string;
@@ -938,6 +939,7 @@ const en: Translations = {
     shareResults: 'Share Results',
     copyResults: 'Copy Results',
     copyResultsSuccess: 'Results copied to clipboard!',
+    shareResultsTitle: 'Big Two Game Results',
     playAgain: 'Play Again',
     returnToMenu: 'Return to Menu',
     loadingResults: 'Loading results...',
@@ -1449,6 +1451,7 @@ const ar: Translations = {
     shareResults: 'مشاركة النتائج',
     copyResults: 'نسخ النتائج',
     copyResultsSuccess: 'تم نسخ النتائج إلى الحافظة!',
+    shareResultsTitle: 'نتائج لعبة بيغ تو',
     playAgain: 'العب مرة أخرى',
     returnToMenu: 'العودة إلى القائمة',
     loadingResults: 'جارٍ تحميل النتائج...',
@@ -2039,6 +2042,7 @@ const de: Translations = {
     shareResults: 'Ergebnisse teilen',
     copyResults: 'Ergebnisse kopieren',
     copyResultsSuccess: 'Ergebnisse in die Zwischenablage kopiert!',
+    shareResultsTitle: 'Big Two Spielergebnisse',
     playAgain: 'Nochmal spielen',
     returnToMenu: 'Zurück zum Menü',
     loadingResults: 'Ergebnisse werden geladen...',
