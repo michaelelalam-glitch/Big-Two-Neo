@@ -81,7 +81,7 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 4 — Permission UX (Camera & Microphone) 🔄 In Progress
+## Phase 4 — Permission UX (Camera & Microphone) ✅ DONE
 **PR:** [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145) (branch: `feature/649-651-livekit-phase4-permissions`, base: `game/chinese-poker`)
 
 ### What was done
@@ -94,8 +94,9 @@ eas build --profile developmentDevice --platform android
   - `Audio.requestPermissionsAsync()` (only when undetermined/denied)
 - **`showPermissionDeniedAlert(permissionType)`** — helper that shows `Alert.alert` with:
   - Localized title + message (10 new `chat.*` i18n keys in en/ar/de)
-  - "Open Settings" button wired to `Linking.openSettings()` deep-link
+  - "Open Settings" button wired to `Linking.openSettings().catch(() => {})` deep-link (`.catch()` guards against MDM/Settings-unavailable rejections)
   - "Cancel" button
+  - Early-return guard for non-native platforms (web has no Settings; `Linking.openSettings` is unimplemented) so the alert is never shown where it would be misleading
 - **Permission guards** — both camera AND mic are now required to start video chat:
   - Camera denied → alert + early return (no connection attempt)
   - Mic denied → alert + early return (no connection attempt)
@@ -179,11 +180,11 @@ eas build --profile developmentDevice --platform android
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
-| 4 | Permission UX — camera & microphone OS dialogs | 🔄 In Progress (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
+| 4 | Permission UX — camera & microphone OS dialogs | ✅ Done (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
 | 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
 
 ---
 
-_Last updated: Phase 4 in progress — PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145); 49/49 useVideoChat tests passing_
+_Last updated: Phase 4 complete — PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145) merged; 49/49 useVideoChat tests passing_

@@ -459,6 +459,12 @@ export function useVideoChat({
    * @param permissionType - 'camera' or 'mic'
    */
   const showPermissionDeniedAlert = useCallback((permissionType: 'camera' | 'mic') => {
+    // Video chat requires native APIs (camera/mic/settings deep-link) that are
+    // unavailable on web. Permission requests are blocked at the request layer
+    // for non-native platforms, so this alert should never fire there — guard
+    // anyway to prevent a misleading "open Settings" message and an unimplemented
+    // Linking.openSettings() call on web.
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
     const isCamera = permissionType === 'camera';
     Alert.alert(
       isCamera
@@ -469,14 +475,13 @@ export function useVideoChat({
         : i18n.t('chat.permissionDeniedMicMessage'),
       [
         { text: i18n.t('common.cancel'), style: 'cancel' },
-        // openSettings() may be unimplemented on web; only show the action on
-        // native platforms where it is supported.
-        ...(Platform.OS === 'ios' || Platform.OS === 'android'
-          ? [{
-              text: i18n.t('chat.openSettings'),
-              onPress: () => void Linking.openSettings(),
-            }]
-          : []),
+        {
+          text: i18n.t('chat.openSettings'),
+          // Attach .catch() to handle the rare case where the Settings app
+          // is unavailable (e.g. deep-link restricted by MDM) without leaving
+          // an unhandled promise rejection.
+          onPress: () => { Linking.openSettings().catch(() => {}); },
+        },
       ]
     );
   }, []);
