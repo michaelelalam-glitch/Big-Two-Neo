@@ -1307,7 +1307,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     expect(result.current.cameraPermissionStatus).toBe('granted');
   });
 
-  it('maps "denied" status from requestCameraPermissionsAsync (iOS)', async () => {
+  it('maps "restricted" when canAskAgain is false from requestCameraPermissionsAsync (iOS)', async () => {
     jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
       { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
     );
@@ -1324,8 +1324,10 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       status = await result.current.requestCameraPermission();
     });
 
-    expect(status).toBe('denied');
-    expect(result.current.cameraPermissionStatus).toBe('denied');
+    // canAskAgain: false → impl maps to 'restricted' (permanent iOS denial,
+    // OS will never re-prompt; callers should redirect to Settings instead)
+    expect(status).toBe('restricted');
+    expect(result.current.cameraPermissionStatus).toBe('restricted');
   });
 
   // -- requestMicPermission on iOS --
@@ -1371,7 +1373,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     expect(result.current.micPermissionStatus).toBe('granted');
   });
 
-  it('maps "denied" status from requestPermissionsAsync (iOS)', async () => {
+  it('maps "restricted" when canAskAgain is false from requestPermissionsAsync (iOS)', async () => {
     jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce(
       { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
     );
@@ -1388,8 +1390,10 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       status = await result.current.requestMicPermission();
     });
 
-    expect(status).toBe('denied');
-    expect(result.current.micPermissionStatus).toBe('denied');
+    // canAskAgain: false → impl maps to 'restricted' (permanent iOS denial,
+    // OS will never re-prompt; callers should redirect to Settings instead)
+    expect(status).toBe('restricted');
+    expect(result.current.micPermissionStatus).toBe('restricted');
   });
 
   // -- showPermissionDeniedAlert --
