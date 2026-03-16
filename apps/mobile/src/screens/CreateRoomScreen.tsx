@@ -46,7 +46,22 @@ export default function CreateRoomScreen() {
         const roomStatus = roomPlayer.rooms.status;
         
         roomLogger.warn('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
-        
+
+        // Auto-cleanup: if the room is already finished/ended, silently remove the
+        // player row and proceed to create a fresh room — no dialog needed.
+        if (roomStatus === 'finished' || roomStatus === 'ended') {
+          roomLogger.info('🧹 [CreateRoom] Auto-cleaning up finished room:', existingCode);
+          const { error: cleanupError } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('room_id', roomPlayer.room_id)
+            .eq('user_id', user.id);
+          if (cleanupError) {
+            roomLogger.error('⚠️ [CreateRoom] Cleanup warning:', cleanupError.message);
+            // Non-fatal: continue to create room; join_room_atomic will handle duplicate guard
+          }
+          // Fall through to room creation below
+        } else {
         // Note: Reduced from 3-button (Cancel, Go to Room, Leave & Create) to 2-button dialog.
         // "Go to Room" becomes the cancel action, "Leave & Create" is the confirm action.
         // Users can still dismiss by tapping outside (iOS) or back button (Android).
@@ -126,6 +141,7 @@ export default function CreateRoomScreen() {
           onCancel: leaveAndCreate
         });
         return;
+        } // end else (active room)
       }
 
       // CRITICAL FIX: Use get_or_create_room RPC instead of manual INSERT + join_room_atomic

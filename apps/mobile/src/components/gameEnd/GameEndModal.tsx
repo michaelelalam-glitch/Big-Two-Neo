@@ -173,6 +173,34 @@ export const GameEndModal: React.FC = () => {
     }
   };
 
+  // Copy results to clipboard functionality
+  const handleCopyResults = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // Haptics not supported
+    }
+    const resultsText = formatResultsForShare();
+    let copySucceeded = false;
+    try {
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(resultsText);
+      copySucceeded = true;
+    } catch {
+      // clipboard unavailable
+    }
+    if (copySucceeded) {
+      Alert.alert(i18n.t('gameEnd.copyResultsSuccess') || 'Results copied to clipboard!');
+    } else {
+      // Fallback: show Share sheet so user can still get the content
+      try {
+        await Share.share({ message: resultsText, title: 'Big Two Game Results' });
+      } catch {
+        Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      }
+    }
+  };
+
   // Format results for sharing
   const formatResultsForShare = (): string => {
     const sortedScores = [...finalScores].sort((a, b) => a.cumulative_score - b.cumulative_score);
@@ -390,6 +418,7 @@ export const GameEndModal: React.FC = () => {
                           <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
+                              onCopyResults={handleCopyResults}
                               onPlayAgain={handlePlayAgain}
                               onReturnToMenu={handleReturnToMenu}
                             />
@@ -418,6 +447,7 @@ export const GameEndModal: React.FC = () => {
                           <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
+                              onCopyResults={handleCopyResults}
                               onPlayAgain={handlePlayAgain}
                               onReturnToMenu={handleReturnToMenu}
                             />
@@ -1040,24 +1070,36 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
 
 interface ActionButtonsProps {
   onShare: () => void;
+  onCopyResults: () => void;
   onPlayAgain: () => void;
   onReturnToMenu: () => void;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   onShare,
+  onCopyResults,
   onPlayAgain,
   onReturnToMenu,
 }) => {
   return (
     <View style={styles.actionButtons}>
-      <TouchableOpacity
-        style={[styles.actionButton, styles.shareButton]}
-        onPress={onShare}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
-      </TouchableOpacity>
+      <View style={styles.actionButtonRow}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.copyButton, { flex: 1, marginRight: 4 }]}
+          onPress={onCopyResults}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.actionButtonText}>📋 {i18n.t('gameEnd.copyResults')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.shareButton, { flex: 1, marginLeft: 4 }]}
+          onPress={onShare}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
+        </TouchableOpacity>
+      </View>
       
       <TouchableOpacity
         style={[styles.actionButton, styles.playAgainButton]}
@@ -1480,12 +1522,20 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 8,
   },
+  actionButtonRow: {
+    flexDirection: 'row',
+  },
   actionButton: {
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     minHeight: 56,
     justifyContent: 'center',
+  },
+  copyButton: {
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderWidth: 1,
+    borderColor: '#a855f7',
   },
   shareButton: {
     backgroundColor: 'rgba(59, 130, 246, 0.2)',

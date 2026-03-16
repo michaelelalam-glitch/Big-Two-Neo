@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-// r2936796183: expo-clipboard loaded lazily (dynamic import) so that
-// requireNativeModule('ExpoClipboard') only fires on the first copy press,
-// not at module-load time — prevents Expo Go crash when the native module
-// is not bundled in the running Expo Go client.
+import * as Clipboard from 'expo-clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -98,22 +95,25 @@ export default function GameSettingsModal({
 
   const handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
-    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
-    // not at bundle-load time — avoids crash in Expo Go when the native
-    // ExpoClipboard module is not included in the running client.
-    // Await the write so the success feedback only fires after the promise
-    // resolves — prevents a success alert/haptic on a failed clipboard write.
+    let copySucceeded = false;
     try {
-      const mod = await import('expo-clipboard');
-      await mod.setStringAsync(roomCode);
+      await Clipboard.setStringAsync(roomCode);
+      copySucceeded = true;
     } catch {
-      // clipboard unavailable in this environment — still show the alert
+      // clipboard unavailable in this environment
     }
-    if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-    Alert.alert(
-      i18n.t('lobby.copiedTitle') || 'Copied!',
-      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard.`,
-    );
+    if (copySucceeded && vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
+    if (copySucceeded) {
+      Alert.alert(
+        i18n.t('lobby.copiedTitle') || 'Copied!',
+        i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} has been copied to your clipboard.`,
+      );
+    } else {
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle') || 'Copy Failed',
+        i18n.t('lobby.copyFailedMessage', { roomCode }) || `Could not copy to clipboard. Your room code is: ${roomCode}`,
+      );
+    }
   }, [roomCode, vibrationEnabled]);
 
   const handleShareRoomCode = useCallback(async () => {

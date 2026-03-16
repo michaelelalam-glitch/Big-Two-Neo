@@ -362,6 +362,8 @@ export interface Translations {
     scoreHistory: string;
     playHistory: string;
     shareResults: string;
+    copyResults: string;
+    copyResultsSuccess: string;
     playAgain: string;
     returnToMenu: string;
     loadingResults: string;
@@ -413,6 +415,8 @@ export interface Translations {
     codeCopied: string;
     copiedTitle: string;
     copiedMessage: string;
+    copyFailedTitle: string;
+    copyFailedMessage: string;
     shareTitle: string;
     shareMessage: string;
     minPlayers: string;
@@ -932,6 +936,8 @@ const en: Translations = {
     scoreHistory: 'Score History',
     playHistory: 'Play History',
     shareResults: 'Share Results',
+    copyResults: 'Copy Results',
+    copyResultsSuccess: 'Results copied to clipboard!',
     playAgain: 'Play Again',
     returnToMenu: 'Return to Menu',
     loadingResults: 'Loading results...',
@@ -981,6 +987,8 @@ const en: Translations = {
     codeCopied: 'Room code copied!',
     copiedTitle: 'Copied!',
     copiedMessage: 'Room code {{roomCode}} has been copied to your clipboard.',
+    copyFailedTitle: 'Copy Failed',
+    copyFailedMessage: 'Could not copy to clipboard. Your room code is: {{roomCode}}',
     shareTitle: 'Join Big Two Game',
     shareMessage: 'Join my Big Two game! Room code: {{roomCode}}',
     minPlayers: 'Need at least 2 players to start',
@@ -1439,6 +1447,8 @@ const ar: Translations = {
     scoreHistory: 'سجل النقاط',
     playHistory: 'سجل اللعب',
     shareResults: 'مشاركة النتائج',
+    copyResults: 'نسخ النتائج',
+    copyResultsSuccess: 'تم نسخ النتائج إلى الحافظة!',
     playAgain: 'العب مرة أخرى',
     returnToMenu: 'العودة إلى القائمة',
     loadingResults: 'جارٍ تحميل النتائج...',
@@ -1488,6 +1498,8 @@ const ar: Translations = {
     codeCopied: 'تم نسخ رمز الغرفة!',
     copiedTitle: 'تم النسخ!',
     copiedMessage: 'تم نسخ رمز الغرفة {{roomCode}} إلى الحافظة.',
+    copyFailedTitle: 'فشل النسخ',
+    copyFailedMessage: 'تعذّر النسخ إلى الحافظة. رمز الغرفة هو: {{roomCode}}',
     shareTitle: 'انضم إلى لعبة Big Two',
     shareMessage: 'انضم إلى لعبتي في Big Two! رمز الغرفة: {{roomCode}}',
     minPlayers: 'تحتاج إلى لاعبين على الأقل للبدء',
@@ -2025,6 +2037,8 @@ const de: Translations = {
     scoreHistory: 'Punkteverlauf',
     playHistory: 'Spielverlauf',
     shareResults: 'Ergebnisse teilen',
+    copyResults: 'Ergebnisse kopieren',
+    copyResultsSuccess: 'Ergebnisse in die Zwischenablage kopiert!',
     playAgain: 'Nochmal spielen',
     returnToMenu: 'Zurück zum Menü',
     loadingResults: 'Ergebnisse werden geladen...',
@@ -2074,6 +2088,8 @@ const de: Translations = {
     codeCopied: 'Raumcode kopiert!',
     copiedTitle: 'Kopiert!',
     copiedMessage: 'Raumcode {{roomCode}} wurde in die Zwischenablage kopiert.',
+    copyFailedTitle: 'Kopieren fehlgeschlagen',
+    copyFailedMessage: 'Kopieren in die Zwischenablage fehlgeschlagen. Ihr Raumcode lautet: {{roomCode}}',
     shareTitle: 'Big Two Spiel beitreten',
     shareMessage: 'Tritt meinem Big Two Spiel bei! Raumcode: {{roomCode}}',
     minPlayers: 'Mindestens 2 Spieler erforderlich',

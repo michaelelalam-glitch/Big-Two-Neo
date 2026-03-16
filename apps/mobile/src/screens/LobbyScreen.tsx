@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
-// expo-clipboard loaded lazily (dynamic import) to prevent ExpoClipboard
-// native module requirement at bundle-load time — avoids crash in Expo Go.
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -419,18 +418,24 @@ export default function LobbyScreen() {
   };
 
   const handleCopyCode = async () => {
-    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
-    // not at bundle-load time — avoids crash in Expo Go.
+    let copySucceeded = false;
     try {
-      const mod = await import('expo-clipboard');
-      await mod.setStringAsync(roomCode);
+      await Clipboard.setStringAsync(roomCode);
+      copySucceeded = true;
     } catch {
-      // clipboard unavailable in this environment — still show the alert
+      // clipboard unavailable in this environment
     }
-    Alert.alert(
-      i18n.t('lobby.copiedTitle') || 'Copied!',
-      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
-    );
+    if (copySucceeded) {
+      Alert.alert(
+        i18n.t('lobby.copiedTitle') || 'Copied!',
+        i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} has been copied to your clipboard.`
+      );
+    } else {
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle') || 'Copy Failed',
+        i18n.t('lobby.copyFailedMessage', { roomCode }) || `Could not copy to clipboard. Your room code is: ${roomCode}`
+      );
+    }
   };
 
   const handleShareCode = async () => {
