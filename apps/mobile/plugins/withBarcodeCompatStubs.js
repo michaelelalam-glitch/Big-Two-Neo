@@ -51,8 +51,8 @@ package expo.modules.interfaces.barcodescanner
 
 class BarCodeScannerResult(
     val type: Int,
-    val value: String?,
-    val raw: String?,
+    val value: String,
+    val raw: String,
     var cornerPoints: MutableList<Int>,
     var referenceImageWidth: Int,
     var referenceImageHeight: Int
@@ -82,19 +82,22 @@ package expo.modules.interfaces.barcodescanner
 import android.graphics.Bitmap
 
 interface BarCodeScannerInterface {
-    val isAvailable: Boolean
     fun scan(imageData: ByteArray, width: Int, height: Int, rotation: Int): BarCodeScannerResult?
     fun scanMultiple(bitmap: Bitmap): List<BarCodeScannerResult>
-    fun setSettings(settings: BarCodeScannerSettings)
+    fun setSettings(settings: BarCodeScannerSettings?)
 }
 `;
 
 const STUB_BARCODE_SCANNER_SETTINGS = `\
 package expo.modules.interfaces.barcodescanner
 
-class BarCodeScannerSettings {
+class BarCodeScannerSettings(settingsMap: Map<String, Any?>? = null) {
     var types: Any? = null
         private set
+
+    init {
+        settingsMap?.get("barCodeTypes")?.let { putTypes(it) }
+    }
 
     fun putTypes(barCodeTypes: Any?) {
         types = barCodeTypes
