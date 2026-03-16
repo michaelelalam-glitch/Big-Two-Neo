@@ -55,10 +55,19 @@ export async function tryCopyTextWithShareFallback(
     }
   }
   try {
-    await Share.share({ message: text, title: shareTitle });
-    return 'shared';
+    // Share.share() resolves (not throws) on cancellation: action === dismissedAction.
+    // Both sharedAction and dismissedAction mean no additional error UI is needed;
+    // only a real API failure (throw) should propagate as 'failed'.
+    const shareResult = await Share.share({ message: text, title: shareTitle });
+    if (
+      shareResult.action === Share.sharedAction ||
+      shareResult.action === Share.dismissedAction
+    ) {
+      return 'shared';
+    }
+    return 'failed';
   } catch {
-    // user dismissed the Share sheet or Share is also unavailable
+    // Share API threw — e.g. no sharing capabilities on this platform
     return 'failed';
   }
 }

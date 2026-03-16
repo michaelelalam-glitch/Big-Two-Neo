@@ -168,7 +168,7 @@
 - `#647` — Expand Zustand store
 - `#648` — [FEATURE] In-game text chat
 - `#650` — Increase card touch targets
- - `#652` — Enhance drop zone UX (glow, haptic, drag hint)
+- `#652` — Enhance drop zone UX (glow, haptic, drag hint)
 
 ### ⚪ BACKLOG — Queued but not ready (30 tasks)
 All remaining tasks in tiers 4–10 plus the 9 duplicate/stale tasks above.
