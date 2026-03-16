@@ -69,6 +69,7 @@ module.exports = {
     // The logger.ts try/catch gracefully degrades when it's absent; this mock
     // prevents Jest from attempting to load the real module in CI (pnpm hoists it
     // to a nested path not covered by transformIgnorePatterns).
+    '^expo-clipboard$': '<rootDir>/src/__tests__/__mocks__/expo-clipboard.ts',
     '^expo-file-system$': '<rootDir>/src/__tests__/__mocks__/expo-file-system.ts',
     '^../../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
     '^../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',

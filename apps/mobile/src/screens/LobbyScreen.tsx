@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -419,7 +420,6 @@ export default function LobbyScreen() {
   const handleCopyCode = async () => {
     let copySucceeded = false;
     try {
-      const Clipboard = await import('expo-clipboard');
       await Clipboard.setStringAsync(roomCode);
       copySucceeded = true;
     } catch {

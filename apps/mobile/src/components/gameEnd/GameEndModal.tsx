@@ -31,6 +31,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
@@ -146,6 +147,8 @@ export const GameEndModal: React.FC = () => {
     }).start();
   };
 
+  const SHARE_RESULTS_TITLE = 'Big Two Game Results';
+
   // Share results functionality
   const handleShare = async () => {
     // Task #420: Haptic feedback on share (CRITICAL FIX: wrapped)
@@ -161,7 +164,7 @@ export const GameEndModal: React.FC = () => {
     try {
       const result = await Share.share({
         message: resultsText,
-        title: 'Big Two Game Results',
+        title: SHARE_RESULTS_TITLE,
       });
       
       if (result.action === Share.sharedAction) {
@@ -183,7 +186,6 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     let copySucceeded = false;
     try {
-      const Clipboard = await import('expo-clipboard');
       await Clipboard.setStringAsync(resultsText);
       copySucceeded = true;
     } catch {
@@ -194,7 +196,7 @@ export const GameEndModal: React.FC = () => {
     } else {
       // Fallback: show Share sheet so user can still get the content
       try {
-        await Share.share({ message: resultsText, title: 'Big Two Game Results' });
+        await Share.share({ message: resultsText, title: SHARE_RESULTS_TITLE });
       } catch {
         Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
       }
