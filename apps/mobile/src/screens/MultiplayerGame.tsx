@@ -730,15 +730,17 @@ export function MultiplayerGame() {
   // map display-position indices (1, 2, 3 of layoutPlayers) to LiveKit participant
   // identities (= Supabase user_id) for video stream slot lookup.
   // layoutPlayers[idx].player_index is the game-seat index; look up the
-  // corresponding MultiplayerPlayer to get the user_id.
+  // corresponding player from effectiveMultiplayerPlayers (the same realtime-driven
+  // source used to build layoutPlayers) to avoid stale IDs after bot replacement or
+  // username/user_id changes.
   const remotePlayerIds = useMemo((): readonly string[] => {
     return [1, 2, 3].map(displayIdx => {
       const lp = layoutPlayers[displayIdx];
       if (!lp) return '';
-      const mp = multiplayerPlayers.find(p => p.player_index === lp.player_index);
+      const mp = effectiveMultiplayerPlayers.find(p => p.player_index === lp.player_index);
       return mp?.user_id ?? '';
     });
-  }, [layoutPlayers, multiplayerPlayers]);
+  }, [layoutPlayers, effectiveMultiplayerPlayers]);
 
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
