@@ -7,7 +7,7 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler } from 'react';
+import React, { Profiler, useMemo } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -89,6 +89,44 @@ function GameViewComponent() {
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
+
+  // Memoize the enriched remote-player array passed to GameLayout so that a new
+  // array reference is only created when the underlying data actually changes.
+  // Without this, the inline .map() in JSX allocates new objects every render,
+  // defeating React.memo on GameLayout and PlayerInfo (Copilot PR-146 r2939676099).
+  const enrichedRemotePlayers = useMemo(
+    () =>
+      layoutPlayersWithScores.map((p, idx) => {
+        if (idx === 0) return p; // local player rendered separately below
+        // Build per-remote-player video chat state and video stream slot.
+        // `idx` is the display-position index (1=top, 2=left, 3=right);
+        // `p.player_index` is the underlying game-seat index (not display order).
+        // remotePlayerIds[idx-1] is the userId for display position idx,
+        // computed in MultiplayerGame by matching seat indices into effectiveMultiplayerPlayers.
+        const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
+        const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
+        const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
+        // Build the video stream slot only when camera is on and we have a
+        // userId to look up the track reference.
+        const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteParticipantId)
+          ? getVideoTrackRef(remoteParticipantId)
+          : undefined;
+        const videoSlot = trackRef
+          ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
+          : undefined;
+        return {
+          ...p,
+          isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
+          isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
+          // isVideoChatConnecting is intentionally omitted for remote players:
+          // PlayerInfo ignores it for non-local participants. When remote-player
+          // connecting state becomes user-visible, pass it here and update PlayerInfo.
+          videoStreamSlot: videoSlot,
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected, getVideoTrackRef],
+  );
 
   // Performance profiling callback (Task #430)
   const onRenderCallback: React.ProfilerOnRenderCallback = (
@@ -279,34 +317,7 @@ function GameViewComponent() {
 
             {/* Game table layout (Task #426) */}
             <GameLayout
-              players={layoutPlayersWithScores.map((p, idx) => {
-                if (idx === 0) return p; // local player rendered separately below
-                // Build per-remote-player video chat state and video stream slot.
-                // `idx` is the display-position index (1=top, 2=left, 3=right);
-                // `p.player_index` is the underlying game-seat index (not display order).
-                // remotePlayerIds[idx-1] is the userId for display position idx,
-                // computed in MultiplayerGame by matching seat indices into effectiveMultiplayerPlayers.
-                const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
-                const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
-                const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
-                // Build the video stream slot only when camera is on and we have a
-                // userId to look up the track reference.
-                const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteParticipantId)
-                  ? getVideoTrackRef(remoteParticipantId)
-                  : undefined;
-                const videoSlot = trackRef
-                  ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
-                  : undefined;
-                return {
-                  ...p,
-                  isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
-                  isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
-                  // isVideoChatConnecting is intentionally omitted for remote players:
-                  // PlayerInfo ignores it for non-local participants. When remote-player
-                  // connecting state becomes user-visible, pass it here and update PlayerInfo.
-                  videoStreamSlot: videoSlot,
-                };
-              })}
+              players={enrichedRemotePlayers}
               lastPlayedCards={effectiveLastPlayedCards}
               lastPlayedBy={effectiveLastPlayedBy}
               lastPlayComboType={effectiveLastPlayComboType}
