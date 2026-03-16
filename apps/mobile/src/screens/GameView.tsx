@@ -124,7 +124,6 @@ function GameViewComponent() {
           videoStreamSlot: videoSlot,
         };
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected, getVideoTrackRef],
   );
 
