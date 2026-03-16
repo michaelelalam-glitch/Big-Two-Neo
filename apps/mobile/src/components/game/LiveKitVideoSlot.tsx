@@ -63,7 +63,7 @@ try {
  * True when `@livekit/react-native` is linked and `LiveKitVideoSlot` can
  * render a real video stream. Always `false` in Expo Go.
  */
-export const isVideoTrackAvailable = _VideoTrack !== null;
+export const isVideoTrackAvailable = !!_VideoTrack;
 
 // ---------------------------------------------------------------------------
 // Props
