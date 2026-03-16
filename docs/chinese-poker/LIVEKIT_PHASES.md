@@ -113,14 +113,18 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 5 — Video Track Rendering (See Each Other) 🔲 TODO
+## Phase 5 — Video Track Rendering (See Each Other) ✅ DONE
+**Branch:** `feature/649-651-livekit-phase5-video-rendering`
 
-### What needs to happen
-- Connect the `videoStreamSlot` prop in `PlayerInfo` / `VideoTile` to actual LiveKit `RemoteTrackPublication` objects from `useVideoChat`
-- Use `@livekit/react-native`'s `<VideoView track={...} />` component inside `VideoTile`
-- Handle track subscribe/unsubscribe lifecycle: show avatar fallback when no video track is available
-- Support local video preview (local participant's own camera) — show mirrored
-- Handle dominant-speaker highlighting (optional but improves UX)
+### What was done
+- Added `LiveKitTrackRef` interface (SDK-agnostic structural mirror of `TrackReference`) to `useVideoChat.ts`
+- Added `getVideoTrackRef(participantId: string | '__local__'): LiveKitTrackRef | undefined` to `VideoChatAdapter` interface and `UseVideoChatReturn`
+- Implemented `getVideoTrackRef` in `LiveKitVideoChatAdapter.ts` using `getTrackPublication(Track.Source.Camera)`
+- Created `LiveKitVideoSlot.tsx` — presentational wrapper around `<VideoTrack>` from `@livekit/react-native` v2.9.6 with module-level lazy load guard (safe in Expo Go)
+- Added `remotePlayerIds: readonly string[]` to `GameContext` — maps display positions [top, left, right] to LiveKit participant identities, computed per-game in `MultiplayerGame.tsx`
+- Wired `videoStreamSlot` in `GameLayout.tsx` → `PlayerInfo` for all remote player positions and the local player
+- `GameView.tsx` builds per-player video slots using `remotePlayerIds` from context (seat-layout-aware, not key-order fragile)
+- `LocalAIGame.tsx` provides stub no-ops; `MultiplayerGame.tsx` provides real implementation
 
 ### Definition of done
 - In a 2-player (or 4-player) game session with video enabled, each player's camera feed appears in the other player's `PlayerInfo` avatar slot
