@@ -153,7 +153,7 @@ export const GameEndModal: React.FC = () => {
   const handleShare = async () => {
     // Task #420: Haptic feedback on share (CRITICAL FIX: wrapped)
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
