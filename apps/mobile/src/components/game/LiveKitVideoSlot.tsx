@@ -54,6 +54,14 @@ try {
       zOrder?: number;
     }>;
   }).VideoTrack) ?? null;
+  // Module loaded successfully but VideoTrack was not exported — likely a
+  // package version/API mismatch. Warn once in DEV so it is easy to diagnose.
+  if (!_VideoTrack && typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.warn(
+      '[LiveKitVideoSlot] @livekit/react-native loaded but did not export ' +
+      'VideoTrack — video rendering disabled. Check the package version.',
+    );
+  }
 } catch {
   // @livekit/react-native is not linked — Expo Go or pre-prebuild build.
   // _VideoTrack remains null; LiveKitVideoSlot renders null gracefully.
