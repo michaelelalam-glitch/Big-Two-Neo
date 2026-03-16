@@ -376,8 +376,10 @@ export function useVideoChat({
           setCameraPermissionStatus('restricted');
           return 'restricted';
         }
-        // 'undetermined' → trigger OS prompt; 'denied' with canAskAgain true
-        // → re-prompt (iOS allows one re-prompt before permanent denial).
+        // 'undetermined' or 'denied' with canAskAgain: true — call the request
+        // API. On iOS this triggers the OS dialog if the user hasn't been asked
+        // yet; if they've already responded, the OS returns the stored status
+        // immediately without re-prompting.
         const result = await Camera.requestCameraPermissionsAsync();
         const mapped: MediaPermissionStatus =
           result.status === 'granted' ? 'granted' :
@@ -429,8 +431,10 @@ export function useVideoChat({
           setMicPermissionStatus('restricted');
           return 'restricted';
         }
-        // 'undetermined' → trigger OS prompt; 'denied' with canAskAgain true
-        // → re-prompt (iOS allows one re-prompt before permanent denial).
+        // 'undetermined' or 'denied' with canAskAgain: true — call the request
+        // API. On iOS this triggers the OS dialog if the user hasn't been asked
+        // yet; if they've already responded, the OS returns the stored status
+        // immediately without re-prompting.
         const result = await Audio.requestPermissionsAsync();
         const mapped: MediaPermissionStatus =
           result.status === 'granted' ? 'granted' :

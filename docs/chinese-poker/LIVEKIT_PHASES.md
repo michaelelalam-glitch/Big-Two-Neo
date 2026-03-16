@@ -82,7 +82,7 @@ eas build --profile developmentDevice --platform android
 ---
 
 ## Phase 4 — Permission UX (Camera & Microphone) 🔄 In Progress
-**PR:** TBD (branch: `feature/649-651-livekit-phase4-permissions`, base: `game/chinese-poker`)
+**PR:** [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145) (branch: `feature/649-651-livekit-phase4-permissions`, base: `game/chinese-poker`)
 
 ### What was done
 - **`expo-camera@15.0.16`** added to dependencies and `app.json` plugins (SDK 54 compatible)
@@ -179,11 +179,11 @@ eas build --profile developmentDevice --platform android
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
-| 4 | Permission UX — camera & microphone OS dialogs | 🔄 In Progress (PR TBD) |
+| 4 | Permission UX — camera & microphone OS dialogs | 🔄 In Progress (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
 | 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
 
 ---
 
-_Last updated: Phase 4 in progress — branch `feature/649-651-livekit-phase4-permissions`; 49/49 useVideoChat tests passing_
+_Last updated: Phase 4 in progress — PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145); 49/49 useVideoChat tests passing_

@@ -1279,9 +1279,9 @@ const ar: Translations = {
     tapUnmute: 'اضغط لإلغاء كتم الصوت',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'الوصول إلى الكاميرا',
-    cameraPermissionMessage: 'يحتاج الفريق الثانية إلى الوصول إلى الكاميرا لعرض الفيديو.',
+    cameraPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الكاميرا لعرض الفيديو للاعبين الآخرين.',
     micPermissionTitle: 'الوصول إلى الميكروفون',
-    micPermissionMessage: 'يحتاج الفريق الثانية إلى الوصول إلى الميكروفون.',
+    micPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الميكروفون حتى يسمعك اللاعبون الآخرون.',
     permissionDeniedCameraTitle: 'تم رفض إذن الكاميرا',
     permissionDeniedCameraMessage: 'تم رفض الوصول إلى الكاميرا. لتمكين الدردشة المرئية، افتح الإعدادات وامنح الإذن.',
     permissionDeniedMicTitle: 'تم رفض إذن الميكروفون',
