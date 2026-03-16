@@ -9,7 +9,7 @@
  */
 import React, { Profiler } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout } from '../components/game';
+import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
@@ -76,12 +76,16 @@ function GameViewComponent() {
     isChatConnected,
     isLocalCameraOn,
     isLocalMicOn,
+    remoteCameraStates,
+    remoteMicStates,
     toggleVideoChat,
     toggleCamera,
     toggleVoiceChat,
     toggleMic,
     isVideoChatConnecting,
     isAudioConnecting,
+    getVideoTrackRef,
+    remotePlayerIds,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -275,7 +279,32 @@ function GameViewComponent() {
 
             {/* Game table layout (Task #426) */}
             <GameLayout
-              players={layoutPlayersWithScores}
+              players={layoutPlayersWithScores.map((p, idx) => {
+                if (idx === 0) return p; // local player rendered separately below
+                // Build per-remote-player video chat state and video stream slot.
+                // `p.player_index` in layoutPlayersWithScores is the display-order
+                // index; the corresponding user_id lives in layoutPlayers.
+                // remotePlayerIds[idx-1] is the userId for display position idx
+                // (0=top, 1=left, 2=right), computed in MultiplayerGame from seat layout.
+                const remoteUserId2 = remotePlayerIds[idx - 1] || undefined;
+                const cameraState = remoteUserId2 ? remoteCameraStates[remoteUserId2] : undefined;
+                const micState    = remoteUserId2 ? remoteMicStates[remoteUserId2]    : undefined;
+                // Build the video stream slot only when camera is on and we have a
+                // userId to look up the track reference.
+                const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteUserId2)
+                  ? getVideoTrackRef(remoteUserId2)
+                  : undefined;
+                const videoSlot = trackRef
+                  ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
+                  : undefined;
+                return {
+                  ...p,
+                  isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
+                  isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
+                  isVideoChatConnecting: isMultiplayerGame ? (cameraState?.isConnecting ?? false) : undefined,
+                  videoStreamSlot: videoSlot,
+                };
+              })}
               lastPlayedCards={effectiveLastPlayedCards}
               lastPlayedBy={effectiveLastPlayedBy}
               lastPlayComboType={effectiveLastPlayComboType}
@@ -285,10 +314,10 @@ function GameViewComponent() {
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.playerInfoContainer}>
-              {/* Task #651 — wire video tile for local player (opt-in entry point).
+              {/* Task #651 Phase 5 — wire live video slot for local player.
                   Only active in multiplayer; LocalAIGame sets isChatConnected=false.
-                  Remote player tiles are deferred until the real SDK is installed
-                  and a player_index↔participantId join can be performed. */}
+                  getVideoTrackRef('__local__') returns the LiveKit TrackReference for
+                  the local camera track; undefined when camera is off or not linked. */}
               <PlayerInfo
                 name={layoutPlayersWithScores[0]?.name ?? currentPlayerName}
                 cardCount={layoutPlayersWithScores[0]?.cardCount ?? effectivePlayerHand.length}
@@ -303,6 +332,16 @@ function GameViewComponent() {
                 isMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
+                videoStreamSlot={
+                  isMultiplayerGame && isChatConnected && isLocalCameraOn
+                    ? (() => {
+                        const localRef = getVideoTrackRef('__local__');
+                        return localRef
+                          ? <LiveKitVideoSlot trackRef={localRef} mirror={true} zOrder={1} />
+                          : undefined;
+                      })()
+                    : undefined
+                }
               />
             </View>
 

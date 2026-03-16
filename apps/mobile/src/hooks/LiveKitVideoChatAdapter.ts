@@ -47,7 +47,7 @@ import {
 } from 'livekit-client';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
-import type { VideoChatAdapter, VideoChatParticipant } from './useVideoChat';
+import type { VideoChatAdapter, VideoChatParticipant, LiveKitTrackRef } from './useVideoChat';
 import { UnexpectedDisconnectError } from './useVideoChat';
 
 // ---------------------------------------------------------------------------
@@ -217,6 +217,51 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     this.errorCbs.push(cb);
     return () => {
       this.errorCbs = this.errorCbs.filter(fn => fn !== cb);
+    };
+  }
+
+  /**
+   * Returns a LiveKit TrackReference for the given participant's camera track,
+   * suitable for passing as `trackRef` to `<VideoTrack>` from `@livekit/react-native`.
+   *
+   * - `'__local__'` → local participant's camera publication
+   * - any other string → remote participant matched by `identity` (= Supabase user_id)
+   *
+   * Returns `undefined` when:
+   *   - the room is not connected (no local participant)
+   *   - the participant identity is not found in the room
+   *   - the participant has no camera `TrackPublication` (camera is disabled / not published)
+   *
+   * The `isMuted` flag is intentionally NOT checked here — callers decide whether
+   * to render based on `isCameraOn` state from `remoteParticipants`; the track
+   * reference is returned even when the track is muted so `<VideoTrack>` can
+   * handle its own mute-state rendering gracefully.
+   */
+  getVideoTrackRef(participantId: string | '__local__'): LiveKitTrackRef | undefined {
+    if (participantId === '__local__') {
+      // Room.localParticipant is always present once the Room object is created,
+      // but publications are only available after connect(). Guard with identity
+      // check: an empty identity string means we are not connected yet.
+      if (!this.room.localParticipant.identity) return undefined;
+      const pub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+      if (!pub) return undefined;
+      return {
+        participant: this.room.localParticipant,
+        publication: pub,
+        source: Track.Source.Camera,
+      };
+    }
+
+    // Remote participant — look up by identity (= Supabase user_id)
+    const remote = Array.from(this.room.remoteParticipants.values())
+      .find(p => p.identity === participantId);
+    if (!remote) return undefined;
+    const pub = remote.getTrackPublication(Track.Source.Camera);
+    if (!pub) return undefined;
+    return {
+      participant: remote,
+      publication: pub,
+      source: Track.Source.Camera,
     };
   }
 

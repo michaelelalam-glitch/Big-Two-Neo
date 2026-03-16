@@ -42,6 +42,17 @@ import { i18n } from '../i18n';
 
 export type MediaPermissionStatus = 'undetermined' | 'granted' | 'denied' | 'restricted';
 
+/**
+ * Structural type matching `TrackReference` from `@livekit/components-core`.
+ * Defined here to avoid a hard dependency on that package in the interface.
+ * Pass this directly as `trackRef` to `<VideoTrack>` from `@livekit/react-native`.
+ */
+export interface LiveKitTrackRef {
+  participant: object;    // livekit-client Participant
+  publication: object;    // livekit-client TrackPublication
+  source: unknown;        // Track.Source enum value
+}
+
 export interface VideoChatParticipant {
   /** Matches room_players.user_id so the caller can pair with MultiplayerPlayer */
   participantId: string;
@@ -76,6 +87,15 @@ export interface VideoChatAdapter {
    */
   onParticipantsChanged(cb: (participants: VideoChatParticipant[]) => void): () => void;
   onError(cb: (error: Error) => void): () => void;
+  /**
+   * Returns a LiveKit-compatible TrackReference for the given participant's
+   * camera track, suitable for passing as `trackRef` to `<VideoTrack>` from
+   * `@livekit/react-native`. Returns `undefined` when the adapter is not
+   * connected, the participant is not found, or has no camera publication.
+   * `'__local__'` returns the local participant's camera track reference.
+   * Optional: adapters that don't support direct video rendering may omit this.
+   */
+  getVideoTrackRef?(participantId: string | '__local__'): LiveKitTrackRef | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +209,17 @@ export interface UseVideoChatReturn {
   requestCameraPermission: () => Promise<MediaPermissionStatus>;
   /** Explicitly request microphone permission (e.g. from a settings screen). */
   requestMicPermission: () => Promise<MediaPermissionStatus>;
+  /**
+   * Returns a LiveKit-compatible TrackReference for the given participant's
+   * camera track. Pass to `<VideoTrack trackRef={...} />` from `@livekit/react-native`.
+   * `'__local__'` returns the local participant's camera track reference (mirror=true).
+   * Returns `undefined` when the adapter doesn't support video rendering
+   * (e.g. StubVideoChatAdapter in Expo Go), or when the participant has no
+   * active camera publication.
+   * Note: `remoteParticipants` state drives re-renders when track state changes;
+   * call this during render to get fresh track references on each update.
+   */
+  getVideoTrackRef: (participantId: string | '__local__') => LiveKitTrackRef | undefined;
 }
 
 export function useVideoChat({
@@ -719,7 +750,25 @@ export function useVideoChat({
   const voiceChatEnabled = isChatConnected && !isLocalCameraOn;
 
   /**
-   * Toggle the local camera track on/off within an already-connected session.
+   * Returns the LiveKit TrackReference for a participant's camera track.
+   * Delegates to `adapter.getVideoTrackRef?.()` — returns undefined for the
+   * stub adapter (Expo Go / pre-prebuild) and for participants without an
+   * active camera publication.
+   *
+   * Calling this function during render (not in a side-effect) ensures the
+   * returned reference is always fresh: `remoteParticipants` state drives
+   * re-renders when track state changes.
+   */
+  const getVideoTrackRef = useCallback(
+    (participantId: string | '__local__'): LiveKitTrackRef | undefined =>
+      adapterRef.current.getVideoTrackRef?.(participantId),
+    // adapterProp in deps so the callback is recreated when the adapter is
+    // hot-swapped (e.g. real adapter injected after Expo Go guard fires).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [adapterProp],
+  );
+
+  /**
    * Must only be called while `isChatConnected` is true; no-op otherwise.
    * This is independent from `toggleVideoChat` (which connects/disconnects the
    * entire room session) and separate from `toggleVoiceChat`.
@@ -766,5 +815,6 @@ export function useVideoChat({
     toggleMic,
     requestCameraPermission,
     requestMicPermission,
+    getVideoTrackRef,
   };
 }
