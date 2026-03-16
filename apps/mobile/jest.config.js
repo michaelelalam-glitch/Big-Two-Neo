@@ -67,6 +67,7 @@ module.exports = {
     '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',
     '^expo-clipboard$': '<rootDir>/src/__tests__/__mocks__/expo-clipboard.ts',
     '^expo-camera$': '<rootDir>/src/__tests__/__mocks__/expo-camera.ts',
+    '^@livekit/react-native-webrtc$': '<rootDir>/src/__tests__/__mocks__/livekit-react-native-webrtc.ts',
     // expo-file-system uses ESM `export *` syntax which breaks Jest's CJS require().
     // The logger.ts try/catch gracefully degrades when it's absent; this mock
     // prevents Jest from attempting to load the real module in CI (pnpm hoists it
