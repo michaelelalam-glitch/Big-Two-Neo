@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-import { Clipboard } from '../../utils/clipboard';
+import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -95,35 +95,20 @@ export default function GameSettingsModal({
 
   const handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
-    let copySucceeded = false;
-    try {
-      if (Clipboard) {
-        await Clipboard.setStringAsync(roomCode);
-        copySucceeded = true;
-      }
-    } catch {
-      // clipboard unavailable in this environment
-    }
-    if (copySucceeded && vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-    if (copySucceeded) {
+    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
+    if (result === 'copied') {
+      if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
       Alert.alert(
         i18n.t('lobby.copiedTitle'),
         i18n.t('lobby.copiedMessage', { roomCode }),
       );
-    } else {
-      // ExpoClipboard unavailable — fall back to the native Share sheet.
-      try {
-        await Share.share({
-          message: roomCode,
-          title: i18n.t('lobby.shareTitle'),
-        });
-      } catch {
-        Alert.alert(
-          i18n.t('lobby.copyFailedTitle'),
-          i18n.t('lobby.copyFailedMessage', { roomCode }),
-        );
-      }
+    } else if (result === 'failed') {
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle'),
+        i18n.t('lobby.copyFailedMessage', { roomCode }),
+      );
     }
+    // 'shared': Share sheet was presented — no additional alert needed
   }, [roomCode, vibrationEnabled]);
 
   const handleShareRoomCode = useCallback(async () => {

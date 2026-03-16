@@ -31,7 +31,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Clipboard } from '../../utils/clipboard';
+import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
@@ -184,25 +184,13 @@ export const GameEndModal: React.FC = () => {
       // Haptics not supported
     }
     const resultsText = formatResultsForShare();
-    let copySucceeded = false;
-    try {
-      if (Clipboard) {
-        await Clipboard.setStringAsync(resultsText);
-        copySucceeded = true;
-      }
-    } catch {
-      // clipboard unavailable
-    }
-    if (copySucceeded) {
+    const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
+    if (result === 'copied') {
       Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
-    } else {
-      // Fallback: show Share sheet so user can still get the content
-      try {
-        await Share.share({ message: resultsText, title: SHARE_RESULTS_TITLE });
-      } catch {
-        Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
-      }
+    } else if (result === 'failed') {
+      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
     }
+    // 'shared': Share sheet was presented — no additional alert needed
   };
 
   // Format results for sharing
