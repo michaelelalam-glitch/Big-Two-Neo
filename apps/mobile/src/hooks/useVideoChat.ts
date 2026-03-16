@@ -347,8 +347,8 @@ export function useVideoChat({
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
-            title: 'Camera Permission',
-            message: 'Big Two needs camera access to stream your video during multiplayer games.',
+            title: i18n.t('chat.cameraPermissionTitle'),
+            message: i18n.t('chat.cameraPermissionMessage'),
             buttonPositive: 'Allow',
             buttonNegative: 'Deny',
           }
@@ -371,12 +371,18 @@ export function useVideoChat({
           setCameraPermissionStatus('granted');
           return 'granted';
         }
-        // 'undetermined' → trigger the OS prompt; 'denied' → re-prompt (iOS
-        // allows one re-prompt before it becomes permanently restricted).
-        const { status } = await Camera.requestCameraPermissionsAsync();
+        // iOS: if the user permanently denied and canAskAgain is false, the OS
+        // will never re-prompt — treat as 'restricted' so callers skip re-requesting.
+        if (existing.status === 'denied' && !existing.canAskAgain) {
+          setCameraPermissionStatus('restricted');
+          return 'restricted';
+        }
+        // 'undetermined' → trigger OS prompt; 'denied' with canAskAgain true
+        // → re-prompt (iOS allows one re-prompt before permanent denial).
+        const result = await Camera.requestCameraPermissionsAsync();
         const mapped: MediaPermissionStatus =
-          status === 'granted' ? 'granted' :
-          status === 'denied'  ? 'denied'  : 'restricted';
+          result.status === 'granted' ? 'granted' :
+          !result.canAskAgain         ? 'restricted' : 'denied';
         setCameraPermissionStatus(mapped);
         return mapped;
       } catch {
@@ -396,8 +402,8 @@ export function useVideoChat({
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
-            title: 'Microphone Permission',
-            message: 'Big Two needs microphone access to stream your audio during multiplayer games.',
+            title: i18n.t('chat.micPermissionTitle'),
+            message: i18n.t('chat.micPermissionMessage'),
             buttonPositive: 'Allow',
             buttonNegative: 'Deny',
           }
@@ -420,10 +426,18 @@ export function useVideoChat({
           setMicPermissionStatus('granted');
           return 'granted';
         }
-        const { status } = await Audio.requestPermissionsAsync();
+        // iOS: if the user permanently denied and canAskAgain is false, the OS
+        // will never re-prompt — treat as 'restricted' so callers skip re-requesting.
+        if (existing.status === 'denied' && !existing.canAskAgain) {
+          setMicPermissionStatus('restricted');
+          return 'restricted';
+        }
+        // 'undetermined' → trigger OS prompt; 'denied' with canAskAgain true
+        // → re-prompt (iOS allows one re-prompt before permanent denial).
+        const result = await Audio.requestPermissionsAsync();
         const mapped: MediaPermissionStatus =
-          status === 'granted' ? 'granted' :
-          status === 'denied'  ? 'denied'  : 'restricted';
+          result.status === 'granted' ? 'granted' :
+          !result.canAskAgain         ? 'restricted' : 'denied';
         setMicPermissionStatus(mapped);
         return mapped;
       } catch {
@@ -454,10 +468,14 @@ export function useVideoChat({
         : i18n.t('chat.permissionDeniedMicMessage'),
       [
         { text: i18n.t('common.cancel'), style: 'cancel' },
-        {
-          text: i18n.t('chat.openSettings'),
-          onPress: () => void Linking.openSettings(),
-        },
+        // openSettings() may be unimplemented on web; only show the action on
+        // native platforms where it is supported.
+        ...(Platform.OS === 'ios' || Platform.OS === 'android'
+          ? [{
+              text: i18n.t('chat.openSettings'),
+              onPress: () => void Linking.openSettings(),
+            }]
+          : []),
       ]
     );
   }, []);

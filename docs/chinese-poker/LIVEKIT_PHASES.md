@@ -81,7 +81,7 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 4 — Permission UX (Camera & Microphone) � IN PROGRESS
+## Phase 4 — Permission UX (Camera & Microphone) 🔄 In Progress
 **PR:** TBD (branch: `feature/649-651-livekit-phase4-permissions`, base: `game/chinese-poker`)
 
 ### What was done
@@ -179,7 +179,7 @@ eas build --profile developmentDevice --platform android
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
-| 4 | Permission UX — camera & microphone OS dialogs | � In Progress (PR TBD) |
+| 4 | Permission UX — camera & microphone OS dialogs | 🔄 In Progress (PR TBD) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
 | 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
