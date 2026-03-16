@@ -114,10 +114,18 @@ export default function GameSettingsModal({
         i18n.t('lobby.copiedMessage', { roomCode }),
       );
     } else {
-      Alert.alert(
-        i18n.t('lobby.copyFailedTitle'),
-        i18n.t('lobby.copyFailedMessage', { roomCode }),
-      );
+      // ExpoClipboard unavailable — fall back to the native Share sheet.
+      try {
+        await Share.share({
+          message: roomCode,
+          title: i18n.t('lobby.shareTitle'),
+        });
+      } catch {
+        Alert.alert(
+          i18n.t('lobby.copyFailedTitle'),
+          i18n.t('lobby.copyFailedMessage', { roomCode }),
+        );
+      }
     }
   }, [roomCode, vibrationEnabled]);
 

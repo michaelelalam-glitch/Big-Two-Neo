@@ -436,10 +436,20 @@ export default function LobbyScreen() {
         i18n.t('lobby.copiedMessage', { roomCode })
       );
     } else {
-      Alert.alert(
-        i18n.t('lobby.copyFailedTitle'),
-        i18n.t('lobby.copyFailedMessage', { roomCode })
-      );
+      // ExpoClipboard unavailable (e.g. Expo Go on beta iOS) — fall back to
+      // the native Share sheet which has a Copy option built in.
+      try {
+        await Share.share({
+          message: roomCode,
+          title: i18n.t('lobby.shareTitle'),
+        });
+      } catch {
+        // Share also dismissed/unavailable — last resort: show room code
+        Alert.alert(
+          i18n.t('lobby.copyFailedTitle'),
+          i18n.t('lobby.copyFailedMessage', { roomCode })
+        );
+      }
     }
   };
 
