@@ -418,8 +418,44 @@ export function useVideoChat({
         setCameraPermissionStatus(mapped);
         return mapped;
       } catch {
-        setCameraPermissionStatus('denied');
-        return 'denied';
+        // expo-camera native module is not linked in this dev-client build
+        // (the binary was compiled before expo-camera was added to the project).
+        // Fall back to @livekit/react-native-webrtc's Permissions API, which IS
+        // always linked because the audio chat depends on it.  Functionally
+        // equivalent: query() calls AVCaptureDevice.authorizationStatus and
+        // request() calls AVCaptureDevice.requestAccess — no extra native module
+        // needed, and the iOS Settings entry for Camera is registered via the
+        // Info.plist NSCameraUsageDescription key in app.json rather than by the
+        // expo-camera plugin.
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { permissions: webRTCPerms, mediaDevices: webRTCDevices } = require('@livekit/react-native-webrtc') as {
+            permissions: { query(d: { name: string }): Promise<string> };
+            mediaDevices: { getUserMedia(c: object): Promise<{ getTracks(): { stop(): void }[] }> };
+          };
+          const current = await webRTCPerms.query({ name: 'camera' });
+          if (current === 'granted') {
+            setCameraPermissionStatus('granted');
+            return 'granted';
+          }
+          if (current === 'denied') {
+            // iOS: already denied — OS will not re-show the dialog
+            // (canAskAgain is false after first denial). Treat as 'restricted'
+            // so callers show the "open Settings" prompt.
+            setCameraPermissionStatus('restricted');
+            return 'restricted';
+          }
+          // 'prompt' — trigger the iOS system permission dialog via getUserMedia.
+          // getUserMedia internally calls AVCaptureDevice.requestAccess which is
+          // the same mechanism that expo-camera uses.
+          const stream = await webRTCDevices.getUserMedia({ video: true, audio: false });
+          stream.getTracks().forEach(t => t.stop()); // release tracks — only needed permission
+          setCameraPermissionStatus('granted');
+          return 'granted';
+        } catch {
+          setCameraPermissionStatus('denied');
+          return 'denied';
+        }
       }
     }
 
