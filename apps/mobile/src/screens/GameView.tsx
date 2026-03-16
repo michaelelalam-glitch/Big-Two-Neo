@@ -286,13 +286,13 @@ function GameViewComponent() {
                 // index; the corresponding user_id lives in layoutPlayers.
                 // remotePlayerIds[idx-1] is the userId for display position idx
                 // (0=top, 1=left, 2=right), computed in MultiplayerGame from seat layout.
-                const remoteUserId2 = remotePlayerIds[idx - 1] || undefined;
-                const cameraState = remoteUserId2 ? remoteCameraStates[remoteUserId2] : undefined;
-                const micState    = remoteUserId2 ? remoteMicStates[remoteUserId2]    : undefined;
+                const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
+                const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
+                const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
                 // Build the video stream slot only when camera is on and we have a
                 // userId to look up the track reference.
-                const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteUserId2)
-                  ? getVideoTrackRef(remoteUserId2)
+                const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteParticipantId)
+                  ? getVideoTrackRef(remoteParticipantId)
                   : undefined;
                 const videoSlot = trackRef
                   ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
@@ -301,7 +301,7 @@ function GameViewComponent() {
                   ...p,
                   isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
                   isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
-                  isVideoChatConnecting: isMultiplayerGame ? (cameraState?.isConnecting ?? false) : undefined,
+                  isVideoChatConnecting: isMultiplayerGame && cameraState?.isCameraOn ? (cameraState?.isConnecting ?? false) : undefined,
                   videoStreamSlot: videoSlot,
                 };
               })}
