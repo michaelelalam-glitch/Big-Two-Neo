@@ -17,7 +17,6 @@
  */
 
 const {
-  withProjectBuildGradle,
   withSettingsGradle,
   withDangerousMod,
 } = require('@expo/config-plugins');
@@ -113,21 +112,9 @@ interface BarCodeScannerProviderInterface {
 }
 `;
 
-// ── Gradle snippet injected into root android/build.gradle ────────────────
+// ── Dependency line injected into node_modules build.gradle files ─────────
 
-const SUBPROJECTS_HOOK = `
-// [barcode-compat] Inject stubs into expo-camera and expo-barcode-scanner
-subprojects { proj ->
-    afterEvaluate {
-        if ((proj.name == "expo-camera" || proj.name == "expo-barcode-scanner") &&
-                project.findProject(':${LIB_NAME}') != null) {
-            proj.dependencies {
-                api(project(':${LIB_NAME}'))
-            }
-        }
-    }
-}
-`;
+const BARCODE_COMPAT_DEP = `  api project(':${LIB_NAME}') // [barcode-compat-stubs]\n`;
 
 // ── Plugin implementation ─────────────────────────────────────────────────
 
@@ -169,6 +156,26 @@ module.exports = function withBarcodeCompatStubs(config) {
         STUB_BARCODE_SCANNER_PROVIDER_INTERFACE
       );
 
+      // Step 3b: Directly patch expo-camera and expo-barcode-scanner build.gradle
+      // This avoids the Gradle afterEvaluate timing issue.
+      const projectRoot = modConfig.modRequest.projectRoot; // .../apps/mobile
+      const targets = [
+        path.join(projectRoot, 'node_modules', 'expo-camera', 'android', 'build.gradle'),
+        path.join(projectRoot, 'node_modules', 'expo-barcode-scanner', 'android', 'build.gradle'),
+      ];
+
+      for (const target of targets) {
+        if (!fs.existsSync(target)) continue;
+        let contents = fs.readFileSync(target, 'utf8');
+        if (contents.includes('[barcode-compat-stubs]')) continue; // already patched
+        // Inject after "dependencies {" opening line
+        contents = contents.replace(
+          /^(dependencies\s*\{)/m,
+          `$1\n${BARCODE_COMPAT_DEP}`
+        );
+        fs.writeFileSync(target, contents);
+      }
+
       return modConfig;
     },
   ]);
@@ -179,14 +186,6 @@ module.exports = function withBarcodeCompatStubs(config) {
       modConfig.modResults.contents +=
         `\ninclude ':${LIB_NAME}'` +
         `\nproject(':${LIB_NAME}').projectDir = new File(rootDir, '${LIB_NAME}')\n`;
-    }
-    return modConfig;
-  });
-
-  // Step 3: Add subprojects hook to root android/build.gradle
-  config = withProjectBuildGradle(config, (modConfig) => {
-    if (!modConfig.modResults.contents.includes('[barcode-compat]')) {
-      modConfig.modResults.contents += SUBPROJECTS_HOOK;
     }
     return modConfig;
   });
