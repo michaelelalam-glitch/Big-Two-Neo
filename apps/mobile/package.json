@@ -37,6 +37,7 @@
     "expo": "~54.0.29",
     "expo-application": "^7.0.8",
     "expo-av": "~16.0.8",
+    "expo-barcode-scanner": "14.0.1",
     "expo-build-properties": "^1.0.10",
     "expo-camera": "~15.0.16",
     "expo-clipboard": "^8.0.8",
