@@ -96,6 +96,11 @@ public interface BarCodeScannerProviderInterface {
 }
 `;
 
+// Minimal manifest required by Android Gradle Plugin for library modules.
+// Without it, AGP fails with "manifest file does not exist" during prebuild.
+const STUB_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+`;
+
 const BARCODE_COMPAT_DEP = `  api project(':${LIB_NAME}') // [barcode-compat-stubs]\n`;
 
 module.exports = function withBarcodeCompatStubs(config) {
@@ -107,6 +112,7 @@ module.exports = function withBarcodeCompatStubs(config) {
       const srcDir = path.join(libDir,'src','main','java','expo','modules','interfaces','barcodescanner');
       fs.mkdirSync(srcDir, { recursive: true });
       fs.writeFileSync(path.join(libDir, 'build.gradle'), STUB_BUILD_GRADLE);
+      fs.writeFileSync(path.join(libDir, 'src', 'main', 'AndroidManifest.xml'), STUB_MANIFEST);
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerResult.java'), STUB_RESULT);
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerInterface.java'), STUB_INTERFACE);
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerSettings.java'), STUB_SETTINGS);
