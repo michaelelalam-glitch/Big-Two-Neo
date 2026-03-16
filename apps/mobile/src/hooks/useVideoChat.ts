@@ -212,7 +212,7 @@ export interface UseVideoChatReturn {
   /**
    * Returns a LiveKit-compatible TrackReference for the given participant's
    * camera track. Pass to `<VideoTrack trackRef={...} />` from `@livekit/react-native`.
-   * `'__local__'` returns the local participant's camera track reference (mirror=true).
+   * `'__local__'` returns the local participant's camera track reference.
    * Returns `undefined` when the adapter doesn't support video rendering
    * (e.g. StubVideoChatAdapter in Expo Go), or when the participant has no
    * active camera publication.

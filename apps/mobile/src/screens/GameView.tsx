@@ -282,10 +282,10 @@ function GameViewComponent() {
               players={layoutPlayersWithScores.map((p, idx) => {
                 if (idx === 0) return p; // local player rendered separately below
                 // Build per-remote-player video chat state and video stream slot.
-                // `p.player_index` in layoutPlayersWithScores is the display-order
-                // index; the corresponding user_id lives in layoutPlayers.
-                // remotePlayerIds[idx-1] is the userId for display position idx
-                // (0=top, 1=left, 2=right), computed in MultiplayerGame from seat layout.
+                // `idx` is the display-position index (1=top, 2=left, 3=right);
+                // `p.player_index` is the underlying game-seat index (not display order).
+                // remotePlayerIds[idx-1] is the userId for display position idx,
+                // computed in MultiplayerGame by matching seat indices into effectiveMultiplayerPlayers.
                 const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
                 const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
                 const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
