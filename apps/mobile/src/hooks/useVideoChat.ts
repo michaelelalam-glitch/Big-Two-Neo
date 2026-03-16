@@ -31,8 +31,11 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
+import { Camera } from 'expo-camera';
+import { Audio } from 'expo-av';
 import { gameLogger } from '../utils/logger';
+import { i18n } from '../i18n';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -362,12 +365,24 @@ export function useVideoChat({
     }
 
     if (Platform.OS === 'ios') {
-      // iOS: NSCameraUsageDescription in Info.plist triggers the OS prompt on
-      // the first real enableCamera() call. Stub is a no-op — return 'granted'
-      // to allow stub-mode operation, but intentionally DO NOT persist to state
-      // so requestCameraPermission() is re-invoked on every toggleVideoChat().
-      // TODO(F3): replace with Camera.requestCameraPermissionsAsync()
-      return 'granted';
+      try {
+        const existing = await Camera.getCameraPermissionsAsync();
+        if (existing.status === 'granted') {
+          setCameraPermissionStatus('granted');
+          return 'granted';
+        }
+        // 'undetermined' → trigger the OS prompt; 'denied' → re-prompt (iOS
+        // allows one re-prompt before it becomes permanently restricted).
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        const mapped: MediaPermissionStatus =
+          status === 'granted' ? 'granted' :
+          status === 'denied'  ? 'denied'  : 'restricted';
+        setCameraPermissionStatus(mapped);
+        return mapped;
+      } catch {
+        setCameraPermissionStatus('denied');
+        return 'denied';
+      }
     }
 
     // Unsupported platform (e.g. web) — video chat is not supported.
@@ -399,15 +414,52 @@ export function useVideoChat({
     }
 
     if (Platform.OS === 'ios') {
-      // iOS: NSMicrophoneUsageDescription in Info.plist triggers the OS prompt on
-      // the first real enableMicrophone() call. Same rationale as requestCameraPermission.
-      // TODO(F3): replace with Audio.requestPermissionsAsync() from expo-av
-      //          (or the LiveKit / Daily SDK's own permission flow once wired in)
-      return 'granted';
+      try {
+        const existing = await Audio.getPermissionsAsync();
+        if (existing.status === 'granted') {
+          setMicPermissionStatus('granted');
+          return 'granted';
+        }
+        const { status } = await Audio.requestPermissionsAsync();
+        const mapped: MediaPermissionStatus =
+          status === 'granted' ? 'granted' :
+          status === 'denied'  ? 'denied'  : 'restricted';
+        setMicPermissionStatus(mapped);
+        return mapped;
+      } catch {
+        setMicPermissionStatus('denied');
+        return 'denied';
+      }
     }
 
     // Unsupported platform (e.g. web) — mic capture not supported.
     return 'restricted';
+  }, []);
+
+  /**
+   * Show a user-facing alert explaining why camera or microphone access was
+   * denied and offering a one-tap "Open Settings" deep-link so they can
+   * grant the permission without restarting the app.
+   *
+   * @param permissionType - 'camera' or 'mic'
+   */
+  const showPermissionDeniedAlert = useCallback((permissionType: 'camera' | 'mic') => {
+    const isCamera = permissionType === 'camera';
+    Alert.alert(
+      isCamera
+        ? i18n.t('chat.permissionDeniedCameraTitle')
+        : i18n.t('chat.permissionDeniedMicTitle'),
+      isCamera
+        ? i18n.t('chat.permissionDeniedCameraMessage')
+        : i18n.t('chat.permissionDeniedMicMessage'),
+      [
+        { text: i18n.t('common.cancel'), style: 'cancel' },
+        {
+          text: i18n.t('chat.openSettings'),
+          onPress: () => void Linking.openSettings(),
+        },
+      ]
+    );
   }, []);
 
   const toggleVideoChat = useCallback(async (): Promise<void> => {
@@ -440,6 +492,7 @@ export function useVideoChat({
         // unnecessary and confusing on Android.
         if (camPermission !== 'granted') {
           gameLogger.info('[VideoChat] Camera permission not granted — video chat blocked.');
+          showPermissionDeniedAlert('camera');
           return;
         }
         // Request mic permission only after camera is confirmed granted.
@@ -447,6 +500,13 @@ export function useVideoChat({
         let micPermission = micPermissionStatus;
         if (micPermission === 'undetermined' || micPermission === 'denied') {
           micPermission = await requestMicPermission();
+        }
+        // Block video chat when mic permission is denied — both camera and mic
+        // are required to start a video+audio session.
+        if (micPermission !== 'granted') {
+          gameLogger.info('[VideoChat] Mic permission not granted — video chat blocked.');
+          showPermissionDeniedAlert('mic');
+          return;
         }
 
         try {
@@ -509,6 +569,7 @@ export function useVideoChat({
         }
         if (camPermission !== 'granted') {
           gameLogger.info('[VideoChat] Camera permission not granted — voice→video upgrade blocked.');
+          showPermissionDeniedAlert('camera');
           return;
         }
         try {
@@ -535,7 +596,7 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
-  }, [roomId, userId, isChatConnected, isLocalCameraOn, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission]);
+  }, [roomId, userId, isChatConnected, isLocalCameraOn, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission, showPermissionDeniedAlert]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
     if (!isChatConnected) return;
@@ -552,6 +613,7 @@ export function useVideoChat({
       }
       if (permission !== 'granted') {
         gameLogger.info('[VideoChat] Mic permission not granted — mute toggle blocked.');
+        showPermissionDeniedAlert('mic');
         return;
       }
       try {
@@ -562,7 +624,7 @@ export function useVideoChat({
         gameLogger.warn('[VideoChat] Failed to enable microphone:', err instanceof Error ? err.message : String(err));
       }
     }
-  }, [isChatConnected, isLocalMicOn, micPermissionStatus, requestMicPermission]);
+  }, [isChatConnected, isLocalMicOn, micPermissionStatus, requestMicPermission, showPermissionDeniedAlert]);
 
   /**
    * Toggle voice-only chat (audio only — no camera).
@@ -594,6 +656,7 @@ export function useVideoChat({
         }
         if (micPermission !== 'granted') {
           gameLogger.info('[VoiceChat] Mic permission not granted — voice chat blocked.');
+          showPermissionDeniedAlert('mic');
           return;
         }
 
@@ -626,7 +689,7 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsAudioConnecting(false);
     }
-  }, [roomId, userId, isChatConnected, isLocalCameraOn, micPermissionStatus, requestMicPermission]);
+  }, [roomId, userId, isChatConnected, isLocalCameraOn, micPermissionStatus, requestMicPermission, showPermissionDeniedAlert]);
 
   // voiceChatEnabled is a derived value: connected but camera is off.
   const voiceChatEnabled = isChatConnected && !isLocalCameraOn;
@@ -651,6 +714,7 @@ export function useVideoChat({
         }
         if (camPermission !== 'granted') {
           gameLogger.info('[VideoChat] Camera permission not granted — camera toggle blocked.');
+          showPermissionDeniedAlert('camera');
           return;
         }
         await adapterRef.current.enableCamera();
@@ -660,7 +724,7 @@ export function useVideoChat({
     } catch (err) {
       gameLogger.warn('[VideoChat] Camera toggle failed:', err instanceof Error ? err.message : String(err));
     }
-  }, [isChatConnected, isLocalCameraOn, cameraPermissionStatus, requestCameraPermission]);
+  }, [isChatConnected, isLocalCameraOn, cameraPermissionStatus, requestCameraPermission, showPermissionDeniedAlert]);
 
   return {
     isChatConnected,

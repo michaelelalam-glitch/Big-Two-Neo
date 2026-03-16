@@ -417,7 +417,7 @@ describe('useVideoChat — remoteParticipants', () => {
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — requestCameraPermission', () => {
-  it('returns "granted" on iOS (optimistic, until expo-camera is wired)', async () => {
+  it('returns "granted" and persists state when camera is already granted (iOS, default mock)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const { result } = renderHook(() =>
@@ -429,11 +429,10 @@ describe('useVideoChat — requestCameraPermission', () => {
       status = await result.current.requestCameraPermission();
     });
 
-    // Returns 'granted' so stub-mode operation proceeds, but intentionally does
-    // NOT persist to state — state stays 'undetermined' until the real SDK
-    // (expo-camera) is installed and can query the actual OS decision. (#651)
+    // Real implementation: getCameraPermissionsAsync returns 'granted' (mock default),
+    // status is returned AND persisted to cameraPermissionStatus state.
     expect(status).toBe('granted');
-    expect(result.current.cameraPermissionStatus).toBe('undetermined');
+    expect(result.current.cameraPermissionStatus).toBe('granted');
   });
 
   it('returns "restricted" when Android returns NEVER_ASK_AGAIN', async () => {
@@ -478,7 +477,7 @@ describe('useVideoChat — requestCameraPermission', () => {
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — requestMicPermission', () => {
-  it('returns "granted" on iOS (optimistic, until real SDK is wired)', async () => {
+  it('returns "granted" and persists state when mic is already granted (iOS, default mock)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
 
     const { result } = renderHook(() =>
@@ -490,11 +489,10 @@ describe('useVideoChat — requestMicPermission', () => {
       status = await result.current.requestMicPermission();
     });
 
-    // Returns 'granted' so stub-mode operation proceeds, but intentionally does
-    // NOT persist to state — state stays 'undetermined' until the real SDK
-    // can query the actual OS microphone decision. (#651)
+    // Real implementation: getPermissionsAsync returns 'granted' (mock default),
+    // status is returned AND persisted to micPermissionStatus state.
     expect(status).toBe('granted');
-    expect(result.current.micPermissionStatus).toBe('undetermined');
+    expect(result.current.micPermissionStatus).toBe('granted');
   });
 
   it('returns "denied" when Android mic permission is denied', async () => {
@@ -1241,5 +1239,223 @@ describe('useVideoChat — toggleVideoChat voice-only → video upgrade', () => 
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
     expect(result.current.isChatConnected).toBe(false);
     expect(result.current.isLocalCameraOn).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 4 — iOS permission UX (Camera.requestCameraPermissionsAsync + Audio.requestPermissionsAsync)
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — Phase 4 iOS permission UX', () => {
+  // Lazily import the mocks so Jest resolves them through moduleNameMapper
+  // (expo-camera → src/__tests__/__mocks__/expo-camera.ts,
+  //  expo-av     → src/__tests__/__mocks__/expo-av.ts).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Camera } = require('expo-camera') as typeof import('expo-camera');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Audio }  = require('expo-av')  as typeof import('expo-av');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Alert }  = require('react-native') as typeof import('react-native');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+  });
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  // -- requestCameraPermission on iOS --
+
+  it('returns "granted" directly when camera permission is already granted (iOS)', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(Camera.getCameraPermissionsAsync).toHaveBeenCalledTimes(1);
+    // requestCameraPermissionsAsync should NOT be called if already granted
+    expect(Camera.requestCameraPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('calls requestCameraPermissionsAsync when status is undetermined (iOS)', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(Camera.requestCameraPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(result.current.cameraPermissionStatus).toBe('granted');
+  });
+
+  it('maps "denied" status from requestCameraPermissionsAsync (iOS)', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'denied', canAskAgain: false, expires: 'never', granted: false }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('denied');
+    expect(result.current.cameraPermissionStatus).toBe('denied');
+  });
+
+  // -- requestMicPermission on iOS --
+
+  it('returns "granted" directly when mic permission is already granted (iOS)', async () => {
+    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(Audio.getPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(Audio.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('calls requestPermissionsAsync when mic is undetermined (iOS)', async () => {
+    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(Audio.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(result.current.micPermissionStatus).toBe('granted');
+  });
+
+  it('maps "denied" status from requestPermissionsAsync (iOS)', async () => {
+    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce(
+      { status: 'denied', canAskAgain: false, expires: 'never', granted: false }
+    );
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestMicPermission();
+    });
+
+    expect(status).toBe('denied');
+    expect(result.current.micPermissionStatus).toBe('denied');
+  });
+
+  // -- showPermissionDeniedAlert --
+
+  it('shows camera denied Alert with "Open Settings" button when camera is denied on iOS', async () => {
+    jest.spyOn(Alert, 'alert');
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'denied', canAskAgain: false, expires: 'never', granted: false }
+    );
+    // Mic should not be called
+    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValue(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+
+    const connectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ connect: connectSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // Connection must NOT have been attempted
+    expect(connectSpy).not.toHaveBeenCalled();
+    expect(result.current.isChatConnected).toBe(false);
+    // Alert must have been shown with camera denied message
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    const [title] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toContain('Camera');
+  });
+
+  it('shows mic denied Alert with "Open Settings" button when mic is denied on iOS', async () => {
+    jest.spyOn(Alert, 'alert');
+    // Camera: granted
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValueOnce(
+      { status: 'granted', canAskAgain: true, expires: 'never', granted: true }
+    );
+    // Mic: denied
+    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce(
+      { status: 'undetermined', canAskAgain: true, expires: 'never', granted: false }
+    );
+    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce(
+      { status: 'denied', canAskAgain: false, expires: 'never', granted: false }
+    );
+
+    const connectSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({ connect: connectSpy });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    expect(connectSpy).not.toHaveBeenCalled();
+    expect(result.current.isChatConnected).toBe(false);
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    const [title] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toContain('Microphone');
   });
 });

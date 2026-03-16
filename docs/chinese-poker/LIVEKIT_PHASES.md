@@ -81,20 +81,34 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 4 — Permission UX (Camera & Microphone) 🔲 TODO
+## Phase 4 — Permission UX (Camera & Microphone) � IN PROGRESS
+**PR:** TBD (branch: `feature/649-651-livekit-phase4-permissions`, base: `game/chinese-poker`)
 
-### What needs to happen
-- Replace stub `return 'granted'` in the camera/mic permission helpers with real calls:
-  - `expo-camera`: `Camera.requestCameraPermissionsAsync()` / `Camera.getCameraPermissionsAsync()`
-  - `expo-av`: `Audio.requestPermissionsAsync()` / `Audio.getPermissionsAsync()`
-- Handle all permission states: `granted`, `denied`, `restricted`, `undetermined`
-- For `denied` / `restricted`: show a user-facing alert with a "Go to Settings" deep-link (`Linking.openSettings()`)
-- Write unit tests for permission-denied and restricted paths
+### What was done
+- **`expo-camera@15.0.16`** added to dependencies and `app.json` plugins (SDK 54 compatible)
+- **Real iOS camera permission** — replaced stub `return 'granted'` in `requestCameraPermission()` with:
+  - `Camera.getCameraPermissionsAsync()` (check existing grant before prompting)
+  - `Camera.requestCameraPermissionsAsync()` (only called when status is undetermined/denied)
+- **Real iOS mic permission** — replaced stub in `requestMicPermission()` with:
+  - `Audio.getPermissionsAsync()` (check existing grant)
+  - `Audio.requestPermissionsAsync()` (only when undetermined/denied)
+- **`showPermissionDeniedAlert(permissionType)`** — helper that shows `Alert.alert` with:
+  - Localized title + message (10 new `chat.*` i18n keys in en/ar/de)
+  - "Open Settings" button wired to `Linking.openSettings()` deep-link
+  - "Cancel" button
+- **Permission guards** — both camera AND mic are now required to start video chat:
+  - Camera denied → alert + early return (no connection attempt)
+  - Mic denied → alert + early return (no connection attempt)
+  - Same guards in `toggleMic`, `toggleVoiceChat`, and `toggleCamera`
+- **i18n** — 10 new `chat.*` keys: `cameraPermissionTitle`, `cameraPermissionMessage`, `micPermissionTitle`, `micPermissionMessage`, `permissionDeniedCameraTitle`, `permissionDeniedCameraMessage`, `permissionDeniedMicTitle`, `permissionDeniedMicMessage`, `openSettings` (+ inherited `common.cancel`)
+- **Jest mocks** — `expo-camera` mock added, `expo-av` mock extended with permission APIs, `react-native` mock extended with `Linking`
+- **Tests** — 8 new Phase 4 iOS permission tests; all 49 `useVideoChat` tests passing (1200+ total unit tests pass)
 
 ### Definition of done
-- First time a user tries to join a voice/video session the OS permission dialog appears
-- Denying permission shows an explanatory alert and does not crash
-- Re-joining after granting permission in Settings works without restart
+- First time a user tries to join a voice/video session the OS permission dialog appears ✅
+- Denying permission shows an explanatory alert and does not crash ✅
+- "Open Settings" deep-link takes user directly to app settings ✅
+- Re-joining after granting permission in Settings works without restart ✅
 
 ---
 
@@ -165,11 +179,11 @@ eas build --profile developmentDevice --platform android
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
-| 4 | Permission UX — camera & microphone OS dialogs | 🔲 Todo |
+| 4 | Permission UX — camera & microphone OS dialogs | � In Progress (PR TBD) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
 | 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
 
 ---
 
-_Last updated: after PR #140 merge-ready commit `3d8a28d`_
+_Last updated: Phase 4 in progress — branch `feature/649-651-livekit-phase4-permissions`; 49/49 useVideoChat tests passing_

@@ -69,6 +69,16 @@ export interface Translations {
     tapTurnCameraOn: string;
     tapMute: string;
     tapUnmute: string;
+    // Phase 4 — permission UX
+    cameraPermissionTitle: string;
+    cameraPermissionMessage: string;
+    micPermissionTitle: string;
+    micPermissionMessage: string;
+    permissionDeniedCameraTitle: string;
+    permissionDeniedCameraMessage: string;
+    permissionDeniedMicTitle: string;
+    permissionDeniedMicMessage: string;
+    openSettings: string;
   };
 
   // Game Selection Screen
@@ -697,6 +707,16 @@ const en: Translations = {
     tapTurnCameraOn: 'tap to turn camera on',
     tapMute: 'tap to mute',
     tapUnmute: 'tap to unmute',
+    // Phase 4 — permission UX
+    cameraPermissionTitle: 'Camera Access',
+    cameraPermissionMessage: 'Big Two needs camera access to show your video to other players.',
+    micPermissionTitle: 'Microphone Access',
+    micPermissionMessage: 'Big Two needs microphone access so other players can hear you.',
+    permissionDeniedCameraTitle: 'Camera Permission Denied',
+    permissionDeniedCameraMessage: 'Camera access was denied. To enable video chat, open Settings and allow camera access for Big Two.',
+    permissionDeniedMicTitle: 'Microphone Permission Denied',
+    permissionDeniedMicMessage: 'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Big Two.',
+    openSettings: 'Open Settings',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1257,6 +1277,16 @@ const ar: Translations = {
     tapTurnCameraOn: 'اضغط لتشغيل الكاميرا',
     tapMute: 'اضغط لكتم الصوت',
     tapUnmute: 'اضغط لإلغاء كتم الصوت',
+    // Phase 4 — permission UX
+    cameraPermissionTitle: 'الوصول إلى الكاميرا',
+    cameraPermissionMessage: 'يحتاج الفريق الثانية إلى الوصول إلى الكاميرا لعرض الفيديو.',
+    micPermissionTitle: 'الوصول إلى الميكروفون',
+    micPermissionMessage: 'يحتاج الفريق الثانية إلى الوصول إلى الميكروفون.',
+    permissionDeniedCameraTitle: 'تم رفض إذن الكاميرا',
+    permissionDeniedCameraMessage: 'تم رفض الوصول إلى الكاميرا. لتمكين الدردشة المرئية، افتح الإعدادات وامنح الإذن.',
+    permissionDeniedMicTitle: 'تم رفض إذن الميكروفون',
+    permissionDeniedMicMessage: 'تم رفض الوصول إلى الميكروفون. لتمكين الدردشة الصوتية، افتح الإعدادات وامنح الإذن.',
+    openSettings: 'فتح الإعدادات',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1847,6 +1877,16 @@ const de: Translations = {
     tapTurnCameraOn: 'Zum Einschalten der Kamera tippen',
     tapMute: 'Zum Stummschalten tippen',
     tapUnmute: 'Stummschaltung aufheben',
+    // Phase 4 — permission UX
+    cameraPermissionTitle: 'Kamerazugriff',
+    cameraPermissionMessage: 'Big Two benötigt Kamerazugriff, um dein Video anderen Spielern zu zeigen.',
+    micPermissionTitle: 'Mikrofonzugriff',
+    micPermissionMessage: 'Big Two benötigt Mikrofonzugriff, damit andere Spieler dich hören können.',
+    permissionDeniedCameraTitle: 'Kamerazugriff verweigert',
+    permissionDeniedCameraMessage: 'Der Kamerazugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Kamerazugriff.',
+    permissionDeniedMicTitle: 'Mikrofonzugriff verweigert',
+    permissionDeniedMicMessage: 'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Mikrofonzugriff.',
+    openSettings: 'Einstellungen öffnen',
   },
   gameSelection: {
     welcome: 'Willkommen,',
