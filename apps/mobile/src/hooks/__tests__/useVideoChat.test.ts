@@ -1529,3 +1529,115 @@ describe('getVideoTrackRef', () => {
     expect(getVideoTrackRef).toHaveBeenNthCalledWith(3, '__local__');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 4 — iOS WebRTC camera-permission fallback (expo-camera not linked)
+// Addresses Copilot PR-146 r2939751443.
+//
+// When expo-camera throws inside requestCameraPermission (e.g. native module
+// not linked in an older dev-client binary), the impl falls back to
+// @livekit/react-native-webrtc's permissions.query() + getUserMedia() which
+// are always linked because the audio/video chat depends on it.
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — iOS WebRTC camera-permission fallback', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Camera } = require('expo-camera') as typeof import('expo-camera');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const webrtc = require('@livekit/react-native-webrtc') as {
+    permissions: { query: jest.MockedFunction<(d: { name: string }) => Promise<string>> };
+    mediaDevices: { getUserMedia: jest.MockedFunction<(c: object) => Promise<{ getTracks(): { stop(): void }[] }>> };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+  });
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  it('returns "granted" via WebRTC query when expo-camera throws and permission is already granted', async () => {
+    // Simulate expo-camera native module not linked
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockRejectedValueOnce(
+      new Error('expo-camera not linked')
+    );
+    webrtc.permissions.query.mockResolvedValueOnce('granted');
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(result.current.cameraPermissionStatus).toBe('granted');
+    expect(webrtc.permissions.query).toHaveBeenCalledWith({ name: 'camera' });
+  });
+
+  it('returns "restricted" via WebRTC query when expo-camera throws and permission is already denied', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockRejectedValueOnce(
+      new Error('expo-camera not linked')
+    );
+    // 'denied' → iOS will not re-show the dialog → map to 'restricted'
+    webrtc.permissions.query.mockResolvedValueOnce('denied');
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('restricted');
+    expect(result.current.cameraPermissionStatus).toBe('restricted');
+  });
+
+  it('returns "granted" via getUserMedia when expo-camera throws and status is undetermined', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockRejectedValueOnce(
+      new Error('expo-camera not linked')
+    );
+    // 'undetermined' / 'prompt' → trigger getUserMedia to show OS dialog
+    webrtc.permissions.query.mockResolvedValueOnce('undetermined');
+    const mockStop = jest.fn();
+    webrtc.mediaDevices.getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: mockStop }],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('granted');
+    expect(result.current.cameraPermissionStatus).toBe('granted');
+    expect(webrtc.mediaDevices.getUserMedia).toHaveBeenCalledWith({ video: true, audio: false });
+    expect(mockStop).toHaveBeenCalled(); // stream tracks released after permission obtained
+  });
+
+  it('returns "denied" when both expo-camera and the WebRTC fallback throw', async () => {
+    jest.spyOn(Camera, 'getCameraPermissionsAsync').mockRejectedValueOnce(
+      new Error('expo-camera not linked')
+    );
+    webrtc.permissions.query.mockRejectedValueOnce(new Error('webrtc unavailable'));
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID })
+    );
+
+    let status: MediaPermissionStatus = 'undetermined';
+    await act(async () => {
+      status = await result.current.requestCameraPermission();
+    });
+
+    expect(status).toBe('denied');
+    expect(result.current.cameraPermissionStatus).toBe('denied');
+  });
+});
