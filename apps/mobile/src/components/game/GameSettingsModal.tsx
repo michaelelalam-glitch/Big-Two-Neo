@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -97,6 +96,7 @@ export default function GameSettingsModal({
     if (!roomCode) return;
     let copySucceeded = false;
     try {
+      const Clipboard = await import('expo-clipboard');
       await Clipboard.setStringAsync(roomCode);
       copySucceeded = true;
     } catch {
@@ -105,13 +105,13 @@ export default function GameSettingsModal({
     if (copySucceeded && vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
     if (copySucceeded) {
       Alert.alert(
-        i18n.t('lobby.copiedTitle') || 'Copied!',
-        i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} has been copied to your clipboard.`,
+        i18n.t('lobby.copiedTitle'),
+        i18n.t('lobby.copiedMessage', { roomCode }),
       );
     } else {
       Alert.alert(
-        i18n.t('lobby.copyFailedTitle') || 'Copy Failed',
-        i18n.t('lobby.copyFailedMessage', { roomCode }) || `Could not copy to clipboard. Your room code is: ${roomCode}`,
+        i18n.t('lobby.copyFailedTitle'),
+        i18n.t('lobby.copyFailedMessage', { roomCode }),
       );
     }
   }, [roomCode, vibrationEnabled]);

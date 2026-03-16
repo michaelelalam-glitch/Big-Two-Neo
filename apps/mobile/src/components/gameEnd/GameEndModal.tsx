@@ -176,7 +176,7 @@ export const GameEndModal: React.FC = () => {
   // Copy results to clipboard functionality
   const handleCopyResults = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       // Haptics not supported
     }
@@ -190,7 +190,7 @@ export const GameEndModal: React.FC = () => {
       // clipboard unavailable
     }
     if (copySucceeded) {
-      Alert.alert(i18n.t('gameEnd.copyResultsSuccess') || 'Results copied to clipboard!');
+      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
     } else {
       // Fallback: show Share sheet so user can still get the content
       try {

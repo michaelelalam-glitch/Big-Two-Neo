@@ -58,7 +58,7 @@ export default function CreateRoomScreen() {
             .eq('user_id', user.id);
           if (cleanupError) {
             roomLogger.error('⚠️ [CreateRoom] Cleanup warning:', cleanupError.message);
-            // Non-fatal: continue to create room; join_room_atomic will handle duplicate guard
+            // Non-fatal: continue to create room; get_or_create_room RPC will handle duplicate guard
           }
           // Fall through to room creation below
         } else {
