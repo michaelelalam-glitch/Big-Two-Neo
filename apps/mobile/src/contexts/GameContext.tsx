@@ -13,6 +13,7 @@ import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { AutoPassTimerState } from '../types/multiplayer';
+import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -138,6 +139,13 @@ export interface GameContextType {
    * Populated from useVideoChat.remoteParticipants while isChatConnected=true.
    */
   remoteMicStates: Record<string, { isMicOn: boolean }>;
+  /**
+   * User IDs of remote players in display order: [top, left, right].
+   * Empty array for local AI games.
+   * Used by GameView to map display positions (indices 1–3 of layoutPlayers) to
+   * LiveKit participant identities for building `videoStreamSlot` nodes.
+   */
+  remotePlayerIds: readonly string[];
   /** Toggle local video+audio chat on/off (requests camera+mic permissions if needed). */
   toggleVideoChat: () => Promise<void>;
   /** Toggle the local camera on/off while session is active (no connect/disconnect). */
@@ -156,6 +164,14 @@ export interface GameContextType {
    * Separate from isVideoChatConnecting so only the Audio button spins.
    */
   isAudioConnecting: boolean;
+  /**
+   * Returns a LiveKit TrackReference for the given participant's camera track.
+   * Pass directly to `<LiveKitVideoSlot trackRef={...} />` as `videoStreamSlot`.
+   * `'__local__'` returns the local participant's camera track reference.
+   * Returns `undefined` when the adapter doesn't support video rendering
+   * (Expo Go / stub adapter) or when no camera publication is available.
+   */
+  getVideoTrackRef: (participantId: string | '__local__') => LiveKitTrackRef | undefined;
 }
 
 // ---------------------------------------------------------------------------

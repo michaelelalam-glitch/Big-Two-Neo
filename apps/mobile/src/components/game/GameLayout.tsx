@@ -20,6 +20,15 @@ interface GameLayoutProps {
     turnTimerStartedAt?: string | null;
     /** Called when this player's countdown ring expires */
     onCountdownExpired?: () => void;
+    // ── Task #651: in-game video chat (Phase 5) ─────────────────────────────
+    /** Whether this player's camera is actively streaming (undefined = video chat inactive) */
+    isCameraOn?: boolean;
+    /** Whether this player's microphone is actively streaming */
+    isMicOn?: boolean;
+    /** Whether the video connection to this player is being established */
+    isVideoChatConnecting?: boolean;
+    /** Injected video stream element (<LiveKitVideoSlot />) — renders in the avatar */
+    videoStreamSlot?: React.ReactNode;
   }[];
   /** Last played cards to display in center area */
   lastPlayedCards: Card[];
@@ -66,6 +75,10 @@ export function GameLayout({
           disconnectTimerStartedAt={players[1].disconnectTimerStartedAt}
           turnTimerStartedAt={players[1].turnTimerStartedAt}
           onCountdownExpired={players[1].onCountdownExpired}
+          isCameraOn={players[1].isCameraOn}
+          isMicOn={players[1].isMicOn}
+          isVideoChatConnecting={players[1].isVideoChatConnecting}
+          videoStreamSlot={players[1].videoStreamSlot}
         />
       </View>
 
@@ -84,6 +97,10 @@ export function GameLayout({
               disconnectTimerStartedAt={players[2].disconnectTimerStartedAt}
               turnTimerStartedAt={players[2].turnTimerStartedAt}
               onCountdownExpired={players[2].onCountdownExpired}
+              isCameraOn={players[2].isCameraOn}
+              isMicOn={players[2].isMicOn}
+              isVideoChatConnecting={players[2].isVideoChatConnecting}
+              videoStreamSlot={players[2].videoStreamSlot}
             />
           </View>
 
@@ -116,6 +133,10 @@ export function GameLayout({
               disconnectTimerStartedAt={players[3].disconnectTimerStartedAt}
               turnTimerStartedAt={players[3].turnTimerStartedAt}
               onCountdownExpired={players[3].onCountdownExpired}
+              isCameraOn={players[3].isCameraOn}
+              isMicOn={players[3].isMicOn}
+              isVideoChatConnecting={players[3].isVideoChatConnecting}
+              videoStreamSlot={players[3].videoStreamSlot}
             />
           </View>
         </View>

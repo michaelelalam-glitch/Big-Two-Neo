@@ -9,3 +9,4 @@ export { HelperButtons } from './HelperButtons';
 export { GameControls } from './GameControls';
 export { GameLayout } from './GameLayout';
 export { VideoTile } from './VideoTile';
+export { LiveKitVideoSlot, isVideoTrackAvailable } from './LiveKitVideoSlot';

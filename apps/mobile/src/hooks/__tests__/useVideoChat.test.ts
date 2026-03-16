@@ -1464,3 +1464,68 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     expect(title).toBe(i18n.t('chat.permissionDeniedMicTitle'));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 5 — getVideoTrackRef (#649, #651)
+// ---------------------------------------------------------------------------
+
+describe('getVideoTrackRef', () => {
+  it('returns undefined when adapter has no getVideoTrackRef method', () => {
+    const adapter = makeAdapter(); // StubVideoChatAdapter has no getVideoTrackRef
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+    expect(result.current.getVideoTrackRef('__local__')).toBeUndefined();
+    expect(result.current.getVideoTrackRef('some-user-id')).toBeUndefined();
+  });
+
+  it('returns undefined when adapter getVideoTrackRef returns undefined', () => {
+    const getVideoTrackRef = jest.fn().mockReturnValue(undefined);
+    const adapter = makeAdapter({ getVideoTrackRef });
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+    expect(result.current.getVideoTrackRef('some-user-id')).toBeUndefined();
+    expect(getVideoTrackRef).toHaveBeenCalledWith('some-user-id');
+  });
+
+  it('returns the track ref provided by adapter for a remote participant', () => {
+    const fakeRef = { participant: {}, publication: {}, source: 'camera' };
+    const getVideoTrackRef = jest.fn().mockReturnValue(fakeRef);
+    const adapter = makeAdapter({ getVideoTrackRef });
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+    const ref = result.current.getVideoTrackRef('remote-user-id');
+    expect(ref).toBe(fakeRef);
+    expect(getVideoTrackRef).toHaveBeenCalledWith('remote-user-id');
+  });
+
+  it('returns the track ref for the local player using "__local__" sentinel', () => {
+    const localRef = { participant: {}, publication: {}, source: 'camera' };
+    const getVideoTrackRef = jest.fn().mockImplementation((id: string) =>
+      id === '__local__' ? localRef : undefined
+    );
+    const adapter = makeAdapter({ getVideoTrackRef });
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+    expect(result.current.getVideoTrackRef('__local__')).toBe(localRef);
+    expect(result.current.getVideoTrackRef('other-user')).toBeUndefined();
+  });
+
+  it('delegates each call through to the adapter', () => {
+    const getVideoTrackRef = jest.fn().mockReturnValue(undefined);
+    const adapter = makeAdapter({ getVideoTrackRef });
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+    result.current.getVideoTrackRef('a');
+    result.current.getVideoTrackRef('b');
+    result.current.getVideoTrackRef('__local__');
+    expect(getVideoTrackRef).toHaveBeenCalledTimes(3);
+    expect(getVideoTrackRef).toHaveBeenNthCalledWith(1, 'a');
+    expect(getVideoTrackRef).toHaveBeenNthCalledWith(2, 'b');
+    expect(getVideoTrackRef).toHaveBeenNthCalledWith(3, '__local__');
+  });
+});
