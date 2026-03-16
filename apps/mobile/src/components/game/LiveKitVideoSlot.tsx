@@ -45,15 +45,15 @@ let _VideoTrack: React.ComponentType<{
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  _VideoTrack = (require('@livekit/react-native') as {
-    VideoTrack: React.ComponentType<{
+  _VideoTrack = ((require('@livekit/react-native') as {
+    VideoTrack?: React.ComponentType<{
       trackRef: unknown;
       style?: object;
       objectFit?: 'cover' | 'contain';
       mirror?: boolean;
       zOrder?: number;
     }>;
-  }).VideoTrack;
+  }).VideoTrack) ?? null;
 } catch {
   // @livekit/react-native is not linked — Expo Go or pre-prebuild build.
   // _VideoTrack remains null; LiveKitVideoSlot renders null gracefully.

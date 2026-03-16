@@ -379,6 +379,7 @@ export function useVideoChat({
           {
             title: i18n.t('chat.cameraPermissionTitle'),
             message: i18n.t('chat.cameraPermissionMessage'),
+            buttonPositive: i18n.t('common.ok'),
           }
         );
         const status: MediaPermissionStatus =
@@ -472,6 +473,7 @@ export function useVideoChat({
           {
             title: i18n.t('chat.micPermissionTitle'),
             message: i18n.t('chat.micPermissionMessage'),
+            buttonPositive: i18n.t('common.ok'),
           }
         );
         const status: MediaPermissionStatus =
