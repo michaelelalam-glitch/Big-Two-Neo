@@ -31,6 +31,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
@@ -114,12 +115,11 @@ export const GameEndModal: React.FC = () => {
   const switchTab = (tab: TabType) => {
     if (tab === activeTab) return;
     
-    // Task #420: Haptic feedback on tab switch (CRITICAL FIX: wrapped in try-catch)
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
-    }
+    // Task #420: Haptic feedback on tab switch — void+catch so the unhandled rejection
+    // from the fire-and-forget call is explicitly handled in a non-async function.
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+      console.warn('[GameEndModal] Haptics not supported:', e)
+    );
     
     // Fade out current content
     Animated.timing(tabContentOpacity, {
@@ -146,11 +146,13 @@ export const GameEndModal: React.FC = () => {
     }).start();
   };
 
+  const SHARE_RESULTS_TITLE = i18n.t('gameEnd.shareResultsTitle');
+
   // Share results functionality
   const handleShare = async () => {
     // Task #420: Haptic feedback on share (CRITICAL FIX: wrapped)
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
@@ -161,7 +163,7 @@ export const GameEndModal: React.FC = () => {
     try {
       const result = await Share.share({
         message: resultsText,
-        title: 'Big Two Game Results',
+        title: SHARE_RESULTS_TITLE,
       });
       
       if (result.action === Share.sharedAction) {
@@ -171,6 +173,23 @@ export const GameEndModal: React.FC = () => {
       console.error('Error sharing results:', error);
       Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
     }
+  };
+
+  // Copy results to clipboard functionality
+  const handleCopyResults = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // Haptics not supported
+    }
+    const resultsText = formatResultsForShare();
+    const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
+    if (result === 'copied') {
+      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
+    } else if (result === 'failed') {
+      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+    }
+    // 'shared': Share sheet was presented — no additional alert needed
   };
 
   // Format results for sharing
@@ -191,19 +210,18 @@ export const GameEndModal: React.FC = () => {
 
   // Handle modal close
   const handleClose = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
-    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+      console.warn('[GameEndModal] Haptics not supported:', e)
+    );
     setShowGameEndModal(false);
   };
 
   // Task #416: Play Again logic
   const handlePlayAgain = async () => {
-    // Task #420: Haptic feedback on play again (CRITICAL FIX: wrapped)
+    // Task #420: Haptic feedback on play again — await so the try/catch actually
+    // catches any rejection from the async Haptics call.
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
@@ -239,9 +257,10 @@ export const GameEndModal: React.FC = () => {
 
   // Task #417: Return to Menu logic
   const handleReturnToMenu = async () => {
-    // Task #420: Haptic feedback on return to menu (CRITICAL FIX: wrapped)
+    // Task #420: Haptic feedback on return to menu — await so the try/catch actually
+    // catches any rejection from the async Haptics call.
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
@@ -390,6 +409,7 @@ export const GameEndModal: React.FC = () => {
                           <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
+                              onCopyResults={handleCopyResults}
                               onPlayAgain={handlePlayAgain}
                               onReturnToMenu={handleReturnToMenu}
                             />
@@ -418,6 +438,7 @@ export const GameEndModal: React.FC = () => {
                           <View style={{ paddingTop: 8 }}>
                             <ActionButtons
                               onShare={handleShare}
+                              onCopyResults={handleCopyResults}
                               onPlayAgain={handlePlayAgain}
                               onReturnToMenu={handleReturnToMenu}
                             />
@@ -627,9 +648,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Toggle score match expansion
   const toggleScoreExpansion = (matchNumber: number) => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch { /* haptics optional */ }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     setExpandedScoreMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -643,9 +662,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Expand / collapse all
   const toggleAll = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch { /* haptics optional */ }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     if (expandedScoreMatches.size === scoreHistory.length) {
       // All expanded → collapse all
       setExpandedScoreMatches(new Set());
@@ -871,7 +888,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   
   // Toggle match expansion
   const toggleMatchExpansion = (matchNumber: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     setExpandedMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -1040,24 +1057,36 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
 
 interface ActionButtonsProps {
   onShare: () => void;
+  onCopyResults: () => void;
   onPlayAgain: () => void;
   onReturnToMenu: () => void;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   onShare,
+  onCopyResults,
   onPlayAgain,
   onReturnToMenu,
 }) => {
   return (
     <View style={styles.actionButtons}>
-      <TouchableOpacity
-        style={[styles.actionButton, styles.shareButton]}
-        onPress={onShare}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
-      </TouchableOpacity>
+      <View style={styles.actionButtonRow}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.copyButton, { flex: 1, marginRight: 4 }]}
+          onPress={onCopyResults}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.actionButtonText}>📋 {i18n.t('gameEnd.copyResults')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.shareButton, { flex: 1, marginLeft: 4 }]}
+          onPress={onShare}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
+        </TouchableOpacity>
+      </View>
       
       <TouchableOpacity
         style={[styles.actionButton, styles.playAgainButton]}
@@ -1480,12 +1509,20 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 8,
   },
+  actionButtonRow: {
+    flexDirection: 'row',
+  },
   actionButton: {
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     minHeight: 56,
     justifyContent: 'center',
+  },
+  copyButton: {
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderWidth: 1,
+    borderColor: '#a855f7',
   },
   shareButton: {
     backgroundColor: 'rgba(59, 130, 246, 0.2)',

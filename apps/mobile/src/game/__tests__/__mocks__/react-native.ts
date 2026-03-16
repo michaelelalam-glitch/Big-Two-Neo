@@ -44,6 +44,12 @@ export const TouchableOpacity = 'TouchableOpacity';
 export const ScrollView = 'ScrollView';
 export const Modal = 'Modal';
 
+export const Share = {
+  share: jest.fn(),
+  sharedAction: 'sharedAction',
+  dismissedAction: 'dismissedAction',
+};
+
 const createMockAnimation = () => {
   const anim: any = {
     start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),

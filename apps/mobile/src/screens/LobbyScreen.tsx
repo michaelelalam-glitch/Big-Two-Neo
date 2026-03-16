@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Clipboard, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
+import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { showError } from '../utils';
 import { roomLogger } from '../utils/logger';
 
@@ -416,12 +417,21 @@ export default function LobbyScreen() {
     }
   };
 
-  const handleCopyCode = () => {
-    Clipboard.setString(roomCode);
-    Alert.alert(
-      i18n.t('lobby.copiedTitle') || 'Copied!',
-      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
-    );
+  const handleCopyCode = async () => {
+    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
+    if (result === 'copied') {
+      Alert.alert(
+        i18n.t('lobby.copiedTitle'),
+        i18n.t('lobby.copiedMessage', { roomCode })
+      );
+    } else if (result === 'failed') {
+      // Both clipboard and Share unavailable — last resort: show room code
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle'),
+        i18n.t('lobby.copyFailedMessage', { roomCode })
+      );
+    }
+    // 'shared': Share sheet was presented — no additional alert needed
   };
 
   const handleShareCode = async () => {

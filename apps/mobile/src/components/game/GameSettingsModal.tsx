@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Clipboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
+import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
@@ -92,14 +93,22 @@ export default function GameSettingsModal({
     onLeaveGame();
   };
 
-  const handleCopyRoomCode = useCallback(() => {
+  const handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
-    Clipboard.setString(roomCode);
-    if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-    Alert.alert(
-      i18n.t('lobby.copiedTitle') || 'Copied!',
-      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard.`,
-    );
+    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
+    if (result === 'copied') {
+      if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
+      Alert.alert(
+        i18n.t('lobby.copiedTitle'),
+        i18n.t('lobby.copiedMessage', { roomCode }),
+      );
+    } else if (result === 'failed') {
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle'),
+        i18n.t('lobby.copyFailedMessage', { roomCode }),
+      );
+    }
+    // 'shared': Share sheet was presented — no additional alert needed
   }, [roomCode, vibrationEnabled]);
 
   const handleShareRoomCode = useCallback(async () => {

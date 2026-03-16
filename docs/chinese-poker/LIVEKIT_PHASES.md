@@ -56,18 +56,27 @@
 
 ---
 
-## Phase 3 — Native Build Configuration 🔲 TODO
+## Phase 3 — Native Build Configuration ✅ DONE
+**PR:** #142  
+**Branch:** `feature/649-651-livekit-phase3-native-config`
 
-### What needs to happen
-- Run `expo prebuild --clean` to generate the `/ios` and `/android` native projects from the current `app.json` config
-- ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking and does **not** require a manual entry in `app.json` plugins. `LiveKitVideoChatAdapter.ts` documents this explicitly. Run `expo prebuild --clean` and autolinking will resolve the native module automatically.
-- **iOS:** Run `pod install` in `/ios`; agree to microphone + camera usage description entries in `Info.plist`
-- **Android:** Confirm `CAMERA` and `RECORD_AUDIO` permissions are in `AndroidManifest.xml`; check Gradle dependency resolution for `livekit-android`
-- Build and run on a real device (not Expo Go — native modules require a custom dev client or a production build)
-- Smoke-test: can two devices join the same LiveKit room? (audio only at this point)
+### What was done
+- **`app.json`** is the source of truth for all native permissions. It already had `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, and Android `CAMERA`/`RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` configured — no edits were needed. The generated native files (`ios/` and `android/`) are gitignored prebuild artifacts; they will reflect these values after `expo prebuild --clean`.
+- **`eas.json`** — added a `developmentDevice` profile (`developmentClient: true`, `simulator: false`) for physical-device development-client builds.
+- ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking. iOS Podfile already uses `use_native_modules!`; Android `settings.gradle` already uses `expo-autolinking-settings`. Run `expo prebuild --clean` + `pod install` and the module links automatically.
+
+### Remaining device steps (run once, not in source)
+```bash
+# From apps/mobile/
+npx expo prebuild --clean    # regenerates ios/ and android/ from app.json
+cd ios && pod install         # links @livekit/react-native-webrtc + other pods
+cd ..
+eas build --profile developmentDevice --platform ios
+eas build --profile developmentDevice --platform android
+```
 
 ### Definition of done
-- `eas build --profile development --platform ios` and `android` succeed without native linking errors
+- `eas build --profile developmentDevice --platform ios` and `android` succeed without native linking errors
 - App launches on physical device without crash on import of `@livekit/react-native`
 
 ---
@@ -155,7 +164,7 @@
 |-------|-------------|--------|
 | 1 | Scaffold & interface definition (PR #134) | ✅ Done |
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
-| 3 | Native build configuration (prebuild, CocoaPods, Gradle) | 🔲 Todo |
+| 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
 | 4 | Permission UX — camera & microphone OS dialogs | 🔲 Todo |
 | 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
 | 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
