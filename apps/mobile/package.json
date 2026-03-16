@@ -91,5 +91,18 @@
       "prettier --write"
     ]
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo-camera",
+        "expo-barcode-scanner",
+        "expo",
+        "expo-constants",
+        "expo-notifications",
+        "babel-preset-expo",
+        "@expo/config-plugins"
+      ]
+    }
+  }
 }
