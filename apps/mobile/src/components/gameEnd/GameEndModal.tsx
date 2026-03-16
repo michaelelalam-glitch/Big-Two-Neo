@@ -31,10 +31,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-let Clipboard: typeof import('expo-clipboard') | null = null;
-try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
+import { Clipboard } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';

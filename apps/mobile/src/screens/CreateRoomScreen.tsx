@@ -131,14 +131,17 @@ export default function CreateRoomScreen() {
                 }
               };
         
+        // "Leave & Create" is the destructive action (abandons the existing room),
+        // so it is the confirmText styled as destructive (red on iOS).
+        // "Go to Room" is the safe cancel path.
         showConfirm({
           title: i18n.t('room.alreadyInRoom'),
           message: i18n.t('room.alreadyInRoomMessage', { code: existingCode, status: roomStatus }),
-          confirmText: i18n.t('room.goToRoom'),
-          cancelText: i18n.t('room.leaveAndCreate'),
+          confirmText: i18n.t('room.leaveAndCreate'),
+          cancelText: i18n.t('room.goToRoom'),
           destructive: true,
-          onConfirm: goToRoom,
-          onCancel: leaveAndCreate
+          onConfirm: leaveAndCreate,
+          onCancel: goToRoom
         });
         return;
         } // end else (active room)

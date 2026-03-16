@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
-// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-let Clipboard: typeof import('expo-clipboard') | null = null;
-try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
+import { Clipboard } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';

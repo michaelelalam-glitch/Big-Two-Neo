@@ -1,9 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
-// Guarded require: expo-clipboard's native module may not be available in Expo Go / web
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-let Clipboard: typeof import('expo-clipboard') | null = null;
-try { Clipboard = require('expo-clipboard') as typeof import('expo-clipboard'); } catch { /* native module unavailable */ }
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +9,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
+import { Clipboard } from '../utils/clipboard';
 import { showError } from '../utils';
 import { roomLogger } from '../utils/logger';
 
