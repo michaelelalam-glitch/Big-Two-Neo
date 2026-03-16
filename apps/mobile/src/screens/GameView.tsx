@@ -301,7 +301,9 @@ function GameViewComponent() {
                   ...p,
                   isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
                   isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
-                  isVideoChatConnecting: isMultiplayerGame && cameraState?.isCameraOn ? (cameraState?.isConnecting ?? false) : undefined,
+                  // isVideoChatConnecting is intentionally omitted for remote players:
+                  // PlayerInfo ignores it for non-local participants. When remote-player
+                  // connecting state becomes user-visible, pass it here and update PlayerInfo.
                   videoStreamSlot: videoSlot,
                 };
               })}

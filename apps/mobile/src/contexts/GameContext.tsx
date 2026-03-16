@@ -142,6 +142,9 @@ export interface GameContextType {
   /**
    * User IDs of remote players in display order: [top, left, right].
    * Empty array for local AI games.
+   * Entries may be `''` (empty string) when no remote player occupies that display
+   * slot (e.g. a 2-player game has no top/left/right seat filled). GameView guards
+   * against empty-string entries with `remotePlayerIds[idx - 1] || undefined`.
    * Used by GameView to map display positions (indices 1–3 of layoutPlayers) to
    * LiveKit participant identities for building `videoStreamSlot` nodes.
    */
