@@ -62,88 +62,88 @@ export default function CreateRoomScreen() {
           }
           // Fall through to room creation below
         } else {
-        // Note: Reduced from 3-button (Cancel, Go to Room, Leave & Create) to 2-button dialog.
-        // "Go to Room" becomes the cancel action, "Leave & Create" is the confirm action.
-        // Users can still dismiss by tapping outside (iOS) or back button (Android).
-        const goToRoom = () => {
-          setIsCreating(false);
-          navigation.replace('Lobby', { roomCode: existingCode });
-        };
+            // Note: Reduced from 3-button (Cancel, Go to Room, Leave & Create) to 2-button dialog.
+            // "Go to Room" becomes the cancel action, "Leave & Create" is the confirm action.
+            // Users can still dismiss by tapping outside (iOS) or back button (Android).
+            const goToRoom = () => {
+              setIsCreating(false);
+              navigation.replace('Lobby', { roomCode: existingCode });
+            };
         
-        const leaveAndCreate = async () => {
-                try {
-                  // Leave the existing room
-                  const { error: leaveError } = await supabase
-                    .from('room_players')
-                    .delete()
-                    .eq('room_id', roomPlayer.room_id)
-                    .eq('user_id', user.id);
+            const leaveAndCreate = async () => {
+                    try {
+                      // Leave the existing room
+                      const { error: leaveError } = await supabase
+                        .from('room_players')
+                        .delete()
+                        .eq('room_id', roomPlayer.room_id)
+                        .eq('user_id', user.id);
 
-                  if (leaveError) {
-                    roomLogger.error('Error leaving room:', leaveError);
-                    showError(i18n.t('room.leaveRoomError'));
-                    setIsCreating(false);
-                    return;
-                  }
+                      if (leaveError) {
+                        roomLogger.error('Error leaving room:', leaveError);
+                        showError(i18n.t('room.leaveRoomError'));
+                        setIsCreating(false);
+                        return;
+                      }
 
-                  roomLogger.info('✅ Left room:', existingCode);
+                      roomLogger.info('✅ Left room:', existingCode);
                   
-                  // Poll DB to confirm user has left before proceeding
-                  const maxAttempts = 10;
-                  const pollInterval = 300; // ms
-                  let attempt = 0;
-                  let isDeleted = false;
+                      // Poll DB to confirm user has left before proceeding
+                      const maxAttempts = 10;
+                      const pollInterval = 300; // ms
+                      let attempt = 0;
+                      let isDeleted = false;
                   
-                  while (attempt < maxAttempts && !isDeleted) {
-                    const { data: checkData, error: checkErr } = await supabase
-                      .from('room_players')
-                      .select('id')
-                      .eq('room_id', roomPlayer.room_id)
-                      .eq('user_id', user.id);
+                      while (attempt < maxAttempts && !isDeleted) {
+                        const { data: checkData, error: checkErr } = await supabase
+                          .from('room_players')
+                          .select('id')
+                          .eq('room_id', roomPlayer.room_id)
+                          .eq('user_id', user.id);
                     
-                    if (checkErr) break;
-                    if (!checkData || checkData.length === 0) {
-                      isDeleted = true;
-                      break;
+                        if (checkErr) break;
+                        if (!checkData || checkData.length === 0) {
+                          isDeleted = true;
+                          break;
+                        }
+                    
+                        attempt++;
+                        await new Promise(resolve => setTimeout(resolve, pollInterval));
+                      }
+                  
+                      if (!isDeleted) {
+                        roomLogger.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
+                        showError(
+                          i18n.t('room.leaveTimeout'),
+                          i18n.t('common.timeout')
+                        );
+                        setIsCreating(false);
+                        return;
+                      }
+                  
+                      // Retry creating room
+                      handleCreateRoom();
+                    } catch (error: unknown) {
+                      // Only log error message/code to avoid exposing DB internals
+                      roomLogger.error('Error in leave & create:', error instanceof Error ? error.message : String(error));
+                      showError(i18n.t('room.leaveRoomError'));
+                      setIsCreating(false);
                     }
-                    
-                    attempt++;
-                    await new Promise(resolve => setTimeout(resolve, pollInterval));
-                  }
-                  
-                  if (!isDeleted) {
-                    roomLogger.error('❌ Database replication lag: Could not confirm room leave after 3 seconds');
-                    showError(
-                      i18n.t('room.leaveTimeout'),
-                      i18n.t('common.timeout')
-                    );
-                    setIsCreating(false);
-                    return;
-                  }
-                  
-                  // Retry creating room
-                  handleCreateRoom();
-                } catch (error: unknown) {
-                  // Only log error message/code to avoid exposing DB internals
-                  roomLogger.error('Error in leave & create:', error instanceof Error ? error.message : String(error));
-                  showError(i18n.t('room.leaveRoomError'));
-                  setIsCreating(false);
-                }
-              };
+                  };
         
-        // "Leave & Create" is the destructive action (abandons the existing room),
-        // so it is the confirmText styled as destructive (red on iOS).
-        // "Go to Room" is the safe cancel path.
-        showConfirm({
-          title: i18n.t('room.alreadyInRoom'),
-          message: i18n.t('room.alreadyInRoomMessage', { code: existingCode, status: roomStatus }),
-          confirmText: i18n.t('room.leaveAndCreate'),
-          cancelText: i18n.t('room.goToRoom'),
-          destructive: true,
-          onConfirm: leaveAndCreate,
-          onCancel: goToRoom
-        });
-        return;
+            // "Leave & Create" is the destructive action (abandons the existing room),
+            // so it is the confirmText styled as destructive (red on iOS).
+            // "Go to Room" is the safe cancel path.
+            showConfirm({
+              title: i18n.t('room.alreadyInRoom'),
+              message: i18n.t('room.alreadyInRoomMessage', { code: existingCode, status: roomStatus }),
+              confirmText: i18n.t('room.leaveAndCreate'),
+              cancelText: i18n.t('room.goToRoom'),
+              destructive: true,
+              onConfirm: leaveAndCreate,
+              onCancel: goToRoom
+            });
+            return;
         } // end else (active room)
       }
 

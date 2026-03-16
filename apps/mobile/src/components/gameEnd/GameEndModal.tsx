@@ -115,12 +115,11 @@ export const GameEndModal: React.FC = () => {
   const switchTab = (tab: TabType) => {
     if (tab === activeTab) return;
     
-    // Task #420: Haptic feedback on tab switch (CRITICAL FIX: wrapped in try-catch)
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
-    }
+    // Task #420: Haptic feedback on tab switch — void+catch so the unhandled rejection
+    // from the fire-and-forget call is explicitly handled in a non-async function.
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+      console.warn('[GameEndModal] Haptics not supported:', e)
+    );
     
     // Fade out current content
     Animated.timing(tabContentOpacity, {
@@ -211,19 +210,18 @@ export const GameEndModal: React.FC = () => {
 
   // Handle modal close
   const handleClose = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
-    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+      console.warn('[GameEndModal] Haptics not supported:', e)
+    );
     setShowGameEndModal(false);
   };
 
   // Task #416: Play Again logic
   const handlePlayAgain = async () => {
-    // Task #420: Haptic feedback on play again (CRITICAL FIX: wrapped)
+    // Task #420: Haptic feedback on play again — await so the try/catch actually
+    // catches any rejection from the async Haptics call.
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
@@ -259,9 +257,10 @@ export const GameEndModal: React.FC = () => {
 
   // Task #417: Return to Menu logic
   const handleReturnToMenu = async () => {
-    // Task #420: Haptic feedback on return to menu (CRITICAL FIX: wrapped)
+    // Task #420: Haptic feedback on return to menu — await so the try/catch actually
+    // catches any rejection from the async Haptics call.
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
@@ -649,9 +648,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Toggle score match expansion
   const toggleScoreExpansion = (matchNumber: number) => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch { /* haptics optional */ }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     setExpandedScoreMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -665,9 +662,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Expand / collapse all
   const toggleAll = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch { /* haptics optional */ }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     if (expandedScoreMatches.size === scoreHistory.length) {
       // All expanded → collapse all
       setExpandedScoreMatches(new Set());
@@ -893,7 +888,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
   
   // Toggle match expansion
   const toggleMatchExpansion = (matchNumber: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
     setExpandedMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {

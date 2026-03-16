@@ -67,7 +67,8 @@ export async function tryCopyTextWithShareFallback(
     }
     return 'failed';
   } catch {
-    // Share API threw — e.g. no sharing capabilities on this platform
+    // Share API threw a genuine error (e.g. no sharing capabilities on this platform).
+    // Note: user cancellation resolves normally with dismissedAction above — it never throws.
     return 'failed';
   }
 }

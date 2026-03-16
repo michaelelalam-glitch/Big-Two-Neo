@@ -12,7 +12,7 @@ import { GameEndProvider, useGameEnd } from '../../../contexts/GameEndContext';
 
 // Mock dependencies
 jest.mock('expo-haptics', () => ({
-  impactAsync: jest.fn(),
+  impactAsync: jest.fn().mockResolvedValue(undefined),
   ImpactFeedbackStyle: {
     Light: 'light',
     Medium: 'medium',
