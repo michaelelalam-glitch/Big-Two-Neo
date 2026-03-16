@@ -12,9 +12,9 @@
  *   if (Clipboard) await Clipboard.setStringAsync(text);
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 let _clipboard: typeof import('expo-clipboard') | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   _clipboard = require('expo-clipboard') as typeof import('expo-clipboard');
 } catch {
   /* ExpoClipboard native module unavailable (Expo Go / web / unlinked build) */
