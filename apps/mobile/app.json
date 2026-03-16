@@ -68,6 +68,7 @@
       ],
       "expo-web-browser",
       "expo-av",
+      "expo-camera",
       "expo-screen-orientation"
     ],
     "extra": {

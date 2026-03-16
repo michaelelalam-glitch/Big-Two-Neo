@@ -17,6 +17,13 @@ export const Audio = {
     ),
   },
   setAudioModeAsync: jest.fn(() => Promise.resolve()),
+  // Phase 4 (LiveKit): permission request APIs used in useVideoChat.ts iOS path
+  getPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted', canAskAgain: true, expires: 'never', granted: true })
+  ),
+  requestPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted', canAskAgain: true, expires: 'never', granted: true })
+  ),
 };
 
 export default { Audio };

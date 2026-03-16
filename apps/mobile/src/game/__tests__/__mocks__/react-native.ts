@@ -50,6 +50,11 @@ export const Share = {
   dismissedAction: 'dismissedAction',
 };
 
+export const Linking = {
+  openSettings: jest.fn().mockResolvedValue(undefined),
+  openURL: jest.fn().mockResolvedValue(undefined),
+};
+
 const createMockAnimation = () => {
   const anim: any = {
     start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),
