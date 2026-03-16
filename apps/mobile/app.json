@@ -70,7 +70,8 @@
       "expo-av",
       "expo-camera",
       "expo-screen-orientation",
-      "./plugins/withAndroidSupportExclude"
+      "./plugins/withAndroidSupportExclude",
+      "./plugins/withBarcodeCompatStubs"
     ],
     "extra": {
       "eas": {
