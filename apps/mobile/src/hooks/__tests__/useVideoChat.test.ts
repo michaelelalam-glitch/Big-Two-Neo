@@ -14,6 +14,7 @@ import {
   MediaPermissionStatus,
   UnexpectedDisconnectError,
 } from '../useVideoChat';
+import { i18n } from '../../i18n';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1428,7 +1429,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     // Alert must have been shown with camera denied message
     expect(Alert.alert).toHaveBeenCalledTimes(1);
     const [title] = (Alert.alert as jest.Mock).mock.calls[0];
-    expect(title).toContain('Camera');
+    expect(title).toBe(i18n.t('chat.permissionDeniedCameraTitle'));
   });
 
   it('shows mic denied Alert with "Open Settings" button when mic is denied on iOS', async () => {
@@ -1460,6 +1461,6 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     expect(result.current.isChatConnected).toBe(false);
     expect(Alert.alert).toHaveBeenCalledTimes(1);
     const [title] = (Alert.alert as jest.Mock).mock.calls[0];
-    expect(title).toContain('Microphone');
+    expect(title).toBe(i18n.t('chat.permissionDeniedMicTitle'));
   });
 });

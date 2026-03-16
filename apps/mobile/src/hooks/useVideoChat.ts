@@ -32,7 +32,6 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
-import { Camera } from 'expo-camera';
 import { Audio } from 'expo-av';
 import { gameLogger } from '../utils/logger';
 import { i18n } from '../i18n';
@@ -349,8 +348,6 @@ export function useVideoChat({
           {
             title: i18n.t('chat.cameraPermissionTitle'),
             message: i18n.t('chat.cameraPermissionMessage'),
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
           }
         );
         const status: MediaPermissionStatus =
@@ -366,6 +363,8 @@ export function useVideoChat({
 
     if (Platform.OS === 'ios') {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { Camera } = require('expo-camera') as typeof import('expo-camera');
         const existing = await Camera.getCameraPermissionsAsync();
         if (existing.status === 'granted') {
           setCameraPermissionStatus('granted');
@@ -404,8 +403,6 @@ export function useVideoChat({
           {
             title: i18n.t('chat.micPermissionTitle'),
             message: i18n.t('chat.micPermissionMessage'),
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
           }
         );
         const status: MediaPermissionStatus =
