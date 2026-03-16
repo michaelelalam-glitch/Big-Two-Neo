@@ -69,7 +69,8 @@
       "expo-web-browser",
       "expo-av",
       "expo-camera",
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      "./plugins/withAndroidSupportExclude"
     ],
     "extra": {
       "eas": {
