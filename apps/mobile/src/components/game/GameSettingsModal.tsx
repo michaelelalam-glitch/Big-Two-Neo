@@ -138,6 +138,7 @@ export default function GameSettingsModal({
             <Pressable 
               onPress={onClose} 
               style={styles.closeButton}
+              testID="close-settings-button"
               accessibilityRole="button"
               accessibilityLabel="Close settings"
             >
@@ -191,6 +192,7 @@ export default function GameSettingsModal({
                         isInChatSession && isLocalCameraOn && styles.chatActiveItemLandscape,
                         (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
+                      testID="camera-toggle-button"
                       onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVideoChat?.();
@@ -231,6 +233,7 @@ export default function GameSettingsModal({
                         isInChatSession && isLocalMicOn && styles.chatActiveItemLandscape,
                         (isAudioChatConnecting || isVideoChatConnecting) && styles.disabledItem,
                       ]}
+                      testID="mic-toggle-button"
                       onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVoiceChat?.();
@@ -398,6 +401,7 @@ export default function GameSettingsModal({
                         isInChatSession && isLocalCameraOn && styles.chatActiveItem,
                         (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
+                      testID="camera-toggle-button"
                       onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVideoChat?.();
@@ -439,6 +443,7 @@ export default function GameSettingsModal({
                         isInChatSession && isLocalMicOn && styles.chatActiveItem,
                         (isAudioChatConnecting || isVideoChatConnecting) && styles.disabledItem,
                       ]}
+                      testID="mic-toggle-button"
                       onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
                         if (!isInChatSession) {
                           await onToggleVoiceChat?.();
