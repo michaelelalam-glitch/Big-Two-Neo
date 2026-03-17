@@ -986,6 +986,8 @@ describe('useVideoChat — toggleVideoChat re-entrant guard (#651)', () => {
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — toggleVoiceChat (voice-only join/leave)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
   it('connects mic-only when not connected (iOS — permission auto-granted)', async () => {
     Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
     const connectSpy = jest.fn().mockResolvedValue(undefined);
