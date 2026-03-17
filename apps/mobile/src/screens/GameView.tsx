@@ -131,7 +131,7 @@ function GameViewComponent() {
       if (idx === 0) return p;
       const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
       const trackRef =
-        isMultiplayerGame && isChatConnected && 'isCameraOn' in p && p.isCameraOn && remoteParticipantId
+        isMultiplayerGame && isChatConnected && p.isCameraOn && remoteParticipantId
           ? getVideoTrackRef(remoteParticipantId)
           : undefined;
       return {
