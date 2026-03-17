@@ -1,0 +1,180 @@
+# Flow 09: LiveKit Voice & Video Chat — Happy Path
+# Validates: Phase 7 E2E — two-player session with voice, then video upgrade.
+# Tags: livekit, video-chat, voice-chat, phase7
+#
+# Prerequisites:
+#   - Two devices (or two simulators) with the app installed.
+#   - LiveKit edge function deployed (Phase 6 complete).
+#   - Both devices signed in with separate test accounts.
+#   - Both devices are in the SAME multiplayer game lobby.
+#   - Physical mic/camera permissions previously granted (or permission dialogs
+#     accepted at the start of the flow).
+#
+# Run on each device independently:
+#   maestro test e2e/flows/09_livekit_voice_video.yaml
+#
+# Notes:
+#   - assertVisible strings must match the exact accessibility labels set in
+#     GameSettingsModal.tsx and hooks/useVideoChat.ts i18n keys.
+#   - Timing waits are conservative; adjust MAESTRO_DRIVER_STARTUP_TIMEOUT on
+#     slower CI device-farm images.
+
+appId: com.big2mobile.app
+env:
+  # Default room code used when ROOM_CODE is not explicitly set.
+  # Override via: maestro test ... -e ROOM_CODE=ABCXYZ
+  ROOM_CODE: TEST01
+tags:
+  - livekit
+  - voice-chat
+  - video-chat
+  - phase7
+---
+
+# ── Step 1: Launch the app and reach an active multiplayer game ───────────────
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+
+- tapOn: "PLAY →"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Join an existing room (assumes the companion device already created one).
+# Set the room code via env var: maestro test ... -e ROOM_CODE=ABC123
+# Defaults to TEST01 (see env block at top of file) when not explicitly provided.
+- tapOn: "Join Room"
+- extendedWaitUntil:
+    visible:
+      id: "room-code-input"
+    timeout: 8000
+- tapOn:
+    id: "room-code-input"
+- inputText: "${ROOM_CODE}"
+- tapOn:
+    text: "Join Room"
+    index: 1
+# JoinRoomScreen replaces the nav stack with LobbyScreen — wait for the
+# lobby before handling the host-only Start Game button.
+- extendedWaitUntil:
+    visible: "Game Lobby"
+    timeout: 15000
+
+# Host device only: taps "Start Game" to begin. Guest device skips this step
+# and waits for the host to start. The Start Game button is only rendered for
+# the room host (isHost-gated in LobbyScreen).
+- runFlow:
+    when:
+      visible: "Start Game"
+    commands:
+      - tapOn: "Start Game"
+# Wait for the in-game UI to appear; settings-button is always rendered in both
+# portrait (hamburger) and landscape (LandscapeControlBar) once gameplay loads.
+- extendedWaitUntil:
+    visible:
+      id: "settings-button"
+    timeout: 20000
+- takeScreenshot: "09_01_game_active"
+
+# ── Step 2: Open Settings modal ───────────────────────────────────────────────
+# Works in both portrait (hamburger, testID="settings-button") and landscape
+# (LandscapeControlBar, testID="settings-button").
+- tapOn:
+    id: "settings-button"
+- extendedWaitUntil:
+    visible:
+      id: "mic-toggle-button"
+    timeout: 8000
+- assertVisible:
+    label: "Microphone, Off \u2014 Join Voice Chat"
+- takeScreenshot: "09_02_settings_before_voice"
+
+# ── Step 3: Join voice-only chat ──────────────────────────────────────────────
+# Tap the mic toggle button by testID (the button's accessibilityLabel when
+# disconnected is "Microphone, Off — Join Voice Chat", but plain text won't
+# match because it only appears inside the accessibilityLabel, not as visible
+# rendered text).
+- tapOn:
+    id: "mic-toggle-button"
+- extendedWaitUntil:
+    visible:
+      label: "Leave Voice Chat"
+    timeout: 15000
+- assertVisible:
+    label: "Leave Voice Chat"
+- takeScreenshot: "09_03_voice_active"
+
+# Wait briefly to confirm audio session stays stable (no unexpected disconnect).
+- runFlow:
+    commands:
+      - wait: 3000
+
+# ── Step 4: Upgrade voice → video ─────────────────────────────────────────────
+# "Join Video Chat" only appears in the camera button's accessibilityLabel
+# (not as visible text). Use the testID selector instead.
+- tapOn:
+    id: "camera-toggle-button"
+- extendedWaitUntil:
+    visible:
+      label: "Camera, On — tap to turn camera off"
+    timeout: 15000
+- assertVisible:
+    label: "Camera, On — tap to turn camera off"
+- takeScreenshot: "09_04_video_active"
+
+# Wait to confirm both audio + video streams remain alive.
+- runFlow:
+    commands:
+      - wait: 3000
+
+# ── Step 5: Toggle camera off — verify avatar fallback ───────────────────────
+- tapOn:
+    id: "camera-toggle-button"
+- extendedWaitUntil:
+    visible:
+      label: "Camera, Off \u2014 tap to turn camera on"
+    timeout: 8000
+- assertVisible:
+    label: "Camera, Off \u2014 tap to turn camera on"
+- takeScreenshot: "09_05_camera_off"
+
+# ── Step 6: Mute microphone ───────────────────────────────────────────────────
+- tapOn:
+    id: "mic-toggle-button"
+- extendedWaitUntil:
+    visible:
+      label: "Microphone, Muted \u2014 tap to unmute"
+    timeout: 8000
+- assertVisible:
+    label: "Microphone, Muted \u2014 tap to unmute"
+- takeScreenshot: "09_06_muted"
+
+# ── Step 7: Leave voice/video session ────────────────────────────────────────
+# GameSettingsModal renders "Leave Voice Chat" (chat.leaveVoice). Tap by
+# accessibilityLabel to avoid the ambiguity of the "📵" emoji text sibling
+# (Maestro may concatenate sibling Text nodes into "📵 Leave Voice Chat").
+# After leaving, "Join Voice Chat" only appears inside the mic button's
+# accessibilityLabel — assert via label selector, not plain text.
+- tapOn:
+    label: "Leave Voice Chat"
+- extendedWaitUntil:
+    visible:
+      label: "Microphone, Off \u2014 Join Voice Chat"
+    timeout: 10000
+- assertVisible:
+    label: "Microphone, Off \u2014 Join Voice Chat"
+- takeScreenshot: "09_07_session_ended"
+
+# ── Step 8: Close settings and confirm game is still active ──────────────────
+- tapOn:
+    id: "close-settings-button"
+# Confirm game is still active: settings-button is a stable in-game element.
+- extendedWaitUntil:
+    visible:
+      id: "settings-button"
+    timeout: 8000
+- assertVisible:
+    id: "settings-button"
+- takeScreenshot: "09_08_game_still_active_after_chat"

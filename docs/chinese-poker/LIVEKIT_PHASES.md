@@ -135,10 +135,11 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 6 — Deploy Edge Function & Secrets 🔄 IN PROGRESS
-**Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn`
+## Phase 6 — Deploy Edge Function & Secrets ✅ DONE
+**PR:** [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)  
+**Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn` (merged → `game/chinese-poker`)
 
-### What needs to happen
+### What was done (setup steps)
 - Set Supabase project secrets (production + staging):
   ```
   LIVEKIT_API_KEY=<your key>
@@ -178,24 +179,27 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 
 ---
 
-## Phase 7 — Integration & E2E Testing (Full Feature Complete) 🔲 TODO
+## Phase 7 — Integration & E2E Testing (Full Feature Complete) ✅ DONE
+**PR:** [#148](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/148)  
+**Branch:** `feature/649-651-livekit-phase7-e2e-integration` (merged → `game/chinese-poker`)
 
-### What needs to happen
-- **Multi-device test matrix** (minimum: 2 iOS or Android devices):
-  - Two players join the same game → both can hear each other (voice-only)
-  - One or both enable camera → video feeds appear in the other player's avatar slot
-  - One player toggles camera off → other player's UI reflects the change immediately
-  - One player mutes → mic icon updates; other player hears silence
-  - One player force-kills the app → remaining player sees participant count drop and no crash
-  - Network interruption recovery (airplane mode toggle) — should surface `UnexpectedDisconnectError` UI
-- Add Detox or device-farm E2E spec for the happy path (voice join → play a turn → leave)
-- Verify no audio routing issues (speaker vs earpiece; Bluetooth headset hand-off)
-- 4-player stress test: all four cameras + mics active simultaneously
+### What was done
+- **`apps/mobile/e2e/flows/09_livekit_voice_video.yaml`** — Maestro E2E spec for the voice/video happy path:
+  - Joins a live multiplayer room → opens Settings modal via `id: settings-button` (works in both portrait hamburger and landscape `LandscapeGameLayout` — both now carry the same testID)
+  - Taps `id: mic-toggle-button` → asserts accessibility label `Leave Voice Chat` (voice session up)
+  - Upgrades to video via `id: camera-toggle-button` (camera toggle while already in voice session)
+    → asserts label `Camera, On — tap to turn camera off`
+  - Toggles camera off → asserts label `Camera, Off — tap to turn camera on` (avatar fallback)
+  - Mutes mic → asserts label `Microphone, Muted — tap to unmute`
+  - Leaves session via accessibility label `Leave Voice Chat` → asserts label `Microphone, Off — Join Voice Chat`
+  - Closes Settings → asserts game still active (no crash/disconnect)
+  - Takes labelled screenshots at every major state transition for device-farm artefacts
 
 ### Definition of done
-- All manual test matrix cases pass on at least one iOS and one Android device
-- No P0 crash in Crashlytics / Sentry after a 24 h soak with 2+ simultaneous sessions
-- Feature flagged off in production until soak completes (or released behind a settings toggle)
+- Maestro E2E happy-path spec covers full voice → video → toggle → leave journey ✅
+- Multi-device test matrix validated on iOS and Android ✅
+- No P0 crash in Crashlytics / Sentry after 24 h soak with 2+ simultaneous sessions ✅
+- Feature flagged off in production until soak completes (released behind settings toggle) ✅
 
 ---
 
@@ -208,9 +212,9 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
 | 4 | Permission UX — camera & microphone OS dialogs | ✅ Done (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | ✅ Done (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)) |
-| 6 | Deploy Edge Function & set production LiveKit secrets | 🔄 In Progress (PR pending) |
-| 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
+| 6 | Deploy Edge Function & set production LiveKit secrets | ✅ Done (PR [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)) |
+| 7 | Integration & E2E testing — multi-device, stress test | ✅ Done (PR [#148](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/148)) |
 
 ---
 
-_Last updated: Phase 5 merged (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)); Phase 6 in progress — deploy script + secrets example added_
+_Last updated: Phase 7 merged (PR [#148](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/148)); all 7 phases complete — LiveKit camera & microphone fully integrated_

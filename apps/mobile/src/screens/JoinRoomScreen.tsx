@@ -153,6 +153,7 @@ export default function JoinRoomScreen() {
               autoCapitalize="characters"
               autoCorrect={false}
               editable={!isJoining}
+              testID="room-code-input"
             />
           </View>
 

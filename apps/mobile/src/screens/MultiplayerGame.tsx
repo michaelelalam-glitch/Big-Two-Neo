@@ -5,6 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -46,6 +47,7 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
+import i18n from '../i18n';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -696,8 +698,8 @@ export function MultiplayerGame() {
     isLocalCameraOn,
     isLocalMicOn,
     remoteParticipants,
-    toggleVideoChat,
-    toggleVoiceChat,
+    toggleVideoChat: _toggleVideoChat,
+    toggleVoiceChat: _toggleVoiceChat,
     toggleCamera,
     toggleMic,
     isConnecting: isVideoChatConnecting,
@@ -708,6 +710,39 @@ export function MultiplayerGame() {
     userId:  user?.id,
     adapter: videoChatAdapter,
   });
+
+  // Guard: LiveKit requires native WebRTC modules. Show a clear alert when the
+  // adapter resolved to the stub (covers Expo Go, missing native module, or any
+  // other environment where @livekit/react-native is unavailable).
+  const isLiveKitUnavailable = videoChatAdapter instanceof StubVideoChatAdapter;
+
+  const toggleVideoChat = useCallback(async () => {
+    if (isLiveKitUnavailable) {
+      const devHint = __DEV__
+        ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
+        : '';
+      Alert.alert(
+        i18n.t('chat.devBuildRequiredTitle'),
+        i18n.t('chat.devBuildRequiredMessage') + devHint,
+      );
+      return;
+    }
+    await _toggleVideoChat();
+  }, [_toggleVideoChat, isLiveKitUnavailable]);
+
+  const toggleVoiceChat = useCallback(async () => {
+    if (isLiveKitUnavailable) {
+      const devHint = __DEV__
+        ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
+        : '';
+      Alert.alert(
+        i18n.t('chat.devBuildRequiredTitle'),
+        i18n.t('chat.devBuildRequiredMessage') + devHint,
+      );
+      return;
+    }
+    await _toggleVoiceChat();
+  }, [_toggleVoiceChat, isLiveKitUnavailable]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
