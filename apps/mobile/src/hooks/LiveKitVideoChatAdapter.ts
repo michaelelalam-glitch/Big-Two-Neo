@@ -187,7 +187,18 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // `startAudioSession` is also required to *activate* the session — without
     // it, AVAudioSession remains inactive and capture silently fails on iOS.
     if (_AudioSession) {
-      await _AudioSession.startAudioSession();
+      try {
+        await _AudioSession.startAudioSession();
+      } catch (audioErr) {
+        // startAudioSession itself failed — the session was never activated so
+        // there is nothing to clean up.  Rethrow with a user-actionable message
+        // (Copilot PR-149 r2946350450).
+        throw new Error(
+          `LiveKit: AVAudioSession activation failed — audio unavailable: ${
+            audioErr instanceof Error ? audioErr.message : String(audioErr)
+          }`,
+        );
+      }
     }
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
     try {
