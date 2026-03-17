@@ -20,6 +20,10 @@
 #     slower CI device-farm images.
 
 appId: com.big2mobile.app
+env:
+  # Default room code used when ROOM_CODE is not explicitly set.
+  # Override via: maestro test ... -e ROOM_CODE=ABCXYZ
+  ROOM_CODE: TEST01
 tags:
   - livekit
   - voice-chat
@@ -39,8 +43,8 @@ tags:
     timeout: 10000
 
 # Join an existing room (assumes the companion device already created one).
-# Set the room code via env var: MAESTRO_APP_ENV='{"ROOM_CODE":"ABC123"}'
-# Falls back to TEST01 if ROOM_CODE is not set.
+# Set the room code via env var: maestro test ... -e ROOM_CODE=ABC123
+# Defaults to TEST01 (see env block at top of file) when not explicitly provided.
 - tapOn: "Join Room"
 - extendedWaitUntil:
     visible:
