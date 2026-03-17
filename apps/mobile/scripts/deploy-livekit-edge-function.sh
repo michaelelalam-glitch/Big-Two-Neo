@@ -90,7 +90,9 @@ else
   fi
 
   # Write secrets to a temp file so their values are never visible in ps/argv.
-  SECRETS_TMPFILE="$(mktemp)"
+  # Use -t template for portability: plain mktemp works on GNU coreutils but
+  # fails on macOS/BSD mktemp which requires a template argument.
+  SECRETS_TMPFILE="$(mktemp -t livekit-secrets.XXXXXX)"
   # shellcheck disable=SC2064  # intentional: expand vars now, not at trap time
   trap "rm -f '${SECRETS_TMPFILE}'" EXIT
   printf 'LIVEKIT_API_KEY=%s\nLIVEKIT_API_SECRET=%s\nLIVEKIT_URL=%s\n' \
