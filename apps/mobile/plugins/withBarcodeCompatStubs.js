@@ -10,7 +10,7 @@
  * for the same BarCodeScannerResult fields.
  */
 
-const { withSettingsGradle, withDangerousMod } = require('@expo/config-plugins');
+const { withSettingsGradle, withDangerousMod, withProjectBuildGradle } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -20,8 +20,10 @@ const STUB_BUILD_GRADLE = `apply plugin: 'com.android.library'
 
 android {
     namespace "expo.modules.interfaces.barcodescanner.compat"
-    compileSdkVersion 35
-    defaultConfig { minSdkVersion 24 }
+    // Reference root project SDK values so the stub stays aligned when the app
+    // upgrades its SDK targets (Copilot PR-149 r2946350521).
+    compileSdkVersion (rootProject.findProperty("compileSdkVersion") ?: 35).toInteger()
+    defaultConfig { minSdkVersion (rootProject.findProperty("minSdkVersion") ?: 24).toInteger() }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -101,11 +103,21 @@ public interface BarCodeScannerProviderInterface {
 const STUB_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
 `;
 
-// compileOnly so the stub types are visible to expo-camera's Kotlin compiler
-// but are NOT included in the runtime APK — the real implementations from
-// expo-barcode-scanner's AAR are used at runtime instead, preventing the
-// duplicate-class conflict that caused "scanning failed" at runtime.
-const BARCODE_COMPAT_DEP = `  compileOnly project(':${LIB_NAME}') // [barcode-compat-stubs]\n`;
+// Injected via withProjectBuildGradle (subprojects hook) rather than patching
+// node_modules directly — avoids dirty working copy / read-only env failures
+// (Copilot PR-149 r2946350505).
+const SUBPROJECTS_BLOCK = `
+// [barcode-compat-stubs] inject compileOnly dep into expo-camera without editing node_modules
+subprojects { subproject ->
+    afterEvaluate {
+        if (subproject.name == 'expo-camera') {
+            dependencies {
+                compileOnly project(':${LIB_NAME}') // [barcode-compat-stubs]
+            }
+        }
+    }
+}
+`;
 
 module.exports = function withBarcodeCompatStubs(config) {
   config = withDangerousMod(config, [
@@ -122,24 +134,20 @@ module.exports = function withBarcodeCompatStubs(config) {
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerSettings.java'), STUB_SETTINGS);
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerProviderInterface.java'), STUB_PROVIDER);
 
-      // Only patch expo-camera's build.gradle — expo-barcode-scanner already
-      // provides the real BarCodeScannerInterface implementations at runtime, so
-      // adding the stubs to its own classpath would create a duplicate-class
-      // conflict and break QR scanning.
-      const projectRoot = modConfig.modRequest.projectRoot;
-      const targets = [
-        path.join(projectRoot,'node_modules','expo-camera','android','build.gradle'),
-      ];
-      for (const target of targets) {
-        if (!fs.existsSync(target)) continue;
-        let contents = fs.readFileSync(target, 'utf8');
-        if (contents.includes('[barcode-compat-stubs]')) continue;
-        contents = contents.replace(/^(dependencies\s*\{)/m, `$1\n${BARCODE_COMPAT_DEP}`);
-        fs.writeFileSync(target, contents);
-      }
       return modConfig;
     },
   ]);
+
+  // Inject compileOnly dep into expo-camera via a subprojects hook in
+  // android/build.gradle. Using withProjectBuildGradle avoids patching files
+  // under node_modules, which is brittle across version updates and fails in
+  // read-only build environments (Copilot PR-149 r2946350505).
+  config = withProjectBuildGradle(config, (modConfig) => {
+    if (!modConfig.modResults.contents.includes('[barcode-compat-stubs]')) {
+      modConfig.modResults.contents += SUBPROJECTS_BLOCK;
+    }
+    return modConfig;
+  });
 
   config = withSettingsGradle(config, (modConfig) => {
     if (!modConfig.modResults.contents.includes(`:${LIB_NAME}`)) {

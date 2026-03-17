@@ -64,6 +64,7 @@
 - **`app.json`** is the source of truth for all native permissions. It already had `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, and Android `CAMERA`/`RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` configured — no edits were needed. The generated native files (`ios/` and `android/`) are gitignored prebuild artifacts; they will reflect these values after `expo prebuild --clean`.
 - **`eas.json`** — added a `developmentDevice` profile (`developmentClient: true`, `simulator: false`) for physical-device development-client builds.
 - ~~Add `@livekit/react-native-webrtc` to the Expo plugin list in `app.json`~~ — **No plugin entry needed**: `@livekit/react-native-webrtc` uses Expo autolinking. iOS Podfile already uses `use_native_modules!`; Android `settings.gradle` already uses `expo-autolinking-settings`. Run `expo prebuild --clean` + `pod install` and the module links automatically.
+- **`./plugins/withAndroidSupportExclude`** — added to `app.json` plugins. LiveKit transitively pulls in `com.android.support:support-compat:25.3.1` / `support-media-compat:25.3.1`. When `android.enableJetifier=true` is active, Jetifier rewrites those bytes to AndroidX class names but **does not remove** the legacy JARs from Gradle's resolved classpath. Both the old and new JARs land on the compile classpath simultaneously, producing `BUILD FAILED "Duplicate class"` errors. The plugin injects `configurations.all { exclude group: "com.android.support" }` into `app/build.gradle` via `withAppBuildGradle` during `expo prebuild`.
 
 ### Remaining device steps (run once, not in source)
 ```bash
@@ -86,6 +87,7 @@ eas build --profile developmentDevice --platform android
 
 ### What was done
 - **`expo-camera@15.0.16`** added to dependencies and `app.json` plugins (SDK 54 compatible)
+- **`./plugins/withBarcodeCompatStubs`** — added to `app.json` plugins alongside `expo-camera`. `expo-camera@15.x` references interfaces from `expo.modules.interfaces.barcodescanner.*` that were removed in `expo-modules-core@3.x` but are still referenced at compile-time by `expo-camera`'s Android Kotlin source. Without stubs, prebuild fails with `error: cannot find symbol class BarCodeScannerResult`. The plugin creates a local `barcode-compat` Android library module containing Java stub implementations of those interfaces, and injects `compileOnly project(':barcode-compat')` into `expo-camera`'s Gradle build via a `subprojects { afterEvaluate }` hook in `android/build.gradle` (no node_modules patching). Stubs are `compileOnly` so they provide compile-time types without shadowing the real runtime implementations from `expo-barcode-scanner`'s AAR, preventing duplicate-class errors at runtime.
 - **Real iOS camera permission** — replaced stub `return 'granted'` in `requestCameraPermission()` with:
   - `Camera.getCameraPermissionsAsync()` (check existing grant before prompting)
   - `Camera.requestCameraPermissionsAsync()` (only called when status is undetermined/denied)
