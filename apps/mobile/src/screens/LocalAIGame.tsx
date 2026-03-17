@@ -313,6 +313,14 @@ export function LocalAIGame() {
       isVideoChatConnecting: false,
       isAudioConnecting: false,
       getVideoTrackRef: () => undefined,
+      // Task #648: text chat is multiplayer-only; no-op stubs here
+      chatMessages: [],
+      sendChatMessage: () => {},
+      chatUnreadCount: 0,
+      isChatCooldown: false,
+      isChatDrawerOpen: false,
+      toggleChatDrawer: () => {},
+      localUserId: '',
     }),
     [
       currentOrientation, toggleOrientation, isInitializing,

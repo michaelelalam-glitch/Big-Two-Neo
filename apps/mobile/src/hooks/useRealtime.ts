@@ -700,5 +700,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     isAutoPassInProgress,
     playerLastSeenAtRef,
     refreshGameState,
+    channelRef,
   };
 }

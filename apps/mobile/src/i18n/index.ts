@@ -85,6 +85,12 @@ export interface Translations {
     voiceConnectFailedMessage: string;
     devBuildRequiredTitle: string;
     devBuildRequiredMessage: string;
+    // Task #648 — text chat
+    title: string;
+    placeholder: string;
+    send: string;
+    noMessages: string;
+    cooldown: string;
   };
 
   // Game Selection Screen
@@ -729,6 +735,12 @@ const en: Translations = {
     voiceConnectFailedMessage: 'Could not connect to the voice chat room. Please check your connection and try again.',
     devBuildRequiredTitle: 'Dev Build Required',
     devBuildRequiredMessage: 'Voice and video chat require native WebRTC modules that are not available in this build.',
+    // Task #648 — text chat
+    title: 'Chat',
+    placeholder: 'Type a message…',
+    send: 'Send',
+    noMessages: 'No messages yet. Say hi!',
+    cooldown: 'Wait…',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1305,6 +1317,12 @@ const ar: Translations = {
     voiceConnectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة الصوتية. تحقق من اتصالك وأعد المحاولة.',
     devBuildRequiredTitle: 'مطلوب إصدار مطوّر',
     devBuildRequiredMessage: 'تتطلب الدردشة الصوتية والمرئية وحدات WebRTC الأصلية غير المتوفرة في هذا الإصدار.',
+    // Task #648 — text chat
+    title: 'دردشة',
+    placeholder: 'اكتب رسالة…',
+    send: 'إرسال',
+    noMessages: 'لا رسائل بعد. قل مرحبًا!',
+    cooldown: 'انتظر…',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1911,6 +1929,12 @@ const de: Translations = {
     voiceConnectFailedMessage: 'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
     devBuildRequiredTitle: 'Dev-Build erforderlich',
     devBuildRequiredMessage: 'Sprach- und Video-Chat erfordern native WebRTC-Module, die in diesem Build nicht verfügbar sind.',
+    // Task #648 — text chat
+    title: 'Chat',
+    placeholder: 'Nachricht eingeben…',
+    send: 'Senden',
+    noMessages: 'Noch keine Nachrichten. Sag Hallo!',
+    cooldown: 'Warten…',
   },
   gameSelection: {
     welcome: 'Willkommen,',

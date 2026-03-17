@@ -10,3 +10,4 @@ export { GameControls } from './GameControls';
 export { GameLayout } from './GameLayout';
 export { VideoTile } from './VideoTile';
 export { LiveKitVideoSlot, isVideoTrackAvailable } from './LiveKitVideoSlot';
+export { ChatDrawer } from './ChatDrawer';
