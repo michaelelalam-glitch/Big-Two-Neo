@@ -650,6 +650,13 @@ export function useVideoChat({
           setIsLocalCameraOn(false);
           setIsLocalMicOn(false);
           setRemoteParticipants([]);
+          // Alert the user so the toggle reverting to off is not silent/confusing.
+          if (Platform.OS === 'ios' || Platform.OS === 'android') {
+            Alert.alert(
+              i18n.t('chat.connectFailedTitle'),
+              i18n.t('chat.connectFailedMessage'),
+            );
+          }
         }
       } else if (!isLocalCameraOn) {
         // ── Upgrade: voice-only → video — enable camera without disconnecting ──
@@ -768,6 +775,13 @@ export function useVideoChat({
           setIsChatConnected(false);
           setIsLocalMicOn(false);
           setRemoteParticipants([]);
+          // Alert the user so the toggle reverting to off is not silent/confusing.
+          if (Platform.OS === 'ios' || Platform.OS === 'android') {
+            Alert.alert(
+              i18n.t('chat.connectFailedTitle'),
+              i18n.t('chat.voiceConnectFailedMessage'),
+            );
+          }
         }
       } else {
         // ── Opt-out (voice was on, camera was off) ─────────────────────────
