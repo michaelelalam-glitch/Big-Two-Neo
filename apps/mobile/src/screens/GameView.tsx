@@ -144,6 +144,16 @@ function GameViewComponent() {
     [enrichedBaseData, remotePlayerIds, isChatConnected, isMultiplayerGame, getVideoTrackRef],
   );
 
+  // Step 3: Precompute local player video slot so it is not re-created on every
+  // render via an inline IIFE in JSX (Copilot PR-149 r2946299470).
+  const localVideoSlot = useMemo(() => {
+    if (!(isMultiplayerGame && isChatConnected && isLocalCameraOn)) return undefined;
+    const localRef = getVideoTrackRef('__local__');
+    return localRef
+      ? <LiveKitVideoSlot trackRef={localRef} mirror={true} zOrder={1} />
+      : undefined;
+  }, [isMultiplayerGame, isChatConnected, isLocalCameraOn, getVideoTrackRef]);
+
   // Performance profiling callback (Task #430)
   const onRenderCallback: React.ProfilerOnRenderCallback = (
     id,
@@ -362,16 +372,7 @@ function GameViewComponent() {
                 isMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
-                videoStreamSlot={
-                  isMultiplayerGame && isChatConnected && isLocalCameraOn
-                    ? (() => {
-                        const localRef = getVideoTrackRef('__local__');
-                        return localRef
-                          ? <LiveKitVideoSlot trackRef={localRef} mirror={true} zOrder={1} />
-                          : undefined;
-                      })()
-                    : undefined
-                }
+                videoStreamSlot={localVideoSlot}
               />
             </View>
 
