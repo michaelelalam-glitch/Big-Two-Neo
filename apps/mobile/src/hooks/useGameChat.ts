@@ -18,8 +18,9 @@ const MAX_MESSAGES = 100;
 const COOLDOWN_MS = 2_000;
 
 export interface UseGameChatOptions {
-  /** Ref to the Supabase Realtime channel for the room. */
-  channelRef: React.MutableRefObject<RealtimeChannel | null>;
+  /** Reactive Supabase Realtime channel from useRealtime.
+   *  When this changes (joinChannel called), the subscription is re-attached. */
+  channel: RealtimeChannel | null;
   /** Current user's Supabase ID. */
   userId: string;
   /** Current user's display name. */
@@ -43,7 +44,7 @@ function nextId(): string {
 }
 
 export function useGameChat({
-  channelRef,
+  channel,
   userId,
   username,
   isDrawerOpen,
@@ -53,7 +54,13 @@ export function useGameChat({
   const [isCooldown, setIsCooldown] = useState(false);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSentRef = useRef(0);
+  // Keep userId and isDrawerOpen in refs so the broadcast handler can read
+  // them without being listed as useEffect deps (which would cause handler
+  // accumulation when they change while the same channel is active).
+  const userIdRef = useRef(userId);
   const isDrawerOpenRef = useRef(isDrawerOpen);
+
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   // Keep ref in sync so the broadcast handler can check without stale closure.
   useEffect(() => {
@@ -68,10 +75,11 @@ export function useGameChat({
     };
   }, []);
 
-  // Derive channel from ref so subscription re-runs when it becomes available.
-  const channel = channelRef.current;
-
   // Subscribe to chat_message broadcast events.
+  // Depends ONLY on `channel` so the effect only re-runs when the channel
+  // instance changes (reconnect). userId / isDrawerOpen are read from refs
+  // inside the handler to avoid accumulating duplicate handlers on every
+  // re-render that merely changes those values.
   useEffect(() => {
     if (!channel) return;
 
@@ -88,7 +96,7 @@ export function useGameChat({
       });
 
       // Increment unread if drawer is closed and message is from someone else.
-      if (!isDrawerOpenRef.current && msg.user_id !== userId) {
+      if (!isDrawerOpenRef.current && msg.user_id !== userIdRef.current) {
         setUnreadCount((c) => c + 1);
       }
     };
@@ -96,11 +104,12 @@ export function useGameChat({
     channel.on('broadcast', { event: 'chat_message' }, handler);
 
     return () => {
-      // Supabase JS v2 doesn't expose a per-event unsubscribe, but removing
-      // channel listeners is handled when the channel itself is unsubscribed
-      // (which happens in useRealtime cleanup). No-op here is safe.
+      // Supabase JS v2 doesn't expose a per-event unsubscribe, but channel
+      // listener cleanup is handled by useRealtime when it unsubscribes the
+      // entire channel. Because the effect only re-runs on channel change
+      // (not on userId/isDrawerOpen changes), handlers won't accumulate.
     };
-  }, [channel, userId]);
+  }, [channel]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -110,7 +119,6 @@ export function useGameChat({
       const now = Date.now();
       if (now - lastSentRef.current < COOLDOWN_MS) return;
 
-      const channel = channelRef.current;
       if (!channel) return;
 
       lastSentRef.current = now;
@@ -144,7 +152,7 @@ export function useGameChat({
           gameLogger.error('[useGameChat] Failed to send chat message:', err);
         });
     },
-    [channelRef, userId, username],
+    [channel, userId, username],
   );
 
   return { messages, sendMessage, unreadCount, isCooldown };

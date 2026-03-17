@@ -6,6 +6,8 @@
  * used only by Edge Functions for game logic.
  */
 
+import type { ChatMessage } from './chat';
+
 /** Per-match score entry persisted in game_state.scores_history by play-cards EF */
 export interface ScoresHistoryEntry {
   match_number: number;
@@ -219,7 +221,7 @@ export type BroadcastData =
   | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
   | { player_index: number }  // auto_pass_executed
-  | { id: string; user_id: string; username: string; message: string; created_at: string };  // chat_message (#648)
+  | ChatMessage;  // chat_message (#648) — use shared type to avoid shape drift
 
 export interface BroadcastPayload {
   event: BroadcastEvent;
@@ -265,6 +267,9 @@ export interface UseRealtimeReturn {
   /** Force-refetch game state from the DB. Use to re-sync after a stale-state
    *  error (e.g. "Not your turn" caused by Realtime propagation lag). */
   refreshGameState: () => Promise<void>;
+  /** Reactive channel state — becomes non-null after joinChannel resolves.
+   *  Changing this value triggers re-subscription in useGameChat (Task #648). */
+  channel: import('@supabase/supabase-js').RealtimeChannel | null;
   /** Ref to the Supabase Realtime channel for this room (Task #648: chat). */
   channelRef: React.MutableRefObject<import('@supabase/supabase-js').RealtimeChannel | null>;
 }

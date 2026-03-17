@@ -161,6 +161,7 @@ export function MultiplayerGame() {
     isAutoPassInProgress,
     playerLastSeenAtRef,
     refreshGameState,
+    channel: realtimeChannel,
     channelRef,
   } = useRealtime({
     userId: user?.id || '',
@@ -789,7 +790,7 @@ export function MultiplayerGame() {
     unreadCount: chatUnreadCount,
     isCooldown: isChatCooldown,
   } = useGameChat({
-    channelRef,
+    channel: realtimeChannel,
     userId: user?.id || '',
     username: currentPlayerName,
     isDrawerOpen: isChatDrawerOpen,
