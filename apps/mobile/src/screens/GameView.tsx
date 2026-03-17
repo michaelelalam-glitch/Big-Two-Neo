@@ -117,24 +117,32 @@ function GameViewComponent() {
     [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected],
   );
 
-  // Step 2: Inject video stream slots without memoisation so that
-  // getVideoTrackRef() is called on every render. This ensures TrackReferences
-  // stay current across track re-subscribe / re-publish events that do not toggle
-  // isCameraOn (Copilot PR-146 r2939279841 — stale trackRef inside useMemo).
-  const enrichedRemotePlayers = enrichedBaseData.map((p, idx) => {
-    if (idx === 0) return p;
-    const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
-    const trackRef =
-      isMultiplayerGame && isChatConnected && p.isCameraOn && remoteParticipantId
-        ? getVideoTrackRef(remoteParticipantId)
-        : undefined;
-    return {
-      ...p,
-      videoStreamSlot: trackRef
-        ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
-        : undefined,
-    };
-  });
+  // Step 2: Memoize video stream slot injection so timer ticks and other
+  // unrelated renders do not allocate a new players array on every frame
+  // (Copilot PR-146 r2943651654). Fresh TrackReferences are still obtained
+  // on each recompute because:
+  //   • enrichedBaseData (dep) recomputes whenever remoteParticipants changes
+  //     (via remoteCameraStates → participants chain), so re-publish events
+  //     naturally propagate through the chain and trigger a recompute here.
+  //   • getVideoTrackRef is stable (useCallback[adapterProp]) and only
+  //     changes when the adapter is hot-swapped.
+  const enrichedRemotePlayers = useMemo(
+    () => enrichedBaseData.map((p, idx) => {
+      if (idx === 0) return p;
+      const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
+      const trackRef =
+        isMultiplayerGame && isChatConnected && p.isCameraOn && remoteParticipantId
+          ? getVideoTrackRef(remoteParticipantId)
+          : undefined;
+      return {
+        ...p,
+        videoStreamSlot: trackRef
+          ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
+          : undefined,
+      };
+    }),
+    [enrichedBaseData, remotePlayerIds, isChatConnected, isMultiplayerGame, getVideoTrackRef],
+  );
 
   // Performance profiling callback (Task #430)
   const onRenderCallback: React.ProfilerOnRenderCallback = (
