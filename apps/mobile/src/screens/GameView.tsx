@@ -9,7 +9,7 @@
  */
 import React, { Profiler, useMemo } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot } from '../components/game';
+import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot, ChatDrawer } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
@@ -86,6 +86,14 @@ function GameViewComponent() {
     isAudioConnecting,
     getVideoTrackRef,
     remotePlayerIds,
+    // Task #648: in-game text chat
+    chatMessages,
+    sendChatMessage,
+    chatUnreadCount,
+    isChatCooldown,
+    isChatDrawerOpen,
+    toggleChatDrawer,
+    localUserId,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -441,6 +449,19 @@ function GameViewComponent() {
           onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
           onToggleMic={isMultiplayerGame ? toggleMic : undefined}
         />
+
+        {/* Task #648: In-game text chat drawer (multiplayer only) */}
+        {isMultiplayerGame && (
+          <ChatDrawer
+            messages={chatMessages}
+            sendMessage={sendChatMessage}
+            unreadCount={chatUnreadCount}
+            isCooldown={isChatCooldown}
+            isOpen={isChatDrawerOpen}
+            onToggle={toggleChatDrawer}
+            localUserId={localUserId}
+          />
+        )}
       </View>
     </Profiler>
   );

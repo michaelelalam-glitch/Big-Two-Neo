@@ -187,7 +187,8 @@ export type BroadcastEvent =
   | 'auto_pass_timer_started'  // New: Timer started for highest play
   | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
   | 'auto_pass_executed'  // New: Auto-pass executed after timer expired
-  | 'turn_auto_played';  // New: Turn inactivity auto-play executed
+  | 'turn_auto_played'  // New: Turn inactivity auto-play executed
+  | 'chat_message';  // Task #648: In-game text chat message
 
 /**
  * Score detail for a single player in a multiplayer match.
@@ -217,7 +218,8 @@ export type BroadcastData =
   | { user_id: string }  // reconnected
   | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
-  | { player_index: number };  // auto_pass_executed
+  | { player_index: number }  // auto_pass_executed
+  | { user_id: string; username: string; message: string; created_at: string };  // chat_message (#648)
 
 export interface BroadcastPayload {
   event: BroadcastEvent;
@@ -263,6 +265,8 @@ export interface UseRealtimeReturn {
   /** Force-refetch game state from the DB. Use to re-sync after a stale-state
    *  error (e.g. "Not your turn" caused by Realtime propagation lag). */
   refreshGameState: () => Promise<void>;
+  /** Ref to the Supabase Realtime channel for this room (Task #648: chat). */
+  channelRef: React.MutableRefObject<import('@supabase/supabase-js').RealtimeChannel | null>;
 }
 
 // Realtime channel events

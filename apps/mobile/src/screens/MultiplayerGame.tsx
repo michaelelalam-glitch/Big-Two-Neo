@@ -47,6 +47,7 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
+import { useGameChat } from '../hooks/useGameChat';
 import { i18n } from '../i18n';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
@@ -160,6 +161,7 @@ export function MultiplayerGame() {
     isAutoPassInProgress,
     playerLastSeenAtRef,
     refreshGameState,
+    channelRef,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
@@ -777,6 +779,22 @@ export function MultiplayerGame() {
     });
   }, [layoutPlayers, effectiveMultiplayerPlayers]);
 
+  // ── Task #648: In-game text chat ──────────────────────────────────────
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
+  const toggleChatDrawer = useCallback(() => setIsChatDrawerOpen(prev => !prev), []);
+
+  const {
+    messages: chatMessages,
+    sendMessage: sendChatMessage,
+    unreadCount: chatUnreadCount,
+    isCooldown: isChatCooldown,
+  } = useGameChat({
+    channelRef,
+    userId: user?.id || '',
+    username: currentPlayerName,
+    isDrawerOpen: isChatDrawerOpen,
+  });
+
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
   // actually changes (H2 + H4 audit fix).
@@ -845,6 +863,14 @@ export function MultiplayerGame() {
       isAudioConnecting,
       remotePlayerIds,
       getVideoTrackRef,
+      // Task #648: in-game text chat
+      chatMessages,
+      sendChatMessage,
+      chatUnreadCount,
+      isChatCooldown,
+      isChatDrawerOpen,
+      toggleChatDrawer,
+      localUserId: user?.id || '',
     }),
     [
       currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
@@ -866,6 +892,8 @@ export function MultiplayerGame() {
       toggleVideoChat, toggleVoiceChat, toggleCamera, toggleMic,
       isVideoChatConnecting, isAudioConnecting,
       remotePlayerIds, getVideoTrackRef,
+      chatMessages, sendChatMessage, chatUnreadCount, isChatCooldown,
+      isChatDrawerOpen, toggleChatDrawer,
     ],
   );
 

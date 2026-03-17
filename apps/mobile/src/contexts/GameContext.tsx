@@ -175,6 +175,22 @@ export interface GameContextType {
    * (Expo Go / stub adapter) or when no camera publication is available.
    */
   getVideoTrackRef: (participantId: string | '__local__') => LiveKitTrackRef | undefined;
+
+  // ── Task #648: in-game text chat ──────────────────────────────────────
+  /** Chat messages received during this game session. */
+  chatMessages: import('../types/chat').ChatMessage[];
+  /** Send a text chat message (profanity-filtered, rate-limited). */
+  sendChatMessage: (text: string) => void;
+  /** Number of unread chat messages (resets when drawer opens). */
+  chatUnreadCount: number;
+  /** True during the 2-second post-send cooldown. */
+  isChatCooldown: boolean;
+  /** Whether the chat drawer is currently open. */
+  isChatDrawerOpen: boolean;
+  /** Toggle the chat drawer open/closed. */
+  toggleChatDrawer: () => void;
+  /** Current user's Supabase ID (for identifying own chat messages). */
+  localUserId: string;
 }
 
 // ---------------------------------------------------------------------------
