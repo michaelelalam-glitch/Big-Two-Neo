@@ -135,7 +135,7 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 6 — Deploy Edge Function & Secrets � IN PROGRESS
+## Phase 6 — Deploy Edge Function & Secrets 🔄 IN PROGRESS
 **Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn`
 
 ### What needs to happen
