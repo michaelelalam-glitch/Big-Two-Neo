@@ -81,6 +81,7 @@ export interface Translations {
     openSettings: string;
     connectFailedTitle: string;
     connectFailedMessage: string;
+    voiceConnectFailedTitle: string;
     voiceConnectFailedMessage: string;
   };
 
@@ -722,6 +723,7 @@ const en: Translations = {
     openSettings: 'Open Settings',
     connectFailedTitle: 'Video Chat Unavailable',
     connectFailedMessage: 'Could not connect to the video chat room. Please check your connection and try again.',
+    voiceConnectFailedTitle: 'Voice Chat Unavailable',
     voiceConnectFailedMessage: 'Could not connect to the voice chat room. Please check your connection and try again.',
   },
   gameSelection: {
@@ -1295,6 +1297,7 @@ const ar: Translations = {
     openSettings: 'فتح الإعدادات',
     connectFailedTitle: 'الدردشة المرئية غير متاحة',
     connectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة المرئية. تحقق من اتصالك وأعد المحاولة.',
+    voiceConnectFailedTitle: 'الدردشة الصوتية غير متاحة',
     voiceConnectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة الصوتية. تحقق من اتصالك وأعد المحاولة.',
   },
   gameSelection: {
@@ -1898,6 +1901,7 @@ const de: Translations = {
     openSettings: 'Einstellungen öffnen',
     connectFailedTitle: 'Video-Chat nicht verfügbar',
     connectFailedMessage: 'Verbindung zum Video-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
+    voiceConnectFailedTitle: 'Sprach-Chat nicht verfügbar',
     voiceConnectFailedMessage: 'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
   },
   gameSelection: {
