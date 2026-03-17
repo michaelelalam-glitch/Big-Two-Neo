@@ -1152,7 +1152,7 @@ describe('useVideoChat — toggleVoiceChat (voice-only join/leave)', () => {
     // User must be informed — Alert shown with the connect-failed i18n key
     expect(Alert.alert).toHaveBeenCalledTimes(1);
     const [title] = (Alert.alert as jest.Mock).mock.calls[0];
-    expect(title).toBe(i18n.t('chat.connectFailedTitle'));
+    expect(title).toBe(i18n.t('chat.voiceConnectFailedTitle'));
   });
 });
 

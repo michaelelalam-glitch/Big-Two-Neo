@@ -778,7 +778,7 @@ export function useVideoChat({
           // Alert the user so the toggle reverting to off is not silent/confusing.
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
             Alert.alert(
-              i18n.t('chat.connectFailedTitle'),
+              i18n.t('chat.voiceConnectFailedTitle'),
               i18n.t('chat.voiceConnectFailedMessage'),
             );
           }
