@@ -22,6 +22,12 @@ function createMockChannel() {
       const key = `broadcast:${event}`;
       (handlers[key] ?? []).forEach((h) => h({ data }));
     },
+    // Helper to emit a raw payload object — used to test the fallback
+    // `payload.payload.data` shape (Copilot PR-150 r2950068913).
+    _emitRaw(event: string, rawPayload: unknown) {
+      const key = `broadcast:${event}`;
+      (handlers[key] ?? []).forEach((h) => h(rawPayload));
+    },
   };
 }
 
@@ -197,5 +203,50 @@ describe('useGameChat', () => {
     });
 
     expect(result.current.messages.length).toBeLessThanOrEqual(100);
+  });
+
+  it('receives messages via nested payload.payload.data shape (fallback)', () => {
+    // Covers the fallback branch in the receive handler where Supabase delivers
+    // `{ payload: { data: msg } }` instead of `{ data: msg }` directly
+    // (Copilot PR-150 r2950068913).
+    const { result } = renderHook(() => useGameChat(defaultProps()));
+
+    act(() => {
+      channelRef.current!._emitRaw('chat_message', {
+        // No top-level `data` — only the nested shape
+        payload: {
+          data: {
+            id: 'nested-1',
+            user_id: 'user-2',
+            username: 'Carol',
+            message: 'nested payload',
+            created_at: new Date().toISOString(),
+          },
+        },
+      });
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0].username).toBe('Carol');
+  });
+
+  it('deduplicates messages with the same id', () => {
+    // Prevents optimistic-add + broadcast-echo from creating duplicates
+    // (Copilot PR-150 r2950068891).
+    const { result } = renderHook(() => useGameChat(defaultProps()));
+    const msg = {
+      id: 'dup-1',
+      user_id: 'user-2',
+      username: 'Dave',
+      message: 'hello',
+      created_at: new Date().toISOString(),
+    };
+
+    act(() => {
+      channelRef.current!._emit('chat_message', msg);
+      channelRef.current!._emit('chat_message', msg); // duplicate
+    });
+
+    expect(result.current.messages).toHaveLength(1);
   });
 });

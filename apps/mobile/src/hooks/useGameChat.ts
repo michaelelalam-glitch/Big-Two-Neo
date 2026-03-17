@@ -87,10 +87,23 @@ export function useGameChat({
     // callback argument (i.e., `payload = { data: msg }`). Fall back to the
     // nested `payload.payload.data` shape for forwards-compat robustness.
     const handler = (payload: { data?: ChatMessage; payload?: { data?: ChatMessage } }) => {
-      const msg = payload?.data ?? payload?.payload?.data;
-      if (!msg || !msg.id || !msg.user_id || !msg.message) return;
+      const raw = payload?.data ?? payload?.payload?.data;
+      if (!raw || !raw.id || !raw.user_id || !raw.message) return;
+
+      // Normalise potentially-missing fields that ChatDrawer uses directly.
+      // created_at: `new Date(x).toLocaleTimeString` throws on invalid strings
+      //   (Copilot PR-150 r2950068886) — fall back to now if absent/invalid.
+      // username: fall back to user_id so bubbles always display a name.
+      const created_at =
+        raw.created_at && !Number.isNaN(Date.parse(raw.created_at))
+          ? raw.created_at
+          : new Date().toISOString();
+      const msg: ChatMessage = { ...raw, username: raw.username || raw.user_id, created_at };
 
       setMessages((prev) => {
+        // Deduplicate: optimistic local add + broadcast echo can create duplicates
+        // (Copilot PR-150 r2950068891).
+        if (prev.some((m) => m.id === msg.id)) return prev;
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });

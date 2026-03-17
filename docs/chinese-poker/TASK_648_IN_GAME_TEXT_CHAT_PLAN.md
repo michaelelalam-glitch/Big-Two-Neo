@@ -50,12 +50,12 @@ Add real-time text chat during multiplayer games via **Supabase Realtime broadca
 
 ### Phase 4: Chat Drawer UI
 
-6. **Create `src/components/game/ChatDrawer.tsx`** — animated bottom drawer:
-   - Collapsed state: thin bar with chat icon + unread badge
-   - Expanded state: message list + text input
-   - Drag-to-open/close using `react-native-gesture-handler` PanGesture
-   - Animated height using `react-native-reanimated` shared values
-   - `<FlatList>` for messages (inverted, newest at bottom)
+6. **Create `src/components/game/ChatDrawer.tsx`** — top-overlay panel (slides down from y=0):
+   - Activated by the 💬 icon in the game HUD (portrait) or landscape overlay button
+   - `isOpen=true` animates panel down to `PANEL_TOP=110`; `isOpen=false` hides fully above y=0
+   - Drag-to-close (swipe-up ≥ 30 px) via `react-native-gesture-handler` PanGesture scoped to header
+   - `react-native-reanimated` shared translateY drives the slide animation
+   - `<FlatList>` for messages, auto-scrolls to newest message
    - Text input with send button, disabled during cooldown
    - Each message bubble: username, text, timestamp
    - Different styling for own messages vs others
@@ -114,7 +114,7 @@ Add real-time text chat during multiplayer games via **Supabase Realtime broadca
 | `src/types/chat.ts` | CREATE | `ChatMessage` interface |
 | `src/hooks/useGameChat.ts` | CREATE | Chat hook (send, receive, rate limit) |
 | `src/utils/profanityFilter.ts` | CREATE | Client-side profanity filter |
-| `src/components/game/ChatDrawer.tsx` | CREATE | Animated bottom drawer UI |
+| `src/components/game/ChatDrawer.tsx` | CREATE | Top-overlay panel (slides down from y=0) |
 | `src/components/game/index.ts` | EDIT | Export `ChatDrawer` |
 | `src/hooks/useRealtime.ts` | EDIT | Expose `channelRef` in return value |
 | `src/screens/MultiplayerGame.tsx` | EDIT | Wire `useGameChat`, pass to context |
