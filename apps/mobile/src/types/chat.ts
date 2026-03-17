@@ -3,7 +3,7 @@
  */
 
 export interface ChatMessage {
-  /** Unique message ID (uuid generated client-side) */
+  /** Unique message ID (timestamp + sequence, generated client-side) */
   id: string;
   /** Supabase user ID of the sender */
   user_id: string;

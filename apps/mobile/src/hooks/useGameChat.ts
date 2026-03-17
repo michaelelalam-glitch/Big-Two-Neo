@@ -5,7 +5,7 @@
  * and exposes a `sendMessage` function with profanity filtering + rate limiting.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '../types/chat';
 import { filterMessage } from '../utils/profanityFilter';
@@ -51,6 +51,7 @@ export function useGameChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isCooldown, setIsCooldown] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSentRef = useRef(0);
   const isDrawerOpenRef = useRef(isDrawerOpen);
 
@@ -60,9 +61,18 @@ export function useGameChat({
     if (isDrawerOpen) setUnreadCount(0);
   }, [isDrawerOpen]);
 
+  // Clean up cooldown timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    };
+  }, []);
+
+  // Derive channel from ref so subscription re-runs when it becomes available.
+  const channel = channelRef.current;
+
   // Subscribe to chat_message broadcast events.
   useEffect(() => {
-    const channel = channelRef.current;
     if (!channel) return;
 
     const handler = (payload: { payload?: { data?: ChatMessage } }) => {
@@ -87,7 +97,7 @@ export function useGameChat({
       // channel listeners is handled when the channel itself is unsubscribed
       // (which happens in useRealtime cleanup). No-op here is safe.
     };
-  }, [channelRef, userId]);
+  }, [channel, userId]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -102,7 +112,8 @@ export function useGameChat({
 
       lastSentRef.current = now;
       setIsCooldown(true);
-      setTimeout(() => setIsCooldown(false), COOLDOWN_MS);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => setIsCooldown(false), COOLDOWN_MS);
 
       const filtered = filterMessage(trimmed);
 
