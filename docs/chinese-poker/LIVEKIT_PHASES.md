@@ -114,7 +114,9 @@ eas build --profile developmentDevice --platform android
 ---
 
 ## Phase 5 — Video Track Rendering (See Each Other) ✅ DONE
-**Branch:** `feature/649-651-livekit-phase5-video-rendering`
+**PR:** [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)  
+**Branch:** `feature/649-651-livekit-phase5-video-rendering` (merged → `game/chinese-poker`)  
+**Commits:** `65f1e74` → `3688d09`
 
 ### What was done
 - Added `LiveKitTrackRef` interface (SDK-agnostic structural mirror of `TrackReference`) to `useVideoChat.ts`
@@ -133,7 +135,8 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 6 — Deploy Edge Function & Secrets 🔲 TODO
+## Phase 6 — Deploy Edge Function & Secrets � IN PROGRESS
+**Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn`
 
 ### What needs to happen
 - Set Supabase project secrets (production + staging):
@@ -149,6 +152,25 @@ eas build --profile developmentDevice --platform android
 - Verify the function is reachable from the app via `supabase.functions.invoke('get-livekit-token', ...)`
 - Set up a LiveKit Cloud project if not already done (free tier supports development)
 - Add CORS header to edge function response if needed for local testing
+
+### What was done (code)
+- **`apps/mobile/scripts/deploy-livekit-edge-function.sh`** — dedicated deployment script that:
+  - Deploys `get-livekit-token` via Supabase CLI
+  - Sets `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL` secrets in one step
+  - Runs an optional curl smoke-test (set `VERIFY_AUTH_TOKEN` env var to enable)
+  - Supports `SKIP_SECRETS=1` and `SKIP_VERIFY=1` flags for partial re-deploys
+  - Reads project ref from `supabase/.temp/project-ref` if `SUPABASE_PROJECT_REF` is not set
+- **`apps/mobile/supabase/functions/get-livekit-token/.env.local.example`** — documents the three required secrets with setup instructions for local dev, CLI, and Dashboard
+- **`deploy-edge-functions.sh`** updated to include `get-livekit-token` in the full-suite deploy
+
+### Deploy command (one-shot)
+```bash
+# From repo root:
+LIVEKIT_API_KEY=<key> \
+LIVEKIT_API_SECRET=<secret> \
+LIVEKIT_URL=wss://<project>.livekit.cloud \
+bash apps/mobile/scripts/deploy-livekit-edge-function.sh
+```
 
 ### Definition of done
 - `curl` to the deployed function with a valid auth token returns a signed JWT
@@ -185,10 +207,10 @@ eas build --profile developmentDevice --platform android
 | 2 | Real adapter + Edge Function + voice-only mode (PR #140) | ✅ Done |
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
 | 4 | Permission UX — camera & microphone OS dialogs | ✅ Done (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
-| 5 | Video track rendering — `<VideoView>` in player avatars | 🔲 Todo |
-| 6 | Deploy Edge Function & set production LiveKit secrets | 🔲 Todo |
+| 5 | Video track rendering — `<VideoView>` in player avatars | ✅ Done (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)) |
+| 6 | Deploy Edge Function & set production LiveKit secrets | 🔄 In Progress (PR pending) |
 | 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
 
 ---
 
-_Last updated: Phase 4 complete — PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145) merged; 49/49 useVideoChat tests passing_
+_Last updated: Phase 5 merged (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)); Phase 6 in progress — deploy script + secrets example added_
