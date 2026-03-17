@@ -5,7 +5,7 @@
  * and exposes a `sendMessage` function with profanity filtering + rate limiting.
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '../types/chat';
 import { filterMessage } from '../utils/profanityFilter';
@@ -75,8 +75,11 @@ export function useGameChat({
   useEffect(() => {
     if (!channel) return;
 
-    const handler = (payload: { payload?: { data?: ChatMessage } }) => {
-      const msg = payload?.payload?.data;
+    // Supabase broadcast delivers the sent `payload` object directly as the
+    // callback argument (i.e., `payload = { data: msg }`). Fall back to the
+    // nested `payload.payload.data` shape for forwards-compat robustness.
+    const handler = (payload: { data?: ChatMessage; payload?: { data?: ChatMessage } }) => {
+      const msg = payload?.data ?? payload?.payload?.data;
       if (!msg || !msg.id || !msg.user_id || !msg.message) return;
 
       setMessages((prev) => {
