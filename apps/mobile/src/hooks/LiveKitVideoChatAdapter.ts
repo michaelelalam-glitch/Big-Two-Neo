@@ -190,17 +190,34 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       await _AudioSession.startAudioSession();
     }
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
-    await this.room.connect(data.livekitUrl, data.token);
+    try {
+      await this.room.connect(data.livekitUrl, data.token);
+    } catch (connectErr) {
+      // connect() failed — stop the audio session we just started so it does
+      // not stay active after a failed join attempt.
+      if (_AudioSession) {
+        await _AudioSession.stopAudioSession().catch(stopErr =>
+          gameLogger.warn('[LiveKit] stopAudioSession (connect-failure cleanup) error:', stopErr instanceof Error ? stopErr.message : String(stopErr))
+        );
+      }
+      throw connectErr;
+    }
     gameLogger.info('[LiveKit] Connected.');
   }
 
   async disconnect(): Promise<void> {
-    await this.room.disconnect();
-    gameLogger.info('[LiveKit] Disconnected.');
-    // iOS: deactivate AVAudioSession so other apps (e.g. music player) can
-    // resume audio after the chat session ends. Safe to call on Android.
-    if (_AudioSession) {
-      await _AudioSession.stopAudioSession();
+    try {
+      await this.room.disconnect();
+      gameLogger.info('[LiveKit] Disconnected.');
+    } finally {
+      // iOS: deactivate AVAudioSession so other apps (e.g. music player) can
+      // resume audio after the chat session ends. Safe to call on Android.
+      // Uses try/finally so teardown happens even if disconnect() rejects.
+      if (_AudioSession) {
+        await _AudioSession.stopAudioSession().catch(e =>
+          gameLogger.warn('[LiveKit] stopAudioSession error (ignored):', e instanceof Error ? e.message : String(e))
+        );
+      }
     }
   }
 

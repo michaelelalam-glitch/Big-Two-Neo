@@ -5,6 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -696,8 +697,8 @@ export function MultiplayerGame() {
     isLocalCameraOn,
     isLocalMicOn,
     remoteParticipants,
-    toggleVideoChat,
-    toggleVoiceChat,
+    toggleVideoChat: _toggleVideoChat,
+    toggleVoiceChat: _toggleVoiceChat,
     toggleCamera,
     toggleMic,
     isConnecting: isVideoChatConnecting,
@@ -708,6 +709,30 @@ export function MultiplayerGame() {
     userId:  user?.id,
     adapter: videoChatAdapter,
   });
+
+  // Expo Go guard: LiveKit requires native WebRTC modules that are not bundled
+  // with Expo Go. Show a clear alert instead of silently doing nothing.
+  const toggleVideoChat = useCallback(async () => {
+    if (isExpoGo) {
+      Alert.alert(
+        'Dev Build Required',
+        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development',
+      );
+      return;
+    }
+    await _toggleVideoChat();
+  }, [_toggleVideoChat]);
+
+  const toggleVoiceChat = useCallback(async () => {
+    if (isExpoGo) {
+      Alert.alert(
+        'Dev Build Required',
+        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development',
+      );
+      return;
+    }
+    await _toggleVoiceChat();
+  }, [_toggleVoiceChat]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.

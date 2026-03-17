@@ -74,7 +74,8 @@ tags:
 - tapOn:
     id: "settings-button"
 - extendedWaitUntil:
-    visible: "🎙️"
+    visible:
+      id: "mic-toggle-button"
     timeout: 8000
 - assertVisible:
     label: "Microphone, Off \u2014 Join Voice Chat"
