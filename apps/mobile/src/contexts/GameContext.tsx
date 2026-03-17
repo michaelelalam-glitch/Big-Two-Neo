@@ -10,6 +10,7 @@
  */
 import React, { createContext, useContext } from 'react';
 import type { Card } from '../game/types';
+import type { ChatMessage } from '../types/chat';
 import type { GameStateManager } from '../game/state';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { AutoPassTimerState } from '../types/multiplayer';
@@ -178,7 +179,7 @@ export interface GameContextType {
 
   // ── Task #648: in-game text chat ──────────────────────────────────────
   /** Chat messages received during this game session. */
-  chatMessages: import('../types/chat').ChatMessage[];
+  chatMessages: ChatMessage[];
   /** Send a text chat message (profanity-filtered, rate-limited). */
   sendChatMessage: (text: string) => void;
   /** Number of unread chat messages (resets when drawer opens). */

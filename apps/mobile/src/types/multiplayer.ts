@@ -271,7 +271,7 @@ export interface UseRealtimeReturn {
    *  Changing this value triggers re-subscription in useGameChat (Task #648). */
   channel: import('@supabase/supabase-js').RealtimeChannel | null;
   /** Ref to the Supabase Realtime channel for this room (Task #648: chat). */
-  channelRef: React.MutableRefObject<import('@supabase/supabase-js').RealtimeChannel | null>;
+  channelRef: { current: import('@supabase/supabase-js').RealtimeChannel | null };
 }
 
 // Realtime channel events

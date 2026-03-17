@@ -162,7 +162,6 @@ export function MultiplayerGame() {
     playerLastSeenAtRef,
     refreshGameState,
     channel: realtimeChannel,
-    channelRef,
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,

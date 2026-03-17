@@ -36,7 +36,7 @@ describe('useGameChat', () => {
   });
 
   const defaultProps = () => ({
-    channelRef: channelRef as unknown as React.MutableRefObject<null>,
+    channel: channelRef.current as unknown as import('@supabase/supabase-js').RealtimeChannel | null,
     userId: 'user-1',
     username: 'Alice',
     isDrawerOpen: true,
