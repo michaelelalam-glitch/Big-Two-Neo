@@ -90,15 +90,14 @@ function GameViewComponent() {
 
   const isMultiplayerGame = !isLocalAIGame;
 
-  // Memoize the enriched remote-player array passed to GameLayout so that a new
-  // array reference is only created when the underlying data actually changes.
-  // Without this, the inline .map() in JSX allocates new objects every render,
-  // defeating React.memo on GameLayout and PlayerInfo (Copilot PR-146 r2939676099).
-  const enrichedRemotePlayers = useMemo(
+  // Step 1: Memoize the stable per-player boolean state so that unrelated renders
+  // (e.g. timer ticks) do not cause unnecessary GameLayout / PlayerInfo re-renders.
+  // videoStreamSlot is intentionally NOT computed here — see step 2 below.
+  // (Copilot PR-146 r2939676099 — avoid allocating a new array on every render.)
+  const enrichedBaseData = useMemo(
     () =>
       layoutPlayersWithScores.map((p, idx) => {
         if (idx === 0) return p; // local player rendered separately below
-        // Build per-remote-player video chat state and video stream slot.
         // `idx` is the display-position index (1=top, 2=left, 3=right);
         // `p.player_index` is the underlying game-seat index (not display order).
         // remotePlayerIds[idx-1] is the userId for display position idx,
@@ -106,14 +105,6 @@ function GameViewComponent() {
         const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
         const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
         const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
-        // Build the video stream slot only when camera is on and we have a
-        // userId to look up the track reference.
-        const trackRef = (isMultiplayerGame && isChatConnected && cameraState?.isCameraOn && remoteParticipantId)
-          ? getVideoTrackRef(remoteParticipantId)
-          : undefined;
-        const videoSlot = trackRef
-          ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
-          : undefined;
         return {
           ...p,
           isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
@@ -121,11 +112,29 @@ function GameViewComponent() {
           // isVideoChatConnecting is intentionally omitted for remote players:
           // PlayerInfo ignores it for non-local participants. When remote-player
           // connecting state becomes user-visible, pass it here and update PlayerInfo.
-          videoStreamSlot: videoSlot,
         };
       }),
-    [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected, getVideoTrackRef],
+    [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected],
   );
+
+  // Step 2: Inject video stream slots without memoisation so that
+  // getVideoTrackRef() is called on every render. This ensures TrackReferences
+  // stay current across track re-subscribe / re-publish events that do not toggle
+  // isCameraOn (Copilot PR-146 r2939279841 — stale trackRef inside useMemo).
+  const enrichedRemotePlayers = enrichedBaseData.map((p, idx) => {
+    if (idx === 0) return p;
+    const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
+    const trackRef =
+      isMultiplayerGame && isChatConnected && p.isCameraOn && remoteParticipantId
+        ? getVideoTrackRef(remoteParticipantId)
+        : undefined;
+    return {
+      ...p,
+      videoStreamSlot: trackRef
+        ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
+        : undefined,
+    };
+  });
 
   // Performance profiling callback (Task #430)
   const onRenderCallback: React.ProfilerOnRenderCallback = (
