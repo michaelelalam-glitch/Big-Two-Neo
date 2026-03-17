@@ -424,6 +424,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        // Unsubscribe so Supabase frees the channel. Without this the channel
+        // stays alive in the client and can leak handlers that cause duplicate
+        // events on subsequent joins (Copilot PR-150 r2950068875).
+        void channel.unsubscribe();
         channelRef.current = null;
         setRealtimeChannel(null);
         reject(new Error('Subscription timeout after 10s'));

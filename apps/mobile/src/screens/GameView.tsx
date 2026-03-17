@@ -481,6 +481,43 @@ function GameViewComponent() {
           onToggleMic={isMultiplayerGame ? toggleMic : undefined}
         />
 
+        {/* Task #648: Chat toggle button for landscape mode.
+             Portrait mode has the toggle inside scoreActionContainer (above).
+             LandscapeGameLayout has no chat slot, so overlay an absolute button
+             here (Copilot PR-150 r2950068900). */}
+        {isMultiplayerGame && currentOrientation === 'landscape' && (
+          <View style={{ position: 'absolute', top: 16, right: 64, zIndex: 150 }}>
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={[
+                  scoreDisplayStyles.scoreActionButton,
+                  isChatDrawerOpen && { backgroundColor: 'rgba(74,144,226,0.4)' },
+                ]}
+                onPress={toggleChatDrawer}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t('chat.a11yToggleLabel')}
+                accessibilityHint={i18n.t('chat.a11yToggleHint')}
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
+              </TouchableOpacity>
+              {chatUnreadCount > 0 && !isChatDrawerOpen && (
+                <View style={{
+                  position: 'absolute', top: -4, right: -4,
+                  backgroundColor: '#F44336', borderRadius: 10,
+                  minWidth: 18, height: 18,
+                  alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Task #648: In-game text chat drawer (multiplayer only) */}
         {isMultiplayerGame && (
           <ChatDrawer
