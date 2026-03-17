@@ -305,6 +305,37 @@ function GameViewComponent() {
               >
                 <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>
+              {/* Task #648: chat icon button (multiplayer only) */}
+              {isMultiplayerGame && (
+                <View style={{ position: 'relative' }}>
+                  <TouchableOpacity
+                    style={[
+                      scoreDisplayStyles.scoreActionButton,
+                      isChatDrawerOpen && { backgroundColor: 'rgba(74,144,226,0.4)' },
+                    ]}
+                    onPress={toggleChatDrawer}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Toggle chat"
+                    accessibilityHint="Opens or closes the text chat"
+                  >
+                    <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
+                  </TouchableOpacity>
+                  {chatUnreadCount > 0 && !isChatDrawerOpen && (
+                    <View style={{
+                      position: 'absolute', top: -4, right: -4,
+                      backgroundColor: '#F44336', borderRadius: 10,
+                      minWidth: 18, height: 18,
+                      alignItems: 'center', justifyContent: 'center',
+                      paddingHorizontal: 4,
+                    }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Scoreboard Container */}

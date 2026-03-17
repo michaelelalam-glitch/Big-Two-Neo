@@ -1,8 +1,12 @@
 /**
- * ChatDrawer — collapsible bottom drawer for in-game text chat (Task #648).
+ * ChatDrawer — top-overlay panel for in-game text chat (Task #648).
  *
- * Collapsed: thin pressable bar with 💬 icon + unread badge.
- * Expanded: message list + text input with send button.
+ * The trigger icon button lives in GameView's scoreActionContainer.
+ * When isOpen=true the panel slides down from the top of the screen.
+ * When isOpen=false the panel is animated off-screen (pointerEvents="none").
+ *
+ * GestureDetector wraps ONLY the header so the inner FlatList can scroll
+ * freely without gesture conflicts (Copilot PR-150 review fix).
  */
 
 import React, { useRef, useCallback, useEffect } from 'react';
@@ -34,6 +38,7 @@ import type { ChatMessage } from '../../types/chat';
 export interface ChatDrawerProps {
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
+  /** unreadCount is used by the icon button in GameView; kept in props for API stability. */
   unreadCount: number;
   isCooldown: boolean;
   isOpen: boolean;
@@ -45,8 +50,10 @@ export interface ChatDrawerProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const COLLAPSED_HEIGHT = 40;
-const EXPANDED_HEIGHT = 280;
+/** Top offset (px) — positions panel below status bar + scoreActionContainer row. */
+const PANEL_TOP = 110;
+/** Visible panel height when open. */
+const PANEL_HEIGHT = 300;
 const ANIMATION_DURATION = 250;
 
 // ---------------------------------------------------------------------------
@@ -56,7 +63,6 @@ const ANIMATION_DURATION = 250;
 export function ChatDrawer({
   messages,
   sendMessage,
-  unreadCount,
   isCooldown,
   isOpen,
   onToggle,
@@ -65,46 +71,53 @@ export function ChatDrawer({
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const [inputText, setInputText] = React.useState('');
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Animated height
-  const drawerHeight = useSharedValue(COLLAPSED_HEIGHT);
+  // Panel slides down from above: translateY = -PANEL_HEIGHT (hidden) → 0 (visible).
+  const translateY = useSharedValue(-PANEL_HEIGHT);
 
   useEffect(() => {
-    drawerHeight.value = withTiming(isOpen ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT, {
+    translateY.value = withTiming(isOpen ? 0 : -PANEL_HEIGHT, {
       duration: ANIMATION_DURATION,
       easing: Easing.out(Easing.cubic),
     });
-  }, [isOpen, drawerHeight]);
+  }, [isOpen, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    height: drawerHeight.value,
+    transform: [{ translateY: translateY.value }],
   }));
 
-  // Scroll to bottom on content size change (new message) and first layout.
-  // Using FlatList callbacks is reliable because they fire after RN measures
-  // the list — no setTimeout needed, nothing to clean up on unmount.
+  // Scroll to the newest message whenever the list content grows.
+  // The timer is cleared on cleanup so a stale call can't fire after unmount.
   const scrollToBottom = useCallback(() => {
-    if (isOpen) listRef.current?.scrollToEnd({ animated: true });
-  }, [isOpen]);
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      scrollTimerRef.current = null;
+      listRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+  }, []);
 
-  // Drag-to-open/close gesture: drag up ≥ 30px opens, drag down ≥ 30px closes.
+  useEffect(() => {
+    if (isOpen && messages.length > 0) scrollToBottom();
+  }, [messages.length, isOpen, scrollToBottom]);
+
+  // Clear any pending scroll timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, []);
+
+  // Drag-to-close gesture: swipe up ≥ 30 px on the header closes the panel.
+  // GestureDetector is scoped to the header only so the FlatList scroll gesture
+  // is unaffected (Copilot PR-150 r2947303858 fix).
   const dragStartY = useSharedValue(0);
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      dragStartY.value = 0;
-    })
-    .onUpdate((e) => {
-      dragStartY.value = e.translationY;
-    })
+  const headerPanGesture = Gesture.Pan()
+    .activeOffsetY([-8, 8])
+    .onStart(() => { dragStartY.value = 0; })
+    .onUpdate((e) => { dragStartY.value = e.translationY; })
     .onEnd((e) => {
-      const THRESHOLD = 30;
-      if (e.translationY < -THRESHOLD && !isOpen) {
-        // Dragged up — open
-        runOnJS(onToggle)();
-      } else if (e.translationY > THRESHOLD && isOpen) {
-        // Dragged down — close
-        runOnJS(onToggle)();
-      }
+      if (e.translationY < -30) runOnJS(onToggle)();
     });
 
   const handleSend = useCallback(() => {
@@ -113,20 +126,6 @@ export function ChatDrawer({
     sendMessage(text);
     setInputText('');
   }, [inputText, sendMessage]);
-
-  // ── Collapsed bar ───────────────────────────────────────────────────────
-
-  const renderCollapsedBar = () => (
-    <Pressable style={styles.collapsedBar} onPress={onToggle} accessibilityRole="button" accessibilityLabel={i18n.t('chat.title')}>
-      <Text style={styles.chatIcon}>💬</Text>
-      <Text style={styles.chatLabel}>{i18n.t('chat.title')}</Text>
-      {unreadCount > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-        </View>
-      )}
-    </Pressable>
-  );
 
   // ── Message bubble ──────────────────────────────────────────────────────
 
@@ -151,68 +150,76 @@ export function ChatDrawer({
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View style={[styles.container, animatedStyle]}>
-      {!isOpen ? (
-        renderCollapsedBar()
-      ) : (
-        <KeyboardAvoidingView
-          style={styles.expandedContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={100}
+    // Keep the node mounted to preserve scroll position; hide via translateY
+    // and block touches when closed.
+    <Animated.View
+      style={[styles.panel, animatedStyle]}
+      pointerEvents={isOpen ? 'auto' : 'none'}
+    >
+      {/* Header — GestureDetector wraps ONLY this bar to avoid stealing
+          scroll events from the FlatList below. */}
+      <GestureDetector gesture={headerPanGesture}>
+        <Pressable
+          style={styles.header}
+          onPress={onToggle}
+          accessibilityRole="button"
+          accessibilityLabel={i18n.t('common.close')}
         >
-          {/* Header with close handle */}
-          <Pressable style={styles.header} onPress={onToggle} accessibilityRole="button" accessibilityLabel={i18n.t('common.close')}>
-            <View style={styles.dragHandle} />
-            <Text style={styles.headerTitle}>{i18n.t('chat.title')}</Text>
-          </Pressable>
+          <View style={styles.dragHandle} />
+          <Text style={styles.headerTitle}>{i18n.t('chat.title')}</Text>
+          <Text style={styles.closeIcon}>✕</Text>
+        </Pressable>
+      </GestureDetector>
 
-          {/* Messages */}
-          {messages.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>{i18n.t('chat.noMessages')}</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={listRef}
-              data={messages}
-              renderItem={renderMessage}
-              keyExtractor={keyExtractor}
-              style={styles.messageList}
-              contentContainerStyle={styles.messageListContent}
-              onContentSizeChange={scrollToBottom}
-              onLayout={scrollToBottom}
-            />
-          )}
-
-          {/* Input row */}
-          <View style={styles.inputRow}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder={isCooldown ? i18n.t('chat.cooldown') : i18n.t('chat.placeholder')}
-              placeholderTextColor="#888"
-              maxLength={500}
-              editable={!isCooldown}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-            />
-            <Pressable
-              style={[styles.sendButton, (isCooldown || !inputText.trim()) && styles.sendButtonDisabled]}
-              onPress={handleSend}
-              disabled={isCooldown || !inputText.trim()}
-              accessibilityRole="button"
-              accessibilityLabel={i18n.t('chat.send')}
-            >
-              <Text style={styles.sendButtonText}>{i18n.t('chat.send')}</Text>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
+      {/* Messages */}
+      {messages.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>{i18n.t('chat.noMessages')}</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={keyExtractor}
+          style={styles.messageList}
+          contentContainerStyle={styles.messageListContent}
+          onContentSizeChange={scrollToBottom}
+        />
       )}
+
+      {/* Input row — KeyboardAvoidingView keeps it above the soft keyboard.
+          The panel is near the top of the screen so the keyboard (at the bottom)
+          rarely covers the input, but we add padding-based avoidance for safety. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={PANEL_TOP}
+      >
+        <View style={styles.inputRow}>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder={isCooldown ? i18n.t('chat.cooldown') : i18n.t('chat.placeholder')}
+            placeholderTextColor="#888"
+            maxLength={500}
+            editable={!isCooldown}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+          />
+          <Pressable
+            style={[styles.sendButton, (isCooldown || !inputText.trim()) && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={isCooldown || !inputText.trim()}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('chat.send')}
+          >
+            <Text style={styles.sendButtonText}>{i18n.t('chat.send')}</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Animated.View>
-    </GestureDetector>
   );
 }
 
@@ -221,71 +228,52 @@ export function ChatDrawer({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: {
+  // Panel drops down from the top of the screen.
+  panel: {
     position: 'absolute',
-    bottom: 0,
+    top: PANEL_TOP,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: PANEL_HEIGHT,
+    backgroundColor: 'rgba(10,10,20,0.96)',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
-    zIndex: 100,
+    zIndex: 200,
+    elevation: 10, // Android z-ordering
   },
-  // ── Collapsed ─────────────────────────────────────────────────────────
-  collapsedBar: {
-    flex: 1,
+  // ── Header ─────────────────────────────────────────────────────────────
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  chatIcon: {
-    fontSize: 18,
-    marginRight: 6,
-  },
-  chatLabel: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  badge: {
-    marginLeft: 8,
-    backgroundColor: '#F44336',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  // ── Expanded ──────────────────────────────────────────────────────────
-  expandedContainer: {
-    flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#444',
   },
   dragHandle: {
-    width: 36,
+    width: 32,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#666',
-    marginBottom: 4,
+    backgroundColor: '#555',
+    marginRight: 10,
   },
   headerTitle: {
+    flex: 1,
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
-  // ── Messages ──────────────────────────────────────────────────────────
+  closeIcon: {
+    color: '#aaa',
+    fontSize: 16,
+    paddingLeft: 8,
+  },
+  // ── Messages ─────────────────────────────────────────────────────────
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
