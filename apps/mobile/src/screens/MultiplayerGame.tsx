@@ -710,10 +710,13 @@ export function MultiplayerGame() {
     adapter: videoChatAdapter,
   });
 
-  // Expo Go guard: LiveKit requires native WebRTC modules that are not bundled
-  // with Expo Go. Show a clear alert instead of silently doing nothing.
+  // Guard: LiveKit requires native WebRTC modules. Show a clear alert when the
+  // adapter resolved to the stub (covers Expo Go, missing native module, or any
+  // other environment where @livekit/react-native is unavailable).
+  const isLiveKitUnavailable = videoChatAdapter instanceof StubVideoChatAdapter;
+
   const toggleVideoChat = useCallback(async () => {
-    if (isExpoGo) {
+    if (isLiveKitUnavailable) {
       Alert.alert(
         'Dev Build Required',
         'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
@@ -721,10 +724,10 @@ export function MultiplayerGame() {
       return;
     }
     await _toggleVideoChat();
-  }, [_toggleVideoChat, isExpoGo]);
+  }, [_toggleVideoChat, isLiveKitUnavailable]);
 
   const toggleVoiceChat = useCallback(async () => {
-    if (isExpoGo) {
+    if (isLiveKitUnavailable) {
       Alert.alert(
         'Dev Build Required',
         'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
@@ -732,7 +735,7 @@ export function MultiplayerGame() {
       return;
     }
     await _toggleVoiceChat();
-  }, [_toggleVoiceChat, isExpoGo]);
+  }, [_toggleVoiceChat, isLiveKitUnavailable]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
