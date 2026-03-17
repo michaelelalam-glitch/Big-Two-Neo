@@ -306,6 +306,7 @@ function GameViewComponent() {
             <Pressable
               style={styles.menuContainer}
               onPress={() => setShowSettings(true)}
+              testID="settings-button"
               accessibilityRole="button"
               accessibilityLabel="Open settings menu"
               accessibilityHint="Opens game settings and options"

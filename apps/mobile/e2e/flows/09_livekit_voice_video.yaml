@@ -42,22 +42,33 @@ tags:
 # Replace the room code with a real test-room code when running manually.
 - tapOn: "Join Room"
 - extendedWaitUntil:
-    visible: "Room Code"
+    visible:
+      id: "room-code-input"
     timeout: 8000
-- tapOn: "Room Code"
+- tapOn:
+    id: "room-code-input"
 - inputText: "TEST01"
 - tapOn: "Join"
 - extendedWaitUntil:
-    visible: "Start Game"
+    visible: "Your Hand"
     timeout: 20000
 
-- tapOn: "Start Game"
+# Host device only: taps "Start Game" to begin. Guest device skips this step
+# and waits for the host to start. The Start Game button is only rendered for
+# the room host (isHost-gated in LobbyScreen).
+- runFlow:
+    when:
+      visible: "Start Game"
+    commands:
+      - tapOn: "Start Game"
 - extendedWaitUntil:
     visible: "Your Hand"
     timeout: 20000
 - takeScreenshot: "09_01_game_active"
 
 # ── Step 2: Open Settings modal ───────────────────────────────────────────────
+# Works in both portrait (hamburger, testID="settings-button") and landscape
+# (LandscapeControlBar, testID="settings-button").
 - tapOn:
     id: "settings-button"
 - extendedWaitUntil:
@@ -84,9 +95,11 @@ tags:
 - tapOn:
     text: "Join Video Chat"
 - extendedWaitUntil:
-    visible: "Leave Video Chat"
+    visible:
+      label: "Camera, On — tap to turn camera off"
     timeout: 15000
-- assertVisible: "Leave Video Chat"
+- assertVisible:
+    label: "Camera, On — tap to turn camera off"
 - takeScreenshot: "09_04_video_active"
 
 # Wait to confirm both audio + video streams remain alive.
@@ -98,23 +111,29 @@ tags:
 - tapOn:
     id: "camera-toggle-button"
 - extendedWaitUntil:
-    visible: "Turn Camera On"
+    visible:
+      label: "Camera, Off \u2014 tap to turn camera on"
     timeout: 8000
-- assertVisible: "Turn Camera On"
+- assertVisible:
+    label: "Camera, Off \u2014 tap to turn camera on"
 - takeScreenshot: "09_05_camera_off"
 
 # ── Step 6: Mute microphone ───────────────────────────────────────────────────
 - tapOn:
     id: "mic-toggle-button"
 - extendedWaitUntil:
-    visible: "Unmute"
+    visible:
+      label: "Microphone, Muted \u2014 tap to unmute"
     timeout: 8000
-- assertVisible: "Unmute"
+- assertVisible:
+    label: "Microphone, Muted \u2014 tap to unmute"
 - takeScreenshot: "09_06_muted"
 
 # ── Step 7: Leave voice/video session ────────────────────────────────────────
+# GameSettingsModal renders "Leave Voice Chat" (chat.leaveVoice) regardless of
+# whether the session is voice-only or video. Tap it to disconnect.
 - tapOn:
-    text: "Leave Video Chat"
+    text: "Leave Voice Chat"
 - extendedWaitUntil:
     visible: "Join Voice Chat"
     timeout: 10000

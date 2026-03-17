@@ -139,7 +139,7 @@ eas build --profile developmentDevice --platform android
 **PR:** [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)  
 **Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn` (merged → `game/chinese-poker`)
 
-### What needs to happen
+### What was done (setup steps)
 - Set Supabase project secrets (production + staging):
   ```
   LIVEKIT_API_KEY=<your key>
@@ -179,7 +179,7 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 
 ---
 
-## Phase 7 — Integration & E2E Testing (Full Feature Complete) � IN PROGRESS
+## Phase 7 — Integration & E2E Testing (Full Feature Complete) 🔄 IN PROGRESS
 **Branch:** `feature/649-651-livekit-phase7-e2e-integration`
 
 ### What was done (this branch)
