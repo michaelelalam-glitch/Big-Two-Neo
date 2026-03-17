@@ -26,7 +26,7 @@
 #   SUPABASE_PROJECT_REF  Supabase project ref (default: value in supabase/.temp/project-ref)
 #   SKIP_SECRETS          Set to "1" to skip the secret-set step (e.g. secrets already set)
 #   SKIP_VERIFY           Set to "1" to skip the curl smoke-test step
-#   VERIFY_AUTH_TOKEN     Bearer token for the smoke-test curl call (Supabase access token)
+#   VERIFY_AUTH_TOKEN     Raw Supabase access token for the smoke-test (do NOT include the 'Bearer ' prefix)
 
 set -euo pipefail
 
@@ -118,9 +118,12 @@ else
     FUNCTION_URL="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/get-livekit-token"
     # Use a deliberately invalid UUID so the function validates auth first
     # (a 400 "roomId must be a valid UUID" response means auth passed successfully).
+    # Strip any accidental "Bearer " prefix so the header does not become
+    # "Bearer Bearer <token>" when a caller passes the full header value.
+    RAW_TOKEN="${VERIFY_AUTH_TOKEN#Bearer }"
     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
       -X POST "${FUNCTION_URL}" \
-      -H "Authorization: Bearer ${VERIFY_AUTH_TOKEN}" \
+      -H "Authorization: Bearer ${RAW_TOKEN}" \
       -H "Content-Type: application/json" \
       -d '{"roomId":"not-a-uuid"}')
 
