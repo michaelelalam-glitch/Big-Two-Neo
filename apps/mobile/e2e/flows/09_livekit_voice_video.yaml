@@ -39,7 +39,8 @@ tags:
     timeout: 10000
 
 # Join an existing room (assumes the companion device already created one).
-# Replace the room code with a real test-room code when running manually.
+# Set the room code via env var: MAESTRO_APP_ENV='{"ROOM_CODE":"ABC123"}'
+# Falls back to TEST01 if ROOM_CODE is not set.
 - tapOn: "Join Room"
 - extendedWaitUntil:
     visible:
@@ -47,13 +48,15 @@ tags:
     timeout: 8000
 - tapOn:
     id: "room-code-input"
-- inputText: "TEST01"
+- inputText: "${ROOM_CODE}"
 - tapOn:
     text: "Join Room"
     index: 1
+# JoinRoomScreen replaces the nav stack with LobbyScreen — wait for the
+# lobby before handling the host-only Start Game button.
 - extendedWaitUntil:
-    visible: "Your Hand"
-    timeout: 20000
+    visible: "Game Lobby"
+    timeout: 15000
 
 # Host device only: taps "Start Game" to begin. Guest device skips this step
 # and waits for the host to start. The Start Game button is only rendered for

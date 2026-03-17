@@ -716,23 +716,23 @@ export function MultiplayerGame() {
     if (isExpoGo) {
       Alert.alert(
         'Dev Build Required',
-        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development',
+        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
       );
       return;
     }
     await _toggleVideoChat();
-  }, [_toggleVideoChat]);
+  }, [_toggleVideoChat, isExpoGo]);
 
   const toggleVoiceChat = useCallback(async () => {
     if (isExpoGo) {
       Alert.alert(
         'Dev Build Required',
-        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development',
+        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
       );
       return;
     }
     await _toggleVoiceChat();
-  }, [_toggleVoiceChat]);
+  }, [_toggleVoiceChat, isExpoGo]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
