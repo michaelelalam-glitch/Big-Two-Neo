@@ -293,6 +293,7 @@ export function LandscapeGameLayout({
             onPress={onSettings}
             accessibilityLabel="Settings"
             accessibilityRole="button"
+            testID="settings-button"
           >
             {/* Hamburger menu (3 lines like portrait) */}
             <View style={styles.hamburgerMenu}>
