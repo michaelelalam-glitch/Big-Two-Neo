@@ -70,8 +70,11 @@ tags:
       visible: "Start Game"
     commands:
       - tapOn: "Start Game"
+# Wait for the in-game UI to appear; settings-button is always rendered in both
+# portrait (hamburger) and landscape (LandscapeControlBar) once gameplay loads.
 - extendedWaitUntil:
-    visible: "Your Hand"
+    visible:
+      id: "settings-button"
     timeout: 20000
 - takeScreenshot: "09_01_game_active"
 
@@ -167,8 +170,11 @@ tags:
 # ── Step 8: Close settings and confirm game is still active ──────────────────
 - tapOn:
     id: "close-settings-button"
+# Confirm game is still active: settings-button is a stable in-game element.
 - extendedWaitUntil:
-    visible: "Your Hand"
+    visible:
+      id: "settings-button"
     timeout: 8000
-- assertVisible: "Your Hand"
+- assertVisible:
+    id: "settings-button"
 - takeScreenshot: "09_08_game_still_active_after_chat"

@@ -83,6 +83,8 @@ export interface Translations {
     connectFailedMessage: string;
     voiceConnectFailedTitle: string;
     voiceConnectFailedMessage: string;
+    devBuildRequiredTitle: string;
+    devBuildRequiredMessage: string;
   };
 
   // Game Selection Screen
@@ -725,6 +727,8 @@ const en: Translations = {
     connectFailedMessage: 'Could not connect to the video chat room. Please check your connection and try again.',
     voiceConnectFailedTitle: 'Voice Chat Unavailable',
     voiceConnectFailedMessage: 'Could not connect to the voice chat room. Please check your connection and try again.',
+    devBuildRequiredTitle: 'Dev Build Required',
+    devBuildRequiredMessage: 'Voice and video chat require native WebRTC modules that are not available in this build.',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1299,6 +1303,8 @@ const ar: Translations = {
     connectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة المرئية. تحقق من اتصالك وأعد المحاولة.',
     voiceConnectFailedTitle: 'الدردشة الصوتية غير متاحة',
     voiceConnectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة الصوتية. تحقق من اتصالك وأعد المحاولة.',
+    devBuildRequiredTitle: 'مطلوب إصدار مطوّر',
+    devBuildRequiredMessage: 'تتطلب الدردشة الصوتية والمرئية وحدات WebRTC الأصلية غير المتوفرة في هذا الإصدار.',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1903,6 +1909,8 @@ const de: Translations = {
     connectFailedMessage: 'Verbindung zum Video-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
     voiceConnectFailedTitle: 'Sprach-Chat nicht verfügbar',
     voiceConnectFailedMessage: 'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
+    devBuildRequiredTitle: 'Dev-Build erforderlich',
+    devBuildRequiredMessage: 'Sprach- und Video-Chat erfordern native WebRTC-Module, die in diesem Build nicht verfügbar sind.',
   },
   gameSelection: {
     welcome: 'Willkommen,',

@@ -47,6 +47,7 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
+import i18n from '../i18n';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -717,9 +718,12 @@ export function MultiplayerGame() {
 
   const toggleVideoChat = useCallback(async () => {
     if (isLiveKitUnavailable) {
+      const devHint = __DEV__
+        ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
+        : '';
       Alert.alert(
-        'Dev Build Required',
-        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
+        i18n.t('chat.devBuildRequiredTitle'),
+        i18n.t('chat.devBuildRequiredMessage') + devHint,
       );
       return;
     }
@@ -728,9 +732,12 @@ export function MultiplayerGame() {
 
   const toggleVoiceChat = useCallback(async () => {
     if (isLiveKitUnavailable) {
+      const devHint = __DEV__
+        ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
+        : '';
       Alert.alert(
-        'Dev Build Required',
-        'Video and voice chat use LiveKit, which requires native WebRTC modules not included in Expo Go.\n\nTo test this feature, build a dev client:\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device',
+        i18n.t('chat.devBuildRequiredTitle'),
+        i18n.t('chat.devBuildRequiredMessage') + devHint,
       );
       return;
     }
