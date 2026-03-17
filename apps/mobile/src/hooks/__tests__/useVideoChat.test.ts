@@ -243,6 +243,35 @@ describe('useVideoChat — opt-in (toggleVideoChat enables camera)', () => {
     expect(disableMicSpy).toHaveBeenCalledTimes(1);
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('shows Alert when connect() rejects during toggleVideoChat (#651)', async () => {
+    // Clear accumulated mock call history before creating the spy so the
+    // assertion is not polluted by calls from earlier tests in this suite.
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+    jest.spyOn(PermissionsAndroid, 'request')
+      .mockResolvedValueOnce(PermissionsAndroid.RESULTS.GRANTED)  // camera
+      .mockResolvedValueOnce(PermissionsAndroid.RESULTS.GRANTED); // mic
+    const { Alert } = require('react-native') as typeof import('react-native');
+    jest.spyOn(Alert, 'alert');
+
+    const adapter = makeAdapter({
+      connect: jest.fn().mockRejectedValue(new Error('Network error')),
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    // User must be informed — Alert shown with the connect-failed i18n key
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    const [title] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toBe(i18n.t('chat.connectFailedTitle'));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1085,6 +1114,43 @@ describe('useVideoChat — toggleVoiceChat (voice-only join/leave)', () => {
 
     expect(connectSpy).not.toHaveBeenCalled();
     expect(result.current.isChatConnected).toBe(false);
+  });
+
+  it('stays disabled and shows Alert when connect() rejects during toggleVoiceChat (#651)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+    (PermissionsAndroid.request as jest.Mock) = jest.fn().mockResolvedValue(
+      PermissionsAndroid.RESULTS.GRANTED
+    );
+    const { Alert } = require('react-native') as typeof import('react-native');
+    jest.clearAllMocks(); // isolate from any residual spies in this describe
+    jest.spyOn(Alert, 'alert');
+
+    const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+    const disableMicSpy = jest.fn().mockResolvedValue(undefined);
+    const adapter = makeAdapter({
+      connect: jest.fn().mockRejectedValue(new Error('Server error')),
+      disconnect: disconnectSpy,
+      disableMicrophone: disableMicSpy,
+    });
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVoiceChat();
+    });
+
+    // Non-fatal: voice stays disabled
+    expect(result.current.isChatConnected).toBe(false);
+    expect(result.current.isLocalMicOn).toBe(false);
+    // Cleanup called
+    expect(disableMicSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
+    // User must be informed — Alert shown with the connect-failed i18n key
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    const [title] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toBe(i18n.t('chat.connectFailedTitle'));
   });
 });
 

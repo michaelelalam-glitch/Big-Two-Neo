@@ -166,9 +166,9 @@ eas build --profile developmentDevice --platform android
 ### Deploy command (one-shot)
 ```bash
 # From repo root:
-LIVEKIT_API_KEY=<key> \
-LIVEKIT_API_SECRET=<secret> \
-LIVEKIT_URL=wss://<project>.livekit.cloud \
+LIVEKIT_API_KEY=YOUR_API_KEY_HERE \
+LIVEKIT_API_SECRET=YOUR_API_SECRET_HERE \
+LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud \
 bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 ```
 

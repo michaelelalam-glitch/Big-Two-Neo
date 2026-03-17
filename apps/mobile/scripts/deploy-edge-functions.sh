@@ -69,7 +69,7 @@ supabase functions deploy get-livekit-token --project-ref "${PROJECT_REF}"
 echo "✅ LiveKit token function deployed"
 echo ""
 echo "⚠️  Remember to set LiveKit secrets if not already done:"
-echo "   supabase secrets set LIVEKIT_API_KEY=<key> LIVEKIT_API_SECRET=<secret> LIVEKIT_URL=wss://<project>.livekit.cloud --project-ref ${PROJECT_REF}"
+echo "   supabase secrets set LIVEKIT_API_KEY=YOUR_API_KEY_HERE LIVEKIT_API_SECRET=YOUR_API_SECRET_HERE LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud --project-ref ${PROJECT_REF}"
 echo ""
 
 # Previously Existing Functions (for completeness)
