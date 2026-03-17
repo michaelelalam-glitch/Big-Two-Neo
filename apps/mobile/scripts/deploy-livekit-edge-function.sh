@@ -17,7 +17,8 @@
 #   # Or supply the project ref explicitly:
 #   SUPABASE_PROJECT_REF="abcdefgh" ... ./deploy-livekit-edge-function.sh
 #
-# Required environment variables (must be supplied by caller or in .env.local):
+# Required environment variables (must be exported by the caller before running):
+#   The script does NOT auto-source any .env or .env.local file.
 #   LIVEKIT_API_KEY     LiveKit project API key
 #   LIVEKIT_API_SECRET  LiveKit project API secret (keep out of source control)
 #   LIVEKIT_URL         LiveKit WebSocket URL, e.g. wss://my-project.livekit.cloud
@@ -88,11 +89,19 @@ else
     die "Missing required env vars: ${missing[*]}"
   fi
 
+  # Write secrets to a temp file so their values are never visible in ps/argv.
+  SECRETS_TMPFILE="$(mktemp)"
+  # shellcheck disable=SC2064  # intentional: expand vars now, not at trap time
+  trap "rm -f '${SECRETS_TMPFILE}'" EXIT
+  printf 'LIVEKIT_API_KEY=%s\nLIVEKIT_API_SECRET=%s\nLIVEKIT_URL=%s\n' \
+    "${LIVEKIT_API_KEY}" "${LIVEKIT_API_SECRET}" "${LIVEKIT_URL}" \
+    > "${SECRETS_TMPFILE}"
+  chmod 600 "${SECRETS_TMPFILE}"
+
   supabase secrets set \
-    "LIVEKIT_API_KEY=${LIVEKIT_API_KEY}" \
-    "LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}" \
-    "LIVEKIT_URL=${LIVEKIT_URL}" \
+    --env-file "${SECRETS_TMPFILE}" \
     --project-ref "${SUPABASE_PROJECT_REF}"
+  rm -f "${SECRETS_TMPFILE}"
   green "✅  Secrets set: LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL"
 fi
 echo ""
