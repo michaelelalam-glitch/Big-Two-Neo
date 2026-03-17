@@ -63,9 +63,19 @@ import { UnexpectedDisconnectError } from './useVideoChat';
 //       errors are not).
 // MultiplayerGame checks `isLiveKitAvailable` before constructing this class.
 let _registerGlobals: (() => void) | null = null;
+let _AudioSession: { startAudioSession(): Promise<void>; stopAudioSession(): Promise<void> } | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  _registerGlobals = (require('@livekit/react-native') as { registerGlobals: () => void }).registerGlobals;
+  const _lk = require('@livekit/react-native') as {
+    registerGlobals: () => void;
+    AudioSession: { startAudioSession(): Promise<void>; stopAudioSession(): Promise<void> };
+  };
+  _registerGlobals = _lk.registerGlobals;
+  // AudioSession.startAudioSession() must be called before connecting on iOS
+  // to activate AVAudioSession in playAndRecord mode; without it the OS will
+  // not route audio to/from the microphone even with granted permissions.
+  // On Android this is a no-op — audio focus is managed internally.
+  _AudioSession = _lk.AudioSession;
 } catch {
   // @livekit/react-native is not linked — Expo Go or pre-prebuild dev build.
 }
@@ -170,6 +180,15 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       );
     }
 
+    // iOS: activate AVAudioSession before connecting so that both the
+    // microphone and the camera operate correctly on physical devices and
+    // the simulator. The `iosCategoryEnforce` patch inside `registerGlobals`
+    // sets the category to `playAndRecord` when getUserMedia is called, but
+    // `startAudioSession` is also required to *activate* the session — without
+    // it, AVAudioSession remains inactive and capture silently fails on iOS.
+    if (_AudioSession) {
+      await _AudioSession.startAudioSession();
+    }
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
     await this.room.connect(data.livekitUrl, data.token);
     gameLogger.info('[LiveKit] Connected.');
@@ -178,6 +197,11 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   async disconnect(): Promise<void> {
     await this.room.disconnect();
     gameLogger.info('[LiveKit] Disconnected.');
+    // iOS: deactivate AVAudioSession so other apps (e.g. music player) can
+    // resume audio after the chat session ends. Safe to call on Android.
+    if (_AudioSession) {
+      await _AudioSession.stopAudioSession();
+    }
   }
 
   async enableCamera(): Promise<void> {

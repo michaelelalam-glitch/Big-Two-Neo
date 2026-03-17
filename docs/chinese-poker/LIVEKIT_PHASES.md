@@ -184,12 +184,13 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 
 ### What was done (this branch)
 - **`apps/mobile/e2e/flows/09_livekit_voice_video.yaml`** — Maestro E2E spec for the voice/video happy path:
-  - Joins a live multiplayer room → opens Settings modal
-  - Taps "Join Voice Chat" → asserts `Leave Voice Chat` visible (voice session up)
-  - Upgrades to video → asserts `Leave Video Chat` visible
-  - Toggles camera off → asserts avatar fallback
-  - Mutes mic → asserts muted state
-  - Leaves session → asserts back to "Join Voice Chat"
+  - Joins a live multiplayer room → opens Settings modal via `id: settings-button` (works in both portrait hamburger and landscape `LandscapeGameLayout` — both now carry the same testID)
+  - Taps `id: mic-toggle-button` → asserts accessibility label `Leave Voice Chat` (voice session up)
+  - Upgrades to video via `id: camera-toggle-button` (camera toggle while already in voice session)
+    → asserts label `Camera, On — tap to turn camera off`
+  - Toggles camera off → asserts label `Camera, Off — tap to turn camera on` (avatar fallback)
+  - Mutes mic → asserts label `Microphone, Muted — tap to unmute`
+  - Leaves session via accessibility label `Leave Voice Chat` → asserts label `Microphone, Off — Join Voice Chat`
   - Closes Settings → asserts game still active (no crash/disconnect)
   - Takes labelled screenshots at every major state transition for device-farm artefacts
 

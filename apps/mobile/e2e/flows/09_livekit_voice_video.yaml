@@ -48,7 +48,9 @@ tags:
 - tapOn:
     id: "room-code-input"
 - inputText: "TEST01"
-- tapOn: "Join"
+- tapOn:
+    text: "Join Room"
+    index: 1
 - extendedWaitUntil:
     visible: "Your Hand"
     timeout: 20000
@@ -74,16 +76,23 @@ tags:
 - extendedWaitUntil:
     visible: "🎙️"
     timeout: 8000
-- assertVisible: "Join Voice Chat"
+- assertVisible:
+    label: "Microphone, Off \u2014 Join Voice Chat"
 - takeScreenshot: "09_02_settings_before_voice"
 
 # ── Step 3: Join voice-only chat ──────────────────────────────────────────────
+# Tap the mic toggle button by testID (the button's accessibilityLabel when
+# disconnected is "Microphone, Off — Join Voice Chat", but plain text won't
+# match because it only appears inside the accessibilityLabel, not as visible
+# rendered text).
 - tapOn:
-    text: "Join Voice Chat"
+    id: "mic-toggle-button"
 - extendedWaitUntil:
-    visible: "Leave Voice Chat"
+    visible:
+      label: "Leave Voice Chat"
     timeout: 15000
-- assertVisible: "Leave Voice Chat"
+- assertVisible:
+    label: "Leave Voice Chat"
 - takeScreenshot: "09_03_voice_active"
 
 # Wait briefly to confirm audio session stays stable (no unexpected disconnect).
@@ -92,8 +101,10 @@ tags:
       - wait: 3000
 
 # ── Step 4: Upgrade voice → video ─────────────────────────────────────────────
+# "Join Video Chat" only appears in the camera button's accessibilityLabel
+# (not as visible text). Use the testID selector instead.
 - tapOn:
-    text: "Join Video Chat"
+    id: "camera-toggle-button"
 - extendedWaitUntil:
     visible:
       label: "Camera, On — tap to turn camera off"
@@ -130,14 +141,19 @@ tags:
 - takeScreenshot: "09_06_muted"
 
 # ── Step 7: Leave voice/video session ────────────────────────────────────────
-# GameSettingsModal renders "Leave Voice Chat" (chat.leaveVoice) regardless of
-# whether the session is voice-only or video. Tap it to disconnect.
+# GameSettingsModal renders "Leave Voice Chat" (chat.leaveVoice). Tap by
+# accessibilityLabel to avoid the ambiguity of the "📵" emoji text sibling
+# (Maestro may concatenate sibling Text nodes into "📵 Leave Voice Chat").
+# After leaving, "Join Voice Chat" only appears inside the mic button's
+# accessibilityLabel — assert via label selector, not plain text.
 - tapOn:
-    text: "Leave Voice Chat"
+    label: "Leave Voice Chat"
 - extendedWaitUntil:
-    visible: "Join Voice Chat"
+    visible:
+      label: "Microphone, Off \u2014 Join Voice Chat"
     timeout: 10000
-- assertVisible: "Join Voice Chat"
+- assertVisible:
+    label: "Microphone, Off \u2014 Join Voice Chat"
 - takeScreenshot: "09_07_session_ended"
 
 # ── Step 8: Close settings and confirm game is still active ──────────────────
