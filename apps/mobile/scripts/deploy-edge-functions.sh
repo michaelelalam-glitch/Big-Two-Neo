@@ -63,6 +63,15 @@ supabase functions deploy delete-account --project-ref "${PROJECT_REF}"
 echo "✅ Utility functions deployed"
 echo ""
 
+# LiveKit Edge Function (Phase 6 — Task #649/#651)
+echo "📦 Deploying LiveKit token function..."
+supabase functions deploy get-livekit-token --project-ref "${PROJECT_REF}"
+echo "✅ LiveKit token function deployed"
+echo ""
+echo "⚠️  Remember to set LiveKit secrets if not already done:"
+echo "   supabase secrets set LIVEKIT_API_KEY=<key> LIVEKIT_API_SECRET=<secret> LIVEKIT_URL=wss://<project>.livekit.cloud --project-ref ${PROJECT_REF}"
+echo ""
+
 # Previously Existing Functions (for completeness)
 echo "📦 Redeploying Existing Functions (optional)..."
 echo "Skipping play-cards, player-pass, start_new_match, complete-game, send-push-notification"
