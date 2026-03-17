@@ -56,6 +56,11 @@ if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
   fi
 fi
 
+# Validate the resolved ref is non-empty (guards against an empty/whitespace file).
+if [[ -z "${SUPABASE_PROJECT_REF}" ]]; then
+  die "SUPABASE_PROJECT_REF is empty — check that ${PROJECT_REF_FILE} contains a valid project ref."
+fi
+
 bold "=== LiveKit Edge Function — Phase 6 Deploy ==="
 echo ""
 echo "  Supabase project : ${SUPABASE_PROJECT_REF}"
@@ -106,6 +111,10 @@ else
     yellow "      -H 'Content-Type: application/json' \\"
     yellow "      -d '{\"roomId\":\"<valid-uuid>\"}'"
   else
+    # Ensure curl is available before attempting the smoke-test.
+    if ! command -v curl &>/dev/null; then
+      yellow "⚠️  curl not found — skipping smoke-test. Install curl to enable automated verification."
+    else
     FUNCTION_URL="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/get-livekit-token"
     # Use a deliberately invalid UUID so the function validates auth first
     # (a 400 "roomId must be a valid UUID" response means auth passed successfully).
@@ -118,11 +127,12 @@ else
     if [[ "${HTTP_STATUS}" == "400" ]]; then
       green "✅  Function reachable — returned 400 (expected for invalid UUID, auth passed)"
     elif [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" ]]; then
-      yellow "⚠️  Function returned ${HTTP_STATUS} — check VERIFY_AUTH_TOKEN is a valid Supabase access token"
+      die "Smoke-test failed: function returned ${HTTP_STATUS} — check VERIFY_AUTH_TOKEN is a valid Supabase access token"
     elif [[ "${HTTP_STATUS}" == "500" ]]; then
-      red "❌  Function returned 500 — secrets may not be set correctly (check LIVEKIT_* vars)"
+      die "Smoke-test failed: function returned 500 — secrets may not be set correctly (check LIVEKIT_* vars)"
     else
-      yellow "⚠️  Unexpected HTTP status: ${HTTP_STATUS}"
+      die "Smoke-test failed: unexpected HTTP status ${HTTP_STATUS}"
+    fi
     fi
   fi
 fi

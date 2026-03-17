@@ -79,6 +79,9 @@ export interface Translations {
     permissionDeniedMicTitle: string;
     permissionDeniedMicMessage: string;
     openSettings: string;
+    connectFailedTitle: string;
+    connectFailedMessage: string;
+    voiceConnectFailedMessage: string;
   };
 
   // Game Selection Screen
@@ -717,6 +720,9 @@ const en: Translations = {
     permissionDeniedMicTitle: 'Microphone Permission Denied',
     permissionDeniedMicMessage: 'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Big Two.',
     openSettings: 'Open Settings',
+    connectFailedTitle: 'Video Chat Unavailable',
+    connectFailedMessage: 'Could not connect to the video chat room. Please check your connection and try again.',
+    voiceConnectFailedMessage: 'Could not connect to the voice chat room. Please check your connection and try again.',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1287,6 +1293,9 @@ const ar: Translations = {
     permissionDeniedMicTitle: 'تم رفض إذن الميكروفون',
     permissionDeniedMicMessage: 'تم رفض الوصول إلى الميكروفون. لتمكين الدردشة الصوتية، افتح الإعدادات وامنح الإذن.',
     openSettings: 'فتح الإعدادات',
+    connectFailedTitle: 'الدردشة المرئية غير متاحة',
+    connectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة المرئية. تحقق من اتصالك وأعد المحاولة.',
+    voiceConnectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة الصوتية. تحقق من اتصالك وأعد المحاولة.',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1887,6 +1896,9 @@ const de: Translations = {
     permissionDeniedMicTitle: 'Mikrofonzugriff verweigert',
     permissionDeniedMicMessage: 'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Mikrofonzugriff.',
     openSettings: 'Einstellungen öffnen',
+    connectFailedTitle: 'Video-Chat nicht verfügbar',
+    connectFailedMessage: 'Verbindung zum Video-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
+    voiceConnectFailedMessage: 'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
   },
   gameSelection: {
     welcome: 'Willkommen,',
