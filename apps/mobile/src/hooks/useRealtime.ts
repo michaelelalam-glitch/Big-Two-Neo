@@ -58,6 +58,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  // Reactive channel state — triggers re-subscription in consumers (e.g. useGameChat).
+  const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
   
   // Refs
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -415,6 +417,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // (e.g. useGameChat) that read the ref during the re-render triggered by
     // setIsConnected(true) will already see the channel instance.
     channelRef.current = channel;
+    // Also update reactive state so consumers with useEffect deps on channel
+    // re-subscribe correctly (refs don't trigger re-renders).
+    setRealtimeChannel(channel);
 
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
@@ -666,6 +671,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
+        setRealtimeChannel(null);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref)
       if (timerIntervalRef.current) {
@@ -704,6 +710,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     isAutoPassInProgress,
     playerLastSeenAtRef,
     refreshGameState,
+    channel: realtimeChannel,
     channelRef,
   };
 }

@@ -21,7 +21,9 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { i18n } from '../../i18n';
 import type { ChatMessage } from '../../types/chat';
 
@@ -78,12 +80,32 @@ export function ChatDrawer({
     height: drawerHeight.value,
   }));
 
-  // Auto-scroll to bottom on new message
-  useEffect(() => {
-    if (isOpen && messages.length > 0) {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-    }
-  }, [messages.length, isOpen]);
+  // Scroll to bottom on content size change (new message) and first layout.
+  // Using FlatList callbacks is reliable because they fire after RN measures
+  // the list — no setTimeout needed, nothing to clean up on unmount.
+  const scrollToBottom = useCallback(() => {
+    if (isOpen) listRef.current?.scrollToEnd({ animated: true });
+  }, [isOpen]);
+
+  // Drag-to-open/close gesture: drag up ≥ 30px opens, drag down ≥ 30px closes.
+  const dragStartY = useSharedValue(0);
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      dragStartY.value = 0;
+    })
+    .onUpdate((e) => {
+      dragStartY.value = e.translationY;
+    })
+    .onEnd((e) => {
+      const THRESHOLD = 30;
+      if (e.translationY < -THRESHOLD && !isOpen) {
+        // Dragged up — open
+        runOnJS(onToggle)();
+      } else if (e.translationY > THRESHOLD && isOpen) {
+        // Dragged down — close
+        runOnJS(onToggle)();
+      }
+    });
 
   const handleSend = useCallback(() => {
     const text = inputText.trim();
@@ -129,7 +151,8 @@ export function ChatDrawer({
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.container, animatedStyle]}>
       {!isOpen ? (
         renderCollapsedBar()
       ) : (
@@ -157,6 +180,8 @@ export function ChatDrawer({
               keyExtractor={keyExtractor}
               style={styles.messageList}
               contentContainerStyle={styles.messageListContent}
+              onContentSizeChange={scrollToBottom}
+              onLayout={scrollToBottom}
             />
           )}
 
@@ -187,6 +212,7 @@ export function ChatDrawer({
         </KeyboardAvoidingView>
       )}
     </Animated.View>
+    </GestureDetector>
   );
 }
 
