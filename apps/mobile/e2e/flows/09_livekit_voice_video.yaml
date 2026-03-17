@@ -1,0 +1,131 @@
+# Flow 09: LiveKit Voice & Video Chat — Happy Path
+# Validates: Phase 7 E2E — two-player session with voice, then video upgrade.
+# Tags: livekit, video-chat, voice-chat, phase7
+#
+# Prerequisites:
+#   - Two devices (or two simulators) with the app installed.
+#   - LiveKit edge function deployed (Phase 6 complete).
+#   - Both devices signed in with separate test accounts.
+#   - Both devices are in the SAME multiplayer game lobby.
+#   - Physical mic/camera permissions previously granted (or permission dialogs
+#     accepted at the start of the flow).
+#
+# Run on each device independently:
+#   maestro test e2e/flows/09_livekit_voice_video.yaml
+#
+# Notes:
+#   - assertVisible strings must match the exact accessibility labels set in
+#     GameSettingsModal.tsx and hooks/useVideoChat.ts i18n keys.
+#   - Timing waits are conservative; adjust MAESTRO_DRIVER_STARTUP_TIMEOUT on
+#     slower CI device-farm images.
+
+appId: com.big2mobile.app
+tags:
+  - livekit
+  - voice-chat
+  - video-chat
+  - phase7
+---
+
+# ── Step 1: Launch the app and reach an active multiplayer game ───────────────
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+
+- tapOn: "PLAY →"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Join an existing room (assumes the companion device already created one).
+# Replace the room code with a real test-room code when running manually.
+- tapOn: "Join Room"
+- extendedWaitUntil:
+    visible: "Room Code"
+    timeout: 8000
+- tapOn: "Room Code"
+- inputText: "TEST01"
+- tapOn: "Join"
+- extendedWaitUntil:
+    visible: "Start Game"
+    timeout: 20000
+
+- tapOn: "Start Game"
+- extendedWaitUntil:
+    visible: "Your Hand"
+    timeout: 20000
+- takeScreenshot: "09_01_game_active"
+
+# ── Step 2: Open Settings modal ───────────────────────────────────────────────
+- tapOn:
+    id: "settings-button"
+- extendedWaitUntil:
+    visible: "🎙️"
+    timeout: 8000
+- assertVisible: "Join Voice Chat"
+- takeScreenshot: "09_02_settings_before_voice"
+
+# ── Step 3: Join voice-only chat ──────────────────────────────────────────────
+- tapOn:
+    text: "Join Voice Chat"
+- extendedWaitUntil:
+    visible: "Leave Voice Chat"
+    timeout: 15000
+- assertVisible: "Leave Voice Chat"
+- takeScreenshot: "09_03_voice_active"
+
+# Wait briefly to confirm audio session stays stable (no unexpected disconnect).
+- runFlow:
+    commands:
+      - wait: 3000
+
+# ── Step 4: Upgrade voice → video ─────────────────────────────────────────────
+- tapOn:
+    text: "Join Video Chat"
+- extendedWaitUntil:
+    visible: "Leave Video Chat"
+    timeout: 15000
+- assertVisible: "Leave Video Chat"
+- takeScreenshot: "09_04_video_active"
+
+# Wait to confirm both audio + video streams remain alive.
+- runFlow:
+    commands:
+      - wait: 3000
+
+# ── Step 5: Toggle camera off — verify avatar fallback ───────────────────────
+- tapOn:
+    id: "camera-toggle-button"
+- extendedWaitUntil:
+    visible: "Turn Camera On"
+    timeout: 8000
+- assertVisible: "Turn Camera On"
+- takeScreenshot: "09_05_camera_off"
+
+# ── Step 6: Mute microphone ───────────────────────────────────────────────────
+- tapOn:
+    id: "mic-toggle-button"
+- extendedWaitUntil:
+    visible: "Unmute"
+    timeout: 8000
+- assertVisible: "Unmute"
+- takeScreenshot: "09_06_muted"
+
+# ── Step 7: Leave voice/video session ────────────────────────────────────────
+- tapOn:
+    text: "Leave Video Chat"
+- extendedWaitUntil:
+    visible: "Join Voice Chat"
+    timeout: 10000
+- assertVisible: "Join Voice Chat"
+- takeScreenshot: "09_07_session_ended"
+
+# ── Step 8: Close settings and confirm game is still active ──────────────────
+- tapOn:
+    id: "close-settings-button"
+- extendedWaitUntil:
+    visible: "Your Hand"
+    timeout: 8000
+- assertVisible: "Your Hand"
+- takeScreenshot: "09_08_game_still_active_after_chat"

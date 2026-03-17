@@ -135,8 +135,9 @@ eas build --profile developmentDevice --platform android
 
 ---
 
-## Phase 6 — Deploy Edge Function & Secrets 🔄 IN PROGRESS
-**Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn`
+## Phase 6 — Deploy Edge Function & Secrets ✅ DONE
+**PR:** [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)  
+**Branch:** `feature/649-651-livekit-phase6-deploy-edge-fn` (merged → `game/chinese-poker`)
 
 ### What needs to happen
 - Set Supabase project secrets (production + staging):
@@ -178,9 +179,21 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 
 ---
 
-## Phase 7 — Integration & E2E Testing (Full Feature Complete) 🔲 TODO
+## Phase 7 — Integration & E2E Testing (Full Feature Complete) � IN PROGRESS
+**Branch:** `feature/649-651-livekit-phase7-e2e-integration`
 
-### What needs to happen
+### What was done (this branch)
+- **`apps/mobile/e2e/flows/09_livekit_voice_video.yaml`** — Maestro E2E spec for the voice/video happy path:
+  - Joins a live multiplayer room → opens Settings modal
+  - Taps "Join Voice Chat" → asserts `Leave Voice Chat` visible (voice session up)
+  - Upgrades to video → asserts `Leave Video Chat` visible
+  - Toggles camera off → asserts avatar fallback
+  - Mutes mic → asserts muted state
+  - Leaves session → asserts back to "Join Voice Chat"
+  - Closes Settings → asserts game still active (no crash/disconnect)
+  - Takes labelled screenshots at every major state transition for device-farm artefacts
+
+### What still needs to happen
 - **Multi-device test matrix** (minimum: 2 iOS or Android devices):
   - Two players join the same game → both can hear each other (voice-only)
   - One or both enable camera → video feeds appear in the other player's avatar slot
@@ -208,9 +221,9 @@ bash apps/mobile/scripts/deploy-livekit-edge-function.sh
 | 3 | Native build configuration (prebuild, CocoaPods, Gradle) | ✅ Done (PR #142) |
 | 4 | Permission UX — camera & microphone OS dialogs | ✅ Done (PR [#145](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/145)) |
 | 5 | Video track rendering — `<VideoView>` in player avatars | ✅ Done (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)) |
-| 6 | Deploy Edge Function & set production LiveKit secrets | 🔄 In Progress (PR pending) |
-| 7 | Integration & E2E testing — multi-device, stress test | 🔲 Todo |
+| 6 | Deploy Edge Function & set production LiveKit secrets | ✅ Done (PR [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)) |
+| 7 | Integration & E2E testing — multi-device, stress test | 🔄 In Progress |
 
 ---
 
-_Last updated: Phase 5 merged (PR [#146](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/146)); Phase 6 in progress — deploy script + secrets example added_
+_Last updated: Phase 6 merged (PR [#147](https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/147)); Phase 7 in progress — Maestro E2E happy-path spec added_
