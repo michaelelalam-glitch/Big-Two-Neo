@@ -101,7 +101,11 @@ public interface BarCodeScannerProviderInterface {
 const STUB_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
 `;
 
-const BARCODE_COMPAT_DEP = `  api project(':${LIB_NAME}') // [barcode-compat-stubs]\n`;
+// compileOnly so the stub types are visible to expo-camera's Kotlin compiler
+// but are NOT included in the runtime APK — the real implementations from
+// expo-barcode-scanner's AAR are used at runtime instead, preventing the
+// duplicate-class conflict that caused "scanning failed" at runtime.
+const BARCODE_COMPAT_DEP = `  compileOnly project(':${LIB_NAME}') // [barcode-compat-stubs]\n`;
 
 module.exports = function withBarcodeCompatStubs(config) {
   config = withDangerousMod(config, [
@@ -118,11 +122,13 @@ module.exports = function withBarcodeCompatStubs(config) {
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerSettings.java'), STUB_SETTINGS);
       fs.writeFileSync(path.join(srcDir, 'BarCodeScannerProviderInterface.java'), STUB_PROVIDER);
 
-      // Directly patch expo-camera and expo-barcode-scanner build.gradle
+      // Only patch expo-camera's build.gradle — expo-barcode-scanner already
+      // provides the real BarCodeScannerInterface implementations at runtime, so
+      // adding the stubs to its own classpath would create a duplicate-class
+      // conflict and break QR scanning.
       const projectRoot = modConfig.modRequest.projectRoot;
       const targets = [
         path.join(projectRoot,'node_modules','expo-camera','android','build.gradle'),
-        path.join(projectRoot,'node_modules','expo-barcode-scanner','android','build.gradle'),
       ];
       for (const target of targets) {
         if (!fs.existsSync(target)) continue;

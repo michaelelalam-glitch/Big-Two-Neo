@@ -121,7 +121,7 @@ export function LiveKitVideoSlot({
   mirror = false,
   objectFit = 'cover',
   zOrder = 0,
-}: LiveKitVideoSlotProps ): React.ReactElement | null {
+}: LiveKitVideoSlotProps): React.ReactElement | null {
   if (!_VideoTrack) return null;
 
   const VideoTrackComponent = _VideoTrack;
