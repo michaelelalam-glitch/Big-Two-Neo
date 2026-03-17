@@ -411,6 +411,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         }
       });
     
+    // Assign channelRef BEFORE subscribing so that any reactive consumers
+    // (e.g. useGameChat) that read the ref during the re-render triggered by
+    // setIsConnected(true) will already see the channel instance.
+    channelRef.current = channel;
+
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Subscription timeout after 10s')), 10000);
@@ -446,7 +451,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       });
     });
     
-    channelRef.current = channel;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure)
   }, [userId, username, onDisconnect, fetchPlayers, fetchGameState]); // reconnect intentionally omitted to avoid circular dependency
 
