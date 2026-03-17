@@ -7,7 +7,7 @@
 
 ## Overview
 
-Add real-time text chat during multiplayer games via **Supabase Realtime broadcast** on the existing `room:{roomId}` channel. UI: collapsible chat drawer from the bottom of the game screen. Message schema: `{user_id, username, message, created_at}`. Include profanity filter + client-side rate limiting (max 1 msg / 2s per player).
+Add real-time text chat during multiplayer games via **Supabase Realtime broadcast** on the existing `room:{roomId}` channel. UI: **top-overlay panel that slides down from the top of the game screen** (triggered by the 💬 icon in the HUD). Message schema: `{user_id, username, message, created_at}`. Include profanity filter + client-side rate limiting (max 1 msg / 2s per player).
 
 ---
 
@@ -17,7 +17,7 @@ Add real-time text chat during multiplayer games via **Supabase Realtime broadca
 - **No DB table:** Messages are ephemeral (broadcast-only). No persistence needed — chat disappears when the game ends.
 - **Profanity filter:** Client-side regex-based blocklist (lightweight, no external dependency). Runs before send.
 - **Rate limiting:** Client-side cooldown (2s between sends). Server-side validation is unnecessary since messages are broadcast (not DB writes) and abuse is limited to 4 players in a private room.
-- **UI:** Animated bottom drawer using `react-native-reanimated` (already installed) + `react-native-gesture-handler` (already installed). Collapsible with a drag handle. Badge for unread count when collapsed.
+- **UI:** Top-overlay panel (fixed `top:0`, animated `translateY`) using `react-native-reanimated` (already installed). Hidden fully off-screen when closed; slides down to `PANEL_TOP = 110` when the 💬 icon is tapped. Drag-handle at the top of the panel closes it via swipe-up gesture scoped to the header row. Badge for unread count shown on the icon when panel is closed.
 
 ---
 

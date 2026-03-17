@@ -142,11 +142,14 @@ export function useGameChat({
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
 
+      // Use the same BroadcastPayload envelope shape as broadcastMessage() in
+      // useRealtime ({event, data, timestamp}) to keep all broadcast payloads
+      // consistent and avoid shape drift (Copilot PR-150 r2949966846).
       channel
         .send({
           type: 'broadcast',
           event: 'chat_message',
-          payload: { data: msg },
+          payload: { event: 'chat_message', data: msg, timestamp: new Date().toISOString() },
         })
         .catch((err: unknown) => {
           gameLogger.error('[useGameChat] Failed to send chat message:', err);

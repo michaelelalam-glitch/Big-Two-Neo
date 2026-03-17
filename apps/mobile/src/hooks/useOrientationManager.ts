@@ -112,11 +112,15 @@ export function useOrientationManager(): OrientationManagerState {
   const loadOrientationPreference = async () => {
     try {
       const saved = await AsyncStorage.getItem(ORIENTATION_STORAGE_KEY);
+      // Always lock on mount — default to portrait if no preference saved so
+      // the game screen never auto-rotates (user-request: rotation only via button).
+      const mode = (saved as OrientationMode | null) ?? 'portrait';
+      setCurrentOrientation(mode);
+      await applyOrientation(mode);
       if (saved) {
-        const mode = saved as OrientationMode;
-        setCurrentOrientation(mode);
-        await applyOrientation(mode);
         gameLogger.info(`📱 [Orientation] Restored preference: ${mode}`);
+      } else {
+        gameLogger.info('📱 [Orientation] No saved preference — defaulting to portrait lock');
       }
     } catch (error) {
       gameLogger.error('❌ [Orientation] Failed to load preference:', error);

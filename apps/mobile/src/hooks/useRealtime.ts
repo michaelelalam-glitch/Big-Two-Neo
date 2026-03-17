@@ -423,7 +423,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Subscription timeout after 10s')), 10000);
+      const timeout = setTimeout(() => {
+        channelRef.current = null;
+        setRealtimeChannel(null);
+        reject(new Error('Subscription timeout after 10s'));
+      }, 10000);
       
       channel.subscribe(async (status) => {
         networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
@@ -444,11 +448,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           resolve();
         } else if (status === 'CLOSED') {
           clearTimeout(timeout);
+          // Clear reactive channel so consumers (e.g. useGameChat) don't try to
+          // use a closed channel. Both ref and state must be cleared.
+          channelRef.current = null;
+          setRealtimeChannel(null);
           setIsConnected(false);
           onDisconnect?.();
           reject(new Error('Channel closed'));
         } else if (status === 'CHANNEL_ERROR') {
           clearTimeout(timeout);
+          channelRef.current = null;
+          setRealtimeChannel(null);
           // Brief delay gives Supabase a window to recover from transient
           // network blips before the caller triggers a full reconnect cycle.
           setTimeout(() => reject(new Error('Channel error')), 1_000);

@@ -1,10 +1,20 @@
 import { containsProfanity, filterMessage } from '../../utils/profanityFilter';
 
+// Helper to decode test words stored in reversed form, matching the source encoding
+// convention in profanityFilter.ts. Avoids explicit offensive words as plaintext
+// in test source (Copilot PR-150 r2949966880).
+const w = (rev: string) => rev.split('').reverse().join('');
+const TW = {
+  f: w('kcuf'),
+  s: w('tihs'),
+  d: w('nmaD'),
+} as const;
+
 describe('profanityFilter', () => {
   describe('containsProfanity', () => {
     it('detects blocked words', () => {
-      expect(containsProfanity('what the fuck')).toBe(true);
-      expect(containsProfanity('SHIT happens')).toBe(true);
+      expect(containsProfanity(`what the ${TW.f}`)).toBe(true);
+      expect(containsProfanity(`${TW.s.toUpperCase()} happens`)).toBe(true);
     });
 
     it('ignores clean text', () => {
@@ -21,8 +31,8 @@ describe('profanityFilter', () => {
 
   describe('filterMessage', () => {
     it('replaces blocked words with ***', () => {
-      expect(filterMessage('what the fuck')).toBe('what the ***');
-      expect(filterMessage('shit happens')).toBe('*** happens');
+      expect(filterMessage(`what the ${TW.f}`)).toBe('what the ***');
+      expect(filterMessage(`${TW.s} happens`)).toBe('*** happens');
     });
 
     it('returns clean text unchanged', () => {
@@ -31,13 +41,13 @@ describe('profanityFilter', () => {
     });
 
     it('replaces multiple blocked words', () => {
-      const result = filterMessage('damn this shit');
+      const result = filterMessage(`${TW.d} this ${TW.s}`);
       expect(result).toBe('*** this ***');
     });
 
     it('is case-insensitive', () => {
-      expect(filterMessage('FUCK')).toBe('***');
-      expect(filterMessage('Shit')).toBe('***');
+      expect(filterMessage(TW.f.toUpperCase())).toBe('***');
+      expect(filterMessage(TW.s[0].toUpperCase() + TW.s.slice(1))).toBe('***');
     });
   });
 });

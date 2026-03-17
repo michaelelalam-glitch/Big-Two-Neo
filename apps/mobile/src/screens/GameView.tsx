@@ -316,8 +316,8 @@ function GameViewComponent() {
                     onPress={toggleChatDrawer}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel="Toggle chat"
-                    accessibilityHint="Opens or closes the text chat"
+                    accessibilityLabel={i18n.t('chat.a11yToggleLabel')}
+                    accessibilityHint={i18n.t('chat.a11yToggleHint')}
                   >
                     <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
                   </TouchableOpacity>
