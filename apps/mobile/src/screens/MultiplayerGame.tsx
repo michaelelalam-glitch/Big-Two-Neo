@@ -47,7 +47,7 @@ import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
-import i18n from '../i18n';
+import { i18n } from '../i18n';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
