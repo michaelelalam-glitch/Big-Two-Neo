@@ -6,7 +6,7 @@
  * (a→@/4, e→3, i→1/!, o→0, s→$) are handled.
  */
 
-// Blocklist — add words in lowercase. Each entry is escaped and expanded
+// Blocklist — add words in lowercase. Each entry is expanded
 // into a regex that covers basic leet substitutions.
 const BLOCKLIST: string[] = [
   'shit', 'fuck', 'ass', 'bitch', 'dick', 'damn', 'crap',
@@ -24,10 +24,15 @@ const LEET_MAP: Record<string, string> = {
   t: '[t7]',
 };
 
+/** Escape regex metacharacters so special chars in future words don't break the pattern. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function toLeetPattern(word: string): string {
   return word
     .split('')
-    .map((ch) => LEET_MAP[ch] ?? ch)
+    .map((ch) => LEET_MAP[ch] ?? escapeRegex(ch))
     .join('');
 }
 

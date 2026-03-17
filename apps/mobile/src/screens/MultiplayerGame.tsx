@@ -894,6 +894,7 @@ export function MultiplayerGame() {
       remotePlayerIds, getVideoTrackRef,
       chatMessages, sendChatMessage, chatUnreadCount, isChatCooldown,
       isChatDrawerOpen, toggleChatDrawer,
+      user?.id,
     ],
   );
 

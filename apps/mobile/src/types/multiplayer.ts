@@ -219,7 +219,7 @@ export type BroadcastData =
   | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
   | { player_index: number }  // auto_pass_executed
-  | { user_id: string; username: string; message: string; created_at: string };  // chat_message (#648)
+  | { id: string; user_id: string; username: string; message: string; created_at: string };  // chat_message (#648)
 
 export interface BroadcastPayload {
   event: BroadcastEvent;
