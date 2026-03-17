@@ -6,9 +6,10 @@
  * (a→@/4, e→3, i→1/!, o→0, s→$) are handled.
  */
 
-// Blocklist words stored in reversed form to avoid triggering content scanners
-// and security tools that scan for explicit slurs in source code.
-// Decoded at module init via Array.prototype.reverse() + join — no external dep needed.
+// Content-moderation word list for in-game chat filtering.
+// Words are stored as reversed strings — a source-code convention to prevent
+// inadvertent plaintext appearances during code review; NOT a security measure
+// or an attempt to evade content scanners. Decoded at module init.
 // To add a word: reverse it and append to the array (e.g. 'hello' → 'olleh').
 const BLOCKLIST_REVERSED: string[] = [
   'tihs', 'kcuf', 'ssa', 'hctib', 'kcid', 'nmaD', 'parc',

@@ -91,6 +91,8 @@ export interface Translations {
     send: string;
     noMessages: string;
     cooldown: string;
+    a11yToggleLabel: string;
+    a11yToggleHint: string;
   };
 
   // Game Selection Screen
@@ -741,6 +743,8 @@ const en: Translations = {
     send: 'Send',
     noMessages: 'No messages yet. Say hi!',
     cooldown: 'Wait…',
+    a11yToggleLabel: 'Toggle chat',
+    a11yToggleHint: 'Opens or closes the text chat',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -1323,6 +1327,8 @@ const ar: Translations = {
     send: 'إرسال',
     noMessages: 'لا رسائل بعد. قل مرحبًا!',
     cooldown: 'انتظر…',
+    a11yToggleLabel: 'تبديل الدردشة',
+    a11yToggleHint: 'يفتح أو يغلق الدردشة النصية',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1935,6 +1941,8 @@ const de: Translations = {
     send: 'Senden',
     noMessages: 'Noch keine Nachrichten. Sag Hallo!',
     cooldown: 'Warten…',
+    a11yToggleLabel: 'Chat ein-/ausblenden',
+    a11yToggleHint: 'Öffnet oder schließt den Textchat',
   },
   gameSelection: {
     welcome: 'Willkommen,',

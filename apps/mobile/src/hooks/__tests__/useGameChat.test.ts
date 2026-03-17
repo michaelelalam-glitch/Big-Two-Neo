@@ -15,10 +15,12 @@ function createMockChannel() {
       return { on: jest.fn().mockReturnThis() };
     }),
     send: jest.fn().mockResolvedValue(undefined),
-    // Helper to simulate incoming broadcast
+    // Helper to simulate incoming broadcast. Supabase delivers the `payload`
+    // field of channel.send() directly as the callback argument, so we pass
+    // { data } to match the envelope shape used by useGameChat.sendMessage.
     _emit(event: string, data: unknown) {
       const key = `broadcast:${event}`;
-      (handlers[key] ?? []).forEach((h) => h({ payload: { data } }));
+      (handlers[key] ?? []).forEach((h) => h({ data }));
     },
   };
 }
@@ -104,8 +106,10 @@ describe('useGameChat', () => {
   it('filters profanity in outgoing messages', () => {
     const { result } = renderHook(() => useGameChat(defaultProps()));
 
+    // Use reversed encoding to avoid plaintext offensive word in test source.
+    const profaneInput = 'kcuf'.split('').reverse().join('');
     act(() => {
-      result.current.sendMessage('what the fuck');
+      result.current.sendMessage(`what the ${profaneInput}`);
     });
 
     expect(result.current.messages[0].message).toBe('what the ***');

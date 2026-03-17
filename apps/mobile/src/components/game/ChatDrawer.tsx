@@ -50,10 +50,12 @@ export interface ChatDrawerProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Top offset (px) — positions panel below status bar + scoreActionContainer row. */
+/** Distance from the top of the screen to the visible panel when open. */
 const PANEL_TOP = 110;
 /** Visible panel height when open. */
 const PANEL_HEIGHT = 300;
+/** Hidden translateY: push the panel fully above y=0 (PANEL_HEIGHT below top=0 → bottom at 0; add PANEL_TOP buffer). */
+const PANEL_HIDDEN_Y = -(PANEL_HEIGHT + PANEL_TOP);
 const ANIMATION_DURATION = 250;
 
 // ---------------------------------------------------------------------------
@@ -73,11 +75,13 @@ export function ChatDrawer({
   const [inputText, setInputText] = React.useState('');
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Panel slides down from above: translateY = -PANEL_HEIGHT (hidden) → 0 (visible).
-  const translateY = useSharedValue(-PANEL_HEIGHT);
+  // Panel slides down from above: translateY starts hidden (PANEL_HIDDEN_Y) and
+  // animates to PANEL_TOP (visible). Using top:0 + translateY offset keeps the
+  // panel fully above y=0 when closed, preventing any edge from peeking.
+  const translateY = useSharedValue(PANEL_HIDDEN_Y);
 
   useEffect(() => {
-    translateY.value = withTiming(isOpen ? 0 : -PANEL_HEIGHT, {
+    translateY.value = withTiming(isOpen ? PANEL_TOP : PANEL_HIDDEN_Y, {
       duration: ANIMATION_DURATION,
       easing: Easing.out(Easing.cubic),
     });
@@ -231,7 +235,7 @@ const styles = StyleSheet.create({
   // Panel drops down from the top of the screen.
   panel: {
     position: 'absolute',
-    top: PANEL_TOP,
+    top: 0,
     left: 0,
     right: 0,
     height: PANEL_HEIGHT,
