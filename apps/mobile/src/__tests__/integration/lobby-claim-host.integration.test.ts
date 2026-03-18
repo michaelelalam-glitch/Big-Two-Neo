@@ -63,9 +63,10 @@ try {
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Skip entire suite when credentials are absent (e.g., CI without service keys).
-const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
+// Skip entire suite when credentials are absent (e.g., CI without service keys or anon key).
+const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY && !!SUPABASE_ANON_KEY;
 const describeWithCredentials = hasCredentials ? describe : describe.skip;
 
 function uniqueRoomCode(): string {

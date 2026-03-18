@@ -243,6 +243,7 @@ export interface Translations {
     beforeBotReplaces: string;
     botPlayingForYou: string;
     roomClosedError: string;
+    roomCheckError: string;
   };
 
   // How to Play Screen
@@ -897,6 +898,7 @@ const en: Translations = {
     beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
     botPlayingForYou: '🤖 A bot is playing for you',
     roomClosedError: 'This room is closed. Please start or join a new game.',
+    roomCheckError: 'Unable to check room status. Please check your connection and try again.',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -1496,6 +1498,7 @@ const ar: Translations = {
     beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
     botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
     roomClosedError: 'هذه الغرفة مغلقة. يرجى بدء لعبة جديدة أو الانضمام إلى لعبة أخرى.',
+    roomCheckError: 'تعذر التحقق من حالة الغرفة. يرجى التحقق من الاتصال والمحاولة مرة أخرى.',
   },
   game: {
     yourTurn: 'دورك',
@@ -2126,6 +2129,7 @@ const de: Translations = {
     beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
     botPlayingForYou: '🤖 Ein Bot spielt für dich',
     roomClosedError: 'Dieser Raum ist geschlossen. Bitte starte ein neues Spiel oder tritt einem anderen bei.',
+    roomCheckError: 'Raumstatus konnte nicht überprüft werden. Bitte prüfe deine Verbindung und versuche es erneut.',
   },
   game: {
     yourTurn: 'Dein Zug',

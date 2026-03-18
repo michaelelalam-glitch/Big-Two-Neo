@@ -59,10 +59,11 @@ export default function CreateRoomScreen() {
         //      dialog for a lobby the user is no longer in.
         const STALE_THRESHOLD_MS = 60_000; // match lobby_evict_ghosts 60 s threshold
         const lastSeenAt = roomPlayer.last_seen_at ?? null;
+        // Treat lastSeenAt === null as infinitely stale, matching SQL eviction logic
+        // (last_seen_at IS NULL rows are considered stale in lobby_evict_ghosts).
         const isStaleWaiting =
           roomStatus === 'waiting' &&
-          lastSeenAt != null &&
-          Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS;
+          (lastSeenAt == null || Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS);
 
         if (roomStatus === 'finished' || roomStatus === 'ended' || isStaleWaiting) {
           roomLogger.info('🧹 [CreateRoom] Auto-cleaning up finished room:', existingCode);

@@ -180,6 +180,17 @@ BEGIN
     RAISE EXCEPTION 'lobby_claim_host: not authenticated';
   END IF;
 
+  -- Membership guard: caller must be in this room before we reveal host state
+  -- or perform any writes.  Prevents information leaks and broadened attack
+  -- surface from SECURITY DEFINER execution by non-members.
+  IF NOT EXISTS (
+    SELECT 1 FROM room_players
+     WHERE room_id = p_room_id
+       AND user_id = v_caller_id
+  ) THEN
+    RETURN jsonb_build_object('status', 'not_member');
+  END IF;
+
   -- Inspect current host state.
   SELECT user_id, last_seen_at
     INTO v_current_host
@@ -294,7 +305,9 @@ BEGIN
   -- Security: reject calls where the JWT uid doesn't match p_user_id.
   -- This also enables SECURITY DEFINER so ghost eviction can DELETE other
   -- users' stale room_players rows (blocked by RLS in the caller's role).
-  IF auth.uid() IS DISTINCT FROM p_user_id THEN
+  -- service_role is exempt (auth.uid() is NULL in that context) so admin
+  -- and integration-test flows are not broken by this guard.
+  IF auth.role() != 'service_role' AND auth.uid() IS DISTINCT FROM p_user_id THEN
     RAISE EXCEPTION 'join_room_atomic: JWT uid does not match p_user_id';
   END IF;
 
@@ -373,12 +386,13 @@ BEGIN
   -- Players kicked by the host in a private room are recorded in
   -- rooms.banned_user_ids by lobby_kick_player (see migration_006).
   -- Block their re-entry here; casual/ranked rooms allow free re-entry.
-  IF p_user_id = ANY(
-    SELECT unnest(COALESCE(banned_user_ids, '{}'))
+  IF EXISTS (
+    SELECT 1
       FROM rooms
-     WHERE id = v_room_id
+     WHERE id            = v_room_id
        AND is_matchmaking = FALSE
        AND (is_public IS NULL OR is_public = FALSE)
+       AND p_user_id     = ANY(COALESCE(banned_user_ids, '{}'))
   ) THEN
     RAISE EXCEPTION 'You have been kicked from this private room and cannot rejoin';
   END IF;
