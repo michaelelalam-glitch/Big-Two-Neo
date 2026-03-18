@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
+// expo-clipboard loaded lazily (dynamic import) to prevent ExpoClipboard
+// native module requirement at bundle-load time — avoids crash in Expo Go.
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +11,6 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
-import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { showError, showConfirm } from '../utils';
 import { roomLogger } from '../utils/logger';
 
@@ -61,8 +62,8 @@ export default function LobbyScreen() {
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
-  const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation alerts
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
+  const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
@@ -131,9 +132,13 @@ export default function LobbyScreen() {
       return null;
     }
 
-    // Track whether room is already in progress (rejoin scenario)
+    // Room already in progress — navigate directly to Game (no need to idle in lobby with Rejoin button)
     if (data.status === 'playing') {
-      setIsGameInProgress(true);
+      if (!isLeavingRef.current) {
+        isLeavingRef.current = true;
+        navigation.replace('Game', { roomCode });
+      }
+      return null;
     }
 
     // Handle ended/finished rooms: reset to 'waiting' for Play Again, otherwise send home.
@@ -419,20 +424,18 @@ export default function LobbyScreen() {
   };
 
   const handleCopyCode = async () => {
-    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
-    if (result === 'copied') {
-      Alert.alert(
-        i18n.t('lobby.copiedTitle'),
-        i18n.t('lobby.copiedMessage', { roomCode })
-      );
-    } else if (result === 'failed') {
-      // Both clipboard and Share unavailable — last resort: show room code
-      Alert.alert(
-        i18n.t('lobby.copyFailedTitle'),
-        i18n.t('lobby.copyFailedMessage', { roomCode })
-      );
+    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
+    // not at bundle-load time — avoids crash in Expo Go.
+    try {
+      const mod = await import('expo-clipboard');
+      await mod.setStringAsync(roomCode);
+    } catch {
+      // clipboard unavailable in this environment — still show the alert
     }
-    // 'shared': Share sheet was presented — no additional alert needed
+    Alert.alert(
+      i18n.t('lobby.copiedTitle') || 'Copied!',
+      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
+    );
   };
 
   const handleShareCode = async () => {
@@ -567,21 +570,13 @@ export default function LobbyScreen() {
         roomLogger.error('❌ Failed to send game start notification:', err)
       );
 
+      // DO NOT manually navigate - let Realtime subscription handle navigation for ALL players
+      // The subscription will fire when room status changes to 'playing'
       // CRITICAL: Set isGameInProgress BEFORE clearing isStarting so the auto-start useEffect
       // (which depends on isStarting) cannot re-fire handleStartWithBots a second time.
+      roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
       setIsGameInProgress(true);
       setIsStarting(false);
-
-      // Navigate the host directly rather than waiting for the Realtime subscription.
-      // The subscription is the primary path for non-host players; for the host it can be
-      // missed (e.g. event delivered before the 100ms guard, or network re-order).
-      // Using the same 100ms delay as the subscription so game_state has time to propagate.
-      roomLogger.info('⏳ [LobbyScreen] navigating host to game in 100ms...');
-      setTimeout(() => {
-        if (!isLeavingRef.current) {
-          navigation.replace('Game', { roomCode, forceNewGame: true, botDifficulty });
-        }
-      }, 100);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       roomLogger.error('Error starting game:', msg);
@@ -612,66 +607,54 @@ export default function LobbyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartWithBots is not memoised; isStartingRef is a stable ref
   }, [humanPlayerCount, allNonHostHumansReady, isHost, isStarting, isGameInProgress]);
 
-  const performLeaveRoom = async () => {
-    if (isLeavingRef.current || isLeaving) return;
-
-    try {
-      // Set flag to prevent duplicate navigation
-      isLeavingRef.current = true;
-      setIsLeavingState(true);
-
-      const currentRoomId = roomId || await getRoomId();
-      if (!currentRoomId) {
-        navigation.replace('Home');
-        return;
-      }
-
-      if (isHost) {
-        // Delete the room if host leaves
-        const { error } = await supabase
-          .from('rooms')
-          .delete()
-          .eq('id', currentRoomId);
-
-        if (error) throw error;
-      } else {
-        // Remove player from room regardless of ready status
-        const { error } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('room_id', currentRoomId)
-          .eq('user_id', user?.id);
-
-        if (error) throw error;
-      }
-
-      navigation.replace('Home');
-    } catch (error: unknown) {
-      roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
-      isLeavingRef.current = false; // Reset flag on error
-      setIsLeavingState(false);
-      showError(i18n.t('lobby.leaveRoomError'));
-    }
-  };
-
   const handleLeaveRoom = () => {
     if (isLeavingRef.current || isLeaving || isLeaveConfirmOpenRef.current) return;
+
     isLeaveConfirmOpenRef.current = true;
-
-    const message = isReady
-      ? i18n.t('lobby.confirmLeaveReady')
-      : i18n.t('lobby.confirmLeaveMessage');
-
     showConfirm({
       title: i18n.t('lobby.confirmLeaveTitle'),
-      message,
+      message: isReady
+        ? i18n.t('lobby.confirmLeaveReady')
+        : i18n.t('lobby.confirmLeaveMessage'),
       confirmText: i18n.t('lobby.confirmLeaveYes'),
       cancelText: i18n.t('lobby.confirmLeaveNo'),
       destructive: true,
       cancelable: false,
-      onConfirm: () => {
+      onConfirm: async () => {
         isLeaveConfirmOpenRef.current = false;
-        performLeaveRoom();
+        if (isLeavingRef.current) return;
+        try {
+          isLeavingRef.current = true;
+          setIsLeavingState(true);
+
+          const currentRoomId = roomId || await getRoomId();
+          if (!currentRoomId) {
+            navigation.replace('Home');
+            return;
+          }
+
+          if (isHost) {
+            const { error } = await supabase
+              .from('rooms')
+              .delete()
+              .eq('id', currentRoomId);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from('room_players')
+              .delete()
+              .eq('room_id', currentRoomId)
+              .eq('user_id', user?.id);
+            if (error) throw error;
+          }
+
+          navigation.replace('Home');
+        } catch (error: unknown) {
+          roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
+          isLeavingRef.current = false;
+          setIsLeavingState(false);
+          showError(i18n.t('lobby.leaveRoomError'));
+        }
       },
       onCancel: () => {
         isLeaveConfirmOpenRef.current = false;

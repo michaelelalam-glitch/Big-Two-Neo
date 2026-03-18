@@ -11,6 +11,7 @@
  * Extracted from HomeScreen.tsx which was 1,643 LOC.
  */
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../contexts/AuthContext';
@@ -175,10 +176,23 @@ export function useMatchmakingFlow(
       }
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
-        roomLogger.info('✅ User already in active room:', roomPlayer.rooms.code);
-        setCurrentRoom(roomPlayer.rooms.code);
-        navigation.replace('Lobby', { roomCode: roomPlayer.rooms.code });
-        return;
+        // Skip redirect if the user voluntarily left this room (e.g. via banner leave).
+        // Voluntarily-left room IDs are persisted in AsyncStorage by useActiveGameBanner.
+        let voluntarilyLeft = new Set<string>();
+        try {
+          const raw = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          if (raw) voluntarilyLeft = new Set<string>(JSON.parse(raw));
+        } catch { /* ignore — proceed without filter */ }
+
+        if (voluntarilyLeft.has(roomPlayer.room_id)) {
+          roomLogger.info('🚫 Skipping stale room (voluntarily left via banner):', roomPlayer.rooms.code);
+          // Fall through to cleanup + create new room
+        } else {
+          roomLogger.info('✅ User already in active room:', roomPlayer.rooms.code);
+          setCurrentRoom(roomPlayer.rooms.code);
+          navigation.replace('Lobby', { roomCode: roomPlayer.rooms.code });
+          return;
+        }
       }
 
       roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
