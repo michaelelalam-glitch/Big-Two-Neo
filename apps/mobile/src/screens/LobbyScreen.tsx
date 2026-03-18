@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -660,7 +660,7 @@ export default function LobbyScreen() {
       confirmText: i18n.t('lobby.confirmLeaveYes'),
       cancelText: i18n.t('lobby.confirmLeaveNo'),
       destructive: true,
-      cancelable: true,
+      cancelable: false,
       onConfirm: () => {
         isLeaveConfirmOpenRef.current = false;
         performLeaveRoom();

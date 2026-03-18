@@ -40,7 +40,7 @@ export interface UseActiveGameBannerResult {
   checkGameExclusivity: (targetType: 'online' | 'offline') => Promise<boolean>;
   handleBannerResume: (gameInfo: ActiveGameInfo) => void;
   handleBannerLeave: (gameInfo: ActiveGameInfo) => void;
-  handleReplaceBotAndRejoin: (roomCode: string) => Promise<void>;
+  handleReplaceBotAndRejoin: (roomCode: string) => void;
   handleTimerExpired: () => Promise<void>;
 }
 
@@ -181,13 +181,20 @@ export function useActiveGameBanner(
       } else {
         // Check if this player was replaced by a bot.
         try {
-          const { data: replacedData } = await supabase
+          const { data: replacedData, error: replacedDataError } = await supabase
             .from('room_players')
             .select('room_id, rooms!inner(code, status)')
             .eq('human_user_id', user.id)
             .eq('connection_status', 'replaced_by_bot')
             .in('rooms.status', ['playing'])
             .maybeSingle();
+
+          if (replacedDataError) {
+            // Transient network error or RLS issue — don't treat as "room closed".
+            // Leave banner state unchanged so the user isn't incorrectly kicked out.
+            roomLogger.error('Error checking replaced_by_bot status:', replacedDataError.message);
+            return;
+          }
 
           const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
           if (rd?.rooms?.code) {
@@ -507,38 +514,43 @@ export function useActiveGameBanner(
     }
   }, [handleLeaveCurrentRoom, canRejoinAfterExpiry, user]);
 
-  const handleReplaceBotAndRejoin = useCallback(async (roomCode: string) => {
+  const handleReplaceBotAndRejoin = useCallback((roomCode: string): void => {
     // Guard: verify the room is still open before navigating.
     // In a 1-human + 3-bot room the server closes the room (status='finished')
     // instead of creating a replaced_by_bot row, so there is a window where the
     // countdown has expired and the button is visible but the room is already
     // closed — navigating without this check causes a native crash.
-    try {
-      const { data: roomCheck } = await supabase
-        .from('rooms')
-        .select('status')
-        .eq('code', roomCode)
-        .maybeSingle();
+    void (async () => {
+      try {
+        const { data: roomCheck, error: roomCheckError } = await supabase
+          .from('rooms')
+          .select('status')
+          .eq('code', roomCode)
+          .maybeSingle();
 
-      if (!roomCheck || roomCheck.status === 'finished' || roomCheck.status === 'ended') {
-        roomLogger.info(`🚫 [handleReplaceBotAndRejoin] Room ${roomCode} is closed (status=${roomCheck?.status ?? 'not found'}) — aborting navigation`);
-        showError(i18n.t('home.roomClosedError'));
-        // Clear banner so the stale entry is removed immediately
-        currentRoomIdRef.current = null;
-        setCurrentRoom(null);
-        setCurrentRoomStatus(undefined);
-        setDisconnectTimestamp(null);
-        setCanRejoinAfterExpiry(null);
-        return;
+        if (roomCheckError) {
+          roomLogger.error(`[handleReplaceBotAndRejoin] DB error checking room ${roomCode}:`, roomCheckError.message);
+          // Proceed optimistically on query error; Game screen handles a closed room gracefully.
+        } else if (!roomCheck || roomCheck.status === 'finished' || roomCheck.status === 'ended') {
+          roomLogger.info(`🚫 [handleReplaceBotAndRejoin] Room ${roomCode} is closed (status=${roomCheck?.status ?? 'not found'}) — aborting navigation`);
+          showError(i18n.t('home.roomClosedError'));
+          // Clear banner so the stale entry is removed immediately
+          currentRoomIdRef.current = null;
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+          setCanRejoinAfterExpiry(null);
+          return;
+        }
+      } catch {
+        // Network blip — proceed optimistically; the Game screen handles failures
       }
-    } catch {
-      // Network blip — proceed optimistically; the Game screen handles failures
-    }
 
-    roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
-    setDisconnectTimestamp(null);
-    setCanRejoinAfterExpiry(null);
-    navigation.replace('Game', { roomCode });
+      roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
+      setDisconnectTimestamp(null);
+      setCanRejoinAfterExpiry(null);
+      navigation.replace('Game', { roomCode });
+    })();
   }, [navigation]);
 
   const checkGameExclusivity = useCallback(async (targetType: 'online' | 'offline'): Promise<boolean> => {
