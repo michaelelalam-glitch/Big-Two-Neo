@@ -36,11 +36,13 @@ export interface UseGameChatReturn {
   isCooldown: boolean;
 }
 
-// Simple sequential ID generator (unique enough for ephemeral messages).
+// Sequential ID generator scoped to the browser/JS runtime.
+// Including the userId makes IDs unique across clients even when two players
+// send within the same millisecond (Copilot PR-150 r2950195900).
 let _msgSeq = 0;
-function nextId(): string {
+function nextId(uid: string): string {
   _msgSeq += 1;
-  return `chat_${Date.now()}_${_msgSeq}`;
+  return `chat_${uid}_${Date.now()}_${_msgSeq}`;
 }
 
 export function useGameChat({
@@ -98,7 +100,14 @@ export function useGameChat({
         raw.created_at && !Number.isNaN(Date.parse(raw.created_at))
           ? raw.created_at
           : new Date().toISOString();
-      const msg: ChatMessage = { ...raw, username: raw.username || raw.user_id, created_at };
+      // Apply profanity filter on receive so a modified client can't bypass it
+      // by broadcasting unfiltered text (Copilot PR-150 r2950195912).
+      const msg: ChatMessage = {
+        ...raw,
+        username: raw.username || raw.user_id,
+        created_at,
+        message: filterMessage(raw.message),
+      };
 
       setMessages((prev) => {
         // Deduplicate: optimistic local add + broadcast echo can create duplicates
@@ -142,7 +151,7 @@ export function useGameChat({
       const filtered = filterMessage(trimmed);
 
       const msg: ChatMessage = {
-        id: nextId(),
+        id: nextId(userId),
         user_id: userId,
         username,
         message: filtered,
