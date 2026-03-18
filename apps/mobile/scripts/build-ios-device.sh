@@ -10,14 +10,19 @@ echo "   Make sure your iPhone is connected via USB and trusted on this Mac."
 
 cd "$PROJECT_DIR"
 
-# Use UDID directly to avoid the interactive device prompt (which has a regex bug with device names containing parentheses).
-# Your physical iPhone UDID: 00008030-00125430012B802E
-DEVICE_UDID="00008030-00125430012B802E"
-
-# Allow overriding UDID via first positional argument
+# Accept UDID via first postiional argument or DEVICE_UDID env var.
+# If neither is set, pass --device without a value so Expo prompts interactively.
+# Avoid committing a hard-coded device UDID (Copilot PR-151 r2951116791).
 if [[ -n "$1" ]]; then
-  DEVICE_UDID="$1"
+  DEVICE_ARG="${1}"
+elif [[ -n "$DEVICE_UDID" ]]; then
+  DEVICE_ARG="${DEVICE_UDID}"
 fi
 
 # Use the local expo binary to avoid the deprecated global expo-cli
-"$PROJECT_DIR/node_modules/.bin/expo" run:ios --device "$DEVICE_UDID"
+if [[ -n "$DEVICE_ARG" ]]; then
+  "$PROJECT_DIR/node_modules/.bin/expo" run:ios --device "$DEVICE_ARG"
+else
+  echo "   No UDID provided — Expo will prompt to select a connected device."
+  "$PROJECT_DIR/node_modules/.bin/expo" run:ios --device
+fi
