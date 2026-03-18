@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import { tryCopyTextWithShareFallback } from '../utils/clipboard';
-import { showError } from '../utils';
+import { showError, showConfirm } from '../utils';
 import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -61,6 +61,7 @@ export default function LobbyScreen() {
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
+  const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation alerts
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -646,21 +647,28 @@ export default function LobbyScreen() {
   };
 
   const handleLeaveRoom = () => {
-    if (isLeavingRef.current || isLeaving) return;
+    if (isLeavingRef.current || isLeaving || isLeaveConfirmOpenRef.current) return;
+    isLeaveConfirmOpenRef.current = true;
 
     const message = isReady
       ? i18n.t('lobby.confirmLeaveReady')
       : i18n.t('lobby.confirmLeaveMessage');
 
-    Alert.alert(
-      i18n.t('lobby.confirmLeaveTitle'),
+    showConfirm({
+      title: i18n.t('lobby.confirmLeaveTitle'),
       message,
-      [
-        { text: i18n.t('lobby.confirmLeaveNo'), style: 'cancel' },
-        { text: i18n.t('lobby.confirmLeaveYes'), style: 'destructive', onPress: performLeaveRoom },
-      ],
-      { cancelable: true }
-    );
+      confirmText: i18n.t('lobby.confirmLeaveYes'),
+      cancelText: i18n.t('lobby.confirmLeaveNo'),
+      destructive: true,
+      cancelable: true,
+      onConfirm: () => {
+        isLeaveConfirmOpenRef.current = false;
+        performLeaveRoom();
+      },
+      onCancel: () => {
+        isLeaveConfirmOpenRef.current = false;
+      },
+    });
   };
 
   const renderPlayer = ({ item, index: _index }: { item: Player | null; index: number }) => {

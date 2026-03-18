@@ -242,6 +242,7 @@ export interface Translations {
     botReplacingYou: string;
     beforeBotReplaces: string;
     botPlayingForYou: string;
+    roomClosedError: string;
   };
 
   // How to Play Screen
@@ -886,6 +887,7 @@ const en: Translations = {
     botReplacingYou: 'Bot replacing you...',
     beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
     botPlayingForYou: '🤖 A bot is playing for you',
+    roomClosedError: 'This room is closed. Please start or join a new game.',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -1475,6 +1477,7 @@ const ar: Translations = {
     botReplacingYou: 'يحل البوت محلك...',
     beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
     botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
+    roomClosedError: 'هذه الغرفة مغلقة. يرجى بدء لعبة جديدة أو الانضمام إلى لعبة أخرى.',
   },
   game: {
     yourTurn: 'دورك',
@@ -2095,6 +2098,7 @@ const de: Translations = {
     botReplacingYou: 'Bot ersetzt dich...',
     beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
     botPlayingForYou: '🤖 Ein Bot spielt für dich',
+    roomClosedError: 'Dieser Raum ist geschlossen. Bitte starte ein neues Spiel oder tritt einem anderen bei.',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -2242,7 +2246,7 @@ const de: Translations = {
     privateRoom: '🔒 Privater Raum',
     confirmLeaveTitle: 'Lobby verlassen?',
     confirmLeaveMessage: 'Möchtest du die Lobby wirklich verlassen?',
-    confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du wirklich verlassen?',
+    confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du die Lobby wirklich verlassen?',
     confirmLeaveYes: 'Verlassen',
     confirmLeaveNo: 'Bleiben',
   },

@@ -40,7 +40,7 @@ export interface UseActiveGameBannerResult {
   checkGameExclusivity: (targetType: 'online' | 'offline') => Promise<boolean>;
   handleBannerResume: (gameInfo: ActiveGameInfo) => void;
   handleBannerLeave: (gameInfo: ActiveGameInfo) => void;
-  handleReplaceBotAndRejoin: (roomCode: string) => void;
+  handleReplaceBotAndRejoin: (roomCode: string) => Promise<void>;
   handleTimerExpired: () => Promise<void>;
 }
 
@@ -507,7 +507,34 @@ export function useActiveGameBanner(
     }
   }, [handleLeaveCurrentRoom, canRejoinAfterExpiry, user]);
 
-  const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {
+  const handleReplaceBotAndRejoin = useCallback(async (roomCode: string) => {
+    // Guard: verify the room is still open before navigating.
+    // In a 1-human + 3-bot room the server closes the room (status='finished')
+    // instead of creating a replaced_by_bot row, so there is a window where the
+    // countdown has expired and the button is visible but the room is already
+    // closed — navigating without this check causes a native crash.
+    try {
+      const { data: roomCheck } = await supabase
+        .from('rooms')
+        .select('status')
+        .eq('code', roomCode)
+        .maybeSingle();
+
+      if (!roomCheck || roomCheck.status === 'finished' || roomCheck.status === 'ended') {
+        roomLogger.info(`🚫 [handleReplaceBotAndRejoin] Room ${roomCode} is closed (status=${roomCheck?.status ?? 'not found'}) — aborting navigation`);
+        showError(i18n.t('home.roomClosedError'));
+        // Clear banner so the stale entry is removed immediately
+        currentRoomIdRef.current = null;
+        setCurrentRoom(null);
+        setCurrentRoomStatus(undefined);
+        setDisconnectTimestamp(null);
+        setCanRejoinAfterExpiry(null);
+        return;
+      }
+    } catch {
+      // Network blip — proceed optimistically; the Game screen handles failures
+    }
+
     roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
     setDisconnectTimestamp(null);
     setCanRejoinAfterExpiry(null);
