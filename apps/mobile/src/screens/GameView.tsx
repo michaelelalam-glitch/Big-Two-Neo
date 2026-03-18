@@ -492,7 +492,6 @@ function GameViewComponent() {
           <ChatDrawer
             messages={chatMessages}
             sendMessage={sendChatMessage}
-            unreadCount={chatUnreadCount}
             isCooldown={isChatCooldown}
             isOpen={isChatDrawerOpen}
             onToggle={toggleChatDrawer}

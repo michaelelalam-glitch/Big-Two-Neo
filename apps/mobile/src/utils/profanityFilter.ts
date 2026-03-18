@@ -44,14 +44,18 @@ function toLeetPattern(word: string): string {
 }
 
 // Build a single combined regex from the blocklist.
-// Use custom negative-lookbehind/lookahead boundaries instead of \b so that
-// leet-speak words starting/ending with non-word characters (e.g. "@ss",
-// "as$") are still matched. \b would silently fail at those edges because
-// "@" and "$" are \W and \b requires a \W↔\w transition (Copilot PR-150
-// r2950221375).
+// Custom boundary logic instead of \b so leet-speak words starting/ending
+// with non-word characters (e.g. "@ss", "as$") are still matched. \b fails
+// at those edges because "@"/"$" are \W and \b requires a \W↔\w transition
+// (Copilot PR-150 r2950221375).
 const combinedPattern = BLOCKLIST.map(toLeetPattern).join('|');
+// Prefix capture group instead of lookbehind: '(^|[^a-zA-Z0-9])' matches the
+// start of string or any non-alphanumeric character before the blocked word.
+// The captured prefix is restored in filterMessage via '$1***'. Using a
+// group rather than a negative lookbehind ensures compatibility with all
+// JSC/Hermes builds shipped with React Native (Copilot PR-150 r2950333900).
 const PROFANITY_REGEX = new RegExp(
-  `(?<![a-zA-Z0-9])(?:${combinedPattern})(?![a-zA-Z0-9])`,
+  `((?:^|[^a-zA-Z0-9]))(?:${combinedPattern})(?![a-zA-Z0-9])`,
   'gi',
 );
 
@@ -68,5 +72,5 @@ export function containsProfanity(text: string): boolean {
  */
 export function filterMessage(text: string): string {
   PROFANITY_REGEX.lastIndex = 0;
-  return text.replace(PROFANITY_REGEX, '***');
+  return text.replace(PROFANITY_REGEX, '$1***');
 }
