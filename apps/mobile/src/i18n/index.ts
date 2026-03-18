@@ -515,6 +515,7 @@ export interface Translations {
     invalidCodeTitle: string;
     alreadyInDifferentRoom: string;
     goToCurrentRoom: string;
+    leaveAndJoin: string;
     alreadyInAnotherRoom: string;
     joinRoomError: string;
     tip: string;
@@ -1123,6 +1124,7 @@ const en: Translations = {
     invalidCodeTitle: 'Invalid Code',
     alreadyInDifferentRoom: "You're already in room {{code}}. Leave it first to join a different room.",
     goToCurrentRoom: 'Go to Current Room',
+    leaveAndJoin: 'Leave & Join',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
@@ -1670,6 +1672,7 @@ const ar: Translations = {
     invalidCodeTitle: 'رمز غير صالح',
     alreadyInDifferentRoom: 'أنت بالفعل في الغرفة {{code}}. غادرها أولاً للانضمام إلى غرفة مختلفة.',
     goToCurrentRoom: 'اذهب إلى الغرفة الحالية',
+    leaveAndJoin: 'غادر وانضم',
     alreadyInAnotherRoom: 'أنت بالفعل في غرفة أخرى. يرجى المغادرة أولاً.',
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
@@ -2296,6 +2299,7 @@ const de: Translations = {
     invalidCodeTitle: 'Ungültiger Code',
     alreadyInDifferentRoom: 'Du bist bereits in Raum {{code}}. Verlasse ihn zuerst, um einem anderen Raum beizutreten.',
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
+    leaveAndJoin: 'Verlassen & Beitreten',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',

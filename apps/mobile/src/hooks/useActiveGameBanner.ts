@@ -376,6 +376,16 @@ export function useActiveGameBanner(
                 body: { room_id: membership.room_id },
               });
               if (invokeError) throw invokeError;
+              // Delete the room_players row so CreateRoom/JoinRoom don't find a stale playing-room
+              // entry after the user explicitly left. mark-disconnected already notified the server.
+              const { error: deleteAfterMarkErr } = await supabase
+                .from('room_players')
+                .delete()
+                .eq('room_id', membership.room_id)
+                .eq('user_id', user.id);
+              if (deleteAfterMarkErr) {
+                roomLogger.warn('[handleLeaveCurrentRoom] Non-fatal: could not delete room_players after mark-disconnected:', deleteAfterMarkErr.message);
+              }
             } else {
               const { data: plainRows } = await supabase
                 .from('room_players')
@@ -546,7 +556,11 @@ export function useActiveGameBanner(
           return;
         }
       } catch {
-        // Network blip — proceed optimistically; the Game screen handles failures
+        // Network error — abort navigation to avoid entering a potentially closed room.
+        // Proceeding optimistically here undermines the crash-prevention goal of this guard.
+        roomLogger.error(`[handleReplaceBotAndRejoin] Network error checking room ${roomCode} — aborting navigation`);
+        showError(i18n.t('home.roomClosedError'));
+        return;
       }
 
       roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);

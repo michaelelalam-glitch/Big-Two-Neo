@@ -313,6 +313,15 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
 
+        // Kicked: if not in a play-again flow the current user has been removed from
+        // the room (e.g. host kicked them) — navigate them home.
+        if (!playAgain && !isLeavingRef.current) {
+          roomLogger.info('[LobbyScreen] Current user removed from room (kicked) — navigating Home');
+          isLeavingRef.current = true;
+          navigation.replace('Home');
+          return;
+        }
+
         // Play Again: re-join the reset room atomically. join_room_atomic handles
         // player_index assignment and host promotion so whichever player arrives
         // first becomes the new host naturally.
@@ -442,13 +451,13 @@ export default function LobbyScreen() {
     }
     if (copied) {
       Alert.alert(
-        i18n.t('lobby.copiedTitle') || 'Copied!',
-        i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
+        i18n.t('lobby.copiedTitle'),
+        i18n.t('lobby.copiedMessage', { roomCode })
       );
     } else {
       Alert.alert(
-        i18n.t('lobby.copyFailedTitle') || 'Copy Failed',
-        i18n.t('lobby.copyFailedMessage', { roomCode }) || `Could not copy to clipboard. Your room code is: ${roomCode}`
+        i18n.t('lobby.copyFailedTitle'),
+        i18n.t('lobby.copyFailedMessage', { roomCode })
       );
     }
   };
@@ -676,6 +685,7 @@ export default function LobbyScreen() {
                   .eq('id', p.id);
                 if (updateErr) {
                   roomLogger.error('[LobbyScreen] Failed to re-index player:', updateErr.message);
+                  throw updateErr; // Abort leave — room state would be inconsistent
                 }
               }
 
@@ -686,6 +696,7 @@ export default function LobbyScreen() {
                 .eq('id', currentRoomId);
               if (roomUpdateErr) {
                 roomLogger.error('[LobbyScreen] Failed to update rooms.host_id:', roomUpdateErr.message);
+                throw roomUpdateErr; // Abort leave — room would have no valid host
               }
 
               // Remove the leaving host from room_players

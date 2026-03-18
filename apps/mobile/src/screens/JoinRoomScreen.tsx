@@ -54,12 +54,29 @@ export default function JoinRoomScreen() {
           navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
           return;
         } else {
-          // In a different room
+          // In a different room — let the user leave and join the requested room, or go back
           showConfirm({
             title: i18n.t('room.alreadyInRoom'),
             message: i18n.t('room.alreadyInDifferentRoom', { code: existingCode }),
-            confirmText: i18n.t('room.goToCurrentRoom'),
-            onConfirm: () => navigation.replace('Lobby', { roomCode: existingCode })
+            confirmText: i18n.t('room.leaveAndJoin'),
+            cancelText: i18n.t('room.goToCurrentRoom'),
+            destructive: true,
+            onConfirm: async () => {
+              try {
+                const { error: leaveError } = await supabase
+                  .from('room_players')
+                  .delete()
+                  .eq('room_id', roomPlayer.room_id)
+                  .eq('user_id', user.id);
+                if (leaveError) throw leaveError;
+                // Retry the join now that the user has left the previous room
+                handleJoinRoom();
+              } catch (err: unknown) {
+                roomLogger.error('Error leaving room before join:', err instanceof Error ? err.message : String(err));
+                showError(i18n.t('room.leaveRoomError'));
+              }
+            },
+            onCancel: () => navigation.replace('Lobby', { roomCode: existingCode }),
           });
           return;
         }
