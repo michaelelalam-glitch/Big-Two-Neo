@@ -5,7 +5,7 @@
 **CRITICAL:** The `google-services.json` file was **accidentally committed** with real Firebase API credentials.
 
 ### 🚨 Compromised Credentials
-- **API Key:** `AIzaSyBO1H7c3KA9HJwK8BKFraYWx4V6_fHtrUg` (LEAKED)
+- **API Key:** `[REDACTED — rotated Dec 2024]` (was leaked, now rotated)
 - **Project Number:** `809777985378`
 - **Project ID:** `twobig-f9a63`
 
@@ -20,7 +20,7 @@
 1. **Go to Firebase Console:** https://console.firebase.google.com/project/twobig-f9a63/settings/general
 2. **Restrict the leaked API key:**
    - Navigate to Google Cloud Console > APIs & Services > Credentials
-   - Find key `AIzaSyBO1H7c3KA9HJwK8BKFraYWx4V6_fHtrUg`
+   - Find and delete the previously leaked key (see commit history for reference)
    - **Delete** or restrict to specific app signatures/IP ranges
 3. **Generate new API key:**
    - Create a new Android API key
