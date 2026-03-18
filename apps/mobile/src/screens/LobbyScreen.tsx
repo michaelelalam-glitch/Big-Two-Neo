@@ -63,6 +63,7 @@ export default function LobbyScreen() {
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
+  const claimHostInFlightRef = useRef(false); // Prevent concurrent lobby_claim_host RPC calls
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
@@ -112,6 +113,25 @@ export default function LobbyScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- roomId is the correct trigger; loadPlayersRef is a stable ref
   }, [roomId]);
+
+  // Lobby heartbeat — refreshes last_seen_at every 15 s so the server can distinguish
+  // active players from ghosts (those who crashed/backgrounded without leaving).
+  // The join_room_atomic RPC evicts players with last_seen_at > 60 s; a 15 s interval
+  // keeps active members well within the safe window under normal network conditions.
+  useEffect(() => {
+    if (!roomId || !user?.id) return;
+    const interval = setInterval(() => {
+      supabase
+        .rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
+        .catch((err: unknown) => {
+          // Heartbeat failures are non-fatal; a single missed beat is well below the
+          // 60 s eviction threshold — no action required.
+          roomLogger.warn('[LobbyScreen] Heartbeat failed:', err instanceof Error ? err.message : String(err));
+        });
+    }, 15_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, user?.id]);
 
   /**
    * Fetches the room id (and side-loads room metadata into state).
@@ -261,23 +281,41 @@ export default function LobbyScreen() {
       }));
       
       // ── Host reassignment fallback ──
-      // lobby_host_leave RPC handles host transfer atomically server-side, so
-      // this should rarely trigger. If no is_host row exists (e.g. edge-case
-      // where the old host's app crashed mid-transfer), mark the first human
-      // locally so the UI doesn't look broken while data propagates.
-      // Note: we do NOT call lobby_host_leave here because (a) we don't know
-      // which user was the leaving host and (b) firing the RPC from every
-      // client would cause duplicate concurrent promotions. The server-side
-      // RPC already handles the transfer atomically; this local flag is only
-      // a display-layer safety net until the next realtime event arrives.
+      // lobby_host_leave and the check_host_departure trigger handle host
+      // transfer atomically, so this block fires only in exceptional cases
+      // (e.g. the host process crashed before calling lobby_host_leave).
+      //
+      // We intentionally avoid mutating the local player array here because
+      // that would set currentUserPlayer.is_host = true below, enabling
+      // host-only UI controls (start / kick) that will fail server-side;
+      // the DB still shows no host until the RPC completes.
+      //
+      // Instead, call lobby_claim_host — a SECURITY DEFINER RPC that checks
+      // last_seen_at to distinguish live vs. ghost hosts and promotes only the
+      // first-human if eligible.  The Realtime subscription on room_players
+      // will fire loadPlayers() once the DB reflects the new is_host=true row,
+      // at which point the host-only UI appears with a valid server state.
       const hasActiveHost = players.some((p: Player) => p.is_host === true);
-      if (!hasActiveHost && players.length > 0 && user?.id) {
+      if (!hasActiveHost && players.length > 0 && user?.id && !claimHostInFlightRef.current) {
         const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
         const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
         if (firstHuman && firstHuman.user_id === user.id) {
-          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, marking locally until realtime syncs');
-          // Mark locally so the UI doesn't look broken while data propagates
-          firstHuman.is_host = true;
+          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, calling lobby_claim_host');
+          claimHostInFlightRef.current = true;
+          supabase
+            .rpc('lobby_claim_host', { p_room_id: currentRoomId })
+            .then(({ data: claimData, error: claimErr }) => {
+              if (claimErr) {
+                roomLogger.error('[LobbyScreen] lobby_claim_host failed:', claimErr.message);
+              } else {
+                roomLogger.info('[LobbyScreen] lobby_claim_host result:', claimData);
+              }
+            })
+            .finally(() => {
+              claimHostInFlightRef.current = false;
+            });
+          // Host UI will update via the room_players Realtime subscription once
+          // the DB confirms is_host = true — no optimistic local mutation needed.
         }
       }
 
