@@ -38,7 +38,7 @@ import type { ChatMessage } from '../../types/chat';
 
 export interface ChatDrawerProps {
   messages: ChatMessage[];
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string) => boolean;
   isCooldown: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -117,6 +117,15 @@ export function ChatDrawer({
     return () => clearTimeout(id);
   }, [isOpen]);
 
+  // Re-focus the TextInput after each remount triggered by inputKey increment.
+  // Without this, remounting for the autocorrect-ghost-text fix drops keyboard
+  // focus after every send (Copilot PR-151 r2951244855).
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
+  }, [inputKey, isOpen]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -135,10 +144,13 @@ export function ChatDrawer({
     if (isOpen && messages.length > 0) scrollToBottom();
   }, [messages.length, isOpen, scrollToBottom]);
 
-  // Clear any pending scroll timer on unmount.
+  // Clear any pending timers on unmount (scroll + autocorrect guard).
+  // Copilot PR-151 r2951244890: clearing sendTimerRef prevents a stray
+  // timer mutating isSendingRef after the component has unmounted.
   useEffect(() => {
     return () => {
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
     };
   }, []);
 
@@ -166,7 +178,14 @@ export function ChatDrawer({
     // Set BEFORE sendMessage so any synchronous autocorrect onChangeText that
     // fires during or immediately after this call is swallowed.
     isSendingRef.current = true;
-    sendMessage(text);
+    // Only clear / remount the TextInput when the message was actually sent.
+    // sendMessage returns false when it no-ops (e.g. no channel, cooldown) so
+    // the user's typed text is preserved (Copilot PR-151 r2951244870).
+    const sent = sendMessage(text);
+    if (!sent) {
+      isSendingRef.current = false;
+      return;
+    }
     setInputKey((k) => k + 1);
     setInputText('');
     // Clear the guard after the autocorrect commit window.
@@ -185,7 +204,11 @@ export function ChatDrawer({
       const text = e.nativeEvent.text.trim();
       if (!text) return;
       isSendingRef.current = true;
-      sendMessage(text);
+      const sent = sendMessage(text);
+      if (!sent) {
+        isSendingRef.current = false;
+        return;
+      }
       setInputKey((k) => k + 1);
       setInputText('');
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
