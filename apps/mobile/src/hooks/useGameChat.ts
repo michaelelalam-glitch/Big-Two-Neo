@@ -86,12 +86,14 @@ export function useGameChat({
   useEffect(() => {
     if (!channel) return;
 
-    // Supabase broadcast delivers the sent `payload` object directly as the
-    // callback argument (i.e., `payload = { data: msg }`). Fall back to the
-    // nested `payload.payload.data` shape for forwards-compat robustness.
+    // broadcastMessage (useRealtime) wraps chat messages in a BroadcastPayload
+    // envelope: { event: 'chat_message', data: <ChatMessage>, timestamp: string }.
+    // The Realtime callback receives this envelope, so we read payload.data to
+    // extract the ChatMessage. payload.payload.data guards against Supabase SDK
+    // versions that double-wrap the broadcast payload.
     let isActive = true;
 
-    const handler = (payload: { data?: ChatMessage; payload?: { data?: ChatMessage } }) => {
+    const handler = (payload: { event?: string; data?: ChatMessage; timestamp?: string; payload?: { data?: ChatMessage } }) => {
       if (!isActive) return;
       const raw = payload?.data ?? payload?.payload?.data;
       if (!raw || !raw.id || !raw.user_id || !raw.message) return;
