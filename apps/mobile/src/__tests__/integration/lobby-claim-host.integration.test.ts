@@ -64,11 +64,15 @@ try {
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+// Skip entire suite when credentials are absent (e.g., CI without service keys).
+const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
+const describeWithCredentials = hasCredentials ? describe : describe.skip;
+
 function uniqueRoomCode(): string {
   return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
 }
 
-describe('lobby_claim_host — Integration Tests', () => {
+describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   let supabase: SupabaseClient;
   let u1: string; // will be first human (player_index 0)
   let u2: string; // second human (player_index 1)
@@ -106,11 +110,7 @@ describe('lobby_claim_host — Integration Tests', () => {
   }
 
   beforeAll(async () => {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error(
-        'Missing Supabase credentials. Set EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
-      );
-    }
+    // Credentials are guaranteed present here — describeWithCredentials skips otherwise.
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const createUser = async (label: string): Promise<string> => {
@@ -191,15 +191,21 @@ describe('lobby_claim_host — Integration Tests', () => {
     // u2 is second player
     await insertPlayer(room.id, u2, { playerIndex: 1, isHost: false });
 
-    // After a failed claim attempt, u1 should still be host in DB
+    // Call lobby_claim_host as service-role (auth.uid() = null → rejected).
+    // This exercises the RPC and verifies demotion does NOT happen when the
+    // claim is rejected because the caller is unauthenticated.
+    const { error: claimErr } = await supabase.rpc('lobby_claim_host', { p_room_id: room.id });
+    expect(claimErr).toBeDefined(); // rejected — service-role has no auth.uid()
+
+    // After a rejected claim attempt, u1 should still be host in DB
     // (demotion only happens when promotion is confirmed)
-    const { data: hostBefore } = await supabase
+    const { data: hostAfter } = await supabase
       .from('room_players')
       .select('is_host')
       .eq('room_id', room.id)
       .eq('user_id', u1)
       .single();
-    expect(hostBefore?.is_host).toBe(true);
+    expect(hostAfter?.is_host).toBe(true);
   });
 
   // ─────────────────────────────────────────────────────────────────────

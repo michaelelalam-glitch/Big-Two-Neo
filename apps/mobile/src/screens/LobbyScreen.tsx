@@ -121,27 +121,36 @@ export default function LobbyScreen() {
   // the next human when a ghost host is evicted.
   useEffect(() => {
     if (!roomId || !user?.id) return;
-    const interval = setInterval(() => {
+
+    const runHeartbeatAndEvict = () => {
       // 1. Update this player's heartbeat
-      supabase
-        .rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
-        .then(({ error: heartbeatErr }) => {
-          if (heartbeatErr) {
-            roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
-          }
-        });
+      Promise.resolve(
+        supabase.rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
+      ).then(({ error: heartbeatErr }) => {
+        if (heartbeatErr) {
+          roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
+        }
+      }, (err) => {
+        roomLogger.warn('[LobbyScreen] Heartbeat request rejected:', err);
+      });
 
       // 2. Evict ghost players from this lobby (stale > 60 s)
-      supabase
-        .rpc('lobby_evict_ghosts', { p_room_id: roomId })
-        .then(({ data: evicted, error: evictErr }) => {
-          if (evictErr) {
-            roomLogger.warn('[LobbyScreen] Ghost eviction failed:', evictErr.message);
-          } else if (evicted && evicted > 0) {
-            roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
-          }
-        });
-    }, 15_000);
+      Promise.resolve(
+        supabase.rpc('lobby_evict_ghosts', { p_room_id: roomId })
+      ).then(({ data: evicted, error: evictErr }) => {
+        if (evictErr) {
+          roomLogger.warn('[LobbyScreen] Ghost eviction failed:', evictErr.message);
+        } else if (evicted && evicted > 0) {
+          roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
+        }
+      }, (err) => {
+        roomLogger.warn('[LobbyScreen] Ghost eviction request rejected:', err);
+      });
+    };
+
+    // Run immediately on mount so ghosts are evicted right away (not after 15 s).
+    runHeartbeatAndEvict();
+    const interval = setInterval(runHeartbeatAndEvict, 15_000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, user?.id]);
@@ -315,18 +324,23 @@ export default function LobbyScreen() {
         if (firstHuman && firstHuman.user_id === user.id) {
           roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, calling lobby_claim_host');
           claimHostInFlightRef.current = true;
-          supabase
-            .rpc('lobby_claim_host', { p_room_id: currentRoomId })
-            .then(({ data: claimData, error: claimErr }) => {
+          // Wrap in async IIFE with try/finally because supabase.rpc() returns
+          // a PromiseLike that may not implement .finally(), causing a TypeError.
+          (async () => {
+            try {
+              const { data: claimData, error: claimErr } = await supabase
+                .rpc('lobby_claim_host', { p_room_id: currentRoomId });
               if (claimErr) {
                 roomLogger.error('[LobbyScreen] lobby_claim_host failed:', claimErr.message);
               } else {
                 roomLogger.info('[LobbyScreen] lobby_claim_host result:', claimData);
               }
-            })
-            .finally(() => {
+            } catch (err) {
+              roomLogger.error('[LobbyScreen] lobby_claim_host rejected:', err);
+            } finally {
               claimHostInFlightRef.current = false;
-            });
+            }
+          })();
           // Host UI will update via the room_players Realtime subscription once
           // the DB confirms is_host = true — no optimistic local mutation needed.
         }

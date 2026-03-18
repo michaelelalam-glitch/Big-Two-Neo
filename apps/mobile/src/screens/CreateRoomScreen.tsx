@@ -29,9 +29,11 @@ export default function CreateRoomScreen() {
     setIsCreating(true);
     try {
       // Check if user is already in a room (with status check)
+      // Include last_seen_at so we can auto-clean stale waiting-lobby records
+      // that were left behind when the user navigated away without a clean leave.
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, rooms!inner(code, status)')
+        .select('room_id, last_seen_at, rooms!inner(code, status)')
         .eq('user_id', user.id)
         .single();
 
@@ -47,9 +49,22 @@ export default function CreateRoomScreen() {
         
         roomLogger.warn('⚠️ User already in room:', existingCode, 'Status:', roomStatus);
 
-        // Auto-cleanup: if the room is already finished/ended, silently remove the
-        // player row and proceed to create a fresh room — no dialog needed.
-        if (roomStatus === 'finished' || roomStatus === 'ended') {
+        // Auto-cleanup: silently remove the player row and proceed to create a
+        // fresh room when the existing room is stale or no longer active.
+        // Covers two scenarios:
+        //   1. Room is finished/ended — game is over, safe to clean up.
+        //   2. Room is waiting but the player's heartbeat is stale (> 60 s) —
+        //      the user left/crashed without a clean leave; the ghost record
+        //      would otherwise block "Create Room" with an "already in room"
+        //      dialog for a lobby the user is no longer in.
+        const STALE_THRESHOLD_MS = 60_000; // match lobby_evict_ghosts 60 s threshold
+        const lastSeenAt = (roomPlayer as Record<string, unknown>).last_seen_at as string | null;
+        const isStaleWaiting =
+          roomStatus === 'waiting' &&
+          lastSeenAt != null &&
+          Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS;
+
+        if (roomStatus === 'finished' || roomStatus === 'ended' || isStaleWaiting) {
           roomLogger.info('🧹 [CreateRoom] Auto-cleaning up finished room:', existingCode);
           const { error: cleanupError } = await supabase
             .from('room_players')

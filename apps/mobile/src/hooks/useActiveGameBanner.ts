@@ -26,7 +26,7 @@ import type { ActiveGameInfo } from '../components/home/ActiveGameBanner';
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 // Single source of truth for the AsyncStorage key.
-const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
+export const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
 
 export interface UseActiveGameBannerResult {
   currentRoom: string | null;

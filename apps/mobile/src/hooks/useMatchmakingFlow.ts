@@ -21,6 +21,7 @@ import { roomLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { RoomPlayerWithRoom } from '../types';
 import { useMatchmaking } from './useMatchmaking';
+import { VOLUNTARILY_LEFT_ROOMS_KEY } from './useActiveGameBanner';
 
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -180,7 +181,7 @@ export function useMatchmakingFlow(
         // Voluntarily-left room IDs are persisted in AsyncStorage by useActiveGameBanner.
         let voluntarilyLeft = new Set<string>();
         try {
-          const raw = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          const raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
           if (raw) voluntarilyLeft = new Set<string>(JSON.parse(raw));
         } catch { /* ignore — proceed without filter */ }
 
