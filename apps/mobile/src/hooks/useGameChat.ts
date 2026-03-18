@@ -166,6 +166,10 @@ export function useGameChat({
         })
         .catch((err: unknown) => {
           gameLogger.error('[useGameChat] Failed to send chat message:', err);
+          // Roll back the optimistic message so the sender isn't left with a
+          // ghost message that never reached other players
+          // (Copilot PR-150 r2950125732).
+          setMessages((prev) => prev.filter((m) => m.id !== msg.id));
         });
     },
     [channel, userId, username],

@@ -72,6 +72,12 @@ export interface LandscapeGameLayoutProps {
   /** Countdown expired callbacks per player in display order */
   onCountdownExpireds?: ((() => void) | undefined)[];
   
+  /** Chat toggle (multiplayer only) */
+  onChatToggle?: () => void;
+  isChatOpen?: boolean;
+  isMultiplayer?: boolean;
+  chatUnreadCount?: number;
+
   /** Control bar callbacks */
   onOrientationToggle: () => void;
   onHelp?: () => void;
@@ -122,6 +128,12 @@ export function LandscapeGameLayout({
   onCardsReorder,
   onPlayCards: onPlayCardsCallback,
   
+  // Chat
+  onChatToggle,
+  isChatOpen = false,
+  isMultiplayer = false,
+  chatUnreadCount = 0,
+
   // Controls
   onOrientationToggle,
   onHelp: _onHelp,
@@ -198,6 +210,38 @@ export function LandscapeGameLayout({
           >
             <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
           </TouchableOpacity>
+          {/* Task #648: chat toggle — rendered next to the expand button in
+               landscape so it never overlaps the menu icon (top-right corner) */}
+          {isMultiplayer && onChatToggle && (
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={[
+                  scoreDisplayStyles.scoreActionButton,
+                  isChatOpen && { backgroundColor: 'rgba(74,144,226,0.4)' },
+                ]}
+                onPress={onChatToggle}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t('chat.a11yToggleLabel')}
+                accessibilityHint={i18n.t('chat.a11yToggleHint')}
+              >
+                <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
+              </TouchableOpacity>
+              {chatUnreadCount > 0 && !isChatOpen && (
+                <View style={{
+                  position: 'absolute', top: -4, right: -4,
+                  backgroundColor: '#F44336', borderRadius: 10,
+                  minWidth: 18, height: 18,
+                  alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Scoreboard - expanded only (Task #590: collapsed removed) */}
