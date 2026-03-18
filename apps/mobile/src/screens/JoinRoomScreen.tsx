@@ -130,6 +130,9 @@ export default function JoinRoomScreen() {
         } else if (joinError.message?.includes('already in another room')) {
           showError(i18n.t('room.alreadyInAnotherRoom'));
           return;
+        } else if (joinError.message?.includes('kicked from this private room')) {
+          showError(i18n.t('room.kickedFromRoom'));
+          return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
         // The auto-generated Player_{user_id} format ensures each user's username is unique globally.

@@ -82,13 +82,19 @@ BEGIN
        SET host_id = v_new_host_id
      WHERE id = p_room_id;
 
-    -- c. Re-index remaining players (excluding leaving host) starting from 0
-    --    so player slots are gapless.
+    -- c. DELETE the leaving host's row FIRST.
+    --    Freeing the host's player_index slot prevents UNIQUE constraint
+    --    violations in the re-index step below: the freed index can now be
+    --    safely assigned to another player without colliding.
+    DELETE FROM room_players
+     WHERE room_id = p_room_id
+       AND user_id = p_leaving_user_id;
+
+    -- d. Re-index remaining players (all rows, gapless, starting from 0).
     FOR v_remaining_id IN
       SELECT id
         FROM room_players
        WHERE room_id = p_room_id
-         AND user_id != p_leaving_user_id
        ORDER BY player_index
     LOOP
       UPDATE room_players
@@ -96,11 +102,6 @@ BEGIN
        WHERE id = v_remaining_id;
       v_index := v_index + 1;
     END LOOP;
-
-    -- d. Remove the leaving host's row.
-    DELETE FROM room_players
-     WHERE room_id = p_room_id
-       AND user_id = p_leaving_user_id;
 
   ELSE
     -- No other human players — delete the room entirely.
@@ -124,12 +125,25 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_is_host BOOLEAN;
+  v_is_host        BOOLEAN;
+  v_room_status    TEXT;
+  v_kicked_is_bot  BOOLEAN;
+  v_kicked_is_host BOOLEAN;
 BEGIN
   -- Security: reject calls where the JWT uid doesn't match the supplied kicker_user_id.
   -- Prevents any authenticated user from passing another host's UUID to gain kick rights.
   IF auth.uid() IS DISTINCT FROM p_kicker_user_id THEN
     RAISE EXCEPTION 'lobby_kick_player: JWT uid does not match supplied kicker_user_id';
+  END IF;
+
+  -- Validate: room must be in waiting state (no kicking during active games).
+  SELECT status INTO v_room_status
+    FROM rooms
+   WHERE id = p_room_id;
+
+  IF NOT FOUND OR v_room_status != 'waiting' THEN
+    RAISE EXCEPTION 'lobby_kick_player: can only kick players in a waiting lobby (status: %)',
+      COALESCE(v_room_status, 'not found');
   END IF;
 
   -- Validate: kicker must be the room's host.
@@ -147,6 +161,25 @@ BEGIN
   -- Prevent the host kicking themselves (safety guard).
   IF p_kicker_user_id = p_kicked_user_id THEN
     RAISE EXCEPTION 'lobby_kick_player: host cannot kick themselves';
+  END IF;
+
+  -- Validate: target player exists and is a non-bot, non-host human.
+  SELECT is_bot, is_host
+    INTO v_kicked_is_bot, v_kicked_is_host
+    FROM room_players
+   WHERE room_id = p_room_id
+     AND user_id = p_kicked_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'lobby_kick_player: target player not found in room %', p_room_id;
+  END IF;
+
+  IF v_kicked_is_bot THEN
+    RAISE EXCEPTION 'lobby_kick_player: cannot kick a bot';
+  END IF;
+
+  IF v_kicked_is_host THEN
+    RAISE EXCEPTION 'lobby_kick_player: cannot kick the host';
   END IF;
 
   -- Remove the kicked player's row.

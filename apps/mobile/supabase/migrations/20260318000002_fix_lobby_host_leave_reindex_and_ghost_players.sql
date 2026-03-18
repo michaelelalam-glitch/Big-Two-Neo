@@ -264,11 +264,26 @@ GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated;
 --
 -- LobbyScreen sends an update_player_heartbeat call every 15 s, so active
 -- players will never have a last_seen_at older than 60 s under normal operation.
+--
+-- Also: add a banned_user_ids UUID[] column to rooms so lobby_kick_player
+-- can record kicked players and join_room_atomic can block re-entry in private
+-- rooms (see also migration_006).
+ALTER TABLE rooms
+  ADD COLUMN IF NOT EXISTS banned_user_ids UUID[] DEFAULT '{}' NOT NULL;
+--
+-- Also: add a banned_user_ids UUID[] column to rooms so lobby_kick_player can
+-- record kicked players and join_room_atomic can block re-entry in private rooms.
+ALTER TABLE rooms
+  ADD COLUMN IF NOT EXISTS banned_user_ids UUID[] DEFAULT '{}' NOT NULL;
 CREATE OR REPLACE FUNCTION join_room_atomic(
   p_room_code TEXT,
   p_user_id   UUID,
   p_username  TEXT
-) RETURNS JSONB AS $$
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_room_id       UUID;
   v_player_count  INTEGER;
@@ -281,6 +296,19 @@ DECLARE
   v_other_room    UUID;
   v_ghost_threshold CONSTANT INTERVAL := INTERVAL '60 seconds';
 BEGIN
+  -- Security: reject calls where the JWT uid doesn't match p_user_id.
+  -- This also enables SECURITY DEFINER so ghost eviction can DELETE other
+  -- users' stale room_players rows (blocked by RLS in the caller's role).
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN
+    RAISE EXCEPTION 'join_room_atomic: JWT uid does not match p_user_id';
+  END IF;
+
+  -- Username null/blank validation (restored — prevents NULL/empty usernames
+  -- from bypassing downstream username-uniqueness checks).
+  IF p_username IS NULL OR length(trim(p_username)) = 0 THEN
+    RAISE EXCEPTION 'Username cannot be blank';
+  END IF;
+
   -- Serialize joins per-room without requiring UPDATE privileges on rooms.
   PERFORM pg_advisory_xact_lock(hashtext('join_room_atomic'), hashtext(UPPER(p_room_code)));
 
@@ -319,18 +347,21 @@ BEGIN
     RAISE EXCEPTION 'Room is not accepting players (status: %)', v_room_status;
   END IF;
 
-  -- ── Ghost eviction (lobby only) ──────────────────────────────────────────
+  -- ── Ghost eviction (lobby only) ────────────────────────────────────────────
   -- Remove stale non-bot players from a waiting lobby so their seats are freed
   -- for new joiners.  The joiner themselves is never evicted.  The
   -- check_host_departure trigger fires automatically for each deleted row and
   -- calls reassign_next_host when a ghost host is among the evicted rows.
+  --
+  -- last_seen_at IS NULL is treated as infinitely stale (covers players inserted
+  -- via old code paths that pre-date the DEFAULT NOW() column addition).
   IF v_room_status = 'waiting' THEN
     DELETE FROM room_players
      WHERE room_id      = v_room_id
        AND is_bot       = FALSE
        AND user_id     IS NOT NULL
        AND user_id     != p_user_id
-       AND last_seen_at < NOW() - v_ghost_threshold;
+       AND (last_seen_at IS NULL OR last_seen_at < NOW() - v_ghost_threshold);
 
     -- Refresh host_id: the trigger may have promoted a new host after eviction.
     SELECT host_id INTO v_host_id FROM rooms WHERE id = v_room_id;
@@ -340,6 +371,21 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Room was cleaned up after ghost eviction — all players were stale';
     END IF;
+  END IF;
+  -- ─────────────────────────────────────────────────────────────────────────
+
+  -- ── Blocked re-entry check (private rooms only) ──────────────────────────
+  -- Players kicked by the host in a private room are recorded in
+  -- rooms.banned_user_ids by lobby_kick_player (see migration_006).
+  -- Block their re-entry here; casual/ranked rooms allow free re-entry.
+  IF p_user_id = ANY(
+    SELECT unnest(COALESCE(banned_user_ids, '{}'))
+      FROM rooms
+     WHERE id = v_room_id
+       AND is_matchmaking = FALSE
+       AND (is_public IS NULL OR is_public = FALSE)
+  ) THEN
+    RAISE EXCEPTION 'You have been kicked from this private room and cannot rejoin';
   END IF;
   -- ─────────────────────────────────────────────────────────────────────────
 
@@ -421,7 +467,7 @@ BEGIN
     'already_joined', false
   );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 REVOKE EXECUTE ON FUNCTION join_room_atomic(TEXT, UUID, TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION join_room_atomic(TEXT, UUID, TEXT) TO authenticated, service_role;

@@ -519,6 +519,7 @@ export interface Translations {
     goToCurrentRoom: string;
     leaveAndJoin: string;
     alreadyInAnotherRoom: string;
+    kickedFromRoom: string;
     joinRoomError: string;
     tip: string;
     askFriendForCode: string;
@@ -1130,6 +1131,7 @@ const en: Translations = {
     goToCurrentRoom: 'Go to Current Room',
     leaveAndJoin: 'Leave & Join',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
+    kickedFromRoom: 'You were kicked from this private room and cannot rejoin.',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
@@ -1680,6 +1682,7 @@ const ar: Translations = {
     goToCurrentRoom: 'اذهب إلى الغرفة الحالية',
     leaveAndJoin: 'غادر وانضم',
     alreadyInAnotherRoom: 'أنت بالفعل في غرفة أخرى. يرجى المغادرة أولاً.',
+    kickedFromRoom: 'تمت إزالتك من هذه الغرفة الخاصة ولا يمكنك الانضمام مجدداً.',
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
@@ -2309,6 +2312,7 @@ const de: Translations = {
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
     leaveAndJoin: 'Verlassen & Beitreten',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
+    kickedFromRoom: 'Du wurdest aus diesem privaten Raum gekickt und kannst nicht wieder beitreten.',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
     askFriendForCode: 'Frage deinen Freund nach dem Raumcode und gib ihn hier ein, um seinem Spiel beizutreten',

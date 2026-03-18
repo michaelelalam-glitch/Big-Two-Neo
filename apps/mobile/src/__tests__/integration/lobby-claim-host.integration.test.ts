@@ -72,10 +72,19 @@ function uniqueRoomCode(): string {
   return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
 }
 
+/** Stores the credentials needed to sign in as a test user with an anon client. */
+interface TestUserCredentials {
+  id: string;
+  email: string;
+  password: string;
+}
+
 describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   let supabase: SupabaseClient;
   let u1: string; // will be first human (player_index 0)
   let u2: string; // second human (player_index 1)
+  /** Full credentials so tests can sign in as each user via an anon client. */
+  let testUsers: { u1: TestUserCredentials; u2: TestUserCredentials };
   const createdUserIds: string[] = [];
   let testRoomIds: string[] = [];
 
@@ -113,19 +122,23 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     // Credentials are guaranteed present here — describeWithCredentials skips otherwise.
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const createUser = async (label: string): Promise<string> => {
+    const createUser = async (label: string): Promise<TestUserCredentials> => {
+      const email = `test-claim-${label}-${Date.now()}-${randomUUID().slice(0, 8)}@integration-test.local`;
+      const password = `pwd-${randomUUID()}`;
       const { data, error } = await supabase.auth.admin.createUser({
-        email: `test-claim-${label}-${Date.now()}-${randomUUID().slice(0, 8)}@integration-test.local`,
-        password: `pwd-${randomUUID()}`,
+        email,
+        password,
         email_confirm: true,
       });
       if (error || !data.user) throw new Error(`Failed to create user (${label}): ${error?.message}`);
       createdUserIds.push(data.user.id);
-      return data.user.id;
+      return { id: data.user.id, email, password };
     };
 
-    u1 = await createUser('u1');
-    u2 = await createUser('u2');
+    const [creds1, creds2] = await Promise.all([createUser('u1'), createUser('u2')]);
+    testUsers = { u1: creds1, u2: creds2 };
+    u1 = creds1.id;
+    u2 = creds2.id;
   }, 30_000);
 
   beforeEach(() => {
@@ -133,13 +146,18 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   });
 
   afterEach(async () => {
+    // Delete rooms — ON DELETE CASCADE removes room_players automatically.
+    // Deleting only room_players (as before) leaked the rooms rows over time,
+    // polluting the shared DB. (Copilot PR-153 review r2953341278)
     for (const roomId of testRoomIds) {
-      await supabase.from('room_players').delete().eq('room_id', roomId);
+      await supabase.from('rooms').delete().eq('id', roomId);
     }
+    testRoomIds = [];
     await new Promise((resolve) => setTimeout(resolve, 50));
   });
 
   afterAll(async () => {
+    // Belt-and-suspenders: clean up any rooms that were not caught by afterEach.
     for (const userId of createdUserIds) {
       await supabase.from('room_players').delete().eq('user_id', userId);
     }
@@ -188,17 +206,30 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     // u1 is host with stale heartbeat (ghost)
     const staleTime = new Date(Date.now() - 120_000).toISOString();
     await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true, lastSeenAt: staleTime });
-    // u2 is second player
+    // u2 is second player (not the first human — cannot claim host)
     await insertPlayer(room.id, u2, { playerIndex: 1, isHost: false });
 
-    // Call lobby_claim_host as service-role (auth.uid() = null → rejected).
-    // This exercises the RPC and verifies demotion does NOT happen when the
-    // claim is rejected because the caller is unauthenticated.
-    const { error: claimErr } = await supabase.rpc('lobby_claim_host', { p_room_id: room.id });
-    expect(claimErr).toBeDefined(); // rejected — service-role has no auth.uid()
+    // Sign in as u2 with an anon client so auth.uid() is set on the server.
+    // This exercises the actual 'not_first_human' code path (u2 is second human)
+    // rather than testing the unauthenticated-rejection path.
+    // (Copilot PR-153 review r2953341305)
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    const u2Client = createClient(SUPABASE_URL, anonKey);
+    await u2Client.auth.signInWithPassword({
+      email: testUsers.u2.email,
+      password: testUsers.u2.password,
+    });
 
-    // After a rejected claim attempt, u1 should still be host in DB
-    // (demotion only happens when promotion is confirmed)
+    const { data: claimResult, error: claimErr } = await u2Client.rpc('lobby_claim_host', {
+      p_room_id: room.id,
+    });
+
+    expect(claimErr).toBeNull();
+    expect(claimResult).toBeDefined();
+    expect(claimResult?.status).toBe('not_first_human');
+
+    // Ghost host was NOT demoted: demotion is deferred until the eligible
+    // first-human confirms eligibility (atomic check-then-demote ordering).
     const { data: hostAfter } = await supabase
       .from('room_players')
       .select('is_host')
@@ -206,7 +237,9 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
       .eq('user_id', u1)
       .single();
     expect(hostAfter?.is_host).toBe(true);
-  });
+
+    await u2Client.auth.signOut();
+  }, 20_000);
 
   // ─────────────────────────────────────────────────────────────────────
   // Function existence and security

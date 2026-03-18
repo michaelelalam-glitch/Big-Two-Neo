@@ -46,6 +46,9 @@ BEGIN
   END IF;
 
   -- Delete non-bot human players whose last_seen_at exceeds the threshold.
+  -- last_seen_at IS NULL is treated as infinitely stale (covers players inserted
+  -- via old code paths that pre-date the DEFAULT NOW() column addition; also
+  -- handles cases where the initial heartbeat call failed).
   -- The caller is never evicted (they are clearly online if they called this).
   -- The check_host_departure trigger fires for each deleted row and promotes
   -- the next human via reassign_next_host when a ghost host is among them.
@@ -54,7 +57,7 @@ BEGIN
      AND is_bot       = FALSE
      AND user_id     IS NOT NULL
      AND user_id     != v_caller_id
-     AND last_seen_at < NOW() - v_ghost_threshold;
+     AND (last_seen_at IS NULL OR last_seen_at < NOW() - v_ghost_threshold);
 
   GET DIAGNOSTICS v_evicted_count = ROW_COUNT;
 
