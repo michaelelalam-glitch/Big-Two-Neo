@@ -603,45 +603,64 @@ export default function LobbyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartWithBots is not memoised; isStartingRef is a stable ref
   }, [humanPlayerCount, allNonHostHumansReady, isHost, isStarting, isGameInProgress]);
 
-  const handleLeaveRoom = async () => {
+  const performLeaveRoom = async () => {
     if (isLeavingRef.current || isLeaving) return;
-    
+
     try {
       // Set flag to prevent duplicate navigation
       isLeavingRef.current = true;
       setIsLeavingState(true);
-      
+
       const currentRoomId = roomId || await getRoomId();
       if (!currentRoomId) {
         navigation.replace('Home');
         return;
       }
-      
+
       if (isHost) {
         // Delete the room if host leaves
         const { error } = await supabase
           .from('rooms')
           .delete()
           .eq('id', currentRoomId);
-        
+
         if (error) throw error;
       } else {
-        // Remove player from room
+        // Remove player from room regardless of ready status
         const { error } = await supabase
           .from('room_players')
           .delete()
           .eq('room_id', currentRoomId)
           .eq('user_id', user?.id);
-        
+
         if (error) throw error;
       }
-      
+
       navigation.replace('Home');
     } catch (error: unknown) {
       roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
       isLeavingRef.current = false; // Reset flag on error
+      setIsLeavingState(false);
       showError(i18n.t('lobby.leaveRoomError'));
     }
+  };
+
+  const handleLeaveRoom = () => {
+    if (isLeavingRef.current || isLeaving) return;
+
+    const message = isReady
+      ? i18n.t('lobby.confirmLeaveReady')
+      : i18n.t('lobby.confirmLeaveMessage');
+
+    Alert.alert(
+      i18n.t('lobby.confirmLeaveTitle'),
+      message,
+      [
+        { text: i18n.t('lobby.confirmLeaveNo'), style: 'cancel' },
+        { text: i18n.t('lobby.confirmLeaveYes'), style: 'destructive', onPress: performLeaveRoom },
+      ],
+      { cancelable: true }
+    );
   };
 
   const renderPlayer = ({ item, index: _index }: { item: Player | null; index: number }) => {

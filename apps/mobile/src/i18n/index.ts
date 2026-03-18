@@ -477,6 +477,11 @@ export interface Translations {
     hard: string;
     rankedMatch: string;
     privateRoom: string;
+    confirmLeaveTitle: string;
+    confirmLeaveMessage: string;
+    confirmLeaveReady: string;
+    confirmLeaveYes: string;
+    confirmLeaveNo: string;
   };
   room: {
     createTitle: string;
@@ -1074,6 +1079,11 @@ const en: Translations = {
     hard: 'Hard',
     rankedMatch: '🏆 Ranked Match',
     privateRoom: '🔒 Private Room',
+    confirmLeaveTitle: 'Leave Lobby?',
+    confirmLeaveMessage: 'Are you sure you want to leave the lobby?',
+    confirmLeaveReady: 'You are marked as ready. Are you sure you want to leave?',
+    confirmLeaveYes: 'Leave',
+    confirmLeaveNo: 'Stay',
   },
   room: {
     createTitle: 'Create Room',
@@ -1610,6 +1620,11 @@ const ar: Translations = {
     hard: 'صعب',
     rankedMatch: '🏆 مباراة مصنفة',
     privateRoom: '🔒 غرفة خاصة',
+    confirmLeaveTitle: 'مغادرة الغرفة؟',
+    confirmLeaveMessage: 'هل أنت متأكد أنك تريد مغادرة الغرفة؟',
+    confirmLeaveReady: 'أنت مستعد. هل أنت متأكد أنك تريد المغادرة؟',
+    confirmLeaveYes: 'مغادرة',
+    confirmLeaveNo: 'البقاء',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -2225,6 +2240,11 @@ const de: Translations = {
     hard: 'Schwer',
     rankedMatch: '🏆 Ranglistenspiel',
     privateRoom: '🔒 Privater Raum',
+    confirmLeaveTitle: 'Lobby verlassen?',
+    confirmLeaveMessage: 'Möchtest du die Lobby wirklich verlassen?',
+    confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du wirklich verlassen?',
+    confirmLeaveYes: 'Verlassen',
+    confirmLeaveNo: 'Bleiben',
   },
   room: {
     createTitle: 'Raum erstellen',
