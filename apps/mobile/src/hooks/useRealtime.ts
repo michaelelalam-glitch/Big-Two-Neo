@@ -184,6 +184,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       setRealtimeChannel(null);
       await channelRef.current.unsubscribe();
       await supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
     
     // Create new channel with presence
@@ -693,6 +694,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
         setRealtimeChannel(null);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref)
