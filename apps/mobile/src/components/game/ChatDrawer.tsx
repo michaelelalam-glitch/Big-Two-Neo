@@ -200,7 +200,7 @@ export function ChatDrawer({
           keyExtractor={keyExtractor}
           style={styles.messageList}
           contentContainerStyle={styles.messageListContent}
-          onContentSizeChange={scrollToBottom}
+          onContentSizeChange={isOpen ? scrollToBottom : undefined}
         />
       )}
 
