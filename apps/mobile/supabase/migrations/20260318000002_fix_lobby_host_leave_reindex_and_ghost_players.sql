@@ -98,6 +98,15 @@ BEGIN
       p_leaving_user_id, p_room_id;
   END IF;
 
+  -- Guard: only allow leaving from a waiting lobby. If the game is already
+  -- in progress (status='playing') or finished, mutating players/rooms here
+  -- could corrupt the in-progress game. Callers should not reach this path
+  -- mid-game, but a belt-and-suspenders check prevents accidental corruption.
+  PERFORM 1 FROM rooms WHERE id = p_room_id AND status = 'waiting';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'lobby_host_leave: room % is not in waiting status', p_room_id;
+  END IF;
+
   -- Find the next human player (lowest player_index, excluding the leaving host).
   SELECT user_id
     INTO v_new_host_id

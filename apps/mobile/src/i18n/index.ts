@@ -482,6 +482,7 @@ export interface Translations {
     confirmLeaveTitle: string;
     confirmLeaveMessage: string;
     confirmLeaveReady: string;
+    confirmLeaveHost: string;
     confirmLeaveYes: string;
     confirmLeaveNo: string;
     kickPlayer: string;
@@ -1095,6 +1096,7 @@ const en: Translations = {
     confirmLeaveTitle: 'Leave Lobby?',
     confirmLeaveMessage: 'Are you sure you want to leave the lobby?',
     confirmLeaveReady: 'You are marked as ready. Are you sure you want to leave?',
+    confirmLeaveHost: 'You are the host. Leaving will transfer host to another player. Are you sure you want to leave?',
     confirmLeaveYes: 'Leave',
     confirmLeaveNo: 'Stay',
     kickPlayer: 'Kick',
@@ -1647,6 +1649,7 @@ const ar: Translations = {
     confirmLeaveTitle: 'مغادرة الغرفة؟',
     confirmLeaveMessage: 'هل أنت متأكد أنك تريد مغادرة الغرفة؟',
     confirmLeaveReady: 'أنت مستعد. هل أنت متأكد أنك تريد المغادرة؟',
+    confirmLeaveHost: 'أنت المضيف. مغادرتك ستنقل المضيف إلى لاعب آخر. هل أنت متأكد أنك تريد المغادرة؟',
     confirmLeaveYes: 'مغادرة',
     confirmLeaveNo: 'البقاء',
     kickPlayer: 'طرد',
@@ -2278,6 +2281,7 @@ const de: Translations = {
     confirmLeaveTitle: 'Lobby verlassen?',
     confirmLeaveMessage: 'Möchtest du die Lobby wirklich verlassen?',
     confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du die Lobby wirklich verlassen?',
+    confirmLeaveHost: 'Du bist der Host. Beim Verlassen wird die Rolle auf einen anderen Spieler übertragen. Möchtest du die Lobby wirklich verlassen?',
     confirmLeaveYes: 'Verlassen',
     confirmLeaveNo: 'Bleiben',
     kickPlayer: 'Rauswerfen',

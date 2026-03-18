@@ -11,7 +11,9 @@
  *   - Ghost-host threshold: host with stale last_seen_at > 45s is demoted
  *   - Demotion safety: ghost host is only demoted AFTER confirming caller eligibility
  *
- * Requires: EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars
+ * Requires: EXPO_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and
+ *            EXPO_PUBLIC_SUPABASE_ANON_KEY env vars
+ * (suite is skipped via describe.skip when any are absent)
  * Created: March 18, 2026 — PR-153 review comment r2953069447
  */
 
@@ -168,9 +170,10 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   }, 15_000);
 
   // ─────────────────────────────────────────────────────────────────────
-  // already_host — caller is already the host
+  // Security guard — unauthenticated (service-role) callers are rejected
+  // (lobby_claim_host uses auth.uid(); service-role bypasses auth → null)
   // ─────────────────────────────────────────────────────────────────────
-  it('returns already_host when caller is the existing host', async () => {
+  it('rejects service-role caller because auth.uid() is null (unauthenticated path)', async () => {
     const room = await createRoom(u1);
     await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true });
 

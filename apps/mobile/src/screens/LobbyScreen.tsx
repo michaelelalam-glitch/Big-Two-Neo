@@ -700,9 +700,11 @@ export default function LobbyScreen() {
     isLeaveConfirmOpenRef.current = true;
     showConfirm({
       title: i18n.t('lobby.confirmLeaveTitle'),
-      message: isReady
-        ? i18n.t('lobby.confirmLeaveReady')
-        : i18n.t('lobby.confirmLeaveMessage'),
+      message: isHost
+        ? i18n.t('lobby.confirmLeaveHost')
+        : isReady
+          ? i18n.t('lobby.confirmLeaveReady')
+          : i18n.t('lobby.confirmLeaveMessage'),
       confirmText: i18n.t('lobby.confirmLeaveYes'),
       cancelText: i18n.t('lobby.confirmLeaveNo'),
       destructive: true,

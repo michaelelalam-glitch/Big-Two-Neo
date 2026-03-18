@@ -93,12 +93,18 @@ BEGIN
   -- banned_user_ids so join_room_atomic can block re-entry.
   -- Casual and ranked rooms allow free re-entry; only private rooms ban.
   IF NOT v_is_matchmaking AND NOT v_is_public THEN
-    -- Only append when not already banned to prevent duplicate UUID entries
-    -- in the banned_user_ids array (repeated kicks of the same user).
+    -- Use DISTINCT UNNEST to rebuild the array as a set, guaranteeing
+    -- uniqueness even under concurrent kicks of the same user (the predicate-
+    -- guarded array_append approach was not concurrency-safe: two concurrent
+    -- calls could both read the old array, pass the NOT ANY(...) guard, and
+    -- both append the same UUID).
     UPDATE rooms
-       SET banned_user_ids = array_append(COALESCE(banned_user_ids, '{}'), p_kicked_user_id)
-     WHERE id = p_room_id
-       AND NOT (p_kicked_user_id = ANY(COALESCE(banned_user_ids, '{}')));
+       SET banned_user_ids = ARRAY(
+             SELECT DISTINCT UNNEST(
+               array_append(COALESCE(banned_user_ids, '{}'), p_kicked_user_id)
+             )
+           )
+     WHERE id = p_room_id;
   END IF;
 END;
 $$;

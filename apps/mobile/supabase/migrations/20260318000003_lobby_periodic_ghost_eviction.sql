@@ -1,20 +1,26 @@
 -- =============================================================================
--- Migration: lobby_periodic_ghost_eviction
+-- Migration: lobby_evict_ghosts RPC definition
 -- Date: March 18, 2026
 -- Purpose:
---   lobby_evict_ghosts(p_room_id) — callable RPC that evicts stale players
---   from a waiting lobby.  Previously ghost eviction only ran inside
+--   Defines lobby_evict_ghosts(p_room_id) — callable RPC that evicts stale
+--   players from a waiting lobby.  Previously ghost eviction only ran inside
 --   join_room_atomic, so existing lobby members were never cleaned up unless
 --   a new player attempted to join.
 --
---   LobbyScreen's heartbeat interval (every 15 s) now calls this RPC
---   alongside update_player_heartbeat, ensuring disconnected players are
---   removed within ~75 s (60 s threshold + up to 15 s interval).
+--   LobbyScreen's heartbeat interval (every 15 s) calls this RPC alongside
+--   update_player_heartbeat, ensuring disconnected players are removed within
+--   ~75 s (60 s threshold + up to 15 s interval).  This client-driven
+--   "periodic" eviction replaces the need for a server-side cron job.
 --
 --   Host transfer is handled automatically by the existing
 --   check_host_departure → reassign_next_host AFTER DELETE trigger on
 --   room_players.
+--
+-- NOTE: This migration only defines and grants the RPC.  No pg_cron/scheduled
+-- job is created here — eviction is triggered from LobbyScreen heartbeats.
 -- =============================================================================
+-- (Copilot PR-153 review r2953147528 — migration name updated to reflect actual
+-- scope: defines the RPC rather than registering a scheduled cron job.)
 
 CREATE OR REPLACE FUNCTION lobby_evict_ghosts(
   p_room_id UUID
