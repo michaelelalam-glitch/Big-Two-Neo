@@ -10,7 +10,7 @@ echo "   Make sure your iPhone is connected via USB and trusted on this Mac."
 
 cd "$PROJECT_DIR"
 
-# Accept UDID via first postiional argument or DEVICE_UDID env var.
+# Accept UDID via first positional argument or DEVICE_UDID env var.
 # If neither is set, pass --device without a value so Expo prompts interactively.
 # Avoid committing a hard-coded device UDID (Copilot PR-151 r2951116791).
 if [[ -n "$1" ]]; then

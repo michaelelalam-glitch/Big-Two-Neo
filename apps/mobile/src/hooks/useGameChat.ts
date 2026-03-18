@@ -32,7 +32,7 @@ export interface UseGameChatOptions {
 
 export interface UseGameChatReturn {
   messages: ChatMessage[];
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string) => boolean;
   unreadCount: number;
   isCooldown: boolean;
 }
@@ -146,14 +146,14 @@ export function useGameChat({
   }, [channel]);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    (text: string): boolean => {
       const trimmed = text.trim();
-      if (!trimmed || trimmed.length > 500) return;
+      if (!trimmed || trimmed.length > 500) return false;
 
       const now = Date.now();
-      if (now - lastSentRef.current < COOLDOWN_MS) return;
+      if (now - lastSentRef.current < COOLDOWN_MS) return false;
 
-      if (!channel) return;
+      if (!channel) return false;
 
       lastSentRef.current = now;
       setIsCooldown(true);
@@ -192,6 +192,8 @@ export function useGameChat({
           // (Copilot PR-150 r2950125732).
           setMessages((prev) => prev.filter((m) => m.id !== msg.id));
         });
+
+      return true;
     },
     [channel, userId, username],
   );

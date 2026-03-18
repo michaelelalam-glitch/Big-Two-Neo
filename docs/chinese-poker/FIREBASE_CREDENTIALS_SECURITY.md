@@ -14,21 +14,19 @@
 2. ✅ Re-enabled `.gitignore` entry
 3. ✅ Created `google-services.json.example` template
 
-### 🔐 ACTION REQUIRED (High Priority)
-**You MUST rotate these credentials immediately:**
+### 🔐 VERIFY CREDENTIALS (High Priority)
+**The leaked key was rotated in Dec 2024. Verify the following before continuing development:**
 
-1. **Go to Firebase Console:** https://console.firebase.google.com/project/twobig-f9a63/settings/general
-2. **Restrict the leaked API key:**
+1. **Confirm old key is deleted:**
    - Navigate to Google Cloud Console > APIs & Services > Credentials
-   - Find and delete the previously leaked key (see commit history for reference)
-   - **Delete** or restrict to specific app signatures/IP ranges
-3. **Generate new API key:**
-   - Create a new Android API key
-   - Restrict to your app's SHA-1 fingerprint
-4. **Download fresh `google-services.json`:**
+   - Ensure the previously leaked key no longer exists (see commit history for reference)
+   - If still present, **delete** or restrict to specific app signatures/IP ranges
+2. **Verify new key restrictions:**
+   - Confirm the current Android API key is restricted to your app's SHA-1 fingerprint
+3. **Obtain `google-services.json`:**
    - Firebase Console > Project Settings > General
    - Under "Your apps" > Android app > Download `google-services.json`
-5. **Place in `apps/mobile/` (NOT committed to Git)**
+4. **Place in `apps/mobile/` (NOT committed to Git)**
 
 ---
 
