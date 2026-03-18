@@ -63,12 +63,30 @@ export default function JoinRoomScreen() {
             destructive: true,
             onConfirm: async () => {
               try {
-                const { error: leaveError } = await supabase
+                // Check if the user is the host of their current room.
+                // Direct DELETE is blocked by RLS for other players' rows, and
+                // leaving without host-transfer breaks the room. Use the
+                // SECURITY DEFINER RPC when the user is the host.
+                const { data: hostCheck } = await supabase
                   .from('room_players')
-                  .delete()
+                  .select('is_host')
                   .eq('room_id', roomPlayer.room_id)
-                  .eq('user_id', user.id);
-                if (leaveError) throw leaveError;
+                  .eq('user_id', user.id)
+                  .single();
+                if (hostCheck?.is_host) {
+                  const { error: leaveError } = await supabase.rpc('lobby_host_leave', {
+                    p_room_id: roomPlayer.room_id,
+                    p_leaving_user_id: user.id,
+                  });
+                  if (leaveError) throw leaveError;
+                } else {
+                  const { error: leaveError } = await supabase
+                    .from('room_players')
+                    .delete()
+                    .eq('room_id', roomPlayer.room_id)
+                    .eq('user_id', user.id);
+                  if (leaveError) throw leaveError;
+                }
                 // Retry the join now that the user has left the previous room
                 handleJoinRoom();
               } catch (err: unknown) {

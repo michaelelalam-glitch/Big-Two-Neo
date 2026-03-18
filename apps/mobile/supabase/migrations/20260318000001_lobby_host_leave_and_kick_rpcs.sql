@@ -40,6 +40,13 @@ DECLARE
   v_remaining_id   UUID;
   v_index          INT := 0;
 BEGIN
+  -- Security: reject calls where the JWT uid doesn't match the supplied user_id.
+  -- Prevents any authenticated user from impersonating the host by passing the
+  -- host's UUID as p_leaving_user_id to satisfy the is_host check below.
+  IF auth.uid() IS DISTINCT FROM p_leaving_user_id THEN
+    RAISE EXCEPTION 'lobby_host_leave: JWT uid does not match supplied user_id';
+  END IF;
+
   -- Validate: caller must be the room's host.
   SELECT is_host
     INTO v_is_host
@@ -103,6 +110,7 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION lobby_host_leave(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lobby_host_leave(UUID, UUID) TO authenticated;
 
 -- 3. lobby_kick_player ----------------------------------------------------------
@@ -118,6 +126,12 @@ AS $$
 DECLARE
   v_is_host BOOLEAN;
 BEGIN
+  -- Security: reject calls where the JWT uid doesn't match the supplied kicker_user_id.
+  -- Prevents any authenticated user from passing another host's UUID to gain kick rights.
+  IF auth.uid() IS DISTINCT FROM p_kicker_user_id THEN
+    RAISE EXCEPTION 'lobby_kick_player: JWT uid does not match supplied kicker_user_id';
+  END IF;
+
   -- Validate: kicker must be the room's host.
   SELECT is_host
     INTO v_is_host
@@ -142,4 +156,5 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION lobby_kick_player(UUID, UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lobby_kick_player(UUID, UUID, UUID) TO authenticated;

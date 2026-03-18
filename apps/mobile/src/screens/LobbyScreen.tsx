@@ -137,13 +137,17 @@ export default function LobbyScreen() {
       return null;
     }
 
-    // Room already in progress — navigate directly to Game (no need to idle in lobby with Rejoin button)
+    // Room already in progress — navigate directly to Game (no need to idle in lobby with Rejoin button).
+    // When suppressNavigation is true (callers only need the id), return the id so they can proceed
+    // rather than returning null which would cause them to bail out or navigate Home unexpectedly.
     if (data.status === 'playing') {
       if (!options?.suppressNavigation && !isLeavingRef.current) {
         isLeavingRef.current = true;
         navigation.replace('Game', { roomCode });
+        return null;
       }
-      return null;
+      // suppressNavigation=true: return id so the caller can use it
+      return data.id;
     }
 
     // Handle ended/finished rooms: reset to 'waiting' for Play Again, otherwise send home.
@@ -259,15 +263,19 @@ export default function LobbyScreen() {
       // ── Host reassignment fallback ──
       // lobby_host_leave RPC handles host transfer atomically server-side, so
       // this should rarely trigger. If no is_host row exists (e.g. edge-case
-      // where the old host's app crashed mid-transfer), call lobby_host_leave
-      // again so the DB catches up. Only the first human (lowest player_index)
-      // calls the RPC to avoid duplicate concurrent promotions.
+      // where the old host's app crashed mid-transfer), mark the first human
+      // locally so the UI doesn't look broken while data propagates.
+      // Note: we do NOT call lobby_host_leave here because (a) we don't know
+      // which user was the leaving host and (b) firing the RPC from every
+      // client would cause duplicate concurrent promotions. The server-side
+      // RPC already handles the transfer atomically; this local flag is only
+      // a display-layer safety net until the next realtime event arrives.
       const hasActiveHost = players.some((p: Player) => p.is_host === true);
       if (!hasActiveHost && players.length > 0 && user?.id) {
         const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
         const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
         if (firstHuman && firstHuman.user_id === user.id) {
-          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, marking locally');
+          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, marking locally until realtime syncs');
           // Mark locally so the UI doesn't look broken while data propagates
           firstHuman.is_host = true;
         }
