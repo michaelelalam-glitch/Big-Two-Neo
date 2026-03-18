@@ -275,8 +275,18 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     const staleTime = new Date(Date.now() - 120_000).toISOString();
     await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true, lastSeenAt: staleTime });
 
-    // u2 joins — should evict u1 ghost and succeed
-    const { data, error } = await supabase.rpc('join_room_atomic', {
+    // join_room_atomic enforces auth.uid() IS DISTINCT FROM p_user_id (SECURITY DEFINER).
+    // Service-role callers have auth.uid()=null and will be rejected by the security guard.
+    // Use an anon client signed in as u2 so auth.uid() is set correctly.
+    // (Copilot PR-153 review r2953630251)
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    const u2Client = createClient(SUPABASE_URL, anonKey);
+    await u2Client.auth.signInWithPassword({
+      email: testUsers.u2.email,
+      password: testUsers.u2.password,
+    });
+
+    const { data, error } = await u2Client.rpc('join_room_atomic', {
       p_room_code: room.code,
       p_user_id: u2,
       p_username: `ClaimTest-${randomUUID().slice(0, 8)}`,
@@ -287,5 +297,7 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     expect(data).toHaveProperty('room_id', room.id);
     // u2 should now be host (only human remaining after ghost eviction)
     expect(data).toHaveProperty('is_host', true);
-  });
+
+    await u2Client.auth.signOut();
+  }, 20_000);
 });

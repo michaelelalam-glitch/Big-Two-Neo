@@ -93,9 +93,12 @@ BEGIN
   -- banned_user_ids so join_room_atomic can block re-entry.
   -- Casual and ranked rooms allow free re-entry; only private rooms ban.
   IF NOT v_is_matchmaking AND NOT v_is_public THEN
+    -- Only append when not already banned to prevent duplicate UUID entries
+    -- in the banned_user_ids array (repeated kicks of the same user).
     UPDATE rooms
        SET banned_user_ids = array_append(COALESCE(banned_user_ids, '{}'), p_kicked_user_id)
-     WHERE id = p_room_id;
+     WHERE id = p_room_id
+       AND NOT (p_kicked_user_id = ANY(COALESCE(banned_user_ids, '{}')));
   END IF;
 END;
 $$;

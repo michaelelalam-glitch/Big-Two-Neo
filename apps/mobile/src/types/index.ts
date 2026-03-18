@@ -37,6 +37,7 @@ export interface GameState {
 export interface RoomPlayerWithRoom {
   room_id: string;
   user_id?: string; // Optional - not always selected in queries
+  last_seen_at?: string | null;
   rooms: {
     code: string;
     status: string;

@@ -122,30 +122,37 @@ export default function LobbyScreen() {
   useEffect(() => {
     if (!roomId || !user?.id) return;
 
-    const runHeartbeatAndEvict = () => {
-      // 1. Update this player's heartbeat
-      Promise.resolve(
-        supabase.rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
-      ).then(({ error: heartbeatErr }) => {
+    // Guard: skip a tick if the previous heartbeat+evict cycle is still running.
+    // Prevents overlapping in-flight RPCs on slow networks. (Copilot r2953630203)
+    let inFlight = false;
+
+    const runHeartbeatAndEvict = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        // 1. Update this player's heartbeat
+        const { error: heartbeatErr } = await supabase.rpc('update_player_heartbeat', {
+          p_room_id: roomId,
+          p_user_id: user.id,
+        });
         if (heartbeatErr) {
           roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
         }
-      }, (err) => {
-        roomLogger.warn('[LobbyScreen] Heartbeat request rejected:', err);
-      });
 
-      // 2. Evict ghost players from this lobby (stale > 60 s)
-      Promise.resolve(
-        supabase.rpc('lobby_evict_ghosts', { p_room_id: roomId })
-      ).then(({ data: evicted, error: evictErr }) => {
+        // 2. Evict ghost players from this lobby (stale > 60 s)
+        const { data: evicted, error: evictErr } = await supabase.rpc('lobby_evict_ghosts', {
+          p_room_id: roomId,
+        });
         if (evictErr) {
           roomLogger.warn('[LobbyScreen] Ghost eviction failed:', evictErr.message);
         } else if (evicted && evicted > 0) {
           roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
         }
-      }, (err) => {
-        roomLogger.warn('[LobbyScreen] Ghost eviction request rejected:', err);
-      });
+      } catch (err) {
+        roomLogger.warn('[LobbyScreen] Heartbeat/eviction request rejected:', err);
+      } finally {
+        inFlight = false;
+      }
     };
 
     // Run immediately on mount so ghosts are evicted right away (not after 15 s).

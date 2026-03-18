@@ -58,7 +58,7 @@ export default function CreateRoomScreen() {
         //      would otherwise block "Create Room" with an "already in room"
         //      dialog for a lobby the user is no longer in.
         const STALE_THRESHOLD_MS = 60_000; // match lobby_evict_ghosts 60 s threshold
-        const lastSeenAt = (roomPlayer as Record<string, unknown>).last_seen_at as string | null;
+        const lastSeenAt = roomPlayer.last_seen_at ?? null;
         const isStaleWaiting =
           roomStatus === 'waiting' &&
           lastSeenAt != null &&

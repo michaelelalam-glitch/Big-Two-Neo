@@ -270,11 +270,6 @@ GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated;
 -- rooms (see also migration_006).
 ALTER TABLE rooms
   ADD COLUMN IF NOT EXISTS banned_user_ids UUID[] DEFAULT '{}' NOT NULL;
---
--- Also: add a banned_user_ids UUID[] column to rooms so lobby_kick_player can
--- record kicked players and join_room_atomic can block re-entry in private rooms.
-ALTER TABLE rooms
-  ADD COLUMN IF NOT EXISTS banned_user_ids UUID[] DEFAULT '{}' NOT NULL;
 CREATE OR REPLACE FUNCTION join_room_atomic(
   p_room_code TEXT,
   p_user_id   UUID,
