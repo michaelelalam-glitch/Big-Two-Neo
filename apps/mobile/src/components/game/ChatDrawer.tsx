@@ -87,6 +87,7 @@ export function ChatDrawer({
   //   after 300 ms — long enough to outlast any autocorrect commit on both iOS
   //   (typically <200 ms) and Android (typically <150 ms).
   const isSendingRef = useRef(false);
+  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Derive panel offset from current orientation so the drawer sits at the
@@ -169,7 +170,10 @@ export function ChatDrawer({
     setInputKey((k) => k + 1);
     setInputText('');
     // Clear the guard after the autocorrect commit window.
-    setTimeout(() => { isSendingRef.current = false; }, 300);
+    // Clearing any in-flight timer first prevents multiple rapid sends from
+    // resetting the flag too early (Copilot PR-151 r2951116762).
+    if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
+    sendTimerRef.current = setTimeout(() => { isSendingRef.current = false; }, 300);
   }, [inputText, sendMessage]);
 
   // Android fires onChangeText with the autocorrected word BEFORE
@@ -184,7 +188,8 @@ export function ChatDrawer({
       sendMessage(text);
       setInputKey((k) => k + 1);
       setInputText('');
-      setTimeout(() => { isSendingRef.current = false; }, 300);
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
+      sendTimerRef.current = setTimeout(() => { isSendingRef.current = false; }, 300);
     },
     [sendMessage],
   );
