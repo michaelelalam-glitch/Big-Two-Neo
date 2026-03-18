@@ -289,18 +289,54 @@ function GameViewComponent() {
               </View>
             </View>
 
-            {/* Task #590: Score action buttons - top left */}
+            {/* Task #590: Score action buttons - top left
+                Layout: column-1 = [📜, 💬(multiplayer)], column-2 = [▶] */}
             <View style={scoreDisplayStyles.scoreActionContainer} pointerEvents="box-none">
-              <TouchableOpacity
-                style={scoreDisplayStyles.scoreActionButton}
-                onPress={togglePlayHistory}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="View play history"
-                accessibilityHint="Opens the list of plays for this match"
-              >
-                <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
-              </TouchableOpacity>
+              {/* Column 1: play-history on top, chat below it */}
+              <View style={{ flexDirection: 'column', gap: 8 }}>
+                <TouchableOpacity
+                  style={scoreDisplayStyles.scoreActionButton}
+                  onPress={togglePlayHistory}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="View play history"
+                  accessibilityHint="Opens the list of plays for this match"
+                >
+                  <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
+                </TouchableOpacity>
+                {/* Task #648: chat icon button (multiplayer only) — below 📜 */}
+                {isMultiplayerGame && (
+                  <View style={{ position: 'relative' }}>
+                    <TouchableOpacity
+                      style={[
+                        scoreDisplayStyles.scoreActionButton,
+                        isChatDrawerOpen && { backgroundColor: 'rgba(74,144,226,0.4)' },
+                      ]}
+                      onPress={toggleChatDrawer}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={i18n.t('chat.a11yToggleLabel')}
+                      accessibilityHint={i18n.t('chat.a11yToggleHint')}
+                    >
+                      <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
+                    </TouchableOpacity>
+                    {chatUnreadCount > 0 && !isChatDrawerOpen && (
+                      <View style={{
+                        position: 'absolute', top: -4, right: -4,
+                        backgroundColor: '#F44336', borderRadius: 10,
+                        minWidth: 18, height: 18,
+                        alignItems: 'center', justifyContent: 'center',
+                        paddingHorizontal: 4,
+                      }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                          {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+              {/* Column 2: scoreboard expand toggle */}
               <TouchableOpacity
                 style={scoreDisplayStyles.scoreActionButton}
                 onPress={toggleScoreboardExpanded}
@@ -311,37 +347,6 @@ function GameViewComponent() {
               >
                 <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>
-              {/* Task #648: chat icon button (multiplayer only) */}
-              {isMultiplayerGame && (
-                <View style={{ position: 'relative' }}>
-                  <TouchableOpacity
-                    style={[
-                      scoreDisplayStyles.scoreActionButton,
-                      isChatDrawerOpen && { backgroundColor: 'rgba(74,144,226,0.4)' },
-                    ]}
-                    onPress={toggleChatDrawer}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={i18n.t('chat.a11yToggleLabel')}
-                    accessibilityHint={i18n.t('chat.a11yToggleHint')}
-                  >
-                    <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
-                  </TouchableOpacity>
-                  {chatUnreadCount > 0 && !isChatDrawerOpen && (
-                    <View style={{
-                      position: 'absolute', top: -4, right: -4,
-                      backgroundColor: '#F44336', borderRadius: 10,
-                      minWidth: 18, height: 18,
-                      alignItems: 'center', justifyContent: 'center',
-                      paddingHorizontal: 4,
-                    }}>
-                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
-                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
             </View>
 
             {/* Scoreboard Container */}
