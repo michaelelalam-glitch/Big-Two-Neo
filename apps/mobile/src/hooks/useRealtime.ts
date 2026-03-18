@@ -176,8 +176,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    * Join a realtime channel for the room
    */
   const joinChannel = useCallback(async (roomId: string): Promise<void> => {
-    // Remove existing channel
+    // Remove existing channel. Clear the reactive state immediately so
+    // consumers (e.g. useGameChat) stop using the old channel the moment
+    // joinChannel is called, not only after the new subscription reaches
+    // SUBSCRIBED (Copilot PR-150 r2950195919).
     if (channelRef.current) {
+      setRealtimeChannel(null);
       await channelRef.current.unsubscribe();
       await supabase.removeChannel(channelRef.current);
     }
