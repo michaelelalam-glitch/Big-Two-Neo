@@ -123,10 +123,12 @@ export default function LobbyScreen() {
     const interval = setInterval(() => {
       supabase
         .rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
-        .catch((err: unknown) => {
-          // Heartbeat failures are non-fatal; a single missed beat is well below the
-          // 60 s eviction threshold — no action required.
-          roomLogger.warn('[LobbyScreen] Heartbeat failed:', err instanceof Error ? err.message : String(err));
+        .then(({ error: heartbeatErr }) => {
+          if (heartbeatErr) {
+            // Heartbeat failures are non-fatal; a single missed beat is well below the
+            // 60 s eviction threshold — no action required.
+            roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
+          }
         });
     }, 15_000);
     return () => clearInterval(interval);

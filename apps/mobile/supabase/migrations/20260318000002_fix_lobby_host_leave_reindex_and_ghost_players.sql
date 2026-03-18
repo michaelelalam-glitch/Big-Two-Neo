@@ -46,11 +46,16 @@ ALTER TABLE room_players
   ALTER COLUMN room_id     SET NOT NULL,
   ALTER COLUMN player_index SET NOT NULL;
 
--- Create a predictably-named unique index that we can reference for REPLICA
--- IDENTITY USING INDEX.  This avoids relying on the auto-generated constraint
--- name, which differs between the live DB (room_players_room_id_position_key,
--- created when the column was still called 'position') and fresh installs
--- (room_players_room_id_player_index_key).
+-- Drop the legacy auto-generated unique constraints so the new predictably-named
+-- index below is the only unique enforcement on (room_id, player_index).
+-- The constraint name depends on history: 'room_players_room_id_position_key'
+-- on the live DB (column was originally called 'position'), or
+-- 'room_players_room_id_player_index_key' on fresh installs.
+ALTER TABLE room_players DROP CONSTRAINT IF EXISTS room_players_room_id_position_key;
+ALTER TABLE room_players DROP CONSTRAINT IF EXISTS room_players_room_id_player_index_key;
+
+-- Create a predictably-named unique index that serves both uniqueness and
+-- REPLICA IDENTITY.  No redundant constraint overhead.
 CREATE UNIQUE INDEX IF NOT EXISTS room_players_realtime_idx
   ON room_players(room_id, player_index);
 
@@ -197,11 +202,8 @@ BEGIN
       );
     END IF;
 
-    -- Ghost host detected: demote them so the promotion below can proceed.
-    UPDATE room_players
-       SET is_host = FALSE
-     WHERE room_id = p_room_id
-       AND user_id = v_current_host.user_id;
+    -- Ghost host detected — we will demote after confirming the caller is
+    -- eligible, so we don't leave the room host-less on early returns.
   END IF;
 
   -- Caller must be the first human (lowest player_index) to claim host.
@@ -223,6 +225,14 @@ BEGIN
       'status',          'not_first_human',
       'first_human_id',  v_first_human.user_id
     );
+  END IF;
+
+  -- Caller is confirmed as the first human — now demote the ghost host.
+  IF v_current_host.user_id IS NOT NULL THEN
+    UPDATE room_players
+       SET is_host = FALSE
+     WHERE room_id = p_room_id
+       AND user_id = v_current_host.user_id;
   END IF;
 
   -- Promote caller to host in both tables.
@@ -324,6 +334,12 @@ BEGIN
 
     -- Refresh host_id: the trigger may have promoted a new host after eviction.
     SELECT host_id INTO v_host_id FROM rooms WHERE id = v_room_id;
+
+    -- After eviction the cleanup_empty_rooms trigger may have deleted the room
+    -- if ALL players were stale. Re-check before proceeding.
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Room was cleaned up after ghost eviction — all players were stale';
+    END IF;
   END IF;
   -- ─────────────────────────────────────────────────────────────────────────
 
