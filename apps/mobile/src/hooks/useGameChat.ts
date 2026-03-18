@@ -10,6 +10,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '../types/chat';
 import { filterMessage } from '../utils/profanityFilter';
 import { gameLogger } from '../utils/logger';
+import { soundManager, SoundType } from '../utils/soundManager';
 
 /** Maximum number of messages retained in memory. */
 const MAX_MESSAGES = 100;
@@ -123,6 +124,11 @@ export function useGameChat({
       // Increment unread if drawer is closed and message is from someone else.
       if (!isDrawerOpenRef.current && msg.user_id !== userIdRef.current) {
         setUnreadCount((c) => c + 1);
+      }
+
+      // Play a notification sound for every incoming message from another player.
+      if (msg.user_id !== userIdRef.current) {
+        soundManager.playSound(SoundType.CHAT_MESSAGE).catch(() => {});
       }
     };
 
