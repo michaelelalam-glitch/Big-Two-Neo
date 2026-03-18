@@ -428,7 +428,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
+      // `settled` prevents a late subscribe callback from re-exposing the
+      // channel after the timeout has already fired and rejected the promise
+      // (Copilot PR-150 r2950333912).
+      let settled = false;
       const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
         // Unsubscribe AND remove from the Supabase client so the channel
         // doesn't remain registered and leak handlers on subsequent joins
         // (Copilot PR-150 r2950125715).
@@ -439,9 +445,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }, 10000);
       
       channel.subscribe(async (status) => {
+        if (settled) return; // timeout already fired – ignore late callbacks
         networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
+          settled = true;
           clearTimeout(timeout);
           // Only expose channel to reactive consumers after subscription is
           // confirmed so that chat/send can't race against a still-connecting
@@ -460,6 +468,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           networkLogger.info('[useRealtime] ✅ Presence tracked, resolving joinChannel promise');
           resolve();
         } else if (status === 'CLOSED') {
+          settled = true;
           clearTimeout(timeout);
           // Clear reactive channel so consumers (e.g. useGameChat) don't try to
           // use a closed channel. Both ref and state must be cleared.
@@ -469,6 +478,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           onDisconnect?.();
           reject(new Error('Channel closed'));
         } else if (status === 'CHANNEL_ERROR') {
+          settled = true;
           clearTimeout(timeout);
           channelRef.current = null;
           setRealtimeChannel(null);

@@ -38,8 +38,6 @@ import type { ChatMessage } from '../../types/chat';
 export interface ChatDrawerProps {
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
-  /** unreadCount is used by the icon button in GameView; kept in props for API stability. */
-  unreadCount: number;
   isCooldown: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -87,6 +85,14 @@ export function ChatDrawer({
     });
   }, [isOpen, translateY]);
 
+  // Auto-focus the text input once the open animation completes (Copilot
+  // PR-150 r2950333902 — use inputRef intentionally).
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = setTimeout(() => inputRef.current?.focus(), ANIMATION_DURATION + 50);
+    return () => clearTimeout(id);
+  }, [isOpen]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -118,20 +124,15 @@ export function ChatDrawer({
   // Memoized so the Gesture object is only recreated when onToggle changes;
   // recreating it on every render can cause reattachment work and subtle
   // gesture glitches with react-native-gesture-handler (Copilot PR-150
-  // r2950221399).
-  const dragStartY = useSharedValue(0);
+  // r2950221399). dragStartY removed — translationY is read directly from the
+  // onEnd event so no shared value is needed (Copilot PR-150 r2950333904).
   const headerPanGesture = useMemo(
     () =>
       Gesture.Pan()
         .activeOffsetY([-8, 8])
-        .onStart(() => { dragStartY.value = 0; })
-        .onUpdate((e) => { dragStartY.value = e.translationY; })
         .onEnd((e) => {
           if (e.translationY < -30) runOnJS(onToggle)();
         }),
-    // dragStartY is a stable shared-value object; onToggle may change when
-    // the parent re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onToggle],
   );
 
