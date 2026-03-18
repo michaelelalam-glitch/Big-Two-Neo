@@ -280,8 +280,9 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true, lastSeenAt: staleTime });
 
     // join_room_atomic enforces auth.uid() IS DISTINCT FROM p_user_id (SECURITY DEFINER).
-    // Service-role callers have auth.uid()=null and will be rejected by the security guard.
-    // Use an anon client signed in as u2 so auth.uid() is set correctly.
+    // The security guard exempts service_role (auth.role() != 'service_role') so service-role
+    // callers bypass this check.  Use an anon client signed in as u2 so auth.uid() is set
+    // correctly and the self-join guard fires as expected.
     // (Copilot PR-153 review r2953630251)
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
     const u2Client = createClient(SUPABASE_URL, anonKey);

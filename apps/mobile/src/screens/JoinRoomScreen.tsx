@@ -84,7 +84,7 @@ export default function JoinRoomScreen() {
                   if (leaveError) throw leaveError;
                 }
                 // Retry the join now that the user has left the previous room
-                handleJoinRoom();
+                await handleJoinRoom();
               } catch (err: unknown) {
                 roomLogger.error('Error leaving room before join:', err instanceof Error ? err.message : String(err));
                 showError(i18n.t('room.leaveRoomError'));
