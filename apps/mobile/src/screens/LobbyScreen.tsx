@@ -567,13 +567,21 @@ export default function LobbyScreen() {
         roomLogger.error('❌ Failed to send game start notification:', err)
       );
 
-      // DO NOT manually navigate - let Realtime subscription handle navigation for ALL players
-      // The subscription will fire when room status changes to 'playing'
       // CRITICAL: Set isGameInProgress BEFORE clearing isStarting so the auto-start useEffect
       // (which depends on isStarting) cannot re-fire handleStartWithBots a second time.
-      roomLogger.info('⏳ [LobbyScreen] Waiting for Realtime subscription to navigate all players...');
       setIsGameInProgress(true);
       setIsStarting(false);
+
+      // Navigate the host directly rather than waiting for the Realtime subscription.
+      // The subscription is the primary path for non-host players; for the host it can be
+      // missed (e.g. event delivered before the 100ms guard, or network re-order).
+      // Using the same 100ms delay as the subscription so game_state has time to propagate.
+      roomLogger.info('⏳ [LobbyScreen] navigating host to game in 100ms...');
+      setTimeout(() => {
+        if (!isLeavingRef.current) {
+          navigation.replace('Game', { roomCode, forceNewGame: true, botDifficulty });
+        }
+      }, 100);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       roomLogger.error('Error starting game:', msg);
