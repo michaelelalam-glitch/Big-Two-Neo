@@ -88,7 +88,10 @@ export function useGameChat({
     // Supabase broadcast delivers the sent `payload` object directly as the
     // callback argument (i.e., `payload = { data: msg }`). Fall back to the
     // nested `payload.payload.data` shape for forwards-compat robustness.
+    let isActive = true;
+
     const handler = (payload: { data?: ChatMessage; payload?: { data?: ChatMessage } }) => {
+      if (!isActive) return;
       const raw = payload?.data ?? payload?.payload?.data;
       if (!raw || !raw.id || !raw.user_id || !raw.message) return;
 
@@ -126,8 +129,11 @@ export function useGameChat({
     channel.on('broadcast', { event: 'chat_message' }, handler);
 
     return () => {
-      // Supabase JS v2 doesn't expose a per-event unsubscribe, but channel
-      // listener cleanup is handled by useRealtime when it unsubscribes the
+      isActive = false;
+      // Supabase JS v2 doesn't expose a per-event unsubscribe, but setting
+      // isActive=false prevents state updates if the handler fires after
+      // this effect cleans up (Copilot PR-150 r3964546887).
+      // Listener cleanup is handled by useRealtime when it unsubscribes the
       // entire channel. Because the effect only re-runs on channel change
       // (not on userId/isDrawerOpen changes), handlers won't accumulate.
     };
