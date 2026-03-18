@@ -794,7 +794,7 @@ export function MultiplayerGame() {
     setShowSettings(false);
     setIsPlayHistoryOpen(false);
     setIsScoreboardExpanded(false);
-  }, [showBotReplacedModal, setIsPlayHistoryOpen, setIsScoreboardExpanded]);
+  }, [showBotReplacedModal, setShowSettings, setIsChatDrawerOpen, setIsPlayHistoryOpen, setIsScoreboardExpanded]);
 
   const {
     messages: chatMessages,

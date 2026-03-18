@@ -3,7 +3,7 @@
  *
  * Uses a regex-based word blocklist. Words are matched on word boundaries
  * so "class" won't be caught by "ass". Common l33tspeak substitutions
- * (a→@/4, e→3, i→1/!, o→0, s→$) are handled.
+ * (a→@/4, e→3, i→1/!, o→0, s→$/5, t→7) are handled.
  */
 
 // Content-moderation word list for in-game chat filtering.
