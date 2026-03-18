@@ -267,8 +267,10 @@ export interface UseRealtimeReturn {
   /** Force-refetch game state from the DB. Use to re-sync after a stale-state
    *  error (e.g. "Not your turn" caused by Realtime propagation lag). */
   refreshGameState: () => Promise<void>;
-  /** Reactive channel state — becomes non-null after joinChannel resolves.
-   *  Changing this value triggers re-subscription in useGameChat (Task #648). */
+  /** Reactive channel state — becomes non-null once the Realtime subscription
+   *  reaches SUBSCRIBED state (not merely when joinChannel starts).  Changing
+   *  this value triggers re-subscription in useGameChat (Task #648).
+   *  (Copilot PR-150 r2950125723) */
   channel: import('@supabase/supabase-js').RealtimeChannel | null;
   /** Ref to the Supabase Realtime channel for this room (Task #648: chat). */
   channelRef: { current: import('@supabase/supabase-js').RealtimeChannel | null };

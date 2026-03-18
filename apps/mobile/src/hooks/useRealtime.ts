@@ -417,17 +417,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     // (e.g. useGameChat) that read the ref during the re-render triggered by
     // setIsConnected(true) will already see the channel instance.
     channelRef.current = channel;
-    // Also update reactive state so consumers with useEffect deps on channel
-    // re-subscribe correctly (refs don't trigger re-renders).
-    setRealtimeChannel(channel);
+    // NOTE: setRealtimeChannel is called only after SUBSCRIBED so that the
+    // reactive channel state is non-null only when the channel is fully ready
+    // (Copilot PR-150 r2950125694).
 
     // Subscribe and track presence - WAIT for subscription to complete
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        // Unsubscribe so Supabase frees the channel. Without this the channel
-        // stays alive in the client and can leak handlers that cause duplicate
-        // events on subsequent joins (Copilot PR-150 r2950068875).
-        void channel.unsubscribe();
+        // Unsubscribe AND remove from the Supabase client so the channel
+        // doesn't remain registered and leak handlers on subsequent joins
+        // (Copilot PR-150 r2950125715).
+        void channel.unsubscribe().then(() => supabase.removeChannel(channel));
         channelRef.current = null;
         setRealtimeChannel(null);
         reject(new Error('Subscription timeout after 10s'));
@@ -438,6 +438,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         
         if (status === 'SUBSCRIBED') {
           clearTimeout(timeout);
+          // Only expose channel to reactive consumers after subscription is
+          // confirmed so that chat/send can't race against a still-connecting
+          // channel (Copilot PR-150 r2950125694).
+          setRealtimeChannel(channel);
           setIsConnected(true);
           networkLogger.info('[useRealtime] ✅ Channel subscribed successfully');
           
