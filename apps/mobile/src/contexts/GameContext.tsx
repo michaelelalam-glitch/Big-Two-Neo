@@ -180,8 +180,8 @@ export interface GameContextType {
   // ── Task #648: in-game text chat ──────────────────────────────────────
   /** Chat messages received during this game session. */
   chatMessages: ChatMessage[];
-  /** Send a text chat message (profanity-filtered, rate-limited). */
-  sendChatMessage: (text: string) => void;
+  /** Send a text chat message (profanity-filtered, rate-limited). Returns true if sent, false if no-op (cooldown/no channel). */
+  sendChatMessage: (text: string) => boolean;
   /** Number of unread chat messages (resets when drawer opens). */
   chatUnreadCount: number;
   /** True during the 2-second post-send cooldown. */
