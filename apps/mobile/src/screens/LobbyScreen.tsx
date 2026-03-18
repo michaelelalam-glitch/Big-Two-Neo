@@ -116,18 +116,29 @@ export default function LobbyScreen() {
 
   // Lobby heartbeat — refreshes last_seen_at every 15 s so the server can distinguish
   // active players from ghosts (those who crashed/backgrounded without leaving).
-  // The join_room_atomic RPC evicts players with last_seen_at > 60 s; a 15 s interval
-  // keeps active members well within the safe window under normal network conditions.
+  // Also triggers ghost eviction: lobby_evict_ghosts removes players with
+  // last_seen_at > 60 s and the existing check_host_departure trigger promotes
+  // the next human when a ghost host is evicted.
   useEffect(() => {
     if (!roomId || !user?.id) return;
     const interval = setInterval(() => {
+      // 1. Update this player's heartbeat
       supabase
         .rpc('update_player_heartbeat', { p_room_id: roomId, p_user_id: user.id })
         .then(({ error: heartbeatErr }) => {
           if (heartbeatErr) {
-            // Heartbeat failures are non-fatal; a single missed beat is well below the
-            // 60 s eviction threshold — no action required.
             roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
+          }
+        });
+
+      // 2. Evict ghost players from this lobby (stale > 60 s)
+      supabase
+        .rpc('lobby_evict_ghosts', { p_room_id: roomId })
+        .then(({ data: evicted, error: evictErr }) => {
+          if (evictErr) {
+            roomLogger.warn('[LobbyScreen] Ghost eviction failed:', evictErr.message);
+          } else if (evicted && evicted > 0) {
+            roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
           }
         });
     }, 15_000);
