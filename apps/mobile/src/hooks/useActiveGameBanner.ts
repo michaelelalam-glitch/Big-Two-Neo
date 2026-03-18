@@ -530,7 +530,10 @@ export function useActiveGameBanner(
 
         if (roomCheckError) {
           roomLogger.error(`[handleReplaceBotAndRejoin] DB error checking room ${roomCode}:`, roomCheckError.message);
-          // Proceed optimistically on query error; Game screen handles a closed room gracefully.
+          // Abort navigation on query error — proceeding optimistically risks entering a
+          // closed/finished multiplayer room when the DB failure masks its actual status.
+          showError(i18n.t('home.roomClosedError'));
+          return;
         } else if (!roomCheck || roomCheck.status === 'finished' || roomCheck.status === 'ended') {
           roomLogger.info(`🚫 [handleReplaceBotAndRejoin] Room ${roomCode} is closed (status=${roomCheck?.status ?? 'not found'}) — aborting navigation`);
           showError(i18n.t('home.roomClosedError'));

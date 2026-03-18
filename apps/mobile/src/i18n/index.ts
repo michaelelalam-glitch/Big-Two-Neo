@@ -483,6 +483,11 @@ export interface Translations {
     confirmLeaveReady: string;
     confirmLeaveYes: string;
     confirmLeaveNo: string;
+    kickPlayer: string;
+    kickPlayerTitle: string;
+    kickPlayerMessage: string;
+    kickPlayerConfirm: string;
+    kickPlayerError: string;
   };
   room: {
     createTitle: string;
@@ -1086,6 +1091,11 @@ const en: Translations = {
     confirmLeaveReady: 'You are marked as ready. Are you sure you want to leave?',
     confirmLeaveYes: 'Leave',
     confirmLeaveNo: 'Stay',
+    kickPlayer: 'Kick',
+    kickPlayerTitle: 'Kick Player?',
+    kickPlayerMessage: 'Remove {{name}} from the lobby?',
+    kickPlayerConfirm: 'Kick',
+    kickPlayerError: 'Failed to kick player',
   },
   room: {
     createTitle: 'Create Room',
@@ -1628,6 +1638,11 @@ const ar: Translations = {
     confirmLeaveReady: 'أنت مستعد. هل أنت متأكد أنك تريد المغادرة؟',
     confirmLeaveYes: 'مغادرة',
     confirmLeaveNo: 'البقاء',
+    kickPlayer: 'طرد',
+    kickPlayerTitle: 'طرد اللاعب؟',
+    kickPlayerMessage: 'إزالة {{name}} من الغرفة؟',
+    kickPlayerConfirm: 'طرد',
+    kickPlayerError: 'فشل طرد اللاعب',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -2249,6 +2264,11 @@ const de: Translations = {
     confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du die Lobby wirklich verlassen?',
     confirmLeaveYes: 'Verlassen',
     confirmLeaveNo: 'Bleiben',
+    kickPlayer: 'Rauswerfen',
+    kickPlayerTitle: 'Spieler rauswerfen?',
+    kickPlayerMessage: '{{name}} aus der Lobby entfernen?',
+    kickPlayerConfirm: 'Rauswerfen',
+    kickPlayerError: 'Spieler konnte nicht rausgeworfen werden',
   },
   room: {
     createTitle: 'Raum erstellen',

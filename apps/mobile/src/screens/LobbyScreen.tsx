@@ -114,7 +114,13 @@ export default function LobbyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- roomId is the correct trigger; loadPlayersRef is a stable ref
   }, [roomId]);
 
-  const getRoomId = async () => {
+  /**
+   * Fetches the room id (and side-loads room metadata into state).
+   * @param options.suppressNavigation – when true, skip all navigation side-effects
+   *   so callers that only need the id (handleLeaveRoom, handleToggleReady,
+   *   handleStartWithBots) do not accidentally redirect to Game/Home.
+   */
+  const getRoomId = async (options?: { suppressNavigation?: boolean }) => {
     const { data, error } = await supabase
       .from('rooms')
       .select('id, status, is_matchmaking, is_public, ranked_mode, host_id')
@@ -125,7 +131,7 @@ export default function LobbyScreen() {
       roomLogger.info('[LobbyScreen] Room not found, navigating to Home (likely cleaned up)');
       // Silently navigate home instead of showing error
       // This happens when user leaves game and cleanup removes them from room
-      if (!isLeavingRef.current) {
+      if (!options?.suppressNavigation && !isLeavingRef.current) {
         isLeavingRef.current = true;
         navigation.replace('Home');
       }
@@ -134,7 +140,7 @@ export default function LobbyScreen() {
 
     // Room already in progress — navigate directly to Game (no need to idle in lobby with Rejoin button)
     if (data.status === 'playing') {
-      if (!isLeavingRef.current) {
+      if (!options?.suppressNavigation && !isLeavingRef.current) {
         isLeavingRef.current = true;
         navigation.replace('Game', { roomCode });
       }
@@ -154,7 +160,7 @@ export default function LobbyScreen() {
             .eq('code', roomCode);
           if (resetError) {
             roomLogger.error('[LobbyScreen] Failed to reset ended room for Play Again:', resetError.message);
-            if (!isLeavingRef.current) {
+            if (!options?.suppressNavigation && !isLeavingRef.current) {
               isLeavingRef.current = true;
               navigation.replace('Home');
             }
@@ -170,7 +176,7 @@ export default function LobbyScreen() {
         }
       } else {
         roomLogger.info('[LobbyScreen] Room ended and not a play-again — navigating Home');
-        if (!isLeavingRef.current) {
+        if (!options?.suppressNavigation && !isLeavingRef.current) {
           isLeavingRef.current = true;
           navigation.replace('Home');
         }
@@ -404,7 +410,7 @@ export default function LobbyScreen() {
     
     try {
       setIsTogglingReady(true);
-      const currentRoomId = roomId || await getRoomId();
+      const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
       if (!currentRoomId) return;
       
       const { error } = await supabase
@@ -426,16 +432,25 @@ export default function LobbyScreen() {
   const handleCopyCode = async () => {
     // Lazy-load expo-clipboard so requireNativeModule only fires on press,
     // not at bundle-load time — avoids crash in Expo Go.
+    let copied = false;
     try {
       const mod = await import('expo-clipboard');
       await mod.setStringAsync(roomCode);
+      copied = true;
     } catch {
-      // clipboard unavailable in this environment — still show the alert
+      // clipboard unavailable in this environment
     }
-    Alert.alert(
-      i18n.t('lobby.copiedTitle') || 'Copied!',
-      i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
-    );
+    if (copied) {
+      Alert.alert(
+        i18n.t('lobby.copiedTitle') || 'Copied!',
+        i18n.t('lobby.copiedMessage', { roomCode }) || `Room code ${roomCode} copied to clipboard`
+      );
+    } else {
+      Alert.alert(
+        i18n.t('lobby.copyFailedTitle') || 'Copy Failed',
+        i18n.t('lobby.copyFailedMessage', { roomCode }) || `Could not copy to clipboard. Your room code is: ${roomCode}`
+      );
+    }
   };
 
   const handleShareCode = async () => {
@@ -487,7 +502,7 @@ export default function LobbyScreen() {
     try {
       isStartingRef.current = true;
       setIsStarting(true);
-      const currentRoomId = roomId || await getRoomId();
+      const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
       if (!currentRoomId) return;
 
       // Get current user's room_player data
@@ -627,18 +642,67 @@ export default function LobbyScreen() {
           isLeavingRef.current = true;
           setIsLeavingState(true);
 
-          const currentRoomId = roomId || await getRoomId();
+          const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
           if (!currentRoomId) {
             navigation.replace('Home');
             return;
           }
 
           if (isHost) {
-            const { error } = await supabase
-              .from('rooms')
-              .delete()
-              .eq('id', currentRoomId);
-            if (error) throw error;
+            // Promote the next human player (lowest player_index) as the new host,
+            // renumber remaining players so slots are consecutive, then remove self.
+            const otherHumans = players
+              .filter(p => !p.is_bot && p.user_id !== user?.id)
+              .sort((a, b) => a.player_index - b.player_index);
+
+            if (otherHumans.length > 0) {
+              const newHostPlayer = otherHumans[0];
+
+              // Re-index all remaining players (humans + bots) starting from 0,
+              // so the player list fills without gaps after the host leaves.
+              const remaining = players
+                .filter(p => p.user_id !== user?.id)
+                .sort((a, b) => a.player_index - b.player_index);
+
+              for (let i = 0; i < remaining.length; i++) {
+                const p = remaining[i];
+                const updates: { player_index: number; is_host?: boolean } = { player_index: i };
+                if (p.id === newHostPlayer.id) {
+                  updates.is_host = true;
+                }
+                const { error: updateErr } = await supabase
+                  .from('room_players')
+                  .update(updates)
+                  .eq('id', p.id);
+                if (updateErr) {
+                  roomLogger.error('[LobbyScreen] Failed to re-index player:', updateErr.message);
+                }
+              }
+
+              // Update rooms.host_id to the new host
+              const { error: roomUpdateErr } = await supabase
+                .from('rooms')
+                .update({ host_id: newHostPlayer.user_id })
+                .eq('id', currentRoomId);
+              if (roomUpdateErr) {
+                roomLogger.error('[LobbyScreen] Failed to update rooms.host_id:', roomUpdateErr.message);
+              }
+
+              // Remove the leaving host from room_players
+              const { error: deleteErr } = await supabase
+                .from('room_players')
+                .delete()
+                .eq('room_id', currentRoomId)
+                .eq('user_id', user?.id);
+              if (deleteErr) throw deleteErr;
+            } else {
+              // No other human players — delete the room entirely
+              const { error } = await supabase
+                .from('rooms')
+                .delete()
+                .eq('id', currentRoomId);
+              if (error) throw error;
+            }
           } else {
             const { error } = await supabase
               .from('room_players')
@@ -658,6 +722,38 @@ export default function LobbyScreen() {
       },
       onCancel: () => {
         isLeaveConfirmOpenRef.current = false;
+      },
+    });
+  };
+
+  /**
+   * Kick a human player from the lobby.
+   * Only the host can kick, and only in private rooms (never casual or ranked).
+   */
+  const handleKickPlayer = (playerToKick: Player) => {
+    if (!isHost || !roomType.isPrivate || !roomId) return;
+
+    const displayName = playerToKick.profiles?.username || 'Player';
+    showConfirm({
+      title: i18n.t('lobby.kickPlayerTitle'),
+      message: i18n.t('lobby.kickPlayerMessage', { name: displayName }),
+      confirmText: i18n.t('lobby.kickPlayerConfirm'),
+      cancelText: i18n.t('lobby.confirmLeaveNo'),
+      destructive: true,
+      cancelable: false,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('room_id', roomId)
+            .eq('user_id', playerToKick.user_id);
+          if (error) throw error;
+          // Subscription will refresh the player list automatically
+        } catch (error: unknown) {
+          roomLogger.error('Error kicking player:', error instanceof Error ? error.message : String(error));
+          showError(i18n.t('lobby.kickPlayerError'));
+        }
       },
     });
   };
@@ -687,11 +783,22 @@ export default function LobbyScreen() {
           <Text style={styles.playerName}>{displayName}</Text>
           {isCurrentUser && <Text style={styles.youLabel}>({i18n.t('lobby.you')})</Text>}
         </View>
-        {item.is_ready && (
-          <View style={styles.readyBadge}>
-            <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
-          </View>
-        )}
+        {/* Right-side badges: ready status + host kick button (private rooms only) */}
+        <View style={styles.playerCardRight}>
+          {item.is_ready && (
+            <View style={styles.readyBadge}>
+              <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
+            </View>
+          )}
+          {isHost && roomType.isPrivate && !isCurrentUser && !item.is_bot && (
+            <TouchableOpacity
+              style={styles.kickButton}
+              onPress={() => handleKickPlayer(item)}
+            >
+              <Text style={styles.kickButtonText}>{i18n.t('lobby.kickPlayer')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -1077,6 +1184,22 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
+  },
+  playerCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  kickButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  kickButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
   },
   readyButton: {
     backgroundColor: '#3B82F6',
