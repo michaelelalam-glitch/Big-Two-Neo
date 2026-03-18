@@ -783,6 +783,19 @@ export function MultiplayerGame() {
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const toggleChatDrawer = useCallback(() => setIsChatDrawerOpen(prev => !prev), []);
 
+  // ── Auto-dismiss all overlays when the RejoinModal appears ──────────────
+  // When the bot-replacement popup is shown the player should not be
+  // interacting with any other overlay (chat, play history, settings menu,
+  // or expanded scoreboard). Close them all automatically so the modal is
+  // fully visible and nothing else captures touches underneath it.
+  useEffect(() => {
+    if (!showBotReplacedModal) return;
+    setIsChatDrawerOpen(false);
+    setShowSettings(false);
+    setIsPlayHistoryOpen(false);
+    setIsScoreboardExpanded(false);
+  }, [showBotReplacedModal, setIsPlayHistoryOpen, setIsScoreboardExpanded]);
+
   const {
     messages: chatMessages,
     sendMessage: sendChatMessage,

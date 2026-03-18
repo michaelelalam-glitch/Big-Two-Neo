@@ -23,6 +23,7 @@ export enum SoundType {
   LOSE = 'lose',                       // Match/game lose sound
   TURN_NOTIFICATION = 'turn_notification', // Your turn indicator
   INVALID_MOVE = 'invalid_move',       // Invalid move attempt
+  CHAT_MESSAGE = 'chat_message',       // Incoming chat message from another player
 }
 
 // Sound file paths
@@ -35,6 +36,8 @@ const SOUND_FILES: Record<SoundType, number> = {
   [SoundType.LOSE]: require('../../assets/sounds/lose.m4a'),
   [SoundType.TURN_NOTIFICATION]: require('../../assets/sounds/turn_notification.m4a'),
   [SoundType.INVALID_MOVE]: require('../../assets/sounds/invalid_move.m4a'),
+  // Use pass.m4a for chat so incoming messages are audibly distinct from turn notifications.
+  [SoundType.CHAT_MESSAGE]: require('../../assets/sounds/pass.m4a'),
 };
 
 // Settings keys

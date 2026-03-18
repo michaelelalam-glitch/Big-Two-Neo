@@ -4,6 +4,15 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useGameChat } from '../useGameChat';
 
+// Mock soundManager so audio is never actually played in tests and we can
+// assert playSound calls (Copilot PR-151 r2951116747).
+// Note: jest.mock() is hoisted, so the factory must not reference outer `const`
+// variables declared in this module. Retrieve the mock via jest.requireMock().
+jest.mock('../../utils/soundManager', () => ({
+  soundManager: { playSound: jest.fn().mockResolvedValue(undefined) },
+  SoundType: { CHAT_MESSAGE: 'chat_message' },
+}));
+
 // Mock channel
 function createMockChannel() {
   const handlers: Record<string, ((payload: unknown) => void)[]> = {};
@@ -37,6 +46,11 @@ describe('useGameChat', () => {
   beforeEach(() => {
     channelRef = { current: createMockChannel() };
     jest.useFakeTimers();
+    // Reset the hoisted mock between tests.
+    const { soundManager } = jest.requireMock('../../utils/soundManager') as {
+      soundManager: { playSound: jest.Mock };
+    };
+    soundManager.playSound.mockClear();
   });
 
   afterEach(() => {
@@ -248,5 +262,46 @@ describe('useGameChat', () => {
     });
 
     expect(result.current.messages).toHaveLength(1);
+  });
+
+  // ── Sound notification tests (Copilot PR-151 r2951116747) ────────────────
+
+  it('plays CHAT_MESSAGE sound for incoming messages from other players', () => {
+    const { soundManager, SoundType } = jest.requireMock('../../utils/soundManager') as {
+      soundManager: { playSound: jest.Mock };
+      SoundType: { CHAT_MESSAGE: string };
+    };
+    const { result } = renderHook(() => useGameChat(defaultProps()));
+
+    act(() => {
+      channelRef.current!._emit('chat_message', {
+        id: 'sound-1',
+        user_id: 'user-2',
+        username: 'Bob',
+        message: 'ping!',
+        created_at: new Date().toISOString(),
+      });
+    });
+
+    expect(soundManager.playSound).toHaveBeenCalledWith(SoundType.CHAT_MESSAGE);
+  });
+
+  it('does NOT play sound for own outgoing messages received via broadcast echo', () => {
+    const { soundManager } = jest.requireMock('../../utils/soundManager') as {
+      soundManager: { playSound: jest.Mock };
+    };
+    const { result } = renderHook(() => useGameChat(defaultProps()));
+
+    act(() => {
+      channelRef.current!._emit('chat_message', {
+        id: 'own-1',
+        user_id: 'user-1', // same as localUserId ('user-1')
+        username: 'Alice',
+        message: 'my own message',
+        created_at: new Date().toISOString(),
+      });
+    });
+
+    expect(soundManager.playSound).not.toHaveBeenCalled();
   });
 });
