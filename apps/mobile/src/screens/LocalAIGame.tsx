@@ -315,7 +315,7 @@ export function LocalAIGame() {
       getVideoTrackRef: () => undefined,
       // Task #648: text chat is multiplayer-only; no-op stubs here
       chatMessages: [],
-      sendChatMessage: () => {},
+      sendChatMessage: () => false,
       chatUnreadCount: 0,
       isChatCooldown: false,
       isChatDrawerOpen: false,
