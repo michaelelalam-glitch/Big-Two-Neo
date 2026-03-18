@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Share, Alert } from 'react-native';
-// expo-clipboard loaded lazily (dynamic import) to prevent ExpoClipboard
-// native module requirement at bundle-load time — avoids crash in Expo Go.
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +10,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm } from '../utils';
+import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -258,37 +257,19 @@ export default function LobbyScreen() {
       }));
       
       // ── Host reassignment fallback ──
-      // If no player in the room has is_host = true (e.g. original host left),
-      // promote the first human player (lowest player_index) as host.
-      // This is a client-side fallback — the SQL migration handles it server-side.
+      // lobby_host_leave RPC handles host transfer atomically server-side, so
+      // this should rarely trigger. If no is_host row exists (e.g. edge-case
+      // where the old host's app crashed mid-transfer), call lobby_host_leave
+      // again so the DB catches up. Only the first human (lowest player_index)
+      // calls the RPC to avoid duplicate concurrent promotions.
       const hasActiveHost = players.some((p: Player) => p.is_host === true);
       if (!hasActiveHost && players.length > 0 && user?.id) {
         const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
         const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
         if (firstHuman && firstHuman.user_id === user.id) {
-          roomLogger.info('[LobbyScreen] 👑 No active host found — promoting current user as host');
-          // Update server: room_players.is_host and rooms.host_id
-          const { error: playerUpdateError } = await supabase
-            .from('room_players')
-            .update({ is_host: true })
-            .eq('room_id', currentRoomId)
-            .eq('user_id', user.id);
-          if (playerUpdateError) {
-            roomLogger.error('[LobbyScreen] ❌ Failed to update room_players.is_host:', playerUpdateError.message);
-          }
-          const { error: roomUpdateError } = await supabase
-            .from('rooms')
-            .update({ host_id: user.id })
-            .eq('id', currentRoomId);
-          if (roomUpdateError) {
-            roomLogger.error('[LobbyScreen] ❌ Failed to update rooms.host_id:', roomUpdateError.message);
-          }
-          if (!playerUpdateError && !roomUpdateError) {
-            // Update local state only on success
-            firstHuman.is_host = true;
-          } else {
-            roomLogger.warn('[LobbyScreen] ⚠️ Host reassignment partially failed — local state not updated');
-          }
+          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, marking locally');
+          // Mark locally so the UI doesn't look broken while data propagates
+          firstHuman.is_host = true;
         }
       }
 
@@ -313,12 +294,19 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
 
-        // Kicked: if not in a play-again flow the current user has been removed from
-        // the room (e.g. host kicked them) — navigate them home.
+        // Kicked: if not in a play-again flow the current user has been removed
+        // from the room — show them who kicked them then navigate home.
         if (!playAgain && !isLeavingRef.current) {
-          roomLogger.info('[LobbyScreen] Current user removed from room (kicked) — navigating Home');
+          const kickerHost = players.find(p => p.is_host);
+          const hostName = kickerHost?.profiles?.username || 'Host';
+          roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
           isLeavingRef.current = true;
-          navigation.replace('Home');
+          Alert.alert(
+            i18n.t('lobby.kickedTitle'),
+            i18n.t('lobby.kickedByHostMessage', { hostName }),
+            [{ text: i18n.t('common.ok'), onPress: () => navigation.replace('Home') }],
+            { cancelable: false }
+          );
           return;
         }
 
@@ -439,27 +427,22 @@ export default function LobbyScreen() {
   };
 
   const handleCopyCode = async () => {
-    // Lazy-load expo-clipboard so requireNativeModule only fires on press,
-    // not at bundle-load time — avoids crash in Expo Go.
-    let copied = false;
-    try {
-      const mod = await import('expo-clipboard');
-      await mod.setStringAsync(roomCode);
-      copied = true;
-    } catch {
-      // clipboard unavailable in this environment
-    }
-    if (copied) {
+    // tryCopyTextWithShareFallback: tries expo-clipboard, falls back to the
+    // native Share sheet (which includes a built-in Copy option) if clipboard
+    // is unavailable. This matches the existing pattern used in GameSettingsModal.
+    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
+    if (result === 'copied') {
       Alert.alert(
         i18n.t('lobby.copiedTitle'),
         i18n.t('lobby.copiedMessage', { roomCode })
       );
-    } else {
+    } else if (result === 'failed') {
       Alert.alert(
         i18n.t('lobby.copyFailedTitle'),
         i18n.t('lobby.copyFailedMessage', { roomCode })
       );
     }
+    // 'shared': Share sheet was presented — no additional alert needed.
   };
 
   const handleShareCode = async () => {
@@ -658,62 +641,15 @@ export default function LobbyScreen() {
           }
 
           if (isHost) {
-            // Promote the next human player (lowest player_index) as the new host,
-            // renumber remaining players so slots are consecutive, then remove self.
-            const otherHumans = players
-              .filter(p => !p.is_bot && p.user_id !== user?.id)
-              .sort((a, b) => a.player_index - b.player_index);
-
-            if (otherHumans.length > 0) {
-              const newHostPlayer = otherHumans[0];
-
-              // Re-index all remaining players (humans + bots) starting from 0,
-              // so the player list fills without gaps after the host leaves.
-              const remaining = players
-                .filter(p => p.user_id !== user?.id)
-                .sort((a, b) => a.player_index - b.player_index);
-
-              for (let i = 0; i < remaining.length; i++) {
-                const p = remaining[i];
-                const updates: { player_index: number; is_host?: boolean } = { player_index: i };
-                if (p.id === newHostPlayer.id) {
-                  updates.is_host = true;
-                }
-                const { error: updateErr } = await supabase
-                  .from('room_players')
-                  .update(updates)
-                  .eq('id', p.id);
-                if (updateErr) {
-                  roomLogger.error('[LobbyScreen] Failed to re-index player:', updateErr.message);
-                  throw updateErr; // Abort leave — room state would be inconsistent
-                }
-              }
-
-              // Update rooms.host_id to the new host
-              const { error: roomUpdateErr } = await supabase
-                .from('rooms')
-                .update({ host_id: newHostPlayer.user_id })
-                .eq('id', currentRoomId);
-              if (roomUpdateErr) {
-                roomLogger.error('[LobbyScreen] Failed to update rooms.host_id:', roomUpdateErr.message);
-                throw roomUpdateErr; // Abort leave — room would have no valid host
-              }
-
-              // Remove the leaving host from room_players
-              const { error: deleteErr } = await supabase
-                .from('room_players')
-                .delete()
-                .eq('room_id', currentRoomId)
-                .eq('user_id', user?.id);
-              if (deleteErr) throw deleteErr;
-            } else {
-              // No other human players — delete the room entirely
-              const { error } = await supabase
-                .from('rooms')
-                .delete()
-                .eq('id', currentRoomId);
-              if (error) throw error;
-            }
+            // Atomically transfer host to the next human player and remove the
+            // leaving host. lobby_host_leave is SECURITY DEFINER so it can
+            // update other players' rows and rooms.host_id — direct writes from
+            // the client are blocked by RLS.
+            const { error: leaveErr } = await supabase.rpc('lobby_host_leave', {
+              p_room_id: currentRoomId,
+              p_leaving_user_id: user?.id,
+            });
+            if (leaveErr) throw leaveErr;
           } else {
             const { error } = await supabase
               .from('room_players')
@@ -749,16 +685,19 @@ export default function LobbyScreen() {
       title: i18n.t('lobby.kickPlayerTitle'),
       message: i18n.t('lobby.kickPlayerMessage', { name: displayName }),
       confirmText: i18n.t('lobby.kickPlayerConfirm'),
-      cancelText: i18n.t('lobby.confirmLeaveNo'),
+      cancelText: i18n.t('common.cancel'),
       destructive: true,
       cancelable: false,
       onConfirm: async () => {
         try {
-          const { error } = await supabase
-            .from('room_players')
-            .delete()
-            .eq('room_id', roomId)
-            .eq('user_id', playerToKick.user_id);
+          // lobby_kick_player is SECURITY DEFINER — direct DELETE from the client
+          // is blocked by the "Players can leave rooms" RLS policy which only
+          // allows a user to remove their OWN row.
+          const { error } = await supabase.rpc('lobby_kick_player', {
+            p_room_id: roomId,
+            p_kicker_user_id: user?.id,
+            p_kicked_user_id: playerToKick.user_id,
+          });
           if (error) throw error;
           // Subscription will refresh the player list automatically
         } catch (error: unknown) {

@@ -488,6 +488,8 @@ export interface Translations {
     kickPlayerMessage: string;
     kickPlayerConfirm: string;
     kickPlayerError: string;
+    kickedTitle: string;
+    kickedByHostMessage: string;
   };
   room: {
     createTitle: string;
@@ -1097,6 +1099,8 @@ const en: Translations = {
     kickPlayerMessage: 'Remove {{name}} from the lobby?',
     kickPlayerConfirm: 'Kick',
     kickPlayerError: 'Failed to kick player',
+    kickedTitle: 'Kicked from Room',
+    kickedByHostMessage: '{{hostName}} has kicked you from the room.',
   },
   room: {
     createTitle: 'Create Room',
@@ -1645,6 +1649,8 @@ const ar: Translations = {
     kickPlayerMessage: 'إزالة {{name}} من الغرفة؟',
     kickPlayerConfirm: 'طرد',
     kickPlayerError: 'فشل طرد اللاعب',
+    kickedTitle: 'تم طردك من الغرفة',
+    kickedByHostMessage: '{{hostName}} قام بطردك من الغرفة.',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -2272,6 +2278,8 @@ const de: Translations = {
     kickPlayerMessage: '{{name}} aus der Lobby entfernen?',
     kickPlayerConfirm: 'Rauswerfen',
     kickPlayerError: 'Spieler konnte nicht rausgeworfen werden',
+    kickedTitle: 'Aus dem Raum geworfen',
+    kickedByHostMessage: '{{hostName}} hat dich aus dem Raum geworfen.',
   },
   room: {
     createTitle: 'Raum erstellen',
