@@ -438,7 +438,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // Unsubscribe AND remove from the Supabase client so the channel
         // doesn't remain registered and leak handlers on subsequent joins
         // (Copilot PR-150 r2950125715).
-        void channel.unsubscribe().then(() => supabase.removeChannel(channel));
+        void channel
+          .unsubscribe()
+          .then(() => supabase.removeChannel(channel))
+          .catch(() => {
+            // Ensure the channel is removed even if unsubscribe rejects
+            // (Copilot PR-150 r3964546887).
+            supabase.removeChannel(channel);
+          });
         channelRef.current = null;
         setRealtimeChannel(null);
         reject(new Error('Subscription timeout after 10s'));
