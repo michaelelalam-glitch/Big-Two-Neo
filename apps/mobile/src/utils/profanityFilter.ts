@@ -44,8 +44,16 @@ function toLeetPattern(word: string): string {
 }
 
 // Build a single combined regex from the blocklist.
+// Use custom negative-lookbehind/lookahead boundaries instead of \b so that
+// leet-speak words starting/ending with non-word characters (e.g. "@ss",
+// "as$") are still matched. \b would silently fail at those edges because
+// "@" and "$" are \W and \b requires a \W↔\w transition (Copilot PR-150
+// r2950221375).
 const combinedPattern = BLOCKLIST.map(toLeetPattern).join('|');
-const PROFANITY_REGEX = new RegExp(`\\b(?:${combinedPattern})\\b`, 'gi');
+const PROFANITY_REGEX = new RegExp(
+  `(?<![a-zA-Z0-9])(?:${combinedPattern})(?![a-zA-Z0-9])`,
+  'gi',
+);
 
 /**
  * Returns `true` if the text contains a blocked word.

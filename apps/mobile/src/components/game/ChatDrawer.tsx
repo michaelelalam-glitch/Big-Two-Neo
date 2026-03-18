@@ -9,7 +9,7 @@
  * freely without gesture conflicts (Copilot PR-150 review fix).
  */
 
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -115,14 +115,25 @@ export function ChatDrawer({
   // Drag-to-close gesture: swipe up ≥ 30 px on the header closes the panel.
   // GestureDetector is scoped to the header only so the FlatList scroll gesture
   // is unaffected (Copilot PR-150 r2947303858 fix).
+  // Memoized so the Gesture object is only recreated when onToggle changes;
+  // recreating it on every render can cause reattachment work and subtle
+  // gesture glitches with react-native-gesture-handler (Copilot PR-150
+  // r2950221399).
   const dragStartY = useSharedValue(0);
-  const headerPanGesture = Gesture.Pan()
-    .activeOffsetY([-8, 8])
-    .onStart(() => { dragStartY.value = 0; })
-    .onUpdate((e) => { dragStartY.value = e.translationY; })
-    .onEnd((e) => {
-      if (e.translationY < -30) runOnJS(onToggle)();
-    });
+  const headerPanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-8, 8])
+        .onStart(() => { dragStartY.value = 0; })
+        .onUpdate((e) => { dragStartY.value = e.translationY; })
+        .onEnd((e) => {
+          if (e.translationY < -30) runOnJS(onToggle)();
+        }),
+    // dragStartY is a stable shared-value object; onToggle may change when
+    // the parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onToggle],
+  );
 
   const handleSend = useCallback(() => {
     const text = inputText.trim();
