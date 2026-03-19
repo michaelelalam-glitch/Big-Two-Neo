@@ -14,7 +14,10 @@ import React from 'react';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import type { Card as GameCard } from '../game/types';
 import type { ParsedCard } from '../utils/parseMultiplayerHands';
-import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
+import type {
+  GameState as MultiplayerGameState,
+  Player as MultiplayerPlayer,
+} from '../types/multiplayer';
 
 type ParsedHands = Record<string, ParsedCard[]> | undefined;
 
@@ -47,8 +50,8 @@ export function useMultiplayerLayout({
   // Eliminates 12 linear O(N) .find() calls per multiplayerLayoutPlayers re-evaluation
   // (3 lookups × 4 layout seats) plus the 1 call in multiplayerLastPlayedBy.
   const playerByIndexMap = React.useMemo(
-    () => new Map(multiplayerPlayers.map((p) => [p.player_index, p])),
-    [multiplayerPlayers],
+    () => new Map(multiplayerPlayers.map(p => [p.player_index, p])),
+    [multiplayerPlayers]
   );
 
   const multiplayerSeatIndex = React.useMemo(() => {
@@ -59,8 +62,8 @@ export function useMultiplayerLayout({
     // and the player sees the wrong seat as "active", making play/pass buttons
     // permanently disabled when it's actually their turn.
     const me =
-      multiplayerPlayers.find((p) => p.user_id === userId) ??
-      multiplayerPlayers.find((p) => p.human_user_id === userId);
+      multiplayerPlayers.find(p => p.user_id === userId) ??
+      multiplayerPlayers.find(p => p.human_user_id === userId);
     const myIndex = typeof me?.player_index === 'number' ? me.player_index : 0;
     return myIndex;
   }, [multiplayerPlayers, userId]);
@@ -170,12 +173,50 @@ export function useMultiplayerLayout({
     const right = (multiplayerSeatIndex + 1) % 4;
 
     return [
-      { name: getName(bottom), cardCount: getCount(bottom), score: getScore(bottom), isActive: isActive(bottom), player_index: bottom, isDisconnected: isDisconnected(bottom), disconnectTimerStartedAt: getDisconnectTimerStartedAt(bottom) },
-      { name: getName(top), cardCount: getCount(top), score: getScore(top), isActive: isActive(top), player_index: top, isDisconnected: isDisconnected(top), disconnectTimerStartedAt: getDisconnectTimerStartedAt(top) },
-      { name: getName(left), cardCount: getCount(left), score: getScore(left), isActive: isActive(left), player_index: left, isDisconnected: isDisconnected(left), disconnectTimerStartedAt: getDisconnectTimerStartedAt(left) },
-      { name: getName(right), cardCount: getCount(right), score: getScore(right), isActive: isActive(right), player_index: right, isDisconnected: isDisconnected(right), disconnectTimerStartedAt: getDisconnectTimerStartedAt(right) },
+      {
+        name: getName(bottom),
+        cardCount: getCount(bottom),
+        score: getScore(bottom),
+        isActive: isActive(bottom),
+        player_index: bottom,
+        isDisconnected: isDisconnected(bottom),
+        disconnectTimerStartedAt: getDisconnectTimerStartedAt(bottom),
+      },
+      {
+        name: getName(top),
+        cardCount: getCount(top),
+        score: getScore(top),
+        isActive: isActive(top),
+        player_index: top,
+        isDisconnected: isDisconnected(top),
+        disconnectTimerStartedAt: getDisconnectTimerStartedAt(top),
+      },
+      {
+        name: getName(left),
+        cardCount: getCount(left),
+        score: getScore(left),
+        isActive: isActive(left),
+        player_index: left,
+        isDisconnected: isDisconnected(left),
+        disconnectTimerStartedAt: getDisconnectTimerStartedAt(left),
+      },
+      {
+        name: getName(right),
+        cardCount: getCount(right),
+        score: getScore(right),
+        isActive: isActive(right),
+        player_index: right,
+        isDisconnected: isDisconnected(right),
+        disconnectTimerStartedAt: getDisconnectTimerStartedAt(right),
+      },
     ];
-  }, [playerByIndexMap, multiplayerHandsByIndex, multiplayerGameState, multiplayerSeatIndex]);
+  }, [
+    playerByIndexMap,
+    multiplayerHandsByIndex,
+    multiplayerGameState?.current_turn,
+    multiplayerGameState?.scores,
+    multiplayerSeatIndex,
+  ]);
 
   return {
     multiplayerSeatIndex,

@@ -41,7 +41,10 @@ import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 // FinalScore import removed — onGameOver callback replaced by useMatchEndHandler (DB-authoritative path)
-import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
+import type {
+  GameState as MultiplayerGameState,
+  Player as MultiplayerPlayer,
+} from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
@@ -95,7 +98,11 @@ export function MultiplayerGame() {
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
   // Orientation manager (Task #450)
-  const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
+  const {
+    currentOrientation,
+    toggleOrientation,
+    isAvailable: orientationAvailable,
+  } = useOrientationManager();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -134,11 +141,16 @@ export function MultiplayerGame() {
     customCardOrder,
     setCustomCardOrder,
     handleCardsReorder,
-    getSelectedCards,
   } = useCardSelection();
 
   // Initialize multiplayer room data
-  useMultiplayerRoomLoader({ isMultiplayerGame: true, roomCode, navigation, setMultiplayerPlayers, setRoomInfo });
+  useMultiplayerRoomLoader({
+    isMultiplayerGame: true,
+    roomCode,
+    navigation,
+    setMultiplayerPlayers,
+    setRoomInfo,
+  });
 
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
@@ -165,18 +177,20 @@ export function MultiplayerGame() {
   } = useRealtime({
     userId: user?.id || '',
     username: currentPlayerName,
-    onError: (error) => {
+    onError: error => {
       gameLogger.error('[MultiplayerGame] Multiplayer error:', error.message);
       const msg = error.message?.toLowerCase() || '';
       if (msg.includes('not your turn')) {
         // Stale Realtime state caused the client to think it was our turn, but the
         // server disagrees. Re-fetch authoritative game state so the UI immediately
         // reflects the correct current_turn and the Play button reverts.
-        gameLogger.warn('⚠️ [MultiplayerGame] "Not your turn" — refreshing game state to re-sync UI');
-        void refreshGameState().catch((refreshError) => {
+        gameLogger.warn(
+          '⚠️ [MultiplayerGame] "Not your turn" — refreshing game state to re-sync UI'
+        );
+        void refreshGameState().catch(refreshError => {
           gameLogger.error(
             '[MultiplayerGame] Failed to refresh game state after "Not your turn" error:',
-            refreshError,
+            refreshError
           );
         });
         return;
@@ -216,12 +230,15 @@ export function MultiplayerGame() {
   // Track when game starts (for duration calculation)
   // Placed after useRealtime so multiplayerGameState is already declared.
   useEffect(() => {
-    if (multiplayerGameState?.game_phase === 'first_play' || multiplayerGameState?.game_phase === 'playing') {
+    if (
+      multiplayerGameState?.game_phase === 'first_play' ||
+      multiplayerGameState?.game_phase === 'playing'
+    ) {
       if (!gameStartedAt) {
         setGameStartedAt(new Date().toISOString());
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multiplayerGameState?.game_phase]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
@@ -257,7 +274,10 @@ export function MultiplayerGame() {
         // 4 total attempts (0, 1, 2, 3); actual delays 1 s → 2 s → 4 s.
         if (attempt < 3) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
-          gameLogger.warn(`[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`, err?.message);
+          gameLogger.warn(
+            `[MultiplayerGame] Connect attempt ${attempt + 1} failed, retrying in ${delay}ms...`,
+            err?.message
+          );
           await new Promise<void>(resolve => {
             retryTimerResolve = resolve;
             retryTimer = setTimeout(resolve, delay);
@@ -307,7 +327,12 @@ export function MultiplayerGame() {
     return me?.id ?? null;
   }, [multiplayerPlayers, user?.id]);
 
-  const { reconnect: connectionReconnect, isReconnecting, rejoinStatus, forceSweep } = useConnectionManager({
+  const {
+    reconnect: connectionReconnect,
+    isReconnecting,
+    rejoinStatus,
+    forceSweep,
+  } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
@@ -337,14 +362,20 @@ export function MultiplayerGame() {
       // hand and correct turn info. The server also broadcasts player_reconnected
       // which triggers fetchGameState, but this explicit call is belt-and-suspenders
       // in case the broadcast arrives late or is lost on a flaky mobile connection.
-      await refreshGameState().catch((err) => {
-        gameLogger.warn('[MultiplayerGame] Post-reclaim refreshGameState failed (non-fatal):', err instanceof Error ? err.message : String(err));
+      await refreshGameState().catch(err => {
+        gameLogger.warn(
+          '[MultiplayerGame] Post-reclaim refreshGameState failed (non-fatal):',
+          err instanceof Error ? err.message : String(err)
+        );
       });
       setShowBotReplacedModal(false);
       setBotReplacedUsername(null);
       gameLogger.info('[MultiplayerGame] Seat reclaimed successfully');
     } catch (err) {
-      gameLogger.error('[MultiplayerGame] Failed to reclaim seat from bot:', err instanceof Error ? err.message : String(err));
+      gameLogger.error(
+        '[MultiplayerGame] Failed to reclaim seat from bot:',
+        err instanceof Error ? err.message : String(err)
+      );
       // Keep modal open — user can retry or leave
     }
   }, [connectionReconnect, refreshGameState]);
@@ -355,7 +386,9 @@ export function MultiplayerGame() {
     // "Replace Bot & Rejoin" + "Leave" — the permanent row deletion
     // and voluntarily-left suppression happen only when the player
     // explicitly presses "Leave" on that HomeScreen banner.
-    gameLogger.info('[MultiplayerGame] Leaving room after bot replacement — keeping replaced_by_bot row for HomeScreen banner');
+    gameLogger.info(
+      '[MultiplayerGame] Leaving room after bot replacement — keeping replaced_by_bot row for HomeScreen banner'
+    );
     setShowBotReplacedModal(false);
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   }, [navigation]);
@@ -375,12 +408,17 @@ export function MultiplayerGame() {
         if (stored) {
           const parsed: ScoreHistory[] = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            gameLogger.info(`[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`);
+            gameLogger.info(
+              `[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`
+            );
             restoreScoreHistory(parsed);
           }
         }
       } catch (err: unknown) {
-        gameLogger.error('[MultiplayerGame] Failed to restore multiplayer score history:', err instanceof Error ? err.message : String(err));
+        gameLogger.error(
+          '[MultiplayerGame] Failed to restore multiplayer score history:',
+          err instanceof Error ? err.message : String(err)
+        );
       } finally {
         hasRestoredMultiplayerScoresRef.current = true;
       }
@@ -395,8 +433,11 @@ export function MultiplayerGame() {
       return;
     }
     if (scoreHistory.length > 0) {
-      AsyncStorage.setItem(ROOM_SCORE_KEY, JSON.stringify(scoreHistory)).catch((err) => {
-        gameLogger.error('[MultiplayerGame] Failed to persist multiplayer score history:', err?.message || String(err));
+      AsyncStorage.setItem(ROOM_SCORE_KEY, JSON.stringify(scoreHistory)).catch(err => {
+        gameLogger.error(
+          '[MultiplayerGame] Failed to persist multiplayer score history:',
+          err?.message || String(err)
+        );
       });
     }
   }, [scoreHistory, ROOM_SCORE_KEY]);
@@ -405,7 +446,9 @@ export function MultiplayerGame() {
   // MULTIPLAYER HANDS MEMO
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = multiplayerGameState?.hands;
-    return parseMultiplayerHands(hands as Record<string, ({ id: string; rank: string; suit: string } | string)[]> | undefined);
+    return parseMultiplayerHands(
+      hands as Record<string, ({ id: string; rank: string; suit: string } | string)[]> | undefined
+    );
   }, [multiplayerGameState]);
 
   // Merge player hands into players for bot coordinator
@@ -416,7 +459,7 @@ export function MultiplayerGame() {
 
     const hasHands = !!multiplayerHandsByIndex;
 
-    return multiplayerPlayers.map((player) => {
+    return multiplayerPlayers.map(player => {
       const playerHandKey = String(player.player_index);
       const playerHand = hasHands ? multiplayerHandsByIndex[playerHandKey] : undefined;
 
@@ -428,20 +471,28 @@ export function MultiplayerGame() {
     });
   }, [multiplayerHandsByIndex, multiplayerPlayers]);
 
-  // DIAGNOSTIC: Track coordinator status
+  // DIAGNOSTIC: Track coordinator status — only log when the output boolean changes.
+  // Previously included realtimePlayers + multiplayerGameState as deps, causing a log
+  // (and the effect overhead) on every bot play. Now derived from the 3 inputs that
+  // actually affect the boolean so it fires at most a handful of times per game.
+  const playersWithCardsCount = playersWithCards.length;
+  const prevCoordinatorRef = useRef<boolean | null>(null);
   useEffect(() => {
-    const coordinatorStatus = isMultiplayerDataReady && isMultiplayerHost && playersWithCards.length > 0;
+    const coordinatorStatus =
+      isMultiplayerDataReady && isMultiplayerHost && playersWithCardsCount > 0;
+    if (coordinatorStatus === prevCoordinatorRef.current) return; // unchanged — skip
+    prevCoordinatorRef.current = coordinatorStatus;
     gameLogger.info('[MultiplayerGame] 🎯 Coordinator Status:', {
       isCoordinator: coordinatorStatus,
       breakdown: {
         isMultiplayerGame: true,
         isMultiplayerDataReady,
         isMultiplayerHost,
-        playersWithCardsCount: playersWithCards.length,
+        playersWithCardsCount,
       },
       will_trigger_bots: coordinatorStatus,
     });
-  }, [isMultiplayerDataReady, isMultiplayerHost, realtimePlayers, multiplayerGameState, playersWithCards]);
+  }, [isMultiplayerDataReady, isMultiplayerHost, playersWithCardsCount]);
 
   // Server-side bot coordinator fallback (Tasks #551/#552)
   useServerBotCoordinator({
@@ -505,7 +556,8 @@ export function MultiplayerGame() {
   // subscription) so that connection_status, disconnect_timer_started_at, and
   // username changes (e.g. bot replacement) are reflected immediately.
   // Fall back to the initial one-time load while the realtime channel is joining.
-  const effectiveMultiplayerPlayers = realtimePlayers.length > 0 ? realtimePlayers : multiplayerPlayers;
+  const effectiveMultiplayerPlayers =
+    realtimePlayers.length > 0 ? realtimePlayers : multiplayerPlayers;
 
   const {
     multiplayerPlayerHand,
@@ -527,7 +579,9 @@ export function MultiplayerGame() {
     let result = (multiplayerPlayerHand ?? []) as Card[];
     if (customCardOrder.length > 0 && result.length > 0) {
       const orderMap = new Map(customCardOrder.map((id, index) => [id, index]));
-      result = [...result].sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+      result = [...result].sort(
+        (a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999)
+      );
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is a safety dep
@@ -608,13 +662,26 @@ export function MultiplayerGame() {
       // Auto-play always triggers bot replacement (65s spec).
       // The server will broadcast replaced_by_bot via Realtime; RejoinModal handles
       // the reclaim flow. No "I'm Still Here?" modal needed.
-      gameLogger.info('[MultiplayerGame] Turn auto-played:', action, cards?.length ?? 0, 'cards — bot replacement in progress');
+      gameLogger.info(
+        '[MultiplayerGame] Turn auto-played:',
+        action,
+        cards?.length ?? 0,
+        'cards — bot replacement in progress'
+      );
     },
   });
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Computed values
-  const selectedCards = getSelectedCards(effectivePlayerHand);
+  // useMemo ensures selectedCards only gets a new reference when the hand or
+  // selection actually changes — not on every MultiplayerGame render.  Without
+  // this, getSelectedCards() returns a fresh array each call, which invalidates
+  // the gameContextValue useMemo every render and forces GameView to re-render
+  // even when nothing visible has changed (perf/task-628).
+  const selectedCards = useMemo(
+    () => effectivePlayerHand.filter(card => selectedCardIds.has(card.id)),
+    [effectivePlayerHand, selectedCardIds]
+  );
   const layoutPlayers = multiplayerLayoutPlayers;
   const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
@@ -661,15 +728,22 @@ export function MultiplayerGame() {
   // can bail out when these props haven't semantically changed (H2 audit fix).
   const togglePlayHistory = useCallback(
     () => setIsPlayHistoryOpen((prev: boolean) => !prev),
-    [setIsPlayHistoryOpen],
+    [setIsPlayHistoryOpen]
   );
   const toggleScoreboardExpanded = useCallback(
     () => setIsScoreboardExpanded((prev: boolean) => !prev),
-    [setIsScoreboardExpanded],
+    [setIsScoreboardExpanded]
   );
 
-  // Player is ready when it's their turn and multiplayer game state exists
-  const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!multiplayerGameState;
+  // Player is ready when it's their turn and multiplayer game state exists.
+  // Memoized so a layoutPlayers array reference swap that doesn't change
+  // isActive (the common case during bot plays) won't cascade into
+  // gameContextValue and trigger GameView to re-render.
+  const localPlayerIsActive = layoutPlayers[0]?.isActive ?? false;
+  const isPlayerReady = useMemo(
+    () => localPlayerIsActive && !!multiplayerGameState,
+    [localPlayerIsActive, multiplayerGameState]
+  );
 
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
   // LiveKitVideoChatAdapter is used in native (EAS) builds where
@@ -682,7 +756,8 @@ export function MultiplayerGame() {
     if (isExpoGo) return new StubVideoChatAdapter();
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { LiveKitVideoChatAdapter, isLiveKitAvailable } = require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
+      const { LiveKitVideoChatAdapter, isLiveKitAvailable } =
+        require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
       if (!isLiveKitAvailable) {
         gameLogger.info('[VideoChat] @livekit/react-native not linked — using stub adapter');
         return new StubVideoChatAdapter();
@@ -708,8 +783,8 @@ export function MultiplayerGame() {
     isAudioConnecting,
     getVideoTrackRef,
   } = useVideoChat({
-    roomId:  roomInfo?.id,
-    userId:  user?.id,
+    roomId: roomInfo?.id,
+    userId: user?.id,
     adapter: videoChatAdapter,
   });
 
@@ -725,7 +800,7 @@ export function MultiplayerGame() {
         : '';
       Alert.alert(
         i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint,
+        i18n.t('chat.devBuildRequiredMessage') + devHint
       );
       return;
     }
@@ -739,7 +814,7 @@ export function MultiplayerGame() {
         : '';
       Alert.alert(
         i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint,
+        i18n.t('chat.devBuildRequiredMessage') + devHint
       );
       return;
     }
@@ -749,18 +824,21 @@ export function MultiplayerGame() {
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
   const remoteCameraStates = useMemo(
-    () => Object.fromEntries(
-      remoteParticipants.map(p => [p.participantId, { isCameraOn: p.isCameraOn, isConnecting: p.isConnecting }])
-    ),
-    [remoteParticipants],
+    () =>
+      Object.fromEntries(
+        remoteParticipants.map(p => [
+          p.participantId,
+          { isCameraOn: p.isCameraOn, isConnecting: p.isConnecting },
+        ])
+      ),
+    [remoteParticipants]
   );
 
   // Build a stable Record<userId, micState> from participant list.
   const remoteMicStates = useMemo(
-    () => Object.fromEntries(
-      remoteParticipants.map(p => [p.participantId, { isMicOn: p.isMicOn }])
-    ),
-    [remoteParticipants],
+    () =>
+      Object.fromEntries(remoteParticipants.map(p => [p.participantId, { isMicOn: p.isMicOn }])),
+    [remoteParticipants]
   );
 
   // Build remote player IDs in display order [top, left, right] so GameView can
@@ -794,7 +872,13 @@ export function MultiplayerGame() {
     setShowSettings(false);
     setIsPlayHistoryOpen(false);
     setIsScoreboardExpanded(false);
-  }, [showBotReplacedModal, setShowSettings, setIsChatDrawerOpen, setIsPlayHistoryOpen, setIsScoreboardExpanded]);
+  }, [
+    showBotReplacedModal,
+    setShowSettings,
+    setIsChatDrawerOpen,
+    setIsPlayHistoryOpen,
+    setIsScoreboardExpanded,
+  ]);
 
   const {
     messages: chatMessages,
@@ -886,29 +970,75 @@ export function MultiplayerGame() {
       localUserId: user?.id || '',
     }),
     [
-      currentOrientation, toggleOrientation, isMultiplayerDataReady, isConnected,
-      showSettings, setShowSettings, roomCode,
-      effectivePlayerHand, selectedCardIds, setSelectedCardIds, handleCardsReorder,
-      selectedCards, customCardOrder, setCustomCardOrder,
-      multiplayerLastPlayedCards, multiplayerLastPlayedBy, multiplayerLastPlayComboType, multiplayerLastPlayCombo,
-      layoutPlayers, enrichedLayoutPlayers, playerTotalScores, currentPlayerName,
-      togglePlayHistory, toggleScoreboardExpanded,
-      memoizedPlayerNames, memoizedCurrentScores, memoizedCardCounts, memoizedOriginalPlayerNames,
-      effectiveAutoPassTimerState, effectiveScoreboardCurrentPlayerIndex,
-      matchNumber, isGameFinished, displayOrderScoreHistory, playHistoryByMatch,
-      handlePlayCards, handlePass, handlePlaySuccess, handlePassSuccess,
-      handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
-      handleSort, handleSmartSort, handleHint,
-      isPlayerReady, emptyGameManagerRef, isMountedRef,
-      isChatConnected, voiceChatEnabled, isLocalCameraOn, isLocalMicOn,
-      remoteCameraStates, remoteMicStates,
-      toggleVideoChat, toggleVoiceChat, toggleCamera, toggleMic,
-      isVideoChatConnecting, isAudioConnecting,
-      remotePlayerIds, getVideoTrackRef,
-      chatMessages, sendChatMessage, chatUnreadCount, isChatCooldown,
-      isChatDrawerOpen, toggleChatDrawer,
+      currentOrientation,
+      toggleOrientation,
+      isMultiplayerDataReady,
+      isConnected,
+      showSettings,
+      setShowSettings,
+      roomCode,
+      effectivePlayerHand,
+      selectedCardIds,
+      setSelectedCardIds,
+      handleCardsReorder,
+      selectedCards,
+      customCardOrder,
+      setCustomCardOrder,
+      multiplayerLastPlayedCards,
+      multiplayerLastPlayedBy,
+      multiplayerLastPlayComboType,
+      multiplayerLastPlayCombo,
+      layoutPlayers,
+      enrichedLayoutPlayers,
+      playerTotalScores,
+      currentPlayerName,
+      togglePlayHistory,
+      toggleScoreboardExpanded,
+      memoizedPlayerNames,
+      memoizedCurrentScores,
+      memoizedCardCounts,
+      memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState,
+      effectiveScoreboardCurrentPlayerIndex,
+      matchNumber,
+      isGameFinished,
+      displayOrderScoreHistory,
+      playHistoryByMatch,
+      handlePlayCards,
+      handlePass,
+      handlePlaySuccess,
+      handlePassSuccess,
+      handleCardHandPlayCards,
+      handleCardHandPass,
+      handleLeaveGame,
+      handleSort,
+      handleSmartSort,
+      handleHint,
+      isPlayerReady,
+      emptyGameManagerRef,
+      isMountedRef,
+      isChatConnected,
+      voiceChatEnabled,
+      isLocalCameraOn,
+      isLocalMicOn,
+      remoteCameraStates,
+      remoteMicStates,
+      toggleVideoChat,
+      toggleVoiceChat,
+      toggleCamera,
+      toggleMic,
+      isVideoChatConnecting,
+      isAudioConnecting,
+      remotePlayerIds,
+      getVideoTrackRef,
+      chatMessages,
+      sendChatMessage,
+      chatUnreadCount,
+      isChatCooldown,
+      isChatDrawerOpen,
+      toggleChatDrawer,
       user?.id,
-    ],
+    ]
   );
 
   return (

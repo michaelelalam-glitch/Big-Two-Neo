@@ -2,7 +2,7 @@
  * @module useCardSelection
  * Manages card selection state and drag-to-reorder for the game hand.
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Card } from '../game/types';
 
 /**
@@ -20,14 +20,19 @@ export function useCardSelection() {
   const [customCardOrder, setCustomCardOrder] = useState<string[]>([]);
 
   // Handle card rearrangement
-  const handleCardsReorder = (reorderedCards: Card[]) => {
-    const newOrder = reorderedCards.map((card) => card.id);
-    setCustomCardOrder(newOrder);
-  };
+  // useCallback ensures stable reference across re-renders so gameContextValue
+  // useMemo (which lists handleCardsReorder as a dep) isn't invalidated on every
+  // render (perf/task-628).  setCustomCardOrder is a React setter — always stable.
+  const handleCardsReorder = useCallback(
+    (reorderedCards: Card[]) => {
+      setCustomCardOrder(reorderedCards.map(card => card.id));
+    },
+    [setCustomCardOrder]
+  );
 
   // Get selected cards array - simple filter, no memoization needed for 13 cards
   const getSelectedCards = (playerHand: Card[]) =>
-    playerHand.filter((card) => selectedCardIds.has(card.id));
+    playerHand.filter(card => selectedCardIds.has(card.id));
 
   return {
     selectedCardIds,
