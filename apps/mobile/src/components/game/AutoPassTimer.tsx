@@ -129,6 +129,22 @@ function AutoPassTimerComponent({
     return COLORS.secondary;
   });
 
+  // Reset display state whenever the timer identity changes (new active timer starts).
+  // Because the component stays mounted while returning null (expired/inactive), displaySeconds
+  // and timerColorState keep stale values (e.g. 0 / red) from the previous timer. Without this
+  // reset they flash stale values for one render before the interval tick fires.
+  useEffect(() => {
+    if (!timerState?.active) return;
+    const snap = initialSnapshot;
+    setDisplaySeconds(snap.seconds);
+    setTimerColorState(
+      snap.seconds <= 3 ? COLORS.error : snap.seconds <= 5 ? COLORS.warning : COLORS.secondary,
+    );
+    prevSecsRef.current = snap.seconds;
+    lastLoggedSecondRef.current = -1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
+
   useEffect(() => {
     if (!timerState?.active) return;
 
