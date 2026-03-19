@@ -755,8 +755,8 @@ export function MultiplayerGame() {
   const videoChatAdapter = React.useMemo(() => {
     if (isExpoGo) return new StubVideoChatAdapter();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { LiveKitVideoChatAdapter, isLiveKitAvailable } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../hooks/LiveKitVideoChatAdapter') as typeof import('../hooks/LiveKitVideoChatAdapter');
       if (!isLiveKitAvailable) {
         gameLogger.info('[VideoChat] @livekit/react-native not linked — using stub adapter');
