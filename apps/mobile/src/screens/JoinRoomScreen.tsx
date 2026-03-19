@@ -56,10 +56,10 @@ export default function JoinRoomScreen() {
           navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
           return;
         } else if (existingStatus === 'playing') {
-          // User is in an active game — lobby_host_leave only accepts 'waiting' rooms.
-          // Navigate them to their current game instead of showing a leave dialog that
-          // would always fail at the RPC level.
-          navigation.replace('Lobby', { roomCode: existingCode });
+          // User is in an active game — navigate directly into that game.
+          // Routing through Lobby for a playing room is an unnecessary extra
+          // transition, and lobby_host_leave would reject a 'playing' room anyway.
+          navigation.replace('Game', { roomCode: existingCode });
           return;
         } else {
           // In a different waiting room — let the user leave and join the requested room, or go back

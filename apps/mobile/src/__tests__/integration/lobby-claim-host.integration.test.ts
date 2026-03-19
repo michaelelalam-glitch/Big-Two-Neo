@@ -189,9 +189,12 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     // (since auth.uid() is null — this confirms the security guard works).
     const { error } = await supabase.rpc('lobby_claim_host', { p_room_id: room.id });
 
-    // Service role → auth.uid() is null → should raise 'not authenticated'
+    // Service role → lobby_claim_host is now only granted to 'authenticated'.
+    // Calling without that role raises 'permission denied for function'; the old
+    // 'not authenticated' path is unreachable. Both messages confirm the security
+    // guard is working (service_role cannot claim host).
     expect(error).toBeDefined();
-    expect(error?.message).toContain('not authenticated');
+    expect(error?.message).toMatch(/not authenticated|permission denied/i);
 
     // Verify host state was NOT changed (demotion safety)
     const { data: player } = await supabase
@@ -255,9 +258,11 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
 
     const { error } = await supabase.rpc('lobby_claim_host', { p_room_id: room.id });
 
-    // Service-role client: auth.uid() is null → 'not authenticated'
+    // lobby_claim_host is now GRANT'd to 'authenticated' only. Service-role
+    // callers receive 'permission denied for function' (no EXECUTE privilege).
+    // Accept either message so the test is forward-compatible.
     expect(error).toBeDefined();
-    expect(error?.message).toContain('not authenticated');
+    expect(error?.message).toMatch(/not authenticated|permission denied/i);
   });
 
   it('lobby_claim_host is not executable by anon role', async () => {
@@ -274,17 +279,19 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   // ─────────────────────────────────────────────────────────────────────
   // DB state consistency after ghost eviction in join_room_atomic
   // ─────────────────────────────────────────────────────────────────────
-  it('join_room_atomic evicts ghost players and room remains valid', async () => {
+  it('join_room_atomic evicts ghost players and new joiner becomes host', async () => {
     const room = await createRoom(u1);
-    // Insert u1 as ghost player (stale heartbeat)
+    // Insert u1 as ghost player (stale heartbeat — will be evicted)
     const staleTime = new Date(Date.now() - 120_000).toISOString();
     await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true, lastSeenAt: staleTime });
+    // Add a bot at slot 1 so the room is NOT fully empty after ghost eviction.
+    // Bots are exempt from ghost eviction (is_bot = FALSE condition), and the
+    // cleanup_empty_rooms trigger only fires when player_count reaches 0.  With
+    // the bot present the room survives eviction of the ghost host and u2 can
+    // join and be promoted to host (rooms.host_id = NULL after eviction).
+    await insertPlayer(room.id, u1, { playerIndex: 1, isHost: false, isBot: true });
 
-    // join_room_atomic enforces auth.uid() IS DISTINCT FROM p_user_id (SECURITY DEFINER).
-    // The security guard exempts service_role (auth.role() != 'service_role') so service-role
-    // callers bypass this check.  Use an anon client signed in as u2 so auth.uid() is set
-    // correctly and the self-join guard fires as expected.
-    // (Copilot PR-153 review r2953630251)
+    // Use an anon client signed in as u2 so auth.uid() is set correctly.
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
     const u2Client = createClient(SUPABASE_URL, anonKey);
     await u2Client.auth.signInWithPassword({
@@ -301,7 +308,8 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     expect(error).toBeNull();
     expect(data).toBeDefined();
     expect(data).toHaveProperty('room_id', room.id);
-    // u2 should now be host (only human remaining after ghost eviction)
+    // u2 should now be host — rooms.host_id was NULL after ghost eviction,
+    // so join_room_atomic promotes the first human joiner.
     expect(data).toHaveProperty('is_host', true);
 
     await u2Client.auth.signOut();
