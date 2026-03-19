@@ -356,10 +356,25 @@ jobs:
           # Auth-dependent flows (02-08) require Google/Apple Sign-In which
           # cannot be automated in CI — they run locally or in dedicated
           # integration environments with test credentials.
+          #
+          # timeout-minutes is 25 to account for:
+          #   - XCUITest driver startup on a cold macos-latest runner: up to 5 min
+          #     (MAESTRO_DRIVER_STARTUP_TIMEOUT=300000 below)
+          #   - App launch + sign-in screen render (Release JS bundle): up to 3 min
+          #   - Test assertions and screenshot: ~1 min
+          #   - Buffer for runner variance: ~5 min
+          #   Prior value of 10 min was too short: Maestro was killed mid-startup,
+          #   producing exit 65 and no results XML.
+          set +e
           maestro test --include-tags ci e2e/flows/ \
             --format junit \
             --output e2e/results/results.xml
-        timeout-minutes: 10
+          MAESTRO_EXIT=$?
+          set -e
+          echo "Maestro exit code: $MAESTRO_EXIT"
+          echo "Results file: $(test -f e2e/results/results.xml && echo PRESENT || echo MISSING)"
+          exit $MAESTRO_EXIT
+        timeout-minutes: 25
         env:
           # Give Maestro's XCUITest driver up to 5 minutes to start the
           # XCTest server on port 7001. Default (~90s) is too short on
