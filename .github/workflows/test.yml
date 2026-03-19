@@ -284,10 +284,13 @@ jobs:
           # -derivedDataPath ~/DerivedData/Big2Mobile: keeps build artifacts at a
           #   stable path outside ios/ so expo prebuild --clean doesn't wipe the
           #   incremental cache on the next run (was apps/mobile/ios/build before).
-          # Tee full log so we can grep Swift/Clang errors even when they scroll
-          # past the tail window. set +e / set -e wraps the pipeline so PIPESTATUS
-          # is captured before the error-exit fires (set -e would otherwise exit
-          # immediately on a failing pipeline, skipping the summary block).
+          # Tee full log so we can grep Swift/Clang errors even when they scroll.
+          # set +e / set -e wraps the pipeline so PIPESTATUS is captured before the
+          # error-exit fires (set -e would otherwise exit immediately on a failing
+          # pipeline, skipping the summary block).
+          # NOTE: do NOT pipe through tail here — tail exits after N lines which causes
+          # a broken pipe that sets PIPESTATUS[0]=65 and kills xcodebuild with SIGPIPE
+          # even on a successful build. Tail/grep the saved log only in the summary block.
           set +e
           xcodebuild -workspace Big2Mobile.xcworkspace \
             -scheme Big2Mobile \
@@ -298,10 +301,12 @@ jobs:
             build \
             -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee /tmp/xcodebuild.log | tail -150
+            2>&1 | tee /tmp/xcodebuild.log
           EXIT_CODE=${PIPESTATUS[0]}
           set -e
           if [ $EXIT_CODE -ne 0 ]; then
+            echo "--- Last 150 build lines ---"
+            tail -150 /tmp/xcodebuild.log
             echo "--- Swift / Clang error summary ---"
             grep -E " error: | warning: " /tmp/xcodebuild.log | head -40 || true
             exit $EXIT_CODE
