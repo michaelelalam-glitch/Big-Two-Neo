@@ -380,7 +380,7 @@ export default function LobbyScreen() {
         // find() above returns undefined for every update, which would fire
         // this alert incorrectly for every player-list change.
         if (!playAgain && !isLeavingRef.current && user?.id) {
-          const kickerHost = players.find(p => p.is_host);
+          const kickerHost = players.find(p => p.is_host === true);
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
           isLeavingRef.current = true;

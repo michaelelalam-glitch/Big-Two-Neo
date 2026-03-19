@@ -270,7 +270,11 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION lobby_claim_host(UUID) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated, service_role;
+-- service_role is excluded: lobby_claim_host calls auth.uid() which returns
+-- NULL under the service-role bypass, immediately raising 'not authenticated'.
+-- Granting to service_role only expands the executable surface without enabling
+-- any valid admin code path.  Use an authenticated anon-key client instead.
+GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 4. join_room_atomic — evict ghost lobby players before capacity check

@@ -37,11 +37,17 @@ BEGIN
     RAISE EXCEPTION 'lobby_kick_player: JWT uid does not match supplied kicker_user_id';
   END IF;
 
-  -- Validate: room must be in waiting state.
+  -- Acquire a row-level lock on the rooms row up-front so the status check
+  -- and any subsequent writes (ban array update, player DELETE) are fully
+  -- atomic.  Without this lock there is a race window between the initial
+  -- status SELECT and the later UPDATE where the room could transition from
+  -- 'waiting' to 'playing', allowing a kick (and potential ban write) to
+  -- happen after the game has started, corrupting game state.
   SELECT status, COALESCE(is_matchmaking, FALSE), COALESCE(is_public, FALSE)
     INTO v_room_status, v_is_matchmaking, v_is_public
     FROM rooms
-   WHERE id = p_room_id;
+   WHERE id = p_room_id
+     FOR UPDATE;
 
   IF NOT FOUND OR v_room_status != 'waiting' THEN
     RAISE EXCEPTION 'lobby_kick_player: can only kick players in a waiting lobby (status: %)',
@@ -97,9 +103,8 @@ BEGIN
   -- Casual and ranked (matchmaking) rooms allow free re-entry; only private
   -- rooms ban.
   IF NOT v_is_matchmaking AND NOT v_is_public THEN
-    -- Acquire a row-level lock on the rooms record for this transaction.
-    PERFORM id FROM rooms WHERE id = p_room_id FOR UPDATE;
-
+    -- The rooms row is already locked (SELECT … FOR UPDATE at the top of this
+    -- function), so no second PERFORM lock is needed here.
     UPDATE rooms
        SET banned_user_ids = ARRAY(
              SELECT DISTINCT UNNEST(

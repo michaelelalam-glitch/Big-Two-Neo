@@ -61,9 +61,12 @@ export default function CreateRoomScreen() {
         const lastSeenAt = roomPlayer.last_seen_at ?? null;
         // Treat lastSeenAt === null as infinitely stale, matching SQL eviction logic
         // (last_seen_at IS NULL rows are considered stale in lobby_evict_ghosts).
+        const ts = lastSeenAt != null ? new Date(lastSeenAt).getTime() : NaN;
+        // Treat an invalid/unparseable timestamp as infinitely stale (same as
+        // null), so a malformed last_seen_at never silently skips cleanup.
         const isStaleWaiting =
           roomStatus === 'waiting' &&
-          (lastSeenAt == null || Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS);
+          (lastSeenAt == null || !Number.isFinite(ts) || Date.now() - ts > STALE_THRESHOLD_MS);
 
         if (roomStatus === 'finished' || roomStatus === 'ended' || isStaleWaiting) {
           roomLogger.info('🧹 [CreateRoom] Auto-cleaning up stale/finished room:', existingCode);
