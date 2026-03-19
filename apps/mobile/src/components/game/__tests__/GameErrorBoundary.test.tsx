@@ -76,31 +76,32 @@ describe('GameErrorBoundary — error fallback', () => {
 });
 
 describe('GameErrorBoundary — Try Again', () => {
-  it('re-renders children after pressing "Try Again"', () => {
-    // Start with no error so we can control state transitions
-    const { getByText, queryByTestId } = render(
+  it('triggers a child re-mount when "Try Again" is pressed (mount counter confirms boundary reset)', () => {
+    let mountCount = 0;
+
+    function CountingChild() {
+      mountCount++;
+      throw new Error('persistent game error');
+    }
+
+    const { getByText } = render(
       <GameErrorBoundary>
-        <ThrowingChild shouldThrow />
+        <CountingChild />
       </GameErrorBoundary>
     );
-    // Boundary is in error state
+
+    // Child was mounted once and threw — boundary shows fallback
+    const mountsAfterFirstRender = mountCount;
+    expect(mountsAfterFirstRender).toBeGreaterThan(0);
     expect(getByText('Game Error')).toBeTruthy();
 
     fireEvent.press(getByText('Try Again'));
 
-    // After reset the component re-mounts — ThrowingChild no longer
-    // throws (the same instance, shouldThrow=true), but the boundary
-    // state is cleared. In practice the boundary will try again; here
-    // we just assert it no longer shows the error title.
-    // (The child would throw again immediately, but the important thing
-    //  is that the boundary's own state was reset — tested at boundary level.)
-    // After reset the boundary clears hasError, so getDerivedStateFromError
-    // fires again from the child. Verify the Try Again button is gone
-    // momentarily before the next error propagates.
-    // We verify the reset call path by asserting the fallback title re-appears
-    // (meaning the boundary accepted and re-tried the render):
-    expect(getByText('Game Error')).toBeTruthy();
-    expect(queryByTestId('healthy-child')).toBeNull();
+    // After reset the boundary clears hasError and re-mounts the child.
+    // The child throws again (showing the fallback), but mountCount
+    // increasing is the observable proof that the boundary actually reset
+    // its internal state and attempted a fresh render of its children.
+    expect(mountCount).toBeGreaterThan(mountsAfterFirstRender);
   });
 
   it('re-renders children after pressing "Try Again" when child no longer throws', () => {

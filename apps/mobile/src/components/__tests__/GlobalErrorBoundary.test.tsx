@@ -88,21 +88,31 @@ describe('GlobalErrorBoundary — Try Again', () => {
     expect(getByTestId('recovered-child')).toBeTruthy();
   });
 
-  it('clears the error state when "Try Again" is pressed', () => {
+  it('triggers a child re-mount when "Try Again" is pressed (mount counter confirms boundary reset)', () => {
+    let mountCount = 0;
+
+    function CountingChild() {
+      mountCount++;
+      throw new Error('persistent global error');
+    }
+
     const { getByText } = render(
       <GlobalErrorBoundary>
-        <ThrowingChild shouldThrow />
+        <CountingChild />
       </GlobalErrorBoundary>
     );
 
+    // Child was mounted once and threw — boundary shows fallback
+    const mountsAfterFirstRender = mountCount;
+    expect(mountsAfterFirstRender).toBeGreaterThan(0);
     expect(getByText('Something went wrong')).toBeTruthy();
 
-    // Pressing Try Again resets boundary state (child will re-throw,
-    // but the boundary itself accepted the reset — error UI is re-shown
-    // after the next render cycle which is acceptable behaviour).
     fireEvent.press(getByText('Try Again'));
 
-    // The fallback is shown again because the child still throws
-    expect(getByText('Something went wrong')).toBeTruthy();
+    // After reset the boundary clears hasError and re-mounts the child.
+    // The child throws again (showing the fallback), but mountCount
+    // increasing is the observable proof that the boundary actually reset
+    // its internal state and attempted a fresh render of its children.
+    expect(mountCount).toBeGreaterThan(mountsAfterFirstRender);
   });
 });
