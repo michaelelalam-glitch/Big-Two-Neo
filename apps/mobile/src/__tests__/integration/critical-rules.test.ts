@@ -47,9 +47,13 @@ const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
   'https://dppybucldqufbqhwnkxu.supabase.co';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-describe('Critical Multiplayer Rules - Server-Side Validation', () => {
+// Skip entire suite when credentials are absent (e.g., CI without service keys).
+const hasCredentials = !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
+const describeWithCredentials = hasCredentials ? describe : describe.skip;
+
+describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', () => {
   let supabase: SupabaseClient;
   let testRoomCode: string;
   let testRoomId: string;
@@ -60,12 +64,6 @@ describe('Critical Multiplayer Rules - Server-Side Validation', () => {
   const authUserIds: string[] = [];
 
   beforeAll(async () => {
-    if (!SUPABASE_ANON_KEY) {
-      throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY not set');
-    }
-    if (!SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY not set');
-    }
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Create 4 auth users (profiles auto-created by trigger)

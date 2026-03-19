@@ -69,12 +69,16 @@ try {
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+// Skip entire suite when credentials are absent (e.g., CI without service keys).
+const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
+const describeWithCredentials = hasCredentials ? describe : describe.skip;
+
 /** Generate a collision-safe room code using UUID */
 function uniqueRoomCode(): string {
   return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
 }
 
-describe('Username Uniqueness - Integration Tests', () => {
+describeWithCredentials('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
   let u1: string;
   let u2: string;
@@ -106,11 +110,6 @@ describe('Username Uniqueness - Integration Tests', () => {
   }
 
   beforeAll(async () => {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error(
-        'Missing Supabase credentials. Set EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
-      );
-    }
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Create 4 auth users via Admin API (profiles auto-created by trigger)
