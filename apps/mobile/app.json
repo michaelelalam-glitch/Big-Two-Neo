@@ -70,7 +70,8 @@
       "expo-camera",
       "expo-screen-orientation",
       "./plugins/withAndroidSupportExclude",
-      "./plugins/withBarcodeCompatStubs"
+      "./plugins/withBarcodeCompatStubs",
+      "./plugins/withExpoCameraSwiftFix"
     ],
     "extra": {
       "eas": {

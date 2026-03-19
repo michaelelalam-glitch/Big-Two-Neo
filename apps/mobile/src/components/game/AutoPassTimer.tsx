@@ -5,7 +5,7 @@
  * ARCHITECTURE (post-task-628):
  * - Ring rotation is driven by react-native-reanimated (UI thread, 0 JS re-renders)
  * - Text/color only update when the displayed whole-second changes via setInterval(200ms)
- *   → max ~50 JS re-renders for a 10s timer (down from ~600 rAF-driven re-renders)
+ *   → ≤11 JS re-renders for a 10s timer (down from ~600 rAF-driven re-renders)
  * - Pulse animation continues to use Animated.loop + useNativeDriver:true (native thread)
  *
  * ORIGINAL ARCHITECTURE:
@@ -35,10 +35,9 @@ interface AutoPassTimerProps {
   currentPlayerIndex: number; // Index of the current user
 }
 
-/** Compute remaining ms from server state + clock sync offset, without any state read. */
+/** Compute remaining ms from server state + clock sync, without any state read. */
 function computeRemainingMs(
   timerState: AutoPassTimerState,
-  offsetMs: number,
   isSynced: boolean,
   getCorrectedNow: () => number,
 ): number {
@@ -48,11 +47,13 @@ function computeRemainingMs(
     if (!isSynced) return durationMs; // hold at full until clock syncs (<300ms)
     return Math.max(0, endTimestamp - getCorrectedNow());
   }
-  // Fallback path (no end_timestamp): use started_at
+  // Fallback path (no end_timestamp): use started_at.
+  // Use getCorrectedNow() when synced to stay server-time-based across devices.
   const startedAt = new Date(timerState.started_at).getTime();
   if (isNaN(startedAt)) return 0;
   const durationMs = timerState.duration_ms || 10000;
-  return Math.max(0, durationMs - (Date.now() - startedAt));
+  const now = isSynced ? getCorrectedNow() : Date.now();
+  return Math.max(0, durationMs - (now - startedAt));
 }
 
 function AutoPassTimerComponent({
@@ -64,23 +65,21 @@ function AutoPassTimerComponent({
   const lastLoggedSecondRef = useRef(-1);
 
   // ⏱️ CRITICAL: Clock sync with server
-  const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
+  const { isSynced, getCorrectedNow } = useClockSync(timerState);
 
   // ── Stable clock-sync refs — keep latest values without triggering effects ──
-  // useEffect deps intentionally exclude offsetMs/isSynced/getCorrectedNow to avoid
+  // useEffect deps intentionally exclude isSynced/getCorrectedNow to avoid
   // restarting the interval on every sync tick; refs give the interval access to the
   // freshest values without re-scheduling.
-  const offsetMsRef = useRef(offsetMs);
   const isSyncedRef = useRef(isSynced);
   const getCorrectedNowRef = useRef(getCorrectedNow);
-  offsetMsRef.current = offsetMs;
   isSyncedRef.current = isSynced;
   getCorrectedNowRef.current = getCorrectedNow;
 
   // ── Initial snapshot (computed once per timerState activation) ──────────────
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
-    const remaining = computeRemainingMs(timerState, offsetMs, isSynced, getCorrectedNow);
+    const remaining = computeRemainingMs(timerState, isSynced, getCorrectedNow);
     const durationMs = timerState.duration_ms || 10000;
     return {
       remainingMs: remaining,
@@ -92,6 +91,9 @@ function AutoPassTimerComponent({
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──
   const progressAnim = useSharedValue(initialSnapshot.progress);
+
+  // Track last rendered second to guard setState calls in tick (skip if unchanged).
+  const prevSecsRef = useRef(initialSnapshot.seconds);
 
   // Animated ring rotation style — computed entirely on the UI thread
   const animatedRingStyle = useAnimatedStyle(() => ({
@@ -107,7 +109,6 @@ function AutoPassTimerComponent({
     }
     const remaining = computeRemainingMs(
       timerState,
-      offsetMsRef.current,
       isSyncedRef.current,
       getCorrectedNowRef.current,
     );
@@ -117,7 +118,7 @@ function AutoPassTimerComponent({
     progressAnim.value = withTiming(0, { duration: remaining, easing: Easing.linear });
     return () => { cancelAnimation(progressAnim); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, isSynced]);
 
   // ── Throttled text/color state — updates once per second max (≤11 re-renders/timer) ──
   const [displaySeconds, setDisplaySeconds] = useState(initialSnapshot.seconds);
@@ -134,7 +135,6 @@ function AutoPassTimerComponent({
     const tick = () => {
       const remaining = computeRemainingMs(
         timerState,
-        offsetMsRef.current,
         isSyncedRef.current,
         getCorrectedNowRef.current,
       );
@@ -146,8 +146,12 @@ function AutoPassTimerComponent({
         gameLogger.debug('[AutoPassTimer] Tick:', { remaining, secs });
       }
 
-      setDisplaySeconds(secs);
-      setTimerColorState(secs <= 3 ? COLORS.error : secs <= 5 ? COLORS.warning : COLORS.secondary);
+      // Only update state when the displayed second changes (keeps JS thread work minimal).
+      if (secs !== prevSecsRef.current) {
+        prevSecsRef.current = secs;
+        setDisplaySeconds(secs);
+        setTimerColorState(secs <= 3 ? COLORS.error : secs <= 5 ? COLORS.warning : COLORS.secondary);
+      }
     };
 
     tick(); // immediate snapshot
@@ -156,14 +160,11 @@ function AutoPassTimerComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
 
-  const remainingMs = useMemo(
-    () => {
-      if (!timerState?.active) return 0;
-      return computeRemainingMs(timerState, offsetMs, isSynced, getCorrectedNow);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displaySeconds, timerState?.active],
-  );
+  // Compute directly (cheap) — avoids stale value when isSynced or getCorrectedNow
+  // change after the initial render (useMemo deps were incomplete).
+  const remainingMs = timerState?.active
+    ? computeRemainingMs(timerState, isSynced, getCorrectedNow)
+    : 0;
 
   // Ref to hold the current pulse loop so we can stop it before starting a new one
   // or during cleanup. Without this, every re-render that triggers the effect would

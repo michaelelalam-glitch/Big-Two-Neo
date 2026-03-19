@@ -284,6 +284,8 @@ jobs:
           # -derivedDataPath ~/DerivedData/Big2Mobile: keeps build artifacts at a
           #   stable path outside ios/ so expo prebuild --clean doesn't wipe the
           #   incremental cache on the next run (was apps/mobile/ios/build before).
+          # Tee full log so we can grep Swift/Clang errors even when they scroll
+          # past the tail window. Exit code is preserved via PIPESTATUS.
           xcodebuild -workspace Big2Mobile.xcworkspace \
             -scheme Big2Mobile \
             -configuration Release \
@@ -293,7 +295,13 @@ jobs:
             build \
             -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tail -100
+            2>&1 | tee /tmp/xcodebuild.log | tail -150
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "--- Swift / Clang error summary ---"
+            grep -E " error: | warning: " /tmp/xcodebuild.log | head -40 || true
+            exit $EXIT_CODE
+          fi
         timeout-minutes: 35
 
       - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
