@@ -73,9 +73,11 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
 const describeWithCredentials = hasCredentials ? describe : describe.skip;
 
-/** Generate a collision-safe room code using UUID */
+/** Generate a collision-safe room code using UUID.
+ * rooms.code is VARCHAR(10): 'T' (1 char) + 9 chars = 10 chars max.
+ */
 function uniqueRoomCode(): string {
-  return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
+  return `T${randomUUID().replace(/-/g, '').substring(0, 9).toUpperCase()}`;
 }
 
 describeWithCredentials('Username Uniqueness - Integration Tests', () => {

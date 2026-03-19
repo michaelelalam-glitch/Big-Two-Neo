@@ -86,7 +86,10 @@ BEGIN
     RAISE EXCEPTION 'lobby_kick_player: cannot kick a bot';
   END IF;
 
-  IF v_kicked_is_host THEN
+  -- Use IS TRUE (not plain IF) because v_kicked_is_host is BOOLEAN (nullable).
+  -- A plain IF treats NULL as false, silently allowing a kick of a row with
+  -- is_host = NULL.  IS TRUE rejects only explicit TRUE values.
+  IF v_kicked_is_host IS TRUE THEN
     RAISE EXCEPTION 'lobby_kick_player: cannot kick the host';
   END IF;
 

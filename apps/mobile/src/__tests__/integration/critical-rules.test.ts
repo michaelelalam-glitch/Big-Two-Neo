@@ -90,7 +90,8 @@ describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', (
 
   beforeEach(async () => {
     // Each test gets a fresh room + game_state
-    testRoomCode = `TEST${randomUUID().replace(/-/g, '').substring(0, 10).toUpperCase()}`;
+    // rooms.code is VARCHAR(10): 'T' (1 char) + 9 UUID chars = 10 chars max.
+    testRoomCode = `T${randomUUID().replace(/-/g, '').substring(0, 9).toUpperCase()}`;
 
     // Create room (host_id → profiles.id, auto-created by trigger)
     const { data: room, error: roomError } = await supabase
