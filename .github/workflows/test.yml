@@ -260,10 +260,12 @@ jobs:
           # (which wipes ios/) does not destroy the incremental build cache.
           # On cache hits xcodebuild performs an incremental compile (~2-5 min)
           # instead of a full rebuild (~15-20 min).
+          # v3: force cache miss to avoid restoring partial DerivedData from any
+          # previously failed build (ExpoCamera legacy file exclusion fix applied).
           path: ~/DerivedData/Big2Mobile
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
-            ${{ runner.os }}-deriveddata-
+            ${{ runner.os }}-deriveddata-v3-
 
       - name: 📦 Install dependencies
         run: |
@@ -322,7 +324,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/DerivedData/Big2Mobile
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
