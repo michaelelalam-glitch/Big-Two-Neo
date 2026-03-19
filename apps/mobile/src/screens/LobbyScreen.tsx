@@ -829,7 +829,7 @@ export default function LobbyScreen() {
               <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
             </View>
           )}
-          {isHost && roomType.isPrivate && !isCurrentUser && !item.is_bot && (
+          {isHost && roomType.isPrivate && !isCurrentUser && !item.is_bot && item.is_host !== true && (
             <TouchableOpacity
               style={styles.kickButton}
               onPress={() => handleKickPlayer(item)}
