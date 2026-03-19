@@ -4,7 +4,7 @@
  * Adds a Podfile post_install hook that sets:
  *   SWIFT_STRICT_CONCURRENCY = minimal
  *   SWIFT_OPTIMIZATION_LEVEL = -Onone
- * for the ExpoCamera pod on Release builds.
+ * for the ExpoCamera pod on all build configurations.
  *
  * Background: expo-camera@15.x was written for Swift 5 concurrency semantics.
  * Xcode 16 (macos-latest GitHub runner) enforces Swift 6 strict-concurrency by

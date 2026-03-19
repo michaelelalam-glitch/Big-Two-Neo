@@ -87,7 +87,7 @@ function AutoPassTimerComponent({
       progress: remaining / durationMs,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──
   const progressAnim = useSharedValue(initialSnapshot.progress);
@@ -118,7 +118,7 @@ function AutoPassTimerComponent({
     progressAnim.value = withTiming(0, { duration: remaining, easing: Easing.linear });
     return () => { cancelAnimation(progressAnim); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, isSynced]);
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms, isSynced]);
 
   // ── Throttled text/color state — updates once per second max (≤11 re-renders/timer) ──
   const [displaySeconds, setDisplaySeconds] = useState(initialSnapshot.seconds);
@@ -158,7 +158,7 @@ function AutoPassTimerComponent({
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
 
   // Compute directly (cheap) — avoids stale value when isSynced or getCorrectedNow
   // change after the initial render (useMemo deps were incomplete).
