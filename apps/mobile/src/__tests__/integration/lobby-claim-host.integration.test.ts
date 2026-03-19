@@ -112,7 +112,9 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
     const { error } = await supabase.from('room_players').insert({
       room_id: roomId,
       user_id: opts.isBot ? null : userId,
-      username: `TestUser-${userId.substring(0, 8)}`,
+      // Bots use a slot-based username to avoid colliding with the human player
+      // that shares the same `userId` argument (unique constraint on username per room).
+      username: opts.isBot ? `Bot-${opts.playerIndex}` : `TestUser-${userId.substring(0, 8)}`,
       player_index: opts.playerIndex,
       is_host: opts.isHost,
       is_ready: false,
