@@ -18,11 +18,11 @@ type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'
 
 interface Player {
   id: string;
-  user_id: string;
+  user_id: string | null; // null for bot rows
   player_index: number;
   is_ready: boolean;
   is_bot: boolean;
-  is_host: boolean;
+  is_host: boolean | null; // DB column has no NOT NULL constraint
   profiles?: {
     username?: string;
   };
@@ -376,7 +376,10 @@ export default function LobbyScreen() {
 
         // Kicked: if not in a play-again flow the current user has been removed
         // from the room — show them who kicked them then navigate home.
-        if (!playAgain && !isLeavingRef.current) {
+        // Guard: user?.id must be set — when AuthContext is still loading the
+        // find() above returns undefined for every update, which would fire
+        // this alert incorrectly for every player-list change.
+        if (!playAgain && !isLeavingRef.current && user?.id) {
           const kickerHost = players.find(p => p.is_host);
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
@@ -711,6 +714,7 @@ export default function LobbyScreen() {
       cancelable: false,
       onConfirm: async () => {
         isLeaveConfirmOpenRef.current = false;
+        if (!user) return; // auth not yet loaded — UUID arg would be undefined
         if (isLeavingRef.current) return;
         try {
           isLeavingRef.current = true;
@@ -729,7 +733,7 @@ export default function LobbyScreen() {
             // the client are blocked by RLS.
             const { error: leaveErr } = await supabase.rpc('lobby_host_leave', {
               p_room_id: currentRoomId,
-              p_leaving_user_id: user?.id,
+              p_leaving_user_id: user.id,
             });
             if (leaveErr) throw leaveErr;
           } else {
@@ -737,7 +741,7 @@ export default function LobbyScreen() {
               .from('room_players')
               .delete()
               .eq('room_id', currentRoomId)
-              .eq('user_id', user?.id);
+              .eq('user_id', user.id);
             if (error) throw error;
           }
 
@@ -761,6 +765,7 @@ export default function LobbyScreen() {
    */
   const handleKickPlayer = (playerToKick: Player) => {
     if (!isHost || !roomType.isPrivate || !roomId) return;
+    if (!user) return; // auth not yet loaded — UUID arg would be undefined
     // Bot rows have user_id = null — cannot kick via UUID-typed RPC arg
     if (!playerToKick.user_id) return;
 
@@ -779,7 +784,7 @@ export default function LobbyScreen() {
           // allows a user to remove their OWN row.
           const { error } = await supabase.rpc('lobby_kick_player', {
             p_room_id: roomId,
-            p_kicker_user_id: user?.id,
+            p_kicker_user_id: user.id,
             p_kicked_user_id: playerToKick.user_id,
           });
           if (error) throw error;

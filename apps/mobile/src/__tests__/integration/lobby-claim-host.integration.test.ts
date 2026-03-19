@@ -305,4 +305,82 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
 
     await u2Client.auth.signOut();
   }, 20_000);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Ban tracking — kicked user cannot rejoin private room
+  // ─────────────────────────────────────────────────────────────────────
+  it('kicked user cannot rejoin a private room via join_room_atomic', async () => {
+    const room = await createRoom(u1);
+    await insertPlayer(room.id, u1, { playerIndex: 0, isHost: true });
+    await insertPlayer(room.id, u2, { playerIndex: 1, isHost: false });
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    const u1Client = createClient(SUPABASE_URL, anonKey);
+    await u1Client.auth.signInWithPassword({
+      email: testUsers.u1.email,
+      password: testUsers.u1.password,
+    });
+    const { error: kickError } = await u1Client.rpc('lobby_kick_player', {
+      p_room_id: room.id,
+      p_kicker_user_id: u1,
+      p_kicked_user_id: u2,
+    });
+    expect(kickError).toBeNull();
+    await u1Client.auth.signOut();
+
+    // u2 now attempts to rejoin — should be blocked by the ban
+    const u2Client = createClient(SUPABASE_URL, anonKey);
+    await u2Client.auth.signInWithPassword({
+      email: testUsers.u2.email,
+      password: testUsers.u2.password,
+    });
+    const { error: rejoinError } = await u2Client.rpc('join_room_atomic', {
+      p_room_code: room.code,
+      p_user_id: u2,
+      p_username: `RejoinAttempt-${randomUUID().slice(0, 8)}`,
+    });
+    expect(rejoinError).toBeDefined();
+    expect(rejoinError?.message).toContain('kicked from this private room');
+    await u2Client.auth.signOut();
+  }, 30_000);
+
+  it('kick in a matchmaking room does not record a ban (no banned_user_ids entry)', async () => {
+    // Bans are only tracked for private rooms (NOT is_matchmaking AND NOT is_public).
+    // Kicking in a matchmaking room removes the player but must NOT add them to
+    // banned_user_ids so they can freely join other matchmaking rooms.
+    const code = uniqueRoomCode();
+    const { data: matchRoom, error: roomErr } = await supabase
+      .from('rooms')
+      .insert({ code, host_id: u1, is_public: true, is_matchmaking: true, status: 'waiting' })
+      .select()
+      .single();
+    if (roomErr || !matchRoom) throw new Error(`Failed to create matchmaking room: ${roomErr?.message}`);
+    testRoomIds.push(matchRoom.id);
+
+    await insertPlayer(matchRoom.id, u1, { playerIndex: 0, isHost: true });
+    await insertPlayer(matchRoom.id, u2, { playerIndex: 1, isHost: false });
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    const u1Client = createClient(SUPABASE_URL, anonKey);
+    await u1Client.auth.signInWithPassword({
+      email: testUsers.u1.email,
+      password: testUsers.u1.password,
+    });
+    // Kick u2 — removes from room_players but ban should NOT be recorded
+    await u1Client.rpc('lobby_kick_player', {
+      p_room_id: matchRoom.id,
+      p_kicker_user_id: u1,
+      p_kicked_user_id: u2,
+    });
+    await u1Client.auth.signOut();
+
+    // Verify u2 is NOT in banned_user_ids
+    const { data: roomData } = await supabase
+      .from('rooms')
+      .select('banned_user_ids')
+      .eq('id', matchRoom.id)
+      .single();
+    const bannedIds = (roomData?.banned_user_ids as string[] | null) ?? [];
+    expect(bannedIds).not.toContain(u2);
+  }, 30_000);
 });
