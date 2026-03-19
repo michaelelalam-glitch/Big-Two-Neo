@@ -617,97 +617,10 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── DEV: Error Boundary manual-test section ───────────────────────────
-            Only visible in development builds (__DEV__ = true).
-            This section is tree-shaken out of Production bundles.
-            ─────────────────────────────────────────────────────────────────── */}
-        {__DEV__ && <DevErrorBoundarySection />}
-
         {/* Bottom spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-// ── DEV-only component rendered at the bottom of SettingsScreen ───────────────
-// Pressing "Crash GlobalErrorBoundary" sets devCrashGlobal=true, which causes
-// this component's render to throw.  Because SettingsScreen is inside
-// NavigationContainer → AppNavigator which is inside GlobalErrorBoundary (but
-// NOT inside any GameErrorBoundary), the throw propagates straight up to
-// GlobalErrorBoundary and shows the "Something went wrong" fallback.
-function DevErrorBoundarySection() {
-  const [devCrashGlobal, setDevCrashGlobal] = useState(false);
-
-  if (devCrashGlobal) {
-    throw new Error('[DEV] Manual GlobalErrorBoundary crash test — Task #643');
-  }
-
-  return (
-    <View
-      testID="dev-error-boundary-section"
-      style={{
-        marginTop: 32,
-        borderTopWidth: 1,
-        borderTopColor: '#ff6b6b',
-        paddingTop: 16,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: '700',
-          color: '#ff6b6b',
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-          marginBottom: 12,
-        }}
-      >
-        🛠 DEV — Error Boundary Tests (Task #643)
-      </Text>
-
-      {/* Button 1: crash GlobalErrorBoundary */}
-      <TouchableOpacity
-        testID="dev-crash-global-boundary"
-        onPress={() => setDevCrashGlobal(true)}
-        style={{
-          backgroundColor: 'rgba(220, 38, 38, 0.2)',
-          borderWidth: 1,
-          borderColor: '#ef4444',
-          borderRadius: 8,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-          marginBottom: 10,
-        }}
-        activeOpacity={0.7}
-      >
-        <Text style={{ color: '#ef4444', fontWeight: '600', fontSize: 14 }}>
-          💣 Crash GlobalErrorBoundary
-        </Text>
-        <Text style={{ color: '#fca5a5', fontSize: 12, marginTop: 2 }}>
-          Throws in SettingsScreen → caught by GlobalErrorBoundary
-        </Text>
-      </TouchableOpacity>
-
-      {/* Button 2: reminder for GameErrorBoundary */}
-      <View
-        style={{
-          backgroundColor: 'rgba(245, 158, 11, 0.15)',
-          borderWidth: 1,
-          borderColor: '#f59e0b',
-          borderRadius: 8,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-        }}
-      >
-        <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 14 }}>
-          🎮 Crash GameErrorBoundary
-        </Text>
-        <Text style={{ color: '#fcd34d', fontSize: 12, marginTop: 2 }}>
-          Start any game → tap the 💣 button (top-left overlay)
-        </Text>
-      </View>
-    </View>
   );
 }
 

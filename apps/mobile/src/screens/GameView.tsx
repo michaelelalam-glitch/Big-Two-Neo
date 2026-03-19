@@ -7,15 +7,8 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler, useMemo, useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import React, { Profiler, useMemo, useCallback } from 'react';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {
   CardHand,
   PlayerInfo,
@@ -38,18 +31,7 @@ import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
 import { useGameContext } from '../contexts/GameContext';
 
-// ── DEV-only crash helper ─────────────────────────────────────────────────────
-// Rendered when devCrashGame is true — throws immediately so GameErrorBoundary
-// catches it.  Only exists in __DEV__ builds; tree-shaken in Production.
-function DevCrashThrower(): React.ReactElement {
-  throw new Error('[DEV] Manual GameErrorBoundary crash test — Task #643');
-}
-
 function GameViewComponent() {
-  // __DEV__-only state: pressing the 💣 overlay sets this to true, causing
-  // DevCrashThrower to render and throw inside GameErrorBoundary.
-  const [devCrashGame, setDevCrashGame] = __DEV__ ? useState(false) : [false, () => {}]; // eslint-disable-line react-hooks/rules-of-hooks
-
   const {
     isLocalAIGame,
     currentOrientation,
@@ -576,42 +558,9 @@ function GameViewComponent() {
           </>
         )}
       </View>
-      {/* ── DEV: crash-test overlay — only visible in development builds ── */}
-      {__DEV__ &&
-        (devCrashGame ? (
-          <DevCrashThrower />
-        ) : (
-          <Pressable
-            testID="dev-crash-game-boundary"
-            style={devStyles.crashButton}
-            onPress={() => setDevCrashGame(true)}
-            accessibilityLabel="DEV: crash GameErrorBoundary"
-          >
-            <Text style={devStyles.crashButtonText}>💣</Text>
-          </Pressable>
-        ))}
     </Profiler>
   );
 }
-
-/** DEV-only overlay styles — zero impact in Production (dead code). */
-const devStyles = __DEV__
-  ? StyleSheet.create({
-      crashButton: {
-        position: 'absolute',
-        top: 50,
-        left: 12,
-        zIndex: 9999,
-        backgroundColor: 'rgba(220, 38, 38, 0.85)',
-        borderRadius: 6,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-      },
-      crashButtonText: {
-        fontSize: 16,
-      },
-    })
-  : StyleSheet.create({ crashButton: {}, crashButtonText: {} });
 
 /**
  * React.memo wrapper — bails out of re-renders triggered by non-context state
