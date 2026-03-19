@@ -699,6 +699,9 @@ export default function LobbyScreen() {
 
   const handleLeaveRoom = () => {
     if (isLeavingRef.current || isLeaving || isLeaveConfirmOpenRef.current) return;
+    // Auth must be loaded before opening the dialog — the RPC requires a valid
+    // UUID and onConfirm would silently no-op without it.
+    if (!user?.id) return;
 
     isLeaveConfirmOpenRef.current = true;
     showConfirm({

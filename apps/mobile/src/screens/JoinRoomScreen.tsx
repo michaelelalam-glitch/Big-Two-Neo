@@ -35,9 +35,10 @@ export default function JoinRoomScreen() {
     setIsJoining(true);
     try {
       // Check if user is already in a room
+      // Select status so we can gate lobby_host_leave (only valid for 'waiting' rooms)
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, is_host, rooms!inner(code)')
+        .select('room_id, is_host, rooms!inner(code, status)')
         .eq('user_id', user.id)
         .single();
 
@@ -48,13 +49,20 @@ export default function JoinRoomScreen() {
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
         const existingCode = roomPlayer.rooms.code;
+        const existingStatus = roomPlayer.rooms.status;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
           // Already in this room, just navigate
           navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
           return;
+        } else if (existingStatus === 'playing') {
+          // User is in an active game — lobby_host_leave only accepts 'waiting' rooms.
+          // Navigate them to their current game instead of showing a leave dialog that
+          // would always fail at the RPC level.
+          navigation.replace('Lobby', { roomCode: existingCode });
+          return;
         } else {
-          // In a different room — let the user leave and join the requested room, or go back
+          // In a different waiting room — let the user leave and join the requested room, or go back
           showConfirm({
             title: i18n.t('room.alreadyInRoom'),
             message: i18n.t('room.alreadyInDifferentRoom', { code: existingCode }),
