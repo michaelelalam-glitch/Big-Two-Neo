@@ -36,8 +36,8 @@ export interface GameState {
 // Supabase query result types
 export interface RoomPlayerWithRoom {
   room_id: string;
-  is_host?: boolean; // Optional - not always selected in queries
-  user_id?: string; // Optional - not always selected in queries
+  is_host?: boolean | null; // Optional - not always selected; nullable in DB
+  user_id?: string | null; // Optional - not always selected; NULL for bot rows
   last_seen_at?: string | null;
   rooms: {
     code: string;

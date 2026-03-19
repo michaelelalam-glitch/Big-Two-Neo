@@ -67,9 +67,9 @@ export default function JoinRoomScreen() {
                 // Direct DELETE is blocked by RLS for other players' rows, and
                 // leaving without host-transfer breaks the room. Use the
                 // SECURITY DEFINER RPC when the user is the host.
-              // is_host is fetched in the initial existingRoomPlayer query to
-              // avoid an extra round-trip (Copilot PR-153 review r2953230041).
-              if (roomPlayer.is_host) {
+                // is_host is fetched in the initial existingRoomPlayer query to
+                // avoid an extra round-trip (Copilot PR-153 review r2953230041).
+                if (roomPlayer.is_host) {
                   const { error: leaveError } = await supabase.rpc('lobby_host_leave', {
                     p_room_id: roomPlayer.room_id,
                     p_leaving_user_id: user.id,
