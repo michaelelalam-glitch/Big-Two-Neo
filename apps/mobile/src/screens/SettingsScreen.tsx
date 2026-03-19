@@ -19,7 +19,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { i18n, LANGUAGES, Language } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
-import { showConfirm, showSuccess, showError , soundManager, hapticManager, HapticType } from '../utils';
+import {
+  showConfirm,
+  showSuccess,
+  showError,
+  soundManager,
+  hapticManager,
+  HapticType,
+} from '../utils';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -37,10 +44,10 @@ export type AutoPassTimer = 'disabled' | '30' | '60' | '90';
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { user, signOut } = useAuth();
-  
+
   // Get current translations
   const t = (key: string) => i18n.t(key);
-  
+
   // State for all settings
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
@@ -68,7 +75,7 @@ export default function SettingsScreen() {
       const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
       const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
       const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
-      
+
       if (savedCardSort) setCardSortOrder(savedCardSort as CardSortOrder);
       if (savedAnimSpeed) setAnimationSpeed(savedAnimSpeed as AnimationSpeed);
       if (savedAutoPass) setAutoPassTimer(savedAutoPass as AutoPassTimer);
@@ -76,7 +83,7 @@ export default function SettingsScreen() {
       // Load privacy settings
       const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
       const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
-      
+
       if (savedVisibility !== null) setProfileVisibility(savedVisibility === 'true');
       if (savedOnlineStatus !== null) setShowOnlineStatus(savedOnlineStatus === 'true');
 
@@ -159,24 +166,20 @@ export default function SettingsScreen() {
       onConfirm: async () => {
         const requiresRestart = await i18n.setLanguage(language);
         setCurrentLanguage(language);
-        
+
         if (requiresRestart) {
           // For Arabic (RTL), app must restart
-          Alert.alert(
-            t('settings.restartRequired'),
-            t('settings.changeLanguageWarning'),
-            [
-              {
-                text: t('common.ok'),
-                onPress: () => {
-                  // App will use new language on next launch
-                  // User should manually restart the app
-                },
+          Alert.alert(t('settings.restartRequired'), t('settings.changeLanguageWarning'), [
+            {
+              text: t('common.ok'),
+              onPress: () => {
+                // App will use new language on next launch
+                // User should manually restart the app
               },
-            ]
-          );
+            },
+          ]);
         }
-        
+
         showSuccess(t('settings.languageChangedSuccess'));
       },
     });
@@ -207,12 +210,12 @@ export default function SettingsScreen() {
           ];
 
           const allKeys = await AsyncStorage.getAllKeys();
-          const keysToRemove = allKeys.filter((key) => !keysToKeep.includes(key));
-          
+          const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key));
+
           await AsyncStorage.multiRemove(keysToRemove);
-          
+
           showSuccess(t('settings.clearCacheSuccess'));
-          
+
           if (vibrationEnabled) {
             hapticManager.trigger(HapticType.SUCCESS);
           }
@@ -252,7 +255,7 @@ export default function SettingsScreen() {
           // Sign out and clear all data
           await AsyncStorage.clear();
           await signOut();
-          
+
           showSuccess(t('settings.accountDeletedSuccess'));
         } catch (error) {
           console.error('[Settings] Error deleting account:', error);
@@ -264,7 +267,7 @@ export default function SettingsScreen() {
 
   // External links
   const handleOpenLink = (url: string) => {
-    Linking.openURL(url).catch((error) => {
+    Linking.openURL(url).catch(error => {
       console.error('[Settings] Failed to open link:', error);
       showError('Failed to open link');
     });
@@ -276,10 +279,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← {t('common.back')}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('settings.title')}</Text>
@@ -295,11 +295,13 @@ export default function SettingsScreen() {
               <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
             </View>
           </View>
-          
+
           <View style={styles.comingSoonBanner}>
-            <Text style={styles.comingSoonText}>🔮 {t('settings.profileComingSoonDescription')}</Text>
+            <Text style={styles.comingSoonText}>
+              🔮 {t('settings.profileComingSoonDescription')}
+            </Text>
           </View>
-          
+
           <View style={[styles.settingRow, { opacity: 0.6 }]}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.profileVisibility')}</Text>
@@ -333,16 +335,13 @@ export default function SettingsScreen() {
         {/* Game Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.gameSettings')}</Text>
-          
+
           <View style={styles.settingGroup}>
             <Text style={styles.settingTitle}>{t('settings.cardSortOrder')}</Text>
             <Text style={styles.settingDescription}>{t('settings.cardSortOrderDescription')}</Text>
             <View style={styles.buttonGroup}>
               <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  cardSortOrder === 'suit' && styles.optionButtonActive,
-                ]}
+                style={[styles.optionButton, cardSortOrder === 'suit' && styles.optionButtonActive]}
                 onPress={() => handleCardSortChange('suit')}
               >
                 <Text
@@ -355,10 +354,7 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  cardSortOrder === 'rank' && styles.optionButtonActive,
-                ]}
+                style={[styles.optionButton, cardSortOrder === 'rank' && styles.optionButtonActive]}
                 onPress={() => handleCardSortChange('rank')}
               >
                 <Text
@@ -456,10 +452,7 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  autoPassTimer === '30' && styles.optionButtonActive,
-                ]}
+                style={[styles.optionButton, autoPassTimer === '30' && styles.optionButtonActive]}
                 onPress={() => handleAutoPassTimerChange('30')}
               >
                 <Text
@@ -472,10 +465,7 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  autoPassTimer === '60' && styles.optionButtonActive,
-                ]}
+                style={[styles.optionButton, autoPassTimer === '60' && styles.optionButtonActive]}
                 onPress={() => handleAutoPassTimerChange('60')}
               >
                 <Text
@@ -488,10 +478,7 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  autoPassTimer === '90' && styles.optionButtonActive,
-                ]}
+                style={[styles.optionButton, autoPassTimer === '90' && styles.optionButtonActive]}
                 onPress={() => handleAutoPassTimerChange('90')}
               >
                 <Text
@@ -510,7 +497,7 @@ export default function SettingsScreen() {
         {/* Notifications */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.notificationSettings')}</Text>
-          
+
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => navigation.navigate('NotificationSettings')}
@@ -523,7 +510,7 @@ export default function SettingsScreen() {
         {/* Audio & Haptics */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.audioHaptics')}</Text>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.soundEffects')}</Text>
@@ -557,23 +544,18 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
           <Text style={styles.settingDescription}>{t('settings.languageDescription')}</Text>
-          
+
           {Object.entries(LANGUAGES).map(([code, lang]) => (
             <TouchableOpacity
               key={code}
-              style={[
-                styles.languageRow,
-                currentLanguage === code && styles.languageRowActive,
-              ]}
+              style={[styles.languageRow, currentLanguage === code && styles.languageRowActive]}
               onPress={() => handleLanguageChange(code as Language)}
             >
               <View>
                 <Text style={styles.languageText}>{lang.nativeName}</Text>
                 <Text style={styles.languageSubtext}>{lang.name}</Text>
               </View>
-              {currentLanguage === code && (
-                <Text style={styles.checkmark}>✓</Text>
-              )}
+              {currentLanguage === code && <Text style={styles.checkmark}>✓</Text>}
             </TouchableOpacity>
           ))}
         </View>
@@ -581,7 +563,7 @@ export default function SettingsScreen() {
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.accountManagement')}</Text>
-          
+
           <TouchableOpacity style={styles.linkRow} onPress={handleClearCache}>
             <View>
               <Text style={styles.linkText}>{t('settings.clearCache')}</Text>
@@ -593,8 +575,12 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.linkRow} onPress={handleDeleteAccount}>
             <View>
-              <Text style={[styles.linkText, styles.dangerText]}>{t('settings.deleteAccount')}</Text>
-              <Text style={styles.settingDescription}>{t('settings.deleteAccountDescription')}</Text>
+              <Text style={[styles.linkText, styles.dangerText]}>
+                {t('settings.deleteAccount')}
+              </Text>
+              <Text style={styles.settingDescription}>
+                {t('settings.deleteAccountDescription')}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -602,7 +588,7 @@ export default function SettingsScreen() {
         {/* About */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
-          
+
           <View style={styles.settingRow}>
             <Text style={styles.settingTitle}>{t('settings.version')}</Text>
             <Text style={styles.versionText}>
@@ -631,10 +617,97 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* ── DEV: Error Boundary manual-test section ───────────────────────────
+            Only visible in development builds (__DEV__ = true).
+            This section is tree-shaken out of Production bundles.
+            ─────────────────────────────────────────────────────────────────── */}
+        {__DEV__ && <DevErrorBoundarySection />}
+
         {/* Bottom spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// ── DEV-only component rendered at the bottom of SettingsScreen ───────────────
+// Pressing "Crash GlobalErrorBoundary" sets devCrashGlobal=true, which causes
+// this component's render to throw.  Because SettingsScreen is inside
+// NavigationContainer → AppNavigator which is inside GlobalErrorBoundary (but
+// NOT inside any GameErrorBoundary), the throw propagates straight up to
+// GlobalErrorBoundary and shows the "Something went wrong" fallback.
+function DevErrorBoundarySection() {
+  const [devCrashGlobal, setDevCrashGlobal] = useState(false);
+
+  if (devCrashGlobal) {
+    throw new Error('[DEV] Manual GlobalErrorBoundary crash test — Task #643');
+  }
+
+  return (
+    <View
+      testID="dev-error-boundary-section"
+      style={{
+        marginTop: 32,
+        borderTopWidth: 1,
+        borderTopColor: '#ff6b6b',
+        paddingTop: 16,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '700',
+          color: '#ff6b6b',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginBottom: 12,
+        }}
+      >
+        🛠 DEV — Error Boundary Tests (Task #643)
+      </Text>
+
+      {/* Button 1: crash GlobalErrorBoundary */}
+      <TouchableOpacity
+        testID="dev-crash-global-boundary"
+        onPress={() => setDevCrashGlobal(true)}
+        style={{
+          backgroundColor: 'rgba(220, 38, 38, 0.2)',
+          borderWidth: 1,
+          borderColor: '#ef4444',
+          borderRadius: 8,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          marginBottom: 10,
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={{ color: '#ef4444', fontWeight: '600', fontSize: 14 }}>
+          💣 Crash GlobalErrorBoundary
+        </Text>
+        <Text style={{ color: '#fca5a5', fontSize: 12, marginTop: 2 }}>
+          Throws in SettingsScreen → caught by GlobalErrorBoundary
+        </Text>
+      </TouchableOpacity>
+
+      {/* Button 2: reminder for GameErrorBoundary */}
+      <View
+        style={{
+          backgroundColor: 'rgba(245, 158, 11, 0.15)',
+          borderWidth: 1,
+          borderColor: '#f59e0b',
+          borderRadius: 8,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+        }}
+      >
+        <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 14 }}>
+          🎮 Crash GameErrorBoundary
+        </Text>
+        <Text style={{ color: '#fcd34d', fontSize: 12, marginTop: 2 }}>
+          Start any game → tap the 💣 button (top-left overlay)
+        </Text>
+      </View>
+    </View>
   );
 }
 
