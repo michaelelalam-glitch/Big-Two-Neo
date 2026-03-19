@@ -761,6 +761,8 @@ export default function LobbyScreen() {
    */
   const handleKickPlayer = (playerToKick: Player) => {
     if (!isHost || !roomType.isPrivate || !roomId) return;
+    // Bot rows have user_id = null — cannot kick via UUID-typed RPC arg
+    if (!playerToKick.user_id) return;
 
     const displayName = playerToKick.profiles?.username || 'Player';
     showConfirm({

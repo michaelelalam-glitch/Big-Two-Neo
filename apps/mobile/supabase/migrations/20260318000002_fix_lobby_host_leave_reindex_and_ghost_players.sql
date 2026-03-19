@@ -270,7 +270,7 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION lobby_claim_host(UUID) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated;
+GRANT  EXECUTE ON FUNCTION lobby_claim_host(UUID) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- 4. join_room_atomic — evict ghost lobby players before capacity check
