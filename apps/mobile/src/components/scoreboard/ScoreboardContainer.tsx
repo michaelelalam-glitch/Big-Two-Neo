@@ -21,7 +21,9 @@ import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';
 import PlayHistoryModal from './PlayHistoryModal';
 import ScoreboardErrorBoundary from './ScoreboardErrorBoundary';
 
-export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
+// Task #628: React.memo — bail out of re-renders driven by GameContext changes
+// (e.g. timer ticks, card selection) when scoreboard props are reference-equal.
+const ScoreboardContainerComponent: React.FC<ScoreboardProps> = ({
   playerNames,
   currentScores,
   cardCounts,
@@ -94,5 +96,7 @@ export const ScoreboardContainer: React.FC<ScoreboardProps> = ({
     </ScoreboardErrorBoundary>
   );
 };
+
+export const ScoreboardContainer = React.memo(ScoreboardContainerComponent);
 
 export default ScoreboardContainer;

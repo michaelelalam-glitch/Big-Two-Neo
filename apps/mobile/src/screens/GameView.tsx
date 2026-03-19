@@ -162,6 +162,10 @@ function GameViewComponent() {
       : undefined;
   }, [isMultiplayerGame, isChatConnected, isLocalCameraOn, getVideoTrackRef]);
 
+  // Stable close-settings callback — avoids recreating an inline arrow on every
+  // render (which would break React.memo on GameSettingsModal). Task #628.
+  const closeSettings = useCallback(() => setShowSettings(false), [setShowSettings]);
+
   // Performance profiling callback (Task #430)
   // useCallback with empty deps: same identity across all re-renders, no new
   // allocation on updates. The callback itself is stateless (reads no closure
@@ -486,7 +490,7 @@ function GameViewComponent() {
             {/* Game Settings Modal */}
             <GameSettingsModal
               visible={showSettings}
-              onClose={() => setShowSettings(false)}
+              onClose={closeSettings}
               onLeaveGame={handleLeaveGame}
               roomCode={roomCode}
               isInChatSession={isMultiplayerGame && isChatConnected}

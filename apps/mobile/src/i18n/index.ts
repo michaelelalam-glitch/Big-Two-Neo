@@ -91,6 +91,7 @@ export interface Translations {
     send: string;
     noMessages: string;
     cooldown: string;
+    // Task #628 — accessibility labels for chat toggle button
     a11yToggleLabel: string;
     a11yToggleHint: string;
   };
@@ -242,8 +243,6 @@ export interface Translations {
     botReplacingYou: string;
     beforeBotReplaces: string;
     botPlayingForYou: string;
-    roomClosedError: string;
-    roomCheckError: string;
   };
 
   // How to Play Screen
@@ -479,19 +478,6 @@ export interface Translations {
     hard: string;
     rankedMatch: string;
     privateRoom: string;
-    confirmLeaveTitle: string;
-    confirmLeaveMessage: string;
-    confirmLeaveReady: string;
-    confirmLeaveHost: string;
-    confirmLeaveYes: string;
-    confirmLeaveNo: string;
-    kickPlayer: string;
-    kickPlayerTitle: string;
-    kickPlayerMessage: string;
-    kickPlayerConfirm: string;
-    kickPlayerError: string;
-    kickedTitle: string;
-    kickedByHostMessage: string;
   };
   room: {
     createTitle: string;
@@ -519,9 +505,7 @@ export interface Translations {
     invalidCodeTitle: string;
     alreadyInDifferentRoom: string;
     goToCurrentRoom: string;
-    leaveAndJoin: string;
     alreadyInAnotherRoom: string;
-    kickedFromRoom: string;
     joinRoomError: string;
     tip: string;
     askFriendForCode: string;
@@ -760,8 +744,9 @@ const en: Translations = {
     send: 'Send',
     noMessages: 'No messages yet. Say hi!',
     cooldown: 'Wait…',
-    a11yToggleLabel: 'Toggle chat',
-    a11yToggleHint: 'Opens or closes the text chat',
+    // Task #628 — accessibility labels for chat toggle button
+    a11yToggleLabel: 'Open chat',
+    a11yToggleHint: 'Opens or closes the in-game text chat drawer',
   },
   gameSelection: {
     welcome: 'Welcome,',
@@ -898,8 +883,6 @@ const en: Translations = {
     botReplacingYou: 'Bot replacing you...',
     beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
     botPlayingForYou: '🤖 A bot is playing for you',
-    roomClosedError: 'This room is closed. Please start or join a new game.',
-    roomCheckError: 'Unable to check room status. Please check your connection and try again.',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -1093,19 +1076,6 @@ const en: Translations = {
     hard: 'Hard',
     rankedMatch: '🏆 Ranked Match',
     privateRoom: '🔒 Private Room',
-    confirmLeaveTitle: 'Leave Lobby?',
-    confirmLeaveMessage: 'Are you sure you want to leave the lobby?',
-    confirmLeaveReady: 'You are marked as ready. Are you sure you want to leave?',
-    confirmLeaveHost: 'You are the host. Leaving will transfer host to another player. Are you sure you want to leave?',
-    confirmLeaveYes: 'Leave',
-    confirmLeaveNo: 'Stay',
-    kickPlayer: 'Kick',
-    kickPlayerTitle: 'Kick Player?',
-    kickPlayerMessage: 'Remove {{name}} from the lobby?',
-    kickPlayerConfirm: 'Kick',
-    kickPlayerError: 'Failed to kick player',
-    kickedTitle: 'Kicked from Room',
-    kickedByHostMessage: '{{hostName}} has kicked you from the room.',
   },
   room: {
     createTitle: 'Create Room',
@@ -1133,9 +1103,7 @@ const en: Translations = {
     invalidCodeTitle: 'Invalid Code',
     alreadyInDifferentRoom: "You're already in room {{code}}. Leave it first to join a different room.",
     goToCurrentRoom: 'Go to Current Room',
-    leaveAndJoin: 'Leave & Join',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
-    kickedFromRoom: 'You were kicked from this private room and cannot rejoin.',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
@@ -1361,8 +1329,9 @@ const ar: Translations = {
     send: 'إرسال',
     noMessages: 'لا رسائل بعد. قل مرحبًا!',
     cooldown: 'انتظر…',
-    a11yToggleLabel: 'تبديل الدردشة',
-    a11yToggleHint: 'يفتح أو يغلق الدردشة النصية',
+    // Task #628 — accessibility labels for chat toggle button
+    a11yToggleLabel: 'فتح الدردشة',
+    a11yToggleHint: 'يفتح أو يغلق درج الدردشة النصية داخل اللعبة',
   },
   gameSelection: {
     welcome: 'مرحبًا،',
@@ -1499,8 +1468,6 @@ const ar: Translations = {
     botReplacingYou: 'يحل البوت محلك...',
     beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
     botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
-    roomClosedError: 'هذه الغرفة مغلقة. يرجى بدء لعبة جديدة أو الانضمام إلى لعبة أخرى.',
-    roomCheckError: 'تعذر التحقق من حالة الغرفة. يرجى التحقق من الاتصال والمحاولة مرة أخرى.',
   },
   game: {
     yourTurn: 'دورك',
@@ -1646,19 +1613,6 @@ const ar: Translations = {
     hard: 'صعب',
     rankedMatch: '🏆 مباراة مصنفة',
     privateRoom: '🔒 غرفة خاصة',
-    confirmLeaveTitle: 'مغادرة الغرفة؟',
-    confirmLeaveMessage: 'هل أنت متأكد أنك تريد مغادرة الغرفة؟',
-    confirmLeaveReady: 'أنت مستعد. هل أنت متأكد أنك تريد المغادرة؟',
-    confirmLeaveHost: 'أنت المضيف. مغادرتك ستنقل المضيف إلى لاعب آخر. هل أنت متأكد أنك تريد المغادرة؟',
-    confirmLeaveYes: 'مغادرة',
-    confirmLeaveNo: 'البقاء',
-    kickPlayer: 'طرد',
-    kickPlayerTitle: 'طرد اللاعب؟',
-    kickPlayerMessage: 'إزالة {{name}} من الغرفة؟',
-    kickPlayerConfirm: 'طرد',
-    kickPlayerError: 'فشل طرد اللاعب',
-    kickedTitle: 'تم طردك من الغرفة',
-    kickedByHostMessage: '{{hostName}} قام بطردك من الغرفة.',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1686,9 +1640,7 @@ const ar: Translations = {
     invalidCodeTitle: 'رمز غير صالح',
     alreadyInDifferentRoom: 'أنت بالفعل في الغرفة {{code}}. غادرها أولاً للانضمام إلى غرفة مختلفة.',
     goToCurrentRoom: 'اذهب إلى الغرفة الحالية',
-    leaveAndJoin: 'غادر وانضم',
     alreadyInAnotherRoom: 'أنت بالفعل في غرفة أخرى. يرجى المغادرة أولاً.',
-    kickedFromRoom: 'تمت إزالتك من هذه الغرفة الخاصة ولا يمكنك الانضمام مجدداً.',
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
@@ -1992,8 +1944,9 @@ const de: Translations = {
     send: 'Senden',
     noMessages: 'Noch keine Nachrichten. Sag Hallo!',
     cooldown: 'Warten…',
-    a11yToggleLabel: 'Chat ein-/ausblenden',
-    a11yToggleHint: 'Öffnet oder schließt den Textchat',
+    // Task #628 — accessibility labels for chat toggle button
+    a11yToggleLabel: 'Chat öffnen',
+    a11yToggleHint: 'Öffnet oder schließt die In-Game-Chat-Leiste',
   },
   gameSelection: {
     welcome: 'Willkommen,',
@@ -2131,8 +2084,6 @@ const de: Translations = {
     botReplacingYou: 'Bot ersetzt dich...',
     beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
     botPlayingForYou: '🤖 Ein Bot spielt für dich',
-    roomClosedError: 'Dieser Raum ist geschlossen. Bitte starte ein neues Spiel oder tritt einem anderen bei.',
-    roomCheckError: 'Raumstatus konnte nicht überprüft werden. Bitte prüfe deine Verbindung und versuche es erneut.',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -2278,19 +2229,6 @@ const de: Translations = {
     hard: 'Schwer',
     rankedMatch: '🏆 Ranglistenspiel',
     privateRoom: '🔒 Privater Raum',
-    confirmLeaveTitle: 'Lobby verlassen?',
-    confirmLeaveMessage: 'Möchtest du die Lobby wirklich verlassen?',
-    confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du die Lobby wirklich verlassen?',
-    confirmLeaveHost: 'Du bist der Host. Beim Verlassen wird die Rolle auf einen anderen Spieler übertragen. Möchtest du die Lobby wirklich verlassen?',
-    confirmLeaveYes: 'Verlassen',
-    confirmLeaveNo: 'Bleiben',
-    kickPlayer: 'Rauswerfen',
-    kickPlayerTitle: 'Spieler rauswerfen?',
-    kickPlayerMessage: '{{name}} aus der Lobby entfernen?',
-    kickPlayerConfirm: 'Rauswerfen',
-    kickPlayerError: 'Spieler konnte nicht rausgeworfen werden',
-    kickedTitle: 'Aus dem Raum geworfen',
-    kickedByHostMessage: '{{hostName}} hat dich aus dem Raum geworfen.',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -2318,9 +2256,7 @@ const de: Translations = {
     invalidCodeTitle: 'Ungültiger Code',
     alreadyInDifferentRoom: 'Du bist bereits in Raum {{code}}. Verlasse ihn zuerst, um einem anderen Raum beizutreten.',
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
-    leaveAndJoin: 'Verlassen & Beitreten',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
-    kickedFromRoom: 'Du wurdest aus diesem privaten Raum gekickt und kannst nicht wieder beitreten.',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
     askFriendForCode: 'Frage deinen Freund nach dem Raumcode und gib ihn hier ein, um seinem Spiel beizutreten',
