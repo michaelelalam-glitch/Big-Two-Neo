@@ -32,7 +32,9 @@ interface GameSettingsModalProps {
   onToggleMic?: () => Promise<void>;
 }
 
-export default function GameSettingsModal({
+// Task #628: React.memo — bail out of re-renders driven by GameContext changes
+// when modal is closed and props are reference-equal.
+function GameSettingsModalComponent({
   visible,
   onClose,
   onLeaveGame,
@@ -513,6 +515,8 @@ export default function GameSettingsModal({
     </Modal>
   );
 }
+
+export default React.memo(GameSettingsModalComponent);
 
 const styles = StyleSheet.create({
   overlay: {

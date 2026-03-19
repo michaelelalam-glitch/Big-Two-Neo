@@ -61,7 +61,9 @@ const ANIMATION_DURATION = 250;
 // Component
 // ---------------------------------------------------------------------------
 
-export function ChatDrawer({
+// Task #628: React.memo — bail out of re-renders when messages/open-state
+// haven't changed (e.g. timer ticks, card selection, scoreboard updates).
+function ChatDrawerComponent({
   messages,
   sendMessage,
   isCooldown,
@@ -320,6 +322,8 @@ export function ChatDrawer({
     </Animated.View>
   );
 }
+
+export const ChatDrawer = React.memo(ChatDrawerComponent);
 
 // ---------------------------------------------------------------------------
 // Styles
