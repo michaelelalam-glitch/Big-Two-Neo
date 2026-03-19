@@ -3,7 +3,10 @@ import { View, StyleSheet } from 'react-native';
 import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { Card } from '../../game/types';
-import { PlayerInfo, CenterPlayArea, AutoPassTimer } from './index';
+// Direct imports avoid the index.ts ↔ GameLayout.tsx require cycle
+import PlayerInfo from './PlayerInfo';
+import CenterPlayArea from './CenterPlayArea';
+import AutoPassTimer from './AutoPassTimer';
 
 interface GameLayoutProps {
   /** Array of 4 players in display order [user, top, left, right] */
