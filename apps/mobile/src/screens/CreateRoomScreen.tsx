@@ -66,7 +66,7 @@ export default function CreateRoomScreen() {
           (lastSeenAt == null || Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS);
 
         if (roomStatus === 'finished' || roomStatus === 'ended' || isStaleWaiting) {
-          roomLogger.info('🧹 [CreateRoom] Auto-cleaning up finished room:', existingCode);
+          roomLogger.info('🧹 [CreateRoom] Auto-cleaning up stale/finished room:', existingCode);
           const { error: cleanupError } = await supabase
             .from('room_players')
             .delete()

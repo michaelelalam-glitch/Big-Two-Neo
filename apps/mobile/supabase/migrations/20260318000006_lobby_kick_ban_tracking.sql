@@ -84,20 +84,22 @@ BEGIN
     RAISE EXCEPTION 'lobby_kick_player: cannot kick the host';
   END IF;
 
-  -- Remove the kicked player's row.
-  DELETE FROM room_players
-   WHERE room_id = p_room_id
-     AND user_id = p_kicked_user_id;
-
-  -- For private rooms (not matchmaking, not public): record the kicked user in
-  -- banned_user_ids so join_room_atomic can block re-entry.
-  -- Casual and ranked rooms allow free re-entry; only private rooms ban.
+  -- For private rooms (not matchmaking, not public): record the ban BEFORE
+  -- removing the room_players row so there is no race window where
+  -- join_room_atomic could squeeze in between the DELETE and the UPDATE.
+  --
+  -- The rooms row is locked with SELECT … FOR UPDATE first so that concurrent
+  -- kicks (e.g. host rapidly kicking two players) cannot produce lost updates:
+  -- without the lock both transactions would read the same old banned_user_ids
+  -- value, compute independent DISTINCT/UNNEST results, and the later
+  -- COMMIT would silently overwrite the earlier one's addition.
+  --
+  -- Casual and ranked (matchmaking) rooms allow free re-entry; only private
+  -- rooms ban.
   IF NOT v_is_matchmaking AND NOT v_is_public THEN
-    -- Use DISTINCT UNNEST to rebuild the array as a set, guaranteeing
-    -- uniqueness even under concurrent kicks of the same user (the predicate-
-    -- guarded array_append approach was not concurrency-safe: two concurrent
-    -- calls could both read the old array, pass the NOT ANY(...) guard, and
-    -- both append the same UUID).
+    -- Acquire a row-level lock on the rooms record for this transaction.
+    PERFORM id FROM rooms WHERE id = p_room_id FOR UPDATE;
+
     UPDATE rooms
        SET banned_user_ids = ARRAY(
              SELECT DISTINCT UNNEST(
@@ -106,6 +108,12 @@ BEGIN
            )
      WHERE id = p_room_id;
   END IF;
+
+  -- Remove the kicked player's row (done AFTER the ban is recorded so there
+  -- is no gap between eviction and the re-entry guard being in place).
+  DELETE FROM room_players
+   WHERE room_id = p_room_id
+     AND user_id = p_kicked_user_id;
 END;
 $$;
 

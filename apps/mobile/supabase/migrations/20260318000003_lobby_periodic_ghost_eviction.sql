@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: lobby_evict_ghosts RPC definition
+-- Migration: lobby_periodic_ghost_eviction
 -- Date: March 18, 2026
 -- Purpose:
 --   Defines lobby_evict_ghosts(p_room_id) — callable RPC that evicts stale
