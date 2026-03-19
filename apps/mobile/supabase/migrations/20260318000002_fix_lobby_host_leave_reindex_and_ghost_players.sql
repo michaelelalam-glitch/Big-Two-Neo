@@ -399,7 +399,7 @@ BEGIN
     SELECT 1
       FROM rooms
      WHERE id            = v_room_id
-       AND is_matchmaking = FALSE
+       AND COALESCE(is_matchmaking, FALSE) = FALSE
        AND (is_public IS NULL OR is_public = FALSE)
        AND p_user_id     = ANY(COALESCE(banned_user_ids, '{}'))
   ) THEN

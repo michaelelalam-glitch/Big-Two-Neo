@@ -38,7 +38,7 @@ BEGIN
   END IF;
 
   -- Validate: room must be in waiting state.
-  SELECT status, is_matchmaking, COALESCE(is_public, FALSE)
+  SELECT status, COALESCE(is_matchmaking, FALSE), COALESCE(is_public, FALSE)
     INTO v_room_status, v_is_matchmaking, v_is_public
     FROM rooms
    WHERE id = p_room_id;
