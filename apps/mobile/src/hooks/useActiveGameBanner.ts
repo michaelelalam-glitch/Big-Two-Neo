@@ -26,7 +26,7 @@ import type { ActiveGameInfo } from '../components/home/ActiveGameBanner';
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 // Single source of truth for the AsyncStorage key.
-const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
+export const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
 
 export interface UseActiveGameBannerResult {
   currentRoom: string | null;
@@ -181,13 +181,20 @@ export function useActiveGameBanner(
       } else {
         // Check if this player was replaced by a bot.
         try {
-          const { data: replacedData } = await supabase
+          const { data: replacedData, error: replacedDataError } = await supabase
             .from('room_players')
             .select('room_id, rooms!inner(code, status)')
             .eq('human_user_id', user.id)
             .eq('connection_status', 'replaced_by_bot')
             .in('rooms.status', ['playing'])
             .maybeSingle();
+
+          if (replacedDataError) {
+            // Transient network error or RLS issue — don't treat as "room closed".
+            // Leave banner state unchanged so the user isn't incorrectly kicked out.
+            roomLogger.error('Error checking replaced_by_bot status:', replacedDataError.message);
+            return;
+          }
 
           const rd = replacedData as { room_id: string; rooms: { code: string; status: string } } | null;
           if (rd?.rooms?.code) {
@@ -369,6 +376,16 @@ export function useActiveGameBanner(
                 body: { room_id: membership.room_id },
               });
               if (invokeError) throw invokeError;
+              // Delete the room_players row so CreateRoom/JoinRoom don't find a stale playing-room
+              // entry after the user explicitly left. mark-disconnected already notified the server.
+              const { error: deleteAfterMarkErr } = await supabase
+                .from('room_players')
+                .delete()
+                .eq('room_id', membership.room_id)
+                .eq('user_id', user.id);
+              if (deleteAfterMarkErr) {
+                roomLogger.warn('[handleLeaveCurrentRoom] Non-fatal: could not delete room_players after mark-disconnected:', deleteAfterMarkErr.message);
+              }
             } else {
               const { data: plainRows } = await supabase
                 .from('room_players')
@@ -507,11 +524,50 @@ export function useActiveGameBanner(
     }
   }, [handleLeaveCurrentRoom, canRejoinAfterExpiry, user]);
 
-  const handleReplaceBotAndRejoin = useCallback((roomCode: string) => {
-    roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
-    setDisconnectTimestamp(null);
-    setCanRejoinAfterExpiry(null);
-    navigation.replace('Game', { roomCode });
+  const handleReplaceBotAndRejoin = useCallback((roomCode: string): void => {
+    // Guard: verify the room is still open before navigating.
+    // In a 1-human + 3-bot room the server closes the room (status='finished')
+    // instead of creating a replaced_by_bot row, so there is a window where the
+    // countdown has expired and the button is visible but the room is already
+    // closed — navigating without this check causes a native crash.
+    void (async () => {
+      try {
+        const { data: roomCheck, error: roomCheckError } = await supabase
+          .from('rooms')
+          .select('status')
+          .eq('code', roomCode)
+          .maybeSingle();
+
+        if (roomCheckError) {
+          roomLogger.error(`[handleReplaceBotAndRejoin] DB error checking room ${roomCode}:`, roomCheckError.message);
+          // Abort navigation on query error — proceeding optimistically risks entering a
+          // closed/finished multiplayer room when the DB failure masks its actual status.
+          showError(i18n.t('home.roomCheckError'));
+          return;
+        } else if (!roomCheck || roomCheck.status === 'finished' || roomCheck.status === 'ended') {
+          roomLogger.info(`🚫 [handleReplaceBotAndRejoin] Room ${roomCode} is closed (status=${roomCheck?.status ?? 'not found'}) — aborting navigation`);
+          showError(i18n.t('home.roomClosedError'));
+          // Clear banner so the stale entry is removed immediately
+          currentRoomIdRef.current = null;
+          setCurrentRoom(null);
+          setCurrentRoomStatus(undefined);
+          setDisconnectTimestamp(null);
+          setCanRejoinAfterExpiry(null);
+          return;
+        }
+      } catch {
+        // Network error — abort navigation to avoid entering a potentially closed room.
+        // Proceeding optimistically here undermines the crash-prevention goal of this guard.
+        roomLogger.error(`[handleReplaceBotAndRejoin] Network error checking room ${roomCode} — aborting navigation`);
+        showError(i18n.t('home.roomCheckError'));
+        return;
+      }
+
+      roomLogger.info(`🔄 Replacing bot and rejoining game: ${roomCode}`);
+      setDisconnectTimestamp(null);
+      setCanRejoinAfterExpiry(null);
+      navigation.replace('Game', { roomCode });
+    })();
   }, [navigation]);
 
   const checkGameExclusivity = useCallback(async (targetType: 'online' | 'offline'): Promise<boolean> => {

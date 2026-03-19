@@ -9,8 +9,8 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
+import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { tryCopyTextWithShareFallback } from '../utils/clipboard';
-import { showError } from '../utils';
 import { roomLogger } from '../utils/logger';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -18,11 +18,11 @@ type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'
 
 interface Player {
   id: string;
-  user_id: string;
+  user_id: string | null; // null for bot rows
   player_index: number;
   is_ready: boolean;
   is_bot: boolean;
-  is_host: boolean;
+  is_host: boolean | null; // DB column has no NOT NULL constraint
   profiles?: {
     username?: string;
   };
@@ -62,6 +62,8 @@ export default function LobbyScreen() {
   const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
+  const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
+  const claimHostInFlightRef = useRef(false); // Prevent concurrent lobby_claim_host RPC calls
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
@@ -112,7 +114,61 @@ export default function LobbyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- roomId is the correct trigger; loadPlayersRef is a stable ref
   }, [roomId]);
 
-  const getRoomId = async () => {
+  // Lobby heartbeat — refreshes last_seen_at every 15 s so the server can distinguish
+  // active players from ghosts (those who crashed/backgrounded without leaving).
+  // Also triggers ghost eviction: lobby_evict_ghosts removes players with
+  // last_seen_at > 60 s and the existing check_host_departure trigger promotes
+  // the next human when a ghost host is evicted.
+  useEffect(() => {
+    if (!roomId || !user?.id) return;
+
+    // Guard: skip a tick if the previous heartbeat+evict cycle is still running.
+    // Prevents overlapping in-flight RPCs on slow networks. (Copilot r2953630203)
+    let inFlight = false;
+
+    const runHeartbeatAndEvict = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        // 1. Update this player's heartbeat
+        const { error: heartbeatErr } = await supabase.rpc('update_player_heartbeat', {
+          p_room_id: roomId,
+          p_user_id: user.id,
+        });
+        if (heartbeatErr) {
+          roomLogger.warn('[LobbyScreen] Heartbeat failed:', heartbeatErr.message);
+        }
+
+        // 2. Evict ghost players from this lobby (stale > 60 s)
+        const { data: evicted, error: evictErr } = await supabase.rpc('lobby_evict_ghosts', {
+          p_room_id: roomId,
+        });
+        if (evictErr) {
+          roomLogger.warn('[LobbyScreen] Ghost eviction failed:', evictErr.message);
+        } else if (evicted && evicted > 0) {
+          roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
+        }
+      } catch (err) {
+        roomLogger.warn('[LobbyScreen] Heartbeat/eviction request rejected:', extractErrorMessage(err));
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    // Run immediately on mount so ghosts are evicted right away (not after 15 s).
+    runHeartbeatAndEvict();
+    const interval = setInterval(runHeartbeatAndEvict, 15_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, user?.id]);
+
+  /**
+   * Fetches the room id (and side-loads room metadata into state).
+   * @param options.suppressNavigation – when true, skip all navigation side-effects
+   *   so callers that only need the id (handleLeaveRoom, handleToggleReady,
+   *   handleStartWithBots) do not accidentally redirect to Game/Home.
+   */
+  const getRoomId = async (options?: { suppressNavigation?: boolean }) => {
     const { data, error } = await supabase
       .from('rooms')
       .select('id, status, is_matchmaking, is_public, ranked_mode, host_id')
@@ -123,16 +179,24 @@ export default function LobbyScreen() {
       roomLogger.info('[LobbyScreen] Room not found, navigating to Home (likely cleaned up)');
       // Silently navigate home instead of showing error
       // This happens when user leaves game and cleanup removes them from room
-      if (!isLeavingRef.current) {
+      if (!options?.suppressNavigation && !isLeavingRef.current) {
         isLeavingRef.current = true;
         navigation.replace('Home');
       }
       return null;
     }
 
-    // Track whether room is already in progress (rejoin scenario)
+    // Room already in progress — navigate directly to Game (no need to idle in lobby with Rejoin button).
+    // When suppressNavigation is true (callers only need the id), return the id so they can proceed
+    // rather than returning null which would cause them to bail out or navigate Home unexpectedly.
     if (data.status === 'playing') {
-      setIsGameInProgress(true);
+      if (!options?.suppressNavigation && !isLeavingRef.current) {
+        isLeavingRef.current = true;
+        navigation.replace('Game', { roomCode });
+        return null;
+      }
+      // suppressNavigation=true: return id so the caller can use it
+      return data.id;
     }
 
     // Handle ended/finished rooms: reset to 'waiting' for Play Again, otherwise send home.
@@ -148,7 +212,7 @@ export default function LobbyScreen() {
             .eq('code', roomCode);
           if (resetError) {
             roomLogger.error('[LobbyScreen] Failed to reset ended room for Play Again:', resetError.message);
-            if (!isLeavingRef.current) {
+            if (!options?.suppressNavigation && !isLeavingRef.current) {
               isLeavingRef.current = true;
               navigation.replace('Home');
             }
@@ -164,7 +228,7 @@ export default function LobbyScreen() {
         }
       } else {
         roomLogger.info('[LobbyScreen] Room ended and not a play-again — navigating Home');
-        if (!isLeavingRef.current) {
+        if (!options?.suppressNavigation && !isLeavingRef.current) {
           isLeavingRef.current = true;
           navigation.replace('Home');
         }
@@ -246,37 +310,46 @@ export default function LobbyScreen() {
       }));
       
       // ── Host reassignment fallback ──
-      // If no player in the room has is_host = true (e.g. original host left),
-      // promote the first human player (lowest player_index) as host.
-      // This is a client-side fallback — the SQL migration handles it server-side.
+      // lobby_host_leave and the check_host_departure trigger handle host
+      // transfer atomically, so this block fires only in exceptional cases
+      // (e.g. the host process crashed before calling lobby_host_leave).
+      //
+      // We intentionally avoid mutating the local player array here because
+      // that would set currentUserPlayer.is_host = true below, enabling
+      // host-only UI controls (start / kick) that will fail server-side;
+      // the DB still shows no host until the RPC completes.
+      //
+      // Instead, call lobby_claim_host — a SECURITY DEFINER RPC that checks
+      // last_seen_at to distinguish live vs. ghost hosts and promotes only the
+      // first-human if eligible.  The Realtime subscription on room_players
+      // will fire loadPlayers() once the DB reflects the new is_host=true row,
+      // at which point the host-only UI appears with a valid server state.
       const hasActiveHost = players.some((p: Player) => p.is_host === true);
-      if (!hasActiveHost && players.length > 0 && user?.id) {
+      if (!hasActiveHost && players.length > 0 && user?.id && !claimHostInFlightRef.current) {
         const humanPlayers = players.filter((p: Player) => !p.is_bot && p.user_id);
         const firstHuman = humanPlayers.sort((a: Player, b: Player) => a.player_index - b.player_index)[0];
         if (firstHuman && firstHuman.user_id === user.id) {
-          roomLogger.info('[LobbyScreen] 👑 No active host found — promoting current user as host');
-          // Update server: room_players.is_host and rooms.host_id
-          const { error: playerUpdateError } = await supabase
-            .from('room_players')
-            .update({ is_host: true })
-            .eq('room_id', currentRoomId)
-            .eq('user_id', user.id);
-          if (playerUpdateError) {
-            roomLogger.error('[LobbyScreen] ❌ Failed to update room_players.is_host:', playerUpdateError.message);
-          }
-          const { error: roomUpdateError } = await supabase
-            .from('rooms')
-            .update({ host_id: user.id })
-            .eq('id', currentRoomId);
-          if (roomUpdateError) {
-            roomLogger.error('[LobbyScreen] ❌ Failed to update rooms.host_id:', roomUpdateError.message);
-          }
-          if (!playerUpdateError && !roomUpdateError) {
-            // Update local state only on success
-            firstHuman.is_host = true;
-          } else {
-            roomLogger.warn('[LobbyScreen] ⚠️ Host reassignment partially failed — local state not updated');
-          }
+          roomLogger.warn('[LobbyScreen] ⚠️ No active host found — this client is first human, calling lobby_claim_host');
+          claimHostInFlightRef.current = true;
+          // Wrap in async IIFE with try/finally because supabase.rpc() returns
+          // a PromiseLike that may not implement .finally(), causing a TypeError.
+          (async () => {
+            try {
+              const { data: claimData, error: claimErr } = await supabase
+                .rpc('lobby_claim_host', { p_room_id: currentRoomId });
+              if (claimErr) {
+                roomLogger.error('[LobbyScreen] lobby_claim_host failed:', claimErr.message);
+              } else {
+                roomLogger.info('[LobbyScreen] lobby_claim_host result:', claimData);
+              }
+            } catch (err) {
+              roomLogger.error('[LobbyScreen] lobby_claim_host rejected:', extractErrorMessage(err));
+            } finally {
+              claimHostInFlightRef.current = false;
+            }
+          })();
+          // Host UI will update via the room_players Realtime subscription once
+          // the DB confirms is_host = true — no optimistic local mutation needed.
         }
       }
 
@@ -300,6 +373,25 @@ export default function LobbyScreen() {
           all_user_ids: players.map(p => p.user_id),
         });
         setIsHost(false);
+
+        // Kicked: if not in a play-again flow the current user has been removed
+        // from the room — show them who kicked them then navigate home.
+        // Guard: user?.id must be set — when AuthContext is still loading the
+        // find() above returns undefined for every update, which would fire
+        // this alert incorrectly for every player-list change.
+        if (!playAgain && !isLeavingRef.current && user?.id) {
+          const kickerHost = players.find(p => p.is_host);
+          const hostName = kickerHost?.profiles?.username || 'Host';
+          roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
+          isLeavingRef.current = true;
+          Alert.alert(
+            i18n.t('lobby.kickedTitle'),
+            i18n.t('lobby.kickedByHostMessage', { hostName }),
+            [{ text: i18n.t('common.ok'), onPress: () => navigation.replace('Home') }],
+            { cancelable: false }
+          );
+          return;
+        }
 
         // Play Again: re-join the reset room atomically. join_room_atomic handles
         // player_index assignment and host promotion so whichever player arrives
@@ -398,7 +490,7 @@ export default function LobbyScreen() {
     
     try {
       setIsTogglingReady(true);
-      const currentRoomId = roomId || await getRoomId();
+      const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
       if (!currentRoomId) return;
       
       const { error } = await supabase
@@ -418,6 +510,9 @@ export default function LobbyScreen() {
   };
 
   const handleCopyCode = async () => {
+    // tryCopyTextWithShareFallback: tries expo-clipboard, falls back to the
+    // native Share sheet (which includes a built-in Copy option) if clipboard
+    // is unavailable. This matches the existing pattern used in GameSettingsModal.
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
       Alert.alert(
@@ -425,13 +520,12 @@ export default function LobbyScreen() {
         i18n.t('lobby.copiedMessage', { roomCode })
       );
     } else if (result === 'failed') {
-      // Both clipboard and Share unavailable — last resort: show room code
       Alert.alert(
         i18n.t('lobby.copyFailedTitle'),
         i18n.t('lobby.copyFailedMessage', { roomCode })
       );
     }
-    // 'shared': Share sheet was presented — no additional alert needed
+    // 'shared': Share sheet was presented — no additional alert needed.
   };
 
   const handleShareCode = async () => {
@@ -483,7 +577,7 @@ export default function LobbyScreen() {
     try {
       isStartingRef.current = true;
       setIsStarting(true);
-      const currentRoomId = roomId || await getRoomId();
+      const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
       if (!currentRoomId) return;
 
       // Get current user's room_player data
@@ -603,45 +697,107 @@ export default function LobbyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartWithBots is not memoised; isStartingRef is a stable ref
   }, [humanPlayerCount, allNonHostHumansReady, isHost, isStarting, isGameInProgress]);
 
-  const handleLeaveRoom = async () => {
-    if (isLeavingRef.current || isLeaving) return;
-    
-    try {
-      // Set flag to prevent duplicate navigation
-      isLeavingRef.current = true;
-      setIsLeavingState(true);
-      
-      const currentRoomId = roomId || await getRoomId();
-      if (!currentRoomId) {
-        navigation.replace('Home');
-        return;
-      }
-      
-      if (isHost) {
-        // Delete the room if host leaves
-        const { error } = await supabase
-          .from('rooms')
-          .delete()
-          .eq('id', currentRoomId);
-        
-        if (error) throw error;
-      } else {
-        // Remove player from room
-        const { error } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('room_id', currentRoomId)
-          .eq('user_id', user?.id);
-        
-        if (error) throw error;
-      }
-      
-      navigation.replace('Home');
-    } catch (error: unknown) {
-      roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
-      isLeavingRef.current = false; // Reset flag on error
-      showError(i18n.t('lobby.leaveRoomError'));
-    }
+  const handleLeaveRoom = () => {
+    if (isLeavingRef.current || isLeaving || isLeaveConfirmOpenRef.current) return;
+    // Auth must be loaded before opening the dialog — the RPC requires a valid
+    // UUID and onConfirm would silently no-op without it.
+    if (!user?.id) return;
+
+    isLeaveConfirmOpenRef.current = true;
+    showConfirm({
+      title: i18n.t('lobby.confirmLeaveTitle'),
+      message: isHost
+        ? i18n.t('lobby.confirmLeaveHost')
+        : isReady
+          ? i18n.t('lobby.confirmLeaveReady')
+          : i18n.t('lobby.confirmLeaveMessage'),
+      confirmText: i18n.t('lobby.confirmLeaveYes'),
+      cancelText: i18n.t('lobby.confirmLeaveNo'),
+      destructive: true,
+      cancelable: false,
+      onConfirm: async () => {
+        isLeaveConfirmOpenRef.current = false;
+        if (!user) return; // auth not yet loaded — UUID arg would be undefined
+        if (isLeavingRef.current) return;
+        try {
+          isLeavingRef.current = true;
+          setIsLeavingState(true);
+
+          const currentRoomId = roomId || await getRoomId({ suppressNavigation: true });
+          if (!currentRoomId) {
+            navigation.replace('Home');
+            return;
+          }
+
+          if (isHost) {
+            // Atomically transfer host to the next human player and remove the
+            // leaving host. lobby_host_leave is SECURITY DEFINER so it can
+            // update other players' rows and rooms.host_id — direct writes from
+            // the client are blocked by RLS.
+            const { error: leaveErr } = await supabase.rpc('lobby_host_leave', {
+              p_room_id: currentRoomId,
+              p_leaving_user_id: user.id,
+            });
+            if (leaveErr) throw leaveErr;
+          } else {
+            const { error } = await supabase
+              .from('room_players')
+              .delete()
+              .eq('room_id', currentRoomId)
+              .eq('user_id', user.id);
+            if (error) throw error;
+          }
+
+          navigation.replace('Home');
+        } catch (error: unknown) {
+          roomLogger.error('Error leaving room:', error instanceof Error ? error.message : String(error));
+          isLeavingRef.current = false;
+          setIsLeavingState(false);
+          showError(i18n.t('lobby.leaveRoomError'));
+        }
+      },
+      onCancel: () => {
+        isLeaveConfirmOpenRef.current = false;
+      },
+    });
+  };
+
+  /**
+   * Kick a human player from the lobby.
+   * Only the host can kick, and only in private rooms (never casual or ranked).
+   */
+  const handleKickPlayer = (playerToKick: Player) => {
+    if (!isHost || !roomType.isPrivate || !roomId) return;
+    if (!user) return; // auth not yet loaded — UUID arg would be undefined
+    // Bot rows have user_id = null — cannot kick via UUID-typed RPC arg
+    if (!playerToKick.user_id) return;
+
+    const displayName = playerToKick.profiles?.username || 'Player';
+    showConfirm({
+      title: i18n.t('lobby.kickPlayerTitle'),
+      message: i18n.t('lobby.kickPlayerMessage', { name: displayName }),
+      confirmText: i18n.t('lobby.kickPlayerConfirm'),
+      cancelText: i18n.t('common.cancel'),
+      destructive: true,
+      cancelable: false,
+      onConfirm: async () => {
+        try {
+          // lobby_kick_player is SECURITY DEFINER — direct DELETE from the client
+          // is blocked by the "Players can leave rooms" RLS policy which only
+          // allows a user to remove their OWN row.
+          const { error } = await supabase.rpc('lobby_kick_player', {
+            p_room_id: roomId,
+            p_kicker_user_id: user.id,
+            p_kicked_user_id: playerToKick.user_id,
+          });
+          if (error) throw error;
+          // Subscription will refresh the player list automatically
+        } catch (error: unknown) {
+          roomLogger.error('Error kicking player:', error instanceof Error ? error.message : String(error));
+          showError(i18n.t('lobby.kickPlayerError'));
+        }
+      },
+    });
   };
 
   const renderPlayer = ({ item, index: _index }: { item: Player | null; index: number }) => {
@@ -669,11 +825,22 @@ export default function LobbyScreen() {
           <Text style={styles.playerName}>{displayName}</Text>
           {isCurrentUser && <Text style={styles.youLabel}>({i18n.t('lobby.you')})</Text>}
         </View>
-        {item.is_ready && (
-          <View style={styles.readyBadge}>
-            <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
-          </View>
-        )}
+        {/* Right-side badges: ready status + host kick button (private rooms only) */}
+        <View style={styles.playerCardRight}>
+          {item.is_ready && (
+            <View style={styles.readyBadge}>
+              <Text style={styles.readyText}>✓ {i18n.t('lobby.ready')}</Text>
+            </View>
+          )}
+          {isHost && roomType.isPrivate && !isCurrentUser && !item.is_bot && item.is_host !== true && (
+            <TouchableOpacity
+              style={styles.kickButton}
+              onPress={() => handleKickPlayer(item)}
+            >
+              <Text style={styles.kickButtonText}>{i18n.t('lobby.kickPlayer')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -1059,6 +1226,22 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
+  },
+  playerCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  kickButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  kickButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
   },
   readyButton: {
     backgroundColor: '#3B82F6',

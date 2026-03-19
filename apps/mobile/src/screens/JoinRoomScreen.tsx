@@ -35,9 +35,10 @@ export default function JoinRoomScreen() {
     setIsJoining(true);
     try {
       // Check if user is already in a room
+      // Select status so we can gate lobby_host_leave (only valid for 'waiting' rooms)
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, rooms!inner(code)')
+        .select('room_id, is_host, rooms!inner(code, status)')
         .eq('user_id', user.id)
         .single();
 
@@ -48,18 +49,56 @@ export default function JoinRoomScreen() {
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
         const existingCode = roomPlayer.rooms.code;
+        const existingStatus = roomPlayer.rooms.status;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
           // Already in this room, just navigate
           navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
           return;
+        } else if (existingStatus === 'playing') {
+          // User is in an active game — lobby_host_leave only accepts 'waiting' rooms.
+          // Navigate them to their current game instead of showing a leave dialog that
+          // would always fail at the RPC level.
+          navigation.replace('Lobby', { roomCode: existingCode });
+          return;
         } else {
-          // In a different room
+          // In a different waiting room — let the user leave and join the requested room, or go back
           showConfirm({
             title: i18n.t('room.alreadyInRoom'),
             message: i18n.t('room.alreadyInDifferentRoom', { code: existingCode }),
-            confirmText: i18n.t('room.goToCurrentRoom'),
-            onConfirm: () => navigation.replace('Lobby', { roomCode: existingCode })
+            confirmText: i18n.t('room.leaveAndJoin'),
+            cancelText: i18n.t('room.goToCurrentRoom'),
+            destructive: true,
+            onConfirm: async () => {
+              try {
+                // Check if the user is the host of their current room.
+                // Direct DELETE is blocked by RLS for other players' rows, and
+                // leaving without host-transfer breaks the room. Use the
+                // SECURITY DEFINER RPC when the user is the host.
+                // is_host is fetched in the initial existingRoomPlayer query to
+                // avoid an extra round-trip (Copilot PR-153 review r2953230041).
+                if (roomPlayer.is_host) {
+                  const { error: leaveError } = await supabase.rpc('lobby_host_leave', {
+                    p_room_id: roomPlayer.room_id,
+                    p_leaving_user_id: user.id,
+                  });
+                  if (leaveError) throw leaveError;
+                } else {
+                  const { error: leaveError } = await supabase
+                    .from('room_players')
+                    .delete()
+                    .eq('room_id', roomPlayer.room_id)
+                    .eq('user_id', user.id);
+                  if (leaveError) throw leaveError;
+                }
+                // Retry the join now that the user has left the previous room
+                await handleJoinRoom();
+              } catch (err: unknown) {
+                roomLogger.error('Error leaving room before join:', err instanceof Error ? err.message : String(err));
+                showError(i18n.t('room.leaveRoomError'));
+              }
+            },
+            onCancel: () => navigation.replace('Lobby', { roomCode: existingCode }),
           });
           return;
         }
@@ -93,6 +132,9 @@ export default function JoinRoomScreen() {
           throw new Error(i18n.t('room.roomFull'));
         } else if (joinError.message?.includes('already in another room')) {
           showError(i18n.t('room.alreadyInAnotherRoom'));
+          return;
+        } else if (joinError.message?.includes('kicked from this private room')) {
+          showError(i18n.t('room.kickedFromRoom'));
           return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
