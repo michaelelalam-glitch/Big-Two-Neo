@@ -32,7 +32,12 @@ export function useMultiplayerPlayHistory({
     if (!isMultiplayerGame || !multiplayerGameState) return;
 
     const playHistoryArray = multiplayerGameState.play_history;
-    if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) return;
+    if (!Array.isArray(playHistoryArray) || playHistoryArray.length === 0) {
+      // Reset the count when the array is cleared (e.g. between games) so that
+      // plays from the next game are not permanently skipped.
+      lastSyncedPlayCountRef.current = 0;
+      return;
+    }
 
     // Guard: skip the expensive sync when no new plays have arrived.
     // addPlayHistory is idempotent for existing matches but still creates a
