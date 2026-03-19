@@ -23,7 +23,8 @@ interface HelperButtonsProps {
   disabled?: boolean;
 }
 
-export const HelperButtons: React.FC<HelperButtonsProps> = ({
+// Task #628: React.memo — bail out when sort/hint callbacks and disabled flag haven't changed.
+const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
   onSort,
   onSmartSort,
   onHint,
@@ -147,3 +148,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', // White text
   },
 });
+
+export const HelperButtons = React.memo(HelperButtonsComponent);

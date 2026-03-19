@@ -54,7 +54,9 @@ interface GameLayoutProps {
  * - Right player (position 3) on right side
  * - Bottom player (position 0) rendered by parent
  */
-export function GameLayout({
+// Task #628: React.memo prevents re-renders from GameView context updates when
+// player/table props for THIS layout haven't changed.
+function GameLayoutComponent({
   players,
   lastPlayedCards,
   lastPlayedBy,
@@ -194,3 +196,5 @@ const styles = StyleSheet.create({
     top: POSITIONING.sidePlayerTop,
   },
 });
+
+export const GameLayout = React.memo(GameLayoutComponent);

@@ -66,7 +66,7 @@
 | 11 | `#325` | Add E2E tests with Detox | 5–7 days *(Detox only — Jest/CI already done)* | 🟡 Medium |
 | 12 | `#327` | Add visual regression tests for card UI | 2 days | 🟢 Low |
 | 13 | `#273` | Write comprehensive tests (unit, integration, E2E) | ~0.5 day (coverage threshold) + Detox *(unit/component/CI already done)* | 🔴 High |
-| 14 | `#522` | Phase 3.6J: Rejoin testing (banner + state continuity) | 0.5 day | 🟡 Medium |
+| 14 | `#522` | ✅ Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026 | 0 days | ✅ Completed |
 
 ---
 
@@ -156,9 +156,11 @@
 
 ## 📋 Current Status Board
 
-### 🔵 IN PROGRESS (2 tasks)
+### 🔵 IN PROGRESS (1 task)
 - `#617` — Ratchet coverage thresholds +2% per sprint
-- `#628` — Fix GameScreen slow renders *(moved from todo → in_progress)*
+
+### 🔍 IN REVIEW (1 task)
+- `#628` — Fix GameScreen slow renders *(implementation complete — PR open for review)*
 
 ### 🟡 TODO — Ready to start (8 tasks)
 - `#616` — CI: Bundle size monitoring
@@ -184,4 +186,7 @@ All remaining tasks in tiers 4–10 plus the 9 duplicate/stale tasks above.
 `#616` `#643` `#645` `#646` `#647` `#648` `#652` `#650`
 
 ### Backlog (ordered)
-`#315` `#314` `#279` `#255` `#272` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253` `#280` `#276` `#325` `#327` `#273` `#522` `#328` `#329` `#329_dup`
+`#315` `#314` `#279` `#255` `#272` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253` `#280` `#276` `#325` `#327` `#273` `#328` `#329` `#329_dup`
+
+### ✅ COMPLETED (1 task)
+- `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026

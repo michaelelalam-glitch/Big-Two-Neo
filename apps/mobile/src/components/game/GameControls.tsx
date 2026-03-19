@@ -27,7 +27,9 @@ interface GameControlsProps {
  * Handles all game action controls: Play and Pass buttons with their logic
  * Extracted from GameScreen.tsx to reduce complexity (Task #425)
  */
-export function GameControls({
+// Task #628: React.memo prevents re-renders when action buttons aren't affected by
+// context changes unrelated to selection or turn state.
+function GameControlsComponent({
   gameManager: _gameManager,
   isPlayerActive,
   selectedCards,
@@ -216,3 +218,5 @@ const styles = StyleSheet.create({
     color: '#D1D5DB', // MATCH LANDSCAPE: Light gray text (was COLORS.gray.light)
   },
 });
+
+export const GameControls = React.memo(GameControlsComponent);

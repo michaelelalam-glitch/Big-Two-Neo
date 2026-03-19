@@ -13,7 +13,8 @@ interface CenterPlayAreaProps {
   comboDisplayText?: string; // Formatted display text: "Straight to 6", "Flush ♥ (A high)", etc.
 }
 
-export default function CenterPlayArea({
+// Task #628: React.memo — bail out when last-play props haven't changed.
+function CenterPlayAreaComponent({
   lastPlayed,
   lastPlayedBy,
   combinationType,
@@ -116,3 +117,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default React.memo(CenterPlayAreaComponent);

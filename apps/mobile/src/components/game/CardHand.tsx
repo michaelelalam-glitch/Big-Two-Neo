@@ -56,7 +56,8 @@ const initialDragState: DragState = {
   sharedTranslation: { x: 0, y: 0 },
 };
 
-export default function CardHand({
+// Task #628: React.memo — bail out when hand/selection/callbacks are reference-equal.
+function CardHandComponent({
   cards,
   onPlayCards,
   onPass,
@@ -522,3 +523,5 @@ const styles = StyleSheet.create({
     color: COLORS.gray.light,
   },
 });
+
+export default React.memo(CardHandComponent);

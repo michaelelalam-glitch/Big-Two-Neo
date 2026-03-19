@@ -102,7 +102,8 @@ function renderAvatarVideoContent({
   );
 }
 
-export default function PlayerInfo({
+// Task #628: React.memo — bail out when all props are reference-equal.
+function PlayerInfoComponent({
   name,
   cardCount,
   isActive,
@@ -371,3 +372,5 @@ const avatarStyles = StyleSheet.create({
     opacity: 0.6,
   },
 });
+
+export default React.memo(PlayerInfoComponent);

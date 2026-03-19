@@ -1,24 +1,29 @@
 /**
  * Auto-Pass Timer Component
- * 
- * UPDATED: December 29, 2025 - SERVER-AUTHORITATIVE SYNC
- * Displays a countdown timer using server-authoritative endTimestamp with clock-sync correction.
- * 
- * Architecture:
+ *
+ * UPDATED: Task #628 — eliminate 60fps rAF re-renders.
+ * ARCHITECTURE (post-task-628):
+ * - Ring rotation is driven by react-native-reanimated (UI thread, 0 JS re-renders)
+ * - Text/color only update when the displayed whole-second changes via setInterval(200ms)
+ *   → max ~50 JS re-renders for a 10s timer (down from ~600 rAF-driven re-renders)
+ * - Pulse animation continues to use Animated.loop + useNativeDriver:true (native thread)
+ *
+ * ORIGINAL ARCHITECTURE:
  * - Server creates timer with end_timestamp = server_time + 10000ms
  * - Client measures clock offset: offset = server_time - local_time
  * - Client calculates remaining = end_timestamp - (local_now + offset)
- * - Uses requestAnimationFrame for smooth 60fps countdown
- * - NO setInterval - pure calculation from server endTimestamp
- * 
- * This ensures ALL 4 devices show IDENTICAL countdown (within 100ms) regardless of:
- * - Network latency (50-500ms)
- * - Clock drift between devices
- * - Late joins or reconnections
+ * - All 4 devices show IDENTICAL countdown (within 100ms) regardless of latency/drift
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import ReanimatedLib, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  cancelAnimation,
+  Easing,
+} from 'react-native-reanimated';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useClockSync } from '../../hooks/useClockSync';
 import { i18n } from '../../i18n';
@@ -30,134 +35,135 @@ interface AutoPassTimerProps {
   currentPlayerIndex: number; // Index of the current user
 }
 
-export default function AutoPassTimer({
+/** Compute remaining ms from server state + clock sync offset, without any state read. */
+function computeRemainingMs(
+  timerState: AutoPassTimerState,
+  offsetMs: number,
+  isSynced: boolean,
+  getCorrectedNow: () => number,
+): number {
+  const endTimestamp = timerState.end_timestamp;
+  if (typeof endTimestamp === 'number') {
+    const durationMs = timerState.duration_ms || 10000;
+    if (!isSynced) return durationMs; // hold at full until clock syncs (<300ms)
+    return Math.max(0, endTimestamp - getCorrectedNow());
+  }
+  // Fallback path (no end_timestamp): use started_at
+  const startedAt = new Date(timerState.started_at).getTime();
+  if (isNaN(startedAt)) return 0;
+  const durationMs = timerState.duration_ms || 10000;
+  return Math.max(0, durationMs - (Date.now() - startedAt));
+}
+
+function AutoPassTimerComponent({
   timerState,
   currentPlayerIndex: _currentPlayerIndex,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
-  const [currentTime, setCurrentTime] = useState(Date.now());
   // Throttle debug logs to once per whole-second transition.
-  // Component-scoped ref (not module-scoped) so multiple instances and test cases stay isolated.
   const lastLoggedSecondRef = useRef(-1);
-  
+
   // ⏱️ CRITICAL: Clock sync with server
   const { offsetMs, isSynced, getCorrectedNow } = useClockSync(timerState);
 
-  // Update current time every frame for smooth countdown
-  // CRITICAL FIX: Stop the rAF loop once remaining reaches 0 to prevent
-  // infinite log spam and unnecessary CPU usage when timer has expired.
+  // ── Stable clock-sync refs — keep latest values without triggering effects ──
+  // useEffect deps intentionally exclude offsetMs/isSynced/getCorrectedNow to avoid
+  // restarting the interval on every sync tick; refs give the interval access to the
+  // freshest values without re-scheduling.
+  const offsetMsRef = useRef(offsetMs);
+  const isSyncedRef = useRef(isSynced);
+  const getCorrectedNowRef = useRef(getCorrectedNow);
+  offsetMsRef.current = offsetMs;
+  isSyncedRef.current = isSynced;
+  getCorrectedNowRef.current = getCorrectedNow;
+
+  // ── Initial snapshot (computed once per timerState activation) ──────────────
+  const initialSnapshot = useMemo(() => {
+    if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
+    const remaining = computeRemainingMs(timerState, offsetMs, isSynced, getCorrectedNow);
+    const durationMs = timerState.duration_ms || 10000;
+    return {
+      remainingMs: remaining,
+      seconds: Math.ceil(remaining / 1000),
+      progress: remaining / durationMs,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
+
+  // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──
+  const progressAnim = useSharedValue(initialSnapshot.progress);
+
+  // Animated ring rotation style — computed entirely on the UI thread
+  const animatedRingStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-90 + 360 * (1 - progressAnim.value)}deg` }],
+  }));
+
+  // ── Schedule the ring animation whenever the timer activates / resets ───────
   useEffect(() => {
-    if (!timerState || !timerState.active) {
+    if (!timerState?.active) {
+      cancelAnimation(progressAnim);
+      progressAnim.value = 0;
       return;
     }
-
-    let animationFrameId: number;
-    let stopped = false;
-    const updateTime = () => {
-      if (stopped) return;
-      const now = Date.now();
-      // Check if timer has expired — if so, do one final update and stop the loop
-      const endTimestamp = timerState.end_timestamp;
-      if (typeof endTimestamp === 'number') {
-        const correctedNow = now + (offsetMs || 0);
-        if (correctedNow >= endTimestamp) {
-          setCurrentTime(now);
-          stopped = true;
-          return; // Don't schedule another frame
-        }
-      } else {
-        // Fallback path: stop when started_at + duration_ms has elapsed
-        const startedAt = new Date(timerState.started_at).getTime();
-        const durationMs = timerState.duration_ms || 10000;
-        if (!isNaN(startedAt) && now >= startedAt + durationMs) {
-          setCurrentTime(now);
-          stopped = true;
-          return; // Don't schedule another frame
-        }
-      }
-      setCurrentTime(now);
-      animationFrameId = requestAnimationFrame(updateTime);
-    };
-    
-    animationFrameId = requestAnimationFrame(updateTime);
-    
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(animationFrameId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- full timerState intentionally excluded: deps are the specific scalar fields that trigger rescheduling; including the whole object would restart the rAF loop on every render
-  }, [timerState?.active, timerState?.end_timestamp, offsetMs]);
-
-  // ⏰ CRITICAL: Calculate remaining time from server-authoritative endTimestamp
-  const calculateRemainingMs = (): number => {
-    if (!timerState) return 0;
-    
-    // NEW ARCHITECTURE: Use end_timestamp if available (server-authoritative)
-    const endTimestamp = timerState.end_timestamp;
-    if (typeof endTimestamp === 'number') {
-      const durationMs = timerState.duration_ms || 10000;
-
-      // ── Clock-sync guard (Task 618 Issue 1) ───────────────────────────────
-      // If the clock hasn't synced yet the offset is 0 and correctedNow equals
-      // localNow. For a device whose local clock is N seconds behind the server,
-      // remaining = end_timestamp - localNow ≈ durationMs + N.  Showing that
-      // wildly-inflated value would let the timer count from e.g. 37s → 10s and
-      // then trigger the auto-pass mechanism on the wrong cadence.
-      // Solution: clamp to durationMs until the clock sync arrives (< 300ms).
-      if (!isSynced) {
-        return durationMs;
-      }
-
-      // Use clock-corrected current time
-      const correctedNow = getCorrectedNow();
-      const remaining = Math.max(0, endTimestamp - correctedNow);
-      
-      // Debug: log once per whole-second transition (not every frame).
-      const currentSecond = Math.ceil(remaining / 1000);
-      if (remaining > 0 && currentSecond !== lastLoggedSecondRef.current) {
-        lastLoggedSecondRef.current = currentSecond;
-        gameLogger.debug('[AutoPassTimer] Server-authoritative calculation:', {
-          endTimestamp: new Date(endTimestamp).toISOString(),
-          correctedNow: new Date(correctedNow).toISOString(),
-          localNow: new Date(Date.now()).toISOString(),
-          offsetMs,
-          isSynced,
-          remaining,
-          seconds: currentSecond,
-        });
-      }
-      
-      return remaining;
-    }
-    
-    // FALLBACK: Old architecture (calculate from started_at)
-    const startedAt = new Date(timerState.started_at).getTime();
-    
-    // Guard against invalid dates
-    if (isNaN(startedAt)) {
-      return 0;
-    }
-    
-    const elapsed = currentTime - startedAt;
+    const remaining = computeRemainingMs(
+      timerState,
+      offsetMsRef.current,
+      isSyncedRef.current,
+      getCorrectedNowRef.current,
+    );
     const durationMs = timerState.duration_ms || 10000;
-    const remaining = Math.max(0, durationMs - elapsed);
-    
-    if (Math.floor(remaining / 1000) !== Math.floor((remaining - 16) / 1000)) {
-      gameLogger.debug('[AutoPassTimer] Fallback calculation (no endTimestamp):', {
-        startedAt: new Date(startedAt).toISOString(),
-        currentTime: new Date(currentTime).toISOString(),
-        elapsed,
-        durationMs,
-        remaining,
-        seconds: Math.ceil(remaining / 1000),
-      });
-    }
-    
-    return remaining;
-  };
+    const initial = remaining / durationMs;
+    progressAnim.value = initial;
+    progressAnim.value = withTiming(0, { duration: remaining, easing: Easing.linear });
+    return () => { cancelAnimation(progressAnim); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
 
-  const remainingMs = calculateRemainingMs();
-  const currentSeconds = Math.ceil(remainingMs / 1000);
+  // ── Throttled text/color state — updates once per second max (≤11 re-renders/timer) ──
+  const [displaySeconds, setDisplaySeconds] = useState(initialSnapshot.seconds);
+  const [timerColorState, setTimerColorState] = useState<string>(() => {
+    const s = initialSnapshot.seconds;
+    if (s <= 3) return COLORS.error;
+    if (s <= 5) return COLORS.warning;
+    return COLORS.secondary;
+  });
+
+  useEffect(() => {
+    if (!timerState?.active) return;
+
+    const tick = () => {
+      const remaining = computeRemainingMs(
+        timerState,
+        offsetMsRef.current,
+        isSyncedRef.current,
+        getCorrectedNowRef.current,
+      );
+      const secs = Math.ceil(remaining / 1000);
+
+      // Log once per whole-second transition
+      if (remaining > 0 && secs !== lastLoggedSecondRef.current) {
+        lastLoggedSecondRef.current = secs;
+        gameLogger.debug('[AutoPassTimer] Tick:', { remaining, secs });
+      }
+
+      setDisplaySeconds(secs);
+      setTimerColorState(secs <= 3 ? COLORS.error : secs <= 5 ? COLORS.warning : COLORS.secondary);
+    };
+
+    tick(); // immediate snapshot
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at]);
+
+  const remainingMs = useMemo(
+    () => {
+      if (!timerState?.active) return 0;
+      return computeRemainingMs(timerState, offsetMs, isSynced, getCorrectedNow);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [displaySeconds, timerState?.active],
+  );
 
   // Ref to hold the current pulse loop so we can stop it before starting a new one
   // or during cleanup. Without this, every re-render that triggers the effect would
@@ -177,7 +183,7 @@ export default function AutoPassTimer({
     }
 
     // Start pulse animation when timer is active and below 5 seconds
-    if (currentSeconds <= 5) {
+    if (displaySeconds <= 5) {
       const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -204,60 +210,41 @@ export default function AutoPassTimer({
         pulseLoopRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState intentionally excluded: only the derived values (currentSeconds, remainingMs, timerState?.active) are needed to gate the animation; full timerState object not required
-  }, [currentSeconds, timerState?.active, remainingMs, pulseAnim]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displaySeconds, timerState?.active, remainingMs, pulseAnim]);
 
   // Don't render if timer is not active or has expired
   if (!timerState || !timerState.active || remainingMs <= 0) {
     return null;
   }
-  
-  // Calculate progress percentage (1.0 = full, 0.0 = empty)
-  const progress = remainingMs / timerState.duration_ms;
 
-  // Determine color based on remaining time (use current calculation, not state)
-  const getTimerColor = (): string => {
-    if (currentSeconds <= 3) return COLORS.error; // Red (critical)
-    if (currentSeconds <= 5) return COLORS.warning; // Orange (warning)
-    return COLORS.secondary; // Blue (safe)
-  };
-
-  const timerColor = getTimerColor();
-  
   // Get combo type display text
   const comboText = timerState.triggering_play.combo_type;
 
-  // Memoize animated styles to prevent React freeze error
+  // Static styles — computed once per re-render (max ~11 per 10s timer with the new architecture)
   const animatedContainerStyle = { transform: [{ scale: pulseAnim }] };
   const progressBackgroundStyle = { borderColor: COLORS.gray.medium };
-  const progressRingStyle = {
-    borderColor: timerColor,
-    transform: [{ rotate: `${-90 + (360 * (1 - progress))}deg` }]
-  };
-  const timerNumberStyle = { color: timerColor };
+  const timerNumberStyle = { color: timerColorState };
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.container,
-        animatedContainerStyle
+        animatedContainerStyle,
       ]}
     >
       {/* Circular progress ring */}
       <View style={styles.timerCircle}>
         {/* Background circle */}
         <View style={[styles.progressBackground, progressBackgroundStyle]} />
-        
-        {/* Progress ring (rendered as partial circle) */}
-        <View style={[
-          styles.progressRing,
-          progressRingStyle
-        ]} />
-        
+
+        {/* Progress ring — rotation driven by Reanimated UI thread (0 JS re-renders) */}
+        <ReanimatedLib.View style={[styles.progressRing, { borderColor: timerColorState }, animatedRingStyle]} />
+
         {/* Center content */}
         <View style={styles.timerContent}>
           <Text style={[styles.timerNumber, timerNumberStyle]}>
-            {currentSeconds}
+            {displaySeconds}
           </Text>
           <Text style={styles.timerLabel}>sec</Text>
         </View>
@@ -269,12 +256,14 @@ export default function AutoPassTimer({
           {i18n.t('game.autoPassHighestPlay')} {comboText}
         </Text>
         <Text style={styles.messageText}>
-          {i18n.t('game.autoPassNoOneCanBeat').replace('{seconds}', currentSeconds.toString())}
+          {i18n.t('game.autoPassNoOneCanBeat').replace('{seconds}', displaySeconds.toString())}
         </Text>
       </View>
     </Animated.View>
   );
 }
+
+export default React.memo(AutoPassTimerComponent);
 
 const TIMER_SIZE = 80;
 const RING_WIDTH = 6;
