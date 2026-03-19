@@ -13,7 +13,7 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { GameEndProvider } from '../contexts/GameEndContext';
 import { ScoreboardProvider } from '../contexts/ScoreboardContext';
 import { GameErrorBoundary } from '../components/game/GameErrorBoundary';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import { LocalAIGame } from './LocalAIGame';
 import { MultiplayerGame } from './MultiplayerGame';
 
