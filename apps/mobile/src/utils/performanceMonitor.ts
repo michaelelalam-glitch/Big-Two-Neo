@@ -31,12 +31,19 @@ class PerformanceMonitor {
   private enabled = __DEV__;
   // Configurable logging - defaults to __DEV__ to maintain
   // debugging capability. Override with LOG_SLOW_RENDERS env var if needed.
-  private logSlowRenders = process.env.LOG_SLOW_RENDERS != null 
-    ? process.env.LOG_SLOW_RENDERS === 'true' 
-    : __DEV__;
+  private logSlowRenders =
+    process.env.LOG_SLOW_RENDERS != null ? process.env.LOG_SLOW_RENDERS === 'true' : __DEV__;
   private metrics: Map<string, RenderMetrics[]> = new Map();
   private readonly FRAME_BUDGET = 16; // ms for 60fps
   private readonly FRAME_DROP_THRESHOLD = 32; // 2 frames
+  // Cap per-component history to avoid unbounded memory growth in long sessions.
+  private readonly MAX_METRICS_PER_COMPONENT = 200;
+  // Deduplication: track last warning time per component+phase to prevent
+  // console flooding during active gameplay (game-state updates trigger
+  // legitimate ~24ms renders every few seconds). Only warn once per 5s per
+  // component to preserve signal while suppressing noise.
+  private readonly SLOW_RENDER_DEBOUNCE_MS = 5_000;
+  private lastSlowRenderWarnAt: Map<string, number> = new Map();
 
   /**
    * Log render metrics from React.Profiler
@@ -62,22 +69,37 @@ class PerformanceMonitor {
       interactions,
     };
 
-    // Store metrics
+    // Store metrics (ring buffer — discard oldest when cap is reached)
     const componentMetrics = this.metrics.get(id) || [];
     componentMetrics.push(metrics);
+    if (componentMetrics.length > this.MAX_METRICS_PER_COMPONENT) {
+      componentMetrics.shift();
+    }
     this.metrics.set(id, componentMetrics);
 
-    // Log slow renders (controlled by LOG_SLOW_RENDERS env var or setLogSlowRenders())
-    // Made configurable instead of commented out
+    // Log slow renders (controlled by LOG_SLOW_RENDERS env var or setLogSlowRenders()).
+    // Deduplication: suppress repeated warnings for the same component within
+    // SLOW_RENDER_DEBOUNCE_MS (5s). Game-state updates (card play/pass/bot moves)
+    // legitimately trigger ~24ms renders every few seconds; without deduplication
+    // these flood the console even though task-628 already eliminated the 60fps
+    // AutoPassTimer rAF renders. Frame-drop (>32ms) warnings always pass through
+    // immediately to ensure serious regressions are visible.
     if (this.logSlowRenders && actualDuration > this.FRAME_BUDGET) {
-      const severity = actualDuration > this.FRAME_DROP_THRESHOLD ? '🔴' : '🟡';
-      uiLogger.warn(
-        `${severity} Slow render detected: ${id} (${phase})`,
-        `\n  Duration: ${actualDuration.toFixed(2)}ms`,
-        `\n  Base: ${baseDuration.toFixed(2)}ms`,
-        `\n  Budget: ${this.FRAME_BUDGET}ms`,
-        `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
-      );
+      const dedupKey = `${id}:${phase}`;
+      const now = Date.now();
+      const lastWarn = this.lastSlowRenderWarnAt.get(dedupKey) ?? 0;
+      const isFrameDrop = actualDuration > this.FRAME_DROP_THRESHOLD;
+      if (isFrameDrop || now - lastWarn >= this.SLOW_RENDER_DEBOUNCE_MS) {
+        this.lastSlowRenderWarnAt.set(dedupKey, now);
+        const severity = isFrameDrop ? '🔴' : '🟡';
+        uiLogger.warn(
+          `${severity} Slow render detected: ${id} (${phase})`,
+          `\n  Duration: ${actualDuration.toFixed(2)}ms`,
+          `\n  Base: ${baseDuration.toFixed(2)}ms`,
+          `\n  Budget: ${this.FRAME_BUDGET}ms`,
+          `\n  Over budget by: ${(actualDuration - this.FRAME_BUDGET).toFixed(2)}ms`
+        );
+      }
     }
   }
 
@@ -88,9 +110,9 @@ class PerformanceMonitor {
     const metrics = this.metrics.get(componentName);
     if (!metrics || metrics.length === 0) return null;
 
-    const durations = metrics.map((m) => m.actualDuration);
-    const slowRenders = durations.filter((d) => d > this.FRAME_BUDGET).length;
-    const frameDrops = durations.filter((d) => d > this.FRAME_DROP_THRESHOLD).length;
+    const durations = metrics.map(m => m.actualDuration);
+    const slowRenders = durations.filter(d => d > this.FRAME_BUDGET).length;
+    const frameDrops = durations.filter(d => d > this.FRAME_DROP_THRESHOLD).length;
 
     return {
       component: componentName,
@@ -134,17 +156,24 @@ class PerformanceMonitor {
     );
     uiLogger.info('━'.repeat(70));
 
-    reports.forEach((r) => {
+    reports.forEach(r => {
       const avgIcon = r.avgRenderTime > this.FRAME_BUDGET ? '🟡' : '🟢';
-      const maxIcon = r.maxRenderTime > this.FRAME_DROP_THRESHOLD ? '🔴' : r.maxRenderTime > this.FRAME_BUDGET ? '🟡' : '🟢';
-      
+      const maxIcon =
+        r.maxRenderTime > this.FRAME_DROP_THRESHOLD
+          ? '🔴'
+          : r.maxRenderTime > this.FRAME_BUDGET
+            ? '🟡'
+            : '🟢';
+
       uiLogger.info(
         `${r.component.padEnd(30)} ${avgIcon} ${r.avgRenderTime.toFixed(2).padStart(8)} ${maxIcon} ${r.maxRenderTime.toFixed(2).padStart(8)} ${r.slowRenders.toString().padStart(8)} ${r.frameDrops.toString().padStart(8)}`
       );
     });
 
     uiLogger.info('━'.repeat(70));
-    uiLogger.info(`Legend: 🟢 Good (<${this.FRAME_BUDGET}ms) | 🟡 Slow (>${this.FRAME_BUDGET}ms) | 🔴 Frame Drop (>${this.FRAME_DROP_THRESHOLD}ms)`);
+    uiLogger.info(
+      `Legend: 🟢 Good (<${this.FRAME_BUDGET}ms) | 🟡 Slow (>${this.FRAME_BUDGET}ms) | 🔴 Frame Drop (>${this.FRAME_DROP_THRESHOLD}ms)`
+    );
     uiLogger.info('\n');
   }
 
@@ -177,7 +206,7 @@ export const performanceMonitor = new PerformanceMonitor();
  */
 export const useRenderCount = (componentName: string): void => {
   const renderCount = React.useRef(0);
-  
+
   React.useEffect(() => {
     if (!__DEV__) return;
     renderCount.current += 1;

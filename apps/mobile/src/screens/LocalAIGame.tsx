@@ -4,7 +4,7 @@
  * plus shared hooks (card selection, orientation, audio, etc.), then renders GameView.
  * Created as part of Task #570: Split GameScreen component.
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,11 +67,14 @@ export function LocalAIGame() {
     customCardOrder,
     setCustomCardOrder,
     handleCardsReorder,
-    getSelectedCards,
   } = useCardSelection();
 
   // Orientation manager (Task #450)
-  const { currentOrientation, toggleOrientation, isAvailable: orientationAvailable } = useOrientationManager();
+  const {
+    currentOrientation,
+    toggleOrientation,
+    isAvailable: orientationAvailable,
+  } = useOrientationManager();
 
   // Bot turn management
   const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
@@ -95,7 +98,7 @@ export function LocalAIGame() {
       finalScores: FinalScore[],
       playerNames: string[],
       sh: ScoreHistory[],
-      ph: PlayHistoryMatch[],
+      ph: PlayHistoryMatch[]
     ) => {
       openGameEndModal(winnerName, winnerPosition, finalScores, playerNames, sh, ph);
     },
@@ -112,17 +115,12 @@ export function LocalAIGame() {
   }, [gameManagerRef]);
 
   // Derived game state (player hand, last play info)
-  const {
-    playerHand,
-    lastPlayedCards,
-    lastPlayedBy,
-    lastPlayComboType,
-    lastPlayCombo,
-  } = useDerivedGameState({
-    gameState,
-    customCardOrder,
-    setCustomCardOrder,
-  });
+  const { playerHand, lastPlayedCards, lastPlayedBy, lastPlayComboType, lastPlayCombo } =
+    useDerivedGameState({
+      gameState,
+      customCardOrder,
+      setCustomCardOrder,
+    });
 
   // Scoreboard mapping (map game players to display positions)
   const { players } = useScoreboardMapping({ gameState, currentPlayerName });
@@ -144,7 +142,9 @@ export function LocalAIGame() {
     let result = (playerHand ?? []) as Card[];
     if (customCardOrder.length > 0 && result.length > 0) {
       const orderMap = new Map(customCardOrder.map((id, index) => [id, index]));
-      result = [...result].sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+      result = [...result].sort(
+        (a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999)
+      );
     }
     return result;
   }, [playerHand, customCardOrder]);
@@ -153,7 +153,8 @@ export function LocalAIGame() {
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
     playerHand: effectivePlayerHand,
     lastPlay: gameState?.lastPlay || null,
-    isFirstPlay: gameState?.lastPlay === null && gameState?.players.every((p) => p.hand.length === 13),
+    isFirstPlay:
+      gameState?.lastPlay === null && gameState?.players.every(p => p.hand.length === 13),
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
@@ -206,7 +207,12 @@ export function LocalAIGame() {
   });
 
   // Computed values
-  const selectedCards = getSelectedCards(effectivePlayerHand);
+  // useMemo ensures selectedCards only gets a new reference when the hand or
+  // selection actually changes (perf/task-628, mirrors MultiplayerGame fix).
+  const selectedCards = useMemo(
+    () => effectivePlayerHand.filter(card => selectedCardIds.has(card.id)),
+    [effectivePlayerHand, selectedCardIds]
+  );
   const layoutPlayers = players;
   const playerTotalScores = usePlayerTotalScores(layoutPlayers, scoreHistory);
 
@@ -236,15 +242,16 @@ export function LocalAIGame() {
   // can bail out when these props haven't semantically changed (H2 audit fix).
   const togglePlayHistory = useCallback(
     () => setIsPlayHistoryOpen((prev: boolean) => !prev),
-    [setIsPlayHistoryOpen],
+    [setIsPlayHistoryOpen]
   );
   const toggleScoreboardExpanded = useCallback(
     () => setIsScoreboardExpanded((prev: boolean) => !prev),
-    [setIsScoreboardExpanded],
+    [setIsScoreboardExpanded]
   );
 
   // Player is ready when it's their turn, game state exists, and game manager is initialized
-  const isPlayerReady = (layoutPlayers[0]?.isActive ?? false) && !!gameState && !!gameManagerRef.current;
+  const isPlayerReady =
+    (layoutPlayers[0]?.isActive ?? false) && !!gameState && !!gameManagerRef.current;
 
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
@@ -323,21 +330,52 @@ export function LocalAIGame() {
       localUserId: '',
     }),
     [
-      currentOrientation, toggleOrientation, isInitializing,
-      showSettings, setShowSettings,
-      effectivePlayerHand, selectedCardIds, setSelectedCardIds, handleCardsReorder,
-      selectedCards, customCardOrder, setCustomCardOrder,
-      lastPlayedCards, lastPlayedBy, lastPlayComboType, lastPlayCombo,
-      layoutPlayers, layoutPlayersWithScores, playerTotalScores, currentPlayerName,
-      togglePlayHistory, toggleScoreboardExpanded,
-      memoizedPlayerNames, memoizedCurrentScores, memoizedCardCounts, memoizedOriginalPlayerNames,
-      effectiveAutoPassTimerState, effectiveScoreboardCurrentPlayerIndex,
-      matchNumber, isGameFinished, displayOrderScoreHistory, playHistoryByMatch,
-      handlePlayCards, handlePass, handlePlaySuccess, handlePassSuccess,
-      handleCardHandPlayCards, handleCardHandPass, handleLeaveGame,
-      handleSort, handleSmartSort, handleHint,
-      isPlayerReady, gameManagerRef, isMountedRef,
-    ],
+      currentOrientation,
+      toggleOrientation,
+      isInitializing,
+      showSettings,
+      setShowSettings,
+      effectivePlayerHand,
+      selectedCardIds,
+      setSelectedCardIds,
+      handleCardsReorder,
+      selectedCards,
+      customCardOrder,
+      setCustomCardOrder,
+      lastPlayedCards,
+      lastPlayedBy,
+      lastPlayComboType,
+      lastPlayCombo,
+      layoutPlayers,
+      layoutPlayersWithScores,
+      playerTotalScores,
+      currentPlayerName,
+      togglePlayHistory,
+      toggleScoreboardExpanded,
+      memoizedPlayerNames,
+      memoizedCurrentScores,
+      memoizedCardCounts,
+      memoizedOriginalPlayerNames,
+      effectiveAutoPassTimerState,
+      effectiveScoreboardCurrentPlayerIndex,
+      matchNumber,
+      isGameFinished,
+      displayOrderScoreHistory,
+      playHistoryByMatch,
+      handlePlayCards,
+      handlePass,
+      handlePlaySuccess,
+      handlePassSuccess,
+      handleCardHandPlayCards,
+      handleCardHandPass,
+      handleLeaveGame,
+      handleSort,
+      handleSmartSort,
+      handleHint,
+      isPlayerReady,
+      gameManagerRef,
+      isMountedRef,
+    ]
   );
 
   return (

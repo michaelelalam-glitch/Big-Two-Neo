@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,34 +43,27 @@ export default function JoinRoomScreen() {
     setIsJoining(true);
     try {
       // Check if user is already in a room
-      // Select status so we can gate lobby_host_leave (only valid for 'waiting' rooms)
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, is_host, rooms!inner(code, status)')
+        .select('room_id, rooms!inner(code)')
         .eq('user_id', user.id)
         .single();
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 = no rows returned
         throw checkError;
       }
 
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
         const existingCode = roomPlayer.rooms.code;
-        const existingStatus = roomPlayer.rooms.status;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
           // Already in this room, just navigate
           navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
           return;
-        } else if (existingStatus === 'playing') {
-          // User is in an active game — navigate directly into that game.
-          // Routing through Lobby for a playing room is an unnecessary extra
-          // transition, and lobby_host_leave would reject a 'playing' room anyway.
-          navigation.replace('Game', { roomCode: existingCode });
-          return;
         } else {
-          // In a different waiting room — let the user leave and join the requested room, or go back
+          // In a different room — let the user leave and join the requested room, or go back
           showConfirm({
             title: i18n.t('room.alreadyInRoom'),
             message: i18n.t('room.alreadyInDifferentRoom', { code: existingCode }),
@@ -74,13 +75,15 @@ export default function JoinRoomScreen() {
                 // Check if the user is the host of their current room.
                 // Direct DELETE is blocked by RLS for other players' rows, and
                 // leaving without host-transfer breaks the room. Use the
-                // SECURITY DEFINER RPC when the user is the host of a waiting room.
-                // is_host is fetched in the initial existingRoomPlayer query to
-                // avoid an extra round-trip (Copilot PR-153 review r2953230041).
-                // Strict boolean check (=== true) required: is_host is nullable.
-                // lobby_host_leave only accepts 'waiting' rooms; for any other
-                // status (finished, ended, etc.) fall back to a plain self-delete.
-                if (roomPlayer.is_host === true && existingStatus === 'waiting') {
+                // SECURITY DEFINER RPC when the user is the host.
+                const { data: hostCheck, error: hostCheckError } = await supabase
+                  .from('room_players')
+                  .select('is_host')
+                  .eq('room_id', roomPlayer.room_id)
+                  .eq('user_id', user.id)
+                  .single();
+                if (hostCheckError) throw hostCheckError;
+                if (hostCheck?.is_host) {
                   const { error: leaveError } = await supabase.rpc('lobby_host_leave', {
                     p_room_id: roomPlayer.room_id,
                     p_leaving_user_id: user.id,
@@ -95,9 +98,12 @@ export default function JoinRoomScreen() {
                   if (leaveError) throw leaveError;
                 }
                 // Retry the join now that the user has left the previous room
-                await handleJoinRoom();
+                handleJoinRoom();
               } catch (err: unknown) {
-                roomLogger.error('Error leaving room before join:', err instanceof Error ? err.message : String(err));
+                roomLogger.error(
+                  'Error leaving room before join:',
+                  err instanceof Error ? err.message : String(err)
+                );
                 showError(i18n.t('room.leaveRoomError'));
               }
             },
@@ -120,24 +126,23 @@ export default function JoinRoomScreen() {
 
       // Use atomic join function to prevent race conditions
       const username = profile?.username || `Player_${user.id.substring(0, 8)}`;
-      const { data: joinResult, error: joinError } = await supabase
-        .rpc('join_room_atomic', {
-          p_room_code: roomCode.toUpperCase(),
-          p_user_id: user.id,
-          p_username: username
-        });
+      const { data: joinResult, error: joinError } = await supabase.rpc('join_room_atomic', {
+        p_room_code: roomCode.toUpperCase(),
+        p_user_id: user.id,
+        p_username: username,
+      });
 
       if (joinError) {
-        roomLogger.error('❌ Atomic join error:', joinError?.message || joinError?.code || 'Unknown error');
-        
+        roomLogger.error(
+          '❌ Atomic join error:',
+          joinError?.message || joinError?.code || 'Unknown error'
+        );
+
         // Handle specific error cases
         if (joinError.message?.includes('Room is full')) {
           throw new Error(i18n.t('room.roomFull'));
         } else if (joinError.message?.includes('already in another room')) {
           showError(i18n.t('room.alreadyInAnotherRoom'));
-          return;
-        } else if (joinError.message?.includes('kicked from this private room')) {
-          showError(i18n.t('room.kickedFromRoom'));
           return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
@@ -146,14 +151,14 @@ export default function JoinRoomScreen() {
       }
 
       roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
-      
+
       // Notify other players in the room (roomData already fetched above)
       if (roomData?.id) {
         notifyPlayerJoined(roomData.id, roomCode.toUpperCase(), username, user.id).catch(err =>
           console.error('Failed to send player joined notification:', err)
         );
       }
-      
+
       // Always route to Lobby (consistent routing for all game types)
       roomLogger.info(`[JoinRoom] Routing to Lobby (match_type: ${roomData?.match_type})`);
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
@@ -169,29 +174,24 @@ export default function JoinRoomScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← {i18n.t('common.back')}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ flexGrow: 1, padding: SPACING.lg }}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
           <Text style={styles.title}>{i18n.t('room.joinTitle')}</Text>
-          <Text style={styles.subtitle}>
-            {i18n.t('room.joinSubtitle')}
-          </Text>
+          <Text style={styles.subtitle}>{i18n.t('room.joinSubtitle')}</Text>
 
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
               value={roomCode}
-              onChangeText={(text) => setRoomCode(text.toUpperCase())}
+              onChangeText={text => setRoomCode(text.toUpperCase())}
               placeholder="ABC123"
               placeholderTextColor={COLORS.gray.medium}
               maxLength={6}
@@ -203,7 +203,10 @@ export default function JoinRoomScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.joinButton, (isJoining || roomCode.length !== 6) && styles.buttonDisabled]}
+            style={[
+              styles.joinButton,
+              (isJoining || roomCode.length !== 6) && styles.buttonDisabled,
+            ]}
             onPress={handleJoinRoom}
             disabled={isJoining || roomCode.length !== 6}
           >
@@ -216,9 +219,7 @@ export default function JoinRoomScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>💡 {i18n.t('room.tip')}:</Text>
-            <Text style={styles.infoText}>
-              {i18n.t('room.askFriendForCode')}
-            </Text>
+            <Text style={styles.infoText}>{i18n.t('room.askFriendForCode')}</Text>
           </View>
         </View>
       </ScrollView>

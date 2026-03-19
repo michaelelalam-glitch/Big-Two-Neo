@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "npx expo start",
+    "start": "npx expo start --no-interactive",
     "android": "npx expo run:android",
     "ios": "npx expo run:ios",
     "ios:device": "npx expo run:ios --device",

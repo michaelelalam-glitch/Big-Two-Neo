@@ -36,6 +36,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
+import { networkLogger } from '../utils/logger';
 import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -85,6 +86,19 @@ interface UseConnectionManagerReturn {
   forceSweep: () => void;
 }
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/** Normal heartbeat polling cadence (ms). */
+const HEARTBEAT_NORMAL_INTERVAL = 5_000;
+/**
+ * Backed-off polling cadence used after HEARTBEAT_BACKOFF_THRESHOLD consecutive
+ * failures (ms). The base interval stays at 5 s but requests are rate-limited so
+ * only one attempt per 30 s is actually sent to the edge function.
+ */
+const HEARTBEAT_BACKOFF_INTERVAL = 30_000;
+/** Number of consecutive failures before backoff + 'reconnecting' status kicks in. */
+const HEARTBEAT_BACKOFF_THRESHOLD = 3;
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useConnectionManager({
@@ -98,16 +112,18 @@ export function useConnectionManager({
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [rejoinStatus, setRejoinStatus] = useState<RejoinStatusPayload | null>(null);
 
-  const heartbeatIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const heartbeatCountRef     = useRef<number>(0);
-  const appStateRef           = useRef<AppStateStatus>('active');
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatCountRef = useRef<number>(0);
+  const consecutiveFailuresRef = useRef<number>(0);
+  const heartbeatBackedOffRef = useRef<boolean>(false);
+  const appStateRef = useRef<AppStateStatus>('active');
 
   // Refs for callbacks used inside AppState/Realtime listeners
   // to avoid stale closures when parent re-renders with new callback instances.
-  const onBotReplacedRef  = useRef(onBotReplaced);
-  const onRoomClosedRef   = useRef(onRoomClosed);
-  onBotReplacedRef.current  = onBotReplaced;
-  onRoomClosedRef.current   = onRoomClosed;
+  const onBotReplacedRef = useRef(onBotReplaced);
+  const onRoomClosedRef = useRef(onRoomClosed);
+  onBotReplacedRef.current = onBotReplaced;
+  onRoomClosedRef.current = onRoomClosed;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -120,23 +136,59 @@ export function useConnectionManager({
 
   // ── Heartbeat ─────────────────────────────────────────────────────────────
 
+  // Earliest time the next heartbeat attempt may fire (enforces backoff rate-limit).
+  const nextHeartbeatAllowedAtRef = useRef<number>(0);
+
   const sendHeartbeat = useCallback(async () => {
     if (!enabled || !roomId || !playerId) return;
+
+    // Rate-limit: when in backoff mode, skip ticks until the backoff interval elapses.
+    if (Date.now() < nextHeartbeatAllowedAtRef.current) return;
+    nextHeartbeatAllowedAtRef.current =
+      Date.now() +
+      (heartbeatBackedOffRef.current ? HEARTBEAT_BACKOFF_INTERVAL : HEARTBEAT_NORMAL_INTERVAL);
 
     heartbeatCountRef.current += 1;
 
     try {
       const { data, error } = await supabase.functions.invoke('update-heartbeat', {
         body: {
-          room_id:         roomId,
-          player_id:       playerId,
+          room_id: roomId,
+          player_id: playerId,
           heartbeat_count: heartbeatCountRef.current,
         },
       });
 
       if (error) {
-        console.warn('[useConnectionManager] heartbeat error:', error);
+        consecutiveFailuresRef.current += 1;
+        const failures = consecutiveFailuresRef.current;
+
+        // Only log once the backoff threshold is reached to avoid LogBox noise
+        // from single transient network blips (e.g., simulator, brief offline).
+        if (failures >= HEARTBEAT_BACKOFF_THRESHOLD) {
+          if (failures === HEARTBEAT_BACKOFF_THRESHOLD) {
+            networkLogger.warn(
+              `[useConnectionManager] ${failures} consecutive heartbeat failures — ` +
+                `backing off to ${HEARTBEAT_BACKOFF_INTERVAL / 1000}s interval`,
+              error
+            );
+          }
+          // Mark connection as degraded so the UI shows the reconnecting indicator.
+          setConnectionStatus('reconnecting');
+          heartbeatBackedOffRef.current = true;
+        }
         return;
+      }
+
+      // ── Success path ───────────────────────────────────────────────────────
+      if (consecutiveFailuresRef.current > 0) {
+        if (heartbeatBackedOffRef.current) {
+          networkLogger.info(
+            '[useConnectionManager] heartbeat recovered — restoring normal interval'
+          );
+          heartbeatBackedOffRef.current = false;
+        }
+        consecutiveFailuresRef.current = 0;
       }
 
       // Server detected we were replaced by a bot (user_id no longer matches)
@@ -151,14 +203,28 @@ export function useConnectionManager({
         setConnectionStatus('connected');
       }
     } catch (err) {
-      console.warn('[useConnectionManager] heartbeat exception:', err);
+      // Network-level throw (some Supabase client versions throw instead of returning { error })
+      consecutiveFailuresRef.current += 1;
+      const failures = consecutiveFailuresRef.current;
+      if (failures >= HEARTBEAT_BACKOFF_THRESHOLD) {
+        if (failures === HEARTBEAT_BACKOFF_THRESHOLD) {
+          networkLogger.warn('[useConnectionManager] heartbeat exception:', err);
+        }
+        setConnectionStatus('reconnecting');
+        heartbeatBackedOffRef.current = true;
+      }
     }
   }, [enabled, roomId, playerId, stopHeartbeat]);
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat();
-    sendHeartbeat(); // immediate
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 5000);
+    // Reset backoff + failure state whenever heartbeat is explicitly restarted
+    // (e.g. on app foreground, on reconnect) so the next sequence starts fresh.
+    consecutiveFailuresRef.current = 0;
+    heartbeatBackedOffRef.current = false;
+    nextHeartbeatAllowedAtRef.current = 0; // allow immediately
+    sendHeartbeat(); // immediate first beat
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_NORMAL_INTERVAL);
   }, [sendHeartbeat, stopHeartbeat]);
 
   // ── Rejoin status check ───────────────────────────────────────────────────
@@ -176,12 +242,12 @@ export function useConnectionManager({
       });
 
       if (error || !data?.success) {
-        console.warn('[useConnectionManager] get-rejoin-status error:', error);
+        networkLogger.warn('[useConnectionManager] get-rejoin-status error:', error);
         return null;
       }
 
       const payload: RejoinStatusPayload = {
-        status:       data.status,
+        status: data.status,
         seconds_left: data.seconds_left,
         player_index: data.player_index,
         bot_username: data.bot_username,
@@ -190,18 +256,18 @@ export function useConnectionManager({
       setRejoinStatus(payload);
       return payload;
     } catch (err) {
-      console.warn('[useConnectionManager] checkRejoinStatus exception:', err);
+      networkLogger.warn('[useConnectionManager] checkRejoinStatus exception:', err);
       return null;
     }
   }, [roomId]);
 
   // Keep stable refs for internal callbacks so effects always call the latest version
   const checkRejoinStatusRef = useRef(checkRejoinStatus);
-  const startHeartbeatRef    = useRef(startHeartbeat);
-  const stopHeartbeatRef     = useRef(stopHeartbeat);
+  const startHeartbeatRef = useRef(startHeartbeat);
+  const stopHeartbeatRef = useRef(stopHeartbeat);
   checkRejoinStatusRef.current = checkRejoinStatus;
-  startHeartbeatRef.current    = startHeartbeat;
-  stopHeartbeatRef.current     = stopHeartbeat;
+  startHeartbeatRef.current = startHeartbeat;
+  stopHeartbeatRef.current = stopHeartbeat;
 
   // ── Reconnect / reclaim ───────────────────────────────────────────────────
 
@@ -226,7 +292,7 @@ export function useConnectionManager({
           onRoomClosed?.();
           return;
         }
-        console.error('[useConnectionManager] reconnect failed:', error || data?.error);
+        networkLogger.error('[useConnectionManager] reconnect failed:', error || data?.error);
         setConnectionStatus('disconnected');
         return;
       }
@@ -235,7 +301,7 @@ export function useConnectionManager({
       setRejoinStatus(null);
       startHeartbeat();
     } catch (err) {
-      console.error('[useConnectionManager] reconnect exception:', err);
+      networkLogger.error('[useConnectionManager] reconnect exception:', err);
       setConnectionStatus('disconnected');
     } finally {
       setIsReconnecting(false);
@@ -254,14 +320,14 @@ export function useConnectionManager({
       });
       setConnectionStatus('disconnected');
     } catch (err) {
-      console.error('[useConnectionManager] disconnect error:', err);
+      networkLogger.error('[useConnectionManager] disconnect error:', err);
     }
   }, [roomId, playerId, stopHeartbeat]);
 
   // ── App state: foreground/background ─────────────────────────────────────
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+    const subscription = AppState.addEventListener('change', async nextAppState => {
       const prev = appStateRef.current;
       appStateRef.current = nextAppState;
 
@@ -318,7 +384,7 @@ export function useConnectionManager({
     });
 
     return () => subscription.remove();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
 
   // ── Start heartbeat on mount ──────────────────────────────────────────────
@@ -331,7 +397,7 @@ export function useConnectionManager({
     }
 
     return stopHeartbeat;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
 
   // ── Realtime: listen for own row changes ─────────────────────────────────
@@ -344,12 +410,12 @@ export function useConnectionManager({
       .on(
         'postgres_changes',
         {
-          event:  'UPDATE',
+          event: 'UPDATE',
           schema: 'public',
-          table:  'room_players',
+          table: 'room_players',
           filter: `id=eq.${playerId}`,
         },
-        (payload) => {
+        payload => {
           const rec = payload.new as {
             connection_status: string;
             human_user_id?: string | null;
@@ -371,7 +437,7 @@ export function useConnectionManager({
     return () => {
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -384,16 +450,18 @@ export function useConnectionManager({
     if (!enabled || !roomId || !playerId) return;
     // Fire-and-forget: send a heartbeat with force_sweep=true so the server
     // runs process_disconnected_players() immediately (no count%6 gate).
-    supabase.functions.invoke('update-heartbeat', {
-      body: {
-        room_id:     roomId,
-        player_id:   playerId,
-        heartbeat_count: heartbeatCountRef.current,
-        force_sweep: true,
-      },
-    }).catch((err: unknown) => {
-      console.warn('[useConnectionManager] forceSweep error:', err);
-    });
+    supabase.functions
+      .invoke('update-heartbeat', {
+        body: {
+          room_id: roomId,
+          player_id: playerId,
+          heartbeat_count: heartbeatCountRef.current,
+          force_sweep: true,
+        },
+      })
+      .catch((err: unknown) => {
+        networkLogger.warn('[useConnectionManager] forceSweep error:', err);
+      });
   }, [enabled, roomId, playerId]);
 
   return {

@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+# ── Mandatory CI checks before push ──────────────────────────────────────────
+# Mirrors the "test" CI job from .github/workflows/test.yml.
+# Blocks the push when lint, type-check, or unit tests fail so regressions
+# are caught locally before entering the CI queue.
+#
+# Skipped checks (run only in CI, not locally):
+#   - Integration tests: require live Supabase credentials
+#   - E2E / Maestro tests: require an iOS simulator build (~35 min)
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "${YELLOW}⚡ pre-push: running mandatory CI checks...${NC}"
+
+cd apps/mobile
+
+echo "${YELLOW}🔍 [1/3] ESLint...${NC}"
+pnpm run lint
+echo "${GREEN}✅ Lint passed${NC}"
+
+echo "${YELLOW}🔧 [2/3] TypeScript type-check...${NC}"
+npx tsc --noEmit
+echo "${GREEN}✅ Type-check passed${NC}"
+
+echo "${YELLOW}🧪 [3/3] Unit tests...${NC}"
+NODE_OPTIONS="--max-old-space-size=3072" npx jest \
+  --testPathIgnorePatterns='/integration/' \
+  --forceExit --passWithNoTests \
+  --maxWorkers=2 \
+  --testTimeout=15000 \
+  --no-coverage
+echo "${GREEN}✅ Unit tests passed${NC}"
+
+echo "${GREEN}🎉 All pre-push checks passed — pushing!${NC}"

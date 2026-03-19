@@ -16,7 +16,13 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import type { GameState, Player, AutoPassTimerState, BroadcastEvent, BroadcastData } from '../types/multiplayer';
+import type {
+  GameState,
+  Player,
+  AutoPassTimerState,
+  BroadcastEvent,
+  BroadcastData,
+} from '../types/multiplayer';
 import type { PlayerPassResponse } from '../types/realtimeTypes';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
@@ -74,12 +80,24 @@ export function useAutoPassTimer({
   const activeTimerSequenceRef = useRef<string | null>(null);
 
   // ── Keep refs in sync with props (cheap, no interval recreation) ────────
-  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-  useEffect(() => { roomRef.current = room; }, [room]);
-  useEffect(() => { roomPlayersRef.current = roomPlayers; }, [roomPlayers]);
-  useEffect(() => { currentUserIdRef.current = currentUserId ?? null; }, [currentUserId]);
-  useEffect(() => { broadcastMessageRef.current = broadcastMessage; }, [broadcastMessage]);
-  useEffect(() => { getCorrectedNowRef.current = getCorrectedNow; }, [getCorrectedNow]);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+  useEffect(() => {
+    roomPlayersRef.current = roomPlayers;
+  }, [roomPlayers]);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId ?? null;
+  }, [currentUserId]);
+  useEffect(() => {
+    broadcastMessageRef.current = broadcastMessage;
+  }, [broadcastMessage]);
+  useEffect(() => {
+    getCorrectedNowRef.current = getCorrectedNow;
+  }, [getCorrectedNow]);
 
   // ── Stable self-pass function (reads everything from refs) ──────────────
   const tryAutoPassSelf = useCallback(async () => {
@@ -137,27 +155,61 @@ export function useAutoPassTimer({
 
       // It's our turn → auto-pass (server will cascade remaining passes)
       networkLogger.info(
-        `⏰ [Timer] Auto-passing self (player ${myPlayer.player_index}, ${myPlayer.username})`,
+        `⏰ [Timer] Auto-passing self (player ${myPlayer.player_index}, ${myPlayer.username})`
       );
 
       const { data: passResult, error: passError } = await invokeWithRetry<PlayerPassResponse>(
         'player-pass',
-        { body: { room_code: currentRoom.code, player_id: myPlayer.user_id } },
+        { body: { room_code: currentRoom.code, player_id: myPlayer.user_id } }
       );
 
       if (passError || !passResult?.success) {
-        const errMsg = passResult?.error || passError?.message || 'Unknown';
-        networkLogger.error(`⏰ [Timer] ❌ Self-pass failed: ${errMsg}`);
+        // Try to read the real error body from the edge-function response context
+        // (Supabase stores the HTTP response in error.context when the function returns non-2xx).
+        let realErrMsg = passResult?.error || passError?.message || 'Unknown';
+        let contextBody: string | null = null;
+        try {
+          // context.body may be a pre-read string, or context.text() may be available
+          const ctx = (passError as { context?: { body?: string; text?: () => Promise<string> } })
+            ?.context;
+          if (ctx?.body) {
+            contextBody = ctx.body;
+          } else if (typeof ctx?.text === 'function') {
+            contextBody = await ctx.text();
+          }
+          if (contextBody) {
+            const parsed = JSON.parse(contextBody) as { error?: string };
+            if (parsed?.error) realErrMsg = parsed.error;
+          }
+        } catch {
+          // ignore – best-effort body extraction
+        }
+
+        // Known race-condition outcomes are expected when multiple clients compete
+        // (e.g. opponent already played, game ended, timer was cleared by server).
+        // Log as WARN (not ERROR) so Sentry/LogBox isn't polluted by expected churn.
+        const isExpectedRace =
+          /not your turn|game already ended|timer.*cleared|auto.?pass.*cleared|already passed|cannot pass when leading/i.test(
+            realErrMsg
+          );
+        if (isExpectedRace) {
+          networkLogger.warn(`⏰ [Timer] ⚠️ Self-pass skipped (race): ${realErrMsg}`);
+        } else {
+          networkLogger.error(
+            `⏰ [Timer] ❌ Self-pass failed: ${realErrMsg}${contextBody ? ` (raw: ${contextBody})` : ''}`
+          );
+        }
         return;
       }
 
       networkLogger.info(
         `⏰ [Timer] ✅ Self-pass successful. next_turn=${passResult.next_turn}, ` +
-        `passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`,
+          `passes=${passResult.passes}, trick_cleared=${passResult.trick_cleared}`
       );
 
       // Broadcast (non-blocking, best-effort)
-      void broadcastMessageRef.current('auto_pass_executed', { player_index: myPlayer.player_index })
+      void broadcastMessageRef
+        .current('auto_pass_executed', { player_index: myPlayer.player_index })
         .catch(() => {});
     } catch (fatalError) {
       networkLogger.error('⏰ [Timer] ❌ Self-pass fatal error:', fatalError);
@@ -198,7 +250,9 @@ export function useAutoPassTimer({
       if (gs?.game_phase === 'finished' || gs?.game_phase === 'game_over') return;
 
       // Detect new timer (different sequence_id → reset expiry tracking)
-      const seqId = (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id || timerState.started_at;
+      const seqId =
+        (timerState as AutoPassTimerState & { sequence_id?: string }).sequence_id ||
+        timerState.started_at;
       if (activeTimerSequenceRef.current !== seqId) {
         activeTimerSequenceRef.current = seqId;
         hasExpiredRef.current = false;
@@ -208,13 +262,17 @@ export function useAutoPassTimer({
 
       // Calculate remaining milliseconds using clock-sync corrected time
       let remaining: number;
-      const endTimestamp = (timerState as AutoPassTimerState & { end_timestamp?: number }).end_timestamp;
+      const endTimestamp = (timerState as AutoPassTimerState & { end_timestamp?: number })
+        .end_timestamp;
 
       if (typeof endTimestamp === 'number') {
         const correctedNow = getCorrectedNowRef.current();
         remaining = Math.max(0, endTimestamp - correctedNow);
         // Log once per whole-second transition
-        if (remaining > 0 && Math.floor(remaining / 1000) !== Math.floor((remaining + 100) / 1000)) {
+        if (
+          remaining > 0 &&
+          Math.floor(remaining / 1000) !== Math.floor((remaining + 100) / 1000)
+        ) {
           networkLogger.debug(`⏰ [Timer] ${Math.ceil(remaining / 1000)}s remaining`);
         }
       } else {

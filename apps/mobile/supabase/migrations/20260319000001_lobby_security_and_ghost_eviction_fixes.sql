@@ -5,7 +5,9 @@
 -- Fixes two user-facing bugs:
 --
 --   BUG 1 — Re-enter lobby: duplicate key on room_players_room_id_position_key
---     Root cause: join_room_atomic was NOT SECURITY DEFINER. Ghost-eviction
+--     Root cause: join_room_atomic lacked SECURITY DEFINER in prod (the function
+--     was overwritten or the earlier migration was not applied in the correct order).
+--     Ghost-eviction
 --     DELETE inside the function was blocked by RLS (policy: auth.uid()=user_id),
 --     so stale ghost rows were never removed. Their occupied positions caused a
 --     UNIQUE constraint violation when the same user tried to rejoin.
@@ -66,7 +68,11 @@ DECLARE
   v_ghost_threshold CONSTANT INTERVAL := INTERVAL '60 seconds';
 BEGIN
   -- Security: caller must be who they say they are.
-  IF auth.uid() IS DISTINCT FROM p_user_id THEN
+  -- service_role (Edge Functions / admin) may call with auth.uid() = NULL;
+  -- allow those through since they are already trusted.  Normal authenticated
+  -- callers must match the JWT uid to prevent impersonation.
+  IF auth.role() IS DISTINCT FROM 'service_role'
+     AND auth.uid() IS DISTINCT FROM p_user_id THEN
     RAISE EXCEPTION 'join_room_atomic: JWT uid does not match p_user_id';
   END IF;
 

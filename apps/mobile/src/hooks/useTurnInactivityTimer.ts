@@ -64,7 +64,9 @@ export function useTurnInactivityTimer({
   const roomRef = useRef<{ id: string; code: string } | null>(null);
   const roomPlayersRef = useRef<Player[]>([]);
   const currentUserIdRef = useRef<string | null>(null);
-  const broadcastMessageRef = useRef<NonNullable<typeof broadcastMessage> | undefined>(broadcastMessage);
+  const broadcastMessageRef = useRef<NonNullable<typeof broadcastMessage> | undefined>(
+    broadcastMessage
+  );
   const getCorrectedNowRef = useRef<typeof getCorrectedNow>(getCorrectedNow);
   const onAutoPlayRef = useRef<typeof onAutoPlay>(onAutoPlay);
 
@@ -97,13 +99,27 @@ export function useTurnInactivityTimer({
   });
 
   // ── Keep refs in sync with props ────────────────────────────────────────
-  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-  useEffect(() => { roomRef.current = room; }, [room]);
-  useEffect(() => { roomPlayersRef.current = roomPlayers; }, [roomPlayers]);
-  useEffect(() => { currentUserIdRef.current = currentUserId ?? null; }, [currentUserId]);
-  useEffect(() => { broadcastMessageRef.current = broadcastMessage; }, [broadcastMessage]);
-  useEffect(() => { getCorrectedNowRef.current = getCorrectedNow; }, [getCorrectedNow]);
-  useEffect(() => { onAutoPlayRef.current = onAutoPlay; }, [onAutoPlay]);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+  useEffect(() => {
+    roomPlayersRef.current = roomPlayers;
+  }, [roomPlayers]);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId ?? null;
+  }, [currentUserId]);
+  useEffect(() => {
+    broadcastMessageRef.current = broadcastMessage;
+  }, [broadcastMessage]);
+  useEffect(() => {
+    getCorrectedNowRef.current = getCorrectedNow;
+  }, [getCorrectedNow]);
+  useEffect(() => {
+    onAutoPlayRef.current = onAutoPlay;
+  }, [onAutoPlay]);
 
   // ── Stable auto-play function ───────────────────────────────────────────
   const tryAutoPlayTurn = useCallback(async () => {
@@ -143,7 +159,11 @@ export function useTurnInactivityTimer({
         return;
       }
 
-      networkLogger.info(`⏰ [TurnTimer] ✅ Auto-play successful: ${result.action}`, result.cards ? `(${result.cards.length} cards)` : '', result.replaced_by_bot ? '(replaced by bot)' : '');
+      networkLogger.info(
+        `⏰ [TurnTimer] ✅ Auto-play successful: ${result.action}`,
+        result.cards ? `(${result.cards.length} cards)` : '',
+        result.replaced_by_bot ? '(replaced by bot)' : ''
+      );
 
       // The server always replaces the inactive player with a bot (65s spec).
       // The Realtime subscription will surface the RejoinModal automatically.
@@ -156,9 +176,11 @@ export function useTurnInactivityTimer({
       const players = roomPlayersRef.current;
       const myPlayer = players.find(p => p.user_id === userId);
       if (myPlayer && broadcastMessageRef.current) {
-        void broadcastMessageRef.current('turn_auto_played', {
-          player_index: myPlayer.player_index,
-        }).catch(() => {});
+        void broadcastMessageRef
+          .current('turn_auto_played', {
+            player_index: myPlayer.player_index,
+          })
+          .catch(() => {});
       }
     } catch (fatalError) {
       networkLogger.error('⏰ [TurnTimer] ❌ Auto-play fatal error:', fatalError);
@@ -180,20 +202,32 @@ export function useTurnInactivityTimer({
       const userId = currentUserIdRef.current;
 
       if (!gs || !players || !userId) {
-        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev =>
+          !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
+            ? prev
+            : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false }
+        );
         return;
       }
 
       // Game not in active phase → no timer
       if (gs.game_phase !== 'playing' && gs.game_phase !== 'first_play') {
-        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev =>
+          !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
+            ? prev
+            : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false }
+        );
         return;
       }
 
       // Find local player
       const myPlayer = players.find(p => p.user_id === userId);
       if (!myPlayer) {
-        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev =>
+          !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
+            ? prev
+            : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false }
+        );
         return;
       }
 
@@ -206,14 +240,28 @@ export function useTurnInactivityTimer({
           hasExpiredRef.current = false;
           lastAutoPlayAttemptRef.current = 0;
         }
-        setTimerState(prev => (!prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress) ? prev : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false });
+        setTimerState(prev =>
+          !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
+            ? prev
+            : { isMyTurn: false, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: false }
+        );
         return;
       }
 
       // It's my turn — check turn_started_at
       const turnStartedAt = gs.turn_started_at;
       if (!turnStartedAt) {
-        setTimerState(prev => (prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && prev.isAutoPlayInProgress === isAutoPlayInProgressRef.current) ? prev : { isMyTurn: true, remainingMs: TURN_TIMEOUT_MS, isAutoPlayInProgress: isAutoPlayInProgressRef.current });
+        setTimerState(prev =>
+          prev.isMyTurn &&
+          prev.remainingMs === TURN_TIMEOUT_MS &&
+          prev.isAutoPlayInProgress === isAutoPlayInProgressRef.current
+            ? prev
+            : {
+                isMyTurn: true,
+                remainingMs: TURN_TIMEOUT_MS,
+                isAutoPlayInProgress: isAutoPlayInProgressRef.current,
+              }
+        );
         return;
       }
 
@@ -232,7 +280,9 @@ export function useTurnInactivityTimer({
         const serverElapsed = clientNow - serverStart;
         if (serverElapsed < -2000) {
           // Server clock is >2s ahead — use client time as start
-          networkLogger.warn(`⏰ [TurnTimer] Clock skew detected: server is ${Math.abs(serverElapsed)}ms ahead. Using client-local start time.`);
+          networkLogger.warn(
+            `⏰ [TurnTimer] Clock skew detected: server is ${Math.abs(serverElapsed)}ms ahead. Using client-local start time.`
+          );
           localTurnStartRef.current = clientNow;
         } else {
           localTurnStartRef.current = null; // Use server timestamp normally
@@ -246,11 +296,16 @@ export function useTurnInactivityTimer({
       const elapsed = correctedNow - startTime;
       const remaining = Math.max(0, TURN_TIMEOUT_MS - elapsed);
 
-      // Update UI state ONLY if values changed (prevent unnecessary re-renders)
+      // Update UI state ONLY when boolean flags change — NOT on every 500ms tick.
+      // `remainingMs` is intentionally excluded from this comparison: InactivityCountdownRing
+      // drives its own Reanimated animation from game_state.turn_started_at and does NOT
+      // consume remainingMs from this hook.  Updating on every tick caused ~2 re-renders/sec
+      // in MultiplayerGame even when nothing visible changed (perf/task-628).
       setTimerState(prev => {
-        if (prev.isMyTurn !== true || 
-            Math.abs(prev.remainingMs - remaining) > 50 || // Only update if diff > 50ms
-            prev.isAutoPlayInProgress !== isAutoPlayInProgressRef.current) {
+        if (
+          prev.isMyTurn !== true ||
+          prev.isAutoPlayInProgress !== isAutoPlayInProgressRef.current
+        ) {
           return {
             isMyTurn: true,
             remainingMs: remaining,
