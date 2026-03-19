@@ -9,7 +9,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
-import { showError, showConfirm } from '../utils';
+import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { roomLogger } from '../utils/logger';
 
@@ -149,7 +149,7 @@ export default function LobbyScreen() {
           roomLogger.info(`[LobbyScreen] 👻 Evicted ${evicted} ghost player(s) from lobby`);
         }
       } catch (err) {
-        roomLogger.warn('[LobbyScreen] Heartbeat/eviction request rejected:', err);
+        roomLogger.warn('[LobbyScreen] Heartbeat/eviction request rejected:', extractErrorMessage(err));
       } finally {
         inFlight = false;
       }
@@ -343,7 +343,7 @@ export default function LobbyScreen() {
                 roomLogger.info('[LobbyScreen] lobby_claim_host result:', claimData);
               }
             } catch (err) {
-              roomLogger.error('[LobbyScreen] lobby_claim_host rejected:', err);
+              roomLogger.error('[LobbyScreen] lobby_claim_host rejected:', extractErrorMessage(err));
             } finally {
               claimHostInFlightRef.current = false;
             }

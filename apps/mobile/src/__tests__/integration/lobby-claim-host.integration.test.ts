@@ -72,7 +72,8 @@ const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY && !!SUPABA
 const describeWithCredentials = hasCredentials ? describe : describe.skip;
 
 function uniqueRoomCode(): string {
-  return `T${randomUUID().replace(/-/g, '').substring(0, 11).toUpperCase()}`;
+  // rooms.code is VARCHAR(10); "T" prefix + 9 hex chars = 10 chars total.
+  return `T${randomUUID().replace(/-/g, '').substring(0, 9).toUpperCase()}`;
 }
 
 /** Stores the credentials needed to sign in as a test user with an anon client. */
