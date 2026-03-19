@@ -39,6 +39,12 @@
 --   room_id=eq.X Realtime filter).
 -- =============================================================================
 
+-- Ensure the unique index exists before switching REPLICA IDENTITY so this
+-- migration is self-contained on environments where migration
+-- 20260318000002 was not applied (e.g. skipped due to version ordering).
+CREATE UNIQUE INDEX IF NOT EXISTS room_players_realtime_idx
+  ON room_players (room_id, player_index);
+
 -- Switch to index-based REPLICA IDENTITY (lower WAL overhead than FULL).
 -- room_players_realtime_idx is UNIQUE NOT NULL on (room_id, player_index).
 ALTER TABLE room_players REPLICA IDENTITY USING INDEX room_players_realtime_idx;
@@ -139,13 +145,10 @@ BEGIN
   END IF;
   -- ─────────────────────────────────────────────────────────────────────────
 
-  SELECT COUNT(*) INTO v_player_count FROM room_players WHERE room_id = v_room_id;
-
-  IF v_player_count >= 4 THEN
-    RAISE EXCEPTION 'Room is full (4/4 players)';
-  END IF;
-
   -- Idempotent: return existing record if already in the room.
+  -- Must run BEFORE the capacity check so a user who is already seated in a
+  -- full (4/4) room does not receive a spurious "Room is full" error on retry
+  -- (e.g. after a network error triggers a client-side re-call).
   IF EXISTS (SELECT 1 FROM room_players WHERE room_id = v_room_id AND user_id = p_user_id) THEN
     SELECT jsonb_build_object(
       'room_id', v_room_id, 'room_code', p_room_code,
@@ -153,6 +156,12 @@ BEGIN
     ) INTO v_result
     FROM room_players WHERE room_id = v_room_id AND user_id = p_user_id;
     RETURN v_result;
+  END IF;
+
+  SELECT COUNT(*) INTO v_player_count FROM room_players WHERE room_id = v_room_id;
+
+  IF v_player_count >= 4 THEN
+    RAISE EXCEPTION 'Room is full (4/4 players)';
   END IF;
 
   SELECT room_id INTO v_other_room FROM room_players WHERE user_id = p_user_id LIMIT 1;
@@ -208,6 +217,7 @@ DECLARE
   v_is_host        BOOLEAN;
   v_new_host_id    UUID;
   v_remaining_id   UUID;
+  v_room_status    TEXT;
   v_index          INT := 0;
 BEGIN
   -- Security: reject calls where the JWT uid doesn't match the supplied user_id.
@@ -222,6 +232,14 @@ BEGIN
   IF NOT FOUND OR v_is_host IS NOT TRUE THEN
     RAISE EXCEPTION 'lobby_host_leave: user % is not the host of room %',
       p_leaving_user_id, p_room_id;
+  END IF;
+
+  -- Waiting-lobby guard: block calls on in-progress games to prevent
+  -- room_players reindexing / deletion from corrupting active game state.
+  SELECT status INTO v_room_status FROM rooms WHERE id = p_room_id;
+  IF NOT FOUND OR v_room_status != 'waiting' THEN
+    RAISE EXCEPTION 'lobby_host_leave: room is not in waiting state (status: %)',
+      COALESCE(v_room_status, 'not found');
   END IF;
 
   SELECT user_id INTO v_new_host_id
