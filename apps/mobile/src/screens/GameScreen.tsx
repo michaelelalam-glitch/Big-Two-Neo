@@ -12,6 +12,7 @@ import React from 'react';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { GameEndProvider } from '../contexts/GameEndContext';
 import { ScoreboardProvider } from '../contexts/ScoreboardContext';
+import { GameErrorBoundary } from '../components/game/GameErrorBoundary';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { LocalAIGame } from './LocalAIGame';
 import { MultiplayerGame } from './MultiplayerGame';
@@ -23,7 +24,9 @@ function GameScreenRouter() {
   const { roomCode } = route.params;
   const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
 
-  return isLocalAIGame ? <LocalAIGame /> : <MultiplayerGame />;
+  return (
+    <GameErrorBoundary>{isLocalAIGame ? <LocalAIGame /> : <MultiplayerGame />}</GameErrorBoundary>
+  );
 }
 
 // Wrapper component with ScoreboardProvider and GameEndProvider
