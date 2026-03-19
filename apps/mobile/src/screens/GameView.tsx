@@ -7,7 +7,7 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler, useMemo } from 'react';
+import React, { Profiler, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot, ChatDrawer } from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -163,16 +163,15 @@ function GameViewComponent() {
   }, [isMultiplayerGame, isChatConnected, isLocalCameraOn, getVideoTrackRef]);
 
   // Performance profiling callback (Task #430)
-  const onRenderCallback: React.ProfilerOnRenderCallback = (
-    id,
-    phase,
-    actualDuration,
-    baseDuration,
-    startTime,
-    commitTime,
-  ) => {
-    performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
-  };
+  // useCallback with empty deps: same identity across all re-renders, no new
+  // allocation on updates. The callback itself is stateless (reads no closure
+  // values from the component) so this is always safe.
+  const onRenderCallback = useCallback<React.ProfilerOnRenderCallback>(
+    (id, phase, actualDuration, baseDuration, startTime, commitTime) => {
+      performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
+    },
+    [],
+  );
 
   return (
     <Profiler id="GameScreen" onRender={onRenderCallback}>
@@ -470,38 +469,49 @@ function GameViewComponent() {
           </>
         )}
 
-        {/* Game End Modal (Task #415) - Rendered OUTSIDE orientation conditional */}
-        <GameEndErrorBoundary onReset={() => {}}>
-          <GameEndModal />
-        </GameEndErrorBoundary>
+        {/* Game End Modal, Settings Modal, Chat Drawer — deferred until game
+            data is ready (isInitializing=false).  Mounting these heavy
+            components (GameEndModal: 1 549 lines / 4 Animated.Values;
+            GameSettingsModal: 736 lines; ChatDrawer: 454 lines) during the
+            loading phase added ~4-5 ms to the initial mount render, pushing it
+            over the 16ms budget.  None of these are needed while the spinner
+            is shown, so deferring is safe and has no UX impact. */}
+        {!isInitializing && (
+          <>
+            {/* Game End Modal (Task #415) - Rendered OUTSIDE orientation conditional */}
+            <GameEndErrorBoundary onReset={() => {}}>
+              <GameEndModal />
+            </GameEndErrorBoundary>
 
-        {/* Game Settings Modal */}
-        <GameSettingsModal
-          visible={showSettings}
-          onClose={() => setShowSettings(false)}
-          onLeaveGame={handleLeaveGame}
-          roomCode={roomCode}
-          isInChatSession={isMultiplayerGame && isChatConnected}
-          isLocalMicOn={isLocalMicOn}
-          isLocalCameraOn={isLocalCameraOn}
-          isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
-          isAudioChatConnecting={isMultiplayerGame ? isAudioConnecting : false}
-          onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
-          onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
-          onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
-          onToggleMic={isMultiplayerGame ? toggleMic : undefined}
-        />
+            {/* Game Settings Modal */}
+            <GameSettingsModal
+              visible={showSettings}
+              onClose={() => setShowSettings(false)}
+              onLeaveGame={handleLeaveGame}
+              roomCode={roomCode}
+              isInChatSession={isMultiplayerGame && isChatConnected}
+              isLocalMicOn={isLocalMicOn}
+              isLocalCameraOn={isLocalCameraOn}
+              isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
+              isAudioChatConnecting={isMultiplayerGame ? isAudioConnecting : false}
+              onToggleVoiceChat={isMultiplayerGame ? toggleVoiceChat : undefined}
+              onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
+              onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
+              onToggleMic={isMultiplayerGame ? toggleMic : undefined}
+            />
 
-        {/* Task #648: In-game text chat drawer (multiplayer only) */}
-        {isMultiplayerGame && (
-          <ChatDrawer
-            messages={chatMessages}
-            sendMessage={sendChatMessage}
-            isCooldown={isChatCooldown}
-            isOpen={isChatDrawerOpen}
-            onToggle={toggleChatDrawer}
-            localUserId={localUserId}
-          />
+            {/* Task #648: In-game text chat drawer (multiplayer only) */}
+            {isMultiplayerGame && (
+              <ChatDrawer
+                messages={chatMessages}
+                sendMessage={sendChatMessage}
+                isCooldown={isChatCooldown}
+                isOpen={isChatDrawerOpen}
+                onToggle={toggleChatDrawer}
+                localUserId={localUserId}
+              />
+            )}
+          </>
         )}
       </View>
     </Profiler>
