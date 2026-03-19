@@ -376,16 +376,10 @@ export function useActiveGameBanner(
                 body: { room_id: membership.room_id },
               });
               if (invokeError) throw invokeError;
-              // Delete the room_players row so CreateRoom/JoinRoom don't find a stale playing-room
-              // entry after the user explicitly left. mark-disconnected already notified the server.
-              const { error: deleteAfterMarkErr } = await supabase
-                .from('room_players')
-                .delete()
-                .eq('room_id', membership.room_id)
-                .eq('user_id', user.id);
-              if (deleteAfterMarkErr) {
-                roomLogger.warn('[handleLeaveCurrentRoom] Non-fatal: could not delete room_players after mark-disconnected:', deleteAfterMarkErr.message);
-              }
+              // Do NOT delete the room_players row here. The server expects it to remain with
+              // connection_status='disconnected' so process_disconnected_players can replace the
+              // player with a bot and record stats (consistent with GameScreen cleanup logic).
+              // VOLUNTARILY_LEFT_ROOMS_KEY suppression below prevents the banner from re-showing.
             } else {
               const { data: plainRows } = await supabase
                 .from('room_players')
