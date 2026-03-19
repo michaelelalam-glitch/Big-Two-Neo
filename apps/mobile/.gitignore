@@ -49,6 +49,11 @@ e2e/results/
 # build logs (may contain sensitive data)
 build.log
 *.build.log
+*.log
+scripts/monitor-ios-builds.log
+
+# Supabase CLI temporary files
+supabase/.temp/
 
 # generated native folders
 /ios
