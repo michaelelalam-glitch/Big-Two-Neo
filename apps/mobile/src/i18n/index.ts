@@ -1,6 +1,6 @@
 /**
  * i18n System
- * 
+ *
  * Provides internationalization support for the Big2 Mobile app.
  * Supports: English (EN), Arabic (AR), German (DE)
  */
@@ -110,7 +110,7 @@ export interface Translations {
     comingSoonAlertTitle: string;
     comingSoonAlertMsg: string;
   };
-  
+
   // Settings Screen
   settings: {
     title: string;
@@ -121,7 +121,7 @@ export interface Translations {
     language: string;
     account: string;
     about: string;
-    
+
     // Profile
     editProfile: string;
     username: string;
@@ -130,7 +130,7 @@ export interface Translations {
     privacyDescription: string;
     profileVisibility: string;
     showOnlineStatus: string;
-    
+
     // Game Settings
     cardSortOrder: string;
     cardSortOrderDescription: string;
@@ -144,13 +144,13 @@ export interface Translations {
     autoPassTimer: string;
     autoPassTimerDescription: string;
     disabled: string;
-    
+
     // Notifications
     pushNotifications: string;
     pushNotificationsDescription: string;
     enableNotifications: string;
     notificationTypes: string;
-    
+
     // Audio & Haptics
     soundEffects: string;
     soundEffectsDescription: string;
@@ -159,14 +159,14 @@ export interface Translations {
     vibration: string;
     vibrationDescription: string;
     volume: string;
-    
+
     // Language
     selectLanguage: string;
     languageDescription: string;
     changeLanguageWarning: string;
     restartRequired: string;
     languageChangedSuccess: string;
-    
+
     // Account
     accountManagement: string;
     clearCache: string;
@@ -182,14 +182,14 @@ export interface Translations {
     accountDeletedSuccess: string;
     profileComingSoonDescription: string;
     autoPassTimerBanner: string;
-    
+
     // About
     version: string;
     termsOfService: string;
     privacyPolicy: string;
     support: string;
   };
-  
+
   // Home Screen
   home: {
     title: string;
@@ -328,7 +328,7 @@ export interface Translations {
     botReplacement: string;
     spectatorMode: string;
   };
-  
+
   // Game Screen
   game: {
     yourTurn: string;
@@ -379,7 +379,7 @@ export interface Translations {
     cardsWillAppear: string;
     noPlayHistoryYet: string;
   };
-  
+
   // Game End Modal
   gameEnd: {
     gameWinner: string;
@@ -424,7 +424,7 @@ export interface Translations {
     card: string;
     cards: string;
   };
-  
+
   // Lobby Screen
   lobby: {
     title: string;
@@ -478,6 +478,12 @@ export interface Translations {
     hard: string;
     rankedMatch: string;
     privateRoom: string;
+    confirmLeaveTitle: string;
+    confirmLeaveHost: string;
+    confirmLeaveReady: string;
+    confirmLeaveMessage: string;
+    confirmLeaveYes: string;
+    confirmLeaveNo: string;
   };
   room: {
     createTitle: string;
@@ -511,7 +517,7 @@ export interface Translations {
     askFriendForCode: string;
     createRoomRateLimited: string;
   };
-  
+
   // Profile Screen
   profile: {
     title: string;
@@ -591,7 +597,7 @@ export interface Translations {
     historyEmptyLost: string;
     historyEmptyIncomplete: string;
   };
-  
+
   // Leaderboard Screen
   leaderboard: {
     title: string;
@@ -615,7 +621,7 @@ export interface Translations {
     noRankedPlayers: string;
     playRankedMatches: string;
   };
-  
+
   // Auth Screens
   auth: {
     signIn: string;
@@ -631,7 +637,7 @@ export interface Translations {
     orContinueWith: string;
     agreeToTerms: string;
   };
-  
+
   // Matchmaking Screen
   matchmaking: {
     title: string;
@@ -657,7 +663,7 @@ export interface Translations {
     casualDesc: string;
     rankedDesc: string;
   };
-  
+
   // Match History Screen
   matchHistory: {
     title: string;
@@ -673,7 +679,7 @@ export interface Translations {
     daysAgo: string;
     local: string;
   };
-  
+
   // Ranked Leaderboard
 }
 
@@ -728,16 +734,21 @@ const en: Translations = {
     micPermissionTitle: 'Microphone Access',
     micPermissionMessage: 'Big Two needs microphone access so other players can hear you.',
     permissionDeniedCameraTitle: 'Camera Permission Denied',
-    permissionDeniedCameraMessage: 'Camera access was denied. To enable video chat, open Settings and allow camera access for Big Two.',
+    permissionDeniedCameraMessage:
+      'Camera access was denied. To enable video chat, open Settings and allow camera access for Big Two.',
     permissionDeniedMicTitle: 'Microphone Permission Denied',
-    permissionDeniedMicMessage: 'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Big Two.',
+    permissionDeniedMicMessage:
+      'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Big Two.',
     openSettings: 'Open Settings',
     connectFailedTitle: 'Video Chat Unavailable',
-    connectFailedMessage: 'Could not connect to the video chat room. Please check your connection and try again.',
+    connectFailedMessage:
+      'Could not connect to the video chat room. Please check your connection and try again.',
     voiceConnectFailedTitle: 'Voice Chat Unavailable',
-    voiceConnectFailedMessage: 'Could not connect to the voice chat room. Please check your connection and try again.',
+    voiceConnectFailedMessage:
+      'Could not connect to the voice chat room. Please check your connection and try again.',
     devBuildRequiredTitle: 'Dev Build Required',
-    devBuildRequiredMessage: 'Voice and video chat require native WebRTC modules that are not available in this build.',
+    devBuildRequiredMessage:
+      'Voice and video chat require native WebRTC modules that are not available in this build.',
     // Task #648 — text chat
     title: 'Chat',
     placeholder: 'Type a message…',
@@ -770,7 +781,7 @@ const en: Translations = {
     language: 'Language',
     account: 'Account',
     about: 'About',
-    
+
     editProfile: 'Edit Profile',
     username: 'Username',
     avatar: 'Avatar',
@@ -778,7 +789,7 @@ const en: Translations = {
     privacyDescription: 'Control who can see your profile',
     profileVisibility: 'Profile Visibility',
     showOnlineStatus: 'Show Online Status',
-    
+
     cardSortOrder: 'Card Sort Order',
     cardSortOrderDescription: 'How to sort your cards in hand',
     sortBySuit: 'By Suit',
@@ -791,12 +802,12 @@ const en: Translations = {
     autoPassTimer: 'Auto-Pass Timer',
     autoPassTimerDescription: 'Automatically pass after inactivity',
     disabled: 'Disabled',
-    
+
     pushNotifications: 'Push Notifications',
     pushNotificationsDescription: 'Receive notifications for game events',
     enableNotifications: 'Enable Notifications',
     notificationTypes: 'Notification Types',
-    
+
     soundEffects: 'Sound Effects',
     soundEffectsDescription: 'Play sounds during gameplay',
     music: 'Music',
@@ -804,13 +815,13 @@ const en: Translations = {
     vibration: 'Vibration',
     vibrationDescription: 'Haptic feedback',
     volume: 'Volume',
-    
+
     selectLanguage: 'Select Language',
     languageDescription: 'Choose your preferred language',
     changeLanguageWarning: 'Changing language will restart the app',
     restartRequired: 'Restart Required',
     languageChangedSuccess: 'Language changed successfully',
-    
+
     accountManagement: 'Account Management',
     clearCache: 'Clear Cache',
     clearCacheDescription: 'Free up storage space',
@@ -818,14 +829,17 @@ const en: Translations = {
     clearCacheSuccess: 'Cache cleared successfully',
     deleteAccount: 'Delete Account',
     deleteAccountDescription: 'Permanently delete your account',
-    deleteAccountWarning: 'This action cannot be undone. All your data will be permanently deleted.',
+    deleteAccountWarning:
+      'This action cannot be undone. All your data will be permanently deleted.',
     deleteAccountConfirm: 'Are you sure you want to delete your account?',
     noUserLoggedIn: 'No user logged in',
     deleteAccountFailed: 'Failed to delete account. Please contact support.',
     accountDeletedSuccess: 'Account deleted successfully',
-    profileComingSoonDescription: 'Profile visibility and online status will be available with online multiplayer!',
-    autoPassTimerBanner: 'ℹ️ Note: Game currently uses a fixed 10-second timer. Custom durations coming soon!',
-    
+    profileComingSoonDescription:
+      'Profile visibility and online status will be available with online multiplayer!',
+    autoPassTimerBanner:
+      'ℹ️ Note: Game currently uses a fixed 10-second timer. Custom durations coming soon!',
+
     version: 'Version',
     termsOfService: 'Terms of Service',
     privacyPolicy: 'Privacy Policy',
@@ -893,7 +907,8 @@ const en: Translations = {
     rankOrder: '3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2',
     suitOrderLabel: 'Suit Order (lowest to highest):',
     suitOrder: '♦ Diamonds, ♣ Clubs, ♥ Hearts, ♠ Spades',
-    cardNote: 'Note: The 3 of Diamonds (3♦) is the lowest card & the 2 of Spades (2♠) is the highest!',
+    cardNote:
+      'Note: The 3 of Diamonds (3♦) is the lowest card & the 2 of Spades (2♠) is the highest!',
     validCombinationsTitle: 'Valid Combinations',
     single: 'Single: Any single card',
     pair: 'Pair: Two cards of the same rank',
@@ -904,33 +919,45 @@ const en: Translations = {
     fourOfAKind: 'Four of a Kind: 4 cards of the same rank + 1 card',
     straightFlush: 'Straight Flush: 5 consecutive cards of the same suit',
     gameplayTitle: 'Gameplay',
-    startingGame: 'Starting the Game: The player with 3♦ must play it (either alone or in a combination).',
-    playingCards: 'Playing Cards: Each player must play a higher combination of the same type (e.g., pair beats pair).',
+    startingGame:
+      'Starting the Game: The player with 3♦ must play it (either alone or in a combination).',
+    playingCards:
+      'Playing Cards: Each player must play a higher combination of the same type (e.g., pair beats pair).',
     passing: 'Passing: If you can\'t or don\'t want to play, click "Pass".',
-    leading: 'Leading: When everyone passes, the last player to play cards starts a new round with any valid combination.',
+    leading:
+      'Leading: When everyone passes, the last player to play cards starts a new round with any valid combination.',
     winning: 'Winning: First player to empty their hand wins the match and starts the next match!',
     specialRulesTitle: 'Special Rules',
-    autoPassTimer: 'Auto-Pass Timer: When the highest possible card/combo is played, other players have 10 seconds to respond or will auto-pass.',
-    oneCardLeft: 'One Card Left: When a player has 1 card remaining, the player who plays immediately before them (in turn order) MUST play their highest single card if they are playing a single. Pairs, triples, and 5-card combos are not restricted.',
-    fiveCardCombos: '5-Card Combos: Straights, flushes, full houses, four of a kind, and straight flushes can only be beaten by higher combinations of the same type.',
+    autoPassTimer:
+      'Auto-Pass Timer: When the highest possible card/combo is played, other players have 10 seconds to respond or will auto-pass.',
+    oneCardLeft:
+      'One Card Left: When a player has 1 card remaining, the player who plays immediately before them (in turn order) MUST play their highest single card if they are playing a single. Pairs, triples, and 5-card combos are not restricted.',
+    fiveCardCombos:
+      '5-Card Combos: Straights, flushes, full houses, four of a kind, and straight flushes can only be beaten by higher combinations of the same type.',
     scoringTitle: 'Scoring',
     scoringIntro: 'Points are awarded based on how many cards opponents have left when you win:',
     scoring1to4: '1-4 cards left: 1 point per card',
     scoring5to9: '5-9 cards left: 2 points per card',
     scoring10to13: '10-13 cards left: 3 points per card',
-    scoringWarning: 'Warning: First player to reach over 100 points loses the game! The player with the lowest score wins.',
+    scoringWarning:
+      'Warning: First player to reach over 100 points loses the game! The player with the lowest score wins.',
     letsPlay: "Let's Play!",
     // ELO Rating System
     eloSystemTitle: '🏆 ELO Rating System',
-    eloSystemDesc: 'Your ELO rating measures your skill level. It increases when you win and decreases when you lose in ranked matches. Casual matches do not affect your ELO.',
-    eloFormula: 'ELO changes are calculated using the chess rating formula with K-factor=32. Winning against higher-rated opponents gives more points.',
+    eloSystemDesc:
+      'Your ELO rating measures your skill level. It increases when you win and decreases when you lose in ranked matches. Casual matches do not affect your ELO.',
+    eloFormula:
+      'ELO changes are calculated using the chess rating formula with K-factor=32. Winning against higher-rated opponents gives more points.',
     rankTiersTitle: 'Rank Tiers:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Reconnection & Disconnection',
-    reconnectionDesc: 'If you lose connection during a match, you have 60 seconds to reconnect and take back your position from the bot.',
+    reconnectionDesc:
+      'If you lose connection during a match, you have 60 seconds to reconnect and take back your position from the bot.',
     disconnectGrace: '⏱️ Grace Period: 60 seconds to resume your app and restore your position.',
-    botReplacement: '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will fill in for you.',
-    spectatorMode: '🔄 Rejoin & Replace Bot: You can rejoin the game at any time during the match and take over your hand from the bot. Tap "Replace Bot & Rejoin" to instantly resume where the bot left off.',
+    botReplacement:
+      '🤖 Bot Replacement: After 60 seconds, a bot with your current hand will fill in for you.',
+    spectatorMode:
+      '🔄 Rejoin & Replace Bot: You can rejoin the game at any time during the match and take over your hand from the bot. Tap "Replace Bot & Rejoin" to instantly resume where the bot left off.',
   },
   game: {
     yourTurn: 'Your Turn',
@@ -1076,6 +1103,12 @@ const en: Translations = {
     hard: 'Hard',
     rankedMatch: '🏆 Ranked Match',
     privateRoom: '🔒 Private Room',
+    confirmLeaveTitle: 'Leave Room?',
+    confirmLeaveHost: 'You are the host. Leaving will assign a new host or close the room.',
+    confirmLeaveReady: "You're marked as ready. Are you sure you want to leave?",
+    confirmLeaveMessage: 'Are you sure you want to leave the room?',
+    confirmLeaveYes: 'Leave',
+    confirmLeaveNo: 'Stay',
   },
   room: {
     createTitle: 'Create Room',
@@ -1094,20 +1127,23 @@ const en: Translations = {
     fillWithBots: 'Fill empty slots with bots',
     customizeSettings: 'Customize game settings',
     mustBeSignedIn: 'You must be signed in to create a room',
-    alreadyInRoomMessage: "You're already in room {{code}} ({{status}}). Leave and create new room?",
+    alreadyInRoomMessage:
+      "You're already in room {{code}} ({{status}}). Leave and create new room?",
     goToRoom: 'Go to Room',
     leaveAndCreate: 'Leave & Create',
     leaveRoomError: 'Failed to leave existing room',
     leaveTimeout: 'Taking longer than expected to leave room. Please try again or wait a moment.',
     createRoomError: 'Failed to create room',
     invalidCodeTitle: 'Invalid Code',
-    alreadyInDifferentRoom: "You're already in room {{code}}. Leave it first to join a different room.",
+    alreadyInDifferentRoom:
+      "You're already in room {{code}}. Leave it first to join a different room.",
     goToCurrentRoom: 'Go to Current Room',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
-    createRoomRateLimited: 'You\'ve created too many rooms recently. Please wait up to an hour before creating another.',  // Rate limit window is 1 hour — Task #281
+    createRoomRateLimited:
+      "You've created too many rooms recently. Please wait up to an hour before creating another.", // Rate limit window is 1 hour — Task #281
   },
   profile: {
     title: 'Profile',
@@ -1239,7 +1275,8 @@ const en: Translations = {
     playersInQueue: 'players in queue',
     playersNeeded: 'players needed',
     howItWorks: 'How It Works',
-    description: 'We\'ll match you with players of similar skill level. The game starts automatically when 4 players are ready!',
+    description:
+      "We'll match you with players of similar skill level. The game starts automatically when 4 players are ready!",
     // Match Type Preferences (Phase 4b)
     selectMatchType: 'Select Match Type',
     casual: 'Casual',
@@ -1313,16 +1350,19 @@ const ar: Translations = {
     micPermissionTitle: 'الوصول إلى الميكروفون',
     micPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الميكروفون حتى يسمعك اللاعبون الآخرون.',
     permissionDeniedCameraTitle: 'تم رفض إذن الكاميرا',
-    permissionDeniedCameraMessage: 'تم رفض الوصول إلى الكاميرا. لتمكين الدردشة المرئية، افتح الإعدادات وامنح الإذن.',
+    permissionDeniedCameraMessage:
+      'تم رفض الوصول إلى الكاميرا. لتمكين الدردشة المرئية، افتح الإعدادات وامنح الإذن.',
     permissionDeniedMicTitle: 'تم رفض إذن الميكروفون',
-    permissionDeniedMicMessage: 'تم رفض الوصول إلى الميكروفون. لتمكين الدردشة الصوتية، افتح الإعدادات وامنح الإذن.',
+    permissionDeniedMicMessage:
+      'تم رفض الوصول إلى الميكروفون. لتمكين الدردشة الصوتية، افتح الإعدادات وامنح الإذن.',
     openSettings: 'فتح الإعدادات',
     connectFailedTitle: 'الدردشة المرئية غير متاحة',
     connectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة المرئية. تحقق من اتصالك وأعد المحاولة.',
     voiceConnectFailedTitle: 'الدردشة الصوتية غير متاحة',
     voiceConnectFailedMessage: 'تعذّر الاتصال بغرفة الدردشة الصوتية. تحقق من اتصالك وأعد المحاولة.',
     devBuildRequiredTitle: 'مطلوب إصدار مطوّر',
-    devBuildRequiredMessage: 'تتطلب الدردشة الصوتية والمرئية وحدات WebRTC الأصلية غير المتوفرة في هذا الإصدار.',
+    devBuildRequiredMessage:
+      'تتطلب الدردشة الصوتية والمرئية وحدات WebRTC الأصلية غير المتوفرة في هذا الإصدار.',
     // Task #648 — text chat
     title: 'دردشة',
     placeholder: 'اكتب رسالة…',
@@ -1355,7 +1395,7 @@ const ar: Translations = {
     language: 'اللغة',
     account: 'الحساب',
     about: 'حول',
-    
+
     editProfile: 'تعديل الملف الشخصي',
     username: 'اسم المستخدم',
     avatar: 'الصورة الرمزية',
@@ -1363,7 +1403,7 @@ const ar: Translations = {
     privacyDescription: 'التحكم في من يمكنه رؤية ملفك الشخصي',
     profileVisibility: 'رؤية الملف الشخصي',
     showOnlineStatus: 'إظهار الحالة على الإنترنت',
-    
+
     cardSortOrder: 'ترتيب البطاقات',
     cardSortOrderDescription: 'كيفية ترتيب البطاقات في يدك',
     sortBySuit: 'حسب النوع',
@@ -1376,12 +1416,12 @@ const ar: Translations = {
     autoPassTimer: 'مؤقت التمرير التلقائي',
     autoPassTimerDescription: 'التمرير تلقائيًا بعد عدم النشاط',
     disabled: 'معطل',
-    
+
     pushNotifications: 'إشعارات الدفع',
     pushNotificationsDescription: 'تلقي إشعارات لأحداث اللعبة',
     enableNotifications: 'تفعيل الإشعارات',
     notificationTypes: 'أنواع الإشعارات',
-    
+
     soundEffects: 'المؤثرات الصوتية',
     soundEffectsDescription: 'تشغيل الأصوات أثناء اللعب',
     music: 'الموسيقى',
@@ -1389,13 +1429,13 @@ const ar: Translations = {
     vibration: 'الاهتزاز',
     vibrationDescription: 'ردود الفعل اللمسية',
     volume: 'مستوى الصوت',
-    
+
     selectLanguage: 'اختر اللغة',
     languageDescription: 'اختر لغتك المفضلة',
     changeLanguageWarning: 'تغيير اللغة سيعيد تشغيل التطبيق',
     restartRequired: 'إعادة التشغيل مطلوبة',
     languageChangedSuccess: 'تم تغيير اللغة بنجاح',
-    
+
     accountManagement: 'إدارة الحساب',
     clearCache: 'مسح ذاكرة التخزين المؤقت',
     clearCacheDescription: 'حرر مساحة التخزين',
@@ -1408,9 +1448,11 @@ const ar: Translations = {
     noUserLoggedIn: 'لم يتم تسجيل دخول مستخدم',
     deleteAccountFailed: 'فشل حذف الحساب. يرجى الاتصال بالدعم.',
     accountDeletedSuccess: 'تم حذف الحساب بنجاح',
-    profileComingSoonDescription: 'ستكون رؤية الملف الشخصي وحالة الاتصال متاحة مع اللعب الجماعي عبر الإنترنت!',
-    autoPassTimerBanner: 'ℹ️ ملاحظة: تستخدم اللعبة حاليًا مؤقتًا ثابتًا مدته 10 ثوانٍ. ستكون المدد المخصصة متاحة قريبًا!',
-    
+    profileComingSoonDescription:
+      'ستكون رؤية الملف الشخصي وحالة الاتصال متاحة مع اللعب الجماعي عبر الإنترنت!',
+    autoPassTimerBanner:
+      'ℹ️ ملاحظة: تستخدم اللعبة حاليًا مؤقتًا ثابتًا مدته 10 ثوانٍ. ستكون المدد المخصصة متاحة قريبًا!',
+
     version: 'الإصدار',
     termsOfService: 'شروط الخدمة',
     privacyPolicy: 'سياسة الخصوصية',
@@ -1613,6 +1655,12 @@ const ar: Translations = {
     hard: 'صعب',
     rankedMatch: '🏆 مباراة مصنفة',
     privateRoom: '🔒 غرفة خاصة',
+    confirmLeaveTitle: 'مغادرة الغرفة؟',
+    confirmLeaveHost: 'أنت المضيف. سيؤدي المغادرة إلى تعيين مضيف جديد أو إغلاق الغرفة.',
+    confirmLeaveReady: 'أنت مستعد. هل أنت متأكد أنك تريد المغادرة؟',
+    confirmLeaveMessage: 'هل أنت متأكد أنك تريد مغادرة الغرفة؟',
+    confirmLeaveYes: 'مغادرة',
+    confirmLeaveNo: 'البقاء',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1644,7 +1692,8 @@ const ar: Translations = {
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
-    createRoomRateLimited: 'لقد أنشأت غرفًا كثيرة مؤخرًا. يرجى الانتظار نحو ساعة قبل إنشاء غرفة أخرى.',
+    createRoomRateLimited:
+      'لقد أنشأت غرفًا كثيرة مؤخرًا. يرجى الانتظار نحو ساعة قبل إنشاء غرفة أخرى.',
   },
   profile: {
     title: 'الملف الشخصي',
@@ -1776,7 +1825,8 @@ const ar: Translations = {
     playersInQueue: 'لاعبين في قائمة الانتظار',
     playersNeeded: 'لاعبين مطلوبين',
     howItWorks: 'كيف يعمل',
-    description: 'سنطابقك مع لاعبين لديهم مستوى مهارة مماثل. تبدأ اللعبة تلقائيًا عندما يكون 4 لاعبين جاهزين!',
+    description:
+      'سنطابقك مع لاعبين لديهم مستوى مهارة مماثل. تبدأ اللعبة تلقائيًا عندما يكون 4 لاعبين جاهزين!',
     // Match Type Preferences (Phase 4b)
     selectMatchType: 'اختر نوع المباراة',
     casual: 'عادي',
@@ -1850,30 +1900,39 @@ const ar: Translations = {
     specialRule1: '• لا يمكن للتشكيلات الأضعف أن تتفوق على الأقوى',
     specialRule2: '• فلاش متتالي > أربعة متشابهة > فل هاوس > فلاش > متتالية',
     specialRule3: '• يمكنك استخدام الأزرار المساعدة (فرز، ذكي، تلميح) لترتيب أوراقك',
-    autoPassTimer: 'مؤقت التمرير التلقائي: عندما يتم لعب أعلى بطاقة، لدى اللاعبين الآخرين 10 ثواني للرد',
-    oneCardLeft: 'بطاقة واحدة متبقية: عندما يكون لدى اللاعب بطاقة واحدة، يجب على اللاعب السابق لعب أعلى بطاقة مفردة',
-    fiveCardCombos: 'تشكيلات 5 بطاقات: المتتاليات والفلاش لا يمكن هزيمتها إلا بتشكيلة أعلى من نفس النوع',
+    autoPassTimer:
+      'مؤقت التمرير التلقائي: عندما يتم لعب أعلى بطاقة، لدى اللاعبين الآخرين 10 ثواني للرد',
+    oneCardLeft:
+      'بطاقة واحدة متبقية: عندما يكون لدى اللاعب بطاقة واحدة، يجب على اللاعب السابق لعب أعلى بطاقة مفردة',
+    fiveCardCombos:
+      'تشكيلات 5 بطاقات: المتتاليات والفلاش لا يمكن هزيمتها إلا بتشكيلة أعلى من نفس النوع',
     scoringTitle: '🏆 نظام النقاط',
-    scoringIntro: 'في نهاية كل جولة، اللاعبون الذين لم يتخلصوا من أوراقهم يحصلون على نقاط بناءً على عدد الأوراق المتبقية:',
+    scoringIntro:
+      'في نهاية كل جولة، اللاعبون الذين لم يتخلصوا من أوراقهم يحصلون على نقاط بناءً على عدد الأوراق المتبقية:',
     scoring1to4: '1-4 أوراق متبقية: 1 نقطة',
     scoring5to9: '5-9 أوراق متبقية: 2 نقطة',
     scoring10to13: '10-13 ورقة متبقية: 3 نقاط',
     scoring1to7: '• 1-7 أوراق متبقية = 1 نقطة',
     scoring8to10: '• 8-10 أوراق متبقية = 2 نقطة',
     scoring11to12: '• 11-12 ورقة متبقية = 3 نقاط',
-    scoringWarning: 'تحذير: أول لاعب يصل إلى أكثر من 100 نقطة يخسر اللعبة! اللاعب صاحب أقل نقاط يفوز.',
+    scoringWarning:
+      'تحذير: أول لاعب يصل إلى أكثر من 100 نقطة يخسر اللعبة! اللاعب صاحب أقل نقاط يفوز.',
     letsPlay: 'هيا نلعب!',
     // ELO Rating System
     eloSystemTitle: '🏆 نظام تصنيف ELO',
-    eloSystemDesc: 'تصنيف ELO الخاص بك يقيس مستوى مهارتك. يزداد عندما تفوز ويقل عندما تخسر في المباريات المصنفة. المباريات العادية لا تؤثر على ELO الخاص بك.',
-    eloFormula: 'يتم حساب تغييرات ELO باستخدام صيغة تصنيف الشطرنج مع عامل K = 32. الفوز ضد خصوم ذوي تصنيف أعلى يمنح المزيد من النقاط.',
+    eloSystemDesc:
+      'تصنيف ELO الخاص بك يقيس مستوى مهارتك. يزداد عندما تفوز ويقل عندما تخسر في المباريات المصنفة. المباريات العادية لا تؤثر على ELO الخاص بك.',
+    eloFormula:
+      'يتم حساب تغييرات ELO باستخدام صيغة تصنيف الشطرنج مع عامل K = 32. الفوز ضد خصوم ذوي تصنيف أعلى يمنح المزيد من النقاط.',
     rankTiersTitle: 'مستويات الرتب:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 إعادة الاتصال والانقطاع',
-    reconnectionDesc: 'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال واسترداد موضعك من البوت.',
+    reconnectionDesc:
+      'إذا فقدت الاتصال أثناء المباراة، لديك 60 ثانية لإعادة الاتصال واسترداد موضعك من البوت.',
     disconnectGrace: '⏱️ فترة السماح: 60 ثانية لاستئناف التطبيق واستعادة موضعك.',
     botReplacement: '🤖 استبدال البوت: بعد 60 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
-    spectatorMode: '🔄 إعادة الانضمام واستبدال البوت: يمكنك إعادة الانضمام في أي وقت أثناء المباراة واستعادة يدك من البوت. اضغط على "استبدال البوت وإعادة الانضمام" للاستئناف فوراً.',
+    spectatorMode:
+      '🔄 إعادة الانضمام واستبدال البوت: يمكنك إعادة الانضمام في أي وقت أثناء المباراة واستعادة يدك من البوت. اضغط على "استبدال البوت وإعادة الانضمام" للاستئناف فوراً.',
   },
 };
 
@@ -1924,20 +1983,27 @@ const de: Translations = {
     tapUnmute: 'Stummschaltung aufheben',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Kamerazugriff',
-    cameraPermissionMessage: 'Big Two benötigt Kamerazugriff, um dein Video anderen Spielern zu zeigen.',
+    cameraPermissionMessage:
+      'Big Two benötigt Kamerazugriff, um dein Video anderen Spielern zu zeigen.',
     micPermissionTitle: 'Mikrofonzugriff',
-    micPermissionMessage: 'Big Two benötigt Mikrofonzugriff, damit andere Spieler dich hören können.',
+    micPermissionMessage:
+      'Big Two benötigt Mikrofonzugriff, damit andere Spieler dich hören können.',
     permissionDeniedCameraTitle: 'Kamerazugriff verweigert',
-    permissionDeniedCameraMessage: 'Der Kamerazugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Kamerazugriff.',
+    permissionDeniedCameraMessage:
+      'Der Kamerazugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Kamerazugriff.',
     permissionDeniedMicTitle: 'Mikrofonzugriff verweigert',
-    permissionDeniedMicMessage: 'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Mikrofonzugriff.',
+    permissionDeniedMicMessage:
+      'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Mikrofonzugriff.',
     openSettings: 'Einstellungen öffnen',
     connectFailedTitle: 'Video-Chat nicht verfügbar',
-    connectFailedMessage: 'Verbindung zum Video-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
+    connectFailedMessage:
+      'Verbindung zum Video-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
     voiceConnectFailedTitle: 'Sprach-Chat nicht verfügbar',
-    voiceConnectFailedMessage: 'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
+    voiceConnectFailedMessage:
+      'Verbindung zum Sprach-Chatraum fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.',
     devBuildRequiredTitle: 'Dev-Build erforderlich',
-    devBuildRequiredMessage: 'Sprach- und Video-Chat erfordern native WebRTC-Module, die in diesem Build nicht verfügbar sind.',
+    devBuildRequiredMessage:
+      'Sprach- und Video-Chat erfordern native WebRTC-Module, die in diesem Build nicht verfügbar sind.',
     // Task #648 — text chat
     title: 'Chat',
     placeholder: 'Nachricht eingeben…',
@@ -1971,7 +2037,7 @@ const de: Translations = {
     language: 'Sprache',
     account: 'Konto',
     about: 'Über',
-    
+
     editProfile: 'Profil bearbeiten',
     username: 'Benutzername',
     avatar: 'Avatar',
@@ -1979,7 +2045,7 @@ const de: Translations = {
     privacyDescription: 'Steuern Sie, wer Ihr Profil sehen kann',
     profileVisibility: 'Profilsichtbarkeit',
     showOnlineStatus: 'Online-Status anzeigen',
-    
+
     cardSortOrder: 'Kartensortierung',
     cardSortOrderDescription: 'Wie Ihre Karten sortiert werden',
     sortBySuit: 'Nach Farbe',
@@ -1992,12 +2058,12 @@ const de: Translations = {
     autoPassTimer: 'Auto-Pass-Timer',
     autoPassTimerDescription: 'Automatisch passen nach Inaktivität',
     disabled: 'Deaktiviert',
-    
+
     pushNotifications: 'Push-Benachrichtigungen',
     pushNotificationsDescription: 'Benachrichtigungen für Spielereignisse erhalten',
     enableNotifications: 'Benachrichtigungen aktivieren',
     notificationTypes: 'Benachrichtigungstypen',
-    
+
     soundEffects: 'Soundeffekte',
     soundEffectsDescription: 'Sounds während des Spiels abspielen',
     music: 'Musik',
@@ -2005,13 +2071,13 @@ const de: Translations = {
     vibration: 'Vibration',
     vibrationDescription: 'Haptisches Feedback',
     volume: 'Lautstärke',
-    
+
     selectLanguage: 'Sprache auswählen',
     languageDescription: 'Wählen Sie Ihre bevorzugte Sprache',
     changeLanguageWarning: 'Das Ändern der Sprache startet die App neu',
     restartRequired: 'Neustart erforderlich',
     languageChangedSuccess: 'Sprache erfolgreich geändert',
-    
+
     accountManagement: 'Kontoverwaltung',
     clearCache: 'Cache leeren',
     clearCacheDescription: 'Speicherplatz freigeben',
@@ -2019,14 +2085,17 @@ const de: Translations = {
     clearCacheSuccess: 'Cache erfolgreich geleert',
     deleteAccount: 'Konto löschen',
     deleteAccountDescription: 'Ihr Konto dauerhaft löschen',
-    deleteAccountWarning: 'Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.',
+    deleteAccountWarning:
+      'Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.',
     deleteAccountConfirm: 'Sind Sie sicher, dass Sie Ihr Konto löschen möchten?',
     noUserLoggedIn: 'Kein Benutzer angemeldet',
     deleteAccountFailed: 'Fehler beim Löschen des Kontos. Bitte wenden Sie sich an den Support.',
     accountDeletedSuccess: 'Konto erfolgreich gelöscht',
-    profileComingSoonDescription: 'Profilsichtbarkeit und Online-Status werden mit Online-Multiplayer verfügbar sein!',
-    autoPassTimerBanner: 'ℹ️ Hinweis: Das Spiel verwendet derzeit einen festen 10-Sekunden-Timer. Benutzerdefinierte Dauern sind bald verfügbar!',
-    
+    profileComingSoonDescription:
+      'Profilsichtbarkeit und Online-Status werden mit Online-Multiplayer verfügbar sein!',
+    autoPassTimerBanner:
+      'ℹ️ Hinweis: Das Spiel verwendet derzeit einen festen 10-Sekunden-Timer. Benutzerdefinierte Dauern sind bald verfügbar!',
+
     version: 'Version',
     termsOfService: 'Nutzungsbedingungen',
     privacyPolicy: 'Datenschutzerklärung',
@@ -2068,7 +2137,8 @@ const de: Translations = {
     medium: 'Mittel',
     mediumDesc: 'Ausgewogenes Spiel mit einfacher Strategie. Eine faire Herausforderung.',
     hard: 'Schwer',
-    hardDesc: 'Optimales Spiel mit fortgeschrittenen Kombinationen. Glaubst du, du kannst gewinnen?',
+    hardDesc:
+      'Optimales Spiel mit fortgeschrittenen Kombinationen. Glaubst du, du kannst gewinnen?',
     chooseGameMode: 'Wähle deinen Spielmodus',
     noGameInProgress: 'Kein laufendes Spiel',
     startNewGameHint: 'Starte ein neues Spiel!',
@@ -2119,7 +2189,8 @@ const de: Translations = {
     leaveGameMessage: 'Bist du sicher, dass du gehen möchtest? Dein Fortschritt geht verloren.',
     stay: 'Bleiben',
     spectatorMode: 'Zuschauermodus',
-    spectatorDescription: 'Du schaust bei diesem Spiel zu. Ein Bot hat dich nach der Trennung ersetzt.',
+    spectatorDescription:
+      'Du schaust bei diesem Spiel zu. Ein Bot hat dich nach der Trennung ersetzt.',
     initializingGame: 'Spiel wird initialisiert...',
     settingUpEngine: 'Spielengine wird eingerichtet...',
     matchHistoryTitle: 'Runde {{n}} Verlauf',
@@ -2193,7 +2264,8 @@ const de: Translations = {
     copiedTitle: 'Kopiert!',
     copiedMessage: 'Raumcode {{roomCode}} wurde in die Zwischenablage kopiert.',
     copyFailedTitle: 'Kopieren fehlgeschlagen',
-    copyFailedMessage: 'Kopieren in die Zwischenablage fehlgeschlagen. Ihr Raumcode lautet: {{roomCode}}',
+    copyFailedMessage:
+      'Kopieren in die Zwischenablage fehlgeschlagen. Ihr Raumcode lautet: {{roomCode}}',
     shareTitle: 'Big Two Spiel beitreten',
     shareMessage: 'Tritt meinem Big Two Spiel bei! Raumcode: {{roomCode}}',
     minPlayers: 'Mindestens 2 Spieler erforderlich',
@@ -2229,6 +2301,13 @@ const de: Translations = {
     hard: 'Schwer',
     rankedMatch: '🏆 Ranglistenspiel',
     privateRoom: '🔒 Privater Raum',
+    confirmLeaveTitle: 'Raum verlassen?',
+    confirmLeaveHost:
+      'Du bist der Host. Wenn du gehst, wird ein neuer Host bestimmt oder der Raum geschlossen.',
+    confirmLeaveReady: 'Du bist als bereit markiert. Möchtest du wirklich gehen?',
+    confirmLeaveMessage: 'Möchtest du den Raum wirklich verlassen?',
+    confirmLeaveYes: 'Verlassen',
+    confirmLeaveNo: 'Bleiben',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -2247,20 +2326,25 @@ const de: Translations = {
     fillWithBots: 'Leere Plätze mit Bots füllen',
     customizeSettings: 'Spieleinstellungen anpassen',
     mustBeSignedIn: 'Du musst angemeldet sein, um einen Raum zu erstellen',
-    alreadyInRoomMessage: 'Du bist bereits in Raum {{code}} ({{status}}). Verlassen und neuen Raum erstellen?',
+    alreadyInRoomMessage:
+      'Du bist bereits in Raum {{code}} ({{status}}). Verlassen und neuen Raum erstellen?',
     goToRoom: 'Zum Raum gehen',
     leaveAndCreate: 'Verlassen & Erstellen',
     leaveRoomError: 'Fehler beim Verlassen des Raums',
-    leaveTimeout: 'Das Verlassen des Raums dauert länger als erwartet. Bitte versuche es erneut oder warte einen Moment.',
+    leaveTimeout:
+      'Das Verlassen des Raums dauert länger als erwartet. Bitte versuche es erneut oder warte einen Moment.',
     createRoomError: 'Fehler beim Erstellen des Raums',
     invalidCodeTitle: 'Ungültiger Code',
-    alreadyInDifferentRoom: 'Du bist bereits in Raum {{code}}. Verlasse ihn zuerst, um einem anderen Raum beizutreten.',
+    alreadyInDifferentRoom:
+      'Du bist bereits in Raum {{code}}. Verlasse ihn zuerst, um einem anderen Raum beizutreten.',
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
-    askFriendForCode: 'Frage deinen Freund nach dem Raumcode und gib ihn hier ein, um seinem Spiel beizutreten',
-    createRoomRateLimited: 'Du hast in letzter Zeit zu viele Räume erstellt. Bitte warte etwa eine Stunde, bevor du einen weiteren erstellst.',
+    askFriendForCode:
+      'Frage deinen Freund nach dem Raumcode und gib ihn hier ein, um seinem Spiel beizutreten',
+    createRoomRateLimited:
+      'Du hast in letzter Zeit zu viele Räume erstellt. Bitte warte etwa eine Stunde, bevor du einen weiteren erstellst.',
   },
   profile: {
     title: 'Profil',
@@ -2374,7 +2458,8 @@ const de: Translations = {
     signInWithGoogle: 'Mit Google anmelden',
     signInWithApple: 'Mit Apple anmelden',
     orContinueWith: 'Oder fortfahren mit',
-    agreeToTerms: 'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
+    agreeToTerms:
+      'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
   },
   matchmaking: {
     title: 'Spiel finden',
@@ -2392,7 +2477,8 @@ const de: Translations = {
     playersInQueue: 'Spieler in der Warteschlange',
     playersNeeded: 'Spieler benötigt',
     howItWorks: 'So funktioniert es',
-    description: 'Wir matchen dich mit Spielern ähnlichen Niveaus. Das Spiel startet automatisch, wenn 4 Spieler bereit sind!',
+    description:
+      'Wir matchen dich mit Spielern ähnlichen Niveaus. Das Spiel startet automatisch, wenn 4 Spieler bereit sind!',
     // Match Type Preferences (Phase 4b)
     selectMatchType: 'Spieltyp wählen',
     casual: 'Gelegenheitsspiel',
@@ -2416,13 +2502,16 @@ const de: Translations = {
   howToPlay: {
     title: 'Spielanleitung',
     objectiveTitle: '🎯 Ziel',
-    objectiveText: 'Sei der erste Spieler, der alle seine Karten loswird. Der letzte Spieler mit Karten verliert.',
+    objectiveText:
+      'Sei der erste Spieler, der alle seine Karten loswird. Der letzte Spieler mit Karten verliert.',
     rankOrderLabel: '🃏 Rangfolge (vom niedrigsten zum höchsten):',
     rankOrder: '3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2',
     suitOrderLabel: '🎴 Farbenrangfolge (bei gleichem Rang):',
     suitOrder: '♦ Karo, ♣ Kreuz, ♥ Herz, ♠ Pik',
-    cardNote: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
-    noteText: 'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
+    cardNote:
+      'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
+    noteText:
+      'Hinweis: Die Karo 3 (3♦) ist die schwächste Karte & die Pik 2 (2♠) ist die stärkste!',
     validCombinationsTitle: '🎮 Gültige Kombinationen',
     combinationsTitle: '🎮 Gültige Kombinationen',
     cardRankingsTitle: '🎴 Kartenrangfolge',
@@ -2453,7 +2542,8 @@ const de: Translations = {
     straightFlushText: '5 aufeinanderfolgende Karten derselben Farbe (stärkste Kombination!)',
     gameplayTitle: '⚡ Spielablauf',
     gameplayPoint1: '• Der Spieler mit der Karo 3 (3♦) startet die erste Runde',
-    gameplayPoint2: '• Du musst denselben Kombinationstyp (Einzelkarte, Paar usw.) spielen, aber höher',
+    gameplayPoint2:
+      '• Du musst denselben Kombinationstyp (Einzelkarte, Paar usw.) spielen, aber höher',
     gameplayPoint3: '• Wenn du nicht kannst oder willst, drücke "Passen"',
     gameplayPoint4: '• Wenn alle Spieler passen, startet der letzte Spieler eine neue Runde',
     gameplayPoint5: '• Spiele weiter, bis ein Spieler alle seine Karten losgeworden ist!',
@@ -2465,31 +2555,43 @@ const de: Translations = {
     specialRulesTitle: '💡 Spezielle Regeln',
     specialRule1: '• Schwächere 5-Karten-Kombinationen können stärkere nicht schlagen',
     specialRule2: '• Straight Flush > Vierling > Full House > Flush > Straße',
-    specialRule3: '• Du kannst die Hilfsschaltflächen (Sortieren, Smart, Hinweis) verwenden, um deine Karten zu ordnen',
-    autoPassTimer: 'Auto-Pass-Timer: Bei der höchstmöglichen Karte haben andere Spieler 10 Sekunden zum Reagieren',
-    oneCardLeft: 'Eine Karte übrig: Bei 1 verbleibender Karte muss der vorherige Spieler seine höchste Einzelkarte spielen',
-    fiveCardCombos: '5-Karten-Kombinationen: Straßen und Flushs können nur von höheren Kombinationen des gleichen Typs geschlagen werden',
+    specialRule3:
+      '• Du kannst die Hilfsschaltflächen (Sortieren, Smart, Hinweis) verwenden, um deine Karten zu ordnen',
+    autoPassTimer:
+      'Auto-Pass-Timer: Bei der höchstmöglichen Karte haben andere Spieler 10 Sekunden zum Reagieren',
+    oneCardLeft:
+      'Eine Karte übrig: Bei 1 verbleibender Karte muss der vorherige Spieler seine höchste Einzelkarte spielen',
+    fiveCardCombos:
+      '5-Karten-Kombinationen: Straßen und Flushs können nur von höheren Kombinationen des gleichen Typs geschlagen werden',
     scoringTitle: '🏆 Punktesystem',
-    scoringIntro: 'Am Ende jeder Runde erhalten Spieler, die ihre Karten nicht losgeworden sind, Punkte basierend auf ihren verbleibenden Karten:',
+    scoringIntro:
+      'Am Ende jeder Runde erhalten Spieler, die ihre Karten nicht losgeworden sind, Punkte basierend auf ihren verbleibenden Karten:',
     scoring1to4: '1-4 verbleibende Karten: 1 Punkt',
     scoring5to9: '5-9 verbleibende Karten: 2 Punkte',
     scoring10to13: '10-13 verbleibende Karten: 3 Punkte',
     scoring1to7: '• 1-7 verbleibende Karten = 1 Punkt',
     scoring8to10: '• 8-10 verbleibende Karten = 2 Punkte',
     scoring11to12: '• 11-12 verbleibende Karten = 3 Punkte',
-    scoringWarning: 'Warnung: Der erste Spieler, der über 100 Punkte erreicht, verliert das Spiel! Der Spieler mit der niedrigsten Punktzahl gewinnt.',
-    letsPlay: 'Los geht\'s!',
+    scoringWarning:
+      'Warnung: Der erste Spieler, der über 100 Punkte erreicht, verliert das Spiel! Der Spieler mit der niedrigsten Punktzahl gewinnt.',
+    letsPlay: "Los geht's!",
     // ELO Rating System
     eloSystemTitle: '🏆 ELO-Bewertungssystem',
-    eloSystemDesc: 'Deine ELO-Bewertung misst dein Fähigkeitsniveau. Sie steigt, wenn du gewinnst, und sinkt, wenn du in gewerteten Spielen verlierst. Casual-Spiele beeinflussen deine ELO nicht.',
-    eloFormula: 'ELO-Änderungen werden mit der Schachbewertungsformel mit K-Faktor=32 berechnet. Gewinnen gegen höher bewertete Gegner gibt mehr Punkte.',
+    eloSystemDesc:
+      'Deine ELO-Bewertung misst dein Fähigkeitsniveau. Sie steigt, wenn du gewinnst, und sinkt, wenn du in gewerteten Spielen verlierst. Casual-Spiele beeinflussen deine ELO nicht.',
+    eloFormula:
+      'ELO-Änderungen werden mit der Schachbewertungsformel mit K-Faktor=32 berechnet. Gewinnen gegen höher bewertete Gegner gibt mehr Punkte.',
     rankTiersTitle: 'Rangstufen:',
     // Reconnection & Disconnection
     reconnectionTitle: '🔄 Wiederverbindung & Trennung',
-    reconnectionDesc: 'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
-    disconnectGrace: '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
-    botReplacement: '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
-    spectatorMode: '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & beitreten", um sofort weiterzuspielen.',
+    reconnectionDesc:
+      'Wenn du während eines Spiels die Verbindung verlierst, hast du 60 Sekunden Zeit, um dich wieder zu verbinden und deine Position vom Bot zu übernehmen.',
+    disconnectGrace:
+      '⏱️ Kulanzfrist: 60 Sekunden, um deine App fortzusetzen und deine Position wiederherzustellen.',
+    botReplacement:
+      '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
+    spectatorMode:
+      '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & beitreten", um sofort weiterzuspielen.',
   },
 };
 
@@ -2515,10 +2617,13 @@ class I18nManager {
   async initialize(): Promise<void> {
     try {
       const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'ar' || savedLanguage === 'de')) {
+      if (
+        savedLanguage &&
+        (savedLanguage === 'en' || savedLanguage === 'ar' || savedLanguage === 'de')
+      ) {
         currentLanguage = savedLanguage;
         currentTranslations = translations[currentLanguage];
-        
+
         // Configure RTL if Arabic
         if (currentLanguage === 'ar' && !RNI18nManager.isRTL) {
           RNI18nManager.forceRTL(true);
@@ -2549,15 +2654,15 @@ class I18nManager {
       await AsyncStorage.setItem(LANGUAGE_KEY, language);
       currentLanguage = language;
       currentTranslations = translations[language];
-      
+
       // Check if RTL change is needed
       const needsRTL = language === 'ar';
       const requiresRestart = needsRTL !== RNI18nManager.isRTL;
-      
+
       if (requiresRestart) {
         RNI18nManager.forceRTL(needsRTL);
       }
-      
+
       uiLogger.info('[i18n] Language changed to:', language, { requiresRestart });
       return requiresRestart; // Return true if app restart is needed
     } catch (error) {
@@ -2582,7 +2687,7 @@ class I18nManager {
   t(path: string, vars?: Record<string, string | number>): string {
     const keys = path.split('.');
     let value: unknown = currentTranslations;
-    
+
     for (const key of keys) {
       if (value && typeof value === 'object' && key in value) {
         value = (value as Record<string, unknown>)[key];
@@ -2591,9 +2696,9 @@ class I18nManager {
         return path;
       }
     }
-    
+
     let result = typeof value === 'string' ? value : path;
-    
+
     // Replace template variables using DOUBLE-BRACE syntax: {{key}}.
     // This is the canonical interpolation format for this i18n engine.
     // Usage:  i18n.t('section.key', { count: 5 })
@@ -2608,7 +2713,7 @@ class I18nManager {
         result = result.replace(new RegExp(placeholder, 'g'), String(vars[key]));
       });
     }
-    
+
     return result;
   }
 }

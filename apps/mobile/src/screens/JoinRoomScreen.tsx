@@ -45,7 +45,7 @@ export default function JoinRoomScreen() {
       // Check if user is already in a room
       const { data: existingRoomPlayer, error: checkError } = await supabase
         .from('room_players')
-        .select('room_id, rooms!inner(code)')
+        .select('room_id, rooms!inner(code, status)')
         .eq('user_id', user.id)
         .single();
 
@@ -57,10 +57,17 @@ export default function JoinRoomScreen() {
       const roomPlayer = existingRoomPlayer as RoomPlayerWithRoom | null;
       if (roomPlayer) {
         const existingCode = roomPlayer.rooms.code;
+        const existingStatus = roomPlayer.rooms.status;
         // Check if trying to join the same room they're already in
         if (existingCode === roomCode.toUpperCase()) {
-          // Already in this room, just navigate
-          navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
+          // Already in this room — navigate directly; if the game is in progress
+          // go to the Game screen so we don't attempt a lobby mutation on a
+          // playing room.
+          if (existingStatus === 'playing') {
+            navigation.replace('Game', { roomCode: roomCode.toUpperCase() });
+          } else {
+            navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
+          }
           return;
         } else {
           // In a different room — let the user leave and join the requested room, or go back
