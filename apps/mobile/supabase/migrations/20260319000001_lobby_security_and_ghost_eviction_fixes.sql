@@ -158,6 +158,23 @@ BEGIN
     RETURN v_result;
   END IF;
 
+  -- ── Blocked re-entry check (private rooms only) ──────────────────────────
+  -- Players kicked by the host in a private room are recorded in
+  -- rooms.banned_user_ids by lobby_kick_player.
+  -- Block their re-entry here; casual/ranked (matchmaking) rooms allow free
+  -- re-entry so are explicitly excluded.
+  IF EXISTS (
+    SELECT 1
+      FROM rooms
+     WHERE id            = v_room_id
+       AND COALESCE(is_matchmaking, FALSE) = FALSE
+       AND (is_public IS NULL OR is_public = FALSE)
+       AND p_user_id     = ANY(COALESCE(banned_user_ids, '{}'))
+  ) THEN
+    RAISE EXCEPTION 'You have been kicked from this private room and cannot rejoin';
+  END IF;
+  -- ─────────────────────────────────────────────────────────────────────────
+
   SELECT COUNT(*) INTO v_player_count FROM room_players WHERE room_id = v_room_id;
 
   IF v_player_count >= 4 THEN
@@ -284,7 +301,7 @@ REVOKE EXECUTE ON FUNCTION lobby_host_leave(UUID, UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION lobby_host_leave(UUID, UUID) TO authenticated;
 
 -- =============================================================================
--- lobby_kick_player — constraints + auth.uid() guard
+-- lobby_kick_player — constraints + auth.uid() guard + banned_user_ids tracking
 -- =============================================================================
 CREATE OR REPLACE FUNCTION lobby_kick_player(
   p_room_id         UUID,
@@ -298,6 +315,8 @@ AS $$
 DECLARE
   v_is_host        BOOLEAN;
   v_room_status    TEXT;
+  v_is_matchmaking BOOLEAN;
+  v_is_public      BOOLEAN;
   v_kicked_is_bot  BOOLEAN;
   v_kicked_is_host BOOLEAN;
 BEGIN
@@ -306,8 +325,18 @@ BEGIN
     RAISE EXCEPTION 'lobby_kick_player: JWT uid does not match supplied kicker_user_id';
   END IF;
 
-  -- Only allow kicking in a waiting lobby (not during active games).
-  SELECT status INTO v_room_status FROM rooms WHERE id = p_room_id;
+  -- Acquire a row-level lock on the rooms row up-front so the status check
+  -- and any subsequent writes (ban array update, player DELETE) are fully
+  -- atomic. Without this lock there is a race window between the initial
+  -- status SELECT and the later UPDATE where the room could transition from
+  -- 'waiting' to 'playing', allowing a kick (and potential ban write) to
+  -- happen after the game has started, corrupting game state.
+  SELECT status, COALESCE(is_matchmaking, FALSE), COALESCE(is_public, FALSE)
+    INTO v_room_status, v_is_matchmaking, v_is_public
+    FROM rooms
+   WHERE id = p_room_id
+     FOR UPDATE;
+
   IF NOT FOUND OR v_room_status != 'waiting' THEN
     RAISE EXCEPTION 'lobby_kick_player: can only kick players in a waiting lobby (status: %)',
       COALESCE(v_room_status, 'not found');
@@ -338,10 +367,34 @@ BEGIN
   IF v_kicked_is_bot THEN
     RAISE EXCEPTION 'lobby_kick_player: cannot kick a bot';
   END IF;
-  IF v_kicked_is_host THEN
+  -- IS TRUE makes the nullable-boolean semantics explicit: NULL and FALSE are
+  -- both treated as non-host, documenting intent consistently with v_is_host
+  -- IS NOT TRUE guard above.
+  IF v_kicked_is_host IS TRUE THEN
     RAISE EXCEPTION 'lobby_kick_player: cannot kick the host';
   END IF;
 
+  -- For private rooms (not matchmaking, not public): record the ban BEFORE
+  -- removing the room_players row so there is no race window where
+  -- join_room_atomic could squeeze in between the DELETE and the UPDATE.
+  --
+  -- The rooms row is already locked (SELECT … FOR UPDATE above) so concurrent
+  -- kicks cannot produce lost updates on banned_user_ids.
+  --
+  -- Casual and ranked (matchmaking) rooms allow free re-entry; only private
+  -- rooms enforce a kick ban.
+  IF NOT v_is_matchmaking AND NOT v_is_public THEN
+    UPDATE rooms
+       SET banned_user_ids = ARRAY(
+             SELECT DISTINCT UNNEST(
+               array_append(COALESCE(banned_user_ids, '{}'), p_kicked_user_id)
+             )
+           )
+     WHERE id = p_room_id;
+  END IF;
+
+  -- Remove the kicked player's row AFTER recording the ban so there is no
+  -- gap between eviction and the re-entry guard being in place.
   DELETE FROM room_players WHERE room_id = p_room_id AND user_id = p_kicked_user_id;
 END;
 $$;

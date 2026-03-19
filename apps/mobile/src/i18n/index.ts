@@ -243,6 +243,8 @@ export interface Translations {
     botReplacingYou: string;
     beforeBotReplaces: string;
     botPlayingForYou: string;
+    roomClosedError: string;
+    roomCheckError: string;
   };
 
   // How to Play Screen
@@ -484,6 +486,13 @@ export interface Translations {
     confirmLeaveMessage: string;
     confirmLeaveYes: string;
     confirmLeaveNo: string;
+    kickedTitle: string;
+    kickedByHostMessage: string;
+    kickPlayerTitle: string;
+    kickPlayerMessage: string;
+    kickPlayerConfirm: string;
+    kickPlayerError: string;
+    kickPlayer: string;
   };
   room: {
     createTitle: string;
@@ -513,6 +522,7 @@ export interface Translations {
     goToCurrentRoom: string;
     alreadyInAnotherRoom: string;
     joinRoomError: string;
+    kickedFromRoom: string;
     tip: string;
     askFriendForCode: string;
     createRoomRateLimited: string;
@@ -897,6 +907,8 @@ const en: Translations = {
     botReplacingYou: 'Bot replacing you...',
     beforeBotReplaces: '⏱ {{seconds}}s before bot replaces you',
     botPlayingForYou: '🤖 A bot is playing for you',
+    roomClosedError: 'Room is no longer available',
+    roomCheckError: 'Failed to check room status',
   },
   howToPlay: {
     title: '📖 How to Play Big Two',
@@ -1109,6 +1121,13 @@ const en: Translations = {
     confirmLeaveMessage: 'Are you sure you want to leave the room?',
     confirmLeaveYes: 'Leave',
     confirmLeaveNo: 'Stay',
+    kickedTitle: 'Kicked',
+    kickedByHostMessage: 'You were kicked from the room by {{hostName}}',
+    kickPlayerTitle: 'Kick Player',
+    kickPlayerMessage: 'Are you sure you want to kick {{name}} from the room?',
+    kickPlayerConfirm: 'Kick',
+    kickPlayerError: 'Failed to kick player',
+    kickPlayer: 'Kick',
   },
   room: {
     createTitle: 'Create Room',
@@ -1139,6 +1158,7 @@ const en: Translations = {
       "You're already in room {{code}}. Leave it first to join a different room.",
     goToCurrentRoom: 'Go to Current Room',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
+    kickedFromRoom: 'You have been kicked from this room and cannot rejoin',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
@@ -1510,6 +1530,8 @@ const ar: Translations = {
     botReplacingYou: 'يحل البوت محلك...',
     beforeBotReplaces: '⏱ {{seconds}} ثانية قبل أن يحل البوت محلك',
     botPlayingForYou: '🤖 بوت يلعب نيابة عنك',
+    roomClosedError: 'الغرفة لم تعد متاحة',
+    roomCheckError: 'فشل في التحقق من حالة الغرفة',
   },
   game: {
     yourTurn: 'دورك',
@@ -1661,6 +1683,13 @@ const ar: Translations = {
     confirmLeaveMessage: 'هل أنت متأكد أنك تريد مغادرة الغرفة؟',
     confirmLeaveYes: 'مغادرة',
     confirmLeaveNo: 'البقاء',
+    kickedTitle: 'تمت إزالتك',
+    kickedByHostMessage: 'لقد تمت إزالتك من الغرفة بواسطة {{hostName}}',
+    kickPlayerTitle: 'طرد اللاعب',
+    kickPlayerMessage: 'هل أنت متأكد أنك تريد طرد {{name}} من الغرفة؟',
+    kickPlayerConfirm: 'طرد',
+    kickPlayerError: 'فشل في طرد اللاعب',
+    kickPlayer: 'طرد',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -1689,6 +1718,7 @@ const ar: Translations = {
     alreadyInDifferentRoom: 'أنت بالفعل في الغرفة {{code}}. غادرها أولاً للانضمام إلى غرفة مختلفة.',
     goToCurrentRoom: 'اذهب إلى الغرفة الحالية',
     alreadyInAnotherRoom: 'أنت بالفعل في غرفة أخرى. يرجى المغادرة أولاً.',
+    kickedFromRoom: 'لقد تمت إزالتك من هذه الغرفة ولا يمكنك الانضمام إليها مجدداً',
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
@@ -2154,6 +2184,8 @@ const de: Translations = {
     botReplacingYou: 'Bot ersetzt dich...',
     beforeBotReplaces: '⏱ {{seconds}}s bevor der Bot dich ersetzt',
     botPlayingForYou: '🤖 Ein Bot spielt für dich',
+    roomClosedError: 'Raum ist nicht mehr verfügbar',
+    roomCheckError: 'Raumstatus konnte nicht überprüft werden',
   },
   game: {
     yourTurn: 'Dein Zug',
@@ -2308,6 +2340,13 @@ const de: Translations = {
     confirmLeaveMessage: 'Möchtest du den Raum wirklich verlassen?',
     confirmLeaveYes: 'Verlassen',
     confirmLeaveNo: 'Bleiben',
+    kickedTitle: 'Rausgeworfen',
+    kickedByHostMessage: 'Du wurdest von {{hostName}} aus dem Raum geworfen',
+    kickPlayerTitle: 'Spieler rauswerfen',
+    kickPlayerMessage: 'Möchtest du {{name}} wirklich aus dem Raum werfen?',
+    kickPlayerConfirm: 'Rauswerfen',
+    kickPlayerError: 'Spieler konnte nicht rausgeworfen werden',
+    kickPlayer: 'Rauswerfen',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -2339,6 +2378,7 @@ const de: Translations = {
       'Du bist bereits in Raum {{code}}. Verlasse ihn zuerst, um einem anderen Raum beizutreten.',
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
+    kickedFromRoom: 'Du wurdest aus diesem Raum geworfen und kannst nicht erneut beitreten',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
     askFriendForCode:
