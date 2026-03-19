@@ -7,9 +7,25 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler, useMemo, useCallback } from 'react';
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { CardHand, PlayerInfo, GameSettingsModal, HelperButtons, GameControls, GameLayout, LiveKitVideoSlot, ChatDrawer } from '../components/game';
+import React, { Profiler, useMemo, useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import {
+  CardHand,
+  PlayerInfo,
+  GameSettingsModal,
+  HelperButtons,
+  GameControls,
+  GameLayout,
+  LiveKitVideoSlot,
+  ChatDrawer,
+} from '../components/game';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
@@ -22,7 +38,18 @@ import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
 import { useGameContext } from '../contexts/GameContext';
 
+// ── DEV-only crash helper ─────────────────────────────────────────────────────
+// Rendered when devCrashGame is true — throws immediately so GameErrorBoundary
+// catches it.  Only exists in __DEV__ builds; tree-shaken in Production.
+function DevCrashThrower(): React.ReactElement {
+  throw new Error('[DEV] Manual GameErrorBoundary crash test — Task #643');
+}
+
 function GameViewComponent() {
+  // __DEV__-only state: pressing the 💣 overlay sets this to true, causing
+  // DevCrashThrower to render and throw inside GameErrorBoundary.
+  const [devCrashGame, setDevCrashGame] = __DEV__ ? useState(false) : [false, () => {}]; // eslint-disable-line react-hooks/rules-of-hooks
+
   const {
     isLocalAIGame,
     currentOrientation,
@@ -111,18 +138,27 @@ function GameViewComponent() {
         // remotePlayerIds[idx-1] is the userId for display position idx,
         // computed in MultiplayerGame by matching seat indices into effectiveMultiplayerPlayers.
         const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
-        const cameraState = remoteParticipantId ? remoteCameraStates[remoteParticipantId] : undefined;
-        const micState    = remoteParticipantId ? remoteMicStates[remoteParticipantId]    : undefined;
+        const cameraState = remoteParticipantId
+          ? remoteCameraStates[remoteParticipantId]
+          : undefined;
+        const micState = remoteParticipantId ? remoteMicStates[remoteParticipantId] : undefined;
         return {
           ...p,
           isCameraOn: isMultiplayerGame && isChatConnected ? cameraState?.isCameraOn : undefined,
-          isMicOn:    isMultiplayerGame && isChatConnected ? micState?.isMicOn        : undefined,
+          isMicOn: isMultiplayerGame && isChatConnected ? micState?.isMicOn : undefined,
           // isVideoChatConnecting is intentionally omitted for remote players:
           // PlayerInfo ignores it for non-local participants. When remote-player
           // connecting state becomes user-visible, pass it here and update PlayerInfo.
         };
       }),
-    [layoutPlayersWithScores, remotePlayerIds, remoteCameraStates, remoteMicStates, isMultiplayerGame, isChatConnected],
+    [
+      layoutPlayersWithScores,
+      remotePlayerIds,
+      remoteCameraStates,
+      remoteMicStates,
+      isMultiplayerGame,
+      isChatConnected,
+    ]
   );
 
   // Step 2: Memoize video stream slot injection so timer ticks and other
@@ -135,21 +171,25 @@ function GameViewComponent() {
   //   • getVideoTrackRef is stable (useCallback[adapterProp]) and only
   //     changes when the adapter is hot-swapped.
   const enrichedRemotePlayers = useMemo(
-    () => enrichedBaseData.map((p, idx) => {
-      if (idx === 0) return p;
-      const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
-      const trackRef =
-        isMultiplayerGame && isChatConnected && (p as { isCameraOn?: boolean }).isCameraOn && remoteParticipantId
-          ? getVideoTrackRef(remoteParticipantId)
-          : undefined;
-      return {
-        ...p,
-        videoStreamSlot: trackRef
-          ? <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
-          : undefined,
-      };
-    }),
-    [enrichedBaseData, remotePlayerIds, isChatConnected, isMultiplayerGame, getVideoTrackRef],
+    () =>
+      enrichedBaseData.map((p, idx) => {
+        if (idx === 0) return p;
+        const remoteParticipantId = remotePlayerIds[idx - 1] || undefined;
+        const trackRef =
+          isMultiplayerGame &&
+          isChatConnected &&
+          (p as { isCameraOn?: boolean }).isCameraOn &&
+          remoteParticipantId
+            ? getVideoTrackRef(remoteParticipantId)
+            : undefined;
+        return {
+          ...p,
+          videoStreamSlot: trackRef ? (
+            <LiveKitVideoSlot trackRef={trackRef} mirror={false} zOrder={0} />
+          ) : undefined,
+        };
+      }),
+    [enrichedBaseData, remotePlayerIds, isChatConnected, isMultiplayerGame, getVideoTrackRef]
   );
 
   // Step 3: Precompute local player video slot so it is not re-created on every
@@ -157,9 +197,7 @@ function GameViewComponent() {
   const localVideoSlot = useMemo(() => {
     if (!(isMultiplayerGame && isChatConnected && isLocalCameraOn)) return undefined;
     const localRef = getVideoTrackRef('__local__');
-    return localRef
-      ? <LiveKitVideoSlot trackRef={localRef} mirror={true} zOrder={1} />
-      : undefined;
+    return localRef ? <LiveKitVideoSlot trackRef={localRef} mirror={true} zOrder={1} /> : undefined;
   }, [isMultiplayerGame, isChatConnected, isLocalCameraOn, getVideoTrackRef]);
 
   // Stable close-settings callback — avoids recreating an inline arrow on every
@@ -172,9 +210,17 @@ function GameViewComponent() {
   // values from the component) so this is always safe.
   const onRenderCallback = useCallback<React.ProfilerOnRenderCallback>(
     (id, phase, actualDuration, baseDuration, startTime, commitTime) => {
-      performanceMonitor.logRender(id, phase, actualDuration, baseDuration, startTime, commitTime, new Set());
+      performanceMonitor.logRender(
+        id,
+        phase,
+        actualDuration,
+        baseDuration,
+        startTime,
+        commitTime,
+        new Set()
+      );
     },
-    [],
+    []
   );
 
   return (
@@ -220,10 +266,12 @@ function GameViewComponent() {
             originalPlayerNames={memoizedOriginalPlayerNames}
             autoPassTimerState={effectiveAutoPassTimerState}
             totalScores={playerTotalScores}
-            disconnectedPlayers={layoutPlayersWithScores.map((p) => p.isDisconnected ?? false)}
-            disconnectTimerStartedAts={layoutPlayersWithScores.map((p) => p.disconnectTimerStartedAt ?? null)}
-            turnTimerStartedAts={layoutPlayersWithScores.map((p) => p.turnTimerStartedAt ?? null)}
-            onCountdownExpireds={layoutPlayersWithScores.map((p) => p.onCountdownExpired)}
+            disconnectedPlayers={layoutPlayersWithScores.map(p => p.isDisconnected ?? false)}
+            disconnectTimerStartedAts={layoutPlayersWithScores.map(
+              p => p.disconnectTimerStartedAt ?? null
+            )}
+            turnTimerStartedAts={layoutPlayersWithScores.map(p => p.turnTimerStartedAt ?? null)}
+            onCountdownExpireds={layoutPlayersWithScores.map(p => p.onCountdownExpired)}
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}
             lastPlayedBy={effectiveLastPlayedBy ?? undefined}
@@ -252,7 +300,10 @@ function GameViewComponent() {
             onSort={handleSort}
             onSmartSort={handleSmartSort}
             onPlay={async () => {
-              gameLogger.info('🎴 [Landscape] Play button pressed with selected cards:', selectedCards.length);
+              gameLogger.info(
+                '🎴 [Landscape] Play button pressed with selected cards:',
+                selectedCards.length
+              );
               try {
                 await handlePlayCards(selectedCards);
               } catch (error) {
@@ -324,13 +375,20 @@ function GameViewComponent() {
                       <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
                     </TouchableOpacity>
                     {chatUnreadCount > 0 && !isChatDrawerOpen && (
-                      <View style={{
-                        position: 'absolute', top: -4, right: -4,
-                        backgroundColor: '#F44336', borderRadius: 10,
-                        minWidth: 18, height: 18,
-                        alignItems: 'center', justifyContent: 'center',
-                        paddingHorizontal: 4,
-                      }}>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -4,
+                          backgroundColor: '#F44336',
+                          borderRadius: 10,
+                          minWidth: 18,
+                          height: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingHorizontal: 4,
+                        }}
+                      >
                         <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
                           {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                         </Text>
@@ -518,9 +576,42 @@ function GameViewComponent() {
           </>
         )}
       </View>
+      {/* ── DEV: crash-test overlay — only visible in development builds ── */}
+      {__DEV__ &&
+        (devCrashGame ? (
+          <DevCrashThrower />
+        ) : (
+          <Pressable
+            testID="dev-crash-game-boundary"
+            style={devStyles.crashButton}
+            onPress={() => setDevCrashGame(true)}
+            accessibilityLabel="DEV: crash GameErrorBoundary"
+          >
+            <Text style={devStyles.crashButtonText}>💣</Text>
+          </Pressable>
+        ))}
     </Profiler>
   );
 }
+
+/** DEV-only overlay styles — zero impact in Production (dead code). */
+const devStyles = __DEV__
+  ? StyleSheet.create({
+      crashButton: {
+        position: 'absolute',
+        top: 50,
+        left: 12,
+        zIndex: 9999,
+        backgroundColor: 'rgba(220, 38, 38, 0.85)',
+        borderRadius: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+      },
+      crashButtonText: {
+        fontSize: 16,
+      },
+    })
+  : StyleSheet.create({ crashButton: {}, crashButtonText: {} });
 
 /**
  * React.memo wrapper — bails out of re-renders triggered by non-context state
