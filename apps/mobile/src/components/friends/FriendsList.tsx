@@ -10,7 +10,6 @@
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import type { Friendship } from '../../hooks/useFriends';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';

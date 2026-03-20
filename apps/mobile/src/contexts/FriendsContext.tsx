@@ -39,10 +39,18 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
   const friendsData = useFriends();
   const presenceData = usePresence();
 
-  // ---- In-app friend request notification ----
+  // ---- In-app friend request notification (with queue) ----
   const [notification, setNotification] = useState<Friendship | null>(null);
   const prevIncomingRef = useRef<Friendship[]>([]);
+  const notificationQueueRef = useRef<Friendship[]>([]);
   const isFirstRender = useRef(true);
+
+  // Advance to the next queued notification (or clear if empty)
+  const advanceQueue = () => {
+    const next = notificationQueueRef.current[0] ?? null;
+    notificationQueueRef.current = notificationQueueRef.current.slice(1);
+    setNotification(next);
+  };
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -54,10 +62,19 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     }
     const prev = prevIncomingRef.current;
     const newRequests = friendsData.incomingPending.filter(r => !prev.some(p => p.id === r.id));
-    if (newRequests.length > 0 && !notification) {
-      setNotification(newRequests[0]);
-    }
     prevIncomingRef.current = friendsData.incomingPending;
+
+    if (newRequests.length > 0) {
+      // Enqueue all newly-arrived requests
+      notificationQueueRef.current = [...notificationQueueRef.current, ...newRequests];
+      // If no modal is open yet, show the first queued item now
+      setNotification(prev => {
+        if (prev !== null) return prev; // modal already visible — queue will flush on dismiss
+        const next = notificationQueueRef.current[0] ?? null;
+        notificationQueueRef.current = notificationQueueRef.current.slice(1);
+        return next;
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendsData.incomingPending]);
 
@@ -65,7 +82,7 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     if (!notification) return;
     try {
       await friendsData.acceptRequest(notification.id);
-      setNotification(null);
+      advanceQueue();
     } catch (e: unknown) {
       showError(e instanceof Error ? e.message : String(e));
     }
@@ -75,7 +92,7 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     if (!notification) return;
     try {
       await friendsData.declineRequest(notification.id);
-      setNotification(null);
+      advanceQueue();
     } catch (e: unknown) {
       showError(e instanceof Error ? e.message : String(e));
     }
@@ -92,12 +109,7 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
 
       {/* In-app friend request pop-up */}
       {notification && (
-        <Modal
-          transparent
-          animationType="fade"
-          visible
-          onRequestClose={() => setNotification(null)}
-        >
+        <Modal transparent animationType="fade" visible onRequestClose={advanceQueue}>
           <View style={styles.overlay}>
             <View style={styles.card}>
               <Text style={styles.title}>{i18n.t('friends.friendRequest')}</Text>
