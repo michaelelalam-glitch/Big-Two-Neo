@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Text, useWindowDimensions, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Text, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
@@ -84,24 +84,6 @@ function CardHandComponent({
 
   // Track whether cards have entered the drop zone (for haptic on entry)
   const wasInDropZone = useRef(false);
-  // Animated glow for drop zone approach
-  const dropZoneGlow = useRef(new Animated.Value(0)).current;
-  // Ref to track and clean up the drop zone glow loop animation (prevents native animation leaks)
-  const dropZoneGlowLoop = useRef<Animated.CompositeAnimation | null>(null);
-  // Subtle hint pulse for always-visible drag hint
-  const hintPulse = useRef(new Animated.Value(0.4)).current;
-
-  // Always-visible drag hint: gentle pulse animation
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(hintPulse, { toValue: 0.7, duration: 1500, useNativeDriver: true }),
-        Animated.timing(hintPulse, { toValue: 0.4, duration: 1500, useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [hintPulse]);
 
   // Consolidated state: selection
   const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
@@ -132,56 +114,10 @@ function CardHandComponent({
     }
   }, [isInDropZone]);
 
-  // Drop zone glow loop — only starts/stops when zone state changes (not on every dragY tick).
-  // FIX: Previously this effect included `dragY` in deps and had no cleanup, leaking a new
-  // Animated.loop on every frame during a drag. Over long sessions the leaked native animation
-  // nodes corrupted the shadow tree, causing EXC_BAD_ACCESS in Reanimated's commitUpdates.
-  useEffect(() => {
-    // Always stop the previous loop before deciding whether to start a new one
-    if (dropZoneGlowLoop.current) {
-      dropZoneGlowLoop.current.stop();
-      dropZoneGlowLoop.current = null;
-    }
-
-    if (isInDropZone) {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(dropZoneGlow, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(dropZoneGlow, { toValue: 0.6, duration: 400, useNativeDriver: true }),
-        ])
-      );
-      dropZoneGlowLoop.current = loop;
-      loop.start();
-    } else if (!isApproaching) {
-      // Not in zone and not approaching — fade out
-      Animated.timing(dropZoneGlow, { toValue: 0, duration: 150, useNativeDriver: true }).start();
-    }
-
-    return () => {
-      if (dropZoneGlowLoop.current) {
-        dropZoneGlowLoop.current.stop();
-        dropZoneGlowLoop.current = null;
-      }
-    };
-  }, [isInDropZone, isApproaching, dropZoneGlow]);
-
-  // Drop zone approach glow — updates proportionally as cards near the threshold.
-  // Separated from the loop effect so `dragY` changes don't restart the loop.
-  useEffect(() => {
-    if (isApproaching) {
-      const progress = Math.min(
-        1,
-        (DRAG_APPROACH_THRESHOLD - dragY) / (DRAG_APPROACH_THRESHOLD - DRAG_TO_PLAY_THRESHOLD)
-      );
-      Animated.timing(dropZoneGlow, {
-        toValue: progress * 0.5,
-        duration: 100,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isApproaching, dragY, dropZoneGlow]);
-
-  // Task #652: Notify parent of drag zone state for table perimeter glow
+  // Task #652: Notify parent of drag zone state for table perimeter glow.
+  // No return cleanup here — returning 'idle' from the dep-change cleanup would
+  // fire an extra 'idle' on every isApproaching/isInDropZone toggle, causing
+  // table-glow flicker. Unmount cleanup is handled by the separate effect below.
   useEffect(() => {
     if (!onDragZoneChange) return;
     if (isInDropZone) {
@@ -191,14 +127,16 @@ function CardHandComponent({
     } else {
       onDragZoneChange('idle');
     }
-    return () => {
-      try {
-        onDragZoneChange('idle');
-      } catch (e) {
-        // swallow - best-effort cleanup
-      }
-    };
   }, [isInDropZone, isApproaching, onDragZoneChange]);
+
+  // Best-effort reset on unmount only (separate from the above so it doesn't
+  // fire on every dep change — avoids the flicker described above).
+  useEffect(
+    () => () => {
+      onDragZoneChange?.('idle');
+    },
+    [onDragZoneChange]
+  );
 
   // Separate state: display cards (managed independently)
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
@@ -376,6 +314,8 @@ function CardHandComponent({
         return;
       }
 
+      // Horizontal drag: reset Y so drop-zone detection doesn't stay "stuck" if
+      // the gesture transitioned from vertical (negative Y) to horizontal.
       const currentIndex = orderedCards.findIndex(c => c.id === cardId);
       if (currentIndex === -1) return;
 
@@ -388,9 +328,17 @@ function CardHandComponent({
 
       // Only store the target index, don't actually move the card yet
       if (targetIndex !== currentIndex) {
-        setDragState(prev => ({ ...prev, targetIndex }));
+        setDragState(prev => ({
+          ...prev,
+          targetIndex,
+          sharedTranslation: { x: translationX, y: 0 },
+        }));
       } else {
-        setDragState(prev => ({ ...prev, targetIndex: null }));
+        setDragState(prev => ({
+          ...prev,
+          targetIndex: null,
+          sharedTranslation: { x: translationX, y: 0 },
+        }));
       }
     },
     [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards, CARD_SPACING]
@@ -480,27 +428,6 @@ function CardHandComponent({
           },
         ]}
       >
-        {/* Always-visible drag hint (subtle, pulsing) — Task #652: now just a small hint above cards */}
-        {!isDragging && selectedCardIds.size > 0 && canDragToPlay && (
-          <Animated.View style={[styles.dragHint, { opacity: hintPulse }]}>
-            <Text style={styles.dragHintText}>↑ Drag up to play</Text>
-          </Animated.View>
-        )}
-
-        {/* Drop zone glow overlay (animated) — uses dropZoneGlow value for opacity */}
-        {(isApproaching || isInDropZone) && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.playDropZone,
-              isInDropZone && styles.playDropZoneActive,
-              { opacity: dropZoneGlow },
-            ]}
-          >
-            <Animated.View style={styles.playDropZoneGlow} />
-          </Animated.View>
-        )}
-
         {orderedCards.map((card, index) => {
           const isThisCardSelected = selectedCardIds.has(card.id);
           const hasMultipleSelected = selectedCardIds.size > 1;
@@ -639,7 +566,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Drop zone visual feedback styles
+  // Drop zone visual feedback styles (card-reorder indicator only)
   dropZoneIndicator: {
     width: 4,
     height: 80,
@@ -653,57 +580,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 8,
     elevation: 5,
-  },
-  dragHint: {
-    position: 'absolute',
-    top: -36,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-  },
-  dragHintText: {
-    color: COLORS.gray.medium,
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  playDropZone: {
-    position: 'absolute',
-    top: -60,
-    left: 0,
-    right: 0,
-    height: 50,
-    backgroundColor: `${COLORS.accent}20`,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: `${COLORS.accent}60`,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    overflow: 'hidden',
-  },
-  playDropZoneActive: {
-    backgroundColor: `${COLORS.accent}40`,
-    borderColor: COLORS.accent,
-    borderStyle: 'solid',
-  },
-  playDropZoneGlow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.accent,
-    opacity: 0.15,
-  },
-  playDropZoneText: {
-    color: `${COLORS.accent}99`,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  playDropZoneTextActive: {
-    color: COLORS.accent,
   },
   playButton: {
     backgroundColor: COLORS.accent,

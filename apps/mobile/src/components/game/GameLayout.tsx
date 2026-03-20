@@ -133,7 +133,7 @@ function GameLayoutComponent({
     dropZoneState === 'active'
       ? 'Release to play'
       : dropZoneState === 'approaching'
-        ? 'Drag here to play'
+        ? 'Drop to play'
         : undefined;
 
   return (

@@ -138,52 +138,57 @@ describe('CardHand Component', () => {
     expect(getByText('Pass')).toBeTruthy();
   });
 
-  describe('drag hint visibility', () => {
-    it('shows drag hint when cards are selected and canPlay is true', () => {
-      const selectedIds = new Set(['3H', '4D']);
-      const { getByText } = render(
+  // Note: the '↑ Drag up to play' hint has been moved to GameView so it renders
+  // at the correct z-index above the action buttons row (zIndex: 180).
+  // CardHand no longer renders the hint text directly.
+
+  describe('onDragZoneChange callback (Task #652)', () => {
+    it('does not call onDragZoneChange when neither dragging nor approaching', () => {
+      const onDragZoneChange = jest.fn();
+      render(
         <CardHand
           cards={mockCards}
           onPlayCards={mockOnPlayCards}
           onPass={mockOnPass}
           canPlay={true}
-          selectedCardIds={selectedIds}
-          onSelectionChange={jest.fn()}
+          onDragZoneChange={onDragZoneChange}
         />
       );
-
-      expect(getByText('↑ Drag up to play')).toBeTruthy();
+      // On mount with no drag, the effect fires 'idle'
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
     });
 
-    it('hides drag hint when canPlay is false', () => {
-      const selectedIds = new Set(['3H', '4D']);
-      const { queryByText } = render(
+    it('calls onDragZoneChange("idle") on unmount to reset parent state', () => {
+      const onDragZoneChange = jest.fn();
+      const { unmount } = render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={true}
+          onDragZoneChange={onDragZoneChange}
+        />
+      );
+      onDragZoneChange.mockClear();
+      unmount();
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
+    });
+
+    it('does not call onDragZoneChange when canPlay is false (drag-to-play gated)', () => {
+      const onDragZoneChange = jest.fn();
+      render(
         <CardHand
           cards={mockCards}
           onPlayCards={mockOnPlayCards}
           onPass={mockOnPass}
           canPlay={false}
-          selectedCardIds={selectedIds}
-          onSelectionChange={jest.fn()}
+          onDragZoneChange={onDragZoneChange}
         />
       );
-
-      expect(queryByText('↑ Drag up to play')).toBeNull();
-    });
-
-    it('hides drag hint when no cards are selected', () => {
-      const { queryByText } = render(
-        <CardHand
-          cards={mockCards}
-          onPlayCards={mockOnPlayCards}
-          onPass={mockOnPass}
-          canPlay={true}
-          selectedCardIds={new Set()}
-          onSelectionChange={jest.fn()}
-        />
-      );
-
-      expect(queryByText('↑ Drag up to play')).toBeNull();
+      // canPlay=false means canDragToPlay=false → isInDropZone=false, isApproaching=false → 'idle'
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
+      expect(onDragZoneChange).not.toHaveBeenCalledWith('active');
+      expect(onDragZoneChange).not.toHaveBeenCalledWith('approaching');
     });
   });
 });
