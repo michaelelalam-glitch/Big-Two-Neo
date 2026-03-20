@@ -61,6 +61,9 @@ const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['big2://', 'https://big2.app'],
   config: {
     screens: {
+      // Auth stack (covers logged-out deep links so they aren’t silently dropped)
+      SignIn: 'signin',
+      // App stack
       Lobby: 'lobby/:roomCode',
       Game: 'game/:roomCode',
       JoinRoom: 'join',
@@ -89,6 +92,7 @@ function LoadingScreen() {
 
 export default function AppNavigator() {
   const { isLoading, isLoggedIn } = useAuth();
+  const pendingLinkRef = React.useRef<string | null>(null);
 
   // Log navigation state for debugging
   React.useEffect(() => {
@@ -98,6 +102,28 @@ export default function AppNavigator() {
       isLoggedIn ? 'App Stack (Home)' : 'Auth Stack (SignIn)'
     );
   }, [isLoading, isLoggedIn]);
+
+  // When a deep link arrives while the user is logged out, store it so it
+  // can be replayed once the authenticated stack is mounted.
+  React.useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (!isLoggedIn) {
+        pendingLinkRef.current = url;
+      }
+    });
+    return () => sub.remove();
+  }, [isLoggedIn]);
+
+  // After sign-in, re-open any stored pending link so React Navigation's
+  // linking middleware can route the user to the intended screen.
+  React.useEffect(() => {
+    if (isLoggedIn && pendingLinkRef.current) {
+      const url = pendingLinkRef.current;
+      pendingLinkRef.current = null;
+      // Small delay to let the authenticated stack finish mounting.
+      setTimeout(() => Linking.openURL(url), 300);
+    }
+  }, [isLoggedIn]);
 
   if (isLoading) {
     authLogger.info('⏳ [AppNavigator] Loading...');

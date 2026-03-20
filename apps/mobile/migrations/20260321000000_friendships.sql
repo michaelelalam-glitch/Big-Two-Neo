@@ -65,8 +65,9 @@ CREATE POLICY "friendships_insert_own"
   ON public.friendships FOR INSERT
   WITH CHECK (auth.uid() = requester_id);
 
--- Either party may UPDATE; WITH CHECK prevents requester from self-accepting.
--- See migration 20260321000001 for the tightened version applied to the live DB.
+-- Either party may UPDATE. Note: no WITH CHECK is applied here; the
+-- corresponding hardening (self-accept prevention, party immutability) is
+-- applied in migrations 20260321000002 and 20260321000004.
 CREATE POLICY "friendships_update_own"
   ON public.friendships FOR UPDATE
   USING (

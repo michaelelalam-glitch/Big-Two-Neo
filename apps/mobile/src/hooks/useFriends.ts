@@ -12,7 +12,7 @@
  * on the friendships table so the list stays in sync across tabs.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
@@ -84,7 +84,6 @@ export function useFriends(): UseFriendsResult {
   const [outgoingPending, setOutgoing] = useState<Friendship[]>([]);
   const [incomingPending, setIncoming] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(false);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!user?.id) return;
@@ -184,8 +183,6 @@ export function useFriends(): UseFriendsResult {
         }
       )
       .subscribe();
-
-    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
