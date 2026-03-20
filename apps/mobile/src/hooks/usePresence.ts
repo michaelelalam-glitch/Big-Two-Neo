@@ -75,7 +75,12 @@ export function usePresence(): UsePresenceResult {
       })
       .subscribe(async status => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ user_id: user.id });
+          try {
+            await channel.track({ user_id: user.id });
+          } catch (error) {
+            // Avoid unhandled promise rejections if presence tracking fails
+            console.error('[usePresence] Failed to track presence for user', user.id, error);
+          }
         }
       });
 

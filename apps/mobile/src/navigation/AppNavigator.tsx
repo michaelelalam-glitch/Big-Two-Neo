@@ -117,12 +117,16 @@ export default function AppNavigator() {
   // After sign-in, re-open any stored pending link so React Navigation's
   // linking middleware can route the user to the intended screen.
   React.useEffect(() => {
-    if (isLoggedIn && pendingLinkRef.current) {
-      const url = pendingLinkRef.current;
-      pendingLinkRef.current = null;
-      // Small delay to let the authenticated stack finish mounting.
-      setTimeout(() => Linking.openURL(url), 300);
-    }
+    if (!isLoggedIn || !pendingLinkRef.current) return;
+    const url = pendingLinkRef.current;
+    pendingLinkRef.current = null;
+    // Small delay to let the authenticated stack finish mounting.
+    const timerId = setTimeout(() => {
+      Linking.openURL(url).catch(err =>
+        authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
+      );
+    }, 300);
+    return () => clearTimeout(timerId);
   }, [isLoggedIn]);
 
   if (isLoading) {
