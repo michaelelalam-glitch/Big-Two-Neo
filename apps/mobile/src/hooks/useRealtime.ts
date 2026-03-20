@@ -542,7 +542,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
       // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure)
     },
-    [userId, username, onDisconnect, fetchPlayers, fetchGameState]
+    [userId, username, onDisconnect, fetchPlayers, fetchGameState, gameState]
   ); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)
@@ -600,7 +600,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps -- room intentionally excluded (stable by construction)
     },
-    [gameState, currentPlayer, roomPlayers, onError, broadcastMessage]
+    [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]
   );
 
   /**
