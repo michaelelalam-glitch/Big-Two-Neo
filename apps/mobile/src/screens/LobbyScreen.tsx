@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  FlatList,
+  Modal,
   Share,
   Alert,
 } from 'react-native';
@@ -17,11 +19,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { notifyGameStarted } from '../services/pushNotificationTriggers';
+import { notifyGameInvite } from '../services/pushNotificationService';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { roomLogger } from '../utils/logger';
 import { AddFriendButton } from '../components/friends';
+import { useFriendsContext } from '../contexts/FriendsContext';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -53,6 +57,12 @@ export default function LobbyScreen() {
   const route = useRoute<LobbyScreenRouteProp>();
   const { roomCode, playAgain = false } = route.params;
   const { user, profile } = useAuth();
+  const { friends } = useFriendsContext();
+
+  // Invite friends modal state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
+  const [isSendingInvites, setIsSendingInvites] = useState(false);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -613,6 +623,38 @@ export default function LobbyScreen() {
     }
   };
 
+  /** Invite selected friends to the room via push notification */
+  const handleSendFriendInvites = async () => {
+    if (selectedFriendIds.size === 0) return;
+    setIsSendingInvites(true);
+    try {
+      const senderName = profile?.username || user?.email || i18n.t('friends.unknownPlayer');
+      await notifyGameInvite(Array.from(selectedFriendIds), roomCode, senderName);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSendingInvites(false);
+      setShowInviteModal(false);
+      setSelectedFriendIds(new Set());
+    }
+  };
+
+  /** Toggle a friend's selection in the invite modal */
+  const toggleFriendSelection = (friendUserId: string) => {
+    setSelectedFriendIds(prev => {
+      const next = new Set(prev);
+      if (next.has(friendUserId)) {
+        next.delete(friendUserId);
+      } else {
+        next.add(friendUserId);
+      }
+      return next;
+    });
+  };
+
+  // Friends who are not already in the room
+  const invitableFriends = friends.filter(f => !players.some(p => p.user_id === f.friend.id));
+
   const handleStartWithBots = async () => {
     if (isStarting || isStartingRef.current) {
       roomLogger.info('⏭️ [LobbyScreen] Start already in progress, ignoring...');
@@ -933,6 +975,94 @@ export default function LobbyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Invite Friends Modal */}
+      <Modal
+        visible={showInviteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {i18n.t('friends.inviteFriends') || 'Invite Friends'}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {i18n.t('lobby.roomCode')}: {roomCode}
+            </Text>
+            {invitableFriends.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {i18n.t('friends.noFriendsToInvite') ||
+                  'All your friends are already in this room.'}
+              </Text>
+            ) : (
+              <FlatList
+                data={invitableFriends}
+                keyExtractor={item => item.id}
+                style={styles.friendListContainer}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.friendInviteRow,
+                      selectedFriendIds.has(item.friend.id) && styles.friendInviteRowSelected,
+                    ]}
+                    onPress={() => toggleFriendSelection(item.friend.id)}
+                  >
+                    <View style={styles.friendInviteAvatar}>
+                      <Text style={styles.friendInviteAvatarText}>
+                        {(item.friend.username ?? '?').slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={styles.friendInviteName} numberOfLines={1}>
+                      {item.friend.username ?? i18n.t('friends.unknownPlayer')}
+                    </Text>
+                    <View
+                      style={[
+                        styles.friendInviteCheck,
+                        selectedFriendIds.has(item.friend.id) && styles.friendInviteCheckSelected,
+                      ]}
+                    >
+                      {selectedFriendIds.has(item.friend.id) && (
+                        <Text style={styles.friendInviteCheckMark}>✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => {
+                  setShowInviteModal(false);
+                  setSelectedFriendIds(new Set());
+                }}
+              >
+                <Text style={styles.modalBtnText}>{i18n.t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnSend,
+                  (selectedFriendIds.size === 0 || isSendingInvites) && styles.modalBtnDisabled,
+                ]}
+                onPress={handleSendFriendInvites}
+                disabled={selectedFriendIds.size === 0 || isSendingInvites}
+              >
+                {isSendingInvites ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.modalBtnText}>
+                    {i18n.t('friends.sendInvite') || 'Send Invite'}
+                    {selectedFriendIds.size > 0 ? ` (${selectedFriendIds.size})` : ''}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.leaveButton, isLeaving && styles.buttonDisabled]}
@@ -979,6 +1109,16 @@ export default function LobbyScreen() {
               <TouchableOpacity style={styles.roomCodeButton} onPress={handleShareCode}>
                 <Text style={styles.roomCodeButtonText}>{i18n.t('lobby.share') || '📤 Share'}</Text>
               </TouchableOpacity>
+              {invitableFriends.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.roomCodeButton, styles.inviteButton]}
+                  onPress={() => setShowInviteModal(true)}
+                >
+                  <Text style={styles.roomCodeButtonText}>
+                    {i18n.t('friends.inviteFriends') || '👥 Invite Friends'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -1433,5 +1573,108 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
     fontStyle: 'italic',
+  },
+  // Invite friends modal
+  inviteButton: {
+    backgroundColor: COLORS.secondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: COLORS.background.dark,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: SPACING.lg,
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    marginBottom: SPACING.xs,
+  },
+  modalSubtitle: {
+    color: COLORS.gray.text,
+    fontSize: FONT_SIZES.sm,
+    marginBottom: SPACING.md,
+  },
+  friendListContainer: {
+    maxHeight: 300,
+  },
+  friendInviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  friendInviteRowSelected: {
+    backgroundColor: 'rgba(74,144,226,0.15)',
+  },
+  friendInviteAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  friendInviteAvatarText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
+  },
+  friendInviteName: {
+    flex: 1,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
+  },
+  friendInviteCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.gray.medium,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendInviteCheckSelected: {
+    backgroundColor: COLORS.secondary,
+    borderColor: COLORS.secondary,
+  },
+  friendInviteCheckMark: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalBtnCancel: {
+    backgroundColor: COLORS.gray.dark,
+  },
+  modalBtnSend: {
+    backgroundColor: COLORS.secondary,
+  },
+  modalBtnDisabled: {
+    opacity: 0.4,
+  },
+  modalBtnText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: FONT_SIZES.sm,
   },
 });

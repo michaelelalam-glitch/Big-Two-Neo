@@ -155,18 +155,26 @@ export function LandscapeOpponent({
         </View>
       </TouchableOpacity>
 
-      {/* Player Name Badge */}
-      <View
-        style={[
-          styles.nameBadge,
-          isActive && styles.nameBadgeActive,
-          isDisconnected && styles.nameBadgeDisconnected,
-        ]}
+      {/* Player Name Badge — also tappable to open friend actions */}
+      <TouchableOpacity
+        onPress={onAvatarPress}
+        disabled={!onAvatarPress}
+        activeOpacity={onAvatarPress ? 0.7 : 1}
+        accessibilityRole={onAvatarPress ? 'button' : undefined}
+        accessibilityLabel={onAvatarPress ? `Add ${name} as a friend` : undefined}
       >
-        <Text style={styles.nameText} numberOfLines={1}>
-          {name}
-        </Text>
-      </View>
+        <View
+          style={[
+            styles.nameBadge,
+            isActive && styles.nameBadgeActive,
+            isDisconnected && styles.nameBadgeDisconnected,
+          ]}
+        >
+          <Text style={styles.nameText} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }

@@ -10,6 +10,9 @@
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
@@ -18,6 +21,7 @@ import { FriendCard } from './FriendCard';
 type Tab = 'friends' | 'requests';
 
 export function FriendsList() {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const {
     friends,
     outgoingPending,
@@ -77,6 +81,7 @@ export function FriendsList() {
                   isOnline={isOnline(item.friend.id)}
                   onToggleFavorite={toggleFavorite}
                   onRemove={removeFriend}
+                  onPress={() => navigation.navigate('Stats', { userId: item.friend.id })}
                 />
               ))
             )

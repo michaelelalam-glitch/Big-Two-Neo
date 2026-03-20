@@ -718,6 +718,8 @@ export interface Translations {
     sentYouARequest: string;
     requestAlreadyHandled: string;
     requestReceived: string;
+    inviteFriends: string;
+    noFriendsToInvite: string;
   };
 
   // Ranked Leaderboard
@@ -1374,6 +1376,8 @@ const en: Translations = {
     sentYouARequest: 'sent you a friend request.',
     requestAlreadyHandled: 'This request has already been handled or you do not have permission.',
     requestReceived: 'Request Received',
+    inviteFriends: '👥 Invite Friends',
+    noFriendsToInvite: 'All your friends are already in this room.',
   },
 };
 
@@ -2049,6 +2053,8 @@ const ar: Translations = {
     sentYouARequest: 'أرسل لك طلب صداقة.',
     requestAlreadyHandled: 'تمت معالجة هذا الطلب مسبقاً أو ليس لديك الصلاحية.',
     requestReceived: 'طلب مستلم',
+    inviteFriends: '👥 دعوة الأصدقاء',
+    noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
   },
 };
 
@@ -2747,6 +2753,8 @@ const de: Translations = {
     requestAlreadyHandled:
       'Diese Anfrage wurde bereits bearbeitet oder du hast keine Berechtigung.',
     requestReceived: 'Anfrage erhalten',
+    inviteFriends: '👥 Freunde einladen',
+    noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',
   },
 };
 

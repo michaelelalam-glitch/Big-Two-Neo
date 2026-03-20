@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
-import { AddFriendButton } from '../components/friends';
+// AddFriendButton is rendered inside StatsScreen (shown under the player name)
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
@@ -498,9 +498,6 @@ export default function LeaderboardScreen() {
         <View style={styles.pointsColumn}>
           <Text style={styles.pointsText}>{item.rank_points}</Text>
         </View>
-
-        {/* Add Friend */}
-        {!isCurrentUser && <AddFriendButton targetUserId={item.user_id} compact />}
       </TouchableOpacity>
     );
   };
