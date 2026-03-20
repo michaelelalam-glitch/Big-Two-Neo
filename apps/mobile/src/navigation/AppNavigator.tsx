@@ -103,8 +103,7 @@ export default function AppNavigator() {
     );
   }, [isLoading, isLoggedIn]);
 
-  // When a deep link arrives while the user is logged out, store it so it
-  // can be replayed once the authenticated stack is mounted.
+  // Store deep links that arrive via the 'url' event while logged out
   React.useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => {
       if (!isLoggedIn) {
@@ -113,6 +112,19 @@ export default function AppNavigator() {
     });
     return () => sub.remove();
   }, [isLoggedIn]);
+
+  // On mount: also capture cold-start deep links that arrive before auth
+  // resolves, since those won\'t fire a 'url' event.
+  React.useEffect(() => {
+    if (!isLoggedIn) {
+      Linking.getInitialURL()
+        .then(url => {
+          if (url && !pendingLinkRef.current) pendingLinkRef.current = url;
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // After sign-in, re-open any stored pending link so React Navigation's
   // linking middleware can route the user to the intended screen.

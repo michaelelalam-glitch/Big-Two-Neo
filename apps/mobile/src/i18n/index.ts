@@ -716,6 +716,7 @@ export interface Translations {
     unknownPlayer: string;
     friendRequest: string;
     sentYouARequest: string;
+    requestAlreadyHandled: string;
   };
 
   // Ranked Leaderboard
@@ -1370,6 +1371,7 @@ const en: Translations = {
     unknownPlayer: 'Player',
     friendRequest: 'Friend Request',
     sentYouARequest: 'sent you a friend request.',
+    requestAlreadyHandled: 'This request has already been handled or you do not have permission.',
   },
 };
 
@@ -2043,6 +2045,7 @@ const ar: Translations = {
     unknownPlayer: 'لاعب',
     friendRequest: 'طلب صداقة',
     sentYouARequest: 'أرسل لك طلب صداقة.',
+    requestAlreadyHandled: 'تمت معالجة هذا الطلب مسبقاً أو ليس لديك الصلاحية.',
   },
 };
 
@@ -2738,6 +2741,8 @@ const de: Translations = {
     unknownPlayer: 'Spieler',
     friendRequest: 'Freundschaftsanfrage',
     sentYouARequest: 'hat dir eine Freundschaftsanfrage gesendet.',
+    requestAlreadyHandled:
+      'Diese Anfrage wurde bereits bearbeitet oder du hast keine Berechtigung.',
   },
 };
 
