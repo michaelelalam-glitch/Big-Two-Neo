@@ -249,76 +249,65 @@ export default function LeaderboardScreen() {
                 setUserRank(null);
               }
             } else {
-              // For weekly/daily: Check if user played ANY games in this period
-              // Query game_history to count actual games within the time range
-              const { count: periodGamesCount, error: periodError } = await supabase
-                .from('game_history')
-                .select('id', { count: 'exact', head: true })
+              // For weekly/daily: userRankQuery already filters by last_game_at
+              // and ${modePrefix}_games_played > 0, so a non-null result means the
+              // user has played in this period — no extra query needed.
+
+              // Calculate rank by counting users with strictly higher points, or
+              // equal points but more wins (matches the leaderboard sort order).
+              const userPoints =
+                leaderboardType === 'casual'
+                  ? (userRankData.casual_rank_points ?? userRankData.rank_points)
+                  : (userRankData.ranked_rank_points ?? userRankData.rank_points);
+              const userGamesWon =
+                leaderboardType === 'casual'
+                  ? (userRankData.casual_games_won ?? userRankData.games_won)
+                  : (userRankData.ranked_games_won ?? userRankData.games_won);
+
+              const { count, error: rankError } = await supabase
+                .from('player_stats')
+                .select('*', { count: 'exact', head: true })
+                .gte('last_game_at', timeFilterDate!)
+                .gt(`${modePrefix}_games_played`, 0)
                 .or(
-                  `player_1_id.eq.${user.id},player_2_id.eq.${user.id},player_3_id.eq.${user.id},player_4_id.eq.${user.id}`
-                )
-                .gte('finished_at', timeFilterDate!)
-                .limit(1);
+                  `${modePrefix}_rank_points.gt.${userPoints},and(${modePrefix}_rank_points.eq.${userPoints},${modePrefix}_games_won.gt.${userGamesWon})`
+                );
 
-              // If no games in this period, hide rank card
-              if (periodError) {
-                statsLogger.info('[Leaderboard] Error checking period games:', periodError);
-                setUserRank(null);
-              } else if (!periodGamesCount) {
-                // No error — user simply has not played games in this period
-                setUserRank(null);
-              } else {
-                // Transform weekly/daily data
-                // Calculate rank by counting users with higher points (using per-mode points)
-                const userPoints =
-                  leaderboardType === 'casual'
-                    ? (userRankData.casual_rank_points ?? userRankData.rank_points)
-                    : (userRankData.ranked_rank_points ?? userRankData.rank_points);
-
-                const { count, error: rankError } = await supabase
-                  .from('player_stats')
-                  .select('*', { count: 'exact', head: true })
-                  .gte('last_game_at', timeFilterDate!)
-                  .gt(`${modePrefix}_games_played`, 0)
-                  .gt(`${modePrefix}_rank_points`, userPoints);
-
-                if (rankError || count == null) {
-                  if (rankError) {
-                    statsLogger.info('[Leaderboard] Error calculating user rank:', rankError);
-                  }
-                  setUserRank(null);
-                  return;
+              if (rankError || count == null) {
+                if (rankError) {
+                  statsLogger.info('[Leaderboard] Error calculating user rank:', rankError);
                 }
-
-                const isCasual = leaderboardType === 'casual';
-
-                const rankProfile = Array.isArray(userRankData.profiles)
-                  ? userRankData.profiles[0]
-                  : userRankData.profiles;
-
-                setUserRank({
-                  user_id: userRankData.user_id,
-                  username: rankProfile?.username ?? '',
-                  avatar_url: rankProfile?.avatar_url ?? null,
-                  rank_points:
-                    (isCasual
-                      ? userRankData.casual_rank_points
-                      : userRankData.ranked_rank_points) ?? userRankData.rank_points,
-                  games_played:
-                    (isCasual
-                      ? userRankData.casual_games_played
-                      : userRankData.ranked_games_played) ?? userRankData.games_played,
-                  games_won:
-                    (isCasual ? userRankData.casual_games_won : userRankData.ranked_games_won) ??
-                    userRankData.games_won,
-                  win_rate:
-                    (isCasual ? userRankData.casual_win_rate : userRankData.ranked_win_rate) ??
-                    userRankData.win_rate,
-                  longest_win_streak: userRankData.longest_win_streak,
-                  current_win_streak: userRankData.current_win_streak,
-                  rank: count + 1,
-                });
+                setUserRank(null);
+                return;
               }
+
+              const isCasual = leaderboardType === 'casual';
+
+              const rankProfile = Array.isArray(userRankData.profiles)
+                ? userRankData.profiles[0]
+                : userRankData.profiles;
+
+              setUserRank({
+                user_id: userRankData.user_id,
+                username: rankProfile?.username ?? '',
+                avatar_url: rankProfile?.avatar_url ?? null,
+                rank_points:
+                  (isCasual ? userRankData.casual_rank_points : userRankData.ranked_rank_points) ??
+                  userRankData.rank_points,
+                games_played:
+                  (isCasual
+                    ? userRankData.casual_games_played
+                    : userRankData.ranked_games_played) ?? userRankData.games_played,
+                games_won:
+                  (isCasual ? userRankData.casual_games_won : userRankData.ranked_games_won) ??
+                  userRankData.games_won,
+                win_rate:
+                  (isCasual ? userRankData.casual_win_rate : userRankData.ranked_win_rate) ??
+                  userRankData.win_rate,
+                longest_win_streak: userRankData.longest_win_streak,
+                current_win_streak: userRankData.current_win_streak,
+                rank: count + 1,
+              });
             }
           } else {
             // User hasn't played any games yet, clear rank card
