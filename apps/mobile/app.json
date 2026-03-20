@@ -71,6 +71,7 @@
       "expo-screen-orientation",
       "./plugins/withAndroidSupportExclude",
       "./plugins/withBarcodeCompatStubs",
+      "./plugins/withIOSBarcodeCompatStubs",
       "./plugins/withExpoCameraSwiftFix"
     ],
     "extra": {
