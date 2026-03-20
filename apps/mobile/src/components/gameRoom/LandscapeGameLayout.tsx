@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 20,
+    zIndex: 200,
   },
   friendActionCard: {
     backgroundColor: 'rgba(37,41,46,0.97)',
