@@ -55,7 +55,7 @@ interface RoomType {
 export default function LobbyScreen() {
   const navigation = useNavigation<LobbyScreenNavigationProp>();
   const route = useRoute<LobbyScreenRouteProp>();
-  const { roomCode, playAgain = false } = route.params;
+  const { roomCode, playAgain = false, joining = false } = route.params;
   const { user, profile } = useAuth();
   const { friends } = useFriendsContext();
 
@@ -416,12 +416,13 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
 
-        // Kicked: if not in a play-again flow the current user has been removed
-        // from the room — show them who kicked them then navigate home.
+        // Kicked: if not in a play-again or invite-join flow the current user
+        // has been removed from the room — show them who kicked them then
+        // navigate home.
         // Guard: user?.id must be set — when AuthContext is still loading the
         // find() above returns undefined for every update, which would fire
         // this alert incorrectly for every player-list change.
-        if (!playAgain && !isLeavingRef.current && user?.id) {
+        if (!playAgain && !joining && !isLeavingRef.current && user?.id) {
           const kickerHost = players.find(p => p.is_host === true);
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
@@ -432,6 +433,28 @@ export default function LobbyScreen() {
             [{ text: i18n.t('common.ok'), onPress: () => navigation.replace('Home') }],
             { cancelable: false }
           );
+          return;
+        }
+
+        // Invite join: user arrived via a push notification / deep link and
+        // hasn't called join_room_atomic yet — auto-join them now.
+        if (joining && user && !isLeavingRef.current) {
+          const username = profile?.username || user.email?.split('@')[0] || 'Player';
+          roomLogger.info('[LobbyScreen] Invite join — auto-joining room as:', username);
+          const { error: joinError } = await supabase.rpc('join_room_atomic', {
+            p_room_code: roomCode,
+            p_user_id: user.id,
+            p_username: username,
+          });
+          if (joinError) {
+            roomLogger.error('[LobbyScreen] Failed to join on invite:', joinError.message);
+            // Room may be full or no longer exist — fall back to Home
+            if (!isLeavingRef.current) {
+              isLeavingRef.current = true;
+              navigation.replace('Home');
+            }
+          }
+          // loadPlayers will fire again via the realtime subscription
           return;
         }
 
@@ -1103,9 +1126,6 @@ export default function LobbyScreen() {
               <Text style={styles.roomCode}>{roomCode}</Text>
             </View>
             <View style={styles.roomCodeActions}>
-              <TouchableOpacity style={styles.roomCodeButton} onPress={handleCopyCode}>
-                <Text style={styles.roomCodeButtonText}>{i18n.t('lobby.copy') || '📋 Copy'}</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.roomCodeButton} onPress={handleShareCode}>
                 <Text style={styles.roomCodeButtonText}>{i18n.t('lobby.share') || '📤 Share'}</Text>
               </TouchableOpacity>

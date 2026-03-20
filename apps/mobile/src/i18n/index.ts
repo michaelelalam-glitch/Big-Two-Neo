@@ -722,6 +722,13 @@ export interface Translations {
     noFriendsToInvite: string;
   };
 
+  notifications: {
+    title: string;
+    empty: string;
+    clearAll: string;
+    justNow: string;
+  };
+
   // Ranked Leaderboard
 }
 
@@ -1378,6 +1385,12 @@ const en: Translations = {
     requestReceived: 'Request Received',
     inviteFriends: '👥 Invite Friends',
     noFriendsToInvite: 'All your friends are already in this room.',
+  },
+  notifications: {
+    title: '🔔 Notifications',
+    empty: 'No notifications yet',
+    clearAll: 'Clear All',
+    justNow: 'Just now',
   },
 };
 
@@ -2055,6 +2068,12 @@ const ar: Translations = {
     requestReceived: 'طلب مستلم',
     inviteFriends: '👥 دعوة الأصدقاء',
     noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
+  },
+  notifications: {
+    title: '🔔 الإشعارات',
+    empty: 'لا توجد إشعارات بعد',
+    clearAll: 'مسح الكل',
+    justNow: 'الآن',
   },
 };
 
@@ -2755,6 +2774,12 @@ const de: Translations = {
     requestReceived: 'Anfrage erhalten',
     inviteFriends: '👥 Freunde einladen',
     noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',
+  },
+  notifications: {
+    title: '🔔 Benachrichtigungen',
+    empty: 'Noch keine Benachrichtigungen',
+    clearAll: 'Alle löschen',
+    justNow: 'Gerade eben',
   },
 };
 

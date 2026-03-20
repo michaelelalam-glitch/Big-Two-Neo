@@ -15,7 +15,7 @@
  * Date: December 18, 2025
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import {
@@ -53,6 +53,8 @@ interface LandscapeOpponentProps {
   onCountdownExpired?: () => void;
   /** Called when the avatar is tapped (e.g. to add as friend) */
   onAvatarPress?: () => void;
+  /** Called when the player name badge is double-tapped */
+  onNameDoubleTap?: () => void;
 }
 
 // ============================================================================
@@ -71,7 +73,22 @@ export function LandscapeOpponent({
   turnTimerStartedAt,
   onCountdownExpired,
   onAvatarPress,
+  onNameDoubleTap,
 }: LandscapeOpponentProps) {
+  /** Track last tap time for double-tap detection on the name badge */
+  const lastNameTapRef = useRef<number>(0);
+  const DOUBLE_TAP_DELAY = 300; // ms
+
+  const handleNamePress = () => {
+    const now = Date.now();
+    if (now - lastNameTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double-tap detected
+      lastNameTapRef.current = 0;
+      onNameDoubleTap?.();
+    } else {
+      lastNameTapRef.current = now;
+    }
+  };
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
@@ -155,13 +172,13 @@ export function LandscapeOpponent({
         </View>
       </TouchableOpacity>
 
-      {/* Player Name Badge — also tappable to open friend actions */}
+      {/* Player Name Badge — double-tap to open friend actions */}
       <TouchableOpacity
-        onPress={onAvatarPress}
-        disabled={!onAvatarPress}
-        activeOpacity={onAvatarPress ? 0.7 : 1}
-        accessibilityRole={onAvatarPress ? 'button' : undefined}
-        accessibilityLabel={onAvatarPress ? `Add ${name} as a friend` : undefined}
+        onPress={handleNamePress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Double-tap to add ${name} as a friend`}
+        accessibilityHint="Double-tap to add this player as a friend."
       >
         <View
           style={[
