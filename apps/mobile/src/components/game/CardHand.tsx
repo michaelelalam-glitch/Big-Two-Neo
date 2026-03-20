@@ -84,6 +84,13 @@ function CardHandComponent({
 
   // Track whether cards have entered the drop zone (for haptic on entry)
   const wasInDropZone = useRef(false);
+  // Ref-based zone tracking for single-card drag: avoids calling setDragState
+  // on every gesture frame (~60/s) when translation stays within the same zone.
+  // State is only updated on zone-boundary crossings (idle ↔ approaching ↔ active).
+  const lastSingleDragZoneRef = useRef<'idle' | 'approaching' | 'active'>('idle');
+  // Tracks lastTargetIndex via ref to avoid stale-closure reads in handleDragUpdate
+  // and to gate horizontal state updates to slot-change events only.
+  const lastTargetIndexRef = useRef<number | null>(null);
 
   // Consolidated state: selection
   const [internalSelectedCardIds, setInternalSelectedCardIds] = useState<Set<string>>(new Set());
@@ -262,6 +269,9 @@ function CardHandComponent({
       // Check if dragging a selected card when multiple are selected
       const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
 
+      // Reset per-drag zone tracking refs
+      lastSingleDragZoneRef.current = 'idle';
+      lastTargetIndexRef.current = null;
       setDragState({
         draggedCardId: cardId,
         targetIndex: null,
@@ -304,15 +314,29 @@ function CardHandComponent({
         return;
       }
 
-      // Track vertical translation for drop zone glow (even for single-card drags)
-      // Only rearrange if dragging horizontally (not trying to play on table)
+      // Track vertical translation for drop zone glow (even for single-card drags).
+      // Only rearrange if dragging horizontally (not trying to play on table).
       const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
       if (!isHorizontalDrag) {
-        setDragState(prev => ({
-          ...prev,
-          targetIndex: null,
-          sharedTranslation: { x: translationX, y: translationY },
-        }));
+        // Only call setDragState when the drag crosses a zone boundary, not on every
+        // gesture frame. sharedTranslation.y is only visually consumed by
+        // isDraggingGroup cards (multi-drag), so single-card vertical drag can batch
+        // state updates to zone-boundary crossings only (~2-3 per drag vs ~60/s).
+        const newZone: 'idle' | 'approaching' | 'active' =
+          translationY < DRAG_TO_PLAY_THRESHOLD
+            ? 'active'
+            : translationY < DRAG_APPROACH_THRESHOLD
+              ? 'approaching'
+              : 'idle';
+        if (newZone !== lastSingleDragZoneRef.current || lastTargetIndexRef.current !== null) {
+          lastSingleDragZoneRef.current = newZone;
+          lastTargetIndexRef.current = null;
+          setDragState(prev => ({
+            ...prev,
+            targetIndex: null,
+            sharedTranslation: { x: translationX, y: translationY },
+          }));
+        }
         return;
       }
 
@@ -327,18 +351,16 @@ function CardHandComponent({
         0,
         Math.min(orderedCards.length - 1, currentIndex + positionShift)
       );
+      const newTargetIndex = targetIndex !== currentIndex ? targetIndex : null;
 
-      // Only store the target index, don't actually move the card yet
-      if (targetIndex !== currentIndex) {
+      // Only update state when the target slot changes (not on every translationX update).
+      // sharedTranslation.x is not consumed by single-card rendering; per-frame updates
+      // caused all card components to re-render at gesture-frame rate.
+      if (newTargetIndex !== lastTargetIndexRef.current) {
+        lastTargetIndexRef.current = newTargetIndex;
         setDragState(prev => ({
           ...prev,
-          targetIndex,
-          sharedTranslation: { x: translationX, y: 0 },
-        }));
-      } else {
-        setDragState(prev => ({
-          ...prev,
-          targetIndex: null,
+          targetIndex: newTargetIndex,
           sharedTranslation: { x: translationX, y: 0 },
         }));
       }
