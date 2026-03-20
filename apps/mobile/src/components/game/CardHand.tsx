@@ -191,6 +191,13 @@ function CardHandComponent({
     } else {
       onDragZoneChange('idle');
     }
+    return () => {
+      try {
+        onDragZoneChange('idle');
+      } catch (e) {
+        // swallow - best-effort cleanup
+      }
+    };
   }, [isInDropZone, isApproaching, onDragZoneChange]);
 
   // Separate state: display cards (managed independently)
@@ -474,9 +481,23 @@ function CardHandComponent({
         ]}
       >
         {/* Always-visible drag hint (subtle, pulsing) — Task #652: now just a small hint above cards */}
-        {!isDragging && selectedCardIds.size > 0 && canPlay && (
+        {!isDragging && selectedCardIds.size > 0 && canDragToPlay && (
           <Animated.View style={[styles.dragHint, { opacity: hintPulse }]}>
             <Text style={styles.dragHintText}>↑ Drag up to play</Text>
+          </Animated.View>
+        )}
+
+        {/* Drop zone glow overlay (animated) — uses dropZoneGlow value for opacity */}
+        {(isApproaching || isInDropZone) && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.playDropZone,
+              isInDropZone && styles.playDropZoneActive,
+              { opacity: dropZoneGlow },
+            ]}
+          >
+            <Animated.View style={styles.playDropZoneGlow} />
           </Animated.View>
         )}
 

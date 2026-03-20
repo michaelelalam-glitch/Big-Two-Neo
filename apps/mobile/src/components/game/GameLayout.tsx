@@ -100,6 +100,19 @@ function GameLayoutComponent({
       Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
     }
   }, [dropZoneState, glowAnim]);
+  // Cleanup on unmount: stop any running pulse animation to avoid native animation leaks
+  useEffect(() => {
+    return () => {
+      if (glowPulse.current) {
+        try {
+          glowPulse.current.stop();
+        } catch (e) {
+          // best-effort
+        }
+        glowPulse.current = null;
+      }
+    };
+  }, []);
 
   // Interpolate glow color and shadow
   const glowBorderColor = glowAnim.interpolate({
