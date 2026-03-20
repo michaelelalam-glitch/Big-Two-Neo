@@ -1,19 +1,19 @@
 /**
  * LandscapeGameLayout Component
- * 
+ *
  * Complete landscape game room layout
- * 
+ *
  * Features:
  * - All Phase 2 components integrated
  * - Scoreboard, table, players, controls
  * - Orientation-aware rendering
- * 
+ *
  * Task #450: Add orientation toggle functionality
  * Date: December 18, 2025
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, Pressable, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
@@ -21,6 +21,7 @@ import { AutoPassTimer } from '../game';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
+import { AddFriendButton } from '../friends';
 import { LandscapeYourPosition } from './LandscapeYourPosition';
 import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
 import { LandscapeOvalTable } from './LandscapeOvalTable';
@@ -33,6 +34,8 @@ import { LandscapeOpponent } from './LandscapeOpponent';
 export interface LandscapeGameLayoutProps {
   /** Scoreboard data */
   playerNames: string[];
+  /** Optional player user IDs in display order [bottom, top, left, right] — used for friend actions */
+  playerIds?: (string | null)[];
   currentScores: number[];
   cardCounts: number[];
   currentPlayerIndex: number;
@@ -44,13 +47,13 @@ export interface LandscapeGameLayoutProps {
   autoPassTimerState?: AutoPassTimerState;
   /** Total cumulative scores per player (Task #590) */
   totalScores?: number[];
-  
+
   /** Table data */
   lastPlayedCards?: CardType[];
   lastPlayedBy?: string;
   lastPlayComboType?: string;
   lastPlayCombo?: string;
-  
+
   /** Player data */
   playerName: string;
   playerCardCount: number;
@@ -59,10 +62,10 @@ export interface LandscapeGameLayoutProps {
   selectedCardIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   onCardsReorder?: (reorderedCards: CardType[]) => void;
-  
+
   /** Drag-to-play callback */
   onPlayCards?: (cards: CardType[]) => void;
-  
+
   /** fix/rejoin: disconnect state per player in display order [bottom, top, left, right] */
   disconnectedPlayers?: boolean[];
   /** Disconnect timer started_at per player in display order */
@@ -71,7 +74,7 @@ export interface LandscapeGameLayoutProps {
   turnTimerStartedAts?: (string | null)[];
   /** Countdown expired callbacks per player in display order */
   onCountdownExpireds?: ((() => void) | undefined)[];
-  
+
   /** Chat toggle (multiplayer only) */
   onChatToggle?: () => void;
   isChatOpen?: boolean;
@@ -87,7 +90,7 @@ export interface LandscapeGameLayoutProps {
   onPass?: () => void;
   onHint?: () => void;
   onSettings?: () => void;
-  
+
   /** Control states */
   disabled?: boolean;
   canPlay?: boolean;
@@ -111,13 +114,13 @@ export function LandscapeGameLayout({
   originalPlayerNames,
   autoPassTimerState,
   totalScores = [0, 0, 0, 0],
-  
+
   // Table
   lastPlayedCards,
   lastPlayedBy,
   lastPlayComboType,
   lastPlayCombo,
-  
+
   // Player
   playerName,
   playerCardCount,
@@ -127,7 +130,7 @@ export function LandscapeGameLayout({
   onSelectionChange,
   onCardsReorder,
   onPlayCards: onPlayCardsCallback,
-  
+
   // Chat
   onChatToggle,
   isChatOpen = false,
@@ -150,13 +153,13 @@ export function LandscapeGameLayout({
   disconnectTimerStartedAts,
   turnTimerStartedAts,
   onCountdownExpireds,
+  playerIds = [],
 }: LandscapeGameLayoutProps) {
-  
   // Scoreboard expand/collapse state
   const [isScoreboardExpanded, setIsScoreboardExpanded] = React.useState(false);
   const [showPlayHistory, setShowPlayHistory] = React.useState(false);
   const [collapsedMatches, setCollapsedMatches] = React.useState<Set<number>>(new Set());
-  
+
   // Toggle match collapse in play history
   const handleToggleMatch = (matchNumber: number) => {
     setCollapsedMatches(prev => {
@@ -169,12 +172,36 @@ export function LandscapeGameLayout({
       return newSet;
     });
   };
-  
+
   // Helper function to check if a player index is currently active
   // (scoreboard order is [user, top, left, right])
   const isOpponentActive = (index: number) => {
     return currentPlayerIndex === index;
   };
+
+  /** Show a contextual action sheet when tapping an opponent's avatar */
+  const handleOpponentAvatarPress = (displayIndex: number) => {
+    const opponentId = playerIds[displayIndex];
+    const opponentName = playerNames[displayIndex] ?? i18n.t('friends.unknownPlayer');
+    if (!opponentId) return;
+    Alert.alert(opponentName, undefined, [
+      {
+        text: i18n.t('friends.addFriend'),
+        onPress: () => {
+          // Render an inline AddFriendButton action — we trigger via a local
+          // ref approach; here we surface the Alert as the simplest in-game UX.
+          // The AddFriendButton in the alert is reflected via the state below.
+        },
+      },
+      { text: i18n.t('common.cancel'), style: 'cancel' },
+    ]);
+    setOpponentActionTarget({ id: opponentId, name: opponentName });
+  };
+
+  const [opponentActionTarget, setOpponentActionTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
@@ -183,7 +210,9 @@ export function LandscapeGameLayout({
         <View style={styles.matchNumberContainer}>
           <View style={scoreDisplayStyles.matchNumberBadge}>
             <Text style={scoreDisplayStyles.matchNumberText}>
-              {isGameFinished ? i18n.t('game.gameOver') : `${i18n.t('gameEnd.match')} ${matchNumber}`}
+              {isGameFinished
+                ? i18n.t('game.gameOver')
+                : `${i18n.t('gameEnd.match')} ${matchNumber}`}
             </Text>
           </View>
         </View>
@@ -228,13 +257,20 @@ export function LandscapeGameLayout({
                 <Text style={scoreDisplayStyles.scoreActionButtonText}>💬</Text>
               </TouchableOpacity>
               {chatUnreadCount > 0 && !isChatOpen && (
-                <View style={{
-                  position: 'absolute', top: -4, right: -4,
-                  backgroundColor: '#F44336', borderRadius: 10,
-                  minWidth: 18, height: 18,
-                  alignItems: 'center', justifyContent: 'center',
-                  paddingHorizontal: 4,
-                }}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    backgroundColor: '#F44336',
+                    borderRadius: 10,
+                    minWidth: 18,
+                    height: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 4,
+                  }}
+                >
                   <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
                     {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                   </Text>
@@ -265,7 +301,7 @@ export function LandscapeGameLayout({
             playHistory={playHistory}
           />
         </View>
-        
+
         {/* Play History Modal (same as portrait) */}
         {showPlayHistory && (
           <PlayHistoryModal
@@ -291,6 +327,7 @@ export function LandscapeGameLayout({
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[1]}
             turnTimerStartedAt={turnTimerStartedAts?.[1]}
             onCountdownExpired={onCountdownExpireds?.[1]}
+            onAvatarPress={playerIds[1] ? () => handleOpponentAvatarPress(1) : undefined}
           />
         </View>
 
@@ -305,6 +342,7 @@ export function LandscapeGameLayout({
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[2]}
             turnTimerStartedAt={turnTimerStartedAts?.[2]}
             onCountdownExpired={onCountdownExpireds?.[2]}
+            onAvatarPress={playerIds[2] ? () => handleOpponentAvatarPress(2) : undefined}
           />
         </View>
 
@@ -319,21 +357,40 @@ export function LandscapeGameLayout({
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[3]}
             turnTimerStartedAt={turnTimerStartedAts?.[3]}
             onCountdownExpired={onCountdownExpireds?.[3]}
+            onAvatarPress={playerIds[3] ? () => handleOpponentAvatarPress(3) : undefined}
           />
         </View>
 
+        {/* Inline Add Friend overlay — shown after avatar tap */}
+        {opponentActionTarget && (
+          <View style={styles.friendActionOverlay} pointerEvents="box-none">
+            <View style={styles.friendActionCard}>
+              <Text style={styles.friendActionName} numberOfLines={1}>
+                {opponentActionTarget.name}
+              </Text>
+              <AddFriendButton targetUserId={opponentActionTarget.id} compact />
+              <TouchableOpacity
+                style={styles.friendActionClose}
+                onPress={() => setOpponentActionTarget(null)}
+              >
+                <Text style={styles.friendActionCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Top-right buttons: Rotation & Settings (SWITCHED ORDER) */}
         <View style={styles.topRightButtons}>
-          <Pressable 
-            style={styles.actionButton} 
+          <Pressable
+            style={styles.actionButton}
             onPress={onOrientationToggle}
             accessibilityLabel="Toggle orientation"
             accessibilityRole="button"
           >
             <Text style={styles.actionButtonText}>🔄</Text>
           </Pressable>
-          <Pressable 
-            style={styles.actionButton} 
+          <Pressable
+            style={styles.actionButton}
             onPress={onSettings}
             accessibilityLabel="Settings"
             accessibilityRole="button"
@@ -347,7 +404,7 @@ export function LandscapeGameLayout({
             </View>
           </Pressable>
         </View>
-        
+
         {/* Main game area - center */}
         <View style={styles.mainArea}>
           {/* Oval table with last played cards */}
@@ -357,18 +414,15 @@ export function LandscapeGameLayout({
             combinationType={lastPlayComboType ?? null}
             comboDisplayText={lastPlayCombo ?? undefined}
           />
-          
+
           {/* Auto-Pass Timer Display (OVERLAY on table) */}
           {autoPassTimerState && (
             <View style={styles.timerOverlay}>
-              <AutoPassTimer
-                timerState={autoPassTimerState}
-                currentPlayerIndex={0}
-              />
+              <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
             </View>
           )}
         </View>
-        
+
         {/* Player (bottom-left) - same design as Bot 2 */}
         <View style={styles.bottomPlayerContainer}>
           <LandscapeOpponent
@@ -383,13 +437,13 @@ export function LandscapeGameLayout({
             onCountdownExpired={onCountdownExpireds?.[0]}
           />
         </View>
-        
+
         {/* Action buttons - RIGHT SIDE (2-row layout) */}
         <View style={styles.actionButtonsContainer}>
           {/* Top row: Play + Smart */}
           <View style={styles.buttonRow}>
-            <Pressable 
-              style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]}
               onPress={onPlay}
               disabled={!canPlay || disabled}
               accessibilityLabel="Play cards"
@@ -397,8 +451,8 @@ export function LandscapeGameLayout({
             >
               <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
             </Pressable>
-            <Pressable 
-              style={[styles.smartButton, disabled && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.smartButton, disabled && { opacity: 0.5 }]}
               onPress={onSmartSort}
               disabled={disabled}
               accessibilityLabel="Smart sort"
@@ -407,11 +461,11 @@ export function LandscapeGameLayout({
               <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
           </View>
-          
+
           {/* Bottom row: Pass + Sort + Hint */}
           <View style={styles.buttonRow}>
-            <Pressable 
-              style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]}
               onPress={onPass}
               disabled={!canPass || disabled}
               accessibilityLabel="Pass turn"
@@ -419,22 +473,24 @@ export function LandscapeGameLayout({
             >
               <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
             </Pressable>
-            <Pressable 
-              style={[styles.sortButton, disabled && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.sortButton, disabled && { opacity: 0.5 }]}
               onPress={onSort}
               disabled={disabled}
               accessibilityLabel="Sort cards"
               accessibilityRole="button"
             >
-              <Text style={[
-                styles.sortButtonText,
-                i18n.getLanguage() === 'de' && styles.sortButtonTextGerman
-              ]}>
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  i18n.getLanguage() === 'de' && styles.sortButtonTextGerman,
+                ]}
+              >
                 {i18n.t('game.sort')}
               </Text>
             </Pressable>
-            <Pressable 
-              style={[styles.hintButton, disabled && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.hintButton, disabled && { opacity: 0.5 }]}
               onPress={onHint}
               disabled={disabled}
               accessibilityLabel="Get hint"
@@ -444,7 +500,7 @@ export function LandscapeGameLayout({
             </Pressable>
           </View>
         </View>
-        
+
         {/* Your position - BOTTOM OF SCREEN */}
         <View style={styles.yourPosition}>
           <LandscapeYourPosition
@@ -500,7 +556,7 @@ const styles = StyleSheet.create({
     gap: 8,
     zIndex: 150,
   },
-  
+
   // Opponent positions around table
   topOpponent: {
     position: 'absolute',
@@ -523,7 +579,44 @@ const styles = StyleSheet.create({
     transform: [{ translateY: -58 }], // Raised (from -40) to match left opponent
     zIndex: 5,
   },
-  
+  friendActionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  friendActionCard: {
+    backgroundColor: 'rgba(37,41,46,0.97)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(74,144,226,0.4)',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  friendActionName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    maxWidth: 120,
+  },
+  friendActionClose: {
+    padding: 6,
+  },
+  friendActionCloseText: {
+    color: '#9E9E9E',
+    fontSize: 16,
+  },
+
   mainArea: {
     position: 'absolute',
     top: '18%', // Raised to touch bottom of top player's avatar circle
@@ -532,7 +625,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 3,
   },
-  
+
   timerOverlay: {
     position: 'absolute', // Overlay on table (don't push layout)
     top: 20, // MIDDLE OF SCREEN (was -80, under Bot 1)
@@ -541,7 +634,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 100, // Above table
   },
-  
+
   yourPosition: {
     position: 'absolute',
     bottom: 8,
@@ -549,7 +642,7 @@ const styles = StyleSheet.create({
     right: 150, // Leave space for Play/Pass + helper buttons on right
     zIndex: 100, // CRITICAL: Must be higher than buttons (60) to allow drag/drop
   },
-  
+
   topRightButtons: {
     position: 'absolute',
     top: 8,
@@ -558,7 +651,7 @@ const styles = StyleSheet.create({
     gap: 8,
     zIndex: 100,
   },
-  
+
   actionButton: {
     width: 44, // EXACT same as helperButton
     height: 44, // EXACT same as helperButton
@@ -569,32 +662,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   actionButtonText: {
     fontSize: 16,
   },
-  
+
   hamburgerMenu: {
     width: 18,
     height: 14,
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  
+
   hamburgerLine: {
     width: 18,
     height: 2,
     backgroundColor: '#ffffff',
     borderRadius: 1,
   },
-  
+
   bottomPlayerContainer: {
     position: 'absolute',
     bottom: 20, // Move WAY UP (closer to table, avoid cards)
     left: -30, // FAR BOTTOM LEFT CORNER
     zIndex: 60,
   },
-  
+
   actionButtonsContainer: {
     position: 'absolute',
     bottom: 12,
@@ -604,13 +697,13 @@ const styles = StyleSheet.create({
     zIndex: 60,
     pointerEvents: 'box-none', // CRITICAL: Allow touches to pass through container but buttons receive touches
   },
-  
+
   buttonRow: {
     flexDirection: 'row',
     gap: 6,
     pointerEvents: 'box-none', // IMPORTANT: Allow button touches while maintaining gesture handling
   },
-  
+
   // Play button (Green)
   playButton: {
     width: 60,
@@ -620,13 +713,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   playButtonText: {
     color: '#ffffff',
     fontSize: 13,
     fontWeight: 'bold',
   },
-  
+
   // Smart button (Teal/Cyan)
   smartButton: {
     width: 70,
@@ -636,13 +729,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   smartButtonText: {
     color: '#ffffff',
     fontSize: 13,
     fontWeight: 'bold',
   },
-  
+
   // Pass button (Gray)
   passButton: {
     width: 60,
@@ -654,13 +747,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   passButtonText: {
     color: '#D1D5DB',
     fontSize: 13,
     fontWeight: 'bold',
   },
-  
+
   // Sort button (Gray) - WIDER for German 'Sortieren'
   sortButton: {
     width: 85, // Increased from 55 to fit 'Sortieren'
@@ -672,17 +765,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   sortButtonText: {
     color: '#D1D5DB',
     fontSize: 13, // Default size for English/Arabic
     fontWeight: 'bold',
   },
-  
+
   sortButtonTextGerman: {
     fontSize: 11, // Smaller size for German 'Sortieren'
   },
-  
+
   // Hint button (Orange)
   hintButton: {
     width: 55,
@@ -692,7 +785,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   hintButtonText: {
     color: '#ffffff',
     fontSize: 13,

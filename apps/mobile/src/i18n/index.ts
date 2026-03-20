@@ -693,6 +693,29 @@ export interface Translations {
     local: string;
   };
 
+  // Friends & Social
+  friends: {
+    title: string;
+    myFriends: string;
+    requests: string;
+    noFriends: string;
+    noPending: string;
+    addFriend: string;
+    added: string;
+    alreadyFriends: string;
+    requestSent: string;
+    cancelRequest: string;
+    accept: string;
+    decline: string;
+    unfriend: string;
+    favorite: string;
+    unfavorite: string;
+    online: string;
+    offline: string;
+    sendInvite: string;
+    unknownPlayer: string;
+  };
+
   // Ranked Leaderboard
 }
 
@@ -1322,6 +1345,27 @@ const en: Translations = {
     hoursAgo: '{{count}}h ago',
     daysAgo: '{{count}}d ago',
     local: 'Local',
+  },
+  friends: {
+    title: 'Friends',
+    myFriends: 'My Friends',
+    requests: 'Requests',
+    noFriends: 'No friends yet — add players from the leaderboard or in-game!',
+    noPending: 'No pending requests',
+    addFriend: 'Add Friend',
+    added: 'Friend request sent!',
+    alreadyFriends: 'Friends',
+    requestSent: 'Request Sent',
+    cancelRequest: 'Cancel',
+    accept: 'Accept',
+    decline: 'Decline',
+    unfriend: 'Unfriend',
+    favorite: 'Add to Favourites',
+    unfavorite: 'Remove Favourite',
+    online: 'Online',
+    offline: 'Offline',
+    sendInvite: 'Send Invite',
+    unknownPlayer: 'Player',
   },
 };
 
@@ -1972,6 +2016,27 @@ const ar: Translations = {
     botReplacement: '🤖 استبدال البوت: بعد 60 ثانية، سيلعب بوت بأوراقك الحالية نيابة عنك.',
     spectatorMode:
       '🔄 إعادة الانضمام واستبدال البوت: يمكنك إعادة الانضمام في أي وقت أثناء المباراة واستعادة يدك من البوت. اضغط على "استبدال البوت وإعادة الانضمام" للاستئناف فوراً.',
+  },
+  friends: {
+    title: 'الأصدقاء',
+    myFriends: 'أصدقائي',
+    requests: 'الطلبات',
+    noFriends: 'لا أصدقاء حتى الآن — أضف لاعبين من لوحة المتصدرين أو في اللعبة!',
+    noPending: 'لا طلبات معلقة',
+    addFriend: 'إضافة صديق',
+    added: 'تم إرسال طلب الصداقة!',
+    alreadyFriends: 'أصدقاء',
+    requestSent: 'تم الإرسال',
+    cancelRequest: 'إلغاء',
+    accept: 'قبول',
+    decline: 'رفض',
+    unfriend: 'إلغاء الصداقة',
+    favorite: 'إضافة إلى المفضلة',
+    unfavorite: 'إزالة من المفضلة',
+    online: 'متصل',
+    offline: 'غير متصل',
+    sendInvite: 'إرسال دعوة',
+    unknownPlayer: 'لاعب',
   },
 };
 
@@ -2644,6 +2709,27 @@ const de: Translations = {
       '🤖 Bot-Ersatz: Nach 60 Sekunden spielt ein Bot mit deinen aktuellen Karten für dich.',
     spectatorMode:
       '🔄 Wieder beitreten & Bot ersetzen: Du kannst jederzeit während des Spiels wieder beitreten und deine Hand vom Bot übernehmen. Tippe auf "Bot ersetzen & beitreten", um sofort weiterzuspielen.',
+  },
+  friends: {
+    title: 'Freunde',
+    myFriends: 'Meine Freunde',
+    requests: 'Anfragen',
+    noFriends: 'Noch keine Freunde — füge Spieler über die Rangliste oder im Spiel hinzu!',
+    noPending: 'Keine ausstehenden Anfragen',
+    addFriend: 'Freund hinzufügen',
+    added: 'Freundschaftsanfrage gesendet!',
+    alreadyFriends: 'Freunde',
+    requestSent: 'Gesendet',
+    cancelRequest: 'Abbrechen',
+    accept: 'Annehmen',
+    decline: 'Ablehnen',
+    unfriend: 'Freundschaft beenden',
+    favorite: 'Zu Favoriten hinzufügen',
+    unfavorite: 'Favorit entfernen',
+    online: 'Online',
+    offline: 'Offline',
+    sendInvite: 'Einladung senden',
+    unknownPlayer: 'Spieler',
   },
 };
 

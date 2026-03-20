@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { FriendsList } from '../components/friends';
 import { RankBadge, Rank } from '../components/RankBadge';
 import { COLORS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,10 +47,13 @@ const ProfileScreen = () => {
         try {
           await signOut();
         } catch (error: unknown) {
-          authLogger.error('Error signing out:', error instanceof Error ? error.message : String(error));
+          authLogger.error(
+            'Error signing out:',
+            error instanceof Error ? error.message : String(error)
+          );
           showError(i18n.t('profile.signOutError'));
         }
-      }
+      },
     });
   };
 
@@ -65,10 +69,14 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.secondary}
+          />
         }
       >
         <View style={styles.content}>
@@ -77,10 +85,10 @@ const ProfileScreen = () => {
             <View style={styles.rankRowContainer}>
               {profile?.rank && profile?.elo_rating ? (
                 <View style={styles.rankBadgeContainer}>
-                  <RankBadge 
-                    rank={profile.rank as Rank} 
-                    elo={profile.elo_rating} 
-                    size="large" 
+                  <RankBadge
+                    rank={profile.rank as Rank}
+                    elo={profile.elo_rating}
+                    size="large"
                     showElo={true}
                   />
                 </View>
@@ -92,7 +100,9 @@ const ProfileScreen = () => {
                 onPress={() => navigation.navigate('Stats', { userId: user?.id })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.statsButtonInlineText}>📊 {i18n.t('profile.viewFullStats')}</Text>
+                <Text style={styles.statsButtonInlineText}>
+                  📊 {i18n.t('profile.viewFullStats')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -128,9 +138,7 @@ const ProfileScreen = () => {
 
             <View style={styles.infoRow}>
               <Text style={styles.label}>{i18n.t('profile.provider')}</Text>
-              <Text style={styles.value}>
-                {user?.app_metadata?.provider || 'email'}
-              </Text>
+              <Text style={styles.value}>{user?.app_metadata?.provider || 'email'}</Text>
             </View>
           </View>
 
@@ -149,9 +157,7 @@ const ProfileScreen = () => {
             <View style={styles.infoRow}>
               <Text style={styles.label}>{i18n.t('profile.createdAt')}</Text>
               <Text style={styles.valueSmall}>
-                {user?.created_at
-                  ? format(new Date(user.created_at), 'MMMM d, yyyy')
-                  : 'N/A'}
+                {user?.created_at ? format(new Date(user.created_at), 'MMMM d, yyyy') : 'N/A'}
               </Text>
             </View>
 
@@ -170,6 +176,12 @@ const ProfileScreen = () => {
           >
             <Text style={styles.matchHistoryButtonText}>📜 {i18n.t('matchHistory.title')}</Text>
           </TouchableOpacity>
+
+          {/* Friends Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>👥 {i18n.t('friends.title')}</Text>
+            <FriendsList />
+          </View>
 
           <TouchableOpacity
             style={styles.signOutButton}
