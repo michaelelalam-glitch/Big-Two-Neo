@@ -1,24 +1,28 @@
 /**
  * LandscapeOpponent Component
- * 
+ *
  * Displays opponent player position with profile photo and name
  * Used for top, left, and right opponent positions in landscape mode
- * 
+ *
  * Features:
  * - Profile photo display (or placeholder icon)
  * - Player name label
  * - Active turn indicator (green glow)
  * - No card count shown (per user requirement)
  * - Matches portrait PlayerInfo component styling
- * 
+ *
  * Task #461: Show other players' profile photos and names in landscape
  * Date: December 18, 2025
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
-import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import {
+  getScoreBadgeColor,
+  formatScore,
+  scoreDisplayStyles,
+} from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from '../game/InactivityCountdownRing';
 
@@ -47,6 +51,8 @@ interface LandscapeOpponentProps {
   turnTimerStartedAt?: string | null;
   /** Called when countdown ring expires */
   onCountdownExpired?: () => void;
+  /** Called when the avatar is tapped (e.g. to add as friend) */
+  onAvatarPress?: () => void;
 }
 
 // ============================================================================
@@ -64,6 +70,7 @@ export function LandscapeOpponent({
   disconnectTimerStartedAt,
   turnTimerStartedAt,
   onCountdownExpired,
+  onAvatarPress,
 }: LandscapeOpponentProps) {
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
@@ -82,62 +89,77 @@ export function LandscapeOpponent({
     return turnTimerStartedAt!;
   })();
 
-  
   return (
-    <View style={[styles.container, layout === 'horizontal' && styles.containerHorizontal]} testID="landscape-opponent">
+    <View
+      style={[styles.container, layout === 'horizontal' && styles.containerHorizontal]}
+      testID="landscape-opponent"
+    >
       {/* Avatar Circle */}
-      <View style={[
-        styles.avatarContainer,
-        isActive && !showRing && styles.avatarContainerActive,
-      ]}>
-        <View style={[styles.avatarInner, isDisconnected && styles.avatarInnerDisconnected]}>
-          {photoUrl ? (
-            // TODO: Render actual profile photo when available
-            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
-          ) : (
-            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+      <TouchableOpacity
+        onPress={onAvatarPress}
+        disabled={!onAvatarPress}
+        activeOpacity={onAvatarPress ? 0.7 : 1}
+        accessibilityLabel={`View ${name}'s profile`}
+      >
+        <View
+          style={[styles.avatarContainer, isActive && !showRing && styles.avatarContainerActive]}
+        >
+          <View style={[styles.avatarInner, isDisconnected && styles.avatarInnerDisconnected]}>
+            {photoUrl ? (
+              // TODO: Render actual profile photo when available
+              <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+            ) : (
+              <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+            )}
+          </View>
+          {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
+          {showRing && ringStartedAt && (
+            <InactivityCountdownRing
+              key={ringStartedAt}
+              type={ringType}
+              startedAt={ringStartedAt}
+              onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+            />
+          )}
+          {/* Disconnect spinner overlay */}
+          {isDisconnected && (
+            <View style={styles.disconnectOverlay} pointerEvents="none">
+              <ActivityIndicator size="small" color={COLORS.white} />
+            </View>
+          )}
+          {/* Card count badge positioned on avatar */}
+          <View style={styles.badgePosition}>
+            <CardCountBadge cardCount={cardCount} visible={true} />
+          </View>
+          {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
+          {totalScore !== undefined && (
+            <View
+              style={scoreDisplayStyles.scoreBadgePosition}
+              accessible={true}
+              accessibilityRole="text"
+              accessibilityLabel={`Score: ${formatScore(totalScore)}`}
+            >
+              <View
+                style={[
+                  scoreDisplayStyles.scoreBadge,
+                  { backgroundColor: getScoreBadgeColor(totalScore) },
+                ]}
+              >
+                <Text style={scoreDisplayStyles.scoreBadgeText}>{formatScore(totalScore)}</Text>
+              </View>
+            </View>
           )}
         </View>
-        {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
-        {showRing && ringStartedAt && (
-          <InactivityCountdownRing
-            key={ringStartedAt}
-            type={ringType}
-            startedAt={ringStartedAt}
-            onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
-          />
-        )}
-        {/* Disconnect spinner overlay */}
-        {isDisconnected && (
-          <View style={styles.disconnectOverlay} pointerEvents="none">
-            <ActivityIndicator size="small" color={COLORS.white} />
-          </View>
-        )}
-        {/* Card count badge positioned on avatar */}
-        <View style={styles.badgePosition}>
-          <CardCountBadge cardCount={cardCount} visible={true} />
-        </View>
-        {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
-        {totalScore !== undefined && (
-          <View
-            style={scoreDisplayStyles.scoreBadgePosition}
-            accessible={true}
-            accessibilityRole="text"
-            accessibilityLabel={`Score: ${formatScore(totalScore)}`}
-          >
-            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
-              <Text style={scoreDisplayStyles.scoreBadgeText}>{formatScore(totalScore)}</Text>
-            </View>
-          </View>
-        )}
-      </View>
+      </TouchableOpacity>
 
       {/* Player Name Badge */}
-      <View style={[
-        styles.nameBadge,
-        isActive && styles.nameBadgeActive,
-        isDisconnected && styles.nameBadgeDisconnected,
-      ]}>
+      <View
+        style={[
+          styles.nameBadge,
+          isActive && styles.nameBadgeActive,
+          isDisconnected && styles.nameBadgeDisconnected,
+        ]}
+      >
         <Text style={styles.nameText} numberOfLines={1}>
           {name}
         </Text>

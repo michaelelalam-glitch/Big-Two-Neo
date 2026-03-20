@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import type { LinkingOptions } from '@react-navigation/native';
 import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
@@ -44,6 +45,39 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+/**
+ * Deep linking configuration.
+ *
+ * Supported URL schemes:
+ *   big2://lobby/<roomCode>       → opens Lobby screen directly
+ *   big2://game/<roomCode>        → opens Game/rejoin screen
+ *   https://big2.app/lobby/<code> → universal link (same)
+ *
+ * Android: requires intent-filter with big2:// in AndroidManifest.xml
+ * iOS: requires CFBundleURLSchemes entry in Info.plist + associated domain for https
+ */
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['big2://', 'https://big2.app'],
+  config: {
+    screens: {
+      Lobby: 'lobby/:roomCode',
+      Game: 'game/:roomCode',
+      JoinRoom: 'join',
+      Home: 'home',
+      Profile: 'profile',
+      Leaderboard: 'leaderboard',
+    },
+  },
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    return url ?? undefined;
+  },
+  subscribe(listener) {
+    const sub = Linking.addEventListener('url', ({ url }) => listener(url));
+    return () => sub.remove();
+  },
+};
+
 function LoadingScreen() {
   return (
     <View style={styles.loadingContainer}>
@@ -71,7 +105,7 @@ export default function AppNavigator() {
 
   return (
     <GlobalErrorBoundary>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <NotificationProvider>
           <Stack.Navigator
             screenOptions={{
