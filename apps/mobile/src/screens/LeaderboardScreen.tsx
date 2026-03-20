@@ -261,8 +261,11 @@ export default function LeaderboardScreen() {
                 .limit(1);
 
               // If no games in this period, hide rank card
-              if (periodError || !periodGamesCount) {
+              if (periodError) {
                 statsLogger.info('[Leaderboard] Error checking period games:', periodError);
+                setUserRank(null);
+              } else if (!periodGamesCount) {
+                // No error — user simply has not played games in this period
                 setUserRank(null);
               } else {
                 // Transform weekly/daily data
@@ -281,10 +284,14 @@ export default function LeaderboardScreen() {
 
                 const isCasual = leaderboardType === 'casual';
 
+                const rankProfile = Array.isArray(userRankData.profiles)
+                  ? userRankData.profiles[0]
+                  : userRankData.profiles;
+
                 setUserRank({
                   user_id: userRankData.user_id,
-                  username: userRankData.profiles.username,
-                  avatar_url: userRankData.profiles.avatar_url,
+                  username: rankProfile?.username ?? '',
+                  avatar_url: rankProfile?.avatar_url ?? null,
                   rank_points:
                     (isCasual
                       ? userRankData.casual_rank_points
