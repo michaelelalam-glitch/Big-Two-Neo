@@ -11,10 +11,11 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { Friendship } from '../../hooks/useFriends';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import type { Friendship } from '../../hooks/useFriends';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
+import { showError } from '../../utils/alerts';
 
 interface FriendCardProps {
   item: Friendship;
@@ -43,7 +44,7 @@ export function FriendCard({
       await fn();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(i18n.t('common.error'), msg);
+      showError(msg);
     } finally {
       setBusy(false);
     }

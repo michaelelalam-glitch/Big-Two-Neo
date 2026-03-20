@@ -16,10 +16,11 @@
 
 import React, { createContext, useContext, useRef, useEffect, useState, ReactNode } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useFriends, Friendship } from '../hooks/useFriends';
+import { useFriends, type Friendship } from '../hooks/useFriends';
 import { usePresence } from '../hooks/usePresence';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { i18n } from '../i18n';
+import { showError } from '../utils/alerts';
 
 // ============================================================================
 // Context shape
@@ -64,8 +65,9 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     if (!notification) return;
     try {
       await friendsData.acceptRequest(notification.id);
-    } finally {
       setNotification(null);
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -73,8 +75,9 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     if (!notification) return;
     try {
       await friendsData.declineRequest(notification.id);
-    } finally {
       setNotification(null);
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : String(e));
     }
   };
 

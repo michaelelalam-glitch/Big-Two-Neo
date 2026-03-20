@@ -147,7 +147,13 @@ export function useFriends(): UseFriendsResult {
 
   // Realtime subscription
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      // Clear stale data when the user signs out
+      setFriends([]);
+      setOutgoing([]);
+      setIncoming([]);
+      return;
+    }
 
     fetchAll();
 

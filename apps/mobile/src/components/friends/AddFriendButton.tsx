@@ -6,11 +6,12 @@
  */
 
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
+import { showError, showSuccess } from '../../utils/alerts';
 
 interface AddFriendButtonProps {
   targetUserId: string;
@@ -35,10 +36,10 @@ export function AddFriendButton({ targetUserId, compact = false }: AddFriendButt
     setBusy(true);
     try {
       await sendRequest(targetUserId);
-      Alert.alert(i18n.t('friends.addFriend'), i18n.t('friends.added'));
+      showSuccess(i18n.t('friends.added'), i18n.t('friends.addFriend'));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(i18n.t('common.error'), msg);
+      showError(msg);
     } finally {
       setBusy(false);
     }

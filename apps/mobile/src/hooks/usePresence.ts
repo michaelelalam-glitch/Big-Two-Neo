@@ -83,6 +83,16 @@ export function usePresence(): UsePresenceResult {
   }, [user?.id, updateOnlineSet]);
 
   useEffect(() => {
+    // Clear stale online state when the user signs out
+    if (!user?.id) {
+      setOnlineUserIds(new Set());
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
     join();
 
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
