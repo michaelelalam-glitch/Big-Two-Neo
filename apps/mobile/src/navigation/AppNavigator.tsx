@@ -152,7 +152,7 @@ export default function AppNavigator() {
 
   return (
     <GlobalErrorBoundary>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer linking={isLoggedIn ? linking : undefined}>
         <FriendsProvider>
           <NotificationProvider>
             <Stack.Navigator

@@ -16,11 +16,16 @@ jest.mock('../../contexts/AuthContext', () => ({
 
 // AppState mock — captures the listener so tests can fire AppState changes.
 const mockAddEventListener = jest.fn();
-jest.mock('react-native', () => ({
-  AppState: {
-    addEventListener: mockAddEventListener,
-  },
-}));
+jest.mock('react-native', () => {
+  const actual = jest.requireActual('react-native');
+  return {
+    ...actual,
+    AppState: {
+      ...actual.AppState,
+      addEventListener: mockAddEventListener,
+    },
+  };
+});
 
 import { renderHook, act } from '@testing-library/react-native';
 import { usePresence } from '../usePresence';

@@ -197,7 +197,13 @@ export function useFriends(): UseFriendsResult {
       const { error } = await supabase
         .from('friendships')
         .insert({ requester_id: user.id, addressee_id: userId, status: 'pending' });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Unique constraint: duplicate or already-pending request
+        if (error.code === '23505') {
+          throw new Error(i18n.t('friends.alreadyFriends'));
+        }
+        throw new Error(error.message);
+      }
       await fetchAll();
     },
     [user?.id, fetchAll]
