@@ -198,11 +198,11 @@ function CardHandComponent({
         if (wasSelected) {
           newSet.delete(cardId);
           // Light haptic for deselection
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         } else {
           newSet.add(cardId);
           // Medium haptic for selection (more pronounced feedback)
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }
 
         return newSet;
