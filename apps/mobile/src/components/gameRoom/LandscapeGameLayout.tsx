@@ -179,6 +179,11 @@ export function LandscapeGameLayout({
     return currentPlayerIndex === index;
   };
 
+  const [opponentActionTarget, setOpponentActionTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   /** Show a contextual action sheet when tapping an opponent's avatar */
   const handleOpponentAvatarPress = (displayIndex: number) => {
     const opponentId = playerIds[displayIndex];
@@ -194,11 +199,6 @@ export function LandscapeGameLayout({
       { text: i18n.t('common.cancel'), style: 'cancel' },
     ]);
   };
-
-  const [opponentActionTarget, setOpponentActionTarget] = React.useState<{
-    id: string;
-    name: string;
-  } | null>(null);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
