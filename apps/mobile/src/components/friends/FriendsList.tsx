@@ -13,12 +13,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { Friendship } from '../../hooks/useFriends';
+import type { Friendship } from '../../hooks/useFriends';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
@@ -50,25 +50,6 @@ export function FriendsList() {
     setRefreshing(false);
   };
 
-  const renderFriend = ({ item }: { item: Friendship }) => (
-    <FriendCard
-      item={item}
-      type="accepted"
-      isOnline={isOnline(item.friend.id)}
-      onToggleFavorite={toggleFavorite}
-      onRemove={removeFriend}
-    />
-  );
-
-  const renderRequest = ({ item }: { item: Friendship & { _type: 'incoming' | 'outgoing' } }) => (
-    <FriendCard
-      item={item}
-      type={item._type}
-      onAccept={item._type === 'incoming' ? acceptRequest : undefined}
-      onDecline={declineRequest}
-    />
-  );
-
   const requestItems = [
     ...incomingPending.map(f => ({ ...f, _type: 'incoming' as const })),
     ...outgoingPending.map(f => ({ ...f, _type: 'outgoing' as const })),
@@ -99,27 +80,8 @@ export function FriendsList() {
 
       {loading && !refreshing ? (
         <ActivityIndicator size="small" color={COLORS.secondary} style={styles.loader} />
-      ) : tab === 'friends' ? (
-        <FlatList
-          data={friends}
-          keyExtractor={f => f.id}
-          renderItem={renderFriend}
-          ListEmptyComponent={<Text style={styles.empty}>{i18n.t('friends.noFriends')}</Text>}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={COLORS.secondary}
-            />
-          }
-          scrollEnabled={false}
-        />
       ) : (
-        <FlatList
-          data={requestItems}
-          keyExtractor={f => f.id}
-          renderItem={renderRequest}
-          ListEmptyComponent={<Text style={styles.empty}>{i18n.t('friends.noPending')}</Text>}
+        <ScrollView
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -128,7 +90,36 @@ export function FriendsList() {
             />
           }
           scrollEnabled={false}
-        />
+        >
+          {tab === 'friends' ? (
+            friends.length === 0 ? (
+              <Text style={styles.empty}>{i18n.t('friends.noFriends')}</Text>
+            ) : (
+              friends.map(item => (
+                <FriendCard
+                  key={item.id}
+                  item={item}
+                  type="accepted"
+                  isOnline={isOnline(item.friend.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onRemove={removeFriend}
+                />
+              ))
+            )
+          ) : requestItems.length === 0 ? (
+            <Text style={styles.empty}>{i18n.t('friends.noPending')}</Text>
+          ) : (
+            requestItems.map(item => (
+              <FriendCard
+                key={item.id}
+                item={item}
+                type={item._type}
+                onAccept={item._type === 'incoming' ? acceptRequest : undefined}
+                onDecline={declineRequest}
+              />
+            ))
+          )}
+        </ScrollView>
       )}
     </View>
   );

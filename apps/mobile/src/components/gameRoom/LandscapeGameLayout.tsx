@@ -360,7 +360,7 @@ export function LandscapeGameLayout({
 
         {/* Inline Add Friend overlay — shown after avatar tap */}
         {opponentActionTarget && (
-          <View style={styles.friendActionOverlay} pointerEvents="box-none">
+          <View style={styles.friendActionOverlay} pointerEvents="auto">
             <View style={styles.friendActionCard}>
               <Text style={styles.friendActionName} numberOfLines={1}>
                 {opponentActionTarget.name}
