@@ -107,9 +107,7 @@ tags:
 - takeScreenshot: "09_03_voice_active"
 
 # Wait briefly to confirm audio session stays stable (no unexpected disconnect).
-- runFlow:
-    commands:
-      - wait: 3000
+- waitForAnimationToEnd
 
 # ── Step 4: Upgrade voice → video ─────────────────────────────────────────────
 # "Join Video Chat" only appears in the camera button's accessibilityLabel
@@ -125,9 +123,7 @@ tags:
 - takeScreenshot: "09_04_video_active"
 
 # Wait to confirm both audio + video streams remain alive.
-- runFlow:
-    commands:
-      - wait: 3000
+- waitForAnimationToEnd
 
 # ── Step 5: Toggle camera off — verify avatar fallback ───────────────────────
 - tapOn:
