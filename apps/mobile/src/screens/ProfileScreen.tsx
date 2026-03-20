@@ -16,6 +16,7 @@ import { FriendsList } from '../components/friends';
 import { RankBadge, Rank } from '../components/RankBadge';
 import { COLORS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { useFriendsContext } from '../contexts/FriendsContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { showError, showConfirm } from '../utils';
@@ -24,18 +25,19 @@ import { authLogger } from '../utils/logger';
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { user, profile, isLoading, signOut, refreshProfile } = useAuth();
+  const { refresh: refreshFriends } = useFriendsContext();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshProfile();
+      await Promise.all([refreshProfile(), refreshFriends()]);
     } catch {
       // Silently swallow — profile data is best-effort on pull-to-refresh
     } finally {
       setRefreshing(false);
     }
-  }, [refreshProfile]);
+  }, [refreshProfile, refreshFriends]);
 
   const handleSignOut = async () => {
     showConfirm({

@@ -9,15 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  StyleSheet,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import type { Friendship } from '../../hooks/useFriends';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
@@ -36,19 +28,11 @@ export function FriendsList() {
     declineRequest,
     removeFriend,
     toggleFavorite,
-    refresh,
     isOnline,
   } = useFriendsContext();
   const [tab, setTab] = useState<Tab>('friends');
-  const [refreshing, setRefreshing] = useState(false);
 
   const pendingCount = incomingPending.length + outgoingPending.length;
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
-  };
 
   const requestItems = [
     ...incomingPending.map(f => ({ ...f, _type: 'incoming' as const })),
@@ -78,19 +62,10 @@ export function FriendsList() {
         </TouchableOpacity>
       </View>
 
-      {loading && !refreshing ? (
+      {loading ? (
         <ActivityIndicator size="small" color={COLORS.secondary} style={styles.loader} />
       ) : (
-        <ScrollView
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={COLORS.secondary}
-            />
-          }
-          scrollEnabled={false}
-        >
+        <View>
           {tab === 'friends' ? (
             friends.length === 0 ? (
               <Text style={styles.empty}>{i18n.t('friends.noFriends')}</Text>
@@ -119,7 +94,7 @@ export function FriendsList() {
               />
             ))
           )}
-        </ScrollView>
+        </View>
       )}
     </View>
   );
