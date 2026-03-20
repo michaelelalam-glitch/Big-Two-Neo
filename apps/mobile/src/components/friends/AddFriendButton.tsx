@@ -21,7 +21,8 @@ interface AddFriendButtonProps {
 
 export function AddFriendButton({ targetUserId, compact = false }: AddFriendButtonProps) {
   const { user } = useAuth();
-  const { sendRequest, isFriendOrPending, friends, outgoingPending } = useFriendsContext();
+  const { sendRequest, isFriendOrPending, friends, outgoingPending, incomingPending } =
+    useFriendsContext();
   const [busy, setBusy] = useState(false);
 
   // Don't show button for current user
@@ -29,6 +30,7 @@ export function AddFriendButton({ targetUserId, compact = false }: AddFriendButt
 
   const alreadyFriend = friends.some(f => f.friend.id === targetUserId);
   const requestSent = outgoingPending.some(f => f.addressee_id === targetUserId);
+  const requestReceived = incomingPending.some(f => f.requester_id === targetUserId);
   const isPendingOrFriend = isFriendOrPending(targetUserId);
 
   const handlePress = async () => {
@@ -47,6 +49,7 @@ export function AddFriendButton({ targetUserId, compact = false }: AddFriendButt
 
   let label = i18n.t('friends.addFriend');
   if (alreadyFriend) label = i18n.t('friends.alreadyFriends');
+  else if (requestReceived) label = i18n.t('friends.requestReceived');
   else if (requestSent) label = i18n.t('friends.requestSent');
 
   return (
@@ -60,7 +63,7 @@ export function AddFriendButton({ targetUserId, compact = false }: AddFriendButt
         <ActivityIndicator size="small" color={COLORS.white} />
       ) : (
         <Text style={[styles.label, compact && styles.labelCompact]}>
-          {isPendingOrFriend ? (alreadyFriend ? '✓ ' : '⏳ ') : '+ '}
+          {isPendingOrFriend ? (alreadyFriend ? '✓ ' : requestReceived ? '📨 ' : '⏳ ') : '+ '}
           {label}
         </Text>
       )}

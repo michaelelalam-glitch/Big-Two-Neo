@@ -717,6 +717,7 @@ export interface Translations {
     friendRequest: string;
     sentYouARequest: string;
     requestAlreadyHandled: string;
+    requestReceived: string;
   };
 
   // Ranked Leaderboard
@@ -1372,6 +1373,7 @@ const en: Translations = {
     friendRequest: 'Friend Request',
     sentYouARequest: 'sent you a friend request.',
     requestAlreadyHandled: 'This request has already been handled or you do not have permission.',
+    requestReceived: 'Request Received',
   },
 };
 
@@ -2046,6 +2048,7 @@ const ar: Translations = {
     friendRequest: 'طلب صداقة',
     sentYouARequest: 'أرسل لك طلب صداقة.',
     requestAlreadyHandled: 'تمت معالجة هذا الطلب مسبقاً أو ليس لديك الصلاحية.',
+    requestReceived: 'طلب مستلم',
   },
 };
 
@@ -2743,6 +2746,7 @@ const de: Translations = {
     sentYouARequest: 'hat dir eine Freundschaftsanfrage gesendet.',
     requestAlreadyHandled:
       'Diese Anfrage wurde bereits bearbeitet oder du hast keine Berechtigung.',
+    requestReceived: 'Anfrage erhalten',
   },
 };
 

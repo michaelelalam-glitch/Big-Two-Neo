@@ -134,9 +134,13 @@ export default function AppNavigator() {
     pendingLinkRef.current = null;
     // Small delay to let the authenticated stack finish mounting.
     const timerId = setTimeout(() => {
-      Linking.openURL(url).catch(err =>
-        authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
-      );
+      // Only replay custom-scheme links; React Navigation's linking config
+      // handles https universal links natively once the app stack mounts.
+      if (url.startsWith('big2mobile://')) {
+        Linking.openURL(url).catch(err =>
+          authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
+        );
+      }
     }, 300);
     return () => clearTimeout(timerId);
   }, [isLoggedIn]);
