@@ -107,7 +107,9 @@ function CardHandComponent({
   useEffect(() => {
     if (isInDropZone && !wasInDropZone.current) {
       // Card just entered the drop zone — fire haptic
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {
+        // swallow — unsupported on some simulators/devices
+      });
       wasInDropZone.current = true;
     } else if (!isInDropZone) {
       wasInDropZone.current = false;

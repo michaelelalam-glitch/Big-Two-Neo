@@ -93,7 +93,8 @@ export const gameScreenStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 185, // above actionButtonsRow (180) and helperButtonsRow (170)
-    pointerEvents: 'none' as const,
+    // Note: pointerEvents="none" is set directly on the Animated.View in GameView
+    // (it is a View prop, not a style property, and must not be in StyleSheet).
   },
   dragHintText: {
     color: COLORS.gray.medium,
