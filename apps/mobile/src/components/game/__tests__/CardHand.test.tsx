@@ -39,11 +39,7 @@ describe('CardHand Component', () => {
 
   it('renders all cards in hand', () => {
     const { getByText, getAllByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // Check that all card ranks are rendered (some may appear multiple times)
@@ -61,11 +57,7 @@ describe('CardHand Component', () => {
 
   it('renders Play and Pass buttons', () => {
     const { getByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     expect(getByText(/Play/)).toBeTruthy();
@@ -74,11 +66,7 @@ describe('CardHand Component', () => {
 
   it('handles pass action', () => {
     const { getByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     fireEvent.press(getByText('Pass'));
@@ -126,11 +114,7 @@ describe('CardHand Component', () => {
     ];
 
     const { getByText, getAllByText } = render(
-      <CardHand
-        cards={unsortedCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={unsortedCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // All cards should be rendered (some ranks may appear multiple times)
@@ -146,15 +130,60 @@ describe('CardHand Component', () => {
 
   it('handles empty hand', () => {
     const { getByText } = render(
-      <CardHand
-        cards={[]}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={[]} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // Should still render buttons
     expect(getByText(/Play/)).toBeTruthy();
     expect(getByText('Pass')).toBeTruthy();
+  });
+
+  describe('drag hint visibility', () => {
+    it('shows drag hint when cards are selected and canPlay is true', () => {
+      const selectedIds = new Set(['3H', '4D']);
+      const { getByText } = render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={true}
+          selectedCardIds={selectedIds}
+          onSelectionChange={jest.fn()}
+        />
+      );
+
+      expect(getByText('↑ Drag up to play')).toBeTruthy();
+    });
+
+    it('hides drag hint when canPlay is false', () => {
+      const selectedIds = new Set(['3H', '4D']);
+      const { queryByText } = render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={false}
+          selectedCardIds={selectedIds}
+          onSelectionChange={jest.fn()}
+        />
+      );
+
+      expect(queryByText('↑ Drag up to play')).toBeNull();
+    });
+
+    it('hides drag hint when no cards are selected', () => {
+      const { queryByText } = render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={true}
+          selectedCardIds={new Set()}
+          onSelectionChange={jest.fn()}
+        />
+      );
+
+      expect(queryByText('↑ Drag up to play')).toBeNull();
+    });
   });
 });

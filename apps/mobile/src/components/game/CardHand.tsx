@@ -28,6 +28,9 @@ const DRAG_TO_PLAY_THRESHOLD = -80;
 // Approach threshold: start showing glow when within this range (50% of full threshold)
 const DRAG_APPROACH_THRESHOLD = DRAG_TO_PLAY_THRESHOLD * 0.5; // -40
 
+/** Drop zone visual state communicated to parent for table perimeter glow */
+export type DragZoneState = 'idle' | 'approaching' | 'active';
+
 interface CardHandProps {
   cards: CardType[];
   onPlayCards: (selectedCards: CardType[]) => void;
@@ -38,6 +41,7 @@ interface CardHandProps {
   selectedCardIds?: Set<string>; // Optional: lifted state for external control
   onSelectionChange?: (selected: Set<string>) => void; // Optional: callback for lifted state
   onCardsReorder?: (reorderedCards: CardType[]) => void; // New: callback when cards are rearranged
+  onDragZoneChange?: (state: DragZoneState) => void; // Task #652: notify parent of drag zone state for table glow
 }
 
 // Consolidated drag state interface
@@ -69,6 +73,7 @@ function CardHandComponent({
   selectedCardIds: externalSelectedCardIds,
   onSelectionChange,
   onCardsReorder,
+  onDragZoneChange,
 }: CardHandProps) {
   // Detect orientation for responsive card spacing
   const { width, height } = useWindowDimensions();
@@ -81,6 +86,8 @@ function CardHandComponent({
   const wasInDropZone = useRef(false);
   // Animated glow for drop zone approach
   const dropZoneGlow = useRef(new Animated.Value(0)).current;
+  // Ref to track and clean up the drop zone glow loop animation (prevents native animation leaks)
+  const dropZoneGlowLoop = useRef<Animated.CompositeAnimation | null>(null);
   // Subtle hint pulse for always-visible drag hint
   const hintPulse = useRef(new Animated.Value(0.4)).current;
 
@@ -105,9 +112,15 @@ function CardHandComponent({
   // Drop zone glow & haptic on entry (must be after dragState declaration)
   const dragY = dragState.sharedTranslation.y;
   const isDragging = !!dragState.draggedCardId;
-  const isInDropZone = isDragging && dragY < DRAG_TO_PLAY_THRESHOLD;
+  // Gate drop-zone detection behind canPlay && !disabled so glow/haptic
+  // feedback and the drag-to-play path match the disabled Play button UX.
+  const canDragToPlay = canPlay && !disabled;
+  const isInDropZone = canDragToPlay && isDragging && dragY < DRAG_TO_PLAY_THRESHOLD;
   const isApproaching =
-    isDragging && dragY < DRAG_APPROACH_THRESHOLD && dragY >= DRAG_TO_PLAY_THRESHOLD;
+    canDragToPlay &&
+    isDragging &&
+    dragY < DRAG_APPROACH_THRESHOLD &&
+    dragY >= DRAG_TO_PLAY_THRESHOLD;
 
   useEffect(() => {
     if (isInDropZone && !wasInDropZone.current) {
@@ -119,17 +132,43 @@ function CardHandComponent({
     }
   }, [isInDropZone]);
 
+  // Drop zone glow loop — only starts/stops when zone state changes (not on every dragY tick).
+  // FIX: Previously this effect included `dragY` in deps and had no cleanup, leaking a new
+  // Animated.loop on every frame during a drag. Over long sessions the leaked native animation
+  // nodes corrupted the shadow tree, causing EXC_BAD_ACCESS in Reanimated's commitUpdates.
   useEffect(() => {
+    // Always stop the previous loop before deciding whether to start a new one
+    if (dropZoneGlowLoop.current) {
+      dropZoneGlowLoop.current.stop();
+      dropZoneGlowLoop.current = null;
+    }
+
     if (isInDropZone) {
-      // Full glow with pulse inside the zone
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(dropZoneGlow, { toValue: 1, duration: 400, useNativeDriver: true }),
           Animated.timing(dropZoneGlow, { toValue: 0.6, duration: 400, useNativeDriver: true }),
         ])
-      ).start();
-    } else if (isApproaching) {
-      // Fade glow in as cards approach threshold
+      );
+      dropZoneGlowLoop.current = loop;
+      loop.start();
+    } else if (!isApproaching) {
+      // Not in zone and not approaching — fade out
+      Animated.timing(dropZoneGlow, { toValue: 0, duration: 150, useNativeDriver: true }).start();
+    }
+
+    return () => {
+      if (dropZoneGlowLoop.current) {
+        dropZoneGlowLoop.current.stop();
+        dropZoneGlowLoop.current = null;
+      }
+    };
+  }, [isInDropZone, isApproaching, dropZoneGlow]);
+
+  // Drop zone approach glow — updates proportionally as cards near the threshold.
+  // Separated from the loop effect so `dragY` changes don't restart the loop.
+  useEffect(() => {
+    if (isApproaching) {
       const progress = Math.min(
         1,
         (DRAG_APPROACH_THRESHOLD - dragY) / (DRAG_APPROACH_THRESHOLD - DRAG_TO_PLAY_THRESHOLD)
@@ -139,10 +178,20 @@ function CardHandComponent({
         duration: 100,
         useNativeDriver: true,
       }).start();
-    } else {
-      Animated.timing(dropZoneGlow, { toValue: 0, duration: 150, useNativeDriver: true }).start();
     }
-  }, [isInDropZone, isApproaching, dragY, dropZoneGlow]);
+  }, [isApproaching, dragY, dropZoneGlow]);
+
+  // Task #652: Notify parent of drag zone state for table perimeter glow
+  useEffect(() => {
+    if (!onDragZoneChange) return;
+    if (isInDropZone) {
+      onDragZoneChange('active');
+    } else if (isApproaching) {
+      onDragZoneChange('approaching');
+    } else {
+      onDragZoneChange('idle');
+    }
+  }, [isInDropZone, isApproaching, onDragZoneChange]);
 
   // Separate state: display cards (managed independently)
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
@@ -348,7 +397,8 @@ function CardHandComponent({
         const isUpwardDrag = translationY < DRAG_TO_PLAY_THRESHOLD;
 
         // If dragging multiple selected cards and dragged upward, play them
-        if (dragState.isDraggingMultiple && isUpwardDrag) {
+        // Guard behind canPlay && !disabled so drag-to-play matches button UX
+        if (canDragToPlay && dragState.isDraggingMultiple && isUpwardDrag) {
           const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           onPlayCards(selected);
@@ -362,7 +412,12 @@ function CardHandComponent({
           }
         }
         // If dragged upward significantly (single card), treat as play attempt
-        else if (isUpwardDrag && !isHorizontalDrag && !dragState.isDraggingMultiple) {
+        else if (
+          canDragToPlay &&
+          isUpwardDrag &&
+          !isHorizontalDrag &&
+          !dragState.isDraggingMultiple
+        ) {
           // Play just this card
           const card = orderedCards.find(c => c.id === cardId);
           if (card) {
@@ -392,7 +447,15 @@ function CardHandComponent({
         setDragState(initialDragState);
       }
     },
-    [dragState, orderedCards, selectedCardIds, onPlayCards, onSelectionChange, onCardsReorder]
+    [
+      canDragToPlay,
+      dragState,
+      orderedCards,
+      selectedCardIds,
+      onPlayCards,
+      onSelectionChange,
+      onCardsReorder,
+    ]
   );
 
   // Card display order is managed by the parent (e.g., via customCardOrder) or user rearrangement.
@@ -410,32 +473,10 @@ function CardHandComponent({
           },
         ]}
       >
-        {/* Always-visible drag hint (subtle, pulsing) */}
+        {/* Always-visible drag hint (subtle, pulsing) — Task #652: now just a small hint above cards */}
         {!isDragging && selectedCardIds.size > 0 && canPlay && (
           <Animated.View style={[styles.dragHint, { opacity: hintPulse }]}>
             <Text style={styles.dragHintText}>↑ Drag up to play</Text>
-          </Animated.View>
-        )}
-
-        {/* Animated drop zone with glow on approach + active state */}
-        {isDragging && (isApproaching || isInDropZone) && (
-          <Animated.View
-            style={[
-              styles.playDropZone,
-              isInDropZone && styles.playDropZoneActive,
-              { opacity: isInDropZone ? undefined : dropZoneGlow },
-            ]}
-          >
-            {isInDropZone && (
-              <Animated.View style={[styles.playDropZoneGlow, { opacity: dropZoneGlow }]} />
-            )}
-            <Text style={[styles.playDropZoneText, isInDropZone && styles.playDropZoneTextActive]}>
-              {isInDropZone
-                ? dragState.isDraggingMultiple
-                  ? `Release to play ${selectedCardIds.size} cards`
-                  : 'Release to play card'
-                : 'Drag here to play'}
-            </Text>
           </Animated.View>
         )}
 

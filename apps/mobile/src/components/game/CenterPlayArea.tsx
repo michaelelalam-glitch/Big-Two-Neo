@@ -11,6 +11,7 @@ interface CenterPlayAreaProps {
   lastPlayedBy: string | null; // Player who played last (null before first play)
   combinationType?: string | null; // Raw combo type for sorting: "Straight", "Flush", etc.
   comboDisplayText?: string; // Formatted display text: "Straight to 6", "Flush ♥ (A high)", etc.
+  dropZoneText?: string; // Task #652: text shown below last played when dragging cards
 }
 
 // Task #628: React.memo — bail out when last-play props haven't changed.
@@ -19,6 +20,7 @@ function CenterPlayAreaComponent({
   lastPlayedBy,
   combinationType,
   comboDisplayText,
+  dropZoneText,
 }: CenterPlayAreaProps) {
   // Sort cards for display (highest card first - Task #313)
   // This ensures straights show as 6-5-4-3-2 instead of 3-4-5-6-2
@@ -44,6 +46,8 @@ function CenterPlayAreaComponent({
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>{i18n.t('game.noCardsYet')}</Text>
         </View>
+        {/* Task #652: Show drop zone text even when no cards played yet */}
+        {dropZoneText && <Text style={styles.dropZoneText}>{dropZoneText}</Text>}
       </View>
     );
   }
@@ -53,16 +57,10 @@ function CenterPlayAreaComponent({
       {/* Cards display - Task #313: Cards sorted with highest first */}
       <View style={styles.cardsContainer}>
         {displayCards.map((card, index) => (
-          <View
-            key={card.id}
-            style={[
-              styles.cardWrapper,
-              cardWrapperStyles[index],
-            ]}
-          >
-            <Card 
-              card={card} 
-              isSelected={false} 
+          <View key={card.id} style={[styles.cardWrapper, cardWrapperStyles[index]]}>
+            <Card
+              card={card}
+              isSelected={false}
               onToggleSelect={() => {}} // No-op for display-only cards
               disabled={true}
               size="table" // Use smaller table card dimensions (47×72)
@@ -77,6 +75,9 @@ function CenterPlayAreaComponent({
           {i18n.t('game.lastPlayedBy')} {lastPlayedBy}: {comboDisplayText || 'Cards'}
         </Text>
       )}
+
+      {/* Task #652: Drop zone hint text below last played */}
+      {dropZoneText && <Text style={styles.dropZoneText}>{dropZoneText}</Text>}
     </View>
   );
 }
@@ -115,6 +116,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm, // Smaller to fit on one line
     fontWeight: '600',
     textAlign: 'center',
+  },
+  dropZoneText: {
+    color: COLORS.accent,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: SPACING.xs,
   },
 });
 
