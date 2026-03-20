@@ -138,12 +138,14 @@ describe('CardHand Component', () => {
     expect(getByText('Pass')).toBeTruthy();
   });
 
-  // Note: the '↑ Drag up to play' hint has been moved to GameView so it renders
-  // at the correct z-index above the action buttons row (zIndex: 180).
-  // CardHand no longer renders the hint text directly.
+  // The '↑ Drag up to play' hint has moved to GameView (correct z-index above buttons).
+  // Drag hint rendering tests belong in GameView tests.
+  // The describe block below covers onDragZoneChange state transitions (idle/approaching/active)
+  // and the unmount cleanup. Haptic feedback requires gesture simulation which is out of scope
+  // for unit tests here; it is validated via E2E flow 06_offline_game.
 
   describe('onDragZoneChange callback (Task #652)', () => {
-    it('does not call onDragZoneChange when neither dragging nor approaching', () => {
+    it("calls onDragZoneChange('idle') on mount when not dragging", () => {
       const onDragZoneChange = jest.fn();
       render(
         <CardHand
@@ -174,7 +176,7 @@ describe('CardHand Component', () => {
       expect(onDragZoneChange).toHaveBeenCalledWith('idle');
     });
 
-    it('does not call onDragZoneChange when canPlay is false (drag-to-play gated)', () => {
+    it('only emits idle to onDragZoneChange when canPlay is false (never active or approaching)', () => {
       const onDragZoneChange = jest.fn();
       render(
         <CardHand

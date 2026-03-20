@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
+import { i18n } from '../../i18n';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { Card } from '../../game/types';
 import type { DragZoneState } from './CardHand';
@@ -93,7 +94,11 @@ function GameLayoutComponent({
       glowPulse.current = pulse;
       pulse.start();
     } else if (dropZoneState === 'approaching') {
-      // Fade in glow as cards approach
+      // Fade in glow as cards approach — fixed midpoint value (0.4) provides clear
+      // visual feedback without requiring the parent to pass a per-frame progress value.
+      // True proportional glow would need a dragProgress(0-1) prop threaded from
+      // CardHand up through GameView; the binary approaching/active distinction gives
+      // sufficient UX signal at lower architectural cost.
       Animated.timing(glowAnim, { toValue: 0.4, duration: 200, useNativeDriver: false }).start();
     } else {
       // Fade out
@@ -128,12 +133,12 @@ function GameLayoutComponent({
     outputRange: [SHADOWS.table.opacity, 0.8],
   });
 
-  // Drop zone text for CenterPlayArea
+  // Drop zone text for CenterPlayArea (localized)
   const dropZoneText =
     dropZoneState === 'active'
-      ? 'Release to play'
+      ? i18n.t('game.dropZoneRelease')
       : dropZoneState === 'approaching'
-        ? 'Drop to play'
+        ? i18n.t('game.dropZoneDrop')
         : undefined;
 
   return (

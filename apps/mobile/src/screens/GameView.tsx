@@ -29,7 +29,7 @@ import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import { performanceMonitor } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
-import type { DragZoneState } from '../components/game/CardHand';
+import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
 
 function GameViewComponent() {
@@ -111,9 +111,14 @@ function GameViewComponent() {
   // Task #652: Track drag zone state for table perimeter glow
   const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
 
-  // Drag hint pulse animation — visible above action buttons in portrait mode
+  // Drag hint pulse animation — only running when the hint is actually visible
+  // (avoids keeping an Animated.loop alive for the entire game view lifetime).
   const hintPulse = useRef(new Animated.Value(0.4)).current;
+  const isHintVisible = dropZoneState === 'idle' && selectedCardIds.size > 0 && isPlayerReady;
   useEffect(() => {
+    if (!isHintVisible) {
+      return;
+    }
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(hintPulse, { toValue: 0.7, duration: 1500, useNativeDriver: true }),
@@ -122,7 +127,7 @@ function GameViewComponent() {
     );
     pulse.start();
     return () => pulse.stop();
-  }, [hintPulse]);
+  }, [isHintVisible, hintPulse]);
 
   // Step 1: Memoize the stable per-player boolean state so that unrelated renders
   // (e.g. timer ticks) do not cause unnecessary GameLayout / PlayerInfo re-renders.
@@ -491,9 +496,12 @@ function GameViewComponent() {
                 hidden behind actionButtonsRow (zIndex 180) or helperButtonsRow (zIndex 170).
                 Was previously inside CardHand's cardHandContainer (zIndex 50) which caused
                 the hint to be covered. */}
-            {dropZoneState === 'idle' && selectedCardIds.size > 0 && isPlayerReady && (
-              <Animated.View style={[styles.dragHintContainer, { opacity: hintPulse }]}>
-                <Text style={styles.dragHintText}>↑ Drag up to play</Text>
+            {isHintVisible && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.dragHintContainer, { opacity: hintPulse }]}
+              >
+                <Text style={styles.dragHintText}>{i18n.t('game.dragToPlayHint')}</Text>
               </Animated.View>
             )}
 
