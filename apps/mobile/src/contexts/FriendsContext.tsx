@@ -41,6 +41,12 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
   const presenceData = usePresence();
   const { user } = useAuth();
 
+  // ---- In-app friend request notification (with queue) ----
+  const [notification, setNotification] = useState<Friendship | null>(null);
+  const prevIncomingRef = useRef<Friendship[]>([]);
+  const notificationQueueRef = useRef<Friendship[]>([]);
+  const isFirstRender = useRef(true);
+
   // ---- Clear notification state when the auth session ends ----
   useEffect(() => {
     if (!user?.id) {
@@ -50,12 +56,6 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
       isFirstRender.current = true;
     }
   }, [user?.id]);
-
-  // ---- In-app friend request notification (with queue) ----
-  const [notification, setNotification] = useState<Friendship | null>(null);
-  const prevIncomingRef = useRef<Friendship[]>([]);
-  const notificationQueueRef = useRef<Friendship[]>([]);
-  const isFirstRender = useRef(true);
 
   // Advance to the next queued notification (or clear if empty)
   const advanceQueue = () => {
