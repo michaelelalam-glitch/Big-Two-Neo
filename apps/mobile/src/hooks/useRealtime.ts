@@ -540,7 +540,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         });
       });
 
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded (stale closure)
+      // Note: `gameState` is intentionally included in the dependency array so
+      // that broadcast handlers and timer state reads use the latest value and
+      // avoid stale-closure behavior during live gameplay updates.
     },
     [userId, username, onDisconnect, fetchPlayers, fetchGameState, gameState]
   ); // reconnect intentionally omitted to avoid circular dependency
@@ -598,7 +600,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         }
         throw error;
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- room intentionally excluded (stable by construction)
     },
     [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]
   );
@@ -661,7 +662,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // joinChannel intentionally omitted to avoid circular dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally omitted
   }, [room, onError, onReconnect]); // joinChannel intentionally omitted to avoid circular dependency
 
   /**
