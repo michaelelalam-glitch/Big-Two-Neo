@@ -275,12 +275,20 @@ export default function LeaderboardScreen() {
                     ? (userRankData.casual_rank_points ?? userRankData.rank_points)
                     : (userRankData.ranked_rank_points ?? userRankData.rank_points);
 
-                const { count } = await supabase
+                const { count, error: rankError } = await supabase
                   .from('player_stats')
                   .select('*', { count: 'exact', head: true })
                   .gte('last_game_at', timeFilterDate!)
                   .gt(`${modePrefix}_games_played`, 0)
                   .gt(`${modePrefix}_rank_points`, userPoints);
+
+                if (rankError || count == null) {
+                  if (rankError) {
+                    statsLogger.info('[Leaderboard] Error calculating user rank:', rankError);
+                  }
+                  setUserRank(null);
+                  return;
+                }
 
                 const isCasual = leaderboardType === 'casual';
 
@@ -308,7 +316,7 @@ export default function LeaderboardScreen() {
                     userRankData.win_rate,
                   longest_win_streak: userRankData.longest_win_streak,
                   current_win_streak: userRankData.current_win_streak,
-                  rank: (count || 0) + 1,
+                  rank: count + 1,
                 });
               }
             }
