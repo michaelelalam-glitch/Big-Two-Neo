@@ -42,9 +42,10 @@ export function usePresence(): UsePresenceResult {
   const join = useCallback(() => {
     if (!user?.id) return;
 
-    // Clean up any existing channel
+    // Clean up any existing channel before creating a new one
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
 
     const channel = supabase.channel(PRESENCE_CHANNEL, {
@@ -105,7 +106,9 @@ export function usePresence(): UsePresenceResult {
         join();
       } else if (state === 'background' || state === 'inactive') {
         if (channelRef.current) {
-          channelRef.current.untrack();
+          void channelRef.current.untrack().catch(error => {
+            console.error('[usePresence] Failed to untrack presence', error);
+          });
         }
       }
     });

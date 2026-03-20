@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
+import { i18n } from '../i18n';
 
 export interface FriendProfile {
   id: string;
@@ -214,9 +215,7 @@ export function useFriends(): UseFriendsResult {
         .select();
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) {
-        throw new Error(
-          'Unable to accept friend request. It may have already been handled or you may not have permission.'
-        );
+        throw new Error(i18n.t('friends.requestAlreadyHandled'));
       }
       await fetchAll();
     },
