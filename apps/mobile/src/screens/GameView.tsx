@@ -7,7 +7,7 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler, useMemo, useCallback } from 'react';
+import React, { Profiler, useMemo, useCallback, useState } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {
   CardHand,
@@ -29,6 +29,7 @@ import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import { performanceMonitor } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
+import type { DragZoneState } from '../components/game/CardHand';
 import { useGameContext } from '../contexts/GameContext';
 
 function GameViewComponent() {
@@ -106,6 +107,9 @@ function GameViewComponent() {
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
+
+  // Task #652: Track drag zone state for table perimeter glow
+  const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
 
   // Step 1: Memoize the stable per-player boolean state so that unrelated renders
   // (e.g. timer ticks) do not cause unnecessary GameLayout / PlayerInfo re-renders.
@@ -443,6 +447,7 @@ function GameViewComponent() {
               lastPlayComboType={effectiveLastPlayComboType}
               lastPlayCombo={effectiveLastPlayCombo}
               autoPassTimerState={effectiveAutoPassTimerState}
+              dropZoneState={dropZoneState}
             />
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
@@ -508,6 +513,7 @@ function GameViewComponent() {
                 selectedCardIds={selectedCardIds}
                 onSelectionChange={setSelectedCardIds}
                 onCardsReorder={handleCardsReorder}
+                onDragZoneChange={setDropZoneState}
               />
             </View>
           </>
