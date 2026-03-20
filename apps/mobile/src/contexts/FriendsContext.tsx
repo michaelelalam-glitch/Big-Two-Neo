@@ -21,6 +21,7 @@ import { usePresence } from '../hooks/usePresence';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { i18n } from '../i18n';
 import { showError } from '../utils/alerts';
+import { useAuth } from './AuthContext';
 
 // ============================================================================
 // Context shape
@@ -38,6 +39,17 @@ const FriendsContext = createContext<FriendsContextValue | null>(null);
 export function FriendsProvider({ children }: { children: ReactNode }) {
   const friendsData = useFriends();
   const presenceData = usePresence();
+  const { user } = useAuth();
+
+  // ---- Clear notification state when the auth session ends ----
+  useEffect(() => {
+    if (!user?.id) {
+      setNotification(null);
+      notificationQueueRef.current = [];
+      prevIncomingRef.current = [];
+      isFirstRender.current = true;
+    }
+  }, [user?.id]);
 
   // ---- In-app friend request notification (with queue) ----
   const [notification, setNotification] = useState<Friendship | null>(null);
