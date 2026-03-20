@@ -66,7 +66,13 @@ const linking: LinkingOptions<RootStackParamList> = {
       // Auth stack (covers logged-out deep links so they aren’t silently dropped)
       SignIn: 'signin',
       // App stack
-      Lobby: 'lobby/:roomCode',
+      Lobby: {
+        path: 'lobby/:roomCode',
+        parse: {
+          roomCode: (value: string) => value,
+          joining: (value: string) => value === 'true',
+        },
+      },
       Game: 'game/:roomCode',
       JoinRoom: 'join',
       Home: 'home',
@@ -145,7 +151,7 @@ export default function AppNavigator() {
     const timerId = setTimeout(() => {
       // Only replay custom-scheme links; React Navigation's linking config
       // handles https universal links natively once the app stack mounts.
-      if (url.startsWith('big2mobile://')) {
+      if (url.startsWith('big2mobile://') || url.startsWith('https://big2.app')) {
         Linking.openURL(url).catch(err =>
           authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
         );

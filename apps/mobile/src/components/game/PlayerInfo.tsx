@@ -1,8 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  TouchableOpacity,
+} from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT, OVERLAYS, BADGE, SHADOWS } from '../../constants';
 import { i18n } from '../../i18n';
-import { getScoreBadgeColor, formatScore, scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import {
+  getScoreBadgeColor,
+  formatScore,
+  scoreDisplayStyles,
+} from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from './InactivityCountdownRing';
 
@@ -32,6 +43,8 @@ interface PlayerInfoProps {
   onVideoChatToggle?: () => void;
   /** Injected video stream element (RTCView/VideoView from the real SDK) */
   videoStreamSlot?: React.ReactNode;
+  /** Called when the player name badge is long-pressed (e.g. to add as friend) */
+  onNameLongPress?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +101,11 @@ function renderAvatarVideoContent({
   // Camera off — show profile photo and a small camera-off indicator
   return (
     <>
-      <Text style={[avatarStyles.avatarProfileIcon, isDisconnected && avatarStyles.avatarIconFaded]}>👤</Text>
+      <Text
+        style={[avatarStyles.avatarProfileIcon, isDisconnected && avatarStyles.avatarIconFaded]}
+      >
+        👤
+      </Text>
       {/* Camera-off badge so viewers know video is available but currently off */}
       <View style={avatarStyles.cameraOffBadge} pointerEvents="none">
         <Text style={avatarStyles.cameraOffIcon}>📵</Text>
@@ -118,6 +135,7 @@ function PlayerInfoComponent({
   isVideoChatConnecting = false,
   onVideoChatToggle,
   videoStreamSlot,
+  onNameLongPress,
 }: PlayerInfoProps) {
   // Show the video tile when:
   //  a) isCameraOn is explicitly provided (remote player camera state known), OR
@@ -138,14 +156,13 @@ function PlayerInfoComponent({
     }
     return turnTimerStartedAt!;
   })();
-  
-  const videoChatLabel = isCameraOn !== undefined
-    ? isCameraOn ? `, camera on` : `, camera off`
-    : '';
+
+  const videoChatLabel =
+    isCameraOn !== undefined ? (isCameraOn ? `, camera on` : `, camera off`) : '';
   const accessibilityLabel = `${name}, ${cardCount} card${cardCount !== 1 ? 's' : ''}${isActive ? ', current turn' : ''}${isDisconnected ? ', disconnected' : ''}${showRing ? `, ${ringType} countdown active` : ''}${videoChatLabel}`;
-  
+
   return (
-    <View 
+    <View
       style={styles.container}
       accessibilityRole="summary"
       accessibilityLabel={accessibilityLabel}
@@ -165,16 +182,33 @@ function PlayerInfoComponent({
                 isVideoChatConnecting
                   ? i18n.t('chat.connectingVideo')
                   : isCameraOn
-                  ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.leaveVideo')}`
-                  : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
+                    ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.leaveVideo')}`
+                    : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
               }
-              accessibilityState={{ disabled: !onVideoChatToggle || isVideoChatConnecting, busy: isVideoChatConnecting }}
+              accessibilityState={{
+                disabled: !onVideoChatToggle || isVideoChatConnecting,
+                busy: isVideoChatConnecting,
+              }}
             >
-              {renderAvatarVideoContent({ isCameraOn: !!isCameraOn, isMicOn, isLocalPlayer, isDisconnected, isVideoChatConnecting, videoStreamSlot })}
+              {renderAvatarVideoContent({
+                isCameraOn: !!isCameraOn,
+                isMicOn,
+                isLocalPlayer,
+                isDisconnected,
+                isVideoChatConnecting,
+                videoStreamSlot,
+              })}
             </Pressable>
           ) : (
             <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
-              {renderAvatarVideoContent({ isCameraOn: !!isCameraOn, isMicOn, isLocalPlayer, isDisconnected, isVideoChatConnecting: false, videoStreamSlot })}
+              {renderAvatarVideoContent({
+                isCameraOn: !!isCameraOn,
+                isMicOn,
+                isLocalPlayer,
+                isDisconnected,
+                isVideoChatConnecting: false,
+                videoStreamSlot,
+              })}
             </View>
           )
         ) : (
@@ -185,7 +219,7 @@ function PlayerInfoComponent({
         )}
         {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
         {showRing && (
-          <InactivityCountdownRing 
+          <InactivityCountdownRing
             key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→charcoal-grey transition
             type={ringType}
             startedAt={ringStartedAt}
@@ -210,21 +244,36 @@ function PlayerInfoComponent({
             accessibilityRole="text"
             accessibilityLabel={`Score: ${formatScore(totalScore)}`}
           >
-            <View style={[scoreDisplayStyles.scoreBadge, { backgroundColor: getScoreBadgeColor(totalScore) }]}>
-              <Text style={scoreDisplayStyles.scoreBadgeText}>
-                {formatScore(totalScore)}
-              </Text>
+            <View
+              style={[
+                scoreDisplayStyles.scoreBadge,
+                { backgroundColor: getScoreBadgeColor(totalScore) },
+              ]}
+            >
+              <Text style={scoreDisplayStyles.scoreBadgeText}>{formatScore(totalScore)}</Text>
             </View>
           </View>
         )}
       </View>
 
       {/* Player name badge */}
-      <View style={[styles.nameBadge, isDisconnected && styles.nameBadgeDisconnected]}>
-        <Text style={styles.nameText} numberOfLines={1}>
-          {name}
-        </Text>
-      </View>
+      <TouchableOpacity
+        onLongPress={onNameLongPress}
+        disabled={!onNameLongPress}
+        activeOpacity={onNameLongPress ? 0.7 : 1}
+        accessibilityRole={onNameLongPress ? 'button' : undefined}
+        accessibilityLabel={onNameLongPress ? `Long-press to add ${name} as a friend` : name}
+        accessibilityHint={
+          onNameLongPress ? 'Long-press to add this player as a friend.' : undefined
+        }
+        accessibilityState={!onNameLongPress ? { disabled: true } : undefined}
+      >
+        <View style={[styles.nameBadge, isDisconnected && styles.nameBadgeDisconnected]}>
+          <Text style={styles.nameText} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }

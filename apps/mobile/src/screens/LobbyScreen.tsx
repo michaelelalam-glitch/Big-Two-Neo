@@ -22,7 +22,6 @@ import { notifyGameStarted } from '../services/pushNotificationTriggers';
 import { notifyGameInvite } from '../services/pushNotificationService';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm, extractErrorMessage } from '../utils';
-import { tryCopyTextWithShareFallback } from '../utils/clipboard';
 import { roomLogger } from '../utils/logger';
 import { AddFriendButton } from '../components/friends';
 import { useFriendsContext } from '../contexts/FriendsContext';
@@ -587,23 +586,10 @@ export default function LobbyScreen() {
     }
   };
 
-  const handleCopyCode = async () => {
-    // tryCopyTextWithShareFallback: tries expo-clipboard, falls back to the
-    // native Share sheet (which includes a built-in Copy option) if clipboard
-    // is unavailable. This matches the existing pattern used in GameSettingsModal.
-    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
-    if (result === 'copied') {
-      Alert.alert(i18n.t('lobby.copiedTitle'), i18n.t('lobby.copiedMessage', { roomCode }));
-    } else if (result === 'failed') {
-      Alert.alert(i18n.t('lobby.copyFailedTitle'), i18n.t('lobby.copyFailedMessage', { roomCode }));
-    }
-    // 'shared': Share sheet was presented — no additional alert needed.
-  };
-
   const handleShareCode = async () => {
     try {
       // We rely on try-catch to detect platform limitations (e.g., ERR_UNSUPPORTED_ACTIVITY on web).
-      const deepLink = `big2mobile://lobby/${roomCode}`;
+      const deepLink = `big2mobile://lobby/${roomCode}?joining=true`;
       const baseMessage =
         i18n.t('lobby.shareMessage', { roomCode }) ||
         `Join my Big Two game! Room code: ${roomCode}`;

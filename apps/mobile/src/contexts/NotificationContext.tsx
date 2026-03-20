@@ -108,6 +108,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
   const addStoredNotification = useCallback(
     (notif: Notifications.Notification) => {
+      if (!user?.id) return;
       const content = notif.request.content;
       const type = (content.data?.type as AppNotification['type']) || 'game_invite';
       const entry: AppNotification = {
@@ -125,7 +126,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         return updated;
       });
     },
-    [persistNotifications]
+    [persistNotifications, user?.id]
   );
 
   const markAllRead = useCallback(() => {
