@@ -201,14 +201,23 @@ export function useFriends(): UseFriendsResult {
 
   const acceptRequest = useCallback(
     async (friendshipId: string) => {
-      const { error } = await supabase
+      if (!user?.id) return;
+      const { data, error } = await supabase
         .from('friendships')
         .update({ status: 'accepted' })
-        .eq('id', friendshipId);
+        .eq('id', friendshipId)
+        .eq('addressee_id', user.id)
+        .eq('status', 'pending')
+        .select();
       if (error) throw new Error(error.message);
+      if (!data || data.length === 0) {
+        throw new Error(
+          'Unable to accept friend request. It may have already been handled or you may not have permission.'
+        );
+      }
       await fetchAll();
     },
-    [fetchAll]
+    [user?.id, fetchAll]
   );
 
   const declineRequest = useCallback(

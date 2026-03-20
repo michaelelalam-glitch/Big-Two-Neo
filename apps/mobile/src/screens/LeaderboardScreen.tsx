@@ -251,7 +251,7 @@ export default function LeaderboardScreen() {
             } else {
               // For weekly/daily: Check if user played ANY games in this period
               // Query game_history to count actual games within the time range
-              const { data: periodGames, error: periodError } = await supabase
+              const { count: periodGamesCount, error: periodError } = await supabase
                 .from('game_history')
                 .select('id', { count: 'exact', head: true })
                 .or(
@@ -261,7 +261,7 @@ export default function LeaderboardScreen() {
                 .limit(1);
 
               // If no games in this period, hide rank card
-              if (periodError || !periodGames) {
+              if (periodError || !periodGamesCount) {
                 statsLogger.info('[Leaderboard] Error checking period games:', periodError);
                 setUserRank(null);
               } else {

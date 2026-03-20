@@ -6,6 +6,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { FriendsProvider } from '../contexts/FriendsContext';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
 import GameScreen from '../screens/GameScreen';
 import GameSelectionScreen from '../screens/GameSelectionScreen';
@@ -106,37 +107,42 @@ export default function AppNavigator() {
   return (
     <GlobalErrorBoundary>
       <NavigationContainer linking={linking}>
-        <NotificationProvider>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            {!isLoggedIn ? (
-              // Auth Stack
-              <Stack.Screen name="SignIn" component={SignInScreen} />
-            ) : (
-              // App Stack
-              <>
-                <Stack.Screen name="GameSelection" component={GameSelectionScreen} />
-                <Stack.Screen name="Home" component={HomeScreen} />
-                <Stack.Screen name="Profile" component={ProfileScreen} />
-                <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
-                <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
-                <Stack.Screen name="MatchTypeSelection" component={MatchTypeSelectionScreen} />
-                <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
-                <Stack.Screen name="Lobby" component={LobbyScreen} />
-                <Stack.Screen name="Game" component={GameScreen} />
-                <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-                <Stack.Screen name="MatchHistory" component={MatchHistoryScreen} />
-                <Stack.Screen name="Stats" component={StatsScreen} />
-                <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-                <Stack.Screen name="Settings" component={SettingsScreen} />
-                <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
-              </>
-            )}
-          </Stack.Navigator>
-        </NotificationProvider>
+        <FriendsProvider>
+          <NotificationProvider>
+            <Stack.Navigator
+              screenOptions={{
+                headerShown: false,
+              }}
+            >
+              {!isLoggedIn ? (
+                // Auth Stack
+                <Stack.Screen name="SignIn" component={SignInScreen} />
+              ) : (
+                // App Stack
+                <>
+                  <Stack.Screen name="GameSelection" component={GameSelectionScreen} />
+                  <Stack.Screen name="Home" component={HomeScreen} />
+                  <Stack.Screen name="Profile" component={ProfileScreen} />
+                  <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+                  <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
+                  <Stack.Screen name="MatchTypeSelection" component={MatchTypeSelectionScreen} />
+                  <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
+                  <Stack.Screen name="Lobby" component={LobbyScreen} />
+                  <Stack.Screen name="Game" component={GameScreen} />
+                  <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+                  <Stack.Screen name="MatchHistory" component={MatchHistoryScreen} />
+                  <Stack.Screen name="Stats" component={StatsScreen} />
+                  <Stack.Screen
+                    name="NotificationSettings"
+                    component={NotificationSettingsScreen}
+                  />
+                  <Stack.Screen name="Settings" component={SettingsScreen} />
+                  <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
+                </>
+              )}
+            </Stack.Navigator>
+          </NotificationProvider>
+        </FriendsProvider>
       </NavigationContainer>
     </GlobalErrorBoundary>
   );

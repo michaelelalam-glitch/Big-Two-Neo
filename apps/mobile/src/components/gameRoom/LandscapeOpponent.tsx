@@ -99,7 +99,9 @@ export function LandscapeOpponent({
         onPress={onAvatarPress}
         disabled={!onAvatarPress}
         activeOpacity={onAvatarPress ? 0.7 : 1}
-        accessibilityLabel={`View ${name}'s profile`}
+        accessibilityRole="button"
+        accessibilityLabel={`Show options for ${name}`}
+        accessibilityHint="Opens actions and details for this player."
       >
         <View
           style={[styles.avatarContainer, isActive && !showRing && styles.avatarContainerActive]}

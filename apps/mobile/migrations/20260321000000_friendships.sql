@@ -3,7 +3,7 @@
 --   - Friend requests (pending → accepted)
 --   - Favouriting friends
 --   - Querying online friends via Supabase Presence (client-side)
--- Also adds an index on profiles.username to support fast leaderboard friend checks.
+-- Relies on the existing index on profiles.username for fast leaderboard friend checks.
 
 -- ============================================================
 -- 1. friendships table
@@ -18,8 +18,10 @@ CREATE TABLE IF NOT EXISTS public.friendships (
   updated_at      timestamptz NOT NULL DEFAULT now(),
 
   -- prevent self-friendship and duplicate pairs
-  CONSTRAINT friendships_no_self_link   CHECK (requester_id <> addressee_id),
-  CONSTRAINT friendships_unique_pair    UNIQUE (requester_id, addressee_id)
+  CONSTRAINT friendships_no_self_link   CHECK (requester_id <> addressee_id)
+  -- NOTE: The directional UNIQUE constraint is intentionally omitted here.
+  -- Migration 20260321000001 adds a canonical (unordered) unique index instead,
+  -- so that (A→B) and (B→A) cannot both exist.
 );
 
 -- ============================================================
@@ -63,7 +65,8 @@ CREATE POLICY "friendships_insert_own"
   ON public.friendships FOR INSERT
   WITH CHECK (auth.uid() = requester_id);
 
--- Either party may UPDATE (accept/reject/favourite)
+-- Either party may UPDATE; WITH CHECK prevents requester from self-accepting.
+-- See migration 20260321000001 for the tightened version applied to the live DB.
 CREATE POLICY "friendships_update_own"
   ON public.friendships FOR UPDATE
   USING (
