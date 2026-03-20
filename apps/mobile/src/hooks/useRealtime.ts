@@ -61,6 +61,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mutable ref to the latest gameState — updated below via useEffect so that
+  // joinChannel's broadcast handlers always read fresh data without needing
+  // gameState itself in joinChannel's dependency array (which would change
+  // joinChannel identity on every game-state update and cause reconnect churn).
+  const gameStateRef = useRef(gameState);
   /** Tracks the freshest last_seen_at per player ID without triggering re-renders.
    *  Updated on every room_players UPDATE (even heartbeat-only skipped ones).
    *  Used by MultiplayerGame for client-side disconnect staleness detection. */
@@ -72,6 +77,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
   const isHost = currentPlayer?.is_host === true;
+
+  // Keep gameStateRef in sync so joinChannel's broadcast handlers can read the
+  // latest value without gameState being in joinChannel's dependency array.
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
   const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
@@ -316,7 +327,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             );
           }
           const matchNumber =
-            (broadcastData?.match_number as number | undefined) ?? gameState?.match_number ?? 1;
+            (broadcastData?.match_number as number | undefined) ??
+            gameStateRef.current?.match_number ??
+            1;
           // onMatchEnded + onGameOver calls removed — score history is handled by
           // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
           // fetchGameState above will update multiplayerGameState which triggers both hooks.
@@ -337,7 +350,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             )?.data || payload;
           const matchNumber =
             (broadcastData as { match_number?: number })?.match_number ||
-            gameState?.match_number ||
+            gameStateRef.current?.match_number ||
             1;
           gameLogger.info(
             '[Realtime] match_ended received; fetchGameState triggered for score-history refresh',
@@ -540,11 +553,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         });
       });
 
-      // Note: `gameState` is intentionally included in the dependency array so
-      // that broadcast handlers and timer state reads use the latest value and
-      // avoid stale-closure behavior during live gameplay updates.
+      // Note: broadcast handlers use gameStateRef.current (instead of the
+      // captured gameState) so that joinChannel's identity stays stable across
+      // game-state updates and does not trigger unnecessary reconnects.
     },
-    [userId, username, onDisconnect, fetchPlayers, fetchGameState, gameState]
+    [userId, username, onDisconnect, fetchPlayers, fetchGameState]
   ); // reconnect intentionally omitted to avoid circular dependency
 
   // 🏠 Room lobby operations (extracted hook)

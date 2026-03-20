@@ -7,8 +7,8 @@
  * useGameContext() instead of being threaded as 50+ individual props. Parent screens
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
-import React, { Profiler, useMemo, useCallback, useState } from 'react';
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import {
   CardHand,
   PlayerInfo,
@@ -110,6 +110,19 @@ function GameViewComponent() {
 
   // Task #652: Track drag zone state for table perimeter glow
   const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
+
+  // Drag hint pulse animation — visible above action buttons in portrait mode
+  const hintPulse = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(hintPulse, { toValue: 0.7, duration: 1500, useNativeDriver: true }),
+        Animated.timing(hintPulse, { toValue: 0.4, duration: 1500, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [hintPulse]);
 
   // Step 1: Memoize the stable per-player boolean state so that unrelated renders
   // (e.g. timer ticks) do not cause unnecessary GameLayout / PlayerInfo re-renders.
@@ -473,6 +486,16 @@ function GameViewComponent() {
                 videoStreamSlot={localVideoSlot}
               />
             </View>
+
+            {/* Drag-to-play hint — rendered above action/helper buttons so it isn't
+                hidden behind actionButtonsRow (zIndex 180) or helperButtonsRow (zIndex 170).
+                Was previously inside CardHand's cardHandContainer (zIndex 50) which caused
+                the hint to be covered. */}
+            {dropZoneState === 'idle' && selectedCardIds.size > 0 && isPlayerReady && (
+              <Animated.View style={[styles.dragHintContainer, { opacity: hintPulse }]}>
+                <Text style={styles.dragHintText}>↑ Drag up to play</Text>
+              </Animated.View>
+            )}
 
             {/* Action buttons (Play/Pass) - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.actionButtonsRow}>
