@@ -16,6 +16,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';
+import { AddFriendButton } from '../components/friends';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
@@ -43,7 +44,9 @@ interface PlayerStats {
   current_loss_streak: number;
   global_rank: number | null;
   rank_points: number;
-  rank_points_history: { timestamp: string; points: number; is_win: boolean; game_type: string }[] | null;
+  rank_points_history:
+    | { timestamp: string; points: number; is_win: boolean; game_type: string }[]
+    | null;
   // Per-mode stats (DB column names)
   casual_games_played: number;
   casual_games_won: number;
@@ -190,7 +193,7 @@ export default function StatsScreen() {
   const route = useRoute<StatsScreenRouteProp>();
   const navigation = useNavigation<StatsScreenNavigationProp>();
   const { user } = useAuth();
-  
+
   const userId = route.params?.userId || user?.id;
   const isOwnProfile = userId === user?.id;
 
@@ -222,7 +225,10 @@ export default function StatsScreen() {
           setStats(null);
         } else {
           // Other error - log and throw
-          statsLogger.error('[Stats] Stats query error:', statsError?.message || statsError?.code || 'Unknown error');
+          statsLogger.error(
+            '[Stats] Stats query error:',
+            statsError?.message || statsError?.code || 'Unknown error'
+          );
           throw statsError;
         }
       } else {
@@ -235,7 +241,10 @@ export default function StatsScreen() {
           .maybeSingle();
         if (rankError) {
           // Log the failure and fall back to the stored global_rank from statsData.
-          statsLogger.error('[Stats] Rank query error:', rankError?.message || rankError?.code || 'Unknown error');
+          statsLogger.error(
+            '[Stats] Rank query error:',
+            rankError?.message || rankError?.code || 'Unknown error'
+          );
           setStats({ ...statsData, global_rank: statsData.global_rank ?? null });
         } else {
           // rankRow being null means the user has no entry in leaderboard_ranked
@@ -247,7 +256,8 @@ export default function StatsScreen() {
           const rankedGamesPlayed = statsData.ranked_games_played ?? 0;
           setStats({
             ...statsData,
-            global_rank: rankRow?.rank ?? (rankedGamesPlayed > 0 ? statsData.global_rank ?? null : null),
+            global_rank:
+              rankRow?.rank ?? (rankedGamesPlayed > 0 ? (statsData.global_rank ?? null) : null),
           });
         }
       }
@@ -272,7 +282,9 @@ export default function StatsScreen() {
       const { data: historyData, error: historyError } = await supabase
         .from('game_history')
         .select('*')
-        .or(`player_1_id.eq.${userId},player_2_id.eq.${userId},player_3_id.eq.${userId},player_4_id.eq.${userId},voided_user_id.eq.${userId}`)
+        .or(
+          `player_1_id.eq.${userId},player_2_id.eq.${userId},player_3_id.eq.${userId},player_4_id.eq.${userId},voided_user_id.eq.${userId}`
+        )
         .order('finished_at', { ascending: false })
         .limit(100);
 
@@ -281,10 +293,12 @@ export default function StatsScreen() {
       } else {
         setGameHistory(historyData || []);
       }
-
     } catch (error: unknown) {
       // Only log error message/code to avoid exposing DB internals
-      statsLogger.error('[Stats] Error fetching data:', error instanceof Error ? error.message : String(error));
+      statsLogger.error(
+        '[Stats] Error fetching data:',
+        error instanceof Error ? error.message : String(error)
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -309,7 +323,7 @@ export default function StatsScreen() {
   // the query, so the first is the most recent/canonical row).
   const deduplicatedGameHistory = React.useMemo(() => {
     const seen = new Set<string>();
-    return gameHistory.filter((g) => {
+    return gameHistory.filter(g => {
       if (seen.has(g.room_code)) return false;
       seen.add(g.room_code);
       return true;
@@ -318,15 +332,18 @@ export default function StatsScreen() {
 
   const filteredGameHistory = React.useMemo(() => {
     if (activeTab === 'overview') return deduplicatedGameHistory;
-    return deduplicatedGameHistory.filter((g) => g.game_type === activeTab);
+    return deduplicatedGameHistory.filter(g => g.game_type === activeTab);
   }, [deduplicatedGameHistory, activeTab]);
 
   // History tab filter: within filteredGameHistory, further filter by outcome
   const historyTabFiltered = React.useMemo(() => {
     if (historyTab === 'recent') return filteredGameHistory;
-    if (historyTab === 'won') return filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId);
-    if (historyTab === 'lost') return filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId);
-    if (historyTab === 'incomplete') return filteredGameHistory.filter((g) => g.game_completed === false);
+    if (historyTab === 'won')
+      return filteredGameHistory.filter(g => g.game_completed === true && g.winner_id === userId);
+    if (historyTab === 'lost')
+      return filteredGameHistory.filter(g => g.game_completed === true && g.winner_id !== userId);
+    if (historyTab === 'incomplete')
+      return filteredGameHistory.filter(g => g.game_completed === false);
     return filteredGameHistory;
   }, [filteredGameHistory, historyTab, userId]);
 
@@ -364,12 +381,8 @@ export default function StatsScreen() {
     if (!stats) return 0;
     // Use the same client-side formula for all tabs (overview + per-mode) so
     // voided games never inflate the denominator regardless of DB completion_rate.
-    const completed = activeTab === 'overview'
-      ? stats.games_completed || 0
-      : modeGamesCompleted;
-    const abandoned = activeTab === 'overview'
-      ? stats.games_abandoned || 0
-      : modeGamesAbandoned;
+    const completed = activeTab === 'overview' ? stats.games_completed || 0 : modeGamesCompleted;
+    const abandoned = activeTab === 'overview' ? stats.games_abandoned || 0 : modeGamesAbandoned;
     const attempted = completed + abandoned;
     if (attempted === 0) return 0;
     return Math.min(100, Math.max(0, Math.round((completed / attempted) * 100)));
@@ -381,9 +394,10 @@ export default function StatsScreen() {
     if (activeTab === 'overview') {
       return {
         avgPosition: stats.avg_finish_position,
-        totalPoints: (stats.casual_total_points || 0)
-          + (stats.ranked_total_points || 0)
-          + (stats.private_total_points || 0),
+        totalPoints:
+          (stats.casual_total_points || 0) +
+          (stats.ranked_total_points || 0) +
+          (stats.private_total_points || 0),
         highestScore: stats.highest_score,
         lowestScore: stats.lowest_score,
         avgScore: stats.avg_score_per_game,
@@ -496,10 +510,10 @@ export default function StatsScreen() {
 
   const renderHistoryItem = ({ item }: { item: GameHistoryEntry }) => {
     const isWinner = item.winner_id === userId;
-    const duration = item.game_duration_seconds 
+    const duration = item.game_duration_seconds
       ? `${Math.floor(item.game_duration_seconds / 60)}m ${item.game_duration_seconds % 60}s`
       : 'N/A';
-    
+
     const finishedDate = new Date(item.finished_at);
     const timeAgo = getTimeAgo(finishedDate);
     const isIncomplete = item.game_completed === false;
@@ -519,11 +533,19 @@ export default function StatsScreen() {
     const isNeutralIncomplete = isIncomplete && !isVoided && !isAbandoned;
 
     return (
-      <View style={[
-        styles.historyItem,
-        !isIncomplete && isWinner && styles.historyItemWin,
-        isVoided ? styles.historyItemVoided : (isAbandoned ? styles.historyItemAbandoned : (isNeutralIncomplete ? styles.historyItemIncomplete : undefined)),
-      ]}>
+      <View
+        style={[
+          styles.historyItem,
+          !isIncomplete && isWinner && styles.historyItemWin,
+          isVoided
+            ? styles.historyItemVoided
+            : isAbandoned
+              ? styles.historyItemAbandoned
+              : isNeutralIncomplete
+                ? styles.historyItemIncomplete
+                : undefined,
+        ]}
+      >
         <View style={styles.historyHeader}>
           <View style={styles.historyResult}>
             {isVoided ? (
@@ -546,14 +568,20 @@ export default function StatsScreen() {
           </View>
           <Text style={styles.historyTime}>{timeAgo}</Text>
         </View>
-        
+
         <View style={styles.historyPlayers}>
-          {[1, 2, 3, 4].map((num) => {
+          {[1, 2, 3, 4].map(num => {
             const username = item[`player_${num}_username` as keyof GameHistoryEntry] as string;
             const score = item[`player_${num}_score` as keyof GameHistoryEntry] as number;
-            const wasBot = item[`player_${num}_was_bot` as keyof GameHistoryEntry] as boolean | null;
-            const originalUsername = item[`player_${num}_original_username` as keyof GameHistoryEntry] as string | null;
-            const disconnected = item[`player_${num}_disconnected` as keyof GameHistoryEntry] as boolean | null;
+            const wasBot = item[`player_${num}_was_bot` as keyof GameHistoryEntry] as
+              | boolean
+              | null;
+            const originalUsername = item[
+              `player_${num}_original_username` as keyof GameHistoryEntry
+            ] as string | null;
+            const disconnected = item[`player_${num}_disconnected` as keyof GameHistoryEntry] as
+              | boolean
+              | null;
             if (!username) return null;
 
             // A player is a bot if was_bot is explicitly true, OR if they have an
@@ -565,19 +593,21 @@ export default function StatsScreen() {
             // Always emit a tag whenever we know the player is a bot, even when
             // bot_difficulty is null (NULL → treat as medium).
             const difficultyTag = isBot
-              ? item.bot_difficulty === 'easy' ? ' (E)'
-              : item.bot_difficulty === 'hard' ? ' (H)'
-              : ' (M)'
+              ? item.bot_difficulty === 'easy'
+                ? ' (E)'
+                : item.bot_difficulty === 'hard'
+                  ? ' (H)'
+                  : ' (M)'
               : '';
-            
+
             return (
               <View key={num} style={styles.historyPlayer}>
                 <View style={styles.historyPlayerNameRow}>
                   <Text style={styles.historyPlayerName} numberOfLines={1}>
-                    {isBot && originalUsername 
+                    {isBot && originalUsername
                       ? `🤖 Bot (replaced ${originalUsername})${difficultyTag}`
-                      : isBot 
-                        ? `🤖 ${username}${difficultyTag}` 
+                      : isBot
+                        ? `🤖 ${username}${difficultyTag}`
                         : username}
                   </Text>
                   {disconnected && <Text style={styles.disconnectedBadge}>📡 DC</Text>}
@@ -621,7 +651,11 @@ export default function StatsScreen() {
         <EmptyState
           icon="📊"
           title="No stats available"
-          subtitle={isOwnProfile ? 'Play some games to see your stats!' : 'This user hasn\'t played any games yet.'}
+          subtitle={
+            isOwnProfile
+              ? 'Play some games to see your stats!'
+              : "This user hasn't played any games yet."
+          }
           action={{
             label: 'Go Back',
             onPress: () => navigation.goBack(),
@@ -660,13 +694,13 @@ export default function StatsScreen() {
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {profile.username.charAt(0).toUpperCase()}
-                </Text>
+                <Text style={styles.avatarText}>{profile.username.charAt(0).toUpperCase()}</Text>
               </View>
             )}
           </View>
           <Text style={styles.username}>{profile.username}</Text>
+          {/* Add friend button — shown only when viewing another player's profile */}
+          {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
           {/* Header: show ranked ELO on ranked tab, casual ELO otherwise */}
           <Text style={styles.rankPoints}>
             {activeTab === 'ranked'
@@ -674,26 +708,26 @@ export default function StatsScreen() {
               : (stats.casual_rank_points ?? stats.rank_points)}{' '}
             Rank Points
           </Text>
-          {stats.global_rank && (
-            <Text style={styles.globalRank}>#{stats.global_rank} Global</Text>
-          )}
+          {stats.global_rank && <Text style={styles.globalRank}>#{stats.global_rank} Global</Text>}
         </View>
 
         {/* Tab Bar: Overview / Casual / Private / Ranked */}
         <View style={styles.tabBar}>
-          {(['overview', 'casual', 'private', 'ranked'] as StatsTab[]).map((tab) => (
+          {(['overview', 'casual', 'private', 'ranked'] as StatsTab[]).map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {({
-                  overview: `📊 ${i18n.t('profile.overview')}`,
-                  casual: `🎮 ${i18n.t('matchmaking.casual')}`,
-                  private: `🔒 ${i18n.t('profile.private')}`,
-                  ranked: `🏆 ${i18n.t('matchmaking.ranked')}`,
-                } as Record<string, string>)[tab] ?? tab}
+                {(
+                  {
+                    overview: `📊 ${i18n.t('profile.overview')}`,
+                    casual: `🎮 ${i18n.t('matchmaking.casual')}`,
+                    private: `🔒 ${i18n.t('profile.private')}`,
+                    ranked: `🏆 ${i18n.t('matchmaking.ranked')}`,
+                  } as Record<string, string>
+                )[tab] ?? tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -702,12 +736,14 @@ export default function StatsScreen() {
         {/* Mode-Aware Key Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {({
-              overview: i18n.t('profile.overview'),
-              casual: i18n.t('profile.casualStats'),
-              private: i18n.t('profile.privateStats'),
-              ranked: i18n.t('profile.rankedStats'),
-            } as Record<string, string>)[activeTab] ?? activeTab}
+            {(
+              {
+                overview: i18n.t('profile.overview'),
+                casual: i18n.t('profile.casualStats'),
+                private: i18n.t('profile.privateStats'),
+                ranked: i18n.t('profile.rankedStats'),
+              } as Record<string, string>
+            )[activeTab] ?? activeTab}
           </Text>
 
           {/* Core 4 cards — played / win rate / won / lost */}
@@ -722,24 +758,48 @@ export default function StatsScreen() {
             )}
             {activeTab === 'casual' && (
               <>
-                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.casual_games_played || 0, '🎮')}
-                {renderStatCard(i18n.t('profile.winRate'), `${(stats.casual_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(
+                  i18n.t('profile.gamesPlayed'),
+                  stats.casual_games_played || 0,
+                  '🎮'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.winRate'),
+                  `${(stats.casual_win_rate || 0).toFixed(1)}%`,
+                  '🏆'
+                )}
                 {renderStatCard(i18n.t('profile.gamesWon'), stats.casual_games_won || 0, '✅')}
                 {renderStatCard(i18n.t('profile.gamesLost'), stats.casual_games_lost || 0, '❌')}
               </>
             )}
             {activeTab === 'private' && (
               <>
-                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.private_games_played || 0, '🎮')}
-                {renderStatCard(i18n.t('profile.winRate'), `${(stats.private_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(
+                  i18n.t('profile.gamesPlayed'),
+                  stats.private_games_played || 0,
+                  '🎮'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.winRate'),
+                  `${(stats.private_win_rate || 0).toFixed(1)}%`,
+                  '🏆'
+                )}
                 {renderStatCard(i18n.t('profile.gamesWon'), stats.private_games_won || 0, '✅')}
                 {renderStatCard(i18n.t('profile.gamesLost'), stats.private_games_lost || 0, '❌')}
               </>
             )}
             {activeTab === 'ranked' && (
               <>
-                {renderStatCard(i18n.t('profile.gamesPlayed'), stats.ranked_games_played || 0, '🎮')}
-                {renderStatCard(i18n.t('profile.winRate'), `${(stats.ranked_win_rate || 0).toFixed(1)}%`, '🏆')}
+                {renderStatCard(
+                  i18n.t('profile.gamesPlayed'),
+                  stats.ranked_games_played || 0,
+                  '🎮'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.winRate'),
+                  `${(stats.ranked_win_rate || 0).toFixed(1)}%`,
+                  '🏆'
+                )}
                 {renderStatCard(i18n.t('profile.gamesWon'), stats.ranked_games_won || 0, '✅')}
                 {renderStatCard(i18n.t('profile.gamesLost'), stats.ranked_games_lost || 0, '❌')}
               </>
@@ -751,37 +811,72 @@ export default function StatsScreen() {
             {activeTab === 'overview' && (
               <>
                 {/* Overview rank = casual ELO (canonical; synced in migration 20260309000004) */}
-                {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points ?? stats.rank_points, '⭐')}
-                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
+                {renderStatCard(
+                  i18n.t('profile.rankPoints'),
+                  stats.casual_rank_points ?? stats.rank_points,
+                  '⭐'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.rank'),
+                  stats.global_rank ? `#${stats.global_rank}` : '#N/A',
+                  '🌐'
+                )}
               </>
             )}
             {activeTab === 'casual' && (
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.casual_rank_points || 0, '⭐')}
-                {renderStatCard(i18n.t('profile.totalPoints'), (stats.casual_total_points || 0).toLocaleString(), '💎')}
+                {renderStatCard(
+                  i18n.t('profile.totalPoints'),
+                  (stats.casual_total_points || 0).toLocaleString(),
+                  '💎'
+                )}
               </>
             )}
             {activeTab === 'ranked' && (
               <>
                 {renderStatCard(i18n.t('profile.rankPoints'), stats.ranked_rank_points || 0, '⭐')}
-                {renderStatCard(i18n.t('profile.rank'), stats.global_rank ? `#${stats.global_rank}` : '#N/A', '🌐')}
-                {renderStatCard(i18n.t('profile.totalPoints'), (stats.ranked_total_points || 0).toLocaleString(), '💎')}
+                {renderStatCard(
+                  i18n.t('profile.rank'),
+                  stats.global_rank ? `#${stats.global_rank}` : '#N/A',
+                  '🌐'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.totalPoints'),
+                  (stats.ranked_total_points || 0).toLocaleString(),
+                  '💎'
+                )}
               </>
             )}
             {activeTab === 'private' && (
               <>
-                {renderStatCard(i18n.t('profile.totalPoints'), (stats.private_total_points || 0).toLocaleString(), '💎')}
-                {renderStatCard(i18n.t('profile.avgScore'), (stats.private_avg_score_per_game || 0).toFixed(0), '📈')}
+                {renderStatCard(
+                  i18n.t('profile.totalPoints'),
+                  (stats.private_total_points || 0).toLocaleString(),
+                  '💎'
+                )}
+                {renderStatCard(
+                  i18n.t('profile.avgScore'),
+                  (stats.private_avg_score_per_game || 0).toFixed(0),
+                  '📈'
+                )}
               </>
             )}
           </View>
 
           {/* Streaks — all tabs */}
-          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>{i18n.t('profile.streaks')}</Text>
+          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>
+            {i18n.t('profile.streaks')}
+          </Text>
           <View style={styles.streaksContainer}>
             <View style={styles.streakItem}>
               <Text style={styles.streakLabel}>{i18n.t('profile.currentStreak')}</Text>
-              <Text style={[styles.streakValue, stats.current_win_streak > 0 && styles.streakValueActive]}>
+              <Text
+                style={[
+                  styles.streakValue,
+                  stats.current_win_streak > 0 && styles.streakValueActive,
+                ]}
+              >
                 {stats.current_win_streak > 0
                   ? `🔥 ${stats.current_win_streak} ${i18n.t('profile.wins')}`
                   : stats.current_loss_streak > 0
@@ -791,7 +886,9 @@ export default function StatsScreen() {
             </View>
             <View style={styles.streakItem}>
               <Text style={styles.streakLabel}>{i18n.t('profile.bestStreak')}</Text>
-              <Text style={styles.streakValue}>🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}</Text>
+              <Text style={styles.streakValue}>
+                🏅 {stats.longest_win_streak} {i18n.t('profile.wins')}
+              </Text>
             </View>
           </View>
 
@@ -812,9 +909,7 @@ export default function StatsScreen() {
           <View style={styles.completionContainer}>
             <View style={styles.completionMain}>
               <View style={styles.completionCircle}>
-                <Text style={styles.completionPercentage}>
-                  {modeCompletionRate.toFixed(0)}%
-                </Text>
+                <Text style={styles.completionPercentage}>{modeCompletionRate.toFixed(0)}%</Text>
                 <Text style={styles.completionLabel}>{i18n.t('profile.completed')}</Text>
               </View>
               <View style={styles.completionDetails}>
@@ -833,14 +928,25 @@ export default function StatsScreen() {
                 {activeTab === 'overview' && (
                   <>
                     <View style={styles.completionRow}>
-                      <Text style={styles.completionDetailLabel}>🔥 {i18n.t('profile.currentStreak')}</Text>
-                      <Text style={[styles.completionDetailValue, (stats.current_completion_streak || 0) > 0 && styles.streakValueActive]}>
+                      <Text style={styles.completionDetailLabel}>
+                        🔥 {i18n.t('profile.currentStreak')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.completionDetailValue,
+                          (stats.current_completion_streak || 0) > 0 && styles.streakValueActive,
+                        ]}
+                      >
                         {stats.current_completion_streak || 0}
                       </Text>
                     </View>
                     <View style={styles.completionRow}>
-                      <Text style={styles.completionDetailLabel}>🏅 {i18n.t('profile.bestStreak')}</Text>
-                      <Text style={styles.completionDetailValue}>{stats.longest_completion_streak || 0}</Text>
+                      <Text style={styles.completionDetailLabel}>
+                        🏅 {i18n.t('profile.bestStreak')}
+                      </Text>
+                      <Text style={styles.completionDetailValue}>
+                        {stats.longest_completion_streak || 0}
+                      </Text>
                     </View>
                   </>
                 )}
@@ -855,14 +961,14 @@ export default function StatsScreen() {
         {(activeTab === 'overview' || activeTab === 'ranked') && userId && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.rankProgression')}</Text>
-            <StreakGraph 
-              gameHistory={gameHistory.filter(g => g.game_completed === true)} 
-              userId={userId} 
+            <StreakGraph
+              gameHistory={gameHistory.filter(g => g.game_completed === true)}
+              userId={userId}
               rankPointsHistory={
                 activeTab === 'ranked'
-                  ? (Array.isArray(stats.rank_points_history)
-                      ? stats.rank_points_history.filter((e) => e?.game_type === 'ranked')
-                      : undefined)
+                  ? Array.isArray(stats.rank_points_history)
+                    ? stats.rank_points_history.filter(e => e?.game_type === 'ranked')
+                    : undefined
                   : stats.rank_points_history || undefined
               }
             />
@@ -874,12 +980,28 @@ export default function StatsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.performance')}</Text>
             <View style={styles.statsGrid}>
-              {renderStatCard(i18n.t('profile.avgPosition'), perfStats.avgPosition?.toFixed(2) || 'N/A', '📊')}
-              {renderStatCard(i18n.t('profile.totalPoints'), (perfStats.totalPoints || 0).toLocaleString(), '💎')}
+              {renderStatCard(
+                i18n.t('profile.avgPosition'),
+                perfStats.avgPosition?.toFixed(2) || 'N/A',
+                '📊'
+              )}
+              {renderStatCard(
+                i18n.t('profile.totalPoints'),
+                (perfStats.totalPoints || 0).toLocaleString(),
+                '💎'
+              )}
               {renderStatCard(i18n.t('profile.highestScore'), perfStats.highestScore || 0, '💀')}
               {renderStatCard(i18n.t('profile.lowestScore'), perfStats.lowestScore ?? 0, '⭐')}
-              {renderStatCard(i18n.t('profile.avgScore'), perfStats.avgScore?.toFixed(0) || 'N/A', '📈')}
-              {renderStatCard(i18n.t('profile.avgCardsLeft'), (perfStats.avgCardsLeft || 0).toFixed(1), '🃏')}
+              {renderStatCard(
+                i18n.t('profile.avgScore'),
+                perfStats.avgScore?.toFixed(0) || 'N/A',
+                '📈'
+              )}
+              {renderStatCard(
+                i18n.t('profile.avgCardsLeft'),
+                (perfStats.avgCardsLeft || 0).toFixed(1),
+                '🃏'
+              )}
             </View>
           </View>
         )}
@@ -908,22 +1030,52 @@ export default function StatsScreen() {
 
           {/* History outcome filter tabs: Recent / Won / Lost / Incomplete */}
           <View style={styles.historyTabBar}>
-            {([
-              { key: 'recent' as HistoryTab, label: i18n.t('profile.historyTabRecent'), count: filteredGameHistory.length },
-              { key: 'won' as HistoryTab, label: i18n.t('profile.historyTabWon'), count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id === userId).length },
-              { key: 'lost' as HistoryTab, label: i18n.t('profile.historyTabLost'), count: filteredGameHistory.filter((g) => g.game_completed === true && g.winner_id !== userId).length },
-              { key: 'incomplete' as HistoryTab, label: i18n.t('profile.historyTabIncomplete'), count: filteredGameHistory.filter((g) => g.game_completed === false).length },
-            ]).map(({ key, label, count }) => (
+            {[
+              {
+                key: 'recent' as HistoryTab,
+                label: i18n.t('profile.historyTabRecent'),
+                count: filteredGameHistory.length,
+              },
+              {
+                key: 'won' as HistoryTab,
+                label: i18n.t('profile.historyTabWon'),
+                count: filteredGameHistory.filter(
+                  g => g.game_completed === true && g.winner_id === userId
+                ).length,
+              },
+              {
+                key: 'lost' as HistoryTab,
+                label: i18n.t('profile.historyTabLost'),
+                count: filteredGameHistory.filter(
+                  g => g.game_completed === true && g.winner_id !== userId
+                ).length,
+              },
+              {
+                key: 'incomplete' as HistoryTab,
+                label: i18n.t('profile.historyTabIncomplete'),
+                count: filteredGameHistory.filter(g => g.game_completed === false).length,
+              },
+            ].map(({ key, label, count }) => (
               <TouchableOpacity
                 key={key}
-                style={[styles.historyTabButton, historyTab === key && styles.historyTabButtonActive]}
+                style={[
+                  styles.historyTabButton,
+                  historyTab === key && styles.historyTabButtonActive,
+                ]}
                 onPress={() => setHistoryTab(key)}
               >
-                <Text style={[styles.historyTabText, historyTab === key && styles.historyTabTextActive]}>
+                <Text
+                  style={[styles.historyTabText, historyTab === key && styles.historyTabTextActive]}
+                >
                   {label}
                 </Text>
                 {count > 0 && (
-                  <Text style={[styles.historyTabCount, historyTab === key && styles.historyTabCountActive]}>
+                  <Text
+                    style={[
+                      styles.historyTabCount,
+                      historyTab === key && styles.historyTabCountActive,
+                    ]}
+                  >
                     {count}
                   </Text>
                 )}
@@ -935,7 +1087,7 @@ export default function StatsScreen() {
             <FlatList
               data={historyTabFiltered.slice(0, 20)}
               renderItem={renderHistoryItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={item => item.id}
               scrollEnabled={false}
             />
           ) : (
@@ -943,10 +1095,10 @@ export default function StatsScreen() {
               {historyTab === 'won'
                 ? i18n.t('profile.historyEmptyWon')
                 : historyTab === 'lost'
-                ? i18n.t('profile.historyEmptyLost')
-                : historyTab === 'incomplete'
-                ? i18n.t('profile.historyEmptyIncomplete')
-                : i18n.t('profile.historyEmptyRecent')}
+                  ? i18n.t('profile.historyEmptyLost')
+                  : historyTab === 'incomplete'
+                    ? i18n.t('profile.historyEmptyIncomplete')
+                    : i18n.t('profile.historyEmptyRecent')}
             </Text>
           )}
         </View>
@@ -1309,7 +1461,7 @@ const styles = StyleSheet.create({
   historyItemIncomplete: {
     borderLeftWidth: 4,
     borderLeftColor: '#555555',
-    opacity: 0.70,
+    opacity: 0.7,
   },
   historyItemVoided: {
     borderLeftWidth: 4,

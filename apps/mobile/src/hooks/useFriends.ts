@@ -17,6 +17,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
 import { i18n } from '../i18n';
+import { notifyFriendRequest } from '../services/pushNotificationService';
 
 export interface FriendProfile {
   id: string;
@@ -80,7 +81,7 @@ function pickProfile(raw: RawFriendship, myId: string): FriendProfile {
 }
 
 export function useFriends(): UseFriendsResult {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [outgoingPending, setOutgoing] = useState<Friendship[]>([]);
   const [incomingPending, setIncoming] = useState<Friendship[]>([]);
@@ -179,7 +180,37 @@ export function useFriends(): UseFriendsResult {
           table: 'friendships',
           filter: `addressee_id=eq.${user.id}`,
         },
-        () => {
+        async payload => {
+          // For INSERT events, optimistically populate the incoming request
+          // immediately (with a quick profile fetch) so the in-app notification
+          // modal appears instantly instead of waiting for fetchAll() to finish.
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as {
+              id: string;
+              requester_id: string;
+              addressee_id: string;
+              status: string;
+              is_favorite: boolean;
+              created_at: string;
+            };
+            if (row.status === 'pending') {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, elo_rating, rank')
+                .eq('id', row.requester_id)
+                .single();
+              const tempEntry: Friendship = {
+                id: row.id,
+                requester_id: row.requester_id,
+                addressee_id: row.addressee_id,
+                status: 'pending',
+                is_favorite: row.is_favorite ?? false,
+                created_at: row.created_at,
+                friend: profileData ?? { id: row.requester_id },
+              };
+              setIncoming(prev => (prev.some(f => f.id === row.id) ? prev : [...prev, tempEntry]));
+            }
+          }
           fetchAll();
         }
       )
@@ -204,9 +235,14 @@ export function useFriends(): UseFriendsResult {
         }
         throw new Error(error.message);
       }
+      // Send offline push notification to the addressee
+      const senderName = profile?.username || user.email || i18n.t('friends.unknownPlayer');
+      notifyFriendRequest(userId, senderName).catch(() => {
+        // Swallow push errors — the request was saved successfully
+      });
       await fetchAll();
     },
-    [user?.id, fetchAll]
+    [user?.id, user?.email, profile?.username, fetchAll]
   );
 
   const acceptRequest = useCallback(

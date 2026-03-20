@@ -25,6 +25,8 @@ interface FriendCardProps {
   onDecline?: (id: string) => Promise<void>;
   onRemove?: (id: string) => Promise<void>;
   onToggleFavorite?: (id: string, current: boolean) => Promise<void>;
+  /** Called when the card (avatar + name) is tapped — e.g. navigate to stats */
+  onPress?: () => void;
 }
 
 export function FriendCard({
@@ -35,6 +37,7 @@ export function FriendCard({
   onDecline,
   onRemove,
   onToggleFavorite,
+  onPress,
 }: FriendCardProps) {
   const [busy, setBusy] = useState(false);
 
@@ -54,27 +57,39 @@ export function FriendCard({
 
   return (
     <View style={styles.card}>
-      {/* Avatar */}
-      <View style={styles.avatarWrap}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
+      {/* Tappable area: avatar + name navigate to stats */}
+      <TouchableOpacity
+        style={styles.mainTouchable}
+        onPress={onPress}
+        disabled={!onPress}
+        activeOpacity={onPress ? 0.7 : 1}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={
+          onPress ? `View ${item.friend.username ?? 'player'}'s stats` : undefined
+        }
+      >
+        {/* Avatar */}
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          {/* Online dot */}
+          <View style={[styles.onlineDot, isOnline ? styles.dotOnline : styles.dotOffline]} />
         </View>
-        {/* Online dot */}
-        <View style={[styles.onlineDot, isOnline ? styles.dotOnline : styles.dotOffline]} />
-      </View>
 
-      {/* Info */}
-      <View style={styles.info}>
-        <Text style={styles.username} numberOfLines={1}>
-          {item.friend.username ?? i18n.t('friends.unknownPlayer')}
-          {type === 'outgoing' && (
-            <Text style={styles.pending}> · {i18n.t('friends.requestSent')}</Text>
+        {/* Info */}
+        <View style={styles.info}>
+          <Text style={styles.username} numberOfLines={1}>
+            {item.friend.username ?? i18n.t('friends.unknownPlayer')}
+            {type === 'outgoing' && (
+              <Text style={styles.pending}> · {i18n.t('friends.requestSent')}</Text>
+            )}
+          </Text>
+          {item.friend.elo_rating != null && (
+            <Text style={styles.elo}>ELO {item.friend.elo_rating}</Text>
           )}
-        </Text>
-        {item.friend.elo_rating != null && (
-          <Text style={styles.elo}>ELO {item.friend.elo_rating}</Text>
-        )}
-      </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Actions */}
       <View style={styles.actions}>
@@ -138,6 +153,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: SPACING.sm,
     marginBottom: SPACING.xs,
+  },
+  mainTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatarWrap: {
     position: 'relative',
