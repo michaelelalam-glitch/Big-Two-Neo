@@ -39,11 +39,7 @@ describe('CardHand Component', () => {
 
   it('renders all cards in hand', () => {
     const { getByText, getAllByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // Check that all card ranks are rendered (some may appear multiple times)
@@ -61,11 +57,7 @@ describe('CardHand Component', () => {
 
   it('renders Play and Pass buttons', () => {
     const { getByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     expect(getByText(/Play/)).toBeTruthy();
@@ -74,11 +66,7 @@ describe('CardHand Component', () => {
 
   it('handles pass action', () => {
     const { getByText } = render(
-      <CardHand
-        cards={mockCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={mockCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     fireEvent.press(getByText('Pass'));
@@ -126,11 +114,7 @@ describe('CardHand Component', () => {
     ];
 
     const { getByText, getAllByText } = render(
-      <CardHand
-        cards={unsortedCards}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={unsortedCards} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // All cards should be rendered (some ranks may appear multiple times)
@@ -146,15 +130,67 @@ describe('CardHand Component', () => {
 
   it('handles empty hand', () => {
     const { getByText } = render(
-      <CardHand
-        cards={[]}
-        onPlayCards={mockOnPlayCards}
-        onPass={mockOnPass}
-      />
+      <CardHand cards={[]} onPlayCards={mockOnPlayCards} onPass={mockOnPass} />
     );
 
     // Should still render buttons
     expect(getByText(/Play/)).toBeTruthy();
     expect(getByText('Pass')).toBeTruthy();
+  });
+
+  // The '↑ Drag up to play' hint has moved to GameView (correct z-index above buttons).
+  // Drag hint rendering tests belong in GameView tests.
+  // The describe block below covers onDragZoneChange state transitions (idle/approaching/active)
+  // and the unmount cleanup. Haptic feedback requires gesture simulation which is out of scope
+  // for unit tests here; it is validated via E2E flow 06_offline_game.
+
+  describe('onDragZoneChange callback (Task #652)', () => {
+    it("calls onDragZoneChange('idle') on mount when not dragging", () => {
+      const onDragZoneChange = jest.fn();
+      render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={true}
+          onDragZoneChange={onDragZoneChange}
+        />
+      );
+      // On mount with no drag, the effect fires 'idle'
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
+    });
+
+    it('calls onDragZoneChange("idle") on unmount to reset parent state', () => {
+      const onDragZoneChange = jest.fn();
+      const { unmount } = render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={true}
+          onDragZoneChange={onDragZoneChange}
+        />
+      );
+      onDragZoneChange.mockClear();
+      unmount();
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
+    });
+
+    it('only emits idle to onDragZoneChange when canPlay is false (never active or approaching)', () => {
+      const onDragZoneChange = jest.fn();
+      render(
+        <CardHand
+          cards={mockCards}
+          onPlayCards={mockOnPlayCards}
+          onPass={mockOnPass}
+          canPlay={false}
+          onDragZoneChange={onDragZoneChange}
+        />
+      );
+      // canPlay=false means canDragToPlay=false → isInDropZone=false, isApproaching=false → 'idle'
+      expect(onDragZoneChange).toHaveBeenCalledWith('idle');
+      expect(onDragZoneChange).not.toHaveBeenCalledWith('active');
+      expect(onDragZoneChange).not.toHaveBeenCalledWith('approaching');
+    });
   });
 });

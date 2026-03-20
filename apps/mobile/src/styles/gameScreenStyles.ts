@@ -84,6 +84,24 @@ export const gameScreenStyles = StyleSheet.create({
     right: 0,
     zIndex: 50,
   },
+  // Drag-to-play hint — above action buttons and helper buttons, centered
+  dragHintContainer: {
+    position: 'absolute',
+    bottom: POSITIONING.helperButtonsBottom + 44, // above helper buttons (180) → ~224
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 185, // above actionButtonsRow (180) and helperButtonsRow (170)
+    // Note: pointerEvents="none" is set directly on the Animated.View in GameView
+    // (it is a View prop, not a style property, and must not be in StyleSheet).
+  },
+  dragHintText: {
+    color: COLORS.gray.medium,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600' as const,
+    letterSpacing: 0.5,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',

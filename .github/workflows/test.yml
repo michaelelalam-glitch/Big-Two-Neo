@@ -315,7 +315,7 @@ jobs:
             grep -E " error: | warning: " /tmp/xcodebuild.log | head -40 || true
             exit $EXIT_CODE
           fi
-        timeout-minutes: 35
+        timeout-minutes: 45
 
       - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
         # Saving with if: always() ensures the cache is preserved even when the

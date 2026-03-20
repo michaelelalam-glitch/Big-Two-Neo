@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
+import { i18n } from '../../i18n';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { Card } from '../../game/types';
+import type { DragZoneState } from './CardHand';
 // Direct imports avoid the index.ts ↔ GameLayout.tsx require cycle
 import PlayerInfo from './PlayerInfo';
 import CenterPlayArea from './CenterPlayArea';
@@ -43,13 +45,15 @@ interface GameLayoutProps {
   lastPlayCombo: string | null;
   /** Auto-pass timer state (if active) */
   autoPassTimerState?: AutoPassTimerState;
+  /** Task #652: drag zone state for table perimeter glow */
+  dropZoneState?: DragZoneState;
 }
 
 /**
  * GameLayout Component
  * Handles the table layout with 4 players positioned around a central play area
  * Extracted from GameScreen.tsx to reduce complexity (Task #426)
- * 
+ *
  * Layout structure:
  * - Top player (position 1) above table
  * - Left player (position 2) on left side
@@ -66,7 +70,77 @@ function GameLayoutComponent({
   lastPlayComboType,
   lastPlayCombo,
   autoPassTimerState,
+  dropZoneState = 'idle',
 }: GameLayoutProps) {
+  // Task #652: Animated glow for table perimeter when dragging cards
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const glowPulse = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    // Stop any running animation
+    if (glowPulse.current) {
+      glowPulse.current.stop();
+      glowPulse.current = null;
+    }
+
+    if (dropZoneState === 'active') {
+      // Pulsing glow when cards are in drop zone
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0.5, duration: 400, useNativeDriver: false }),
+        ])
+      );
+      glowPulse.current = pulse;
+      pulse.start();
+    } else if (dropZoneState === 'approaching') {
+      // Fade in glow as cards approach — fixed midpoint value (0.4) provides clear
+      // visual feedback without requiring the parent to pass a per-frame progress value.
+      // True proportional glow would need a dragProgress(0-1) prop threaded from
+      // CardHand up through GameView; the binary approaching/active distinction gives
+      // sufficient UX signal at lower architectural cost.
+      Animated.timing(glowAnim, { toValue: 0.4, duration: 200, useNativeDriver: false }).start();
+    } else {
+      // Fade out
+      Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    }
+  }, [dropZoneState, glowAnim]);
+  // Cleanup on unmount: stop any running pulse animation to avoid native animation leaks
+  useEffect(() => {
+    return () => {
+      if (glowPulse.current) {
+        try {
+          glowPulse.current.stop();
+        } catch (e) {
+          // best-effort
+        }
+        glowPulse.current = null;
+      }
+    };
+  }, []);
+
+  // Interpolate glow color and shadow
+  const glowBorderColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.table.border, COLORS.accent],
+  });
+  const glowShadowRadius = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [SHADOWS.table.radius, 24],
+  });
+  const glowShadowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [SHADOWS.table.opacity, 0.8],
+  });
+
+  // Drop zone text for CenterPlayArea (localized)
+  const dropZoneText =
+    dropZoneState === 'active'
+      ? i18n.t('game.dropZoneRelease')
+      : dropZoneState === 'approaching'
+        ? i18n.t('game.dropZoneDrop')
+        : undefined;
+
   return (
     <>
       {/* Top player (position 1) - OUTSIDE table, above it */}
@@ -87,8 +161,18 @@ function GameLayoutComponent({
         />
       </View>
 
-      {/* Game table area */}
-      <View style={styles.tableArea}>
+      {/* Game table area — Task #652: animated border glow on drag */}
+      <Animated.View
+        style={[
+          styles.tableArea,
+          {
+            borderColor: glowBorderColor,
+            shadowColor: dropZoneState !== 'idle' ? COLORS.accent : COLORS.black,
+            shadowRadius: glowShadowRadius,
+            shadowOpacity: glowShadowOpacity,
+          },
+        ]}
+      >
         {/* Middle row: Left player, Center play area, Right player */}
         <View style={styles.middleRow}>
           {/* Left player (position 2) */}
@@ -116,6 +200,7 @@ function GameLayoutComponent({
               lastPlayedBy={lastPlayedBy || null}
               combinationType={lastPlayComboType}
               comboDisplayText={lastPlayCombo || undefined}
+              dropZoneText={dropZoneText}
             />
 
             {/* Auto-Pass Timer Display */}
@@ -145,7 +230,7 @@ function GameLayoutComponent({
             />
           </View>
         </View>
-      </View>
+      </Animated.View>
     </>
   );
 }

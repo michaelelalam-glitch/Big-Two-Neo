@@ -380,6 +380,9 @@ export interface Translations {
     noCardsThisMatch: string;
     cardsWillAppear: string;
     noPlayHistoryYet: string;
+    dragToPlayHint: string;
+    dropZoneRelease: string;
+    dropZoneDrop: string;
   };
 
   // Game End Modal
@@ -1019,6 +1022,9 @@ const en: Translations = {
     noCardsThisMatch: '🃏 No cards played yet this match',
     cardsWillAppear: 'Cards will appear here after each play',
     noPlayHistoryYet: 'No play history yet. Start playing to see card history!',
+    dragToPlayHint: '↑ Drag up to play',
+    dropZoneRelease: 'Release to play',
+    dropZoneDrop: 'Drop to play',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1581,6 +1587,9 @@ const ar: Translations = {
     noCardsThisMatch: '🃏 لم يتم لعب أي بطاقات بعد في هذه المباراة',
     cardsWillAppear: 'ستظهر البطاقات هنا بعد كل لعب',
     noPlayHistoryYet: 'لا يوجد سجل لعب بعد. ابدأ اللعب لرؤية سجل البطاقات!',
+    dragToPlayHint: '↑ اسحب للأعلى للعب',
+    dropZoneRelease: 'الإفلات للعب',
+    dropZoneDrop: 'وضع هنا للعب',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2236,6 +2245,9 @@ const de: Translations = {
     noCardsThisMatch: '🃏 Noch keine Karten in dieser Runde gespielt',
     cardsWillAppear: 'Karten erscheinen hier nach jedem Spielzug',
     noPlayHistoryYet: 'Noch kein Spielverlauf. Spiele um den Kartenverlauf zu sehen!',
+    dragToPlayHint: '↑ Nach oben ziehen zum Spielen',
+    dropZoneRelease: 'Loslassen zum Spielen',
+    dropZoneDrop: 'Hier ablegen zum Spielen',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
