@@ -93,6 +93,8 @@ function LoadingScreen() {
 export default function AppNavigator() {
   const { isLoading, isLoggedIn } = useAuth();
   const pendingLinkRef = React.useRef<string | null>(null);
+  // Guard so the cold-start capture fires exactly once (after auth resolves).
+  const coldStartCapturedRef = React.useRef(false);
 
   // Log navigation state for debugging
   React.useEffect(() => {
@@ -113,9 +115,15 @@ export default function AppNavigator() {
     return () => sub.remove();
   }, [isLoggedIn]);
 
-  // On mount: also capture cold-start deep links that arrive before auth
-  // resolves, since those won\'t fire a 'url' event.
+  // Capture cold-start deep links — but only AFTER auth has resolved and only
+  // when the user is still logged out. This prevents a duplicate navigation:
+  // NavigationContainer already calls getInitialURL() via the linking config;
+  // if auth resolves to isLoggedIn=true, the container handles the link itself.
+  // We only need to store it in pendingLinkRef when isLoggedIn=false so we can
+  // replay it after sign-in.
   React.useEffect(() => {
+    if (isLoading || coldStartCapturedRef.current) return;
+    coldStartCapturedRef.current = true;
     if (!isLoggedIn) {
       Linking.getInitialURL()
         .then(url => {
@@ -123,8 +131,7 @@ export default function AppNavigator() {
         })
         .catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoading, isLoggedIn]);
 
   // After sign-in, re-open any stored pending link so React Navigation's
   // linking middleware can route the user to the intended screen.
@@ -152,7 +159,7 @@ export default function AppNavigator() {
 
   return (
     <GlobalErrorBoundary>
-      <NavigationContainer linking={isLoggedIn ? linking : undefined}>
+      <NavigationContainer linking={linking}>
         <FriendsProvider>
           <NotificationProvider>
             <Stack.Navigator
