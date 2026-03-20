@@ -50,15 +50,15 @@ const Stack = createStackNavigator<RootStackParamList>();
  * Deep linking configuration.
  *
  * Supported URL schemes:
- *   big2://lobby/<roomCode>       → opens Lobby screen directly
- *   big2://game/<roomCode>        → opens Game/rejoin screen
+ *   big2mobile://lobby/<roomCode>       → opens Lobby screen directly
+ *   big2mobile://game/<roomCode>        → opens Game/rejoin screen
  *   https://big2.app/lobby/<code> → universal link (same)
  *
- * Android: requires intent-filter with big2:// in AndroidManifest.xml
+ * Android: requires intent-filter with big2mobile:// in AndroidManifest.xml
  * iOS: requires CFBundleURLSchemes entry in Info.plist + associated domain for https
  */
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['big2://', 'https://big2.app'],
+  prefixes: ['big2mobile://', 'https://big2.app'],
   config: {
     screens: {
       // Auth stack (covers logged-out deep links so they aren’t silently dropped)

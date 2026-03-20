@@ -570,7 +570,7 @@ export default function LobbyScreen() {
   const handleShareCode = async () => {
     try {
       // We rely on try-catch to detect platform limitations (e.g., ERR_UNSUPPORTED_ACTIVITY on web).
-      const deepLink = `big2://lobby/${roomCode}`;
+      const deepLink = `big2mobile://lobby/${roomCode}`;
       const baseMessage =
         i18n.t('lobby.shareMessage', { roomCode }) ||
         `Join my Big Two game! Room code: ${roomCode}`;
