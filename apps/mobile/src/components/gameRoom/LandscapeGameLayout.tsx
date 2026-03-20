@@ -22,6 +22,7 @@ import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
 import { AddFriendButton } from '../friends';
+import { useFriendsContext } from '../../contexts/FriendsContext';
 import { LandscapeYourPosition } from './LandscapeYourPosition';
 import { LandscapeScoreboard, PlayHistoryModal } from './LandscapeScoreboard';
 import { LandscapeOvalTable } from './LandscapeOvalTable';
@@ -155,6 +156,9 @@ export function LandscapeGameLayout({
   onCountdownExpireds,
   playerIds = [],
 }: LandscapeGameLayoutProps) {
+  // Friends context to check friendship status in-game
+  const { friends } = useFriendsContext();
+
   // Scoreboard expand/collapse state
   const [isScoreboardExpanded, setIsScoreboardExpanded] = React.useState(false);
   const [showPlayHistory, setShowPlayHistory] = React.useState(false);
@@ -198,6 +202,21 @@ export function LandscapeGameLayout({
       },
       { text: i18n.t('common.cancel'), style: 'cancel' },
     ]);
+  };
+
+  /** Handle double-tap on opponent name: show Add Friend or Already Friends */
+  const handleOpponentNameDoubleTap = (displayIndex: number) => {
+    const opponentId = playerIds[displayIndex];
+    const opponentName = playerNames[displayIndex] ?? i18n.t('friends.unknownPlayer');
+    if (!opponentId) return;
+    const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
+    if (isFriend) {
+      Alert.alert(opponentName, i18n.t('friends.alreadyFriends') || 'You are already friends!', [
+        { text: i18n.t('common.ok'), style: 'cancel' },
+      ]);
+    } else {
+      setOpponentActionTarget({ id: opponentId, name: opponentName });
+    }
   };
 
   return (
@@ -325,6 +344,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[1]}
             onCountdownExpired={onCountdownExpireds?.[1]}
             onAvatarPress={playerIds[1] ? () => handleOpponentAvatarPress(1) : undefined}
+            onNameDoubleTap={playerIds[1] ? () => handleOpponentNameDoubleTap(1) : undefined}
           />
         </View>
 
@@ -340,6 +360,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[2]}
             onCountdownExpired={onCountdownExpireds?.[2]}
             onAvatarPress={playerIds[2] ? () => handleOpponentAvatarPress(2) : undefined}
+            onNameDoubleTap={playerIds[2] ? () => handleOpponentNameDoubleTap(2) : undefined}
           />
         </View>
 
@@ -355,6 +376,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[3]}
             onCountdownExpired={onCountdownExpireds?.[3]}
             onAvatarPress={playerIds[3] ? () => handleOpponentAvatarPress(3) : undefined}
+            onNameDoubleTap={playerIds[3] ? () => handleOpponentNameDoubleTap(3) : undefined}
           />
         </View>
 

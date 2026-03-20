@@ -1,11 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Modal,
+  useWindowDimensions,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { ActiveGameBanner } from '../components/home/ActiveGameBanner';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useActiveGameBanner } from '../hooks/useActiveGameBanner';
 import { useMatchmakingFlow } from '../hooks/useMatchmakingFlow';
 import { i18n } from '../i18n';
@@ -16,6 +26,7 @@ type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user, profile } = useAuth();
+  const { unreadCount } = useNotifications();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isLandscape = screenWidth > screenHeight;
 
@@ -49,126 +60,149 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         bounces={true}
       >
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.leaderboardButton}
-          onPress={() => navigation.navigate('Leaderboard')}
-        >
-          <Text style={styles.leaderboardButtonText}>{i18n.t('home.leaderboard')}</Text>
-        </TouchableOpacity>
-        <View style={styles.headerRight}>
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Settings')}
+            style={styles.leaderboardButton}
+            onPress={() => navigation.navigate('Leaderboard')}
           >
-            <Text style={styles.settingsButtonText}>⚙️</Text>
+            <Text style={styles.leaderboardButtonText}>{i18n.t('home.leaderboard')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Text style={styles.profileButtonText}>{i18n.t('home.profile')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.content}>
-        <Text style={styles.title}>{i18n.t('home.title')}</Text>
-        <Text style={styles.subtitle}>{i18n.t('home.welcome')}, {profile?.username || user?.email || 'Player'}!</Text>
-        
-        {/* Active Game Banner - shows for both offline and online open games */}
-        <ActiveGameBanner
-          onlineRoomCode={currentRoom}
-          onlineRoomStatus={currentRoomStatus}
-          disconnectTimestamp={disconnectTimestamp}
-          onResume={handleBannerResume}
-          onLeave={handleBannerLeave}
-          onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
-          onTimerExpired={handleTimerExpired}
-          canRejoinAfterExpiry={canRejoinAfterExpiry}
-          refreshTrigger={bannerRefreshKey}
-        />
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.mainButton, styles.findGameButton, (isQuickPlaying || isRankedSearching) && styles.buttonDisabled]}
-            onPress={() => setShowFindGameModal(true)}
-            disabled={isQuickPlaying || isRankedSearching}
-          >
-            {(isQuickPlaying || isRankedSearching) ? (
-              <>
-                <ActivityIndicator color={COLORS.white} size="small" />
-                <Text style={styles.mainButtonSubtext}>
-                  {isRankedSearching ? i18n.t('home.findingRankedMatch') : i18n.t('common.loading')}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.mainButtonText}>{i18n.t('home.findGame')}</Text>
-                <Text style={styles.mainButtonSubtext}>{i18n.t('home.findGameDescription')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          
-          {isRankedSearching && (
+          <View style={styles.headerRight}>
             <TouchableOpacity
-              style={[styles.mainButton, styles.cancelButton]}
-              onPress={() => {
-                setIsRankedSearching(false);
+              style={styles.bellButton}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <Text style={styles.bellButtonText}>🔔</Text>
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 99 ? '99+' : String(unreadCount)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Text style={styles.settingsButtonText}>⚙️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={styles.profileButtonText}>{i18n.t('home.profile')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.content}>
+          <Text style={styles.title}>{i18n.t('home.title')}</Text>
+          <Text style={styles.subtitle}>
+            {i18n.t('home.welcome')}, {profile?.username || user?.email || 'Player'}!
+          </Text>
+
+          {/* Active Game Banner - shows for both offline and online open games */}
+          <ActiveGameBanner
+            onlineRoomCode={currentRoom}
+            onlineRoomStatus={currentRoomStatus}
+            disconnectTimestamp={disconnectTimestamp}
+            onResume={handleBannerResume}
+            onLeave={handleBannerLeave}
+            onReplaceBotAndRejoin={handleReplaceBotAndRejoin}
+            onTimerExpired={handleTimerExpired}
+            canRejoinAfterExpiry={canRejoinAfterExpiry}
+            refreshTrigger={bannerRefreshKey}
+          />
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.mainButton,
+                styles.findGameButton,
+                (isQuickPlaying || isRankedSearching) && styles.buttonDisabled,
+              ]}
+              onPress={() => setShowFindGameModal(true)}
+              disabled={isQuickPlaying || isRankedSearching}
+            >
+              {isQuickPlaying || isRankedSearching ? (
+                <>
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                  <Text style={styles.mainButtonSubtext}>
+                    {isRankedSearching
+                      ? i18n.t('home.findingRankedMatch')
+                      : i18n.t('common.loading')}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.mainButtonText}>{i18n.t('home.findGame')}</Text>
+                  <Text style={styles.mainButtonSubtext}>{i18n.t('home.findGameDescription')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {isRankedSearching && (
+              <TouchableOpacity
+                style={[styles.mainButton, styles.cancelButton]}
+                onPress={() => {
+                  setIsRankedSearching(false);
+                }}
+              >
+                <Text style={styles.mainButtonText}>{i18n.t('home.cancelSearch')}</Text>
+                <Text style={styles.mainButtonSubtext}>{i18n.t('home.findingRankedMatch')}</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.mainButton, styles.createButton]}
+              onPress={async () => {
+                const canProceed = await checkGameExclusivity('online');
+                if (canProceed) navigation.navigate('CreateRoom');
               }}
             >
-              <Text style={styles.mainButtonText}>{i18n.t('home.cancelSearch')}</Text>
-              <Text style={styles.mainButtonSubtext}>{i18n.t('home.findingRankedMatch')}</Text>
+              <Text style={styles.mainButtonText}>{i18n.t('home.createRoom')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('home.createRoomDescription')}</Text>
             </TouchableOpacity>
-          )}
 
-          <TouchableOpacity
-            style={[styles.mainButton, styles.createButton]}
-            onPress={async () => {
-              const canProceed = await checkGameExclusivity('online');
-              if (canProceed) navigation.navigate('CreateRoom');
-            }}
-          >
-            <Text style={styles.mainButtonText}>{i18n.t('home.createRoom')}</Text>
-            <Text style={styles.mainButtonSubtext}>{i18n.t('home.createRoomDescription')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mainButton, styles.offlinePracticeButton]}
+              onPress={handleOfflinePractice}
+            >
+              <Text style={styles.mainButtonText}>{i18n.t('home.offlinePractice')}</Text>
+              <Text style={styles.mainButtonSubtext}>
+                {i18n.t('home.offlinePracticeDescription')}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.mainButton, styles.offlinePracticeButton]}
-            onPress={handleOfflinePractice}
-          >
-            <Text style={styles.mainButtonText}>{i18n.t('home.offlinePractice')}</Text>
-            <Text style={styles.mainButtonSubtext}>{i18n.t('home.offlinePracticeDescription')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mainButton, styles.joinButton]}
+              onPress={async () => {
+                const canProceed = await checkGameExclusivity('online');
+                if (canProceed) navigation.navigate('JoinRoom');
+              }}
+            >
+              <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.mainButton, styles.joinButton]}
-            onPress={async () => {
-              const canProceed = await checkGameExclusivity('online');
-              if (canProceed) navigation.navigate('JoinRoom');
-            }}
-          >
-            <Text style={styles.mainButtonText}>{i18n.t('home.joinRoom')}</Text>
-            <Text style={styles.mainButtonSubtext}>{i18n.t('home.joinRoomDescription')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.mainButton, styles.howToPlayButton]}
-            onPress={() => navigation.navigate('HowToPlay')}
-          >
-            <Text style={styles.mainButtonText}>{i18n.t('home.howToPlay')}</Text>
-            <Text style={styles.mainButtonSubtext}>{i18n.t('home.howToPlayDescription')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mainButton, styles.howToPlayButton]}
+              onPress={() => navigation.navigate('HowToPlay')}
+            >
+              <Text style={styles.mainButtonText}>{i18n.t('home.howToPlay')}</Text>
+              <Text style={styles.mainButtonSubtext}>{i18n.t('home.howToPlayDescription')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
       </ScrollView>
-      
+
       {/* Bot Difficulty Picker Modal */}
       <Modal
         visible={showDifficultyModal}
@@ -177,44 +211,78 @@ export default function HomeScreen() {
         onRequestClose={() => setShowDifficultyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
+          <View
+            style={[
+              styles.modalContainer,
+              { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' },
+            ]}
+          >
             <Text style={styles.modalTitle}>{i18n.t('home.botDifficultyTitle')}</Text>
             <Text style={styles.modalSubtitle}>{i18n.t('home.botDifficultySubtitle')}</Text>
-            
+
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
               contentContainerStyle={styles.modalScrollContent}
             >
-              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+              <View
+                style={[
+                  styles.modalButtonContainer,
+                  isLandscape && styles.modalButtonContainerLandscape,
+                ]}
+              >
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.difficultyEasyButton, isLandscape && styles.modalButtonLandscape]}
+                  style={[
+                    styles.modalButton,
+                    styles.difficultyEasyButton,
+                    isLandscape && styles.modalButtonLandscape,
+                  ]}
                   onPress={() => handleStartOfflineWithDifficulty('easy')}
                 >
-                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>😊</Text>
+                  <Text
+                    style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
+                  >
+                    😊
+                  </Text>
                   <Text style={styles.modalButtonText}>{i18n.t('home.easy')}</Text>
                   <Text style={styles.modalButtonSubtext}>{i18n.t('home.easyDesc')}</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.difficultyMediumButton, isLandscape && styles.modalButtonLandscape]}
+                  style={[
+                    styles.modalButton,
+                    styles.difficultyMediumButton,
+                    isLandscape && styles.modalButtonLandscape,
+                  ]}
                   onPress={() => handleStartOfflineWithDifficulty('medium')}
                 >
-                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🧠</Text>
+                  <Text
+                    style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
+                  >
+                    🧠
+                  </Text>
                   <Text style={styles.modalButtonText}>{i18n.t('home.medium')}</Text>
                   <Text style={styles.modalButtonSubtext}>{i18n.t('home.mediumDesc')}</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.difficultyHardButton, isLandscape && styles.modalButtonLandscape]}
+                  style={[
+                    styles.modalButton,
+                    styles.difficultyHardButton,
+                    isLandscape && styles.modalButtonLandscape,
+                  ]}
                   onPress={() => handleStartOfflineWithDifficulty('hard')}
                 >
-                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🔥</Text>
+                  <Text
+                    style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
+                  >
+                    🔥
+                  </Text>
                   <Text style={styles.modalButtonText}>{i18n.t('home.hard')}</Text>
                   <Text style={styles.modalButtonSubtext}>{i18n.t('home.hardDesc')}</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => setShowDifficultyModal(false)}
@@ -234,37 +302,67 @@ export default function HomeScreen() {
         onRequestClose={() => setShowFindGameModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' }]}>
+          <View
+            style={[
+              styles.modalContainer,
+              { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' },
+            ]}
+          >
             <Text style={styles.modalTitle}>{i18n.t('home.findGame')}</Text>
             <Text style={styles.modalSubtitle}>{i18n.t('home.chooseGameMode')}</Text>
-            
+
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
               contentContainerStyle={styles.modalScrollContent}
             >
-              <View style={[styles.modalButtonContainer, isLandscape && styles.modalButtonContainerLandscape]}>
+              <View
+                style={[
+                  styles.modalButtonContainer,
+                  isLandscape && styles.modalButtonContainerLandscape,
+                ]}
+              >
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalCasualButton, isLandscape && styles.modalButtonLandscape]}
+                  style={[
+                    styles.modalButton,
+                    styles.modalCasualButton,
+                    isLandscape && styles.modalButtonLandscape,
+                  ]}
                   onPress={handleCasualMatch}
                   disabled={isQuickPlaying}
                 >
-                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🎮</Text>
+                  <Text
+                    style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
+                  >
+                    🎮
+                  </Text>
                   <Text style={styles.modalButtonText}>{i18n.t('home.casualMatch')}</Text>
-                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.casualMatchDescription')}</Text>
+                  <Text style={styles.modalButtonSubtext}>
+                    {i18n.t('home.casualMatchDescription')}
+                  </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalRankedButton, isLandscape && styles.modalButtonLandscape]}
+                  style={[
+                    styles.modalButton,
+                    styles.modalRankedButton,
+                    isLandscape && styles.modalButtonLandscape,
+                  ]}
                   onPress={() => handleRankedMatch(0)}
                   disabled={isRankedSearching}
                 >
-                  <Text style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}>🏆</Text>
+                  <Text
+                    style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
+                  >
+                    🏆
+                  </Text>
                   <Text style={styles.modalButtonText}>{i18n.t('home.rankedMatch')}</Text>
-                  <Text style={styles.modalButtonSubtext}>{i18n.t('home.rankedMatchDescription')}</Text>
+                  <Text style={styles.modalButtonSubtext}>
+                    {i18n.t('home.rankedMatchDescription')}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              
+
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => setShowFindGameModal(false)}
@@ -320,6 +418,33 @@ const styles = StyleSheet.create({
   },
   settingsButtonText: {
     fontSize: FONT_SIZES.lg,
+  },
+  bellButton: {
+    backgroundColor: COLORS.gray.dark,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    position: 'relative',
+  },
+  bellButtonText: {
+    fontSize: FONT_SIZES.lg,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: COLORS.red.active,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '700',
   },
   profileButton: {
     backgroundColor: COLORS.secondary,

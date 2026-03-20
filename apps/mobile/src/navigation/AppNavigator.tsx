@@ -19,6 +19,7 @@ import MatchHistoryScreen from '../screens/MatchHistoryScreen';
 import MatchmakingScreen from '../screens/MatchmakingScreen';
 import MatchTypeSelectionScreen from '../screens/MatchTypeSelectionScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
@@ -34,11 +35,12 @@ export type RootStackParamList = {
   JoinRoom: undefined;
   MatchTypeSelection: undefined;
   Matchmaking: { matchType?: 'casual' | 'ranked' };
-  Lobby: { roomCode: string; playAgain?: boolean };
+  Lobby: { roomCode: string; playAgain?: boolean; joining?: boolean };
   Game: { roomCode: string; forceNewGame?: boolean; botDifficulty?: 'easy' | 'medium' | 'hard' };
   Leaderboard: undefined;
   MatchHistory: undefined;
   Stats: { userId?: string };
+  Notifications: undefined;
   NotificationSettings: undefined;
   Settings: undefined;
   HowToPlay: undefined;
@@ -190,6 +192,7 @@ export default function AppNavigator() {
                     component={NotificationSettingsScreen}
                   />
                   <Stack.Screen name="Settings" component={SettingsScreen} />
+                  <Stack.Screen name="Notifications" component={NotificationsScreen} />
                   <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
                 </>
               )}
