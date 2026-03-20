@@ -714,6 +714,8 @@ export interface Translations {
     offline: string;
     sendInvite: string;
     unknownPlayer: string;
+    friendRequest: string;
+    sentYouARequest: string;
   };
 
   // Ranked Leaderboard
@@ -1366,6 +1368,8 @@ const en: Translations = {
     offline: 'Offline',
     sendInvite: 'Send Invite',
     unknownPlayer: 'Player',
+    friendRequest: 'Friend Request',
+    sentYouARequest: 'sent you a friend request.',
   },
 };
 
@@ -2037,6 +2041,8 @@ const ar: Translations = {
     offline: 'غير متصل',
     sendInvite: 'إرسال دعوة',
     unknownPlayer: 'لاعب',
+    friendRequest: 'طلب صداقة',
+    sentYouARequest: 'أرسل لك طلب صداقة.',
   },
 };
 
@@ -2730,6 +2736,8 @@ const de: Translations = {
     offline: 'Offline',
     sendInvite: 'Einladung senden',
     unknownPlayer: 'Spieler',
+    friendRequest: 'Freundschaftsanfrage',
+    sentYouARequest: 'hat dir eine Freundschaftsanfrage gesendet.',
   },
 };
 

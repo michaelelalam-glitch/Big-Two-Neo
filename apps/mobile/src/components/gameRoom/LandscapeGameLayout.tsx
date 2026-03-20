@@ -188,14 +188,11 @@ export function LandscapeGameLayout({
       {
         text: i18n.t('friends.addFriend'),
         onPress: () => {
-          // Render an inline AddFriendButton action — we trigger via a local
-          // ref approach; here we surface the Alert as the simplest in-game UX.
-          // The AddFriendButton in the alert is reflected via the state below.
+          setOpponentActionTarget({ id: opponentId, name: opponentName });
         },
       },
       { text: i18n.t('common.cancel'), style: 'cancel' },
     ]);
-    setOpponentActionTarget({ id: opponentId, name: opponentName });
   };
 
   const [opponentActionTarget, setOpponentActionTarget] = React.useState<{

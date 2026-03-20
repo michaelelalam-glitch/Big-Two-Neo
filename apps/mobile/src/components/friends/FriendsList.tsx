@@ -18,8 +18,8 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { useFriends, Friendship } from '../../hooks/useFriends';
-import { usePresence } from '../../hooks/usePresence';
+import { Friendship } from '../../hooks/useFriends';
+import { useFriendsContext } from '../../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
 import { FriendCard } from './FriendCard';
@@ -37,8 +37,8 @@ export function FriendsList() {
     removeFriend,
     toggleFavorite,
     refresh,
-  } = useFriends();
-  const { isOnline } = usePresence();
+    isOnline,
+  } = useFriendsContext();
   const [tab, setTab] = useState<Tab>('friends');
   const [refreshing, setRefreshing] = useState(false);
 

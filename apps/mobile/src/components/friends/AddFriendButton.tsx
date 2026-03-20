@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useFriends } from '../../hooks/useFriends';
+import { useFriendsContext } from '../../contexts/FriendsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
@@ -20,7 +20,7 @@ interface AddFriendButtonProps {
 
 export function AddFriendButton({ targetUserId, compact = false }: AddFriendButtonProps) {
   const { user } = useAuth();
-  const { sendRequest, isFriendOrPending, friends, outgoingPending } = useFriends();
+  const { sendRequest, isFriendOrPending, friends, outgoingPending } = useFriendsContext();
   const [busy, setBusy] = useState(false);
 
   // Don't show button for current user
