@@ -15,7 +15,7 @@
  * Date: December 18, 2025
  */
 
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import {
@@ -75,20 +75,6 @@ export function LandscapeOpponent({
   onAvatarPress,
   onNameDoubleTap,
 }: LandscapeOpponentProps) {
-  /** Track last tap time for double-tap detection on the name badge */
-  const lastNameTapRef = useRef<number>(0);
-  const DOUBLE_TAP_DELAY = 300; // ms
-
-  const handleNamePress = () => {
-    const now = Date.now();
-    if (now - lastNameTapRef.current < DOUBLE_TAP_DELAY) {
-      // Double-tap detected
-      lastNameTapRef.current = 0;
-      onNameDoubleTap?.();
-    } else {
-      lastNameTapRef.current = now;
-    }
-  };
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
@@ -172,13 +158,17 @@ export function LandscapeOpponent({
         </View>
       </TouchableOpacity>
 
-      {/* Player Name Badge — double-tap to open friend actions */}
+      {/* Player Name Badge — long-press to open friend actions */}
       <TouchableOpacity
-        onPress={handleNamePress}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={`Double-tap to add ${name} as a friend`}
-        accessibilityHint="Double-tap to add this player as a friend."
+        onLongPress={onNameDoubleTap}
+        disabled={!onNameDoubleTap}
+        activeOpacity={onNameDoubleTap ? 0.7 : 1}
+        accessibilityRole={onNameDoubleTap ? 'button' : undefined}
+        accessibilityLabel={onNameDoubleTap ? `Long-press to add ${name} as a friend` : name}
+        accessibilityHint={
+          onNameDoubleTap ? 'Long-press to add this player as a friend.' : undefined
+        }
+        accessibilityState={!onNameDoubleTap ? { disabled: true } : undefined}
       >
         <View
           style={[

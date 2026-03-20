@@ -8,7 +8,15 @@
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+  Alert,
+} from 'react-native';
 import {
   CardHand,
   PlayerInfo,
@@ -31,6 +39,8 @@ import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
 import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
+import { useFriendsContext } from '../contexts/FriendsContext';
+import { AddFriendButton } from '../components/friends';
 
 function GameViewComponent() {
   const {
@@ -110,6 +120,31 @@ function GameViewComponent() {
 
   // Task #652: Track drag zone state for table perimeter glow
   const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
+
+  // Portrait mode: Add-friend action target (set when long-pressing an opponent name)
+  const { friends } = useFriendsContext();
+  const [portraitActionTarget, setPortraitActionTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const handlePortraitOpponentNameLongPress = useCallback(
+    (displayIndex: number) => {
+      const opponentId = remotePlayerIds[displayIndex - 1];
+      const opponentName =
+        layoutPlayersWithScores[displayIndex]?.name ?? i18n.t('friends.unknownPlayer');
+      if (!opponentId) return;
+      const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
+      if (isFriend) {
+        Alert.alert(opponentName, i18n.t('friends.alreadyFriends') || 'You are already friends!', [
+          { text: i18n.t('common.ok'), style: 'cancel' },
+        ]);
+      } else {
+        setPortraitActionTarget({ id: opponentId, name: opponentName });
+      }
+    },
+    [remotePlayerIds, layoutPlayersWithScores, friends]
+  );
 
   // Drag hint pulse animation — only running when the hint is actually visible
   // (avoids keeping an Animated.loop alive for the entire game view lifetime).
@@ -466,6 +501,9 @@ function GameViewComponent() {
               lastPlayCombo={effectiveLastPlayCombo}
               autoPassTimerState={effectiveAutoPassTimerState}
               dropZoneState={dropZoneState}
+              onOpponentNameLongPress={
+                isMultiplayerGame ? handlePortraitOpponentNameLongPress : undefined
+              }
             />
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
@@ -591,6 +629,24 @@ function GameViewComponent() {
                 onToggle={toggleChatDrawer}
                 localUserId={localUserId}
               />
+            )}
+
+            {/* Portrait mode: Add-friend overlay */}
+            {portraitActionTarget && (
+              <View style={styles.friendActionOverlay} pointerEvents="auto">
+                <View style={styles.friendActionCard}>
+                  <Text style={styles.friendActionName} numberOfLines={1}>
+                    {portraitActionTarget.name}
+                  </Text>
+                  <AddFriendButton targetUserId={portraitActionTarget.id} compact />
+                  <TouchableOpacity
+                    style={styles.friendActionClose}
+                    onPress={() => setPortraitActionTarget(null)}
+                  >
+                    <Text style={styles.friendActionCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
           </>
         )}

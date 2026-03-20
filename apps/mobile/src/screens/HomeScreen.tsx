@@ -77,6 +77,11 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.bellButton}
               onPress={() => navigation.navigate('Notifications')}
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+              }
+              accessibilityHint="Opens notification history"
             >
               <Text style={styles.bellButtonText}>🔔</Text>
               {unreadCount > 0 && (

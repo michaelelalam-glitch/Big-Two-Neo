@@ -47,6 +47,8 @@ interface GameLayoutProps {
   autoPassTimerState?: AutoPassTimerState;
   /** Task #652: drag zone state for table perimeter glow */
   dropZoneState?: DragZoneState;
+  /** Called when an opponent name badge is long-pressed; receives display index (1=top, 2=left, 3=right) */
+  onOpponentNameLongPress?: (displayIndex: number) => void;
 }
 
 /**
@@ -71,6 +73,7 @@ function GameLayoutComponent({
   lastPlayCombo,
   autoPassTimerState,
   dropZoneState = 'idle',
+  onOpponentNameLongPress,
 }: GameLayoutProps) {
   // Task #652: Animated glow for table perimeter when dragging cards
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -158,6 +161,7 @@ function GameLayoutComponent({
           isMicOn={players[1].isMicOn}
           isVideoChatConnecting={players[1].isVideoChatConnecting}
           videoStreamSlot={players[1].videoStreamSlot}
+          onNameLongPress={onOpponentNameLongPress ? () => onOpponentNameLongPress(1) : undefined}
         />
       </View>
 
@@ -190,6 +194,9 @@ function GameLayoutComponent({
               isMicOn={players[2].isMicOn}
               isVideoChatConnecting={players[2].isVideoChatConnecting}
               videoStreamSlot={players[2].videoStreamSlot}
+              onNameLongPress={
+                onOpponentNameLongPress ? () => onOpponentNameLongPress(2) : undefined
+              }
             />
           </View>
 
@@ -227,6 +234,9 @@ function GameLayoutComponent({
               isMicOn={players[3].isMicOn}
               isVideoChatConnecting={players[3].isVideoChatConnecting}
               videoStreamSlot={players[3].videoStreamSlot}
+              onNameLongPress={
+                onOpponentNameLongPress ? () => onOpponentNameLongPress(3) : undefined
+              }
             />
           </View>
         </View>
