@@ -105,7 +105,10 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       hydrate: partial => set(partial),
     }),
     {
-      // Central constant so the key stays in sync with migration/clear-cache code
+      // Historically named 'big2-audio-settings'; now backs the full
+      // user-preferences blob (card sort, animation speed, auto-pass timer,
+      // privacy flags). Central constant so the key stays in sync with
+      // migration/clear-cache code.
       name: SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist the data fields, not the action functions.

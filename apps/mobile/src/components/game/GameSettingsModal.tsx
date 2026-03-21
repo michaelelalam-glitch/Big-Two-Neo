@@ -70,18 +70,17 @@ function GameSettingsModalComponent({
   const vibrationEnabled = useUserPreferencesStore(s => s.vibrationEnabled);
   const setSoundEnabled = useUserPreferencesStore(s => s.setSoundEnabled);
   const setVibrationEnabled = useUserPreferencesStore(s => s.setVibrationEnabled);
+  const hydrate = useUserPreferencesStore(s => s.hydrate);
 
-  // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
-  // yet (e.g. user opens this modal on first launch before visiting Settings),
-  // Task #647: on mount, sync sound/vibration from the manager singletons so
-  // the toggles reflect the true persisted state. isAudioEnabled /
-  // isHapticsEnabled are synchronous so no async wrapper is needed.
-  // setSoundEnabled / setVibrationEnabled also fire-and-forget the corresponding
-  // manager sync internally so there is no double-write risk.
+  // On mount: sync sound/vibration from the manager singletons using the
+  // side-effect-free hydrate() action so no manager AsyncStorage writes are
+  // triggered. isAudioEnabled / isHapticsEnabled are synchronous.
   useEffect(() => {
     try {
-      setSoundEnabled(soundManager.isAudioEnabled());
-      setVibrationEnabled(hapticManager.isHapticsEnabled());
+      hydrate({
+        soundEnabled: soundManager.isAudioEnabled(),
+        vibrationEnabled: hapticManager.isHapticsEnabled(),
+      });
     } catch {
       // Non-fatal: Zustand defaults (true/true) remain in effect
     }

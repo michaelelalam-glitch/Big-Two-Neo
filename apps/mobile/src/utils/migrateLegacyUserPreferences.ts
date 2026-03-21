@@ -5,7 +5,9 @@
  * (cardSortOrder, animationSpeed, autoPassTimer, profileVisibility,
  * showOnlineStatus) into the Zustand persist store.
  * Writes an explicit migration sentinel (AUDIO_SETTINGS_MIGRATION_COMPLETE) on
- * completion so the migration never runs twice.
+ * completion so the migration never runs twice, reusing the existing sentinel
+ * key name even though it now guards game/privacy preferences rather than
+ * audio-specific settings.
  *
  * Exposed as a standalone function for unit-testability.
  */
