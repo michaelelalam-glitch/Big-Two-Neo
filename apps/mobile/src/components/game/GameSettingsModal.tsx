@@ -66,8 +66,11 @@ function GameSettingsModalComponent({
   const isLandscape = width > height;
 
   // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
-  const { soundEnabled, vibrationEnabled, setSoundEnabled, setVibrationEnabled, hydrate } =
-    useAudioSettingsStore();
+  const soundEnabled = useAudioSettingsStore(s => s.soundEnabled);
+  const vibrationEnabled = useAudioSettingsStore(s => s.vibrationEnabled);
+  const setSoundEnabled = useAudioSettingsStore(s => s.setSoundEnabled);
+  const setVibrationEnabled = useAudioSettingsStore(s => s.setVibrationEnabled);
+  const hydrate = useAudioSettingsStore(s => s.hydrate);
 
   // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
   // yet (e.g. user opens this modal on first launch before visiting Settings),

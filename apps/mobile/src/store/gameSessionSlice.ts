@@ -5,10 +5,11 @@
  * but previously required prop-drilling through GameView / CardHand / GameControls.
  *
  * Migration plan:
- * - Phase 1 (this PR): Create the slice and expose it as the source-of-truth.
- *   GameContext writes into this slice; consumers may read from either.
- * - Phase 2 (future): Remove the corresponding fields from GameContext so that
- *   all reads go through this store, eliminating prop-drilling entirely.
+ * - Phase 1 (this PR): Create the slice scaffold. No GameContext writes are
+ *   wired yet — this establishes the store shape and devtools integration for
+ *   future migration.
+ * - Phase 2 (future): Wire GameContext to write into this slice; consumers may
+ *   read from either.
  *
  * Note: action callbacks (handlePlayCards, handlePass, etc.) remain in
  * GameContext because they close over async game state managers and LiveKit
@@ -25,7 +26,8 @@ import type { LayoutPlayer, LayoutPlayerWithTimer } from '../contexts/GameContex
 export interface GameSessionState {
   // ── Card selection ────────────────────────────────────────────────────────
   /** IDs of currently selected cards (Set for O(1) lookup) */
-  selectedCardIds: Set<string>;
+  /** Selected card IDs stored as a serializable string array */
+  selectedCardIds: string[];
   /** Derived array of selected Card objects (kept in sync with selectedCardIds) */
   selectedCards: Card[];
   /** User-defined card ordering (drag-to-reorder) */
@@ -50,7 +52,7 @@ export interface GameSessionState {
   matchNumber: number;
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  setSelectedCardIds: (ids: Set<string>, allCards: Card[]) => void;
+  setSelectedCardIds: (ids: string[], allCards: Card[]) => void;
   setCustomCardOrder: (order: string[]) => void;
   setLayoutPlayers: (players: LayoutPlayer[]) => void;
   setLayoutPlayersWithScores: (players: LayoutPlayerWithTimer[]) => void;
@@ -78,7 +80,7 @@ const INITIAL_STATE: Omit<
   | 'setMatchNumber'
   | 'resetSession'
 > = {
-  selectedCardIds: new Set<string>(),
+  selectedCardIds: [],
   selectedCards: [],
   customCardOrder: [],
   layoutPlayers: [],
@@ -98,11 +100,11 @@ export const useGameSessionStore = create<GameSessionState>()(
       ...INITIAL_STATE,
 
       setSelectedCardIds: (ids, allCards) => {
-        const nextIds = new Set(ids);
+        const nextIds = [...ids];
         return set(
           {
             selectedCardIds: nextIds,
-            selectedCards: allCards.filter(c => nextIds.has(c.id)),
+            selectedCards: allCards.filter(c => nextIds.includes(c.id)),
           },
           false,
           'gameSession/setSelectedCardIds'
@@ -133,11 +135,7 @@ export const useGameSessionStore = create<GameSessionState>()(
       setMatchNumber: match => set({ matchNumber: match }, false, 'gameSession/setMatchNumber'),
 
       resetSession: () =>
-        set(
-          { ...INITIAL_STATE, selectedCardIds: new Set<string>() },
-          false,
-          'gameSession/resetSession'
-        ),
+        set({ ...INITIAL_STATE, selectedCardIds: [] }, false, 'gameSession/resetSession'),
     }),
     { name: 'Big2/GameSession' }
   )
