@@ -212,7 +212,7 @@ export function LandscapeGameLayout({
     if (!opponentId) return;
     const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
     if (isFriend) {
-      Alert.alert(opponentName, i18n.t('friends.alreadyFriends') || 'You are already friends!', [
+      Alert.alert(opponentName, i18n.t('friends.requestPending'), [
         { text: i18n.t('common.ok'), style: 'cancel' },
       ]);
     } else {
