@@ -1,17 +1,17 @@
 ---
 mode: agent
-description: Start a new task — sync dev, create branch, and set up a plan before coding
+description: Start a new task — sync develop, create branch, and set up a plan before coding
 ---
 
 # Begin Task Workflow
 
 You are starting a new development task for Big Two Neo. Follow these steps **in order** before writing any code.
 
-## 1. Sync with latest dev
+## 1. Sync with latest develop
 
 ```bash
-git checkout dev
-git pull origin dev
+git checkout develop
+git pull origin develop
 ```
 
 ## 2. Create the feature branch
