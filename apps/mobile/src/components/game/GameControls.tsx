@@ -1,5 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  AccessibilityInfo,
+} from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, OPACITIES } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, SoundType } from '../../utils';
@@ -45,58 +53,75 @@ function GameControlsComponent({
   const [isPlayingCards, setIsPlayingCards] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
 
-  const handlePlayCards = useCallback(async (cards: Card[]) => {
-    // Prevent duplicate card plays
-    if (isPlayingCards) {
-      return;
-    }
-
-    try {
-      setIsPlayingCards(true);
-
-      // Task #270: Add haptic feedback for Play button
-      hapticManager.playCard();
-
-      // Task #313: Auto-sort cards for proper display order before submission
-      // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
-      const sortedCards = sortCardsForDisplay(cards);
-
-      gameLogger.info('🎴 [GameControls] Playing cards (auto-sorted):', sortedCards.map(c => c.id));
-
-      // Delegate to GameScreen (local or multiplayer)
-      await onPlayCards(sortedCards);
-
-      gameLogger.info('✅ [GameControls] Cards played successfully');
-      soundManager.playSound(SoundType.CARD_PLAY);
-
-      // Preserve custom card order by removing only the played cards
-      if (customCardOrder.length > 0) {
-        const playedCardIds = new Set(sortedCards.map(c => c.id));
-        const currentHandCardIds = new Set(playerHand.map(card => card.id));
-        const updatedOrder = customCardOrder.filter(
-          id => !playedCardIds.has(id) && currentHandCardIds.has(id)
-        );
-        setCustomCardOrder(updatedOrder);
+  const handlePlayCards = useCallback(
+    async (cards: Card[]) => {
+      // Prevent duplicate card plays
+      if (isPlayingCards) {
+        return;
       }
 
-      onPlaySuccess();
-    } catch (error: unknown) {
-      // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameControls] Failed to play cards:', error instanceof Error ? error.message : String(error));
+      try {
+        setIsPlayingCards(true);
 
-      // Show user-friendly error
-      soundManager.playSound(SoundType.INVALID_MOVE);
-      const errorMessage = error instanceof Error ? error.message : 'Invalid play';
-      Alert.alert('Invalid Move', errorMessage);
-    } finally {
-      // Release lock after short delay to prevent rapid double-taps
-      setTimeout(() => {
-        if (isMounted.current) {
-          setIsPlayingCards(false);
+        // Task #270: Add haptic feedback for Play button
+        hapticManager.playCard();
+
+        // Task #313: Auto-sort cards for proper display order before submission
+        // This ensures straights are played as 6-5-4-3-2 (highest first) not 3-4-5-6-2
+        const sortedCards = sortCardsForDisplay(cards);
+
+        gameLogger.info(
+          '🎴 [GameControls] Playing cards (auto-sorted):',
+          sortedCards.map(c => c.id)
+        );
+
+        // Delegate to GameScreen (local or multiplayer)
+        await onPlayCards(sortedCards);
+
+        gameLogger.info('✅ [GameControls] Cards played successfully');
+        soundManager.playSound(SoundType.CARD_PLAY);
+
+        // Preserve custom card order by removing only the played cards
+        if (customCardOrder.length > 0) {
+          const playedCardIds = new Set(sortedCards.map(c => c.id));
+          const currentHandCardIds = new Set(playerHand.map(card => card.id));
+          const updatedOrder = customCardOrder.filter(
+            id => !playedCardIds.has(id) && currentHandCardIds.has(id)
+          );
+          setCustomCardOrder(updatedOrder);
         }
-      }, 300);
-    }
-  }, [isPlayingCards, isMounted, customCardOrder, playerHand, onPlaySuccess, setCustomCardOrder, onPlayCards]);
+
+        onPlaySuccess();
+      } catch (error: unknown) {
+        // Only log error message/code to avoid exposing game state internals
+        gameLogger.error(
+          '❌ [GameControls] Failed to play cards:',
+          error instanceof Error ? error.message : String(error)
+        );
+
+        // Show user-friendly error
+        soundManager.playSound(SoundType.INVALID_MOVE);
+        const errorMessage = error instanceof Error ? error.message : 'Invalid play';
+        Alert.alert('Invalid Move', errorMessage);
+      } finally {
+        // Release lock after short delay to prevent rapid double-taps
+        setTimeout(() => {
+          if (isMounted.current) {
+            setIsPlayingCards(false);
+          }
+        }, 300);
+      }
+    },
+    [
+      isPlayingCards,
+      isMounted,
+      customCardOrder,
+      playerHand,
+      onPlaySuccess,
+      setCustomCardOrder,
+      onPlayCards,
+    ]
+  );
 
   const handlePass = useCallback(async () => {
     if (isPassing) {
@@ -118,7 +143,10 @@ function GameControlsComponent({
       onPassSuccess();
     } catch (error: unknown) {
       // Only log error message/code to avoid exposing game state internals
-      gameLogger.error('❌ [GameControls] Failed to pass:', error instanceof Error ? error.message : String(error));
+      gameLogger.error(
+        '❌ [GameControls] Failed to pass:',
+        error instanceof Error ? error.message : String(error)
+      );
 
       const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
       Alert.alert('Cannot Pass', errorMessage);
@@ -135,36 +163,69 @@ function GameControlsComponent({
   const isPassDisabled = !isPlayerActive || isPassing;
   const isPlayDisabled = !isPlayerActive || selectedCards.length === 0 || isPlayingCards;
 
+  // Task #645: Dynamic play label announces card count to screen readers
+  const playLabel =
+    selectedCards.length > 0
+      ? `Play ${selectedCards.length} card${selectedCards.length !== 1 ? 's' : ''}`
+      : 'Play selected cards';
+
+  // Task #645: Announce when play becomes enabled (cards selected on active turn)
+  const prevPlayDisabledRef = React.useRef(isPlayDisabled);
+  React.useEffect(() => {
+    if (prevPlayDisabledRef.current && !isPlayDisabled) {
+      AccessibilityInfo.announceForAccessibility(
+        `${selectedCards.length} card${selectedCards.length !== 1 ? 's' : ''} selected. Ready to play.`
+      );
+    }
+    prevPlayDisabledRef.current = isPlayDisabled;
+  }, [isPlayDisabled, selectedCards.length]);
+
   return (
     <View style={styles.actionButtons}>
+      {/* Task #645: Live region Text announces turn/selection state changes */}
+      <Text
+        style={styles.srOnly}
+        accessibilityLiveRegion="polite"
+        accessibilityElementsHidden={false}
+      >
+        {isPlayerActive
+          ? selectedCards.length > 0
+            ? `Your turn. ${selectedCards.length} card${selectedCards.length !== 1 ? 's' : ''} selected.`
+            : 'Your turn. Select cards to play.'
+          : ''}
+      </Text>
       <Pressable
         style={[styles.actionButton, styles.passButton, isPassDisabled && styles.buttonDisabled]}
         onPress={handlePass}
         disabled={isPassDisabled}
         accessibilityRole="button"
         accessibilityLabel="Pass turn"
+        accessibilityHint="Skips your turn and passes to the next player"
         accessibilityState={{ disabled: isPassDisabled }}
       >
         {isPassing ? (
-          <ActivityIndicator color={COLORS.gray.light} size="small" accessibilityLabel="Passing turn" />
+          <ActivityIndicator
+            color={COLORS.gray.light}
+            size="small"
+            accessibilityLabel="Passing turn"
+          />
         ) : (
-          <Text style={[styles.actionButtonText, styles.passButtonText]}>{i18n.t('game.pass')}</Text>
+          <Text style={[styles.actionButtonText, styles.passButtonText]}>
+            {i18n.t('game.pass')}
+          </Text>
         )}
       </Pressable>
 
       <Pressable
-        style={[
-          styles.actionButton,
-          styles.playButton,
-          isPlayDisabled && styles.buttonDisabled,
-        ]}
+        style={[styles.actionButton, styles.playButton, isPlayDisabled && styles.buttonDisabled]}
         onPress={() => {
           if (isPlayDisabled) return;
           handlePlayCards(selectedCards);
         }}
         disabled={isPlayDisabled}
         accessibilityRole="button"
-        accessibilityLabel="Play selected cards"
+        accessibilityLabel={playLabel}
+        accessibilityHint="Plays your selected cards onto the table"
         accessibilityState={{ disabled: isPlayDisabled }}
       >
         {isPlayingCards ? (
@@ -173,7 +234,6 @@ function GameControlsComponent({
           <Text style={styles.actionButtonText}>{i18n.t('game.play')}</Text>
         )}
       </Pressable>
-
     </View>
   );
 }
@@ -183,6 +243,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.md,
     alignItems: 'center',
+  },
+  // Task #645: Screen-reader-only live region; visually hidden but announced by VoiceOver/TalkBack
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    opacity: 0,
   },
   actionButton: {
     paddingVertical: SPACING.sm,
