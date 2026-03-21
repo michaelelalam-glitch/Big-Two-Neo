@@ -728,6 +728,9 @@ export interface Translations {
     empty: string;
     clearAll: string;
     justNow: string;
+    bellLabel: string;
+    bellLabelWithCount: string;
+    bellHint: string;
   };
 
   // Ranked Leaderboard
@@ -1393,6 +1396,9 @@ const en: Translations = {
     empty: 'No notifications yet',
     clearAll: 'Clear All',
     justNow: 'Just now',
+    bellLabel: 'Notifications',
+    bellLabelWithCount: 'Notifications, {{count}} unread',
+    bellHint: 'Opens notification history',
   },
 };
 
@@ -2077,6 +2083,9 @@ const ar: Translations = {
     empty: 'لا توجد إشعارات بعد',
     clearAll: 'مسح الكل',
     justNow: 'الآن',
+    bellLabel: 'الإشعارات',
+    bellLabelWithCount: 'الإشعارات، {{count}} غير مقروء',
+    bellHint: 'يفتح سجل الإشعارات',
   },
 };
 
@@ -2784,6 +2793,9 @@ const de: Translations = {
     empty: 'Noch keine Benachrichtigungen',
     clearAll: 'Alle löschen',
     justNow: 'Gerade eben',
+    bellLabel: 'Benachrichtigungen',
+    bellLabelWithCount: 'Benachrichtigungen, {{count}} ungelesen',
+    bellHint: 'Öffnet den Benachrichtigungsverlauf',
   },
 };
 

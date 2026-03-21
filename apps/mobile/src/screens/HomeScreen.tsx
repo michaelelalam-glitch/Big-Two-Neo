@@ -79,9 +79,11 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate('Notifications')}
               accessibilityRole="button"
               accessibilityLabel={
-                unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+                unreadCount > 0
+                  ? i18n.t('notifications.bellLabelWithCount', { count: unreadCount })
+                  : i18n.t('notifications.bellLabel')
               }
-              accessibilityHint="Opens notification history"
+              accessibilityHint={i18n.t('notifications.bellHint')}
             >
               <Text style={styles.bellButtonText}>🔔</Text>
               {unreadCount > 0 && (
