@@ -39,14 +39,18 @@ function notifIcon(type: AppNotification['type']): string {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<NotificationsNavProp>();
-  const { storedNotifications, markAllRead, clearAll } = useNotifications();
+  const { storedNotifications, unreadCount, markAllRead, clearAll } = useNotifications();
 
   // Mark all as read whenever the screen gains focus (not just on initial mount),
   // so notifications received while navigating away are also cleared on return.
+  // Guard with unreadCount to avoid unnecessary AsyncStorage writes and renders
+  // when everything is already read.
   useFocusEffect(
     useCallback(() => {
-      markAllRead();
-    }, [markAllRead])
+      if (unreadCount > 0) {
+        markAllRead();
+      }
+    }, [markAllRead, unreadCount])
   );
 
   const handleNotifPress = (item: AppNotification) => {
