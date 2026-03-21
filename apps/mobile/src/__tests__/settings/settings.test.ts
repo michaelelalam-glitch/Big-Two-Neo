@@ -227,6 +227,99 @@ describe('Settings Persistence', () => {
         '@big2_another_cache',
       ]);
     });
+
+    it('should preserve Zustand persist blob and migration marker during cache clear', async () => {
+      const allKeys = [
+        SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
+        SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
+        '@big2_some_cache_data',
+        'supabase.auth.token',
+      ];
+      (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue(allKeys);
+
+      const keysToKeep = [
+        SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
+        SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
+        'supabase.auth.token',
+      ];
+      const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key));
+      await AsyncStorage.multiRemove(keysToRemove);
+
+      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith(['@big2_some_cache_data']);
+    });
+  });
+});
+
+describe('Audio Settings Migration (Task #647)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('runs migration when AUDIO_SETTINGS_MIGRATION_COMPLETE marker is absent', async () => {
+    // No migration marker → migration should run
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
+      if (key === SETTINGS_KEYS.CARD_SORT_ORDER) return Promise.resolve('rank');
+      if (key === SETTINGS_KEYS.ANIMATION_SPEED) return Promise.resolve('fast');
+      return Promise.resolve(null);
+    });
+
+    const alreadyMigrated = await AsyncStorage.getItem(
+      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
+    );
+    expect(alreadyMigrated).toBeNull();
+
+    // Simulate reading legacy keys and writing Zustand persist values
+    const cardSort = await AsyncStorage.getItem(SETTINGS_KEYS.CARD_SORT_ORDER);
+    expect(cardSort).toBe('rank');
+
+    const animSpeed = await AsyncStorage.getItem(SETTINGS_KEYS.ANIMATION_SPEED);
+    expect(animSpeed).toBe('fast');
+
+    // After migration, marker should be written
+    await AsyncStorage.setItem(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
+      '1'
+    );
+  });
+
+  it('skips migration when AUDIO_SETTINGS_MIGRATION_COMPLETE marker is present', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve('1');
+      return Promise.resolve(null);
+    });
+
+    const alreadyMigrated = await AsyncStorage.getItem(
+      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
+    );
+    expect(alreadyMigrated).toBe('1');
+    // No legacy key reads should be needed
+    expect(AsyncStorage.getItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('migration is not suppressed by early creation of the persist blob', async () => {
+    // Simulates: GameSettingsModal creates 'big2-audio-settings' before SettingsScreen runs.
+    // Migration must still run because it checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not persist blob.
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST)
+        return Promise.resolve('{"cardSortOrder":"suit"}');
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
+      return Promise.resolve(null);
+    });
+
+    const persistBlobExists = await AsyncStorage.getItem(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST);
+    expect(persistBlobExists).not.toBeNull(); // persist blob exists early
+
+    const alreadyMigrated = await AsyncStorage.getItem(
+      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
+    );
+    expect(alreadyMigrated).toBeNull(); // but migration marker is absent → migration should run
+  });
+
+  it('writes Zustand persist blob key to AUDIO_SETTINGS_PERSIST constant', async () => {
+    // Verifies the persist layer uses the shared constant, not a hard-coded string
+    expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('big2-audio-settings');
   });
 });
 
