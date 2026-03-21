@@ -23,7 +23,7 @@ function makeCacheKey(cards: Card[]): string {
     .join(',');
 }
 
-function lruSet<V>(cache: Map<string, V>, key: string, value: V, max: number): void {
+function fifoSet<V>(cache: Map<string, V>, key: string, value: V, max: number): void {
   if (cache.size >= max) {
     cache.delete(cache.keys().next().value as string);
   }
@@ -52,7 +52,7 @@ export function sortHand(cards: Card[]): Card[] {
     if (rankDiff !== 0) return rankDiff;
     return SUIT_VALUE[a.suit] - SUIT_VALUE[b.suit];
   });
-  lruSet(_sortHandCache, key, Object.freeze([...sorted]) as Card[], SORT_CACHE_MAX);
+  fifoSet(_sortHandCache, key, Object.freeze([...sorted]) as Card[], SORT_CACHE_MAX);
   return sorted;
 }
 
@@ -208,7 +208,7 @@ export function classifyCards(cards: Card[]): ComboType {
     result = 'unknown';
   }
 
-  lruSet(_classifyCache, key, result, CLASSIFY_CACHE_MAX);
+  fifoSet(_classifyCache, key, result, CLASSIFY_CACHE_MAX);
   return result;
 }
 
@@ -312,7 +312,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
 
   const newCombo = classifyCards(newCards);
   if (newCombo === 'unknown') {
-    lruSet(_beatCache, beatKey, false, BEAT_CACHE_MAX);
+    fifoSet(_beatCache, beatKey, false, BEAT_CACHE_MAX);
     return false;
   }
 
@@ -324,7 +324,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
   // Different combo types - compare strength
   if (newCombo !== lastPlay.combo_type) {
     result = newStrength > lastStrength;
-    lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+    fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
     return result;
   }
 
@@ -337,7 +337,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
     const newTripleRank = getTripleRank(newSorted);
     const lastTripleRank = getTripleRank(lastSorted);
     result = RANK_VALUE[newTripleRank] > RANK_VALUE[lastTripleRank];
-    lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+    fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
     return result;
   }
 
@@ -346,7 +346,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
     const newQuadRank = getQuadRank(newSorted);
     const lastQuadRank = getQuadRank(lastSorted);
     result = RANK_VALUE[newQuadRank] > RANK_VALUE[lastQuadRank];
-    lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+    fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
     return result;
   }
 
@@ -360,7 +360,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
     if (newSeqIdx !== -1 && lastSeqIdx !== -1) {
       if (newSeqIdx !== lastSeqIdx) {
         result = newSeqIdx > lastSeqIdx;
-        lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+        fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
         return result;
       }
       // Same sequence — tiebreak by top card suit
@@ -368,7 +368,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
       const lastTopCard = getStraightTopCard(lastPlay.cards, lastSeqIdx);
       if (newTopCard && lastTopCard) {
         result = SUIT_VALUE[newTopCard.suit] > SUIT_VALUE[lastTopCard.suit];
-        lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+        fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
         return result;
       }
     }
@@ -379,7 +379,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
   const lastHighest = lastSorted[lastSorted.length - 1];
 
   result = getCardValue(newHighest) > getCardValue(lastHighest);
-  lruSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
+  fifoSet(_beatCache, beatKey, result, BEAT_CACHE_MAX);
   return result;
 }
 
