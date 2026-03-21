@@ -83,6 +83,7 @@ export default function LobbyScreen() {
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
   const claimHostInFlightRef = useRef(false); // Prevent concurrent lobby_claim_host RPC calls
+  const hasAttemptedJoinRef = useRef(false); // Prevent repeated join_room_atomic calls in invite-join flow
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
@@ -437,7 +438,10 @@ export default function LobbyScreen() {
 
         // Invite join: user arrived via a push notification / deep link and
         // hasn't called join_room_atomic yet — auto-join them now.
-        if (joining && user && !isLeavingRef.current) {
+        // Guard with hasAttemptedJoinRef to prevent repeated RPC calls when
+        // the realtime subscription fires while the join is in-flight.
+        if (joining && user && !isLeavingRef.current && !hasAttemptedJoinRef.current) {
+          hasAttemptedJoinRef.current = true;
           const username = profile?.username || user.email?.split('@')[0] || 'Player';
           roomLogger.info('[LobbyScreen] Invite join — auto-joining room as:', username);
           const { error: joinError } = await supabase.rpc('join_room_atomic', {
@@ -447,11 +451,15 @@ export default function LobbyScreen() {
           });
           if (joinError) {
             roomLogger.error('[LobbyScreen] Failed to join on invite:', joinError.message);
+            hasAttemptedJoinRef.current = false; // allow retry on transient errors
             // Room may be full or no longer exist — fall back to Home
             if (!isLeavingRef.current) {
               isLeavingRef.current = true;
               navigation.replace('Home');
             }
+          } else {
+            // Clear the joining param so subsequent loadPlayers calls don't re-enter this branch
+            navigation.setParams({ joining: false });
           }
           // loadPlayers will fire again via the realtime subscription
           return;

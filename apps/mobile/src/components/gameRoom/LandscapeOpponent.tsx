@@ -53,8 +53,8 @@ interface LandscapeOpponentProps {
   onCountdownExpired?: () => void;
   /** Called when the avatar is tapped (e.g. to add as friend) */
   onAvatarPress?: () => void;
-  /** Called when the player name badge is double-tapped */
-  onNameDoubleTap?: () => void;
+  /** Called when the player name badge is long-pressed (e.g. to add as friend) */
+  onNameLongPress?: () => void;
 }
 
 // ============================================================================
@@ -73,7 +73,7 @@ export function LandscapeOpponent({
   turnTimerStartedAt,
   onCountdownExpired,
   onAvatarPress,
-  onNameDoubleTap,
+  onNameLongPress,
 }: LandscapeOpponentProps) {
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
@@ -160,15 +160,15 @@ export function LandscapeOpponent({
 
       {/* Player Name Badge — long-press to open friend actions */}
       <TouchableOpacity
-        onLongPress={onNameDoubleTap}
-        disabled={!onNameDoubleTap}
-        activeOpacity={onNameDoubleTap ? 0.7 : 1}
-        accessibilityRole={onNameDoubleTap ? 'button' : undefined}
-        accessibilityLabel={onNameDoubleTap ? `Long-press to add ${name} as a friend` : name}
+        onLongPress={onNameLongPress}
+        disabled={!onNameLongPress}
+        activeOpacity={onNameLongPress ? 0.7 : 1}
+        accessibilityRole={onNameLongPress ? 'button' : undefined}
+        accessibilityLabel={onNameLongPress ? `Long-press to add ${name} as a friend` : name}
         accessibilityHint={
-          onNameDoubleTap ? 'Long-press to add this player as a friend.' : undefined
+          onNameLongPress ? 'Long-press to add this player as a friend.' : undefined
         }
-        accessibilityState={!onNameDoubleTap ? { disabled: true } : undefined}
+        accessibilityState={!onNameLongPress ? { disabled: true } : undefined}
       >
         <View
           style={[

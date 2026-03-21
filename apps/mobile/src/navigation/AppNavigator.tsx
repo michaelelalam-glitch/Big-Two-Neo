@@ -149,10 +149,16 @@ export default function AppNavigator() {
     pendingLinkRef.current = null;
     // Small delay to let the authenticated stack finish mounting.
     const timerId = setTimeout(() => {
-      // Only replay custom-scheme links; React Navigation's linking config
-      // handles https universal links natively once the app stack mounts.
-      if (url.startsWith('big2mobile://') || url.startsWith('https://big2.app')) {
-        Linking.openURL(url).catch(err =>
+      // Convert https://big2.app/... universal links to the custom scheme so
+      // Linking.openURL always resolves within the app, never opening a browser
+      // on devices where universal-link association is broken or missing.
+      // React Navigation's linking config handles both prefixes identically once
+      // the authenticated stack is mounted, so the custom-scheme replay is safe.
+      const replayUrl = url.startsWith('https://big2.app')
+        ? url.replace('https://big2.app', 'big2mobile:/')
+        : url;
+      if (replayUrl.startsWith('big2mobile://')) {
+        Linking.openURL(replayUrl).catch(err =>
           authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
         );
       }
