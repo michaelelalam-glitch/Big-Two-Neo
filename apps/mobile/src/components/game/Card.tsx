@@ -353,13 +353,13 @@ const Card = React.memo(function Card({
             ? undefined
             : [
                 { name: 'activate', label: isSelected ? 'Deselect card' : 'Select card' },
-                ...(onLongPress ? [{ name: 'longPress', label: 'Long press' }] : []),
+                ...(onLongPress ? [{ name: 'longpress', label: 'Long press' }] : []),
               ]
         }
         onAccessibilityAction={event => {
           if (event.nativeEvent.actionName === 'activate') {
             onToggleSelect(card.id);
-          } else if (event.nativeEvent.actionName === 'longPress' && onLongPress) {
+          } else if (event.nativeEvent.actionName === 'longpress' && onLongPress) {
             onLongPress();
           }
         }}

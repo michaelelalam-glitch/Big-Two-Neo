@@ -8,7 +8,7 @@ import { RANK_VALUE, SUIT_VALUE, COMBO_STRENGTH, VALID_STRAIGHT_SEQUENCES } from
 import { findStraightSequenceIndex, getStraightTopCard } from './utils';
 
 // ─── Task #280: Memoization caches ───────────────────────────────────────────
-// LRU-style eviction: evict the oldest entry when the Map exceeds MAX_SIZE.
+// FIFO eviction: evict the oldest-inserted entry when the Map exceeds MAX_SIZE.
 // Map iteration order is insertion order, so keys().next() gives the oldest.
 
 const CLASSIFY_CACHE_MAX = 256;
@@ -46,13 +46,13 @@ export function sortHand(cards: Card[]): Card[] {
   if (!cards || cards.length === 0) return [];
   const key = makeCacheKey(cards);
   const cached = _sortHandCache.get(key);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) return [...cached];
   const sorted = [...cards].sort((a, b) => {
     const rankDiff = RANK_VALUE[a.rank] - RANK_VALUE[b.rank];
     if (rankDiff !== 0) return rankDiff;
     return SUIT_VALUE[a.suit] - SUIT_VALUE[b.suit];
   });
-  lruSet(_sortHandCache, key, sorted, SORT_CACHE_MAX);
+  lruSet(_sortHandCache, key, Object.freeze([...sorted]) as Card[], SORT_CACHE_MAX);
   return sorted;
 }
 
