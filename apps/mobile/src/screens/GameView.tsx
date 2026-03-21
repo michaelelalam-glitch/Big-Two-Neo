@@ -136,7 +136,7 @@ function GameViewComponent() {
       if (!opponentId) return;
       const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
       if (isFriend) {
-        Alert.alert(opponentName, i18n.t('friends.requestPending'), [
+        Alert.alert(opponentName, i18n.t('friends.alreadyFriends'), [
           { text: i18n.t('common.ok'), style: 'cancel' },
         ]);
       } else {
