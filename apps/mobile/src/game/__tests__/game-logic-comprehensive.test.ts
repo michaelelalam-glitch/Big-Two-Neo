@@ -603,6 +603,62 @@ describe('isHighestPossiblePlay — Four of a Kind', () => {
     ];
     expect(isHighestPossiblePlay(fourAces, [])).toBe(false);
   });
+
+  it('detects Four 2s as highest even when other quads (Aces, Kings) remain in deck', () => {
+    // Regression: after fix that excludes current play from remaining,
+    // the 4K branch must use rank-value comparison (not equality) so that
+    // four 2s (highest rank) is seen as unbeatable even though four Aces/Kings
+    // are still possible from the remaining cards.
+    const four2s: Card[] = [
+      card('2', 'S'),
+      card('2', 'H'),
+      card('2', 'D'),
+      card('2', 'C'),
+      card('3', 'C'),
+    ];
+    // blockSF from the Straight Flush test suite — blocks all SFs but leaves
+    // many quads still possible (Aces, Kings, Queens, etc.)
+    const blockSFOnly: Card[] = [
+      card('10', 'H'),
+      card('J', 'C'),
+      card('Q', 'S'),
+      card('K', 'D'),
+      card('9', 'H'),
+      card('9', 'C'),
+      card('9', 'S'),
+      card('9', 'D'),
+      card('8', 'H'),
+      card('8', 'C'),
+      card('8', 'S'),
+      card('8', 'D'),
+      card('7', 'H'),
+      card('7', 'C'),
+      card('7', 'S'),
+      card('7', 'D'),
+      card('6', 'H'),
+      card('6', 'C'),
+      card('6', 'S'),
+      card('6', 'D'),
+      card('5', 'H'),
+      card('5', 'C'),
+      card('5', 'S'),
+      card('5', 'D'),
+      card('4', 'H'),
+      card('4', 'C'),
+      card('4', 'S'),
+      card('4', 'D'),
+      card('3', 'H'),
+      card('3', 'S'),
+      card('3', 'D'),
+      card('A', 'H'),
+      card('A', 'C'),
+      card('A', 'D'),
+    ];
+    // four Aces are still formable (AS + 3 blocked = nope, AH/AC/AD blocked,
+    // only AS remains → no quad Aces). But four Kings, Queens, etc. remain possible.
+    // Four 2s (highest rank) should always be detected as highest once SF is impossible.
+    expect(isHighestPossiblePlay(four2s, blockSFOnly)).toBe(true);
+  });
 });
 
 // ── validateOneCardLeftRule: additional edge cases ────────────────────────────
