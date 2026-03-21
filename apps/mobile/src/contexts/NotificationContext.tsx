@@ -7,6 +7,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
+import { Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
@@ -223,8 +224,25 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // logged out (NotificationProvider wraps the whole navigator, so these
       // routes may not exist in the auth stack).
       if (!isLoggedIn) {
-        // App will deep-link / resume to the intended destination after login
-        // via AppNavigator's pendingLinkRef; nothing to do here.
+        // Convert the payload to a deep link and fire via Linking so that
+        // AppNavigator's pendingLinkRef captures it and replays the navigation
+        // after the user signs in.
+        let pendingUrl: string | null = null;
+        if (data.type === 'game_invite' && data.roomCode) {
+          pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
+        } else if ((data.type === 'your_turn' || data.type === 'game_started') && data.roomCode) {
+          pendingUrl = `big2mobile://game/${data.roomCode as string}`;
+        } else if (data.type === 'friend_request') {
+          pendingUrl = 'big2mobile://profile';
+        }
+        if (pendingUrl) {
+          Linking.openURL(pendingUrl).catch((err: unknown) =>
+            notificationLogger.warn(
+              '[NotificationContext] Failed to queue pending notification deep link:',
+              String(err)
+            )
+          );
+        }
         return;
       }
 
