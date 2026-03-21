@@ -3,8 +3,7 @@
  *
  * Covers:
  *   - Straight / Straight-Flush tiebreaks in canBeatPlay
- *   - Full-House quad-rank comparison in canBeatPlay (and the error paths for
- *     getTripleRank / getQuadRank when data is malformed — exercising throw)
+ *   - Full-House quad-rank comparison in canBeatPlay
  *   - findRecommendedPlay: flush / full-house / four-of-a-kind recommendations,
  *     and the "no play possible" null case
  *   - validateOneCardLeftRule edge cases not covered in game-logic.test.ts
@@ -325,7 +324,7 @@ describe('isHighestPossiblePlay — Full House', () => {
       card('2', 'D'),
       card('2', 'C'),
       card('Q', 'H'),
-      card('Q', 'S'),
+      card('Q', 'D'),
     ];
     expect(isHighestPossiblePlay(fh_two_queens, blockSFAndNoFourOfAKind)).toBe(false);
   });
