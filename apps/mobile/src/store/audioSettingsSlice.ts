@@ -18,6 +18,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SETTINGS_KEYS } from '../utils/settings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,8 @@ export const useAudioSettingsStore = create<AudioSettingsState>()(
       hydrate: partial => set(partial),
     }),
     {
-      name: 'big2-audio-settings',
+      // Central constant so the key stays in sync with migration/clear-cache code
+      name: SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist the data fields, not the action functions.
       // soundEnabled/vibrationEnabled are excluded: they're owned by the
