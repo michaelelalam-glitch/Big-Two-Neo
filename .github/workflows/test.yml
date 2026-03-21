@@ -79,9 +79,10 @@ jobs:
         run: |
           cd apps/mobile
           # Run all unit tests with coverage.
-          # Coverage thresholds (branches 78, functions 76, lines 76, statements 76)
+          # Coverage thresholds (branches 80, functions 78, lines 78, statements 78)
           # are enforced in jest.config.js — Jest exits non-zero if coverage drops
-          # below thresholds. With isolatedModules: true in ts-jest config, coverage
+          # below thresholds. Thresholds ratcheted +2% per sprint (Task #617, Mar 2026).
+          # Previous sprint: branches 78, functions 76, lines 76, statements 76.
           # completes in ~60s on 2-vCPU CI runners (was 11+ min without isolatedModules).
           # --forceExit: forces process.exit after all tests complete if open handles
           #   remain (e.g. unclosed DB connections). It does NOT mask test failures —
@@ -95,6 +96,11 @@ jobs:
             --testTimeout=15000 \
             --coverage
         timeout-minutes: 15
+
+      - name: 📦 Bundle size check (Task #616)
+        run: |
+          cd apps/mobile
+          node scripts/check-bundle-size.js
       
       
       - name: ⚠️ Integration tests skipped (no credentials)

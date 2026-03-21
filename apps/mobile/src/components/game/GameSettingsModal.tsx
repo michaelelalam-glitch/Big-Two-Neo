@@ -1,9 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions, Share, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  Share,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
+import { useAudioSettingsStore } from '../../store';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -52,26 +64,15 @@ function GameSettingsModalComponent({
   // Detect orientation
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  
-  // Load initial settings from managers
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
 
-  // Load saved settings on mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      const savedSoundEnabled = await soundManager.isAudioEnabled();
-      const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
-      setSoundEnabled(savedSoundEnabled);
-      setVibrationEnabled(savedVibrationEnabled);
-    };
-    loadSettings();
-  }, []);
+  // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
+  const { soundEnabled, vibrationEnabled, setSoundEnabled, setVibrationEnabled } =
+    useAudioSettingsStore();
 
   const handleToggleSound = async () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue);
-    await soundManager.setAudioEnabled(newValue);
+    setSoundEnabled(newValue); // Zustand (persists automatically)
+    await soundManager.setAudioEnabled(newValue); // sync manager singleton
     // Play confirmation haptic
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
@@ -80,8 +81,8 @@ function GameSettingsModalComponent({
 
   const handleToggleVibration = async () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue);
-    await hapticManager.setHapticsEnabled(newValue);
+    setVibrationEnabled(newValue); // Zustand (persists automatically)
+    await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
     // Play confirmation haptic if enabling (ironic but standard UX)
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);
@@ -100,15 +101,9 @@ function GameSettingsModalComponent({
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      Alert.alert(
-        i18n.t('lobby.copiedTitle'),
-        i18n.t('lobby.copiedMessage', { roomCode }),
-      );
+      Alert.alert(i18n.t('lobby.copiedTitle'), i18n.t('lobby.copiedMessage', { roomCode }));
     } else if (result === 'failed') {
-      Alert.alert(
-        i18n.t('lobby.copyFailedTitle'),
-        i18n.t('lobby.copyFailedMessage', { roomCode }),
-      );
+      Alert.alert(i18n.t('lobby.copyFailedTitle'), i18n.t('lobby.copyFailedMessage', { roomCode }));
     }
     // 'shared': Share sheet was presented — no additional alert needed
   }, [roomCode, vibrationEnabled]);
@@ -117,7 +112,9 @@ function GameSettingsModalComponent({
     if (!roomCode) return;
     try {
       await Share.share({
-        message: i18n.t('lobby.shareMessage', { roomCode }) || `Join my Big Two game! Room code: ${roomCode}`,
+        message:
+          i18n.t('lobby.shareMessage', { roomCode }) ||
+          `Join my Big Two game! Room code: ${roomCode}`,
         title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
       });
     } catch {
@@ -134,11 +131,20 @@ function GameSettingsModalComponent({
       supportedOrientations={['portrait', 'landscape']}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={[styles.modalContainer, isLandscape && styles.modalContainerLandscape, { maxHeight: height * 0.88 }]} onStartShouldSetResponder={() => true}>
+        <View
+          style={[
+            styles.modalContainer,
+            isLandscape && styles.modalContainerLandscape,
+            { maxHeight: height * 0.88 },
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={[styles.header, isLandscape && styles.headerLandscape]}>
-            <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>{i18n.t('game.settings')}</Text>
-            <Pressable 
-              onPress={onClose} 
+            <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>
+              {i18n.t('game.settings')}
+            </Text>
+            <Pressable
+              onPress={onClose}
               style={styles.closeButton}
               testID="close-settings-button"
               accessibilityRole="button"
@@ -151,7 +157,7 @@ function GameSettingsModalComponent({
           {/* LANDSCAPE MODE: Single-row layout (no scroll) */}
           {isLandscape ? (
             <View style={styles.contentLandscape}>
-              <Pressable 
+              <Pressable
                 style={styles.menuItemLandscape}
                 onPress={handleToggleSound}
                 accessibilityRole="button"
@@ -159,16 +165,22 @@ function GameSettingsModalComponent({
               >
                 <Text style={styles.menuItemTextLandscape}>🔊</Text>
                 <Text style={styles.menuItemLabelLandscape}>{i18n.t('settings.soundEffects')}</Text>
-                <Text style={styles.menuItemValueLandscape}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                <Text style={styles.menuItemValueLandscape}>
+                  {soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}
+                </Text>
               </Pressable>
 
               <View style={styles.menuItemLandscape}>
                 <Text style={[styles.menuItemTextLandscape, styles.disabledText]}>🎵</Text>
-                <Text style={[styles.menuItemLabelLandscape, styles.disabledText]}>{i18n.t('settings.music')}</Text>
-                <Text style={[styles.menuItemValueLandscape, styles.disabledText]}>{i18n.t('common.off')}</Text>
+                <Text style={[styles.menuItemLabelLandscape, styles.disabledText]}>
+                  {i18n.t('settings.music')}
+                </Text>
+                <Text style={[styles.menuItemValueLandscape, styles.disabledText]}>
+                  {i18n.t('common.off')}
+                </Text>
               </View>
 
-              <Pressable 
+              <Pressable
                 style={styles.menuItemLandscape}
                 onPress={handleToggleVibration}
                 accessibilityRole="button"
@@ -176,7 +188,9 @@ function GameSettingsModalComponent({
               >
                 <Text style={styles.menuItemTextLandscape}>📳</Text>
                 <Text style={styles.menuItemLabelLandscape}>{i18n.t('settings.vibration')}</Text>
-                <Text style={styles.menuItemValueLandscape}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                <Text style={styles.menuItemValueLandscape}>
+                  {vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}
+                </Text>
               </Pressable>
 
               <View style={styles.dividerLandscape} />
@@ -195,32 +209,45 @@ function GameSettingsModalComponent({
                         (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
                       testID="camera-toggle-button"
-                      onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
-                        if (!isInChatSession) {
-                          await onToggleVideoChat?.();
-                        } else {
-                          await onToggleCamera?.();
-                        }
-                      }}
+                      onPress={
+                        isVideoChatConnecting || isAudioChatConnecting
+                          ? undefined
+                          : async () => {
+                              if (!isInChatSession) {
+                                await onToggleVideoChat?.();
+                              } else {
+                                await onToggleCamera?.();
+                              }
+                            }
+                      }
                       disabled={isVideoChatConnecting || isAudioChatConnecting}
                       accessibilityRole="switch"
                       accessibilityLabel={
                         isVideoChatConnecting
                           ? i18n.t('chat.connectingVideo')
                           : !isInChatSession
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
-                          : isLocalCameraOn
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
-                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
+                            ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
+                            : isLocalCameraOn
+                              ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
+                              : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
                       }
-                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
+                      accessibilityState={{
+                        checked: isLocalCameraOn,
+                        disabled: isVideoChatConnecting || isAudioChatConnecting,
+                        busy: isVideoChatConnecting || isAudioChatConnecting,
+                      }}
                     >
-                      {isVideoChatConnecting
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={styles.menuItemTextLandscape}>{isLocalCameraOn ? '📷' : '📵'}</Text>
-                      }
+                      {isVideoChatConnecting ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.menuItemTextLandscape}>
+                          {isLocalCameraOn ? '📷' : '📵'}
+                        </Text>
+                      )}
                       <Text style={styles.menuItemLabelLandscape}>{i18n.t('chat.camera')}</Text>
-                      <Text style={styles.menuItemValueLandscape}>{isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                      <Text style={styles.menuItemValueLandscape}>
+                        {isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}
+                      </Text>
                     </Pressable>
                   )}
 
@@ -236,37 +263,48 @@ function GameSettingsModalComponent({
                         (isAudioChatConnecting || isVideoChatConnecting) && styles.disabledItem,
                       ]}
                       testID="mic-toggle-button"
-                      onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
-                        if (!isInChatSession) {
-                          await onToggleVoiceChat?.();
-                        } else {
-                          await onToggleMic?.();
-                        }
-                      }}
+                      onPress={
+                        isAudioChatConnecting || isVideoChatConnecting
+                          ? undefined
+                          : async () => {
+                              if (!isInChatSession) {
+                                await onToggleVoiceChat?.();
+                              } else {
+                                await onToggleMic?.();
+                              }
+                            }
+                      }
                       disabled={isAudioChatConnecting || isVideoChatConnecting}
                       accessibilityRole="switch"
                       accessibilityLabel={
                         isAudioChatConnecting
                           ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
-                          : isLocalMicOn
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
-                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
+                            ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
+                            : isLocalMicOn
+                              ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
+                              : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
                       }
-                      accessibilityState={{ checked: isLocalMicOn, disabled: isAudioChatConnecting || isVideoChatConnecting, busy: isAudioChatConnecting }}
+                      accessibilityState={{
+                        checked: isLocalMicOn,
+                        disabled: isAudioChatConnecting || isVideoChatConnecting,
+                        busy: isAudioChatConnecting,
+                      }}
                     >
-                      {isAudioChatConnecting
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={styles.menuItemTextLandscape}>{isLocalMicOn ? '🎤' : (isInChatSession ? '🔇' : '🎙️')}</Text>
-                      }
+                      {isAudioChatConnecting ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.menuItemTextLandscape}>
+                          {isLocalMicOn ? '🎤' : isInChatSession ? '🔇' : '🎙️'}
+                        </Text>
+                      )}
                       <Text style={styles.menuItemLabelLandscape}>{i18n.t('chat.microphone')}</Text>
                       <Text style={styles.menuItemValueLandscape}>
                         {!isInChatSession
                           ? i18n.t('common.off')
                           : isLocalMicOn
-                          ? i18n.t('common.on')
-                          : i18n.t('chat.muted')}
+                            ? i18n.t('common.on')
+                            : i18n.t('chat.muted')}
                       </Text>
                     </Pressable>
                   )}
@@ -275,12 +313,16 @@ function GameSettingsModalComponent({
                   {isInChatSession && !isLocalCameraOn && onToggleVoiceChat && (
                     <Pressable
                       style={[styles.menuItemLandscape, styles.leaveGameItemLandscape]}
-                      onPress={async () => { await onToggleVoiceChat(); }}
+                      onPress={async () => {
+                        await onToggleVoiceChat();
+                      }}
                       accessibilityRole="button"
                       accessibilityLabel={i18n.t('chat.leaveVoice')}
                     >
                       <Text style={styles.menuItemTextLandscape}>📵</Text>
-                      <Text style={[styles.menuItemLabelLandscape, styles.leaveGameTextLandscape]}>{i18n.t('chat.leaveVoice')}</Text>
+                      <Text style={[styles.menuItemLabelLandscape, styles.leaveGameTextLandscape]}>
+                        {i18n.t('chat.leaveVoice')}
+                      </Text>
                     </Pressable>
                   )}
 
@@ -309,16 +351,18 @@ function GameSettingsModalComponent({
                 accessibilityRole="button"
                 accessibilityLabel="Leave game"
               >
-                <Text style={styles.leaveGameTextLandscape}>
-                  {i18n.t('game.leaveGame')}
-                </Text>
+                <Text style={styles.leaveGameTextLandscape}>{i18n.t('game.leaveGame')}</Text>
               </Pressable>
             </View>
           ) : (
             /* PORTRAIT MODE: Scrollable vertical layout */
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
+            <ScrollView
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
               {/* Sound Settings */}
-              <Pressable 
+              <Pressable
                 style={styles.menuItem}
                 onPress={handleToggleSound}
                 accessibilityRole="button"
@@ -326,20 +370,24 @@ function GameSettingsModalComponent({
                 accessibilityHint="Tap to toggle sound effects"
               >
                 <Text style={styles.menuItemText}>🔊 {i18n.t('settings.soundEffects')}</Text>
-                <Text style={styles.menuItemValue}>{soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                <Text style={styles.menuItemValue}>
+                  {soundEnabled ? i18n.t('common.on') : i18n.t('common.off')}
+                </Text>
               </Pressable>
 
               {/* Music Settings - Coming Soon (non-interactive) */}
               <View style={[styles.menuItem, styles.disabledItem]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={[styles.menuItemText, styles.disabledText]}>🎵 {i18n.t('settings.music')}</Text>
+                  <Text style={[styles.menuItemText, styles.disabledText]}>
+                    🎵 {i18n.t('settings.music')}
+                  </Text>
                   <Text style={styles.comingSoonBadge}>Coming soon</Text>
                 </View>
                 <Text style={styles.disabledText}>{i18n.t('common.off')}</Text>
               </View>
 
               {/* Vibration Settings */}
-              <Pressable 
+              <Pressable
                 style={styles.menuItem}
                 onPress={handleToggleVibration}
                 accessibilityRole="button"
@@ -347,7 +395,9 @@ function GameSettingsModalComponent({
                 accessibilityHint="Tap to toggle vibration"
               >
                 <Text style={styles.menuItemText}>📳 {i18n.t('settings.vibration')}</Text>
-                <Text style={styles.menuItemValue}>{vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}</Text>
+                <Text style={styles.menuItemValue}>
+                  {vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}
+                </Text>
               </Pressable>
 
               {/* Room Code — Multiplayer only.
@@ -404,33 +454,44 @@ function GameSettingsModalComponent({
                         (isVideoChatConnecting || isAudioChatConnecting) && styles.disabledItem,
                       ]}
                       testID="camera-toggle-button"
-                      onPress={(isVideoChatConnecting || isAudioChatConnecting) ? undefined : async () => {
-                        if (!isInChatSession) {
-                          await onToggleVideoChat?.();
-                        } else {
-                          await onToggleCamera?.();
-                        }
-                      }}
+                      onPress={
+                        isVideoChatConnecting || isAudioChatConnecting
+                          ? undefined
+                          : async () => {
+                              if (!isInChatSession) {
+                                await onToggleVideoChat?.();
+                              } else {
+                                await onToggleCamera?.();
+                              }
+                            }
+                      }
                       disabled={isVideoChatConnecting || isAudioChatConnecting}
                       accessibilityRole="switch"
                       accessibilityLabel={
                         isVideoChatConnecting
                           ? i18n.t('chat.connectingVideo')
                           : !isInChatSession
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
-                          : isLocalCameraOn
-                          ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
-                          : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
+                            ? `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVideo')}`
+                            : isLocalCameraOn
+                              ? `${i18n.t('chat.camera')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapTurnCameraOff')}`
+                              : `${i18n.t('chat.camera')}, ${i18n.t('common.off')} — ${i18n.t('chat.tapTurnCameraOn')}`
                       }
-                      accessibilityState={{ checked: isLocalCameraOn, disabled: isVideoChatConnecting || isAudioChatConnecting, busy: isVideoChatConnecting || isAudioChatConnecting }}
+                      accessibilityState={{
+                        checked: isLocalCameraOn,
+                        disabled: isVideoChatConnecting || isAudioChatConnecting,
+                        busy: isVideoChatConnecting || isAudioChatConnecting,
+                      }}
                     >
                       <Text style={styles.menuItemText}>
                         {isLocalCameraOn ? '📷' : '📵'} {i18n.t('chat.camera')}
                       </Text>
-                      {isVideoChatConnecting
-                        ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={styles.menuItemValue}>{isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}</Text>
-                      }
+                      {isVideoChatConnecting ? (
+                        <ActivityIndicator size="small" color={COLORS.white} />
+                      ) : (
+                        <Text style={styles.menuItemValue}>
+                          {isLocalCameraOn ? i18n.t('common.on') : i18n.t('common.off')}
+                        </Text>
+                      )}
                     </Pressable>
                   )}
 
@@ -446,39 +507,49 @@ function GameSettingsModalComponent({
                         (isAudioChatConnecting || isVideoChatConnecting) && styles.disabledItem,
                       ]}
                       testID="mic-toggle-button"
-                      onPress={(isAudioChatConnecting || isVideoChatConnecting) ? undefined : async () => {
-                        if (!isInChatSession) {
-                          await onToggleVoiceChat?.();
-                        } else {
-                          await onToggleMic?.();
-                        }
-                      }}
+                      onPress={
+                        isAudioChatConnecting || isVideoChatConnecting
+                          ? undefined
+                          : async () => {
+                              if (!isInChatSession) {
+                                await onToggleVoiceChat?.();
+                              } else {
+                                await onToggleMic?.();
+                              }
+                            }
+                      }
                       disabled={isAudioChatConnecting || isVideoChatConnecting}
                       accessibilityRole="switch"
                       accessibilityLabel={
                         isAudioChatConnecting
                           ? i18n.t('chat.connectingVoice')
                           : !isInChatSession
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
-                          : isLocalMicOn
-                          ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
-                          : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
+                            ? `${i18n.t('chat.microphone')}, ${i18n.t('common.off')} — ${i18n.t('chat.joinVoice')}`
+                            : isLocalMicOn
+                              ? `${i18n.t('chat.microphone')}, ${i18n.t('common.on')} — ${i18n.t('chat.tapMute')}`
+                              : `${i18n.t('chat.microphone')}, ${i18n.t('chat.muted')} — ${i18n.t('chat.tapUnmute')}`
                       }
-                      accessibilityState={{ checked: isLocalMicOn, disabled: isAudioChatConnecting || isVideoChatConnecting, busy: isAudioChatConnecting }}
+                      accessibilityState={{
+                        checked: isLocalMicOn,
+                        disabled: isAudioChatConnecting || isVideoChatConnecting,
+                        busy: isAudioChatConnecting,
+                      }}
                     >
                       <Text style={styles.menuItemText}>
-                        {isLocalMicOn ? '🎤' : (isInChatSession ? '🔇' : '🎙️')} {i18n.t('chat.microphone')}
+                        {isLocalMicOn ? '🎤' : isInChatSession ? '🔇' : '🎙️'}{' '}
+                        {i18n.t('chat.microphone')}
                       </Text>
-                      {isAudioChatConnecting
-                        ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={styles.menuItemValue}>
-                            {!isInChatSession
-                              ? i18n.t('common.off')
-                              : isLocalMicOn
+                      {isAudioChatConnecting ? (
+                        <ActivityIndicator size="small" color={COLORS.white} />
+                      ) : (
+                        <Text style={styles.menuItemValue}>
+                          {!isInChatSession
+                            ? i18n.t('common.off')
+                            : isLocalMicOn
                               ? i18n.t('common.on')
                               : i18n.t('chat.muted')}
-                          </Text>
-                      }
+                        </Text>
+                      )}
                     </Pressable>
                   )}
 
@@ -486,11 +557,15 @@ function GameSettingsModalComponent({
                   {isInChatSession && !isLocalCameraOn && onToggleVoiceChat && (
                     <Pressable
                       style={[styles.menuItem, styles.leaveGameItem]}
-                      onPress={async () => { await onToggleVoiceChat(); }}
+                      onPress={async () => {
+                        await onToggleVoiceChat();
+                      }}
                       accessibilityRole="button"
                       accessibilityLabel={i18n.t('chat.leaveVoice')}
                     >
-                      <Text style={[styles.menuItemText, styles.leaveGameText]}>📵 {i18n.t('chat.leaveVoice')}</Text>
+                      <Text style={[styles.menuItemText, styles.leaveGameText]}>
+                        📵 {i18n.t('chat.leaveVoice')}
+                      </Text>
                     </Pressable>
                   )}
                 </>

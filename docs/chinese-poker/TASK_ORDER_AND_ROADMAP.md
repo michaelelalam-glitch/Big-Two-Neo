@@ -1,6 +1,6 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
-> Generated: March 16, 2026  
+> Generated: March 16, 2026 · Last updated: March 21, 2026  
 > Total tasks reviewed: 39 (16 backlog · 18 todo · 5 in_progress)
 
 ---
@@ -38,9 +38,9 @@
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
 | 3 | `#648` | [FEATURE] In-game text chat (Supabase Realtime) | 5–7 days | 🟡 Medium |
-| 4 | `#646` | Configure deep linking for room codes & game invites | 2–3 days | 🟡 Medium |
+| 4 | `#646` | ✅ Configure deep linking, friends list & game invite share — Completed Mar 21, 2026 | 0 days | ✅ Completed |
 | 5 | `#650` | Increase card touch targets to iOS HIG 44px minimum | 1 day | 🟢 Low |
-| 6 | `#652` | Enhance drop zone UX (glow, haptic, drag hint) | 1 day | 🟢 Low |
+| 6 | `#652` | ✅ Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 21, 2026 | 0 days | ✅ Completed |
 
 ---
 
@@ -54,6 +54,8 @@
 | 8 | `#616` | CI: Bundle size monitoring (bundlewatch/size-limit) | 0.5 days | 🟢 Low |
 | 9 | `#617` | Ratchet coverage thresholds +2% per sprint toward 80% | 0.5 day/sprint | 🟢 Low |
 | 10 | `#328` | Add performance benchmarks for card rendering (CI) | 1 day | 🟢 Low |
+
+> 🔵 Tasks #617, #616, #328, #647 now **IN PROGRESS** — branch `feat/tasks-617-616-328-647-ci-arch` off `game/chinese-poker` (Mar 21, 2026)
 
 ---
 
@@ -156,23 +158,28 @@
 
 ## 📋 Current Status Board
 
-### 🔵 IN PROGRESS (1 task)
+### 🔵 IN PROGRESS (4 tasks) — branch `feat/tasks-617-616-328-647-ci-arch`
 - `#617` — Ratchet coverage thresholds +2% per sprint
-
-### 🔍 IN REVIEW (1 task)
-- `#628` — Fix GameScreen slow renders *(implementation complete — PR open for review)*
-
-### 🟡 TODO — Ready to start (8 tasks)
 - `#616` — CI: Bundle size monitoring
+- `#328` — Add performance benchmarks for card rendering
+- `#647` — Expand Zustand store (replace Context prop drilling)
+
+### 🔍 IN REVIEW (2 tasks)
+- `#628` — Fix GameScreen slow renders *(implementation complete — PR open for review)*
+- `#164` (PR) — `game/chinese-poker` → `main` (includes #652 + #646) *(Copilot review requested Mar 21, 2026)*
+
+### 🟡 TODO — Ready to start (6 tasks)
 - `#643` — Add React Error Boundaries
 - `#645` — Improve accessibility: VoiceOver/TalkBack
-- `#646` — Configure deep linking
-- `#647` — Expand Zustand store
 - `#648` — [FEATURE] In-game text chat
 - `#650` — Increase card touch targets
+- `#163` — ❌ Closed (superseded by PR #164)
+
+### ✅ RECENTLY COMPLETED (Mar 21, 2026)
+- `#646` — Configure deep linking, friends list & game invite share
 - `#652` — Enhance drop zone UX (glow, haptic, drag hint)
 
-### ⚪ BACKLOG — Queued but not ready (30 tasks)
+### ⚪ BACKLOG — Queued but not ready (28 tasks)
 All remaining tasks in tiers 4–10 plus the 9 duplicate/stale tasks above.
 
 ---
@@ -180,13 +187,15 @@ All remaining tasks in tiers 4–10 plus the 9 duplicate/stale tasks above.
 ## 🗃️ Full ID Reference
 
 ### Active In-Progress
-`#617` `#628`
+`#617` `#616` `#328` `#647` `#628`
 
 ### Todo (next up)
-`#616` `#643` `#645` `#646` `#647` `#648` `#652` `#650`
+`#643` `#645` `#648` `#650`
 
 ### Backlog (ordered)
-`#315` `#314` `#279` `#255` `#272` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253` `#280` `#276` `#325` `#327` `#273` `#328` `#329` `#329_dup`
+`#315` `#314` `#279` `#255` `#272` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253` `#280` `#276` `#325` `#327` `#273` `#329` `#329_dup`
 
-### ✅ COMPLETED (1 task)
+### ✅ COMPLETED (3 tasks)
 - `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026
+- `#646` — Configure deep linking, friends list & game invite share — Completed Mar 21, 2026
+- `#652` — Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 21, 2026
