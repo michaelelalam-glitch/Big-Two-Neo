@@ -7,8 +7,8 @@ import type { Card } from '../../../game/types';
 
 // Mock haptics
 jest.mock('expo-haptics', () => ({
-  impactAsync: jest.fn(),
-  notificationAsync: jest.fn(),
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
   ImpactFeedbackStyle: {
     Light: 'light',
     Medium: 'medium',

@@ -235,7 +235,7 @@ function CardHandComponent({
     } else {
       setInternalSelectedCardIds(emptySet);
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, [onSelectionChange]);
 
   // Play selected cards (memoized)
@@ -243,7 +243,7 @@ function CardHandComponent({
     if (selectedCardIds.size === 0) return;
 
     const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onPlayCards(selected);
 
     // Clear selection after playing
@@ -257,7 +257,7 @@ function CardHandComponent({
 
   // Pass turn (memoized)
   const handlePass = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onPass();
     // Note: Keep selection intact after pass - user may want to adjust before playing
     // setSelectedCardIds(new Set()); // Removed per Copilot feedback
@@ -379,7 +379,7 @@ function CardHandComponent({
         // Guard behind canPlay && !disabled so drag-to-play matches button UX
         if (canDragToPlay && dragState.isDraggingMultiple && isUpwardDrag) {
           const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           onPlayCards(selected);
 
           // Clear selection after playing
@@ -400,7 +400,9 @@ function CardHandComponent({
           // Play just this card
           const card = orderedCards.find(c => c.id === cardId);
           if (card) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+              () => {}
+            );
             onPlayCards([card]);
           }
         } else if (
