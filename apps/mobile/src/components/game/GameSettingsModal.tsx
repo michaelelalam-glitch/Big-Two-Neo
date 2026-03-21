@@ -101,7 +101,7 @@ function GameSettingsModalComponent({
 
   const handleToggleSound = async () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue); // Zustand (persists automatically)
+    setSoundEnabled(newValue); // Zustand in-memory state (sound persistence handled by soundManager)
     await soundManager.setAudioEnabled(newValue); // sync manager singleton
     // Play confirmation haptic
     if (vibrationEnabled) {
@@ -111,7 +111,7 @@ function GameSettingsModalComponent({
 
   const handleToggleVibration = async () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue); // Zustand (persists automatically)
+    setVibrationEnabled(newValue); // Zustand in-memory state (vibration persistence handled by hapticManager)
     await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
     // Play confirmation haptic if enabling (ironic but standard UX)
     if (newValue) {
