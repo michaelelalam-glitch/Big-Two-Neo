@@ -18,7 +18,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SETTINGS_KEYS } from '../utils/settings';
+import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../utils/settings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,14 +71,16 @@ export interface AudioSettingsState {
 export const useAudioSettingsStore = create<AudioSettingsState>()(
   persist(
     set => ({
-      // Defaults (overridden by persisted values on rehydration)
-      soundEnabled: true,
-      vibrationEnabled: true,
-      cardSortOrder: 'suit',
-      animationSpeed: 'normal',
-      autoPassTimer: '60',
-      profileVisibility: true,
-      showOnlineStatus: true,
+      // Defaults — sourced from DEFAULT_SETTINGS to keep a single source of truth.
+      // These are the initial in-memory values; persisted fields are overridden
+      // by Zustand rehydration on subsequent app launches.
+      soundEnabled: DEFAULT_SETTINGS.audioEnabled,
+      vibrationEnabled: DEFAULT_SETTINGS.hapticsEnabled,
+      cardSortOrder: DEFAULT_SETTINGS.cardSortOrder,
+      animationSpeed: DEFAULT_SETTINGS.animationSpeed,
+      autoPassTimer: DEFAULT_SETTINGS.autoPassTimer,
+      profileVisibility: DEFAULT_SETTINGS.profileVisibility,
+      showOnlineStatus: DEFAULT_SETTINGS.showOnlineStatus,
 
       setSoundEnabled: enabled => set({ soundEnabled: enabled }),
       setVibrationEnabled: enabled => set({ vibrationEnabled: enabled }),

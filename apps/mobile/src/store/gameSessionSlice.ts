@@ -25,8 +25,7 @@ import type { LayoutPlayer, LayoutPlayerWithTimer } from '../contexts/GameContex
 
 export interface GameSessionState {
   // ── Card selection ────────────────────────────────────────────────────────
-  /** IDs of currently selected cards (Set for O(1) lookup) */
-  /** Selected card IDs stored as a serializable string array */
+  /** Selected card IDs stored as a serializable string array (convert to a Set at usage sites if O(1) lookup is needed) */
   selectedCardIds: string[];
   /** Derived array of selected Card objects (kept in sync with selectedCardIds) */
   selectedCards: Card[];
