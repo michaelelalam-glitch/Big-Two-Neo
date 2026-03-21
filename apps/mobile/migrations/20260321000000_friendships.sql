@@ -60,10 +60,13 @@ CREATE POLICY "friendships_select_own"
     OR auth.uid() = addressee_id
   );
 
--- A user can only INSERT a row where they are the requester
+-- A user can only INSERT a row where they are the requester.
+-- Enforce status='pending' on insert to prevent a malicious client from
+-- creating an already-accepted friendship without going through the
+-- accept-request UPDATE flow.
 CREATE POLICY "friendships_insert_own"
   ON public.friendships FOR INSERT
-  WITH CHECK (auth.uid() = requester_id);
+  WITH CHECK (auth.uid() = requester_id AND status = 'pending');
 
 -- Either party may UPDATE. Note: no WITH CHECK is applied here; the
 -- corresponding hardening (self-accept prevention, party immutability) is

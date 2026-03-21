@@ -231,7 +231,7 @@ export function useFriends(): UseFriendsResult {
       if (error) {
         // Unique constraint: duplicate or already-pending request
         if (error.code === '23505') {
-          throw new Error(i18n.t('friends.alreadyFriends'));
+          throw new Error(i18n.t('friends.requestPending'));
         }
         throw new Error(error.message);
       }
