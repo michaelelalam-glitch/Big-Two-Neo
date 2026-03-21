@@ -64,7 +64,7 @@ beforeEach(() => {
     return { remove: jest.fn() };
   });
 
-  (supabase.removeChannel as jest.Mock) = jest.fn();
+  (supabase.removeChannel as jest.Mock) = jest.fn().mockResolvedValue('ok');
   (supabase.channel as jest.Mock).mockReturnValue(makeChannel());
 });
 
@@ -134,12 +134,14 @@ describe('usePresence', () => {
       (useAuth as jest.Mock).mockReturnValue({ user: { id: 'user-1' } });
     });
 
-    it('calls join (creates a new channel) when app becomes active', () => {
+    it('calls join (creates a new channel) when app becomes active', async () => {
       renderHook(() => usePresence());
       const callsBefore = (supabase.channel as jest.Mock).mock.calls.length;
 
-      act(() => {
+      await act(async () => {
         appStateListener?.('active');
+        // Flush the removeChannel await inside join()
+        await Promise.resolve();
       });
 
       expect((supabase.channel as jest.Mock).mock.calls.length).toBeGreaterThan(callsBefore);
