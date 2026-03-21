@@ -93,9 +93,22 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY(user.id))
       .then(raw => {
         if (!raw) return;
-        const parsed = JSON.parse(raw) as unknown;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          // Corrupted payload — remove it so the app self-heals on next mount
+          // rather than silently retrying the bad value forever.
+          notificationLogger.warn(
+            '[NotificationContext] Corrupted notification history detected; clearing storage.'
+          );
+          AsyncStorage.removeItem(NOTIFICATIONS_STORAGE_KEY(user.id)).catch(() => {});
+          return;
+        }
         if (Array.isArray(parsed)) {
-          setStoredNotifications(parsed as AppNotification[]);
+          // Enforce MAX_STORED_NOTIFICATIONS in case an older app version stored
+          // more items than the current cap.
+          setStoredNotifications((parsed as AppNotification[]).slice(0, MAX_STORED_NOTIFICATIONS));
         }
       })
       .catch(() => {});
