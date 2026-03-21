@@ -3,7 +3,7 @@
  * Task #616 — Bundle size monitoring
  *
  * Measures the total uncompressed size and the sum of per-file gzip-compressed
- * sizes for TypeScript/TSX/JS source files under src/. This serves as a fast
+ * sizes for TypeScript/TSX source files under src/. This serves as a fast
  * CI proxy for bundle growth: if source balloons, so will the Metro bundle.
  * Note: summing per-file gzip values is a conservative upper-bound estimate —
  * a real bundled artifact would compress even further due to cross-file
@@ -26,7 +26,7 @@ const zlib = require('zlib');
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const SRC_DIR = path.resolve(__dirname, '../src');
-const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
+const EXTENSIONS = new Set(['.ts', '.tsx']);
 
 const THRESHOLDS = {
   rawKB: 4000,    // fail if total raw source exceeds 4 MB

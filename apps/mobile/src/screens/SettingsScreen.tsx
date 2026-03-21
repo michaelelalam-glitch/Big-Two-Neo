@@ -27,10 +27,10 @@ import {
   hapticManager,
   HapticType,
 } from '../utils';
-import { useAudioSettingsStore } from '../store';
+import { useUserPreferencesStore } from '../store';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
-import { migrateLegacyAudioSettings } from '../utils/migrateLegacySettings';
+import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -61,7 +61,7 @@ export default function SettingsScreen() {
     setProfileVisibility,
     setShowOnlineStatus,
     hydrate,
-  } = useAudioSettingsStore();
+  } = useUserPreferencesStore();
 
   // Language is not in the persist store (i18n handles its own persistence)
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
@@ -86,10 +86,10 @@ export default function SettingsScreen() {
           vibrationEnabled: hapticManager.isHapticsEnabled(),
         });
 
-        // One-time migration via dedicated helper — see utils/migrateLegacySettings.ts.
-        // migrateLegacyAudioSettings re-checks the marker internally (idempotent).
+        // One-time migration via dedicated helper — see utils/migrateLegacyUserPreferences.ts.
+        // migrateLegacyUserPreferences re-checks the marker internally (idempotent).
         if (!alreadyMigrated) {
-          await migrateLegacyAudioSettings(data => hydrate(data));
+          await migrateLegacyUserPreferences(data => hydrate(data));
         }
 
         setCurrentLanguage(i18n.getLanguage());
