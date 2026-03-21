@@ -11,7 +11,7 @@ import { useFriendsContext } from '../../contexts/FriendsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
-import { showError, showSuccess } from '../../utils/alerts';
+import { showError, showSuccess } from '../../utils';
 
 interface AddFriendButtonProps {
   targetUserId: string;

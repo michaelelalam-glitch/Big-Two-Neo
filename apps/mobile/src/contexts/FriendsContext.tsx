@@ -20,7 +20,7 @@ import { useFriends, type Friendship } from '../hooks/useFriends';
 import { usePresence } from '../hooks/usePresence';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { i18n } from '../i18n';
-import { showError } from '../utils/alerts';
+import { showError } from '../utils';
 import { useAuth } from './AuthContext';
 
 // ============================================================================

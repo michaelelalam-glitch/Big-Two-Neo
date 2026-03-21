@@ -15,7 +15,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'rea
 import type { Friendship } from '../../hooks/useFriends';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
-import { showError } from '../../utils/alerts';
+import { showError } from '../../utils';
 
 interface FriendCardProps {
   item: Friendship;
