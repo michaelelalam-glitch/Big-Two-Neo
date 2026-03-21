@@ -1,6 +1,6 @@
 /**
  * Settings utilities and exports
- * 
+ *
  * Central export point for settings-related types, constants, and utilities
  */
 
@@ -20,6 +20,8 @@ export const SETTINGS_KEYS = {
   AUDIO_ENABLED: '@big2_audio_enabled',
   AUDIO_VOLUME: '@big2_audio_volume',
   HAPTICS_ENABLED: '@big2_haptics_enabled',
+  /** Zustand persist storage key for the audio-settings slice (Task #647) */
+  AUDIO_SETTINGS_PERSIST: 'big2-audio-settings',
 } as const;
 
 // Default settings values
