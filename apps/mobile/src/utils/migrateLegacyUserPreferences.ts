@@ -1,7 +1,9 @@
 /**
- * migrateLegacyAudioSettings — Task #647 one-time migration
+ * migrateLegacyUserPreferences — Task #647 one-time migration
  *
- * Imports legacy per-key AsyncStorage settings into the Zustand persist store.
+ * Imports legacy per-key AsyncStorage game/privacy preference settings
+ * (cardSortOrder, animationSpeed, autoPassTimer, profileVisibility,
+ * showOnlineStatus) into the Zustand persist store.
  * Writes an explicit migration sentinel (AUDIO_SETTINGS_MIGRATION_COMPLETE) on
  * completion so the migration never runs twice.
  *
@@ -26,7 +28,7 @@ export type MigrationData = Partial<{
  *
  * Only valid legacy values are imported; invalid or missing keys are ignored.
  */
-export async function migrateLegacyAudioSettings(
+export async function migrateLegacyUserPreferences(
   hydrate: (data: MigrationData) => void
 ): Promise<boolean> {
   const alreadyMigrated = await AsyncStorage.getItem(

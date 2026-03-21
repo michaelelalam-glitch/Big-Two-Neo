@@ -2,9 +2,9 @@
  * Zustand store index — Task #647: Expanded store with slices
  *
  * Exports:
- *   useAppStore         — core user/room/game state (original store)
- *   useAudioSettingsStore — persisted audio & game preference settings
- *   useGameSessionStore   — transient game-session state (replaces Context prop-drilling)
+ *   useAppStore              — core user/room/game state (original store)
+ *   useUserPreferencesStore  — persisted game/privacy/audio preference settings
+ *   useGameSessionStore      — transient game-session state (replaces Context prop-drilling)
  */
 
 import { create } from 'zustand';
@@ -32,13 +32,16 @@ export const useAppStore = create<AppStore>(set => ({
 
 // ─── New slices (Task #647) ───────────────────────────────────────────────────
 
-export { useAudioSettingsStore } from './audioSettingsSlice';
+export { useUserPreferencesStore } from './userPreferencesSlice';
+// Backward-compat alias so existing call sites that imported useAudioSettingsStore
+// keep working during the transition without a hard breaking change.
+export { useUserPreferencesStore as useAudioSettingsStore } from './userPreferencesSlice';
 export type {
-  AudioSettingsState,
+  UserPreferencesState,
   CardSortOrder,
   AnimationSpeed,
   AutoPassTimer,
-} from './audioSettingsSlice';
+} from './userPreferencesSlice';
 
 export { useGameSessionStore } from './gameSessionSlice';
 export type { GameSessionState } from './gameSessionSlice';

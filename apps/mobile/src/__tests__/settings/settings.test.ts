@@ -7,7 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { i18n } from '../../i18n';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../../utils/settings';
-import { migrateLegacyAudioSettings } from '../../utils/migrateLegacySettings';
+import { migrateLegacyUserPreferences } from '../../utils/migrateLegacyUserPreferences';
 
 // Mock React Native components that are imported by settings utilities
 jest.mock('react-native-safe-area-context', () => ({
@@ -262,7 +262,7 @@ describe('Audio Settings Migration (Task #647)', () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
     const hydrate = jest.fn();
-    const result = await migrateLegacyAudioSettings(hydrate);
+    const result = await migrateLegacyUserPreferences(hydrate);
 
     expect(result).toBe(true);
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -279,7 +279,7 @@ describe('Audio Settings Migration (Task #647)', () => {
     );
 
     const hydrate = jest.fn();
-    const result = await migrateLegacyAudioSettings(hydrate);
+    const result = await migrateLegacyUserPreferences(hydrate);
 
     expect(result).toBe(false);
     expect(hydrate).not.toHaveBeenCalled();
@@ -298,7 +298,7 @@ describe('Audio Settings Migration (Task #647)', () => {
     });
 
     const hydrate = jest.fn();
-    await migrateLegacyAudioSettings(hydrate);
+    await migrateLegacyUserPreferences(hydrate);
 
     expect(hydrate).toHaveBeenCalledWith({
       cardSortOrder: 'rank',
@@ -312,7 +312,7 @@ describe('Audio Settings Migration (Task #647)', () => {
   it('removes legacy keys after migration', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
-    await migrateLegacyAudioSettings(jest.fn());
+    await migrateLegacyUserPreferences(jest.fn());
 
     expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
       SETTINGS_KEYS.CARD_SORT_ORDER,
@@ -325,7 +325,7 @@ describe('Audio Settings Migration (Task #647)', () => {
 
   it('migration is not suppressed by early creation of the persist blob', async () => {
     // Simulates: GameSettingsModal writes to Zustand store (creating 'big2-audio-settings')
-    // before SettingsScreen runs. Migration must still run because migrateLegacyAudioSettings
+    // before SettingsScreen runs. Migration must still run because migrateLegacyUserPreferences
     // checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not the persist blob's presence.
     (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
       if (key === SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST)
@@ -335,7 +335,7 @@ describe('Audio Settings Migration (Task #647)', () => {
     });
 
     const hydrate = jest.fn();
-    const result = await migrateLegacyAudioSettings(hydrate);
+    const result = await migrateLegacyUserPreferences(hydrate);
 
     // Migration runs even though persist blob already exists
     expect(result).toBe(true);
