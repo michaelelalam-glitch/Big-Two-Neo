@@ -107,16 +107,17 @@ export default function SettingsScreen() {
           );
         }
 
-        // ── Phase 2: background — initialize managers (audio mode + preloads)
-        // and resync once done; they remain the authoritative source of truth.
+        // ── Phase 2: background — initialize managers (audio mode + preloads).
+        // Phase 1's AsyncStorage-derived flags are treated as authoritative for
+        // the UI toggles; we avoid re-hydrating from the managers here because
+        // initialize() swallows internal errors and still resolves, meaning a
+        // failed settings-load would silently overwrite phase-1 values with defaults.
         soundManager
           .initialize()
-          .then(() => hydrate({ soundEnabled: soundManager.isAudioEnabled() }))
           .catch(err => console.error('[Settings] soundManager.initialize() failed:', err));
 
         hapticManager
           .initialize()
-          .then(() => hydrate({ vibrationEnabled: hapticManager.isHapticsEnabled() }))
           .catch(err => console.error('[Settings] hapticManager.initialize() failed:', err));
 
         // One-time migration via dedicated helper — see utils/migrateLegacyUserPreferences.ts.
