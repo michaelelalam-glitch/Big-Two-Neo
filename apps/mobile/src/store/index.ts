@@ -3,8 +3,11 @@
  *
  * Exports:
  *   useAppStore              — core user/room/game state (original store)
- *   useUserPreferencesStore  — persisted game/privacy/audio preference settings
+ *   useUserPreferencesStore  — persisted game/privacy preference settings (non-audio)
  *   useGameSessionStore      — transient game-session state (replaces Context prop-drilling)
+ *
+ * Note: Audio and haptic settings are managed by soundManager/hapticManager and
+ * are intentionally excluded from the persisted userPreferences slice.
  */
 
 import { create } from 'zustand';

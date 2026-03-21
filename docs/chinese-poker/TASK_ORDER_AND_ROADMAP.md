@@ -55,7 +55,7 @@
 | 9 | `#617` | Ratchet coverage thresholds +2% per sprint toward 80% | 0.5 day/sprint | 🟢 Low |
 | 10 | `#328` | Add performance benchmarks for card rendering (CI) | 1 day | 🟢 Low |
 
-> 🔵 Tasks #617, #616, #328, #647 now **IN PROGRESS** — branch `feat/tasks-617-616-328-647-ci-arch` off `game/chinese-poker` (Mar 21, 2026)
+> 🔵 Tasks #617, #616, #328, #647 now **IN REVIEW** — branch `feat/tasks-617-616-328-647-ci-arch` off `game/chinese-poker` (Mar 21, 2026)
 
 ---
 
