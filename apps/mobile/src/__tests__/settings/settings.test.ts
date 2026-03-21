@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { i18n } from '../../i18n';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../../utils/settings';
+import { migrateLegacyAudioSettings } from '../../utils/migrateLegacySettings';
 
 // Mock React Native components that are imported by settings utilities
 jest.mock('react-native-safe-area-context', () => ({
@@ -253,54 +254,79 @@ describe('Settings Persistence', () => {
 describe('Audio Settings Migration (Task #647)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (AsyncStorage.multiRemove as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it('runs migration when AUDIO_SETTINGS_MIGRATION_COMPLETE marker is absent', async () => {
-    // No migration marker → migration should run
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
-      if (key === SETTINGS_KEYS.CARD_SORT_ORDER) return Promise.resolve('rank');
-      if (key === SETTINGS_KEYS.ANIMATION_SPEED) return Promise.resolve('fast');
-      return Promise.resolve(null);
-    });
+  it('runs migration, hydrates store, and returns true when marker is absent', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
-    const alreadyMigrated = await AsyncStorage.getItem(
-      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
-    );
-    expect(alreadyMigrated).toBeNull();
+    const hydrate = jest.fn();
+    const result = await migrateLegacyAudioSettings(hydrate);
 
-    // Simulate reading legacy keys and writing Zustand persist values
-    const cardSort = await AsyncStorage.getItem(SETTINGS_KEYS.CARD_SORT_ORDER);
-    expect(cardSort).toBe('rank');
-
-    const animSpeed = await AsyncStorage.getItem(SETTINGS_KEYS.ANIMATION_SPEED);
-    expect(animSpeed).toBe('fast');
-
-    // After migration, marker should be written
-    await AsyncStorage.setItem(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1');
+    expect(result).toBe(true);
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(
       SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
       '1'
     );
   });
 
-  it('skips migration when AUDIO_SETTINGS_MIGRATION_COMPLETE marker is present', async () => {
+  it('skips migration and returns false when marker is present', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) =>
+      key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
+        ? Promise.resolve('1')
+        : Promise.resolve(null)
+    );
+
+    const hydrate = jest.fn();
+    const result = await migrateLegacyAudioSettings(hydrate);
+
+    expect(result).toBe(false);
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('hydrates only valid legacy values and ignores invalid or missing ones', async () => {
     (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve('1');
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
+      if (key === SETTINGS_KEYS.CARD_SORT_ORDER) return Promise.resolve('rank');
+      if (key === SETTINGS_KEYS.ANIMATION_SPEED) return Promise.resolve('INVALID');
+      if (key === SETTINGS_KEYS.AUTO_PASS_TIMER) return Promise.resolve('30');
+      if (key === SETTINGS_KEYS.PROFILE_VISIBILITY) return Promise.resolve('false');
+      if (key === SETTINGS_KEYS.SHOW_ONLINE_STATUS) return Promise.resolve(null);
       return Promise.resolve(null);
     });
 
-    const alreadyMigrated = await AsyncStorage.getItem(
-      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
-    );
-    expect(alreadyMigrated).toBe('1');
-    // No legacy key reads should be needed
-    expect(AsyncStorage.getItem).toHaveBeenCalledTimes(1);
+    const hydrate = jest.fn();
+    await migrateLegacyAudioSettings(hydrate);
+
+    expect(hydrate).toHaveBeenCalledWith({
+      cardSortOrder: 'rank',
+      // animationSpeed omitted — invalid value ignored
+      autoPassTimer: '30',
+      profileVisibility: false,
+      // showOnlineStatus omitted — null value ignored
+    });
+  });
+
+  it('removes legacy keys after migration', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+    await migrateLegacyAudioSettings(jest.fn());
+
+    expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
+      SETTINGS_KEYS.CARD_SORT_ORDER,
+      SETTINGS_KEYS.ANIMATION_SPEED,
+      SETTINGS_KEYS.AUTO_PASS_TIMER,
+      SETTINGS_KEYS.PROFILE_VISIBILITY,
+      SETTINGS_KEYS.SHOW_ONLINE_STATUS,
+    ]);
   });
 
   it('migration is not suppressed by early creation of the persist blob', async () => {
-    // Simulates: GameSettingsModal creates 'big2-audio-settings' before SettingsScreen runs.
-    // Migration must still run because it checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not persist blob.
+    // Simulates: GameSettingsModal writes to Zustand store (creating 'big2-audio-settings')
+    // before SettingsScreen runs. Migration must still run because migrateLegacyAudioSettings
+    // checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not the persist blob's presence.
     (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
       if (key === SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST)
         return Promise.resolve('{"cardSortOrder":"suit"}');
@@ -308,17 +334,14 @@ describe('Audio Settings Migration (Task #647)', () => {
       return Promise.resolve(null);
     });
 
-    const persistBlobExists = await AsyncStorage.getItem(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST);
-    expect(persistBlobExists).not.toBeNull(); // persist blob exists early
+    const hydrate = jest.fn();
+    const result = await migrateLegacyAudioSettings(hydrate);
 
-    const alreadyMigrated = await AsyncStorage.getItem(
-      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
-    );
-    expect(alreadyMigrated).toBeNull(); // but migration marker is absent → migration should run
+    // Migration runs even though persist blob already exists
+    expect(result).toBe(true);
   });
 
-  it('writes Zustand persist blob key to AUDIO_SETTINGS_PERSIST constant', async () => {
-    // Verifies the persist layer uses the shared constant, not a hard-coded string
+  it('writes Zustand persist blob key to AUDIO_SETTINGS_PERSIST constant', () => {
     expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('big2-audio-settings');
   });
 });

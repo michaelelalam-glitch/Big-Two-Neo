@@ -30,15 +30,9 @@ import {
 import { useAudioSettingsStore } from '../store';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
+import { migrateLegacyAudioSettings } from '../utils/migrateLegacySettings';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
-
-// Legacy AsyncStorage keys — aliases to SETTINGS_KEYS for use in migration and cache-clear logic.
-const CARD_SORT_ORDER_KEY = SETTINGS_KEYS.CARD_SORT_ORDER;
-const ANIMATION_SPEED_KEY = SETTINGS_KEYS.ANIMATION_SPEED;
-const AUTO_PASS_TIMER_KEY = SETTINGS_KEYS.AUTO_PASS_TIMER;
-const PROFILE_VISIBILITY_KEY = SETTINGS_KEYS.PROFILE_VISIBILITY;
-const SHOW_ONLINE_STATUS_KEY = SETTINGS_KEYS.SHOW_ONLINE_STATUS;
 
 // Re-export types from the store slice so external consumers are unaffected.
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
@@ -85,50 +79,17 @@ export default function SettingsScreen() {
           SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
         );
 
-        // Always sync from managers — they are the source of truth for audio/haptic
-        const savedSoundEnabled = await soundManager.isAudioEnabled();
-        const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
-        hydrate({ soundEnabled: savedSoundEnabled, vibrationEnabled: savedVibrationEnabled });
+        // Always sync from managers — they are the source of truth for audio/haptic.
+        // isAudioEnabled / isHapticsEnabled are synchronous.
+        hydrate({
+          soundEnabled: soundManager.isAudioEnabled(),
+          vibrationEnabled: hapticManager.isHapticsEnabled(),
+        });
 
-        // One-time migration: import legacy individual keys into the Zustand
-        // persist store ONLY if the migration hasn't run yet.
-        // After migration, write the marker so this never runs again.
+        // One-time migration via dedicated helper — see utils/migrateLegacySettings.ts.
+        // migrateLegacyAudioSettings re-checks the marker internally (idempotent).
         if (!alreadyMigrated) {
-          const VALID_CARD_SORT: string[] = ['suit', 'rank'];
-          const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];
-          const VALID_AUTO_PASS: string[] = ['disabled', '30', '60', '90'];
-
-          const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
-          const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
-          const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
-          const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
-          const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
-
-          const migration: Record<string, unknown> = {};
-          if (savedCardSort && VALID_CARD_SORT.includes(savedCardSort))
-            migration.cardSortOrder = savedCardSort;
-          if (savedAnimSpeed && VALID_ANIM_SPEED.includes(savedAnimSpeed))
-            migration.animationSpeed = savedAnimSpeed;
-          if (savedAutoPass && VALID_AUTO_PASS.includes(savedAutoPass))
-            migration.autoPassTimer = savedAutoPass;
-          if (savedVisibility !== null) migration.profileVisibility = savedVisibility === 'true';
-          if (savedOnlineStatus !== null) migration.showOnlineStatus = savedOnlineStatus === 'true';
-
-          if (Object.keys(migration).length > 0)
-            hydrate(migration as Parameters<typeof hydrate>[0]);
-
-          // Remove legacy keys so they can't overwrite the persisted store on
-          // future mounts. The Zustand persist layer now owns these values.
-          await AsyncStorage.multiRemove([
-            CARD_SORT_ORDER_KEY,
-            ANIMATION_SPEED_KEY,
-            AUTO_PASS_TIMER_KEY,
-            PROFILE_VISIBILITY_KEY,
-            SHOW_ONLINE_STATUS_KEY,
-          ]);
-
-          // Write the migration marker so future mounts skip this block.
-          await AsyncStorage.setItem(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1');
+          await migrateLegacyAudioSettings(data => hydrate(data));
         }
 
         setCurrentLanguage(i18n.getLanguage());
@@ -140,19 +101,17 @@ export default function SettingsScreen() {
   }, []);
 
   // Audio & Haptics handlers
-  const handleToggleSound = async () => {
+  const handleToggleSound = () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue); // Updates Zustand in-memory state; persistence is handled by soundManager
-    await soundManager.setAudioEnabled(newValue); // sync manager singleton
+    setSoundEnabled(newValue); // syncs Zustand + fires soundManager.setAudioEnabled
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleToggleVibration = async () => {
+  const handleToggleVibration = () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue); // Updates Zustand in-memory state; persistence is handled by hapticManager
-    await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
+    setVibrationEnabled(newValue); // syncs Zustand + fires hapticManager.setHapticsEnabled
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);
     }

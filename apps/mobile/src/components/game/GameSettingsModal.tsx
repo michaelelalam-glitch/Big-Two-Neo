@@ -74,45 +74,32 @@ function GameSettingsModalComponent({
   // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
   // yet (e.g. user opens this modal on first launch before visiting Settings),
   // Task #647: on mount, sync sound/vibration from the manager singletons so
-  // the toggles reflect the true persisted state. It is safe to write to the
-  // Zustand store here because migration detection now uses an explicit marker
-  // key (AUDIO_SETTINGS_MIGRATION_COMPLETE) rather than the presence of the
-  // persist blob ('big2-audio-settings'), so these store writes can no longer
-  // suppress first-run migration.
+  // the toggles reflect the true persisted state. isAudioEnabled /
+  // isHapticsEnabled are synchronous so no async wrapper is needed.
+  // setSoundEnabled / setVibrationEnabled also fire-and-forget the corresponding
+  // manager sync internally so there is no double-write risk.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const managerSound = await soundManager.isAudioEnabled();
-        const managerVibration = await hapticManager.isHapticsEnabled();
-        if (!cancelled) {
-          setSoundEnabled(managerSound);
-          setVibrationEnabled(managerVibration);
-        }
-      } catch {
-        // Non-fatal: Zustand defaults (true/true) remain in effect
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    try {
+      setSoundEnabled(soundManager.isAudioEnabled());
+      setVibrationEnabled(hapticManager.isHapticsEnabled());
+    } catch {
+      // Non-fatal: Zustand defaults (true/true) remain in effect
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleToggleSound = async () => {
+  const handleToggleSound = () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue); // Zustand in-memory state (sound persistence handled by soundManager)
-    await soundManager.setAudioEnabled(newValue); // sync manager singleton
+    setSoundEnabled(newValue); // syncs Zustand + fires soundManager.setAudioEnabled
     // Play confirmation haptic
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleToggleVibration = async () => {
+  const handleToggleVibration = () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue); // Zustand in-memory state (vibration persistence handled by hapticManager)
-    await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
+    setVibrationEnabled(newValue); // syncs Zustand + fires hapticManager.setHapticsEnabled
     // Play confirmation haptic if enabling (ironic but standard UX)
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);
