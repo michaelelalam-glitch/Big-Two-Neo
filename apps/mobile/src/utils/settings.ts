@@ -22,6 +22,11 @@ export const SETTINGS_KEYS = {
   HAPTICS_ENABLED: '@big2_haptics_enabled',
   /** Zustand persist storage key for the audio-settings slice (Task #647) */
   AUDIO_SETTINGS_PERSIST: 'big2-audio-settings',
+  /** Explicit one-time migration marker — written after legacy keys are imported.
+   *  Using a dedicated key prevents Zustand's persist middleware from creating
+   *  the persist blob (big2-audio-settings) before migration has had a chance
+   *  to run, which would incorrectly suppress the migration. */
+  AUDIO_SETTINGS_MIGRATION_COMPLETE: '@big2_audio_settings_migrated',
 } as const;
 
 // Default settings values

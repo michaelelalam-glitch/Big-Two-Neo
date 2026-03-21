@@ -114,10 +114,10 @@ describe('Performance Benchmarks — Card Rendering & Game Logic (Task #328)', (
     });
 
     it('returns a new array (does not mutate source)', () => {
-      const copy = [...HAND_13];
+      const copy = [...HAND_13_REVERSED];
       const sorted = sortHand(HAND_13_REVERSED);
       expect(sorted).not.toBe(HAND_13_REVERSED); // new reference
-      expect(HAND_13).toEqual(copy); // original unchanged
+      expect(HAND_13_REVERSED).toEqual(copy); // original unchanged
     });
   });
 

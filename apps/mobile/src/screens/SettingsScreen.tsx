@@ -78,11 +78,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       try {
-        // Check migration status FIRST — before calling hydrate — to avoid a
-        // race where the initial hydrate() call triggers the Zustand persist
-        // middleware to write 'big2-audio-settings' before we check for it.
-        const PERSIST_KEY = SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST;
-        const alreadyMigrated = await AsyncStorage.getItem(PERSIST_KEY);
+        // Use an explicit migration-complete marker so that Zustand store
+        // writes from other screens (which create 'big2-audio-settings' as a
+        // side effect of the persist middleware) can't suppress this migration.
+        const alreadyMigrated = await AsyncStorage.getItem(
+          SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
+        );
 
         // Always sync from managers — they are the source of truth for audio/haptic
         const savedSoundEnabled = await soundManager.isAudioEnabled();
@@ -90,8 +91,8 @@ export default function SettingsScreen() {
         hydrate({ soundEnabled: savedSoundEnabled, vibrationEnabled: savedVibrationEnabled });
 
         // One-time migration: import legacy individual keys into the Zustand
-        // persist store ONLY if the new persist key doesn't exist yet.
-        // After migration, delete the legacy keys so this never runs again.
+        // persist store ONLY if the migration hasn't run yet.
+        // After migration, write the marker so this never runs again.
         if (!alreadyMigrated) {
           const VALID_CARD_SORT: string[] = ['suit', 'rank'];
           const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];
@@ -125,6 +126,9 @@ export default function SettingsScreen() {
             PROFILE_VISIBILITY_KEY,
             SHOW_ONLINE_STATUS_KEY,
           ]);
+
+          // Write the migration marker so future mounts skip this block.
+          await AsyncStorage.setItem(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1');
         }
 
         setCurrentLanguage(i18n.getLanguage());
@@ -241,6 +245,7 @@ export default function SettingsScreen() {
             SETTINGS_KEYS.SHOW_ONLINE_STATUS,
             SETTINGS_KEYS.LANGUAGE,
             SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST, // Zustand persist key (Task #647)
+            SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, // migration marker
             'supabase.auth.token', // Keep auth tokens
           ];
 
