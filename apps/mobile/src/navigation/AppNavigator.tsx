@@ -90,6 +90,22 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
+/**
+ * Minimal linking config used when the user is not logged in.
+ * Only registers the sign-in screen so React Navigation never tries to
+ * navigate to Lobby / Game (which aren't in the logged-out stack) when a
+ * deep link arrives before authentication. Pending links are captured by
+ * pendingLinkRef and replayed after sign-in using the full `linking` config.
+ */
+const loggedOutLinking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['big2mobile://', 'https://big2.app'],
+  config: {
+    screens: {
+      SignIn: 'signin',
+    },
+  },
+};
+
 function LoadingScreen() {
   return (
     <View style={styles.loadingContainer}>
@@ -174,7 +190,7 @@ export default function AppNavigator() {
 
   return (
     <GlobalErrorBoundary>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer linking={isLoggedIn ? linking : loggedOutLinking}>
         <FriendsProvider>
           <NotificationProvider>
             <Stack.Navigator

@@ -17,6 +17,7 @@ import { View, StyleSheet, Text, Pressable, TouchableOpacity, Alert } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
+import { gameScreenStyles } from '../../styles/gameScreenStyles';
 import { AutoPassTimer } from '../game';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
@@ -382,17 +383,17 @@ export function LandscapeGameLayout({
 
         {/* Inline Add Friend overlay — shown after avatar tap */}
         {opponentActionTarget && (
-          <View style={styles.friendActionOverlay} pointerEvents="auto">
-            <View style={styles.friendActionCard}>
-              <Text style={styles.friendActionName} numberOfLines={1}>
+          <View style={gameScreenStyles.friendActionOverlay} pointerEvents="auto">
+            <View style={gameScreenStyles.friendActionCard}>
+              <Text style={gameScreenStyles.friendActionName} numberOfLines={1}>
                 {opponentActionTarget.name}
               </Text>
               <AddFriendButton targetUserId={opponentActionTarget.id} compact />
               <TouchableOpacity
-                style={styles.friendActionClose}
+                style={gameScreenStyles.friendActionClose}
                 onPress={() => setOpponentActionTarget(null)}
               >
-                <Text style={styles.friendActionCloseText}>✕</Text>
+                <Text style={gameScreenStyles.friendActionCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -597,43 +598,6 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -58 }], // Raised (from -40) to match left opponent
     zIndex: 5,
-  },
-  friendActionOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 200,
-  },
-  friendActionCard: {
-    backgroundColor: 'rgba(37,41,46,0.97)',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(74,144,226,0.4)',
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  friendActionName: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    maxWidth: 120,
-  },
-  friendActionClose: {
-    padding: 6,
-  },
-  friendActionCloseText: {
-    color: '#9E9E9E',
-    fontSize: 16,
   },
 
   mainArea: {
