@@ -3,7 +3,7 @@
  *
  * Covers:
  *   - Straight / Straight-Flush tiebreaks in canBeatPlay
- *   - Full-House quad-rank comparison in canBeatPlay
+ *   - Full-House triple-rank comparison in canBeatPlay
  *   - findRecommendedPlay: flush / full-house / four-of-a-kind recommendations,
  *     and the "no play possible" null case
  *   - validateOneCardLeftRule edge cases not covered in game-logic.test.ts
@@ -12,6 +12,9 @@
  *     code-paths that were previously at 62 % coverage
  *
  * All tests are pure-function unit tests — no mocks, no async, no network.
+ *
+ * NOTE: canBeatPlay compares Full Houses by triple rank only; isHighestPossiblePlay
+ * follows the same rule — any triple-2 Full House is unbeatable regardless of pair.
  */
 
 import {
@@ -316,9 +319,9 @@ describe('isHighestPossiblePlay — Full House', () => {
     expect(isHighestPossiblePlay(fhAces, [])).toBe(false);
   });
 
-  it('does NOT detect triple-2s + pair-Queens as highest FH (pair-Kings still available)', () => {
-    // Highest pair rank given blockSFAndNoFourOfAKind is K (3 remaining);
-    // Queens only has 3 remaining too but K > Q → pair rank mismatch → false.
+  it('detects triple-2s + pair-Queens as highest FH when SFs/4K exhausted (pair rank irrelevant)', () => {
+    // canBeatPlay compares Full Houses by triple rank only; any triple-2 FH is
+    // unbeatable once SFs and 4-of-a-kinds are exhausted, regardless of pair rank.
     const fhTwoQueens: Card[] = [
       card('2', 'H'),
       card('2', 'D'),
@@ -326,10 +329,10 @@ describe('isHighestPossiblePlay — Full House', () => {
       card('Q', 'H'),
       card('Q', 'D'),
     ];
-    expect(isHighestPossiblePlay(fhTwoQueens, blockSFAndNoFourOfAKind)).toBe(false);
+    expect(isHighestPossiblePlay(fhTwoQueens, blockSFAndNoFourOfAKind)).toBe(true);
   });
 
-  it('does NOT detect Full House of Aces-over-3s as highest (Aces-over-Ks still possible)', () => {
+  it('does NOT detect Full House of Aces-over-3s as highest (triple 2s still possible)', () => {
     const fhAcesThree: Card[] = [
       card('A', 'H'),
       card('A', 'D'),
@@ -337,9 +340,8 @@ describe('isHighestPossiblePlay — Full House', () => {
       card('3', 'H'),
       card('3', 'D'),
     ];
-    // Kings are still in the deck → Aces-over-Kings would beat Aces-over-3s? No.
-    // Full House is compared by triple rank. Since Aces == Aces, pair rank matters.
-    // Function returns false because played pair rank (3) ≠ highest pair rank (K)
+    // Triple Aces (rank A) is not the highest triple — triple 2s (rank 2) beats it.
+    // Function returns false because the highest possible triple rank (2) > played triple rank (A).
     expect(isHighestPossiblePlay(fhAcesThree, [])).toBe(false);
   });
 });
