@@ -92,10 +92,12 @@ export const useAudioSettingsStore = create<AudioSettingsState>()(
     {
       name: 'big2-audio-settings',
       storage: createJSONStorage(() => AsyncStorage),
-      // Only persist the data fields, not the action functions
+      // Only persist the data fields, not the action functions.
+      // soundEnabled/vibrationEnabled are excluded: they're owned by the
+      // soundManager/hapticManager singletons (which have their own
+      // AsyncStorage persistence), so including them here would create two
+      // competing persisted sources and a rehydration race.
       partialize: state => ({
-        soundEnabled: state.soundEnabled,
-        vibrationEnabled: state.vibrationEnabled,
         cardSortOrder: state.cardSortOrder,
         animationSpeed: state.animationSpeed,
         autoPassTimer: state.autoPassTimer,

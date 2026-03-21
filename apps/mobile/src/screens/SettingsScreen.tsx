@@ -29,15 +29,16 @@ import {
 } from '../utils';
 import { useAudioSettingsStore } from '../store';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
+import { SETTINGS_KEYS } from '../utils/settings';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-// Legacy AsyncStorage keys — still used by handleClearCache and one-time migration.
-const CARD_SORT_ORDER_KEY = '@big2_card_sort_order';
-const ANIMATION_SPEED_KEY = '@big2_animation_speed';
-const AUTO_PASS_TIMER_KEY = '@big2_auto_pass_timer';
-const PROFILE_VISIBILITY_KEY = '@big2_profile_visibility';
-const SHOW_ONLINE_STATUS_KEY = '@big2_show_online_status';
+// Legacy AsyncStorage keys — aliases to SETTINGS_KEYS for use in migration and cache-clear logic.
+const CARD_SORT_ORDER_KEY = SETTINGS_KEYS.CARD_SORT_ORDER;
+const ANIMATION_SPEED_KEY = SETTINGS_KEYS.ANIMATION_SPEED;
+const AUTO_PASS_TIMER_KEY = SETTINGS_KEYS.AUTO_PASS_TIMER;
+const PROFILE_VISIBILITY_KEY = SETTINGS_KEYS.PROFILE_VISIBILITY;
+const SHOW_ONLINE_STATUS_KEY = SETTINGS_KEYS.SHOW_ONLINE_STATUS;
 
 // Re-export types from the store slice so external consumers are unaffected.
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
         // Check migration status FIRST — before calling hydrate — to avoid a
         // race where the initial hydrate() call triggers the Zustand persist
         // middleware to write 'big2-audio-settings' before we check for it.
-        const PERSIST_KEY = 'big2-audio-settings';
+        const PERSIST_KEY = SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST;
         const alreadyMigrated = await AsyncStorage.getItem(PERSIST_KEY);
 
         // Always sync from managers — they are the source of truth for audio/haptic
@@ -230,16 +231,16 @@ export default function SettingsScreen() {
           // Clear all non-essential cached data
           // Keep auth tokens, user preferences, and game settings
           const keysToKeep = [
-            '@big2_audio_enabled',
-            '@big2_audio_volume',
-            '@big2_haptics_enabled',
-            '@big2_card_sort_order',
-            '@big2_animation_speed',
-            '@big2_auto_pass_timer',
-            '@big2_profile_visibility',
-            '@big2_show_online_status',
-            '@big2_language',
-            'big2-audio-settings', // Zustand persist key (Task #647)
+            SETTINGS_KEYS.AUDIO_ENABLED,
+            SETTINGS_KEYS.AUDIO_VOLUME,
+            SETTINGS_KEYS.HAPTICS_ENABLED,
+            SETTINGS_KEYS.CARD_SORT_ORDER,
+            SETTINGS_KEYS.ANIMATION_SPEED,
+            SETTINGS_KEYS.AUTO_PASS_TIMER,
+            SETTINGS_KEYS.PROFILE_VISIBILITY,
+            SETTINGS_KEYS.SHOW_ONLINE_STATUS,
+            SETTINGS_KEYS.LANGUAGE,
+            SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST, // Zustand persist key (Task #647)
             'supabase.auth.token', // Keep auth tokens
           ];
 
