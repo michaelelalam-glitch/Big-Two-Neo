@@ -2,7 +2,7 @@
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const RN = require('react-native');
-  
+
   // Create Animated object as default export
   const Animated = {
     View: RN.View,
@@ -10,22 +10,22 @@ jest.mock('react-native-reanimated', () => {
     ScrollView: RN.ScrollView,
     Image: RN.Image,
   };
-  
+
   return {
     __esModule: true,
     default: Animated,
-    useSharedValue: jest.fn((value) => ({ value })),
-    useAnimatedStyle: jest.fn((fn) => {
+    useSharedValue: jest.fn(value => ({ value })),
+    useAnimatedStyle: jest.fn(fn => {
       try {
         return fn();
       } catch (e) {
         return {};
       }
     }),
-    withSpring: jest.fn((value) => value),
-    withTiming: jest.fn((value) => value),
-    runOnJS: jest.fn((fn) => fn),
-    useDerivedValue: jest.fn((fn) => ({ value: fn() })),
+    withSpring: jest.fn(value => value),
+    withTiming: jest.fn(value => value),
+    runOnJS: jest.fn(fn => fn),
+    useDerivedValue: jest.fn(fn => ({ value: fn() })),
     useAnimatedReaction: jest.fn(),
   };
 });
@@ -99,11 +99,7 @@ describe('Card Component', () => {
 
   it('renders card with correct rank and suit', () => {
     const { getAllByText } = render(
-      <Card
-        card={mockCard}
-        isSelected={false}
-        onToggleSelect={mockOnToggleSelect}
-      />
+      <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
     );
 
     // Rank appears twice (top-left and bottom-right)
@@ -120,11 +116,7 @@ describe('Card Component', () => {
   // This test suite verifies component structure and rendering only
   it('renders without errors when tapped', () => {
     const { getByTestId } = render(
-      <Card
-        card={mockCard}
-        isSelected={false}
-        onToggleSelect={mockOnToggleSelect}
-      />
+      <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
     );
 
     // Verifies component renders correctly
@@ -134,11 +126,7 @@ describe('Card Component', () => {
 
   it('displays selected state with border', () => {
     const { getAllByText } = render(
-      <Card
-        card={mockCard}
-        isSelected={true}
-        onToggleSelect={mockOnToggleSelect}
-      />
+      <Card card={mockCard} isSelected={true} onToggleSelect={mockOnToggleSelect} />
     );
 
     // Component renders when selected
@@ -161,11 +149,7 @@ describe('Card Component', () => {
       };
 
       const { getAllByText } = render(
-        <Card
-          card={card}
-          isSelected={false}
-          onToggleSelect={mockOnToggleSelect}
-        />
+        <Card card={card} isSelected={false} onToggleSelect={mockOnToggleSelect} />
       );
 
       expect(getAllByText(symbol).length).toBeGreaterThanOrEqual(1);
@@ -193,36 +177,20 @@ describe('Card Component', () => {
   // that don't directly affect the DOM and would require E2E testing to verify.
   it('resets animation values when selection state changes', () => {
     const { rerender, getAllByText } = render(
-      <Card
-        card={mockCard}
-        isSelected={false}
-        onToggleSelect={mockOnToggleSelect}
-      />
+      <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
     );
 
     // Verify initial render
     expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
 
     // Change selection state - should trigger useEffect to reset animation values
-    rerender(
-      <Card
-        card={mockCard}
-        isSelected={true}
-        onToggleSelect={mockOnToggleSelect}
-      />
-    );
+    rerender(<Card card={mockCard} isSelected={true} onToggleSelect={mockOnToggleSelect} />);
 
     // Component should re-render without errors after selection state change
     expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
 
     // Change back to unselected
-    rerender(
-      <Card
-        card={mockCard}
-        isSelected={false}
-        onToggleSelect={mockOnToggleSelect}
-      />
-    );
+    rerender(<Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />);
 
     // Component should still render correctly after multiple state changes
     expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
@@ -230,32 +198,128 @@ describe('Card Component', () => {
 
   it('maintains stable component when selection state changes rapidly', () => {
     const { rerender, getAllByText } = render(
-      <Card
-        card={mockCard}
-        isSelected={false}
-        onToggleSelect={mockOnToggleSelect}
-      />
+      <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
     );
 
     // Simulate rapid selection/deselection
     for (let i = 0; i < 5; i++) {
-      rerender(
-        <Card
-          card={mockCard}
-          isSelected={true}
-          onToggleSelect={mockOnToggleSelect}
-        />
-      );
-      rerender(
-        <Card
-          card={mockCard}
-          isSelected={false}
-          onToggleSelect={mockOnToggleSelect}
-        />
-      );
+      rerender(<Card card={mockCard} isSelected={true} onToggleSelect={mockOnToggleSelect} />);
+      rerender(<Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />);
     }
 
     // Component should remain stable after rapid state changes
     expect(getAllByText('3').length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ─── Accessibility (Task #645) ───────────────────────────────────────────
+
+  describe('accessibilityLabel', () => {
+    it('shows full name without "selected" when unselected', () => {
+      const { getByLabelText } = render(
+        <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
+      );
+      expect(getByLabelText('Three of Hearts')).toBeTruthy();
+    });
+
+    it('appends ", selected" suffix when selected', () => {
+      const { getByLabelText } = render(
+        <Card card={mockCard} isSelected={true} onToggleSelect={mockOnToggleSelect} />
+      );
+      expect(getByLabelText('Three of Hearts, selected')).toBeTruthy();
+    });
+  });
+
+  describe('accessibilityHint', () => {
+    it('is undefined when card is disabled', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card
+          card={mockCard}
+          isSelected={false}
+          disabled={true}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      expect(touchable.props.accessibilityHint).toBeUndefined();
+    });
+
+    it('shows select/deselect hint for normal (non-multi-select) state', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      expect(touchable.props.accessibilityHint).toMatch(/select or deselect/i);
+    });
+
+    it('shows deselect hint when selected in multi-select mode', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card
+          card={mockCard}
+          isSelected={true}
+          hasMultipleSelected={true}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      expect(touchable.props.accessibilityHint).toMatch(/deselect/i);
+      expect(touchable.props.accessibilityHint).not.toMatch(/^Double tap to select\./);
+    });
+
+    it('shows select hint when unselected in multi-select mode', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card
+          card={mockCard}
+          isSelected={false}
+          hasMultipleSelected={true}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      expect(touchable.props.accessibilityHint).toMatch(/^Double tap to select\./);
+    });
+  });
+
+  describe('accessibilityActions', () => {
+    it('is undefined when card is disabled', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card
+          card={mockCard}
+          isSelected={false}
+          disabled={true}
+          onToggleSelect={mockOnToggleSelect}
+        />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      expect(touchable.props.accessibilityActions).toBeUndefined();
+    });
+
+    it('includes activate action when enabled', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      const actions: { name: string }[] = touchable.props.accessibilityActions ?? [];
+      expect(actions.some(a => a.name === 'activate')).toBe(true);
+    });
+
+    it('activate label says "Deselect card" when selected', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card card={mockCard} isSelected={true} onToggleSelect={mockOnToggleSelect} />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      const actions: { name: string; label: string }[] = touchable.props.accessibilityActions ?? [];
+      const activate = actions.find(a => a.name === 'activate');
+      expect(activate?.label).toBe('Deselect card');
+    });
+
+    it('activate label says "Select card" when unselected', () => {
+      const { UNSAFE_getByProps } = render(
+        <Card card={mockCard} isSelected={false} onToggleSelect={mockOnToggleSelect} />
+      );
+      const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
+      const actions: { name: string; label: string }[] = touchable.props.accessibilityActions ?? [];
+      const activate = actions.find(a => a.name === 'activate');
+      expect(activate?.label).toBe('Select card');
+    });
   });
 });

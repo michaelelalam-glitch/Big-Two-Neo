@@ -169,16 +169,21 @@ function GameControlsComponent({
       ? `Play ${selectedCards.length} card${selectedCards.length !== 1 ? 's' : ''}`
       : 'Play selected cards';
 
-  // Task #645: Announce when play becomes enabled (cards selected on active turn)
+  // Task #645: Announce when play becomes enabled (cards selected on active turn).
+  // Guard: skip announcement if the transition came from a play attempt resetting
+  // (isPlayingCards flipping false → false "ready to play" after a failed play).
   const prevPlayDisabledRef = React.useRef(isPlayDisabled);
+  const prevIsPlayingRef = React.useRef(isPlayingCards);
   React.useEffect(() => {
-    if (prevPlayDisabledRef.current && !isPlayDisabled) {
+    const wasPlaying = prevIsPlayingRef.current;
+    if (prevPlayDisabledRef.current && !isPlayDisabled && !wasPlaying) {
       AccessibilityInfo.announceForAccessibility(
         `${selectedCards.length} card${selectedCards.length !== 1 ? 's' : ''} selected. Ready to play.`
       );
     }
     prevPlayDisabledRef.current = isPlayDisabled;
-  }, [isPlayDisabled, selectedCards.length]);
+    prevIsPlayingRef.current = isPlayingCards;
+  }, [isPlayDisabled, isPlayingCards, selectedCards.length]);
 
   return (
     <View style={styles.actionButtons}>
