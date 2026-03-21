@@ -218,7 +218,16 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // backgrounded/closed-app cases that bypass addNotificationReceivedListener)
       addStoredNotification(response.notification);
 
-      // Navigate based on notification type
+      // Navigate based on notification type.
+      // Guard against navigating to authenticated routes when the user is
+      // logged out (NotificationProvider wraps the whole navigator, so these
+      // routes may not exist in the auth stack).
+      if (!isLoggedIn) {
+        // App will deep-link / resume to the intended destination after login
+        // via AppNavigator's pendingLinkRef; nothing to do here.
+        return;
+      }
+
       if (data.type === 'game_invite' && data.roomCode) {
         navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
       } else if (data.type === 'your_turn' && data.roomCode) {
@@ -229,7 +238,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         navigation.navigate('Profile');
       }
     },
-    [navigation, addStoredNotification]
+    [navigation, addStoredNotification, isLoggedIn]
   );
 
   // Setup notification listeners
