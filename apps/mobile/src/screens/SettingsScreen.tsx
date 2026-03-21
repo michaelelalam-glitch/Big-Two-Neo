@@ -67,13 +67,14 @@ export default function SettingsScreen() {
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
   // On first mount: sync sound/haptic state and run one-time migration.
-  // Two-phase approach to avoid blocking UI on heavy sound preloads:
-  //   Phase 1 (fast path): read enabled flags directly from AsyncStorage so
-  //     toggles hydrate immediately without waiting for audio-mode setup or
-  //     sound preloads that may take 30–60 s on cold start.
-  //   Phase 2 (background): fire off manager.initialize() to configure audio
-  //     mode and preload resources; Phase 1's AsyncStorage-derived flags
-  //     remain the source of truth for the UI toggles.
+  // Fast path: read enabled flags directly from AsyncStorage so toggles hydrate
+  // immediately without waiting for audio-mode setup or sound preloads that may
+  // take 30–60 s on cold start. Manager initialization is intentionally omitted
+  // here — AuthContext already calls soundManager.initialize() and
+  // hapticManager.initialize() during auth setup (before any authenticated
+  // screen is reachable), so calling them again from SettingsScreen would risk
+  // a concurrent duplicate run if the user navigates here while auth init is
+  // still in-flight.
   useEffect(() => {
     (async () => {
       try {
@@ -84,7 +85,7 @@ export default function SettingsScreen() {
           SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
         );
 
-        // ── Phase 1: fast path — load enabled flags from storage so UI toggles
+        // ── Fast path — load enabled flags from storage so UI toggles
         // can hydrate without waiting for heavy sound preloads.
         try {
           const entries = await AsyncStorage.multiGet([
@@ -107,14 +108,6 @@ export default function SettingsScreen() {
             storageError
           );
         }
-
-        // ── Phase 2: background — initialize managers (audio mode + preloads).
-        // Phase 1's AsyncStorage-derived flags are treated as authoritative for
-        // the UI toggles. initialize() swallows internal errors and always
-        // resolves, so no .catch() is needed here — the managers log failures
-        // internally.
-        soundManager.initialize();
-        hapticManager.initialize();
 
         // One-time migration via dedicated helper — see utils/migrateLegacyUserPreferences.ts.
         // migrateLegacyUserPreferences re-checks the marker internally (idempotent).
