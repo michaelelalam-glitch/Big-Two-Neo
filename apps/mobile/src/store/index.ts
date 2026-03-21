@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { Player, Room, GameState } from '../types';
+import type { Player, Room, GameState } from '../types';
 
 // ─── Original app store (keep for backward compatibility) ─────────────────────
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -66,8 +66,30 @@ function GameSettingsModalComponent({
   const isLandscape = width > height;
 
   // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
-  const { soundEnabled, vibrationEnabled, setSoundEnabled, setVibrationEnabled } =
+  const { soundEnabled, vibrationEnabled, setSoundEnabled, setVibrationEnabled, hydrate } =
     useAudioSettingsStore();
+
+  // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
+  // yet (e.g. user opens this modal on first launch before visiting Settings),
+  // pull the current values from the manager singletons so the toggles are correct.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const managerSound = await soundManager.isAudioEnabled();
+        const managerVibration = await hapticManager.isHapticsEnabled();
+        if (!cancelled) {
+          hydrate({ soundEnabled: managerSound, vibrationEnabled: managerVibration });
+        }
+      } catch {
+        // Non-fatal: store defaults (true/true) remain in effect
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleToggleSound = async () => {
     const newValue = !soundEnabled;
