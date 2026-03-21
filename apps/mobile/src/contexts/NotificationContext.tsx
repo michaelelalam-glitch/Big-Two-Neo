@@ -214,6 +214,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // Clear badge when user interacts with notification
       clearBadgeCount();
 
+      // Ensure the tapped notification appears in in-app history (covers
+      // backgrounded/closed-app cases that bypass addNotificationReceivedListener)
+      addStoredNotification(response.notification);
+
       // Navigate based on notification type
       if (data.type === 'game_invite' && data.roomCode) {
         navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
@@ -225,7 +229,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         navigation.navigate('Profile');
       }
     },
-    [navigation]
+    [navigation, addStoredNotification]
   );
 
   // Setup notification listeners
