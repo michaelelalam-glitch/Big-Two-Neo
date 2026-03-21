@@ -138,7 +138,7 @@ export default function SettingsScreen() {
   // Audio & Haptics handlers
   const handleToggleSound = async () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue); // Zustand (persists automatically)
+    setSoundEnabled(newValue); // Updates Zustand in-memory state; persistence is handled by soundManager
     await soundManager.setAudioEnabled(newValue); // sync manager singleton
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
@@ -147,7 +147,7 @@ export default function SettingsScreen() {
 
   const handleToggleVibration = async () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue); // Zustand (persists automatically)
+    setVibrationEnabled(newValue); // Updates Zustand in-memory state; persistence is handled by hapticManager
     await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);

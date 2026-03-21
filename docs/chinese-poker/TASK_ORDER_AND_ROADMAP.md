@@ -158,7 +158,7 @@
 
 ## 📋 Current Status Board
 
-### � IN REVIEW (6 tasks)
+### 🔍 IN REVIEW (6 tasks)
 - `#617` — Ratchet coverage thresholds +2% per sprint *(implemented — PR #165 under Copilot review)*
 - `#616` — CI: Bundle size monitoring *(implemented — PR #165 under Copilot review)*
 - `#328` — Add performance benchmarks for card rendering *(implemented — PR #165 under Copilot review)*
