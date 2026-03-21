@@ -85,22 +85,19 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       showOnlineStatus: DEFAULT_SETTINGS.showOnlineStatus,
 
       setSoundEnabled: enabled => {
-        set({ soundEnabled: enabled });
-        void soundManager.setAudioEnabled(enabled).catch(err => {
-          console.error('[UserPreferences] Failed to persist audio enabled', err);
-          // Rollback only if current state still matches the failed request
-          // (guards against rapid-toggle races where a later write already won).
-          set(state => (state.soundEnabled === enabled ? { soundEnabled: !enabled } : {}));
-        });
+        // Pessimistic update: apply to Zustand only after the manager persists
+        // successfully, so the UI never diverges from SoundManager's internal
+        // state (which is mutated before the AsyncStorage write resolves).
+        void soundManager
+          .setAudioEnabled(enabled)
+          .then(() => set({ soundEnabled: enabled }))
+          .catch(err => console.error('[UserPreferences] Failed to persist audio enabled', err));
       },
       setVibrationEnabled: enabled => {
-        set({ vibrationEnabled: enabled });
-        void hapticManager.setHapticsEnabled(enabled).catch(err => {
-          console.error('[UserPreferences] Failed to persist haptics enabled', err);
-          // Rollback only if current state still matches the failed request
-          // (guards against rapid-toggle races where a later write already won).
-          set(state => (state.vibrationEnabled === enabled ? { vibrationEnabled: !enabled } : {}));
-        });
+        void hapticManager
+          .setHapticsEnabled(enabled)
+          .then(() => set({ vibrationEnabled: enabled }))
+          .catch(err => console.error('[UserPreferences] Failed to persist haptics enabled', err));
       },
       setCardSortOrder: order => set({ cardSortOrder: order }),
       setAnimationSpeed: speed => set({ animationSpeed: speed }),
