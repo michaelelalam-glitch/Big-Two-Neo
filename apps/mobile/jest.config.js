@@ -43,14 +43,14 @@ module.exports = {
   ],
   // Coverage thresholds ratcheted to actuals (Feb 2026 CI audit).
   // Actual: Stmts 78.64 | Branch 80.87 | Funcs 79.43 | Lines 78.64
-  // Thresholds set ~3 pts below actuals as a safety margin.
-  // Target: all categories ≥ 80 — almost there!
+  // Thresholds ratcheted +2% per sprint toward 80%+ target (Task #617, Mar 2026).
+  // Sprint 1 bump: branches 78→80, functions 76→78, lines 76→78, statements 76→78
   coverageThreshold: {
     global: {
-      branches: 78,
-      functions: 76,
-      lines: 76,
-      statements: 76,
+      branches: 80,
+      functions: 78,
+      lines: 78,
+      statements: 78,
     },
   },
   transformIgnorePatterns: [

@@ -24,7 +24,9 @@
     "prepare": "husky",
     "bundle:visualize": "npx react-native-bundle-visualizer",
     "bundle:analyze": "npx react-native-bundle-visualizer --format=json > bundle-analysis.json && echo 'Bundle analysis saved to bundle-analysis.json'",
-    "bundle:report": "echo '📦 Generating bundle size report...' && npx react-native-bundle-visualizer"
+    "bundle:report": "echo '📦 Generating bundle size report...' && npx react-native-bundle-visualizer",
+    "bundle:size-check": "node scripts/check-bundle-size.js",
+    "bundle:size-check:verbose": "node scripts/check-bundle-size.js --verbose"
   },
   "dependencies": {
     "@livekit/react-native": "^2.9.6",
