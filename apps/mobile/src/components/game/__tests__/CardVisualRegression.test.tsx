@@ -14,57 +14,8 @@
  * CI integration: snapshots are committed; CI fails on unexpected diffs.
  */
 
-// ── Gesture-handler mock (must come before any component imports) ──────────
-jest.mock('react-native-gesture-handler', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    Gesture: {
-      Pan: jest.fn(() => ({
-        onStart: jest.fn().mockReturnThis(),
-        onUpdate: jest.fn().mockReturnThis(),
-        onEnd: jest.fn().mockReturnThis(),
-        onFinalize: jest.fn().mockReturnThis(),
-        enabled: jest.fn().mockReturnThis(),
-        minDistance: jest.fn().mockReturnThis(),
-      })),
-      Tap: jest.fn(() => ({
-        onStart: jest.fn().mockReturnThis(),
-        onEnd: jest.fn().mockReturnThis(),
-        enabled: jest.fn().mockReturnThis(),
-        maxDuration: jest.fn().mockReturnThis(),
-      })),
-      LongPress: jest.fn(() => ({
-        onStart: jest.fn().mockReturnThis(),
-        onEnd: jest.fn().mockReturnThis(),
-        enabled: jest.fn().mockReturnThis(),
-        minDuration: jest.fn().mockReturnThis(),
-      })),
-      Race: jest.fn((...gestures: any[]) => gestures[0]),
-      Exclusive: jest.fn((...gestures: any[]) => gestures[0]),
-      Simultaneous: jest.fn((...gestures: any[]) => gestures[0]),
-    },
-    GestureDetector: ({ children }: { children: React.ReactNode }) => children,
-    GestureHandlerRootView: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(View, null, children),
-  };
-});
-
-// ── SVG mock (react-native-svg used by InactivityCountdownRing) ──────────────
-jest.mock('react-native-svg', () => {
-  const React = require('react');
-  const createMock =
-    (name: string) =>
-    ({ children, ...props }: any) =>
-      React.createElement(name, props, children);
-  return {
-    Svg: createMock('Svg'),
-    Circle: createMock('Circle'),
-    Path: createMock('Path'),
-    G: createMock('G'),
-    default: createMock('Svg'),
-  };
-});
+// Global mocks for react-native-gesture-handler (src/__tests__/setup.ts) and
+// react-native-svg (jest.config.js moduleNameMapper) are used unchanged here.
 
 import React from 'react';
 import { render } from '@testing-library/react-native';
