@@ -150,6 +150,7 @@ export default function LeaderboardScreen() {
             .gt(`${modePrefix}_games_played`, 0)
             .order(`${modePrefix}_rank_points`, { ascending: false })
             .order(`${modePrefix}_games_won`, { ascending: false })
+            .order('user_id', { ascending: true })
             .range(startIndex, endIndex);
         }
 
@@ -254,7 +255,8 @@ export default function LeaderboardScreen() {
               // user has played in this period — no extra query needed.
 
               // Calculate rank by counting users with strictly higher points, or
-              // equal points but more wins (matches the leaderboard sort order).
+              // equal points but more wins, or equal points+wins but a lower
+              // user_id (matches the leaderboard ORDER BY tie-breaker).
               const userPoints =
                 leaderboardType === 'casual'
                   ? (userRankData.casual_rank_points ?? userRankData.rank_points)
@@ -263,6 +265,7 @@ export default function LeaderboardScreen() {
                 leaderboardType === 'casual'
                   ? (userRankData.casual_games_won ?? userRankData.games_won)
                   : (userRankData.ranked_games_won ?? userRankData.games_won);
+              const userId = userRankData.user_id;
 
               const { count, error: rankError } = await supabase
                 .from('player_stats')
@@ -270,7 +273,9 @@ export default function LeaderboardScreen() {
                 .gte('last_game_at', timeFilterDate!)
                 .gt(`${modePrefix}_games_played`, 0)
                 .or(
-                  `${modePrefix}_rank_points.gt.${userPoints},and(${modePrefix}_rank_points.eq.${userPoints},${modePrefix}_games_won.gt.${userGamesWon})`
+                  `${modePrefix}_rank_points.gt.${userPoints},` +
+                    `and(${modePrefix}_rank_points.eq.${userPoints},${modePrefix}_games_won.gt.${userGamesWon}),` +
+                    `and(${modePrefix}_rank_points.eq.${userPoints},${modePrefix}_games_won.eq.${userGamesWon},user_id.lt.${userId})`
                 );
 
               if (rankError || count == null) {
