@@ -307,7 +307,7 @@ function canFormAnyFourOfAKind(remaining: Card[]): boolean {
 
 /**
  * Check if any full house can be formed
- * Need triple + pair (can be same rank if 5 of same exist)
+ * Requires a triple of one rank and a pair of a DIFFERENT rank.
  */
 function canFormAnyFullHouse(remaining: Card[]): boolean {
   if (remaining.length < 5) return false;
@@ -318,16 +318,25 @@ function canFormAnyFullHouse(remaining: Card[]): boolean {
     rankCounts.set(card.rank, (rankCounts.get(card.rank) || 0) + 1);
   }
 
-  let hasTriple = false;
-  let hasPair = false;
-
-  for (const count of rankCounts.values()) {
-    if (count >= 3) hasTriple = true;
-    if (count >= 2) hasPair = true;
+  // Find a rank with at least 3 cards (triple)
+  let tripleRank: string | null = null;
+  for (const [rank, count] of rankCounts.entries()) {
+    if (count >= 3) {
+      tripleRank = rank;
+      break;
+    }
   }
 
-  // Need both triple and pair
-  return hasTriple && hasPair;
+  if (!tripleRank) return false;
+
+  // Require a pair of a DIFFERENT rank (same-rank triple does not also count as the pair)
+  for (const [rank, count] of rankCounts.entries()) {
+    if (rank !== tripleRank && count >= 2) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
