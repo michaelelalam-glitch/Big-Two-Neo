@@ -71,8 +71,9 @@ export default function SettingsScreen() {
   //   Phase 1 (fast path): read enabled flags directly from AsyncStorage so
   //     toggles hydrate immediately without waiting for audio-mode setup or
   //     sound preloads that may take 30–60 s on cold start.
-  //   Phase 2 (background): fire off manager.initialize() and resync once
-  //     done, since managers are the authoritative persistent source.
+  //   Phase 2 (background): fire off manager.initialize() to configure audio
+  //     mode and preload resources; Phase 1's AsyncStorage-derived flags
+  //     remain the source of truth for the UI toggles.
   useEffect(() => {
     (async () => {
       try {
