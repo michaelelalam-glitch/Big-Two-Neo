@@ -191,7 +191,7 @@ describe('CardHand — visual regression snapshots', () => {
 
   it('renders hand with Play button disabled (no cards selected)', () => {
     const { toJSON } = render(
-      <CardHand cards={FULL_HAND_13.slice(0, 5)} onPlayCards={noop} onPass={noop} />
+      <CardHand cards={FULL_HAND_13.slice(0, 5)} onPlayCards={noop} onPass={noop} disabled={true} />
     );
     expect(toJSON()).toMatchSnapshot();
   });

@@ -5289,7 +5289,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessibilityRole="button"
       accessibilityState={
         {
-          "disabled": false,
+          "disabled": true,
           "selected": false,
         }
       }
@@ -5487,7 +5487,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessibilityRole="button"
       accessibilityState={
         {
-          "disabled": false,
+          "disabled": true,
           "selected": false,
         }
       }
@@ -5685,7 +5685,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessibilityRole="button"
       accessibilityState={
         {
-          "disabled": false,
+          "disabled": true,
           "selected": false,
         }
       }
@@ -5883,7 +5883,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessibilityRole="button"
       accessibilityState={
         {
-          "disabled": false,
+          "disabled": true,
           "selected": false,
         }
       }
@@ -6081,7 +6081,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessibilityRole="button"
       accessibilityState={
         {
-          "disabled": false,
+          "disabled": true,
           "selected": false,
         }
       }
@@ -6296,11 +6296,11 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
         accessibilityRole="button"
         accessibilityState={
           {
-            "disabled": false,
+            "disabled": true,
           }
         }
         accessible={true}
-        disabled={false}
+        disabled={true}
         onPress={[Function]}
         style={
           [
