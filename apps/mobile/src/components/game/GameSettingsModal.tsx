@@ -11,13 +11,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
 import { useAudioSettingsStore } from '../../store';
-import { SETTINGS_KEYS } from '../../utils/settings';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -75,23 +73,19 @@ function GameSettingsModalComponent({
 
   // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
   // yet (e.g. user opens this modal on first launch before visiting Settings),
-  // pull the current values from the manager singletons so the toggles are correct.
-  //
-  // IMPORTANT: we only write to the Zustand store if the persist key already
-  // exists. Any `set()` call triggers the persist middleware to write the full
-  // partialize() result (cardSortOrder, animationSpeed, …) to AsyncStorage,
-  // creating the 'big2-audio-settings' key. Writing before SettingsScreen runs
-  // its migration check would make the check conclude migration is done and
-  // skip importing legacy preferences.
+  // Task #647: on mount, sync sound/vibration from the manager singletons so
+  // the toggles reflect the true persisted state. It is safe to write to the
+  // Zustand store here because migration detection now uses an explicit marker
+  // key (AUDIO_SETTINGS_MIGRATION_COMPLETE) rather than the presence of the
+  // persist blob ('big2-audio-settings'), so these store writes can no longer
+  // suppress first-run migration.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        // Only sync into the store after migration has run (persist key exists)
-        const persistKeyExists = await AsyncStorage.getItem(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST);
         const managerSound = await soundManager.isAudioEnabled();
         const managerVibration = await hapticManager.isHapticsEnabled();
-        if (!cancelled && persistKeyExists !== null) {
+        if (!cancelled) {
           setSoundEnabled(managerSound);
           setVibrationEnabled(managerVibration);
         }
