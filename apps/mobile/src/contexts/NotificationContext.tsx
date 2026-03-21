@@ -257,8 +257,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           const title = response?.notification?.request?.content?.title;
           const type = response?.notification?.request?.content?.data?.type;
           notificationLogger.info('App opened from notification:', { title, type });
-          // Ensure cold-start notification is recorded in history before navigating
-          addStoredNotification(response.notification);
+          // handleNotificationResponse now records the notification internally;
+          // no separate addStoredNotification call is needed here.
           handleNotificationResponse(response);
         }
       })
