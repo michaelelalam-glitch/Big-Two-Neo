@@ -26,24 +26,24 @@ tags:
 - assertVisible:
     id: "sign-in-title"
 
-# Step 4: Verify sign-in footer copyright/terms text is present
-- assertVisible:
-    id: "sign-in-footer"
-
-# Step 5: Verify Google sign-in button is tappable (present and not disabled)
+# Step 4: Verify Google sign-in button is tappable (present and not disabled)
 - assertVisible:
     id: "google-sign-in-button"
 
-# Step 6: Verify the subtitle is present
+# Step 5: Verify the subtitle is present
 - assertVisible:
     id: "sign-in-subtitle"
 
-# Step 7: Scroll to bottom if needed to verify footer
+# Step 6: Scroll to bottom if needed to locate footer, then verify it is visible
 - scrollUntilVisible:
     element:
       id: "sign-in-footer"
     direction: DOWN
     timeout: 10000
+
+# Step 7: Verify sign-in footer copyright/terms text is present after scroll
+- assertVisible:
+    id: "sign-in-footer"
 
 # Step 8: Take baseline screenshot for CI visual audit
 - takeScreenshot: "10_sign_in_content_check"
