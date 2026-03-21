@@ -470,8 +470,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: 🏗️ Build Android debug APK
+      - name: 🏗️ Build Android release APK
         run: |
+          set -o pipefail
           cd apps/mobile
           npx expo prebuild --clean --platform android
           cd android
@@ -479,8 +480,7 @@ jobs:
           ./gradlew assembleRelease \
             -x lint \
             --no-daemon \
-            --parallel \
-            2>&1 | tail -50
+            --parallel
         timeout-minutes: 30
         env:
           JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"

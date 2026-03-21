@@ -5,7 +5,7 @@
  * Reports:
  *   1. Source file sizes (raw + gzip per directory)
  *   2. Large image assets that should be converted to WebP
- *   3. Dependency count (top-level node_modules)
+ *   3. Dependency count (direct + dev from package.json)
  *
  * This is a static analysis tool — no Metro build required.
  * Run before/after changes to track bundle growth.
