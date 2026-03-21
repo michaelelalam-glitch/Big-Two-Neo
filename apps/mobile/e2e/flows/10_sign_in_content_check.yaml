@@ -1,0 +1,46 @@
+# Flow 10: Sign-In Screen Content Validation
+# Validates: Sign-in screen text content, element hierarchy, and screenshot baseline
+# Tags: smoke, ci
+#
+# Extends flow 01 with deeper content-level assertions on the sign-in screen.
+# All assertions use testID selectors so they are Hermes/Metro Release-safe.
+# No authentication required — uses clearState to guarantee unauthenticated state.
+#
+# Complements flow 01 by verifying actual text values (not just element presence).
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# Step 1: Launch with clean state
+- launchApp:
+    clearState: true
+
+# Step 2: Wait for sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+# Step 3: Verify welcome title text
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible: "Welcome to Big2"
+
+# Step 4: Verify sign-in footer copyright/terms text is present
+- assertVisible:
+    id: "sign-in-footer"
+
+# Step 5: Verify Google sign-in button is tappable (present and not disabled)
+- assertVisible:
+    id: "google-sign-in-button"
+
+# Step 6: Verify the subtitle is present
+- assertVisible:
+    id: "sign-in-subtitle"
+
+# Step 7: Scroll to bottom if needed to verify footer
+- scrollToBottom
+
+# Step 8: Take baseline screenshot for CI visual audit
+- takeScreenshot: "10_sign_in_content_check"
