@@ -42,11 +42,22 @@ export async function migrateLegacyUserPreferences(
   const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];
   const VALID_AUTO_PASS: string[] = ['disabled', '30', '60', '90'];
 
-  const savedCardSort = await AsyncStorage.getItem(SETTINGS_KEYS.CARD_SORT_ORDER);
-  const savedAnimSpeed = await AsyncStorage.getItem(SETTINGS_KEYS.ANIMATION_SPEED);
-  const savedAutoPass = await AsyncStorage.getItem(SETTINGS_KEYS.AUTO_PASS_TIMER);
-  const savedVisibility = await AsyncStorage.getItem(SETTINGS_KEYS.PROFILE_VISIBILITY);
-  const savedOnlineStatus = await AsyncStorage.getItem(SETTINGS_KEYS.SHOW_ONLINE_STATUS);
+  const legacyKeys = [
+    SETTINGS_KEYS.CARD_SORT_ORDER,
+    SETTINGS_KEYS.ANIMATION_SPEED,
+    SETTINGS_KEYS.AUTO_PASS_TIMER,
+    SETTINGS_KEYS.PROFILE_VISIBILITY,
+    SETTINGS_KEYS.SHOW_ONLINE_STATUS,
+  ];
+
+  const legacyEntries = await AsyncStorage.multiGet(legacyKeys);
+  const legacyMap = Object.fromEntries(legacyEntries) as Record<string, string | null>;
+
+  const savedCardSort = legacyMap[SETTINGS_KEYS.CARD_SORT_ORDER];
+  const savedAnimSpeed = legacyMap[SETTINGS_KEYS.ANIMATION_SPEED];
+  const savedAutoPass = legacyMap[SETTINGS_KEYS.AUTO_PASS_TIMER];
+  const savedVisibility = legacyMap[SETTINGS_KEYS.PROFILE_VISIBILITY];
+  const savedOnlineStatus = legacyMap[SETTINGS_KEYS.SHOW_ONLINE_STATUS];
 
   const migration: MigrationData = {};
   if (savedCardSort && VALID_CARD_SORT.includes(savedCardSort))
@@ -55,8 +66,11 @@ export async function migrateLegacyUserPreferences(
     migration.animationSpeed = savedAnimSpeed as AnimationSpeed;
   if (savedAutoPass && VALID_AUTO_PASS.includes(savedAutoPass))
     migration.autoPassTimer = savedAutoPass as AutoPassTimer;
-  if (savedVisibility !== null) migration.profileVisibility = savedVisibility === 'true';
-  if (savedOnlineStatus !== null) migration.showOnlineStatus = savedOnlineStatus === 'true';
+  // Accept only explicit 'true'/'false' to avoid migrating corrupted values.
+  if (savedVisibility === 'true' || savedVisibility === 'false')
+    migration.profileVisibility = savedVisibility === 'true';
+  if (savedOnlineStatus === 'true' || savedOnlineStatus === 'false')
+    migration.showOnlineStatus = savedOnlineStatus === 'true';
 
   if (Object.keys(migration).length > 0) hydrate(migration);
 
