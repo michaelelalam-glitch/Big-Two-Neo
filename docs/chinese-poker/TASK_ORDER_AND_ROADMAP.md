@@ -158,7 +158,7 @@
 
 ## 📋 Current Status Board
 
-### � IN PROGRESS (6 tasks — 2 branches)
+### 🚧 IN PROGRESS (6 tasks — 2 branches)
 **Branch `feat/tasks-327-273-325-tests-e2e`** off `game/chinese-poker` — PR #167 open, Copilot review loop complete (0 non-outdated comments)
 - `#327` — Add visual regression snapshot tests for card UI (21 tests passing ✅)
 - `#273` — Write comprehensive game-engine unit tests (32 tests passing ✅)
