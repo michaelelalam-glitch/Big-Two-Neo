@@ -1,5 +1,5 @@
 /**
- * audioSettingsSlice — Task #647: Expand Zustand store
+ * userPreferencesSlice — Task #647: Expand Zustand store
  *
  * Source-of-truth for persisted, user-configurable game preference settings
  * (cardSortOrder, animationSpeed, autoPassTimer, profileVisibility,
@@ -28,7 +28,7 @@ import { hapticManager } from '../utils/hapticManager';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../utils/settings';
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
-export interface AudioSettingsState {
+export interface UserPreferencesState {
   // Audio & haptics
   soundEnabled: boolean;
   vibrationEnabled: boolean;
@@ -54,7 +54,7 @@ export interface AudioSettingsState {
   hydrate: (
     partial: Partial<
       Omit<
-        AudioSettingsState,
+        UserPreferencesState,
         | 'setSoundEnabled'
         | 'setVibrationEnabled'
         | 'setCardSortOrder'
@@ -70,7 +70,7 @@ export interface AudioSettingsState {
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-export const useAudioSettingsStore = create<AudioSettingsState>()(
+export const useUserPreferencesStore = create<UserPreferencesState>()(
   persist(
     set => ({
       // Defaults — sourced from DEFAULT_SETTINGS to keep a single source of truth.
@@ -86,11 +86,15 @@ export const useAudioSettingsStore = create<AudioSettingsState>()(
 
       setSoundEnabled: enabled => {
         set({ soundEnabled: enabled });
-        void soundManager.setAudioEnabled(enabled); // fire-and-forget manager sync
+        void soundManager
+          .setAudioEnabled(enabled)
+          .catch(err => console.error('[UserPreferences] Failed to persist audio enabled', err));
       },
       setVibrationEnabled: enabled => {
         set({ vibrationEnabled: enabled });
-        void hapticManager.setHapticsEnabled(enabled); // fire-and-forget manager sync
+        void hapticManager
+          .setHapticsEnabled(enabled)
+          .catch(err => console.error('[UserPreferences] Failed to persist haptics enabled', err));
       },
       setCardSortOrder: order => set({ cardSortOrder: order }),
       setAnimationSpeed: speed => set({ animationSpeed: speed }),

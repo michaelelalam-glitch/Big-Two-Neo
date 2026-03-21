@@ -15,7 +15,7 @@ import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
-import { useAudioSettingsStore } from '../../store';
+import { useUserPreferencesStore } from '../../store';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -66,10 +66,10 @@ function GameSettingsModalComponent({
   const isLandscape = width > height;
 
   // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
-  const soundEnabled = useAudioSettingsStore(s => s.soundEnabled);
-  const vibrationEnabled = useAudioSettingsStore(s => s.vibrationEnabled);
-  const setSoundEnabled = useAudioSettingsStore(s => s.setSoundEnabled);
-  const setVibrationEnabled = useAudioSettingsStore(s => s.setVibrationEnabled);
+  const soundEnabled = useUserPreferencesStore(s => s.soundEnabled);
+  const vibrationEnabled = useUserPreferencesStore(s => s.vibrationEnabled);
+  const setSoundEnabled = useUserPreferencesStore(s => s.setSoundEnabled);
+  const setVibrationEnabled = useUserPreferencesStore(s => s.setVibrationEnabled);
 
   // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
   // yet (e.g. user opens this modal on first launch before visiting Settings),
