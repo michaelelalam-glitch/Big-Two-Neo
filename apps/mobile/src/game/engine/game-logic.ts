@@ -31,7 +31,7 @@ function fifoSet<V>(cache: Map<string, V>, key: string, value: V, max: number): 
 }
 
 const _classifyCache = new Map<string, ComboType>();
-const _sortHandCache = new Map<string, Card[]>();
+const _sortHandCache = new Map<string, readonly Card[]>();
 const _beatCache = new Map<string, boolean>();
 
 /**
@@ -52,7 +52,7 @@ export function sortHand(cards: Card[]): Card[] {
     if (rankDiff !== 0) return rankDiff;
     return SUIT_VALUE[a.suit] - SUIT_VALUE[b.suit];
   });
-  fifoSet(_sortHandCache, key, Object.freeze([...sorted]) as Card[], SORT_CACHE_MAX);
+  fifoSet(_sortHandCache, key, Object.freeze([...sorted]), SORT_CACHE_MAX);
   return sorted;
 }
 
