@@ -372,7 +372,7 @@ describe('Settings Keys', () => {
     const keys = Object.values(SETTINGS_KEYS);
 
     keys.forEach(key => {
-      expect(key).toMatch(/^@?big2[-_]/);
+      expect(key).toMatch(/^(?:@big2_|big2-)/);
     });
   });
 });
