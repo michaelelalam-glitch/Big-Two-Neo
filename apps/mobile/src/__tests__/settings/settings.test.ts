@@ -258,7 +258,7 @@ describe('User Preferences Migration (Task #647)', () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it('runs migration, hydrates store, and returns true when marker is absent', async () => {
+  it('runs migration and returns true when marker is absent (no legacy data hydrate)', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
     const hydrate = jest.fn();
