@@ -21,7 +21,6 @@ import {
   findRecommendedPlay,
   validateOneCardLeftRule,
   canPassWithOneCardLeftRule,
-  sortHand,
 } from '../engine/game-logic';
 import { isHighestPossiblePlay } from '../engine/highest-play-detector';
 import type { Card, LastPlay } from '../types';
@@ -32,7 +31,7 @@ function card(rank: Card['rank'], suit: Card['suit']): Card {
   return { id: `${rank}${suit}`, rank, suit };
 }
 
-function lastPlay(cards: Card[], combo_type: string): LastPlay {
+function lastPlay(cards: Card[], combo_type: LastPlay['combo_type']): LastPlay {
   return { cards, combo_type };
 }
 
@@ -86,50 +85,44 @@ describe('canBeatPlay — Straight tiebreaks', () => {
 
 describe('canBeatPlay — Straight Flush tiebreaks', () => {
   // A straight flush in this game requires 5 same-suit cards in a straight
-  const sf_low_H = [card('3', 'H'), card('4', 'H'), card('5', 'H'), card('6', 'H'), card('7', 'H')];
-  const sf_high_H = [
-    card('5', 'H'),
-    card('6', 'H'),
-    card('7', 'H'),
-    card('8', 'H'),
-    card('9', 'H'),
-  ];
-  const sf_low_S = [card('3', 'S'), card('4', 'S'), card('5', 'S'), card('6', 'S'), card('7', 'S')];
+  const sfLowH = [card('3', 'H'), card('4', 'H'), card('5', 'H'), card('6', 'H'), card('7', 'H')];
+  const sfHighH = [card('5', 'H'), card('6', 'H'), card('7', 'H'), card('8', 'H'), card('9', 'H')];
+  const sfLowS = [card('3', 'S'), card('4', 'S'), card('5', 'S'), card('6', 'S'), card('7', 'S')];
 
   it('higher-sequence SF beats lower-sequence SF', () => {
-    expect(canBeatPlay(sf_high_H, lastPlay(sf_low_H, 'Straight Flush'))).toBe(true);
+    expect(canBeatPlay(sfHighH, lastPlay(sfLowH, 'Straight Flush'))).toBe(true);
   });
 
   it('same-sequence SF with higher suit beats lower suit', () => {
-    expect(canBeatPlay(sf_low_S, lastPlay(sf_low_H, 'Straight Flush'))).toBe(true);
+    expect(canBeatPlay(sfLowS, lastPlay(sfLowH, 'Straight Flush'))).toBe(true);
   });
 });
 
 // ── Full House rank comparison ────────────────────────────────────────────────
 
 describe('canBeatPlay — Full House', () => {
-  const fh_aces_over_kings = [
+  const fhAcesOverKings = [
     card('A', 'H'),
     card('A', 'D'),
     card('A', 'C'),
     card('K', 'H'),
     card('K', 'D'),
   ];
-  const fh_kings_over_aces = [
+  const fhKingsOverAces = [
     card('K', 'H'),
     card('K', 'D'),
     card('K', 'C'),
     card('A', 'H'),
     card('A', 'D'),
   ];
-  const fh_aces_over_queens = [
+  const fhAcesOverQueens = [
     card('A', 'H'),
     card('A', 'D'),
     card('A', 'C'),
     card('Q', 'H'),
     card('Q', 'D'),
   ];
-  const fh_twos_over_aces = [
+  const fhTwosOverAces = [
     card('2', 'H'),
     card('2', 'D'),
     card('2', 'C'),
@@ -138,19 +131,17 @@ describe('canBeatPlay — Full House', () => {
   ];
 
   it('higher triple rank beats lower triple rank Full House', () => {
-    expect(canBeatPlay(fh_twos_over_aces, lastPlay(fh_aces_over_kings, 'Full House'))).toBe(true);
+    expect(canBeatPlay(fhTwosOverAces, lastPlay(fhAcesOverKings, 'Full House'))).toBe(true);
   });
 
   it('Aces-over-Kings beats Kings-over-Aces (triple rank determines winner)', () => {
-    expect(canBeatPlay(fh_aces_over_kings, lastPlay(fh_kings_over_aces, 'Full House'))).toBe(true);
+    expect(canBeatPlay(fhAcesOverKings, lastPlay(fhKingsOverAces, 'Full House'))).toBe(true);
   });
 
   it('same triple rank with different pair — pair rank does NOT matter for beating', () => {
     // Both have triple Aces — Aces-over-Queens vs Aces-over-Kings
     // Triple rank is equal, so higher pair doesn't give the win (rank diff = 0)
-    expect(canBeatPlay(fh_aces_over_kings, lastPlay(fh_aces_over_queens, 'Full House'))).toBe(
-      false
-    ); // Same triple rank → false (not strictly greater)
+    expect(canBeatPlay(fhAcesOverKings, lastPlay(fhAcesOverQueens, 'Full House'))).toBe(false); // Same triple rank → false (not strictly greater)
   });
 });
 
@@ -506,14 +497,15 @@ describe('isHighestPossiblePlay — Straight', () => {
     expect(isHighestPossiblePlay(low, [])).toBe(false);
   });
 
-  it('detects highest straight after top sequences are exhausted', () => {
-    // Play all cards that could form straights higher than 8-9-10-J-Q♠
-    // by exhausting critical ranks. A♠ through 9♠ form sequences above 4-8 range.
-    // Use played cards that block higher straights
+  it('does NOT detect a low straight as highest when lower-rank SFs remain unblocked', () => {
+    // blockHigher plays all A/K/Q/J/10 cards (plus 8♠/9♠).
+    // It blocks all higher straight sequences but does NOT break lower-rank SFs
+    // (ranks 3–7 / 4–8 still fully available in the remaining deck),
+    // so a straight flush is still possible → isHighestPossiblePlay returns false.
     const blockHigher: Card[] = [
       card('A', 'S'),
       card('K', 'S'),
-      card('Q', 'S'), // blocks 10-A sequences
+      card('Q', 'S'),
       card('J', 'S'),
       card('10', 'S'),
       card('9', 'S'),
@@ -534,32 +526,14 @@ describe('isHighestPossiblePlay — Straight', () => {
       card('J', 'C'),
       card('10', 'C'),
     ];
-    const straight_3to7_S: Card[] = [
-      card('3', 'S'),
-      card('4', 'S'),
-      card('5', 'S'),
-      card('6', 'S'),
-      card('7', 'S'),
-    ];
-    // This is a straight flush — skip, use mixed suits
-    const straight_3to7_mixed: Card[] = [
+    const lowStraight: Card[] = [
       card('3', 'H'),
       card('4', 'D'),
       card('5', 'C'),
       card('6', 'S'),
       card('7', 'H'),
     ];
-    // Only 3-7 remains possible — should be highest
-    const blockSuits: Card[] = [
-      card('4', 'H'),
-      card('4', 'S'),
-      card('4', 'C'), // block rank 4 straights would need 3-7 too
-    ];
-    // Simplified: with all cards above 7 played, 3-7 might be highest available
-    // This is a broad smoke test to exercise the Straight branch code path
-    const result = isHighestPossiblePlay(straight_3to7_mixed, blockHigher);
-    // Don't assert specific value — just ensure the function runs without throwing
-    expect(typeof result).toBe('boolean');
+    expect(isHighestPossiblePlay(lowStraight, blockHigher)).toBe(false);
   });
 });
 
@@ -643,8 +617,8 @@ describe('validateOneCardLeftRule — edge cases', () => {
   it('handles leading play (null lastPlay) with next player having 1 card', () => {
     const single: Card[] = [card('3', 'D')];
     const hand: Card[] = [card('3', 'D'), card('A', 'S'), card('2', 'S')];
-    // When leading (null lastPlay), findHighestBeatingSingle returns the highest card
-    // But since there's no lastPlay, the single is treated as valid
+    // When leading (null lastPlay), findHighestBeatingSingle returns the highest card in hand,
+    // and validateOneCardLeftRule still enforces playing that highest single if the next player has 1 card
     const result = validateOneCardLeftRule(single, hand, 1, null);
     // Must play 2♠ (highest single) when leading and next player has 1 card
     expect(result.valid).toBe(false);

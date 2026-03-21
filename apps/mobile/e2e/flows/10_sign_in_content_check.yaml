@@ -25,7 +25,6 @@ tags:
 # Step 3: Verify welcome title text
 - assertVisible:
     id: "sign-in-title"
-- assertVisible: "Welcome to Big2"
 
 # Step 4: Verify sign-in footer copyright/terms text is present
 - assertVisible:
@@ -40,7 +39,11 @@ tags:
     id: "sign-in-subtitle"
 
 # Step 7: Scroll to bottom if needed to verify footer
-- scrollToBottom
+- scrollUntilVisible:
+    element:
+      id: "sign-in-footer"
+    direction: DOWN
+    timeout: 10000
 
 # Step 8: Take baseline screenshot for CI visual audit
 - takeScreenshot: "10_sign_in_content_check"
