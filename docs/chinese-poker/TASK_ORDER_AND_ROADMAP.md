@@ -37,7 +37,7 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 3 | `#648` | [FEATURE] In-game text chat (Supabase Realtime) | 5–7 days | 🟡 Medium |
+| 3 | `#648` | ✅ [FEATURE] In-game text chat (Supabase Realtime) — Completed Mar 22, 2026 | 0 days | ✅ Completed |
 | 4 | `#646` | ✅ Configure deep linking, friends list & game invite share — Completed Mar 21, 2026 | 0 days | ✅ Completed |
 | 5 | `#650` | Increase card touch targets to iOS HIG 44px minimum | 1 day | 🟢 Low |
 | 6 | `#652` | ✅ Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 21, 2026 | 0 days | ✅ Completed |
