@@ -497,7 +497,7 @@ jobs:
           disable-animations: true
           script: |
             # Wait for emulator to be fully ready
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 82'
+            adb wait-for-device shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done; input keyevent 82'
             sleep 5
 
             # Install the APK
