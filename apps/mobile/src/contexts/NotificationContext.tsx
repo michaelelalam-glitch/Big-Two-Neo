@@ -121,9 +121,18 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         read: false,
       };
       setStoredNotifications(prev => {
-        const updated = [entry, ...prev].slice(0, MAX_STORED_NOTIFICATIONS);
-        persistNotifications(updated);
-        return updated;
+        const existingIndex = prev.findIndex(n => n.id === entry.id);
+        let next: AppNotification[];
+        if (existingIndex === -1) {
+          next = [entry, ...prev];
+        } else {
+          const withoutExisting = [...prev];
+          withoutExisting.splice(existingIndex, 1);
+          next = [entry, ...withoutExisting];
+        }
+        const limited = next.slice(0, MAX_STORED_NOTIFICATIONS);
+        persistNotifications(limited);
+        return limited;
       });
     },
     [persistNotifications, user?.id]
