@@ -2,13 +2,16 @@
 /**
  * Task #616 — Bundle size monitoring
  *
- * Measures the total uncompressed and estimated-gzip size of the TypeScript/TSX
- * source files under src/. This serves as a fast CI proxy for bundle growth:
- * if source balloons, so will the Metro bundle.
+ * Measures the total uncompressed size and the sum of per-file gzip-compressed
+ * sizes for TypeScript/TSX/JS source files under src/. This serves as a fast
+ * CI proxy for bundle growth: if source balloons, so will the Metro bundle.
+ * Note: summing per-file gzip values is a conservative upper-bound estimate —
+ * a real bundled artifact would compress even further due to cross-file
+ * deduplication, but this approach avoids running Metro in CI.
  *
  * Thresholds (adjust as the project grows):
  *   Raw source:   4 000 KB  (~4 MB)
- *   Estimated gz: 1 200 KB  (~1.2 MB, assumes ~30% compression ratio)
+ *   Sum-of-gzip:  1 200 KB  (~1.2 MB)
  *
  * Usage:
  *   node scripts/check-bundle-size.js            # check & report

@@ -97,15 +97,17 @@ export const useGameSessionStore = create<GameSessionState>()(
     set => ({
       ...INITIAL_STATE,
 
-      setSelectedCardIds: (ids, allCards) =>
-        set(
+      setSelectedCardIds: (ids, allCards) => {
+        const nextIds = new Set(ids);
+        return set(
           {
-            selectedCardIds: ids,
-            selectedCards: allCards.filter(c => ids.has(c.id)),
+            selectedCardIds: nextIds,
+            selectedCards: allCards.filter(c => nextIds.has(c.id)),
           },
           false,
           'gameSession/setSelectedCardIds'
-        ),
+        );
+      },
 
       setCustomCardOrder: order =>
         set({ customCardOrder: order }, false, 'gameSession/setCustomCardOrder'),

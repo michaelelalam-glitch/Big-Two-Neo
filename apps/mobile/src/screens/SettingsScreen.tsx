@@ -82,21 +82,45 @@ export default function SettingsScreen() {
         const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
         hydrate({ soundEnabled: savedSoundEnabled, vibrationEnabled: savedVibrationEnabled });
 
-        // One-time migration: import legacy individual keys into Zustand persist
-        // store if the new persist key doesn't have a value yet for game prefs.
-        const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
-        const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
-        const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
-        const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
-        const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
+        // One-time migration: import legacy individual keys into the Zustand
+        // persist store ONLY if the new persist key doesn't exist yet.
+        // After migration, delete the legacy keys so this never runs again.
+        const PERSIST_KEY = 'big2-audio-settings';
+        const alreadyMigrated = await AsyncStorage.getItem(PERSIST_KEY);
+        if (!alreadyMigrated) {
+          const VALID_CARD_SORT: string[] = ['suit', 'rank'];
+          const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];
+          const VALID_AUTO_PASS: string[] = ['disabled', '30', '60', '90'];
 
-        const migration: Record<string, unknown> = {};
-        if (savedCardSort) migration.cardSortOrder = savedCardSort;
-        if (savedAnimSpeed) migration.animationSpeed = savedAnimSpeed;
-        if (savedAutoPass) migration.autoPassTimer = savedAutoPass;
-        if (savedVisibility !== null) migration.profileVisibility = savedVisibility === 'true';
-        if (savedOnlineStatus !== null) migration.showOnlineStatus = savedOnlineStatus === 'true';
-        if (Object.keys(migration).length > 0) hydrate(migration as Parameters<typeof hydrate>[0]);
+          const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
+          const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
+          const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
+          const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
+          const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
+
+          const migration: Record<string, unknown> = {};
+          if (savedCardSort && VALID_CARD_SORT.includes(savedCardSort))
+            migration.cardSortOrder = savedCardSort;
+          if (savedAnimSpeed && VALID_ANIM_SPEED.includes(savedAnimSpeed))
+            migration.animationSpeed = savedAnimSpeed;
+          if (savedAutoPass && VALID_AUTO_PASS.includes(savedAutoPass))
+            migration.autoPassTimer = savedAutoPass;
+          if (savedVisibility !== null) migration.profileVisibility = savedVisibility === 'true';
+          if (savedOnlineStatus !== null) migration.showOnlineStatus = savedOnlineStatus === 'true';
+
+          if (Object.keys(migration).length > 0)
+            hydrate(migration as Parameters<typeof hydrate>[0]);
+
+          // Remove legacy keys so they can't overwrite the persisted store on
+          // future mounts. The Zustand persist layer now owns these values.
+          await AsyncStorage.multiRemove([
+            CARD_SORT_ORDER_KEY,
+            ANIMATION_SPEED_KEY,
+            AUTO_PASS_TIMER_KEY,
+            PROFILE_VISIBILITY_KEY,
+            SHOW_ONLINE_STATUS_KEY,
+          ]);
+        }
 
         setCurrentLanguage(i18n.getLanguage());
       } catch (error) {
@@ -211,6 +235,7 @@ export default function SettingsScreen() {
             '@big2_profile_visibility',
             '@big2_show_online_status',
             '@big2_language',
+            'big2-audio-settings', // Zustand persist key (Task #647)
             'supabase.auth.token', // Keep auth tokens
           ];
 
