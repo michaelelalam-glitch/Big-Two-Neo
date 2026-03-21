@@ -205,7 +205,7 @@ export function LandscapeGameLayout({
   };
 
   /** Handle double-tap on opponent name: show Add Friend or Already Friends */
-  const handleOpponentNameDoubleTap = (displayIndex: number) => {
+  const handleOpponentNameLongPress = (displayIndex: number) => {
     const opponentId = playerIds[displayIndex];
     const opponentName = playerNames[displayIndex] ?? i18n.t('friends.unknownPlayer');
     if (!opponentId) return;
@@ -344,7 +344,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[1]}
             onCountdownExpired={onCountdownExpireds?.[1]}
             onAvatarPress={playerIds[1] ? () => handleOpponentAvatarPress(1) : undefined}
-            onNameDoubleTap={playerIds[1] ? () => handleOpponentNameDoubleTap(1) : undefined}
+            onNameLongPress={playerIds[1] ? () => handleOpponentNameLongPress(1) : undefined}
           />
         </View>
 
@@ -360,7 +360,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[2]}
             onCountdownExpired={onCountdownExpireds?.[2]}
             onAvatarPress={playerIds[2] ? () => handleOpponentAvatarPress(2) : undefined}
-            onNameDoubleTap={playerIds[2] ? () => handleOpponentNameDoubleTap(2) : undefined}
+            onNameLongPress={playerIds[2] ? () => handleOpponentNameLongPress(2) : undefined}
           />
         </View>
 
@@ -376,7 +376,7 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[3]}
             onCountdownExpired={onCountdownExpireds?.[3]}
             onAvatarPress={playerIds[3] ? () => handleOpponentAvatarPress(3) : undefined}
-            onNameDoubleTap={playerIds[3] ? () => handleOpponentNameDoubleTap(3) : undefined}
+            onNameLongPress={playerIds[3] ? () => handleOpponentNameLongPress(3) : undefined}
           />
         </View>
 
