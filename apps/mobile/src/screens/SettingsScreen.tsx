@@ -27,19 +27,20 @@ import {
   hapticManager,
   HapticType,
 } from '../utils';
+import { useAudioSettingsStore } from '../store';
+import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-// Storage keys for settings
+// Legacy AsyncStorage keys — still used by handleClearCache and one-time migration.
 const CARD_SORT_ORDER_KEY = '@big2_card_sort_order';
 const ANIMATION_SPEED_KEY = '@big2_animation_speed';
 const AUTO_PASS_TIMER_KEY = '@big2_auto_pass_timer';
 const PROFILE_VISIBILITY_KEY = '@big2_profile_visibility';
 const SHOW_ONLINE_STATUS_KEY = '@big2_show_online_status';
 
-export type CardSortOrder = 'suit' | 'rank';
-export type AnimationSpeed = 'slow' | 'normal' | 'fast';
-export type AutoPassTimer = 'disabled' | '30' | '60' | '90';
+// Re-export types from the store slice so external consumers are unaffected.
+export type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -48,57 +49,68 @@ export default function SettingsScreen() {
   // Get current translations
   const t = (key: string) => i18n.t(key);
 
-  // State for all settings
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
-  const [cardSortOrder, setCardSortOrder] = useState<CardSortOrder>('suit');
-  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>('normal');
-  const [autoPassTimer, setAutoPassTimer] = useState<AutoPassTimer>('60');
-  const [profileVisibility, setProfileVisibility] = useState(true);
-  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
+  // ── Task #647: read settings from Zustand persist store ───────────────────
+  const {
+    soundEnabled,
+    vibrationEnabled,
+    cardSortOrder,
+    animationSpeed,
+    autoPassTimer,
+    profileVisibility,
+    showOnlineStatus,
+    setSoundEnabled,
+    setVibrationEnabled,
+    setCardSortOrder,
+    setAnimationSpeed,
+    setAutoPassTimer,
+    setProfileVisibility,
+    setShowOnlineStatus,
+    hydrate,
+  } = useAudioSettingsStore();
+
+  // Language is not in the persist store (i18n handles its own persistence)
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
-  // Load settings on mount
+  // On first mount: sync sound/haptic state from the manager singletons
+  // (they have their own AsyncStorage persistence independent of Zustand).
+  // Also perform a one-time migration of legacy individual AsyncStorage keys.
   useEffect(() => {
-    loadSettings();
+    (async () => {
+      try {
+        // Always sync from managers — they are the source of truth for audio/haptic
+        const savedSoundEnabled = await soundManager.isAudioEnabled();
+        const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
+        hydrate({ soundEnabled: savedSoundEnabled, vibrationEnabled: savedVibrationEnabled });
+
+        // One-time migration: import legacy individual keys into Zustand persist
+        // store if the new persist key doesn't have a value yet for game prefs.
+        const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
+        const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
+        const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
+        const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
+        const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
+
+        const migration: Record<string, unknown> = {};
+        if (savedCardSort) migration.cardSortOrder = savedCardSort;
+        if (savedAnimSpeed) migration.animationSpeed = savedAnimSpeed;
+        if (savedAutoPass) migration.autoPassTimer = savedAutoPass;
+        if (savedVisibility !== null) migration.profileVisibility = savedVisibility === 'true';
+        if (savedOnlineStatus !== null) migration.showOnlineStatus = savedOnlineStatus === 'true';
+        if (Object.keys(migration).length > 0) hydrate(migration as Parameters<typeof hydrate>[0]);
+
+        setCurrentLanguage(i18n.getLanguage());
+      } catch (error) {
+        console.error('[Settings] Failed to sync settings:', error);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const loadSettings = async () => {
-    try {
-      // Load audio/haptic settings
-      const savedSoundEnabled = await soundManager.isAudioEnabled();
-      const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
-      setSoundEnabled(savedSoundEnabled);
-      setVibrationEnabled(savedVibrationEnabled);
-
-      // Load game settings
-      const savedCardSort = await AsyncStorage.getItem(CARD_SORT_ORDER_KEY);
-      const savedAnimSpeed = await AsyncStorage.getItem(ANIMATION_SPEED_KEY);
-      const savedAutoPass = await AsyncStorage.getItem(AUTO_PASS_TIMER_KEY);
-
-      if (savedCardSort) setCardSortOrder(savedCardSort as CardSortOrder);
-      if (savedAnimSpeed) setAnimationSpeed(savedAnimSpeed as AnimationSpeed);
-      if (savedAutoPass) setAutoPassTimer(savedAutoPass as AutoPassTimer);
-
-      // Load privacy settings
-      const savedVisibility = await AsyncStorage.getItem(PROFILE_VISIBILITY_KEY);
-      const savedOnlineStatus = await AsyncStorage.getItem(SHOW_ONLINE_STATUS_KEY);
-
-      if (savedVisibility !== null) setProfileVisibility(savedVisibility === 'true');
-      if (savedOnlineStatus !== null) setShowOnlineStatus(savedOnlineStatus === 'true');
-
-      // Load language
-      setCurrentLanguage(i18n.getLanguage());
-    } catch (error) {
-      console.error('[Settings] Failed to load settings:', error);
-    }
-  };
 
   // Audio & Haptics handlers
   const handleToggleSound = async () => {
     const newValue = !soundEnabled;
-    setSoundEnabled(newValue);
-    await soundManager.setAudioEnabled(newValue);
+    setSoundEnabled(newValue); // Zustand (persists automatically)
+    await soundManager.setAudioEnabled(newValue); // sync manager singleton
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
@@ -106,52 +118,45 @@ export default function SettingsScreen() {
 
   const handleToggleVibration = async () => {
     const newValue = !vibrationEnabled;
-    setVibrationEnabled(newValue);
-    await hapticManager.setHapticsEnabled(newValue);
+    setVibrationEnabled(newValue); // Zustand (persists automatically)
+    await hapticManager.setHapticsEnabled(newValue); // sync manager singleton
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
   // Game settings handlers
-  const handleCardSortChange = async (order: CardSortOrder) => {
-    setCardSortOrder(order);
-    await AsyncStorage.setItem(CARD_SORT_ORDER_KEY, order);
+  const handleCardSortChange = (order: CardSortOrder) => {
+    setCardSortOrder(order); // Zustand persist replaces AsyncStorage.setItem
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleAnimationSpeedChange = async (speed: AnimationSpeed) => {
-    setAnimationSpeed(speed);
-    await AsyncStorage.setItem(ANIMATION_SPEED_KEY, speed);
+  const handleAnimationSpeedChange = (speed: AnimationSpeed) => {
+    setAnimationSpeed(speed); // Zustand persist replaces AsyncStorage.setItem
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleAutoPassTimerChange = async (timer: AutoPassTimer) => {
-    setAutoPassTimer(timer);
-    await AsyncStorage.setItem(AUTO_PASS_TIMER_KEY, timer);
+  const handleAutoPassTimerChange = (timer: AutoPassTimer) => {
+    setAutoPassTimer(timer); // Zustand persist replaces AsyncStorage.setItem
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
   // Privacy handlers
-  const handleToggleProfileVisibility = async () => {
-    const newValue = !profileVisibility;
-    setProfileVisibility(newValue);
-    await AsyncStorage.setItem(PROFILE_VISIBILITY_KEY, newValue.toString());
+  const handleToggleProfileVisibility = () => {
+    setProfileVisibility(!profileVisibility); // Zustand persist
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleToggleOnlineStatus = async () => {
-    const newValue = !showOnlineStatus;
-    setShowOnlineStatus(newValue);
-    await AsyncStorage.setItem(SHOW_ONLINE_STATUS_KEY, newValue.toString());
+  const handleToggleOnlineStatus = () => {
+    setShowOnlineStatus(!showOnlineStatus); // Zustand persist
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
