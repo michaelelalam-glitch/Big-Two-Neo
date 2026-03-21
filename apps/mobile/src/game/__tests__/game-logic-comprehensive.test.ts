@@ -71,7 +71,7 @@ describe('canBeatPlay — Straight tiebreaks', () => {
   });
 
   it('same-sequence straight with higher suit beats lower suit', () => {
-    // S > H > D > C
+    // Suit tiebreak order: D < C < H < S (Diamonds < Clubs < Hearts < Spades)
     expect(canBeatPlay(straight3to7_S, lastPlay(straight3to7_H, 'Straight'))).toBe(true);
   });
 
