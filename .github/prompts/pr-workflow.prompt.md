@@ -1,11 +1,11 @@
 ---
 mode: agent
-description: Create a PR targeting dev, ensure CI passes, and request Copilot review
+description: Create a PR targeting develop, ensure CI passes, and request Copilot review
 ---
 
 # Pull Request Workflow
 
-Create and manage a pull request from the current feature branch into `dev`.
+Create and manage a pull request from the current feature branch into `develop`.
 
 ## 1. Ensure branch is pushed and up-to-date
 
@@ -27,7 +27,7 @@ If anything is failing, fix it before creating the PR. **Do not open a PR with b
 
 ## 3. Create the PR
 
-- **Base branch:** `dev` (NEVER `main`)
+- **Base branch:** `develop` (NEVER `main`)
 - **Title format:** `feat(task-{NUMBER}): {description}` or `fix(task-{NUMBER}): {description}`
 - **Body must include:**
   - What this PR does (1-3 sentences)
@@ -37,7 +37,7 @@ If anything is failing, fix it before creating the PR. **Do not open a PR with b
 
 Use the GitHub CLI or GitHub UI. Example with CLI:
 ```bash
-gh pr create --base dev --title "feat(task-{NUMBER}): {description}" --body "..."
+gh pr create --base develop --title "feat(task-{NUMBER}): {description}" --body "..."
 ```
 
 ## 4. Request Copilot review
@@ -57,9 +57,9 @@ If any gate is red, investigate the failure, fix it, commit and push. The PR upd
 
 - Use **Squash and merge** (keeps history clean)
 - Delete the branch after merge
-- Pull latest `dev` locally:
+- Pull latest `develop` locally:
   ```bash
-  git checkout dev && git pull origin dev
+  git checkout develop && git pull origin develop
   ```
 
 ---

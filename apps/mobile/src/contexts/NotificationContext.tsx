@@ -81,6 +81,9 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  // Guard so cold-start notification processing runs exactly once per app launch
+  // even when handleNotificationResponse is recreated on auth state changes.
+  const hasHandledColdStartRef = useRef(false);
 
   const unreadCount = storedNotifications.filter(n => !n.read).length;
 
@@ -293,25 +296,31 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       handleNotificationResponse
     );
 
-    // Check for notification that opened the app
-    getLastNotificationResponse()
-      .then(response => {
-        if (response && navigation) {
-          // Log only essential fields to avoid exposing sensitive user data
-          const title = response?.notification?.request?.content?.title;
-          const type = response?.notification?.request?.content?.data?.type;
-          notificationLogger.info('App opened from notification:', { title, type });
-          // handleNotificationResponse now records the notification internally;
-          // no separate addStoredNotification call is needed here.
-          handleNotificationResponse(response);
-        }
-      })
-      .catch((error: unknown) => {
-        notificationLogger.error(
-          'Error getting last notification response:',
-          error instanceof Error ? error.message : String(error)
-        );
-      });
+    // Check for notification that opened the app (cold-start / killed-app).
+    // Guarded by hasHandledColdStartRef so that when handleNotificationResponse
+    // is recreated on sign-in (isLoggedIn dep change), this block does not
+    // re-fire and cause duplicate navigation or AppNavigator pendingLinkRef races.
+    if (!hasHandledColdStartRef.current) {
+      hasHandledColdStartRef.current = true;
+      getLastNotificationResponse()
+        .then(response => {
+          if (response && navigation) {
+            // Log only essential fields to avoid exposing sensitive user data
+            const title = response?.notification?.request?.content?.title;
+            const type = response?.notification?.request?.content?.data?.type;
+            notificationLogger.info('App opened from notification:', { title, type });
+            // handleNotificationResponse now records the notification internally;
+            // no separate addStoredNotification call is needed here.
+            handleNotificationResponse(response);
+          }
+        })
+        .catch((error: unknown) => {
+          notificationLogger.error(
+            'Error getting last notification response:',
+            error instanceof Error ? error.message : String(error)
+          );
+        });
+    }
 
     // Cleanup
     return () => {

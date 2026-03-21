@@ -43,7 +43,7 @@ Create a `plan.md` in the session workspace (not in the repo). It must include:
 - [ ] {Subtask 3}
 - [ ] Run lint + typecheck + tests locally
 - [ ] Commit and push
-- [ ] Open PR targeting dev
+- [ ] Open PR targeting develop
 - [ ] Request Copilot review
 
 ## Out of Scope
