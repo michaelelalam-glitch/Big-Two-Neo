@@ -1,12 +1,12 @@
 # Flow 10: Sign-In Screen Content Validation
-# Validates: Sign-in screen text content, element hierarchy, and screenshot baseline
+# Validates: Sign-in screen element presence/hierarchy and screenshot baseline
 # Tags: smoke, ci
 #
-# Extends flow 01 with deeper content-level assertions on the sign-in screen.
+# Extends flow 01 with deeper element-level assertions on the sign-in screen.
 # All assertions use testID selectors so they are Hermes/Metro Release-safe.
 # No authentication required — uses clearState to guarantee unauthenticated state.
 #
-# Complements flow 01 by verifying actual text values (not just element presence).
+# Complements flow 01 by verifying the expected sign-in UI structure (beyond basic presence).
 appId: com.big2mobile.app
 tags:
   - smoke
