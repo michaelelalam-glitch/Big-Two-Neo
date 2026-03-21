@@ -101,8 +101,12 @@ jobs:
         run: |
           cd apps/mobile
           node scripts/check-bundle-size.js
-      
-      
+
+      - name: 📊 Bundle analysis report (Task #276)
+        run: |
+          cd apps/mobile
+          node scripts/analyze-bundle.js
+
       - name: ⚠️ Integration tests skipped (no credentials)
         if: env.EXPO_PUBLIC_SUPABASE_ANON_KEY == '' || env.SUPABASE_SERVICE_ROLE_KEY == ''
         run: |
@@ -403,3 +407,142 @@ jobs:
       
       - name: ✅ E2E tests passed
         run: echo "🎉 Maestro E2E tests completed!"
+
+  android-e2e:
+    name: E2E Tests (Android / Maestro)
+    runs-on: ubuntu-latest
+    needs: test
+    # Only run on non-fork PRs — fork PRs can't access secrets
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 60
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 📦 Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: 🔍 Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: 💾 Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: 📦 Install dependencies
+        run: |
+          cd apps/mobile
+          pnpm install --frozen-lockfile
+
+      - name: 🎭 Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+          maestro --version
+
+      - name: 🤖 Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 🏗️ Build Android debug APK
+        run: |
+          cd apps/mobile
+          npx expo prebuild --clean --platform android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -x lint \
+            --no-daemon \
+            --parallel \
+            2>&1 | tail -50
+        timeout-minutes: 30
+        env:
+          JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true"
+
+      - name: 📱 Boot Android Emulator and run Maestro tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          profile: pixel_6
+          avd-name: test_avd
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            # Wait for emulator to be fully ready
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 82'
+            sleep 5
+
+            # Install the APK
+            APK_PATH=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
+            if [ -z "$APK_PATH" ]; then
+              echo "::error::No APK found. Build may have failed."
+              exit 1
+            fi
+            echo "Installing APK: $APK_PATH"
+            adb install "$APK_PATH"
+
+            # Launch app once to warm up
+            adb shell am start -n com.big2mobile.app/.MainActivity || true
+            sleep 10
+            adb shell am force-stop com.big2mobile.app || true
+            sleep 3
+
+            # Run CI-tagged Maestro flows
+            mkdir -p apps/mobile/e2e/results-android
+            set +e
+            maestro test --include-tags ci apps/mobile/e2e/flows/ \
+              --format junit \
+              --output apps/mobile/e2e/results-android/results.xml
+            MAESTRO_EXIT=$?
+            set -e
+            echo "Maestro Android exit code: $MAESTRO_EXIT"
+            exit $MAESTRO_EXIT
+        timeout-minutes: 30
+
+      - name: 📸 Upload Android E2E results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-e2e-results
+          path: apps/mobile/e2e/results-android/
+          retention-days: 7
+
+      - name: 📦 Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-apk
+          path: apps/mobile/android/app/build/outputs/apk/**/*.apk
+          retention-days: 7
+
+      - name: ✅ Android E2E tests passed
+        run: echo "🎉 Android Maestro E2E tests completed!"
+
