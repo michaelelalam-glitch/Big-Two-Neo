@@ -59,6 +59,30 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
+// Task #645: Full names for VoiceOver/TalkBack accessibility labels
+const SUIT_NAMES: Record<string, string> = {
+  H: 'Hearts',
+  D: 'Diamonds',
+  C: 'Clubs',
+  S: 'Spades',
+};
+
+const RANK_NAMES: Record<string, string> = {
+  A: 'Ace',
+  K: 'King',
+  Q: 'Queen',
+  J: 'Jack',
+  '10': 'Ten',
+  '9': 'Nine',
+  '8': 'Eight',
+  '7': 'Seven',
+  '6': 'Six',
+  '5': 'Five',
+  '4': 'Four',
+  '3': 'Three',
+  '2': 'Two',
+};
+
 const Card = React.memo(function Card({
   card,
   isSelected,
@@ -87,7 +111,7 @@ const Card = React.memo(function Card({
       fullCard: JSON.stringify(card),
     });
   }
-  
+
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -113,120 +137,131 @@ const Card = React.memo(function Card({
 
   // Long press gesture for visual feedback (opacity 0.7)
   const longPressGesture = useMemo(
-    () => Gesture.LongPress()
-      .enabled(!disabled)
-      .minDuration(500)
-      .onStart(() => {
-        'worklet';
-        isLongPressed.value = true; // Mark as long-pressed
-        opacity.value = withSpring(0.7);
-        scale.value = withSpring(1.05);
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Heavy);
-      })
-      .onEnd(() => {
-        'worklet';
-        opacity.value = withSpring(1);
-        scale.value = withSpring(1);
-        if (onLongPress) {
-          runOnJS(onLongPress)();
-        }
-      }),
+    () =>
+      Gesture.LongPress()
+        .enabled(!disabled)
+        .minDuration(500)
+        .onStart(() => {
+          'worklet';
+          isLongPressed.value = true; // Mark as long-pressed
+          opacity.value = withSpring(0.7);
+          scale.value = withSpring(1.05);
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Heavy);
+        })
+        .onEnd(() => {
+          'worklet';
+          opacity.value = withSpring(1);
+          scale.value = withSpring(1);
+          if (onLongPress) {
+            runOnJS(onLongPress)();
+          }
+        }),
     [disabled, opacity, scale, isLongPressed, onLongPress]
   );
 
   // Tap gesture for selection (memoized for performance)
   // Note: Haptic feedback handled by CardHand to avoid duplicate feedback
   const tapGesture = useMemo(
-    () => Gesture.Tap()
-      .enabled(!disabled)
-      .maxDuration(450) // Prevent conflict with long press (set < long press minDuration)
-      .onStart(() => {
-        'worklet';
-        scale.value = withSpring(0.95, { damping: 10 });
-      })
-      .onEnd(() => {
-        'worklet';
-        scale.value = withSpring(1, { damping: 10 });
-        // Opacity reset handled by useEffect on isSelected change
-        runOnJS(onToggleSelect)(card.id);
-      }),
+    () =>
+      Gesture.Tap()
+        .enabled(!disabled)
+        .maxDuration(450) // Prevent conflict with long press (set < long press minDuration)
+        .onStart(() => {
+          'worklet';
+          scale.value = withSpring(0.95, { damping: 10 });
+        })
+        .onEnd(() => {
+          'worklet';
+          scale.value = withSpring(1, { damping: 10 });
+          // Opacity reset handled by useEffect on isSelected change
+          runOnJS(onToggleSelect)(card.id);
+        }),
     [disabled, card.id, onToggleSelect, scale]
   );
 
   // Pan gesture for dragging - supports both horizontal (rearrange) and vertical (play)
-  // BEHAVIOR: 
+  // BEHAVIOR:
   // - If multiple cards selected: drag immediately without long press (to play on table)
   // - If single card: require long press first (for rearranging)
   const panGesture = useMemo(
-    () => Gesture.Pan()
-      .enabled(!disabled)
-      .minDistance(10) // Require 10px movement to start pan
-      .onStart(() => {
-        'worklet';
-        // Allow drag if:
-        // 1. Multiple cards selected (hasMultipleSelected) - instant drag to play
-        // 2. Single card was long-pressed (isLongPressed) - drag to rearrange
-        const canDrag = hasMultipleSelected || isLongPressed.value;
-        if (!canDrag) {
-          // Provide subtle haptic feedback to indicate drag is not allowed
-          runOnJS(Haptics.selectionAsync)();
-          return; // Don't start drag
-        }
-        scale.value = withSpring(1.1); // Slightly larger during drag
-        opacity.value = withSpring(0.9); // Slight transparency during drag
-        if (onDragStart) {
-          runOnJS(onDragStart)();
-        }
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-      })
-      .onUpdate((event) => {
-        'worklet';
-        // Only update position if drag is allowed
-        const canDrag = hasMultipleSelected || isLongPressed.value;
-        if (!canDrag) {
-          return;
-        }
-        // Allow free movement in both directions
-        translateX.value = event.translationX;
-        translateY.value = event.translationY;
-        
-        // Notify parent for drop zone detection
-        if (onDragUpdate) {
-          runOnJS(onDragUpdate)(event.translationX, event.translationY);
-        }
-      })
-      .onEnd((event) => {
-        'worklet';
-        // Reset visual state
-        scale.value = withSpring(1);
-        opacity.value = withSpring(1);
-        
-        // Only process drag end if drag was allowed
-        const canDrag = hasMultipleSelected || isLongPressed.value;
-        if (canDrag) {
-          // Notify parent with final position for drop zone detection
-          if (onDragEnd) {
-            runOnJS(onDragEnd)(event.translationX, event.translationY);
+    () =>
+      Gesture.Pan()
+        .enabled(!disabled)
+        .minDistance(10) // Require 10px movement to start pan
+        .onStart(() => {
+          'worklet';
+          // Allow drag if:
+          // 1. Multiple cards selected (hasMultipleSelected) - instant drag to play
+          // 2. Single card was long-pressed (isLongPressed) - drag to rearrange
+          const canDrag = hasMultipleSelected || isLongPressed.value;
+          if (!canDrag) {
+            // Provide subtle haptic feedback to indicate drag is not allowed
+            runOnJS(Haptics.selectionAsync)();
+            return; // Don't start drag
           }
-        }
-        
-        // Reset long press state
-        isLongPressed.value = false;
-        
-        // Animate back to original position
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-      }),
-    [disabled, translateX, translateY, scale, opacity, isLongPressed, hasMultipleSelected, onDragStart, onDragEnd, onDragUpdate]
+          scale.value = withSpring(1.1); // Slightly larger during drag
+          opacity.value = withSpring(0.9); // Slight transparency during drag
+          if (onDragStart) {
+            runOnJS(onDragStart)();
+          }
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        })
+        .onUpdate(event => {
+          'worklet';
+          // Only update position if drag is allowed
+          const canDrag = hasMultipleSelected || isLongPressed.value;
+          if (!canDrag) {
+            return;
+          }
+          // Allow free movement in both directions
+          translateX.value = event.translationX;
+          translateY.value = event.translationY;
+
+          // Notify parent for drop zone detection
+          if (onDragUpdate) {
+            runOnJS(onDragUpdate)(event.translationX, event.translationY);
+          }
+        })
+        .onEnd(event => {
+          'worklet';
+          // Reset visual state
+          scale.value = withSpring(1);
+          opacity.value = withSpring(1);
+
+          // Only process drag end if drag was allowed
+          const canDrag = hasMultipleSelected || isLongPressed.value;
+          if (canDrag) {
+            // Notify parent with final position for drop zone detection
+            if (onDragEnd) {
+              runOnJS(onDragEnd)(event.translationX, event.translationY);
+            }
+          }
+
+          // Reset long press state
+          isLongPressed.value = false;
+
+          // Animate back to original position
+          translateX.value = withSpring(0);
+          translateY.value = withSpring(0);
+        }),
+    [
+      disabled,
+      translateX,
+      translateY,
+      scale,
+      opacity,
+      isLongPressed,
+      hasMultipleSelected,
+      onDragStart,
+      onDragEnd,
+      onDragUpdate,
+    ]
   );
 
   // Gesture composition: long press enables pan, tap is separate
   // Simultaneous allows long press to activate pan gesture
   const composedGesture = useMemo(
-    () => Gesture.Exclusive(
-      tapGesture,
-      Gesture.Simultaneous(longPressGesture, panGesture)
-    ),
+    () => Gesture.Exclusive(tapGesture, Gesture.Simultaneous(longPressGesture, panGesture)),
     [tapGesture, longPressGesture, panGesture]
   );
 
@@ -236,12 +271,12 @@ const Card = React.memo(function Card({
     // Use shared drag values when this card is part of a group drag
     const effectiveTranslateX = isDraggingGroup ? sharedDragX : translateX.value;
     const effectiveTranslateY = isDraggingGroup ? sharedDragY : translateY.value;
-    
+
     // Visual feedback: add shadow/glow when actively dragging
     const isDragging = Math.abs(effectiveTranslateX) > 5 || Math.abs(effectiveTranslateY) > 5;
     const shadowOpacity = isDragging ? 0.5 : 0.2;
     const shadowRadius = isDragging ? 12 : 4;
-    
+
     return {
       transform: [
         { translateX: effectiveTranslateX },
@@ -258,77 +293,102 @@ const Card = React.memo(function Card({
   const suitColor = SUIT_COLORS[card.suit] || '#212121';
   const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
 
-  const rankStyle = useMemo(() => ({
-    color: suitColor,
-    fontSize: CARD_FONTS.rankFontSize * sizeScale,
-  }), [suitColor, sizeScale]);
+  const rankStyle = useMemo(
+    () => ({
+      color: suitColor,
+      fontSize: CARD_FONTS.rankFontSize * sizeScale,
+    }),
+    [suitColor, sizeScale]
+  );
 
-  const suitStyle = useMemo(() => ({
-    color: suitColor,
-    fontSize: CARD_FONTS.suitFontSize * sizeScale,
-  }), [suitColor, sizeScale]);
+  const suitStyle = useMemo(
+    () => ({
+      color: suitColor,
+      fontSize: CARD_FONTS.suitFontSize * sizeScale,
+    }),
+    [suitColor, sizeScale]
+  );
 
-  const centerSuitStyle = useMemo(() => ({
-    color: suitColor,
-    fontSize: CARD_FONTS.centerSuitFontSize * sizeScale,
-    marginTop: CARD_FONTS.centerSuitMarginTop * sizeScale,
-  }), [suitColor, sizeScale]);
+  const centerSuitStyle = useMemo(
+    () => ({
+      color: suitColor,
+      fontSize: CARD_FONTS.centerSuitFontSize * sizeScale,
+      marginTop: CARD_FONTS.centerSuitMarginTop * sizeScale,
+    }),
+    [suitColor, sizeScale]
+  );
 
   // Memoize container dimensions to prevent React freeze error
-  const containerDimensions = useMemo(() => ({
-    width: cardWidth,
-    height: cardHeight,
-  }), [cardWidth, cardHeight]);
+  const containerDimensions = useMemo(
+    () => ({
+      width: cardWidth,
+      height: cardHeight,
+    }),
+    [cardWidth, cardHeight]
+  );
 
   return (
     <GestureDetector gesture={composedGesture}>
-      <Animated.View 
+      <Animated.View
         style={[
           styles.container,
           { marginLeft: cardOverlap }, // Dynamic overlap based on orientation
-          animatedStyle, 
+          animatedStyle,
           style,
           styles.touchTargetExpansion, // Add invisible padding for larger touch area
         ]}
         accessible={true}
-        accessibilityLabel={`${card.rank} of ${suitSymbol}`}
+        accessibilityLabel={`${RANK_NAMES[card.rank] ?? card.rank} of ${SUIT_NAMES[card.suit] ?? card.suit}${isSelected ? ', selected' : ''}`}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: disabled }}
-        accessibilityHint="Double tap to select or deselect this card"
+        accessibilityHint={
+          disabled
+            ? undefined
+            : hasMultipleSelected
+              ? 'Double tap to deselect. Drag with other selected cards to play.'
+              : 'Double tap to select or deselect. Long press then drag to rearrange.'
+        }
+        accessibilityActions={
+          disabled
+            ? undefined
+            : [
+                { name: 'activate', label: isSelected ? 'Deselect card' : 'Select card' },
+                ...(onLongPress ? [{ name: 'longPress', label: 'Long press' }] : []),
+              ]
+        }
+        onAccessibilityAction={event => {
+          if (event.nativeEvent.actionName === 'activate') {
+            onToggleSelect(card.id);
+          } else if (event.nativeEvent.actionName === 'longPress' && onLongPress) {
+            onLongPress();
+          }
+        }}
         // Set to false to avoid hardware texture caching issues on Android
         // This prevents rendering artifacts when animated values are reset
         renderToHardwareTextureAndroid={false}
         needsOffscreenAlphaCompositing={true}
         collapsable={false}
       >
-        <View style={[
-          styles.cardContainer, 
-          isSelected && styles.cardSelected,
-          containerDimensions
-        ]}>
+        <View
+          style={[styles.cardContainer, isSelected && styles.cardSelected, containerDimensions]}
+        >
           {/* Text-based card rendering (SVG images causing freeze errors in dev mode) */}
           <View style={styles.card}>
-              {/* Top-left corner */}
-              <View style={styles.corner}>
-                <Text style={[styles.rank, rankStyle]}>{card.rank}</Text>
-                <Text style={[styles.suit, suitStyle]}>{suitSymbol}</Text>
-              </View>
-
-              {/* Center suit */}
-              <Text style={[styles.centerSuit, centerSuitStyle]}>
-                {suitSymbol}
-              </Text>
-
-              {/* Bottom-right corner (rotated) */}
-              <View style={[styles.corner, styles.cornerBottom]}>
-                <Text style={[styles.rank, rankStyle]}>
-                  {card.rank}
-                </Text>
-                <Text style={[styles.suit, suitStyle]}>
-                  {suitSymbol}
-                </Text>
-              </View>
+            {/* Top-left corner */}
+            <View style={styles.corner}>
+              <Text style={[styles.rank, rankStyle]}>{card.rank}</Text>
+              <Text style={[styles.suit, suitStyle]}>{suitSymbol}</Text>
             </View>
+
+            {/* Center suit */}
+            <Text style={[styles.centerSuit, centerSuitStyle]}>{suitSymbol}</Text>
+
+            {/* Bottom-right corner (rotated) */}
+            <View style={[styles.corner, styles.cornerBottom]}>
+              <Text style={[styles.rank, rankStyle]}>{card.rank}</Text>
+              <Text style={[styles.suit, suitStyle]}>{suitSymbol}</Text>
+            </View>
+          </View>
         </View>
       </Animated.View>
     </GestureDetector>

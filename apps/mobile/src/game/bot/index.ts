@@ -3,15 +3,15 @@
  * Provides intelligent card playing with configurable difficulty levels
  */
 
-import { 
-  sortHand, 
-  classifyCards, 
-  canBeatPlay, 
+import {
+  sortHand,
+  classifyCards,
+  canBeatPlay,
   findRecommendedPlay,
   findHighestBeatingSingle,
   type Card,
   type LastPlay,
-  type ComboType
+  type ComboType,
 } from '../engine';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard';
@@ -34,7 +34,7 @@ export interface BotPlayResult {
 
 /**
  * Bot AI class for Big Two game
- * 
+ *
  * Difficulty levels:
  * - Easy: Random valid plays, high pass rate
  * - Medium: Basic strategy with some mistakes
@@ -56,8 +56,16 @@ export class BotAI {
    * Get the bot's play decision
    */
   public getPlay(options: BotPlayOptions): BotPlayResult {
-    const { hand, lastPlay, isFirstPlayOfGame, matchNumber, playerCardCounts, currentPlayerIndex, nextPlayerIndex } = options;
-    
+    const {
+      hand,
+      lastPlay,
+      isFirstPlayOfGame,
+      matchNumber,
+      playerCardCounts,
+      currentPlayerIndex,
+      nextPlayerIndex,
+    } = options;
+
     if (hand.length === 0) {
       return { cards: null, reasoning: 'No cards in hand' };
     }
@@ -71,15 +79,21 @@ export class BotAI {
       if (Number.isInteger(matchNumber) && matchNumber > 0 && matchNumber <= MAX_MATCH_NUMBER) {
         currentMatch = matchNumber;
       } else if (!Number.isInteger(matchNumber)) {
-        console.warn(`[BotAI] ⚠️ Non-integer matchNumber "${matchNumber}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+        console.warn(
+          `[BotAI] ⚠️ Non-integer matchNumber "${matchNumber}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
+        );
         currentMatch = 1;
       } else {
-        console.warn(`[BotAI] ⚠️ Out-of-range matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+        console.warn(
+          `[BotAI] ⚠️ Out-of-range matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
+        );
         currentMatch = 1;
       }
     } else {
       if (matchNumber !== undefined) {
-        console.warn(`[BotAI] ⚠️ Non-numeric matchNumber "${String(matchNumber)}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`);
+        console.warn(
+          `[BotAI] ⚠️ Non-numeric matchNumber "${String(matchNumber)}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
+        );
       }
       currentMatch = 1;
     }
@@ -93,7 +107,13 @@ export class BotAI {
     }
 
     // Following - try to beat last play
-    return this.handleFollowing(hand, lastPlay, playerCardCounts, currentPlayerIndex, nextPlayerIndex);
+    return this.handleFollowing(
+      hand,
+      lastPlay,
+      playerCardCounts,
+      currentPlayerIndex,
+      nextPlayerIndex
+    );
   }
 
   /**
@@ -111,9 +131,9 @@ export class BotAI {
     if (this._difficulty === 'hard') {
       const comboWith3D = this.findBestComboWith3D(sorted, threeD);
       if (comboWith3D) {
-        return { 
-          cards: comboWith3D, 
-          reasoning: `[HARD] Playing combo with 3D: ${comboWith3D.length} cards` 
+        return {
+          cards: comboWith3D,
+          reasoning: `[HARD] Playing combo with 3D: ${comboWith3D.length} cards`,
         };
       }
     }
@@ -153,45 +173,56 @@ export class BotAI {
 
         return {
           cards: bestPair,
-          reasoning: `[MEDIUM] Playing pair with 3D`
+          reasoning: `[MEDIUM] Playing pair with 3D`,
         };
       }
     }
 
     // Easy: Always just play 3D as single (no combo search)
     // Medium fallback: play 3D as single
-    return { cards: [threeD.id], reasoning: `[${this._difficulty.toUpperCase()}] Playing 3D as single` };
+    return {
+      cards: [threeD.id],
+      reasoning: `[${this._difficulty.toUpperCase()}] Playing 3D as single`,
+    };
   }
 
   /**
    * Handle leading (no previous play to beat)
-   * 
+   *
    * Difficulty behavior:
    * - EASY: Always leads with lowest single. No strategy. Sometimes leads with HIGHEST single (bad play).
    * - MEDIUM: Occasionally leads with pairs (40%). Basic strategy.
    * - HARD: Strategic combo play. Leads with pairs/triples to preserve singles. 5-card combos when opponent is low.
    */
-  private handleLeading(hand: Card[], playerCardCounts: number[], currentPlayerIndex: number, nextPlayerIndex?: number): BotPlayResult {
+  private handleLeading(
+    hand: Card[],
+    playerCardCounts: number[],
+    currentPlayerIndex: number,
+    nextPlayerIndex?: number
+  ): BotPlayResult {
     const sorted = sortHand(hand);
     // Compute opponent card counts by index, excluding the current player and empty hands
-    const activeOpponentCounts = playerCardCounts
-      .filter((count, index) => index !== currentPlayerIndex && count > 0);
-    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
+    const activeOpponentCounts = playerCardCounts.filter(
+      (count, index) => index !== currentPlayerIndex && count > 0
+    );
+    const minOpponentCards =
+      activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // CRITICAL: Check "One Card Left" rule when leading
     // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
     // otherwise fall back to anticlockwise turn order (local games).
-    const nextActivePlayer = nextPlayerIndex !== undefined
-      ? nextPlayerIndex
-      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextActivePlayer =
+      nextPlayerIndex !== undefined
+        ? nextPlayerIndex
+        : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
     const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
-    
+
     // If next player has 1 card, MUST lead with highest single to block them
     if (nextPlayerCardCount === 1) {
       const highestSingle = sorted[sorted.length - 1];
       return {
         cards: [highestSingle.id],
-        reasoning: `One Card Left rule (leading): must play highest single (${highestSingle.rank}${highestSingle.suit}) - next player has 1 card`
+        reasoning: `One Card Left rule (leading): must play highest single (${highestSingle.rank}${highestSingle.suit}) - next player has 1 card`,
       };
     }
 
@@ -201,10 +232,16 @@ export class BotAI {
       if (Math.random() < 0.25 && sorted.length > 3) {
         const highIndex = Math.max(sorted.length - 3, Math.floor(sorted.length * 0.7));
         const badCard = sorted[highIndex];
-        return { cards: [badCard.id], reasoning: `[EASY] Wastefully leading with high single (${badCard.rank}${badCard.suit})` };
+        return {
+          cards: [badCard.id],
+          reasoning: `[EASY] Wastefully leading with high single (${badCard.rank}${badCard.suit})`,
+        };
       }
       // Default: always lead with lowest single (no pair/combo strategy)
-      return { cards: [sorted[0].id], reasoning: '[EASY] Leading with lowest single (no combo awareness)' };
+      return {
+        cards: [sorted[0].id],
+        reasoning: '[EASY] Leading with lowest single (no combo awareness)',
+      };
     }
 
     // ========== HARD DIFFICULTY: Strategic leading ==========
@@ -213,9 +250,9 @@ export class BotAI {
       if (minOpponentCards <= 4) {
         const fiveCardCombo = this.findBest5CardCombo(sorted);
         if (fiveCardCombo) {
-          return { 
-            cards: fiveCardCombo, 
-            reasoning: `[HARD] Opponent has ${minOpponentCards} cards, playing 5-card combo to force pass` 
+          return {
+            cards: fiveCardCombo,
+            reasoning: `[HARD] Opponent has ${minOpponentCards} cards, playing 5-card combo to force pass`,
           };
         }
       }
@@ -231,7 +268,10 @@ export class BotAI {
       // Try to lead with pairs to preserve singles for endgame
       const lowestPair = this.findLowestPair(sorted);
       if (lowestPair && sorted.length > 4) {
-        return { cards: lowestPair, reasoning: '[HARD] Leading with lowest pair (preserving singles)' };
+        return {
+          cards: lowestPair,
+          reasoning: '[HARD] Leading with lowest pair (preserving singles)',
+        };
       }
 
       // If low on cards, play lowest single
@@ -261,45 +301,48 @@ export class BotAI {
 
   /**
    * Handle following (trying to beat last play)
-   * 
+   *
    * Difficulty behavior:
    * - EASY: 50% pass rate. When plays, picks weakest valid play. Sometimes plays random.
    * - MEDIUM: 12% pass rate. Uses recommended (optimal lowest) play.
    * - HARD: 0% random pass. Plays optimally. Saves high cards. Exploits low-card opponents.
    */
   private handleFollowing(
-    hand: Card[], 
-    lastPlay: LastPlay, 
+    hand: Card[],
+    lastPlay: LastPlay,
     playerCardCounts: number[],
     currentPlayerIndex: number,
     nextPlayerIndex?: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
     // Compute opponent card counts by index, excluding the current player and empty hands
-    const activeOpponentCounts = playerCardCounts
-      .filter((count, index) => index !== currentPlayerIndex && count > 0);
-    const minOpponentCards = activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
+    const activeOpponentCounts = playerCardCounts.filter(
+      (count, index) => index !== currentPlayerIndex && count > 0
+    );
+    const minOpponentCards =
+      activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // Check "One Card Left" rule
     // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
     // otherwise fall back to anticlockwise turn order (local games).
-    const nextActivePlayer = nextPlayerIndex !== undefined
-      ? nextPlayerIndex
-      : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
+    const nextActivePlayer =
+      nextPlayerIndex !== undefined
+        ? nextPlayerIndex
+        : this.findNextActivePlayer(currentPlayerIndex, playerCardCounts);
     const nextPlayerCardCount = nextActivePlayer !== -1 ? playerCardCounts[nextActivePlayer] : 0;
-    
+
     // CRITICAL FIX: Check if the player who made lastPlay has won the round (0 cards)
     const lastPlayPosition = lastPlay.position ?? lastPlay.player_index ?? 0;
     const lastPlayPlayerCardCount = playerCardCounts[lastPlayPosition];
     const lastPlayerHasWon = lastPlayPlayerCardCount === 0;
-    
+
     // If next player has 1 card and last play was a single, MUST play highest single
     if (!lastPlayerHasWon && nextPlayerCardCount === 1 && lastPlay.cards.length === 1) {
       const highestSingle = findHighestBeatingSingle(sorted, lastPlay);
       if (highestSingle) {
         return {
           cards: [highestSingle.id],
-          reasoning: `One Card Left rule: must play highest single (${highestSingle.rank}${highestSingle.suit}) - opponent has 1 card`
+          reasoning: `One Card Left rule: must play highest single (${highestSingle.rank}${highestSingle.suit}) - opponent has 1 card`,
         };
       }
     }
@@ -320,16 +363,16 @@ export class BotAI {
       // This means easy bots sometimes waste high cards, sometimes play too conservatively
       if (Math.random() < 0.6) {
         // Play lowest (weakest) valid play
-        return { 
-          cards: validPlays[0], 
-          reasoning: '[EASY] Playing lowest valid play (no optimization)' 
+        return {
+          cards: validPlays[0],
+          reasoning: '[EASY] Playing lowest valid play (no optimization)',
         };
       } else {
         // Play random valid play (could be wastefully high)
         const randomPlay = validPlays[Math.floor(Math.random() * validPlays.length)];
-        return { 
-          cards: randomPlay, 
-          reasoning: '[EASY] Playing random valid play' 
+        return {
+          cards: randomPlay,
+          reasoning: '[EASY] Playing random valid play',
         };
       }
     }
@@ -344,9 +387,9 @@ export class BotAI {
       // If opponent is about to win (1-2 cards), play highest possible to block
       if (minOpponentCards <= 2) {
         const highestPlay = validPlays[validPlays.length - 1];
-        return { 
-          cards: highestPlay, 
-          reasoning: `[HARD] Opponent has ${minOpponentCards} cards - playing highest to block` 
+        return {
+          cards: highestPlay,
+          reasoning: `[HARD] Opponent has ${minOpponentCards} cards - playing highest to block`,
         };
       }
 
@@ -354,18 +397,18 @@ export class BotAI {
       // save them and play the LOWEST valid play
       if (minOpponentCards > 6) {
         // Always play lowest valid play when opponents have many cards (save high cards)
-        return { 
-          cards: validPlays[0], 
-          reasoning: '[HARD] Playing lowest valid - saving high cards (opponents have many)' 
+        return {
+          cards: validPlays[0],
+          reasoning: '[HARD] Playing lowest valid - saving high cards (opponents have many)',
         };
       }
 
       // Mid-game: use recommended play (engine's optimal choice)
       const recommended = findRecommendedPlay(hand, lastPlay, false);
       if (recommended) {
-        return { 
-          cards: recommended, 
-          reasoning: '[HARD] Playing engine-recommended optimal play' 
+        return {
+          cards: recommended,
+          reasoning: '[HARD] Playing engine-recommended optimal play',
         };
       }
 
@@ -384,9 +427,9 @@ export class BotAI {
       return { cards: null, reasoning: '[MEDIUM] Cannot beat last play' };
     }
 
-    return { 
-      cards: recommended, 
-      reasoning: `[MEDIUM] Playing recommended: ${recommended.length} cards` 
+    return {
+      cards: recommended,
+      reasoning: `[MEDIUM] Playing recommended: ${recommended.length} cards`,
     };
   }
 
@@ -463,7 +506,7 @@ export class BotAI {
   private findAllPairs(hand: Card[]): string[][] {
     const pairs: string[][] = [];
     const rankGroups: Record<string, Card[]> = {};
-    
+
     // Group cards by rank
     for (const card of hand) {
       if (!rankGroups[card.rank]) {
@@ -471,14 +514,14 @@ export class BotAI {
       }
       rankGroups[card.rank].push(card);
     }
-    
+
     // Find all pairs (groups of 2+ cards with same rank)
     for (const rank in rankGroups) {
       const group = rankGroups[rank];
       if (group.length >= 2) {
         // Add first pair found for this rank
         pairs.push([group[0].id, group[1].id]);
-        
+
         // If 3+ cards of same rank, add other pair combinations
         if (group.length >= 3) {
           pairs.push([group[0].id, group[2].id]);
@@ -491,7 +534,7 @@ export class BotAI {
         }
       }
     }
-    
+
     return pairs;
   }
 
@@ -501,7 +544,7 @@ export class BotAI {
   private findAllTriples(hand: Card[]): string[][] {
     const triples: string[][] = [];
     const rankGroups: Record<string, Card[]> = {};
-    
+
     // Group cards by rank
     for (const card of hand) {
       if (!rankGroups[card.rank]) {
@@ -509,14 +552,14 @@ export class BotAI {
       }
       rankGroups[card.rank].push(card);
     }
-    
+
     // Find all triples (groups of 3+ cards with same rank)
     for (const rank in rankGroups) {
       const group = rankGroups[rank];
       if (group.length >= 3) {
         // Add first triple found for this rank
         triples.push([group[0].id, group[1].id, group[2].id]);
-        
+
         // If 4 cards of same rank, add other triple combination
         if (group.length === 4) {
           triples.push([group[0].id, group[1].id, group[3].id]);
@@ -525,7 +568,7 @@ export class BotAI {
         }
       }
     }
-    
+
     return triples;
   }
 
@@ -602,9 +645,9 @@ export class BotAI {
             cards: cardsA,
             combo_type: classA,
           });
-          if (aBeatsB && !bBeatsA) return 1;   // A stronger, sort later
-          if (!aBeatsB && bBeatsA) return -1;  // A weaker, sort earlier
-          return 0;                             // Equal strength
+          if (aBeatsB && !bBeatsA) return 1; // A stronger, sort later
+          if (!aBeatsB && bBeatsA) return -1; // A weaker, sort earlier
+          return 0; // Equal strength
         });
       }
     }
@@ -625,7 +668,7 @@ export class BotAI {
     let nextIndex = turnOrder[currentPlayerIndex];
     const startIndex = nextIndex;
     let iterations = 0;
-    
+
     // Walk through turn order, skipping players with 0 cards (already finished)
     do {
       if (playerCardCounts[nextIndex] > 0) {
@@ -633,7 +676,7 @@ export class BotAI {
       }
       nextIndex = turnOrder[nextIndex];
     } while (nextIndex !== startIndex && ++iterations < numPlayers);
-    
+
     return -1; // No active player found
   }
 
@@ -661,10 +704,27 @@ export function createBotAI(difficulty: BotDifficulty = 'medium'): BotAI {
   return new BotAI(difficulty);
 }
 
+// Task #280: Lazy singleton cache — reuse BotAI instances by difficulty
+// to avoid re-instantiation on every bot turn call.
+const _botInstances = new Map<BotDifficulty, BotAI>();
+
+/**
+ * Get or create a cached BotAI instance for the given difficulty (Task #280).
+ * Avoids creating a new instance on every turn when difficulty is stable.
+ */
+export function getOrCreateBotAI(difficulty: BotDifficulty = 'medium'): BotAI {
+  let instance = _botInstances.get(difficulty);
+  if (!instance) {
+    instance = new BotAI(difficulty);
+    _botInstances.set(difficulty, instance);
+  }
+  return instance;
+}
+
 /**
  * Get a single bot play (convenience function)
  */
 export function getBotPlay(options: BotPlayOptions): BotPlayResult {
-  const bot = new BotAI(options.difficulty || 'medium');
+  const bot = getOrCreateBotAI(options.difficulty || 'medium');
   return bot.getPlay(options);
 }
