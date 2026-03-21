@@ -79,6 +79,11 @@ export default function SettingsScreen() {
           SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
         );
 
+        // Ensure managers have loaded their persisted values before reading
+        // sync state. initialize() is idempotent — returns immediately if
+        // already done (e.g. called from AuthContext on app start).
+        await Promise.all([soundManager.initialize(), hapticManager.initialize()]);
+
         // Always sync from managers — they are the source of truth for audio/haptic.
         // isAudioEnabled / isHapticsEnabled are synchronous.
         hydrate({

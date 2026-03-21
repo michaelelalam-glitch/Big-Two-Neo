@@ -88,16 +88,18 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set({ soundEnabled: enabled });
         void soundManager.setAudioEnabled(enabled).catch(err => {
           console.error('[UserPreferences] Failed to persist audio enabled', err);
-          // Rollback optimistic update so UI stays consistent with manager
-          set({ soundEnabled: !enabled });
+          // Rollback only if current state still matches the failed request
+          // (guards against rapid-toggle races where a later write already won).
+          set(state => (state.soundEnabled === enabled ? { soundEnabled: !enabled } : {}));
         });
       },
       setVibrationEnabled: enabled => {
         set({ vibrationEnabled: enabled });
         void hapticManager.setHapticsEnabled(enabled).catch(err => {
           console.error('[UserPreferences] Failed to persist haptics enabled', err);
-          // Rollback optimistic update so UI stays consistent with manager
-          set({ vibrationEnabled: !enabled });
+          // Rollback only if current state still matches the failed request
+          // (guards against rapid-toggle races where a later write already won).
+          set(state => (state.vibrationEnabled === enabled ? { vibrationEnabled: !enabled } : {}));
         });
       },
       setCardSortOrder: order => set({ cardSortOrder: order }),
