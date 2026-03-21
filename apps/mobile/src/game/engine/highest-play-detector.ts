@@ -532,8 +532,13 @@ function isHighestRemainingFiveCardCombo(
         }
       }
 
-      // Must have the highest triple rank — pair rank is irrelevant
-      return playedTripleRank === highestTripleRank;
+      // Must have the highest triple rank — pair rank is irrelevant.
+      // Use rank-value comparison (not equality) since the current cards are
+      // excluded from remaining, so highestTripleRank may be a LOWER rank
+      // than the played triple rank (which is both valid and correct).
+      return (
+        playedTripleRank !== null && RANK_VALUE[playedTripleRank] >= RANK_VALUE[highestTripleRank]
+      );
     }
 
     case 'Flush': {
@@ -692,7 +697,12 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
       return isHighestRemainingTriple(sorted, playedCards);
 
     case 5: // Five-card combos
-      return isHighestRemainingFiveCardCombo(sorted, type, playedCards);
+      // Pass allUsedCards (playedCards + current play) so that `remaining` inside
+      // isHighestRemainingFiveCardCombo excludes the just-played cards. Without
+      // this, canFormComboOfStrength could think a stronger combo can be formed
+      // by combining the current play's cards with other remaining cards, causing
+      // false-negative auto-pass timer triggers.
+      return isHighestRemainingFiveCardCombo(sorted, type, [...playedCards, ...cards]);
 
     default:
       return false;
