@@ -91,7 +91,7 @@ const FULL_HAND_13: CardType[] = [
   { id: '7H', rank: '7', suit: 'H' },
   { id: '8D', rank: '8', suit: 'D' },
   { id: '9C', rank: '9', suit: 'C' },
-  { id: 'TC', rank: '10', suit: 'C' },
+  { id: '10C', rank: '10', suit: 'C' },
   { id: 'JS', rank: 'J', suit: 'S' },
   { id: 'QH', rank: 'Q', suit: 'H' },
   { id: 'KD', rank: 'K', suit: 'D' },
