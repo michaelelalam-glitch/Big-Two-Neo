@@ -19,14 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { i18n, LANGUAGES, Language } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
-import {
-  showConfirm,
-  showSuccess,
-  showError,
-  soundManager,
-  hapticManager,
-  HapticType,
-} from '../utils';
+import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
