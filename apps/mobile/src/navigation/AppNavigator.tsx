@@ -154,8 +154,9 @@ export default function AppNavigator() {
       // on devices where universal-link association is broken or missing.
       // React Navigation's linking config handles both prefixes identically once
       // the authenticated stack is mounted, so the custom-scheme replay is safe.
-      const replayUrl = url.startsWith('https://big2.app')
-        ? url.replace('https://big2.app', 'big2mobile:/')
+      const UNIVERSAL_PREFIX = 'https://big2.app';
+      const replayUrl = url.startsWith(UNIVERSAL_PREFIX)
+        ? `big2mobile://${url.slice(UNIVERSAL_PREFIX.length + 1)}` // skip the leading '/'
         : url;
       if (replayUrl.startsWith('big2mobile://')) {
         Linking.openURL(replayUrl).catch(err =>

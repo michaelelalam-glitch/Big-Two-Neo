@@ -204,7 +204,7 @@ export function LandscapeGameLayout({
     ]);
   };
 
-  /** Handle double-tap on opponent name: show Add Friend or Already Friends */
+  /** Handle long-press on opponent name: show Add Friend or Already Friends */
   const handleOpponentNameLongPress = (displayIndex: number) => {
     const opponentId = playerIds[displayIndex];
     const opponentName = playerNames[displayIndex] ?? i18n.t('friends.unknownPlayer');
