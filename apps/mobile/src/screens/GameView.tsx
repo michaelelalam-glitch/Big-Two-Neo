@@ -369,6 +369,7 @@ function GameViewComponent() {
             onChatToggle={isMultiplayerGame ? toggleChatDrawer : undefined}
             isChatOpen={isChatDrawerOpen}
             chatUnreadCount={chatUnreadCount}
+            playerIds={isMultiplayerGame ? [localUserId, ...remotePlayerIds] : undefined}
           />
         ) : (
           // PORTRAIT MODE (existing layout)

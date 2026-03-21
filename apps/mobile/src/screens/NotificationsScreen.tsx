@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useNotifications, AppNotification } from '../contexts/NotificationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
