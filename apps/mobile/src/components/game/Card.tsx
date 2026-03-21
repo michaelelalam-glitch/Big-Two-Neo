@@ -345,7 +345,9 @@ const Card = React.memo(function Card({
           disabled
             ? undefined
             : hasMultipleSelected
-              ? 'Double tap to deselect. Drag with other selected cards to play.'
+              ? isSelected
+                ? 'Double tap to deselect. Drag with other selected cards to play.'
+                : 'Double tap to select. Drag after selecting multiple cards to play.'
               : 'Double tap to select or deselect. Long press then drag to rearrange.'
         }
         accessibilityActions={
