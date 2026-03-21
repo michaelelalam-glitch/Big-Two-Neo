@@ -1,7 +1,7 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
 > Generated: March 16, 2026 · Last updated: March 22, 2026  
-> Total tasks reviewed: 44 (13 backlog · 12 todo · 6 in_progress · 13 completed)
+> Total tasks reviewed: 44 (13 backlog · 12 todo · 6 in_review · 13 completed)
 
 ---
 
@@ -78,7 +78,7 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 15 | `#645` | 🔵 Improve VoiceOver/TalkBack — WCAG 2.1 AA — **IN PROGRESS** on `feat/tasks-645-280-276-accessibility-perf` | ~1 day remaining | 🟢 Low |
+| 15 | `#645` | 🔵 Improve VoiceOver/TalkBack — WCAG 2.1 AA — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🟢 Low |
 
 ---
 
@@ -88,8 +88,8 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 16 | `#280` | 🔵 Optimize mobile game engine (memoization, lazy loading) — **IN PROGRESS** on `feat/tasks-645-280-276-accessibility-perf` | ~2 days remaining | 🟡 Medium |
-| 17 | `#276` | 🔵 Optimize performance and bundle size (<50MB, <3s start) — **IN PROGRESS** on `feat/tasks-645-280-276-accessibility-perf` | ~2 days remaining | 🔴 High |
+| 16 | `#280` | 🔵 Optimize mobile game engine (memoization, lazy loading) — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🟡 Medium |
+| 17 | `#276` | 🔵 Optimize performance and bundle size (<50MB, <3s start) — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🔴 High |
 
 ---
 
@@ -158,13 +158,13 @@
 
 ## 📋 Current Status Board
 
-### 🚧 IN PROGRESS (6 tasks — 2 branches)
+### 🔵 IN REVIEW (6 tasks — 2 branches)
 **Branch `feat/tasks-327-273-325-tests-e2e`** off `game/chinese-poker` — PR #167 open, Copilot review loop complete (0 non-outdated comments)
 - `#327` — Add visual regression snapshot tests for card UI (21 tests passing ✅)
-- `#273` — Write comprehensive game-engine unit tests (32 tests passing ✅)
+- `#273` — Write comprehensive game-engine unit tests (33 tests passing ✅)
 - `#325` — Expand Maestro E2E flows with CI tags (flows 10 + 11 added ✅; Android EAS test profile ✅)
 
-**Branch `feat/tasks-645-280-276-accessibility-perf`** off `game/chinese-poker` (Mar 22, 2026)
+**Branch `feat/tasks-645-280-276-accessibility-perf`** off `game/chinese-poker` — PR #168 open (Mar 22, 2026)
 - `#645` — Improve VoiceOver/TalkBack WCAG 2.1 AA (Card.tsx + GameControls.tsx)
 - `#280` — Optimize mobile game engine (memoize classifyCards, sortHand; lazy bot AI)
 - `#276` — Optimize bundle size & performance (Hermes, metro tree-shaking, image audit)
@@ -195,7 +195,7 @@ All remaining tasks in tiers 7–10.
 
 ## 🗃️ Full ID Reference
 
-### 🔵 Active In-Progress
+### 🔵 Active In-Review
 `#327` `#273` `#325` `#645` `#280` `#276`
 
 ### Todo (next up)
