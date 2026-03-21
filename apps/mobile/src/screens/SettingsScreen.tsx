@@ -77,6 +77,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       try {
+        // Check migration status FIRST — before calling hydrate — to avoid a
+        // race where the initial hydrate() call triggers the Zustand persist
+        // middleware to write 'big2-audio-settings' before we check for it.
+        const PERSIST_KEY = 'big2-audio-settings';
+        const alreadyMigrated = await AsyncStorage.getItem(PERSIST_KEY);
+
         // Always sync from managers — they are the source of truth for audio/haptic
         const savedSoundEnabled = await soundManager.isAudioEnabled();
         const savedVibrationEnabled = await hapticManager.isHapticsEnabled();
@@ -85,8 +91,6 @@ export default function SettingsScreen() {
         // One-time migration: import legacy individual keys into the Zustand
         // persist store ONLY if the new persist key doesn't exist yet.
         // After migration, delete the legacy keys so this never runs again.
-        const PERSIST_KEY = 'big2-audio-settings';
-        const alreadyMigrated = await AsyncStorage.getItem(PERSIST_KEY);
         if (!alreadyMigrated) {
           const VALID_CARD_SORT: string[] = ['suit', 'rank'];
           const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];
