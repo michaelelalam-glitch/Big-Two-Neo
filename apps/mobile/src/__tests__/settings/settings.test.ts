@@ -251,7 +251,7 @@ describe('Settings Persistence', () => {
   });
 });
 
-describe('Audio Settings Migration (Task #647)', () => {
+describe('User Preferences Migration (Task #647)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (AsyncStorage.multiRemove as jest.Mock).mockResolvedValue(undefined);
