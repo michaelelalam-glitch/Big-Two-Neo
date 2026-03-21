@@ -25,6 +25,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
   clear: jest.fn(),
   getAllKeys: jest.fn(),
+  multiGet: jest.fn(),
   multiRemove: jest.fn(),
 }));
 
@@ -259,7 +260,14 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('runs migration and returns true when marker is absent (no legacy data hydrate)', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
+      [SETTINGS_KEYS.ANIMATION_SPEED, null],
+      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
+      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
+      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
+    ]);
 
     const hydrate = jest.fn();
     const result = await migrateLegacyUserPreferences(hydrate);
@@ -287,15 +295,14 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('hydrates only valid legacy values and ignores invalid or missing ones', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
-      if (key === SETTINGS_KEYS.CARD_SORT_ORDER) return Promise.resolve('rank');
-      if (key === SETTINGS_KEYS.ANIMATION_SPEED) return Promise.resolve('INVALID');
-      if (key === SETTINGS_KEYS.AUTO_PASS_TIMER) return Promise.resolve('30');
-      if (key === SETTINGS_KEYS.PROFILE_VISIBILITY) return Promise.resolve('false');
-      if (key === SETTINGS_KEYS.SHOW_ONLINE_STATUS) return Promise.resolve(null);
-      return Promise.resolve(null);
-    });
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.CARD_SORT_ORDER, 'rank'],
+      [SETTINGS_KEYS.ANIMATION_SPEED, 'INVALID'],
+      [SETTINGS_KEYS.AUTO_PASS_TIMER, '30'],
+      [SETTINGS_KEYS.PROFILE_VISIBILITY, 'false'],
+      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
+    ]);
 
     const hydrate = jest.fn();
     await migrateLegacyUserPreferences(hydrate);
@@ -310,7 +317,14 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('removes legacy keys after migration', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
+      [SETTINGS_KEYS.ANIMATION_SPEED, null],
+      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
+      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
+      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
+    ]);
 
     await migrateLegacyUserPreferences(jest.fn());
 
@@ -333,6 +347,13 @@ describe('User Preferences Migration (Task #647)', () => {
       if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
       return Promise.resolve(null);
     });
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
+      [SETTINGS_KEYS.ANIMATION_SPEED, null],
+      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
+      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
+      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
+    ]);
 
     const hydrate = jest.fn();
     const result = await migrateLegacyUserPreferences(hydrate);

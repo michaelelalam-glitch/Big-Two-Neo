@@ -66,9 +66,13 @@ export default function SettingsScreen() {
   // Language is not in the persist store (i18n handles its own persistence)
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
-  // On first mount: sync sound/haptic state from the manager singletons
-  // (they have their own AsyncStorage persistence independent of Zustand).
-  // Also perform a one-time migration of legacy individual AsyncStorage keys.
+  // On first mount: sync sound/haptic state and run one-time migration.
+  // Two-phase approach to avoid blocking UI on heavy sound preloads:
+  //   Phase 1 (fast path): read enabled flags directly from AsyncStorage so
+  //     toggles hydrate immediately without waiting for audio-mode setup or
+  //     sound preloads that may take 30–60 s on cold start.
+  //   Phase 2 (background): fire off manager.initialize() and resync once
+  //     done, since managers are the authoritative persistent source.
   useEffect(() => {
     (async () => {
       try {
@@ -79,17 +83,42 @@ export default function SettingsScreen() {
           SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
         );
 
-        // Ensure managers have loaded their persisted values before reading
-        // sync state. initialize() is idempotent — returns immediately if
-        // already done (e.g. called from AuthContext on app start).
-        await Promise.all([soundManager.initialize(), hapticManager.initialize()]);
+        // ── Phase 1: fast path — load enabled flags from storage so UI toggles
+        // can hydrate without waiting for heavy sound preloads.
+        try {
+          const entries = await AsyncStorage.multiGet([
+            SETTINGS_KEYS.AUDIO_ENABLED,
+            SETTINGS_KEYS.HAPTICS_ENABLED,
+          ]);
+          const storageMap = Object.fromEntries(entries) as Record<string, string | null>;
+          hydrate({
+            soundEnabled:
+              storageMap[SETTINGS_KEYS.AUDIO_ENABLED] != null
+                ? storageMap[SETTINGS_KEYS.AUDIO_ENABLED] === 'true'
+                : soundEnabled,
+            vibrationEnabled:
+              storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] != null
+                ? storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] === 'true'
+                : vibrationEnabled,
+          });
+        } catch (storageError) {
+          console.warn(
+            '[Settings] Failed to load audio/vibration flags from AsyncStorage:',
+            storageError
+          );
+        }
 
-        // Always sync from managers — they are the source of truth for audio/haptic.
-        // isAudioEnabled / isHapticsEnabled are synchronous.
-        hydrate({
-          soundEnabled: soundManager.isAudioEnabled(),
-          vibrationEnabled: hapticManager.isHapticsEnabled(),
-        });
+        // ── Phase 2: background — initialize managers (audio mode + preloads)
+        // and resync once done; they remain the authoritative source of truth.
+        soundManager
+          .initialize()
+          .then(() => hydrate({ soundEnabled: soundManager.isAudioEnabled() }))
+          .catch(err => console.error('[Settings] soundManager.initialize() failed:', err));
+
+        hapticManager
+          .initialize()
+          .then(() => hydrate({ vibrationEnabled: hapticManager.isHapticsEnabled() }))
+          .catch(err => console.error('[Settings] hapticManager.initialize() failed:', err));
 
         // One-time migration via dedicated helper — see utils/migrateLegacyUserPreferences.ts.
         // migrateLegacyUserPreferences re-checks the marker internally (idempotent).
