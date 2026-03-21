@@ -295,42 +295,42 @@ describe('isHighestPossiblePlay — Full House', () => {
   it('detects triple-2s + pair-Kings as highest FH when SFs and 4K exhausted', () => {
     // With blockSFAndNoFourOfAKind: highest triple = rank-2 (3 remaining);
     // highest available pair ≠ rank-2 = rank-K (KH,KS,KC = 3 remaining).
-    const fh_two_kings: Card[] = [
+    const fhTwoKings: Card[] = [
       card('2', 'H'),
       card('2', 'D'),
       card('2', 'C'),
       card('K', 'H'),
       card('K', 'S'),
     ];
-    expect(isHighestPossiblePlay(fh_two_kings, blockSFAndNoFourOfAKind)).toBe(true);
+    expect(isHighestPossiblePlay(fhTwoKings, blockSFAndNoFourOfAKind)).toBe(true);
   });
 
   it('does NOT detect Full House of Aces as highest (triple 2s possible)', () => {
-    const fh_aces: Card[] = [
+    const fhAces: Card[] = [
       card('A', 'H'),
       card('A', 'D'),
       card('A', 'C'),
       card('K', 'H'),
       card('K', 'D'),
     ];
-    expect(isHighestPossiblePlay(fh_aces, [])).toBe(false);
+    expect(isHighestPossiblePlay(fhAces, [])).toBe(false);
   });
 
   it('does NOT detect triple-2s + pair-Queens as highest FH (pair-Kings still available)', () => {
     // Highest pair rank given blockSFAndNoFourOfAKind is K (3 remaining);
     // Queens only has 3 remaining too but K > Q → pair rank mismatch → false.
-    const fh_two_queens: Card[] = [
+    const fhTwoQueens: Card[] = [
       card('2', 'H'),
       card('2', 'D'),
       card('2', 'C'),
       card('Q', 'H'),
       card('Q', 'D'),
     ];
-    expect(isHighestPossiblePlay(fh_two_queens, blockSFAndNoFourOfAKind)).toBe(false);
+    expect(isHighestPossiblePlay(fhTwoQueens, blockSFAndNoFourOfAKind)).toBe(false);
   });
 
   it('does NOT detect Full House of Aces-over-3s as highest (Aces-over-Ks still possible)', () => {
-    const fh_aces_3: Card[] = [
+    const fhAcesThree: Card[] = [
       card('A', 'H'),
       card('A', 'D'),
       card('A', 'C'),
@@ -340,7 +340,7 @@ describe('isHighestPossiblePlay — Full House', () => {
     // Kings are still in the deck → Aces-over-Kings would beat Aces-over-3s? No.
     // Full House is compared by triple rank. Since Aces == Aces, pair rank matters.
     // Function returns false because played pair rank (3) ≠ highest pair rank (K)
-    expect(isHighestPossiblePlay(fh_aces_3, [])).toBe(false);
+    expect(isHighestPossiblePlay(fhAcesThree, [])).toBe(false);
   });
 });
 
