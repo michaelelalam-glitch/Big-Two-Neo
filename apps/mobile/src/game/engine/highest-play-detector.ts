@@ -468,16 +468,27 @@ function isHighestRemainingFiveCardCombo(
     }
 
     case 'Four of a Kind': {
-      // Iterate through all ranks in descending order to find highest possible four of a kind
+      // Find the highest quad rank still formable from remaining (excludes current play).
+      // Use rank-value comparison (not equality) — the current cards are excluded from
+      // remaining, so the highest remaining quad may be a LOWER rank than the played quad.
+      let highestQuadRank: string | null = null;
       for (const rank of [...RANKS].reverse()) {
-        const cardsOfRank = remaining.filter(c => c.rank === rank);
-        if (cardsOfRank.length >= 4) {
-          // If the current play is four of this rank, it's the highest possible
-          return sorted.filter(c => c.rank === rank).length === 4;
+        if (remaining.filter(c => c.rank === rank).length >= 4) {
+          highestQuadRank = rank;
+          break;
         }
       }
-      // If no four of a kind is possible in remaining, any four of a kind is highest
-      return true;
+
+      // No four of a kind possible from remaining — any 4K is highest
+      if (!highestQuadRank) return true;
+
+      // Find the rank being played as the quad
+      const playedQuadRank =
+        [...RANKS].reverse().find(rank => sorted.filter(c => c.rank === rank).length >= 4) ?? null;
+      if (!playedQuadRank) return false;
+
+      // Current quad must be >= the highest remaining quad (rank-value comparison)
+      return RANK_VALUE[playedQuadRank] >= RANK_VALUE[highestQuadRank];
     }
 
     case 'Full House': {
