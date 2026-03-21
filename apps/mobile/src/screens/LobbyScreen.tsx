@@ -84,6 +84,7 @@ export default function LobbyScreen() {
   const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
   const claimHostInFlightRef = useRef(false); // Prevent concurrent lobby_claim_host RPC calls
   const hasAttemptedJoinRef = useRef(false); // Prevent repeated join_room_atomic calls in invite-join flow
+  const lastJoinRoomCodeRef = useRef<string | null>(null); // Track roomCode to reset guard on room change
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
@@ -107,6 +108,15 @@ export default function LobbyScreen() {
     loadPlayers();
     return subscribeToRoomsTable();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlayers and subscribeToRoomsTable intentionally excluded; correct trigger is roomCode
+  }, [roomCode]);
+
+  // Reset the invite-join guard whenever the user navigates to a different room
+  // so a new deep-link invite is never incorrectly blocked.
+  useEffect(() => {
+    if (lastJoinRoomCodeRef.current !== roomCode) {
+      lastJoinRoomCodeRef.current = roomCode;
+      hasAttemptedJoinRef.current = false;
+    }
   }, [roomCode]);
 
   // Set up filtered room_players subscription only once roomId is known.
