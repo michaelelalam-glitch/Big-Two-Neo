@@ -39,12 +39,14 @@ export function usePresence(): UsePresenceResult {
     setOnlineUserIds(ids);
   }, []);
 
-  const join = useCallback(() => {
+  const join = useCallback(async () => {
     if (!user?.id) return;
 
-    // Clean up any existing channel before creating a new one
+    // Await removal of the existing channel before creating a replacement so
+    // that rapid join() calls (e.g., multiple AppState 'active' events) do not
+    // momentarily leave two channels active or leak resources.
     if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
+      await supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
@@ -93,17 +95,17 @@ export function usePresence(): UsePresenceResult {
     if (!user?.id) {
       setOnlineUserIds(new Set());
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        void supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
       return;
     }
 
-    join();
+    void join();
 
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') {
-        join();
+        void join();
       } else if (state === 'background' || state === 'inactive') {
         if (channelRef.current) {
           void channelRef.current.untrack().catch(error => {
