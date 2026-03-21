@@ -24,7 +24,7 @@ function makeCacheKey(cards: Card[]): string {
 }
 
 function fifoSet<V>(cache: Map<string, V>, key: string, value: V, max: number): void {
-  if (cache.size >= max) {
+  if (cache.size >= max && !cache.has(key)) {
     cache.delete(cache.keys().next().value as string);
   }
   cache.set(key, value);
