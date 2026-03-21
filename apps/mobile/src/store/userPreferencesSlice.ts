@@ -85,18 +85,20 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       showOnlineStatus: DEFAULT_SETTINGS.showOnlineStatus,
 
       setSoundEnabled: enabled => {
-        // Pessimistic update: apply to Zustand only after the manager persists
-        // successfully, so the UI never diverges from SoundManager's internal
-        // state (which is mutated before the AsyncStorage write resolves).
+        // Optimistic update: mirrors SoundManager's own in-memory flag mutation
+        // (which happens before the AsyncStorage write inside setAudioEnabled).
+        // Both sources are set to the new state immediately; a persistence
+        // failure is logged but intentionally does not revert either source,
+        // keeping them consistent with each other.
+        set({ soundEnabled: enabled });
         void soundManager
           .setAudioEnabled(enabled)
-          .then(() => set({ soundEnabled: enabled }))
           .catch(err => console.error('[UserPreferences] Failed to persist audio enabled', err));
       },
       setVibrationEnabled: enabled => {
+        set({ vibrationEnabled: enabled });
         void hapticManager
           .setHapticsEnabled(enabled)
-          .then(() => set({ vibrationEnabled: enabled }))
           .catch(err => console.error('[UserPreferences] Failed to persist haptics enabled', err));
       },
       setCardSortOrder: order => set({ cardSortOrder: order }),

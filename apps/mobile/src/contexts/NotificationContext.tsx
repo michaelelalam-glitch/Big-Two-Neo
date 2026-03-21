@@ -92,7 +92,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     }
     AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY(user.id))
       .then(raw => {
-        if (raw) setStoredNotifications(JSON.parse(raw) as AppNotification[]);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          setStoredNotifications(parsed as AppNotification[]);
+        }
       })
       .catch(() => {});
   }, [user?.id]);
