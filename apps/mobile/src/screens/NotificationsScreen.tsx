@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useNotifications, AppNotification } from '../contexts/NotificationContext';
@@ -41,10 +41,13 @@ export default function NotificationsScreen() {
   const navigation = useNavigation<NotificationsNavProp>();
   const { storedNotifications, markAllRead, clearAll } = useNotifications();
 
-  // Mark all as read when the screen is opened
-  useEffect(() => {
-    markAllRead();
-  }, [markAllRead]);
+  // Mark all as read whenever the screen gains focus (not just on initial mount),
+  // so notifications received while navigating away are also cleared on return.
+  useFocusEffect(
+    useCallback(() => {
+      markAllRead();
+    }, [markAllRead])
+  );
 
   const handleNotifPress = (item: AppNotification) => {
     if (item.type === 'game_invite' && item.data?.roomCode) {
