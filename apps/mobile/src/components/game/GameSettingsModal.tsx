@@ -70,11 +70,16 @@ function GameSettingsModalComponent({
   const vibrationEnabled = useAudioSettingsStore(s => s.vibrationEnabled);
   const setSoundEnabled = useAudioSettingsStore(s => s.setSoundEnabled);
   const setVibrationEnabled = useAudioSettingsStore(s => s.setVibrationEnabled);
-  const hydrate = useAudioSettingsStore(s => s.hydrate);
 
   // Fallback sync: if the persist store hasn't been hydrated from SettingsScreen
   // yet (e.g. user opens this modal on first launch before visiting Settings),
   // pull the current values from the manager singletons so the toggles are correct.
+  //
+  // We use setSoundEnabled/setVibrationEnabled rather than hydrate() here because
+  // soundEnabled and vibrationEnabled are NOT in partialize(), so these calls do
+  // NOT write to AsyncStorage / the persist key. That avoids an early write that
+  // could trick SettingsScreen's migration check into thinking the key already
+  // exists and skipping the legacy key import.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -82,7 +87,8 @@ function GameSettingsModalComponent({
         const managerSound = await soundManager.isAudioEnabled();
         const managerVibration = await hapticManager.isHapticsEnabled();
         if (!cancelled) {
-          hydrate({ soundEnabled: managerSound, vibrationEnabled: managerVibration });
+          setSoundEnabled(managerSound);
+          setVibrationEnabled(managerVibration);
         }
       } catch {
         // Non-fatal: store defaults (true/true) remain in effect

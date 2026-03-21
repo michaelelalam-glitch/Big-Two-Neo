@@ -158,13 +158,11 @@
 
 ## 📋 Current Status Board
 
-### 🔵 IN PROGRESS (4 tasks) — branch `feat/tasks-617-616-328-647-ci-arch`
-- `#617` — Ratchet coverage thresholds +2% per sprint
-- `#616` — CI: Bundle size monitoring
-- `#328` — Add performance benchmarks for card rendering
-- `#647` — Expand Zustand store (replace Context prop drilling)
-
-### 🔍 IN REVIEW (2 tasks)
+### � IN REVIEW (6 tasks)
+- `#617` — Ratchet coverage thresholds +2% per sprint *(implemented — PR #165 under Copilot review)*
+- `#616` — CI: Bundle size monitoring *(implemented — PR #165 under Copilot review)*
+- `#328` — Add performance benchmarks for card rendering *(implemented — PR #165 under Copilot review)*
+- `#647` — Expand Zustand store (replace Context prop drilling) *(implemented — PR #165 under Copilot review)*
 - `#628` — Fix GameScreen slow renders *(implementation complete — PR open for review)*
 - `#164` (PR) — `game/chinese-poker` → `main` (includes #652 + #646) *(Copilot review requested Mar 21, 2026)*
 
