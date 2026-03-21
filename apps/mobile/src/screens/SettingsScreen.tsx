@@ -91,16 +91,15 @@ export default function SettingsScreen() {
             SETTINGS_KEYS.HAPTICS_ENABLED,
           ]);
           const storageMap = Object.fromEntries(entries) as Record<string, string | null>;
-          hydrate({
-            soundEnabled:
-              storageMap[SETTINGS_KEYS.AUDIO_ENABLED] != null
-                ? storageMap[SETTINGS_KEYS.AUDIO_ENABLED] === 'true'
-                : soundEnabled,
-            vibrationEnabled:
-              storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] != null
-                ? storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] === 'true'
-                : vibrationEnabled,
-          });
+          // Only hydrate flags that are actually present in storage; skipping
+          // the fallback avoids clobbering a user toggle that happened while
+          // AsyncStorage.multiGet was in-flight (stale-closure race).
+          const partial: { soundEnabled?: boolean; vibrationEnabled?: boolean } = {};
+          if (storageMap[SETTINGS_KEYS.AUDIO_ENABLED] != null)
+            partial.soundEnabled = storageMap[SETTINGS_KEYS.AUDIO_ENABLED] === 'true';
+          if (storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] != null)
+            partial.vibrationEnabled = storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] === 'true';
+          if (Object.keys(partial).length > 0) hydrate(partial);
         } catch (storageError) {
           console.warn(
             '[Settings] Failed to load audio/vibration flags from AsyncStorage:',
