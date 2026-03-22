@@ -39,31 +39,6 @@ interface LeaderboardEntry {
 type TimeFilter = 'all_time' | 'weekly' | 'daily';
 type LeaderboardType = 'casual' | 'ranked';
 
-// Note: Supabase client types !inner joins as arrays, even though PostgREST
-// returns an object for to-one relationships. Array type kept for TS compat.
-interface PlayerStatsWithProfile {
-  user_id: string;
-  rank_points: number;
-  games_played: number;
-  games_won: number;
-  win_rate: number;
-  longest_win_streak: number;
-  current_win_streak: number;
-  // Per-mode columns
-  casual_games_played?: number;
-  casual_games_won?: number;
-  casual_win_rate?: number;
-  casual_rank_points?: number;
-  ranked_games_played?: number;
-  ranked_games_won?: number;
-  ranked_win_rate?: number;
-  ranked_rank_points?: number;
-  profiles: {
-    username: string;
-    avatar_url: string | null;
-  }[];
-}
-
 export default function LeaderboardScreen() {
   const navigation = useNavigation<LeaderboardScreenNavigationProp>();
   const { user } = useAuth();
@@ -112,16 +87,27 @@ export default function LeaderboardScreen() {
         const modePrefix = leaderboardType === 'casual' ? 'casual' : 'ranked';
 
         // Run the appropriate query based on time filter.
-        const listResult = await (timeFilter === 'all_time'
-          ? supabase.rpc(
-              leaderboardType === 'casual' ? 'get_leaderboard_casual' : 'get_leaderboard_ranked',
-              { p_limit: PAGE_SIZE, p_offset: startIndex }
-            )
-          : // Weekly/daily: query player_stats directly with per-mode columns
-            supabase
-              .from('player_stats')
-              .select(
-                `
+        // Branches are separated so TypeScript can narrow the result type in each path.
+        let transformedData: LeaderboardEntry[];
+        if (timeFilter === 'all_time') {
+          const { data, error } = await supabase.rpc(
+            leaderboardType === 'casual' ? 'get_leaderboard_casual' : 'get_leaderboard_ranked',
+            { p_limit: PAGE_SIZE, p_offset: startIndex }
+          );
+          if (error) {
+            statsLogger.error(
+              '[Leaderboard] Query error:',
+              error?.message || error?.code || 'Unknown error'
+            );
+            throw error;
+          }
+          transformedData = data ?? [];
+        } else {
+          // Weekly/daily: query player_stats directly with per-mode columns
+          const { data, error } = await supabase
+            .from('player_stats')
+            .select(
+              `
             user_id,
             rank_points,
             games_played,
@@ -142,53 +128,42 @@ export default function LeaderboardScreen() {
               avatar_url
             )
           `
-              )
-              .gte('last_game_at', timeFilterDate!)
-              .gt(`${modePrefix}_games_played`, 0)
-              .order(`${modePrefix}_rank_points`, { ascending: false })
-              .order(`${modePrefix}_games_won`, { ascending: false })
-              .order('user_id', { ascending: true })
-              .range(startIndex, endIndex));
-        const data = listResult.data as (LeaderboardEntry | PlayerStatsWithProfile)[] | null;
-        const error = listResult.error;
-
-        if (error) {
-          statsLogger.error(
-            '[Leaderboard] Query error:',
-            error?.message || error?.code || 'Unknown error'
-          );
-          throw error;
-        }
-
-        // Transform data if querying player_stats directly (weekly/daily)
-        let transformedData: LeaderboardEntry[];
-        if (timeFilter === 'all_time') {
-          transformedData = (data || []) as LeaderboardEntry[];
-        } else {
+            )
+            .gte('last_game_at', timeFilterDate!)
+            .gt(`${modePrefix}_games_played`, 0)
+            .order(`${modePrefix}_rank_points`, { ascending: false })
+            .order(`${modePrefix}_games_won`, { ascending: false })
+            .order('user_id', { ascending: true })
+            .range(startIndex, endIndex);
+          if (error) {
+            statsLogger.error(
+              '[Leaderboard] Query error:',
+              error?.message || error?.code || 'Unknown error'
+            );
+            throw error;
+          }
           // Transform joined data to match LeaderboardEntry interface, using per-mode columns
-          transformedData = ((data || []) as PlayerStatsWithProfile[]).map(
-            (item: PlayerStatsWithProfile, index: number) => {
-              const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
-              const isCasual = leaderboardType === 'casual';
-              return {
-                user_id: item.user_id,
-                username: profile?.username ?? 'Unknown',
-                avatar_url: profile?.avatar_url ?? null,
-                rank_points:
-                  (isCasual ? item.casual_rank_points : item.ranked_rank_points) ??
-                  item.rank_points,
-                games_played:
-                  (isCasual ? item.casual_games_played : item.ranked_games_played) ??
-                  item.games_played,
-                games_won:
-                  (isCasual ? item.casual_games_won : item.ranked_games_won) ?? item.games_won,
-                win_rate: (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate,
-                longest_win_streak: item.longest_win_streak,
-                current_win_streak: item.current_win_streak,
-                rank: startIndex + index + 1, // Calculate rank based on position
-              };
-            }
-          );
+          const isCasual = leaderboardType === 'casual';
+          transformedData = (data ?? []).map((item, index) => ({
+            user_id: item.user_id,
+            username: item.profiles.username,
+            avatar_url: item.profiles.avatar_url,
+            rank_points:
+              (isCasual ? item.casual_rank_points : item.ranked_rank_points) ??
+              item.rank_points ??
+              0,
+            games_played:
+              (isCasual ? item.casual_games_played : item.ranked_games_played) ??
+              item.games_played ??
+              0,
+            games_won:
+              (isCasual ? item.casual_games_won : item.ranked_games_won) ?? item.games_won ?? 0,
+            win_rate:
+              (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate ?? 0,
+            longest_win_streak: item.longest_win_streak ?? 0,
+            current_win_streak: item.current_win_streak ?? 0,
+            rank: startIndex + index + 1,
+          }));
         }
 
         if (resetPagination) {
@@ -200,22 +175,32 @@ export default function LeaderboardScreen() {
 
         setHasMore(transformedData.length === PAGE_SIZE);
 
-        // Fetch current user's rank separately
+        // Fetch current user's rank separately.
+        // Branches separated so TypeScript can narrow each result type independently.
         if (user) {
-          const rankQueryResult = await (timeFilter === 'all_time'
-            ? supabase
-                .rpc(
-                  leaderboardType === 'casual'
-                    ? 'get_leaderboard_rank_casual_by_user_id'
-                    : 'get_leaderboard_rank_ranked_by_user_id',
-                  { p_user_id: user.id }
-                )
-                .single()
-            : // For weekly/daily, calculate user's rank from player_stats
-              supabase
-                .from('player_stats')
-                .select(
-                  `
+          if (timeFilter === 'all_time') {
+            const { data: rpcRankData, error: rpcRankError } = await supabase
+              .rpc(
+                leaderboardType === 'casual'
+                  ? 'get_leaderboard_rank_casual_by_user_id'
+                  : 'get_leaderboard_rank_ranked_by_user_id',
+                { p_user_id: user.id }
+              )
+              .single();
+            if (rpcRankError) {
+              statsLogger.info('[Leaderboard] Error fetching user rank:', rpcRankError);
+              setUserRank(null);
+            } else if (rpcRankData && rpcRankData.games_played > 0) {
+              setUserRank(rpcRankData);
+            } else {
+              setUserRank(null);
+            }
+          } else {
+            // For weekly/daily, calculate user's rank from player_stats
+            const { data: statsRankData, error: statsRankError } = await supabase
+              .from('player_stats')
+              .select(
+                `
               user_id,
               rank_points,
               games_played,
@@ -236,40 +221,31 @@ export default function LeaderboardScreen() {
                 avatar_url
               )
             `
-                )
-                .eq('user_id', user.id)
-                .gte('last_game_at', timeFilterDate || '1970-01-01')
-                .gt(`${modePrefix}_games_played`, 0)
-                .single());
-          const userRankData = rankQueryResult.data as
-            | (LeaderboardEntry & PlayerStatsWithProfile)
-            | null;
+              )
+              .eq('user_id', user.id)
+              .gte('last_game_at', timeFilterDate || '1970-01-01')
+              .gt(`${modePrefix}_games_played`, 0)
+              .single();
 
-          if (userRankData) {
-            if (timeFilter === 'all_time') {
-              // Only show rank if user has played games
-              if (userRankData.games_played > 0) {
-                setUserRank(userRankData);
-              } else {
-                setUserRank(null);
-              }
+            if (statsRankError || !statsRankData) {
+              // User hasn't played any games in this period
+              setUserRank(null);
             } else {
-              // For weekly/daily: userRankQuery already filters by last_game_at
-              // and ${modePrefix}_games_played > 0, so a non-null result means the
-              // user has played in this period — no extra query needed.
+              // For weekly/daily: statsRankQuery already filters by last_game_at
+              // and ${modePrefix}_games_played > 0, so a non-null result means
+              // the user has played in this period — no extra query needed.
 
               // Calculate rank by counting users with strictly higher points, or
               // equal points but more wins, or equal points+wins but a lower
               // user_id (matches the leaderboard ORDER BY tie-breaker).
-              const userPoints =
-                leaderboardType === 'casual'
-                  ? (userRankData.casual_rank_points ?? userRankData.rank_points)
-                  : (userRankData.ranked_rank_points ?? userRankData.rank_points);
-              const userGamesWon =
-                leaderboardType === 'casual'
-                  ? (userRankData.casual_games_won ?? userRankData.games_won)
-                  : (userRankData.ranked_games_won ?? userRankData.games_won);
-              const userId = userRankData.user_id;
+              const isCasual = leaderboardType === 'casual';
+              const userPoints = isCasual
+                ? (statsRankData.casual_rank_points ?? statsRankData.rank_points ?? 0)
+                : (statsRankData.ranked_rank_points ?? statsRankData.rank_points ?? 0);
+              const userGamesWon = isCasual
+                ? (statsRankData.casual_games_won ?? statsRankData.games_won ?? 0)
+                : (statsRankData.ranked_games_won ?? statsRankData.games_won ?? 0);
+              const userId = statsRankData.user_id;
 
               const { count, error: rankError } = await supabase
                 .from('player_stats')
@@ -290,37 +266,35 @@ export default function LeaderboardScreen() {
                 return;
               }
 
-              const isCasual = leaderboardType === 'casual';
-
-              const rankProfile = Array.isArray(userRankData.profiles)
-                ? userRankData.profiles[0]
-                : userRankData.profiles;
-
               setUserRank({
-                user_id: userRankData.user_id,
-                username: rankProfile?.username ?? '',
-                avatar_url: rankProfile?.avatar_url ?? null,
+                user_id: statsRankData.user_id,
+                username: statsRankData.profiles.username,
+                avatar_url: statsRankData.profiles.avatar_url,
                 rank_points:
-                  (isCasual ? userRankData.casual_rank_points : userRankData.ranked_rank_points) ??
-                  userRankData.rank_points,
+                  (isCasual
+                    ? statsRankData.casual_rank_points
+                    : statsRankData.ranked_rank_points) ??
+                  statsRankData.rank_points ??
+                  0,
                 games_played:
                   (isCasual
-                    ? userRankData.casual_games_played
-                    : userRankData.ranked_games_played) ?? userRankData.games_played,
+                    ? statsRankData.casual_games_played
+                    : statsRankData.ranked_games_played) ??
+                  statsRankData.games_played ??
+                  0,
                 games_won:
-                  (isCasual ? userRankData.casual_games_won : userRankData.ranked_games_won) ??
-                  userRankData.games_won,
+                  (isCasual ? statsRankData.casual_games_won : statsRankData.ranked_games_won) ??
+                  statsRankData.games_won ??
+                  0,
                 win_rate:
-                  (isCasual ? userRankData.casual_win_rate : userRankData.ranked_win_rate) ??
-                  userRankData.win_rate,
-                longest_win_streak: userRankData.longest_win_streak,
-                current_win_streak: userRankData.current_win_streak,
+                  (isCasual ? statsRankData.casual_win_rate : statsRankData.ranked_win_rate) ??
+                  statsRankData.win_rate ??
+                  0,
+                longest_win_streak: statsRankData.longest_win_streak ?? 0,
+                current_win_streak: statsRankData.current_win_streak ?? 0,
                 rank: count + 1,
               });
             }
-          } else {
-            // User hasn't played any games yet, clear rank card
-            setUserRank(null);
           }
         }
       } catch (error: unknown) {

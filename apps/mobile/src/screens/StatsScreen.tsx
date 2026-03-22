@@ -149,16 +149,16 @@ interface GameHistoryEntry {
   id: string;
   room_code: string;
   game_type: string | null;
-  winner_id: string;
+  winner_id: string | null;
   game_completed: boolean | null;
   player_1_username: string | null;
   player_2_username: string | null;
   player_3_username: string | null;
   player_4_username: string | null;
-  player_1_score: number;
-  player_2_score: number;
-  player_3_score: number;
-  player_4_score: number;
+  player_1_score: number | null;
+  player_2_score: number | null;
+  player_3_score: number | null;
+  player_4_score: number | null;
   // Bot tracking
   player_1_was_bot: boolean | null;
   player_2_was_bot: boolean | null;
@@ -189,6 +189,144 @@ interface GameHistoryEntry {
 type StatsTab = 'overview' | 'casual' | 'private' | 'ranked';
 type HistoryTab = 'recent' | 'won' | 'lost' | 'incomplete';
 
+/**
+ * Maps a player_stats DB row (all numeric fields nullable) to the local
+ * PlayerStats interface (numeric fields non-null, defaulting to 0).
+ * rank_points_history is validated via a type guard rather than an assertion.
+ */
+function toPlayerStats(
+  row: Partial<Record<keyof PlayerStats, unknown>>,
+  globalRank?: number | null
+): PlayerStats {
+  const num = (key: keyof PlayerStats): number => {
+    const v = row[key];
+    return typeof v === 'number' ? v : 0;
+  };
+  const numOrNull = (key: keyof PlayerStats): number | null => {
+    const v = row[key];
+    return typeof v === 'number' ? v : null;
+  };
+  const strOrNull = (key: keyof PlayerStats): string | null => {
+    const v = row[key];
+    return typeof v === 'string' ? v : null;
+  };
+  const isHistEntry = (
+    e: unknown
+  ): e is { timestamp: string; points: number; is_win: boolean; game_type: string } =>
+    typeof e === 'object' &&
+    e !== null &&
+    !Array.isArray(e) &&
+    'timestamp' in e &&
+    'points' in e &&
+    'is_win' in e &&
+    'game_type' in e;
+  const histRaw = row.rank_points_history;
+  return {
+    user_id: typeof row.user_id === 'string' ? row.user_id : '',
+    games_played: num('games_played'),
+    games_won: num('games_won'),
+    games_lost: num('games_lost'),
+    win_rate: num('win_rate'),
+    avg_finish_position: num('avg_finish_position'),
+    total_points: num('total_points'),
+    highest_score: num('highest_score'),
+    lowest_score: numOrNull('lowest_score'),
+    avg_score_per_game: num('avg_score_per_game'),
+    avg_cards_left_in_hand: num('avg_cards_left_in_hand'),
+    current_win_streak: num('current_win_streak'),
+    longest_win_streak: num('longest_win_streak'),
+    current_loss_streak: num('current_loss_streak'),
+    global_rank: globalRank !== undefined ? globalRank : numOrNull('global_rank'),
+    rank_points: num('rank_points'),
+    rank_points_history: Array.isArray(histRaw) ? histRaw.filter(isHistEntry) : null,
+    casual_games_played: num('casual_games_played'),
+    casual_games_won: num('casual_games_won'),
+    casual_games_lost: num('casual_games_lost'),
+    casual_win_rate: num('casual_win_rate'),
+    casual_rank_points: num('casual_rank_points'),
+    ranked_games_played: num('ranked_games_played'),
+    ranked_games_won: num('ranked_games_won'),
+    ranked_games_lost: num('ranked_games_lost'),
+    ranked_win_rate: num('ranked_win_rate'),
+    ranked_rank_points: num('ranked_rank_points'),
+    private_games_played: num('private_games_played'),
+    private_games_won: num('private_games_won'),
+    private_games_lost: num('private_games_lost'),
+    private_win_rate: num('private_win_rate'),
+    games_completed: num('games_completed'),
+    games_abandoned: num('games_abandoned'),
+    games_voided: num('games_voided'),
+    completion_rate: num('completion_rate'),
+    current_completion_streak: num('current_completion_streak'),
+    longest_completion_streak: num('longest_completion_streak'),
+    casual_games_completed: num('casual_games_completed'),
+    casual_games_abandoned: num('casual_games_abandoned'),
+    casual_games_voided: num('casual_games_voided'),
+    ranked_games_completed: num('ranked_games_completed'),
+    ranked_games_abandoned: num('ranked_games_abandoned'),
+    ranked_games_voided: num('ranked_games_voided'),
+    private_games_completed: num('private_games_completed'),
+    private_games_abandoned: num('private_games_abandoned'),
+    private_games_voided: num('private_games_voided'),
+    casual_total_points: num('casual_total_points'),
+    casual_highest_score: num('casual_highest_score'),
+    casual_lowest_score: numOrNull('casual_lowest_score'),
+    casual_avg_score_per_game: num('casual_avg_score_per_game'),
+    casual_avg_finish_position: num('casual_avg_finish_position'),
+    casual_avg_cards_left: num('casual_avg_cards_left'),
+    ranked_total_points: num('ranked_total_points'),
+    ranked_highest_score: num('ranked_highest_score'),
+    ranked_lowest_score: numOrNull('ranked_lowest_score'),
+    ranked_avg_score_per_game: num('ranked_avg_score_per_game'),
+    ranked_avg_finish_position: num('ranked_avg_finish_position'),
+    ranked_avg_cards_left: num('ranked_avg_cards_left'),
+    private_total_points: num('private_total_points'),
+    private_highest_score: num('private_highest_score'),
+    private_lowest_score: numOrNull('private_lowest_score'),
+    private_avg_score_per_game: num('private_avg_score_per_game'),
+    private_avg_finish_position: num('private_avg_finish_position'),
+    private_avg_cards_left: num('private_avg_cards_left'),
+    singles_played: num('singles_played'),
+    pairs_played: num('pairs_played'),
+    triples_played: num('triples_played'),
+    straights_played: num('straights_played'),
+    flushes_played: num('flushes_played'),
+    full_houses_played: num('full_houses_played'),
+    four_of_a_kinds_played: num('four_of_a_kinds_played'),
+    straight_flushes_played: num('straight_flushes_played'),
+    royal_flushes_played: num('royal_flushes_played'),
+    casual_singles_played: num('casual_singles_played'),
+    casual_pairs_played: num('casual_pairs_played'),
+    casual_triples_played: num('casual_triples_played'),
+    casual_straights_played: num('casual_straights_played'),
+    casual_flushes_played: num('casual_flushes_played'),
+    casual_full_houses_played: num('casual_full_houses_played'),
+    casual_four_of_a_kinds_played: num('casual_four_of_a_kinds_played'),
+    casual_straight_flushes_played: num('casual_straight_flushes_played'),
+    casual_royal_flushes_played: num('casual_royal_flushes_played'),
+    ranked_singles_played: num('ranked_singles_played'),
+    ranked_pairs_played: num('ranked_pairs_played'),
+    ranked_triples_played: num('ranked_triples_played'),
+    ranked_straights_played: num('ranked_straights_played'),
+    ranked_flushes_played: num('ranked_flushes_played'),
+    ranked_full_houses_played: num('ranked_full_houses_played'),
+    ranked_four_of_a_kinds_played: num('ranked_four_of_a_kinds_played'),
+    ranked_straight_flushes_played: num('ranked_straight_flushes_played'),
+    ranked_royal_flushes_played: num('ranked_royal_flushes_played'),
+    private_singles_played: num('private_singles_played'),
+    private_pairs_played: num('private_pairs_played'),
+    private_triples_played: num('private_triples_played'),
+    private_straights_played: num('private_straights_played'),
+    private_flushes_played: num('private_flushes_played'),
+    private_full_houses_played: num('private_full_houses_played'),
+    private_four_of_a_kinds_played: num('private_four_of_a_kinds_played'),
+    private_straight_flushes_played: num('private_straight_flushes_played'),
+    private_royal_flushes_played: num('private_royal_flushes_played'),
+    first_game_at: strOrNull('first_game_at'),
+    last_game_at: strOrNull('last_game_at'),
+  };
+}
+
 export default function StatsScreen() {
   const route = useRoute<StatsScreenRouteProp>();
   const navigation = useNavigation<StatsScreenNavigationProp>();
@@ -218,7 +356,6 @@ export default function StatsScreen() {
         .eq('user_id', userId)
         .single();
 
-      // Handle stats errors explicitly
       if (statsError) {
         if (statsError.code === 'PGRST116') {
           // No rows found - user has no stats yet
@@ -231,23 +368,20 @@ export default function StatsScreen() {
           );
           throw statsError;
         }
-      } else {
+      } else if (statsData) {
         // Fetch global_rank at read-time from leaderboard_ranked so it stays
         // accurate without relying on the stored (potentially stale) column.
         // Uses the SECURITY DEFINER RPC wrapper (direct view access revoked).
-        const { data: rankRow, error: rankError } = (await supabase
+        const { data: rankRow, error: rankError } = await supabase
           .rpc('get_leaderboard_rank_ranked_by_user_id', { p_user_id: userId })
-          .maybeSingle()) as {
-          data: { rank: number | null } | null;
-          error: { message?: string; code?: string } | null;
-        };
+          .maybeSingle();
         if (rankError) {
           // Log the failure and fall back to the stored global_rank from statsData.
           statsLogger.error(
             '[Stats] Rank query error:',
             rankError?.message || rankError?.code || 'Unknown error'
           );
-          setStats({ ...statsData, global_rank: statsData.global_rank ?? null });
+          setStats(toPlayerStats(statsData, statsData.global_rank ?? null));
         } else {
           // rankRow being null means the user has no entry in leaderboard_ranked
           // (ranked_games_played = 0 — the view filters out zero-game players).
@@ -256,11 +390,12 @@ export default function StatsScreen() {
           // Only fall back when the user has played ranked games but the materialized
           // view is temporarily stale (rankRow null despite ranked_games_played > 0).
           const rankedGamesPlayed = statsData.ranked_games_played ?? 0;
-          setStats({
-            ...statsData,
-            global_rank:
-              rankRow?.rank ?? (rankedGamesPlayed > 0 ? (statsData.global_rank ?? null) : null),
-          });
+          setStats(
+            toPlayerStats(
+              statsData,
+              rankRow?.rank ?? (rankedGamesPlayed > 0 ? statsData.global_rank : null)
+            )
+          );
         }
       }
 

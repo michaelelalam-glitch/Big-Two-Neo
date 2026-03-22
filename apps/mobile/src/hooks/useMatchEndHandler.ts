@@ -19,8 +19,16 @@ import { useEffect, useRef } from 'react';
 
 import { gameLogger } from '../utils/logger';
 import type { FinalScore } from '../types/gameEnd';
-import type { ScoreHistory, PlayHistoryMatch, PlayHistoryHand, PlayerPosition } from '../types/scoreboard';
-import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
+import type {
+  ScoreHistory,
+  PlayHistoryMatch,
+  PlayHistoryHand,
+  PlayerPosition,
+} from '../types/scoreboard';
+import type {
+  GameState as MultiplayerGameState,
+  Player as MultiplayerPlayer,
+} from '../types/multiplayer';
 
 interface UseMatchEndHandlerOptions {
   isMultiplayerGame: boolean;
@@ -34,7 +42,7 @@ interface UseMatchEndHandlerOptions {
     finalScores: FinalScore[],
     playerNames: string[],
     scoreHistory: ScoreHistory[],
-    playHistory: PlayHistoryMatch[],
+    playHistory: PlayHistoryMatch[]
   ) => void;
 }
 
@@ -72,7 +80,9 @@ export function useMatchEndHandler({
     if (hasOpenedModalRef.current) return;
     hasOpenedModalRef.current = true;
 
-    gameLogger.info('[useMatchEndHandler] 🏁 Game reached terminal phase — opening end modal...', { game_phase });
+    gameLogger.info('[useMatchEndHandler] 🏁 Game reached terminal phase — opening end modal...', {
+      game_phase,
+    });
 
     const winnerPlayer = multiplayerPlayers.find(p => p.player_index === resolvedWinner);
     const winnerName = winnerPlayer?.username || `Player ${resolvedWinner + 1}`;
@@ -80,22 +90,22 @@ export function useMatchEndHandler({
     // Build final_scores from the DB field when present; otherwise fall back to
     // the last accumulated scoreHistory entry (cumulative scores) or default 0.
     const hasFinalScores =
-      !!final_scores &&
-      typeof final_scores === 'object' &&
-      Object.keys(final_scores).length > 0;
+      !!final_scores && typeof final_scores === 'object' && Object.keys(final_scores).length > 0;
 
     // ─── SCORE HISTORY ──────────────────────────────────────────────────────────
     // Build dbScoreHistory FIRST so it can serve as a fallback for final standings
     // when final_scores has not yet been persisted to the DB snapshot we received.
-    const dbScoreHistory: ScoreHistory[] = (multiplayerGameState.scores_history ?? []).map(entry => {
-      const sortedScores = [...entry.scores].sort((a, b) => a.player_index - b.player_index);
-      return {
-        matchNumber: entry.match_number,
-        pointsAdded: sortedScores.map(s => s.matchScore),
-        scores: sortedScores.map(s => s.cumulativeScore),
-        timestamp: new Date().toISOString(),
-      };
-    });
+    const dbScoreHistory: ScoreHistory[] = (multiplayerGameState.scores_history ?? []).map(
+      entry => {
+        const sortedScores = [...entry.scores].sort((a, b) => a.player_index - b.player_index);
+        return {
+          matchNumber: entry.match_number,
+          pointsAdded: sortedScores.map(s => s.matchScore),
+          scores: sortedScores.map(s => s.cumulativeScore),
+          timestamp: new Date().toISOString(),
+        };
+      }
+    );
 
     // Resolve final standings. Priority order:
     //  1. final_scores DB field (most authoritative)
@@ -106,46 +116,51 @@ export function useMatchEndHandler({
       ? (final_scores as Record<string, number>)
       : (() => {
           const fallback: Record<string, number> = {};
-          const dbLastEntry = dbScoreHistory.length > 0
-            ? dbScoreHistory[dbScoreHistory.length - 1]
-            : null;
+          const dbLastEntry =
+            dbScoreHistory.length > 0 ? dbScoreHistory[dbScoreHistory.length - 1] : null;
           if (dbLastEntry) {
             dbLastEntry.scores.forEach((cum, idx) => {
               fallback[String(idx)] = cum;
             });
-            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores missing — built from last dbScoreHistory entry');
+            gameLogger.warn(
+              '[useMatchEndHandler] ⚠️ final_scores missing — built from last dbScoreHistory entry'
+            );
           } else if (scoreHistory.length > 0) {
             // Use cumulative scores from the last React-state match entry
             const lastEntry = scoreHistory[scoreHistory.length - 1];
             lastEntry.scores.forEach((cum, idx) => {
               fallback[String(idx)] = cum;
             });
-            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores missing — built from last scoreHistory entry');
+            gameLogger.warn(
+              '[useMatchEndHandler] ⚠️ final_scores missing — built from last scoreHistory entry'
+            );
           } else {
             // Last resort: all players score 0
             multiplayerPlayers.forEach(p => {
               fallback[String(p.player_index)] = 0;
             });
-            gameLogger.warn('[useMatchEndHandler] ⚠️ final_scores and scoreHistory both empty — defaulting to 0 per player');
+            gameLogger.warn(
+              '[useMatchEndHandler] ⚠️ final_scores and scoreHistory both empty — defaulting to 0 per player'
+            );
           }
           return fallback;
         })();
 
     const formattedScores: FinalScore[] = Object.entries(resolvedFinalScores).map(
       ([position, score]) => {
-        const player = multiplayerPlayers.find(
-          p => p.player_index === parseInt(position),
-        );
+        const player = multiplayerPlayers.find(p => p.player_index === parseInt(position));
         return {
           player_index: parseInt(position),
           player_name: player?.username || `Player ${parseInt(position) + 1}`,
           cumulative_score: score as number,
           points_added: 0,
         };
-      },
+      }
     );
 
-    const playerNames = multiplayerPlayers.map(p => p.username).filter(Boolean);
+    const playerNames = multiplayerPlayers
+      .map(p => p.username)
+      .filter((name): name is string => name !== null);
 
     // Synthesize the final match entry when the edge function stored the result
     // only in final_scores (not scores_history). This happens when the last match
@@ -156,12 +171,10 @@ export function useMatchEndHandler({
     // a 1-match game (scores_history is always empty for a 1-match finish) also
     // gets a synthetic entry. The two sub-cases are handled inside the block.
     const expectedLastMatchNumber = multiplayerGameState.match_number;
-    const lastHistoryMatchNumber = dbScoreHistory.length > 0
-      ? dbScoreHistory[dbScoreHistory.length - 1].matchNumber
-      : 0;
+    const lastHistoryMatchNumber =
+      dbScoreHistory.length > 0 ? dbScoreHistory[dbScoreHistory.length - 1].matchNumber : 0;
     const isFinalMatchMissingFromHistory =
-      expectedLastMatchNumber > lastHistoryMatchNumber &&
-      hasFinalScores;
+      expectedLastMatchNumber > lastHistoryMatchNumber && hasFinalScores;
 
     if (isFinalMatchMissingFromHistory) {
       if (dbScoreHistory.length > 0) {
@@ -181,8 +194,9 @@ export function useMatchEndHandler({
         // 1-match game: scores_history is empty; build the sole/final entry
         // entirely from resolvedFinalScores (which came from final_scores above).
         const numPlayers = multiplayerPlayers.length;
-        const scores = Array.from({ length: numPlayers }, (_, idx) =>
-          (resolvedFinalScores[String(idx)] as number) ?? 0
+        const scores = Array.from(
+          { length: numPlayers },
+          (_, idx) => (resolvedFinalScores[String(idx)] as number) ?? 0
         );
         const pointsAdded = [...scores];
         dbScoreHistory.push({
@@ -193,14 +207,13 @@ export function useMatchEndHandler({
         });
       }
       gameLogger.info(
-        `[useMatchEndHandler] 🔧 Synthesized missing final match ${expectedLastMatchNumber} entry from final_scores`,
+        `[useMatchEndHandler] 🔧 Synthesized missing final match ${expectedLastMatchNumber} entry from final_scores`
       );
     }
 
     // Use whichever source is more complete (longer list wins)
-    const finalScoreHistory = dbScoreHistory.length >= scoreHistory.length
-      ? dbScoreHistory
-      : scoreHistory;
+    const finalScoreHistory =
+      dbScoreHistory.length >= scoreHistory.length ? dbScoreHistory : scoreHistory;
 
     // ─── PLAY HISTORY ───────────────────────────────────────────────────────────
     // Derive directly from DB play_history to avoid the React-state staleness
@@ -212,7 +225,7 @@ export function useMatchEndHandler({
       if (!Array.isArray(rawPlays) || rawPlays.length === 0) return playHistoryByMatch;
 
       const playsByMatch: Record<number, PlayHistoryHand[]> = {};
-      rawPlays.forEach((play) => {
+      rawPlays.forEach(play => {
         if (play.passed || !play.cards || play.cards.length === 0) return;
         const matchNum = play.match_number || 1;
         if (!playsByMatch[matchNum]) playsByMatch[matchNum] = [];
@@ -230,9 +243,8 @@ export function useMatchEndHandler({
     })();
 
     // Use whichever play history source is more complete
-    const finalPlayHistory = dbPlayHistory.length >= playHistoryByMatch.length
-      ? dbPlayHistory
-      : playHistoryByMatch;
+    const finalPlayHistory =
+      dbPlayHistory.length >= playHistoryByMatch.length ? dbPlayHistory : playHistoryByMatch;
 
     gameLogger.info('[useMatchEndHandler] 📊 Opening game end modal with data:', {
       winnerName,
@@ -249,7 +261,14 @@ export function useMatchEndHandler({
       formattedScores,
       playerNames,
       finalScoreHistory,
-      finalPlayHistory,
+      finalPlayHistory
     );
-  }, [isMultiplayerGame, multiplayerGameState, multiplayerPlayers, scoreHistory, playHistoryByMatch, openGameEndModal]);
+  }, [
+    isMultiplayerGame,
+    multiplayerGameState,
+    multiplayerPlayers,
+    scoreHistory,
+    playHistoryByMatch,
+    openGameEndModal,
+  ]);
 }

@@ -1,6 +1,6 @@
 /**
  * Type definitions for multiplayer game state and real-time synchronization
- * 
+ *
  * NOTE: Player interface represents data from the `room_players` table,
  * which is used for lobby management. The separate `players` table is
  * used only by Edge Functions for game logic.
@@ -22,11 +22,11 @@ export interface ScoresHistoryEntry {
 export interface Room {
   id: string;
   code: string;
-  host_id: string;
-  status: 'waiting' | 'playing' | 'finished';
-  max_players: number;
-  created_at: string;
-  updated_at: string;
+  host_id: string | null; // DB column is nullable
+  status: string; // DB column is plain string
+  max_players: number | null; // DB column is nullable
+  created_at: string | null; // DB column is nullable
+  updated_at: string | null; // DB column is nullable
 }
 
 /**
@@ -37,16 +37,16 @@ export interface Room {
 export interface Player {
   id: string;
   room_id: string;
-  user_id: string;
-  username: string;
+  user_id: string | null; // null for bot rows
+  username: string | null; // null for some bots
   player_index: number; // 0-3 for 4-player game
-  is_host: boolean;
-  is_ready: boolean;
-  is_bot: boolean;
-  bot_difficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty level (only for bot players)
-  joined_at: string;
+  is_host: boolean | null; // DB column has no NOT NULL constraint
+  is_ready: boolean | null; // DB column has no NOT NULL constraint
+  is_bot: boolean | null; // DB column has no NOT NULL constraint
+  bot_difficulty?: 'easy' | 'medium' | 'hard' | string | null; // DB column is nullable string
+  joined_at: string | null; // DB column is nullable
   /** fix/rejoin: live connection state from room_players realtime subscription */
-  connection_status?: 'connected' | 'disconnected' | 'replaced_by_bot';
+  connection_status?: 'connected' | 'disconnected' | 'replaced_by_bot' | string | null;
   /** fix/rejoin: set when a human was replaced by a bot (human can reclaim seat) */
   human_user_id?: string | null;
   /** Server-side disconnect timer: UTC timestamp when the 60s bot-replacement countdown started */
@@ -59,7 +59,7 @@ export interface GameState {
   id: string;
   room_id: string;
   current_turn: number; // position of player whose turn it is
-  turn_timer: number; // seconds remaining in turn
+  turn_timer?: number; // seconds remaining in turn (not a DB column, computed client-side)
   turn_started_at?: string | null; // UTC timestamp when current player's turn started (for 60s timeout)
   last_play: LastPlay | null;
   pass_count: number; // consecutive passes
@@ -69,7 +69,7 @@ export interface GameState {
   match_number: number; // Current match number (starts at 1, increments when match ends)
   hands: Record<string, Card[]>; // Player hands indexed by player_index (string keys from JSON)
   play_history: PlayHistoryEntry[]; // Array of all plays made in the game
-  scores: number[]; // Cumulative scores per player [p0, p1, p2, p3]
+  scores?: number[]; // Cumulative scores per player [p0, p1, p2, p3] (not a DB column name)
   final_scores: Record<string, number> | null; // Final scores when game_phase='game_over'
   scores_history: ScoresHistoryEntry[]; // Per-match score history (persisted by play-cards EF)
 
@@ -77,7 +77,7 @@ export interface GameState {
   auto_pass_timer: AutoPassTimerState | null;
   played_cards: Card[]; // All cards played this game (for highest play detection)
 
-  created_at: string;
+  created_at?: string; // not present in game_state DB table
   updated_at: string;
 }
 
@@ -85,7 +85,7 @@ export interface GameState {
  * Auto-pass timer state (SERVER-AUTHORITATIVE ARCHITECTURE)
  * Triggered when the highest possible card/combo is played
  * Gives players 10 seconds to manually pass before auto-passing
- * 
+ *
  * CRITICAL: All devices calculate remaining time from end_timestamp using clock-sync
  * This ensures tight realtime sync (within 100ms) across 4 devices
  */
@@ -96,7 +96,7 @@ export interface AutoPassTimerState {
   remaining_ms: number; // DEPRECATED: Clients should calculate from end_timestamp
   triggering_play: LastPlay; // The play that triggered the timer
   player_id: string; // ID of player who triggered the timer
-  
+
   // ⏰ NEW: Server-authoritative fields for tight sync
   end_timestamp?: number; // Server epoch ms when timer expires (CRITICAL for sync)
   sequence_id?: number; // Monotonic sequence for conflict resolution
@@ -129,7 +129,7 @@ export interface Card {
   rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
 }
 
-export type ComboType = 
+export type ComboType =
   | 'Single'
   | 'Pair'
   | 'Triple'
@@ -173,7 +173,7 @@ export interface PlayerPresence {
 }
 
 // Broadcast message types
-export type BroadcastEvent = 
+export type BroadcastEvent =
   | 'player_joined'
   | 'player_left'
   | 'player_ready'
@@ -182,15 +182,15 @@ export type BroadcastEvent =
   | 'cards_played'
   | 'player_passed'
   | 'game_ended'
-  | 'match_ended'  // New: Match ended, broadcast scores
-  | 'game_over'  // New: Game completely over (someone >= 101 points)
-  | 'new_match_started'  // New: New match started after previous match ended
+  | 'match_ended' // New: Match ended, broadcast scores
+  | 'game_over' // New: Game completely over (someone >= 101 points)
+  | 'new_match_started' // New: New match started after previous match ended
   | 'reconnected'
-  | 'auto_pass_timer_started'  // New: Timer started for highest play
-  | 'auto_pass_timer_cancelled'  // New: Timer cancelled (manual pass or new play)
-  | 'auto_pass_executed'  // New: Auto-pass executed after timer expired
-  | 'turn_auto_played'  // New: Turn inactivity auto-play executed
-  | 'chat_message';  // Task #648: In-game text chat message
+  | 'auto_pass_timer_started' // New: Timer started for highest play
+  | 'auto_pass_timer_cancelled' // New: Timer cancelled (manual pass or new play)
+  | 'auto_pass_executed' // New: Auto-pass executed after timer expired
+  | 'turn_auto_played' // New: Turn inactivity auto-play executed
+  | 'chat_message'; // Task #648: In-game text chat message
 
 /**
  * Score detail for a single player in a multiplayer match.
@@ -205,23 +205,23 @@ export interface MatchScoreDetail {
 }
 
 export type BroadcastData =
-  | { user_id: string; username: string; player_index: number }  // player_joined
-  | { user_id: string; player_index: number }  // player_left
-  | { user_id: string; ready: boolean }  // player_ready
-  | { game_state: GameState }  // game_started (with state)
-  | { success: boolean; roomId: string }  // game_started (signal)
-  | { player_index: number; timer: number }  // turn_changed
-  | { player_index: number; cards: Card[]; combo_type: ComboType }  // cards_played
-  | { player_index: number }  // player_passed
-  | { winner: number }  // game_ended - FIXED: Use 'winner' column
-  | { winner_index: number; final_scores: MatchScoreDetail[] }  // game_over (with scores)
-  | { winner_index: number; match_number: number; match_scores: MatchScoreDetail[] }  // match_ended (with scores)
-  | { match_number: number; starting_player_index: number }  // new_match_started
-  | { user_id: string }  // reconnected
-  | { timer_state: AutoPassTimerState; triggering_player_index: number }  // auto_pass_timer_started
-  | { player_index: number; reason: 'manual_pass' | 'new_play' }  // auto_pass_timer_cancelled
-  | { player_index: number }  // auto_pass_executed
-  | ChatMessage;  // chat_message (#648) — use shared type to avoid shape drift
+  | { user_id: string; username: string; player_index: number } // player_joined
+  | { user_id: string; player_index: number } // player_left
+  | { user_id: string; ready: boolean } // player_ready
+  | { game_state: GameState } // game_started (with state)
+  | { success: boolean; roomId: string } // game_started (signal)
+  | { player_index: number; timer: number } // turn_changed
+  | { player_index: number; cards: Card[]; combo_type: ComboType } // cards_played
+  | { player_index: number } // player_passed
+  | { winner: number } // game_ended - FIXED: Use 'winner' column
+  | { winner_index: number; final_scores: MatchScoreDetail[] } // game_over (with scores)
+  | { winner_index: number; match_number: number; match_scores: MatchScoreDetail[] } // match_ended (with scores)
+  | { match_number: number; starting_player_index: number } // new_match_started
+  | { user_id: string } // reconnected
+  | { timer_state: AutoPassTimerState; triggering_player_index: number } // auto_pass_timer_started
+  | { player_index: number; reason: 'manual_pass' | 'new_play' } // auto_pass_timer_cancelled
+  | { player_index: number } // auto_pass_executed
+  | ChatMessage; // chat_message (#648) — use shared type to avoid shape drift
 
 export interface BroadcastPayload {
   event: BroadcastEvent;
@@ -239,22 +239,22 @@ export interface UseRealtimeReturn {
   isHost: boolean;
   isDataReady: boolean; // BULLETPROOF: Indicates game state is fully loaded and ready
   currentPlayer: Player | null;
-  
+
   // Room management
   createRoom: () => Promise<Room>;
   joinRoom: (code: string) => Promise<void>;
   connectToRoom: (code: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
-  
+
   // Game actions
   setReady: (ready: boolean) => Promise<void>;
   startGame: (botDifficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
   playCards: (cards: Card[], playerIndex?: number) => Promise<void>; // Optional playerIndex for bot coordinator
   pass: () => Promise<void>;
-  
+
   // Connection management
   reconnect: () => Promise<void>;
-  
+
   // Loading states
   loading: boolean;
   error: Error | null;

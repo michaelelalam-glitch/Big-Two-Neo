@@ -13,7 +13,10 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { statsLogger } from '../utils/logger';
-import type { GameState as MultiplayerGameState, Player as MultiplayerPlayer } from '../types/multiplayer';
+import type {
+  GameState as MultiplayerGameState,
+  Player as MultiplayerPlayer,
+} from '../types/multiplayer';
 import type { RoomInfo } from './useMultiplayerRoomLoader';
 
 interface UseGameStatsUploaderOptions {
@@ -77,12 +80,19 @@ export function useGameStatsUploader({
     hasUploadedRef.current = true;
 
     // Resolve winner — try 'winner' column first, fall back to 'game_winner_index'
-    const resolvedWinner = multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
+    const resolvedWinner =
+      multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
 
     // Resolve final_scores — try DB column first, fall back to last scores_history entry
-    let resolvedFinalScores: Record<string, number> | null = multiplayerGameState.final_scores ?? null;
-    if (!resolvedFinalScores && Array.isArray(multiplayerGameState.scores_history) && multiplayerGameState.scores_history.length > 0) {
-      const lastEntry = multiplayerGameState.scores_history[multiplayerGameState.scores_history.length - 1];
+    let resolvedFinalScores: Record<string, number> | null =
+      multiplayerGameState.final_scores ?? null;
+    if (
+      !resolvedFinalScores &&
+      Array.isArray(multiplayerGameState.scores_history) &&
+      multiplayerGameState.scores_history.length > 0
+    ) {
+      const lastEntry =
+        multiplayerGameState.scores_history[multiplayerGameState.scores_history.length - 1];
       if (lastEntry?.scores) {
         resolvedFinalScores = {};
         for (const s of lastEntry.scores) {
@@ -96,7 +106,9 @@ export function useGameStatsUploader({
       statsLogger.warn('[GameStats] Missing winner or final_scores, skipping upload', {
         winner: resolvedWinner,
         hasFinalScores: !!resolvedFinalScores,
-        hasScoresHistory: Array.isArray(multiplayerGameState.scores_history) && multiplayerGameState.scores_history.length > 0,
+        hasScoresHistory:
+          Array.isArray(multiplayerGameState.scores_history) &&
+          multiplayerGameState.scores_history.length > 0,
       });
       return;
     }
@@ -113,7 +125,9 @@ export function useGameStatsUploader({
       try {
         statsLogger.info('[GameStats] 📊 Uploading multiplayer game stats...');
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           statsLogger.warn('[GameStats] No authenticated user, skipping stats upload');
           // Reset the flag so a retry is possible once the user is authenticated.
@@ -122,7 +136,9 @@ export function useGameStatsUploader({
           return;
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (!session?.access_token) {
           statsLogger.warn('[GameStats] No active session, skipping stats upload');
           // Reset the flag so a retry is possible once the session is restored.
@@ -147,13 +163,17 @@ export function useGameStatsUploader({
           gameType = 'private';
         }
 
-        statsLogger.info(`[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`);
+        statsLogger.info(
+          `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
+        );
 
         // Get final scores sorted by cumulative score (ascending = best)
-        const finalScoresEntries = Object.entries(resolvedFinalScores!).map(([idxStr, score]) => ({
-          player_index: parseInt(idxStr, 10),
-          cumulative_score: score as number,
-        })).sort((a, b) => a.cumulative_score - b.cumulative_score);
+        const finalScoresEntries = Object.entries(resolvedFinalScores!)
+          .map(([idxStr, score]) => ({
+            player_index: parseInt(idxStr, 10),
+            cumulative_score: score as number,
+          }))
+          .sort((a, b) => a.cumulative_score - b.cumulative_score);
 
         // Build a unique finish-position map so every player gets a distinct
         // rank. The edge function validates positions are exactly [1,2,3,4].
@@ -164,7 +184,7 @@ export function useGameStatsUploader({
           finishPositionMap.set(entry.player_index, idx + 1);
         });
         let nextFallbackPosition = finalScoresEntries.length + 1;
-        multiplayerPlayers.forEach((p) => {
+        multiplayerPlayers.forEach(p => {
           if (!finishPositionMap.has(p.player_index)) {
             finishPositionMap.set(p.player_index, nextFallbackPosition++);
           }
@@ -182,27 +202,40 @@ export function useGameStatsUploader({
         // each player's combos_played payload reflects actual server-verified plays
         // rather than the previously hardcoded all-zero placeholder.
         type ComboCounts = {
-          singles: number; pairs: number; triples: number; straights: number;
-          flushes: number; full_houses: number; four_of_a_kinds: number;
-          straight_flushes: number; royal_flushes: number;
+          singles: number;
+          pairs: number;
+          triples: number;
+          straights: number;
+          flushes: number;
+          full_houses: number;
+          four_of_a_kinds: number;
+          straight_flushes: number;
+          royal_flushes: number;
         };
         const zeroCombos: ComboCounts = {
-          singles: 0, pairs: 0, triples: 0, straights: 0, flushes: 0,
-          full_houses: 0, four_of_a_kinds: 0, straight_flushes: 0, royal_flushes: 0,
+          singles: 0,
+          pairs: 0,
+          triples: 0,
+          straights: 0,
+          flushes: 0,
+          full_houses: 0,
+          four_of_a_kinds: 0,
+          straight_flushes: 0,
+          royal_flushes: 0,
         };
         const comboTypeToField: Record<string, keyof ComboCounts> = {
-          'single':          'singles',
-          'pair':            'pairs',
-          'triple':          'triples',
-          'straight':        'straights',
-          'flush':           'flushes',
-          'full house':      'full_houses',
-          'four of a kind':  'four_of_a_kinds',
-          'straight flush':  'straight_flushes',
-          'royal flush':     'royal_flushes',
+          single: 'singles',
+          pair: 'pairs',
+          triple: 'triples',
+          straight: 'straights',
+          flush: 'flushes',
+          'full house': 'full_houses',
+          'four of a kind': 'four_of_a_kinds',
+          'straight flush': 'straight_flushes',
+          'royal flush': 'royal_flushes',
         };
         const combosByPlayerIndex = new Map<number, ComboCounts>();
-        for (const entry of (multiplayerGameState.play_history ?? [])) {
+        for (const entry of multiplayerGameState.play_history ?? []) {
           if (entry.passed) continue;
           const idx = entry.position;
           if (!combosByPlayerIndex.has(idx)) {
@@ -221,7 +254,7 @@ export function useGameStatsUploader({
           (new Date(finishedAt).getTime() - new Date(startedAt).getTime()) / 1000
         );
 
-        const players = multiplayerPlayers.map((player) => {
+        const players = multiplayerPlayers.map(player => {
           // finishPositionMap should always contain this player_index (both passes
           // above guarantee coverage); the safeGapPosition fallback is a last-resort
           // guard to prevent duplicate positions if data is unexpectedly malformed.
@@ -240,9 +273,7 @@ export function useGameStatsUploader({
           const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
 
           // user_id: use actual user_id from room_players; bots have is_bot=true
-          const userId = player.is_bot
-            ? `bot_${player.player_index}`
-            : player.user_id;
+          const userId = player.is_bot ? `bot_${player.player_index}` : player.user_id;
 
           return {
             user_id: userId,
@@ -272,7 +303,7 @@ export function useGameStatsUploader({
         } else {
           winnerId = winnerPlayer.is_bot
             ? `bot_${winnerPlayer.player_index}`
-            : winnerPlayer.user_id;
+            : (winnerPlayer.user_id ?? user.id); // bots have no user_id; fall back to current user
         }
 
         // Extract bot_difficulty from the first bot player (all bots share the same difficulty).
@@ -305,24 +336,26 @@ export function useGameStatsUploader({
           players_count: payload.players.length,
         });
 
-        const response = await fetch(
-          `${API.SUPABASE_URL}/functions/v1/complete-game`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          }
-        );
+        const response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
 
         if (response.ok) {
           const result = await response.json();
           statsLogger.info('✅ [GameStats] Stats uploaded successfully:', result);
         } else {
-          const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-          statsLogger.error('❌ [GameStats] Edge function returned error:', errorData?.error || `HTTP ${response.status}`);
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: `HTTP ${response.status}` }));
+          statsLogger.error(
+            '❌ [GameStats] Edge function returned error:',
+            errorData?.error || `HTTP ${response.status}`
+          );
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
