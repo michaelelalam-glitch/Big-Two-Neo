@@ -46,12 +46,11 @@ BEGIN
 END $$;
 
 -- ============================================================
--- 2. Enable RLS on public.room_analytics (currently unprotected)
---    Scoped SELECT policy: only allows access to rows for rooms the
---    authenticated user participated in (via public.players join).
---    Wrapped in a DO block so the policy is skipped gracefully if
---    public.players does not exist in this environment (superseded by
---    room_players in some schemas).
+-- 2. Enable RLS on public.room_analytics.
+--    RLS is enabled so the table is protected by default.  No client-facing
+--    SELECT policy is created: room_analytics.metadata contains raw SQLERRM
+--    error details that must stay service_role-only.  Any previously-created
+--    authenticated SELECT policy is dropped (idempotent).
 -- ============================================================
 
 ALTER TABLE public.room_analytics ENABLE ROW LEVEL SECURITY;

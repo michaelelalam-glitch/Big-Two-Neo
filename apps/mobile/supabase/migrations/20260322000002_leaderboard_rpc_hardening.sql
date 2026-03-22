@@ -25,7 +25,8 @@ REVOKE EXECUTE ON FUNCTION public.get_leaderboard_global(integer, integer)  FROM
 
 -- --------------------------------------------------------
 -- Step 3: Recreate paginated functions with p_limit/p_offset bounds.
---         CREATE OR REPLACE replaces in-place; permissions below are reset.
+--         CREATE OR REPLACE updates the function in-place; existing privileges are preserved.
+--         Grants below reaffirm and document the intended permissions.
 -- --------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard_ranked(
