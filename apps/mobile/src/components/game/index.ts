@@ -16,3 +16,4 @@ export { ThrowablePlayerEffect } from './ThrowablePlayerEffect';
 export { ThrowableReceiverModal } from './ThrowableReceiverModal';
 export { ThrowablePicker } from './ThrowablePicker';
 export { PlayerTargetPicker } from './PlayerTargetPicker';
+export { ThrowButton } from './ThrowButton';

@@ -5,8 +5,13 @@
  * and exposes a `sendThrowable` function. Manages per–display-position active
  * effects so GameView can render overlay animations on the correct player tile.
  *
- * Effects auto-dismiss after 5 seconds. The receiver (target) also gets an
- * `incomingThrowable` state for a full-screen popup, dismissible by double-tap.
+ * Features:
+ * - Per-slot effect queue: simultaneous throwables are shown sequentially.
+ * - Local echo: the thrower sees the animation immediately (Supabase broadcast
+ *   does not echo sends back to the sender).
+ * - 30-second cooldown with countdown after each throw.
+ * - Effects auto-dismiss after 5 seconds. The receiver also gets a full-screen
+ *   popup (`incomingThrowable`), dismissible by double-tap.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -67,10 +72,17 @@ export interface UseThrowablesReturn {
    * @param throwable The throwable type.
    */
   sendThrowable: (targetGameIndex: number, throwable: ThrowableType) => void;
+  /** True while the 30-second post-throw cooldown is active. */
+  isThrowCooldown: boolean;
+  /** Seconds remaining in the cooldown (0 when not in cooldown). */
+  cooldownRemaining: number;
 }
 
 /** How long (ms) an effect is shown on the avatar tile and the full-screen popup. */
 const EFFECT_DURATION_MS = 5_000;
+/** Cooldown after throwing (ms). */
+const COOLDOWN_MS = 30_000;
+const COOLDOWN_SECS = 30;
 
 let _seqThrowable = 0;
 function nextThrowableId(uid: string): string {
@@ -93,8 +105,10 @@ export function useThrowables({
     null,
   ]);
   const [incomingThrowable, setIncomingThrowable] = useState<IncomingThrowable | null>(null);
+  const [isThrowCooldown, setIsThrowCooldown] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-  // Keep refs in sync so the broadcast handler doesn't capture stale closures.
+  // Keep refs in sync so broadcast handlers don't capture stale closures.
   const layoutPlayersRef = useRef(layoutPlayers);
   const myPlayerIndexRef = useRef(myPlayerIndex);
   const userIdRef = useRef(userId);
@@ -112,25 +126,82 @@ export function useThrowables({
   // Auto-dismiss timers keyed by effect ID.
   const dismissTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const incomingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownEndRef = useRef<number>(0);
+  const isCooldownActiveRef = useRef(false);
+
+  // Per-slot effect queues. Each slot has an array of pending effects and a flag
+  // indicating whether something is currently showing.
+  const effectQueuesRef = useRef<ActiveThrowableEffect[][]>([[], [], [], []]);
+  const slotActiveIdRef = useRef<(string | null)[]>([null, null, null, null]);
+
+  // Stable ref to the recursive slot-starter so it can call itself without
+  // capturing stale closures. Set once on mount.
+  const startNextRef = useRef<(slot: number) => void>(() => {});
+
+  useEffect(() => {
+    startNextRef.current = (displaySlot: number) => {
+      const queue = effectQueuesRef.current[displaySlot];
+      if (!queue || queue.length === 0) {
+        slotActiveIdRef.current[displaySlot] = null;
+        setActiveEffects(prev => {
+          const next = [...prev];
+          next[displaySlot] = null;
+          return next;
+        });
+        return;
+      }
+      const effect = queue.shift()!;
+      slotActiveIdRef.current[displaySlot] = effect.id;
+      setActiveEffects(prev => {
+        const arr = [...prev];
+        arr[displaySlot] = effect;
+        return arr;
+      });
+      const timer = setTimeout(() => {
+        delete dismissTimersRef.current[effect.id];
+        startNextRef.current(displaySlot);
+      }, EFFECT_DURATION_MS);
+      dismissTimersRef.current[effect.id] = timer;
+    };
+  }, []); // setActiveEffects is stable; other dependencies are refs
+
+  const enqueueEffect = useCallback((displaySlot: number, effect: ActiveThrowableEffect) => {
+    effectQueuesRef.current[displaySlot]!.push(effect);
+    // Start playing immediately if nothing is currently showing for this slot.
+    if (slotActiveIdRef.current[displaySlot] === null) {
+      startNextRef.current(displaySlot);
+    }
+  }, []);
 
   // Clear all timers on unmount.
   useEffect(() => {
     return () => {
       Object.values(dismissTimersRef.current).forEach(t => clearTimeout(t));
       if (incomingTimerRef.current) clearTimeout(incomingTimerRef.current);
+      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
     };
   }, []);
 
-  const scheduleEffectDismiss = useCallback((displaySlot: number, effectId: string) => {
-    const timer = setTimeout(() => {
-      setActiveEffects(prev => {
-        const next = [...prev];
-        if (next[displaySlot]?.id === effectId) next[displaySlot] = null;
-        return next;
-      });
-      delete dismissTimersRef.current[effectId];
-    }, EFFECT_DURATION_MS);
-    dismissTimersRef.current[effectId] = timer;
+  const startCooldown = useCallback(() => {
+    isCooldownActiveRef.current = true;
+    cooldownEndRef.current = Date.now() + COOLDOWN_MS;
+    setIsThrowCooldown(true);
+    setCooldownRemaining(COOLDOWN_SECS);
+
+    if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+    cooldownIntervalRef.current = setInterval(() => {
+      const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        isCooldownActiveRef.current = false;
+        clearInterval(cooldownIntervalRef.current!);
+        cooldownIntervalRef.current = null;
+        setIsThrowCooldown(false);
+        setCooldownRemaining(0);
+      } else {
+        setCooldownRemaining(remaining);
+      }
+    }, 500);
   }, []);
 
   const dismissIncoming = useCallback(() => {
@@ -179,31 +250,14 @@ export function useThrowables({
         return;
       }
 
-      // Find the display slot for this target (layoutPlayers is indexed by display position).
       const players = layoutPlayersRef.current;
       const displaySlot = players.findIndex(p => p.player_index === target_player_index);
-      if (displaySlot === -1) return; // target not visible in this client's layout
+      if (displaySlot === -1) return;
 
       const effectId = nextThrowableId(thrower_id);
-      const effect: ActiveThrowableEffect = {
-        id: effectId,
-        throwable,
-        from_name: thrower_name,
-      };
+      const effect: ActiveThrowableEffect = { id: effectId, throwable, from_name: thrower_name };
 
-      setActiveEffects(prev => {
-        const next = [...prev];
-        // Cancel any existing auto-dismiss timer for this slot.
-        const existing = next[displaySlot];
-        if (existing && dismissTimersRef.current[existing.id]) {
-          clearTimeout(dismissTimersRef.current[existing.id]);
-          delete dismissTimersRef.current[existing.id];
-        }
-        next[displaySlot] = effect;
-        return next;
-      });
-
-      scheduleEffectDismiss(displaySlot, effectId);
+      enqueueEffect(displaySlot, effect);
 
       // Show full-screen popup ONLY if we are the target.
       if (target_player_index === myPlayerIndexRef.current) {
@@ -220,13 +274,12 @@ export function useThrowables({
 
     return () => {
       isActive = false;
-      // Listener cleanup handled by useRealtime when the full channel unsubscribes.
     };
-  }, [channel, scheduleEffectDismiss]);
+  }, [channel, enqueueEffect]);
 
   const sendThrowable = useCallback(
     (targetGameIndex: number, throwable: ThrowableType) => {
-      if (!channel) return;
+      if (!channel || isCooldownActiveRef.current) return;
 
       channel
         .send({
@@ -246,8 +299,18 @@ export function useThrowables({
         .catch(() => {
           // Non-fatal — throwables are best-effort fun features.
         });
+
+      // Local echo — Supabase broadcast does not deliver events back to the sender.
+      const players = layoutPlayersRef.current;
+      const displaySlot = players.findIndex(p => p.player_index === targetGameIndex);
+      if (displaySlot !== -1) {
+        const effectId = nextThrowableId(userIdRef.current);
+        enqueueEffect(displaySlot, { id: effectId, throwable, from_name: username });
+      }
+
+      startCooldown();
     },
-    [channel, username]
+    [channel, username, enqueueEffect, startCooldown]
   );
 
   return {
@@ -255,5 +318,7 @@ export function useThrowables({
     incomingThrowable,
     dismissIncoming,
     sendThrowable,
+    isThrowCooldown,
+    cooldownRemaining,
   };
 }

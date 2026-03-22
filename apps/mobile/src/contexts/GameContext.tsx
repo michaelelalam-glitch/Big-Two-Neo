@@ -203,6 +203,10 @@ export interface GameContextType {
   throwableDismissIncoming: () => void;
   /** Send a throwable to a specific player (by game seat index). Only available in multiplayer. */
   sendThrowable: (targetGameIndex: number, throwable: ThrowableType) => void;
+  /** True while the 30-second post-throw cooldown is active. */
+  isThrowCooldown: boolean;
+  /** Seconds remaining in the cooldown (0 when not in cooldown). */
+  cooldownRemaining: number;
 }
 
 // ---------------------------------------------------------------------------

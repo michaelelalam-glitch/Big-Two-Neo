@@ -76,6 +76,13 @@ export const gameScreenStyles = StyleSheet.create({
     gap: SPACING.sm,
     zIndex: 170,
   },
+  // Throw Button — standalone FAB, right side at same height as helper buttons
+  throwButtonContainer: {
+    position: 'absolute',
+    bottom: POSITIONING.helperButtonsBottom,
+    right: SPACING.sm,
+    zIndex: 175,
+  },
   // CARDS - FULLY INDEPENDENT positioning
   cardHandContainer: {
     position: 'absolute',

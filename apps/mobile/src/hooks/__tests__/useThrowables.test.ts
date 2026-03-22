@@ -39,6 +39,7 @@ describe('useThrowables', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 

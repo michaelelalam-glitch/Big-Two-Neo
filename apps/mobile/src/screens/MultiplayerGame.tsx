@@ -900,6 +900,8 @@ export function MultiplayerGame() {
     incomingThrowable: throwableIncoming,
     dismissIncoming: throwableDismissIncoming,
     sendThrowable,
+    isThrowCooldown,
+    cooldownRemaining,
   } = useThrowables({
     channel: realtimeChannel,
     userId: user?.id || '',
@@ -989,6 +991,8 @@ export function MultiplayerGame() {
       throwableIncoming,
       throwableDismissIncoming,
       sendThrowable,
+      isThrowCooldown,
+      cooldownRemaining,
     }),
     [
       currentOrientation,
@@ -1063,6 +1067,8 @@ export function MultiplayerGame() {
       throwableIncoming,
       throwableDismissIncoming,
       sendThrowable,
+      isThrowCooldown,
+      cooldownRemaining,
     ]
   );
 

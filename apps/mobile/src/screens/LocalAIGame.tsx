@@ -333,6 +333,8 @@ export function LocalAIGame() {
       throwableIncoming: null,
       throwableDismissIncoming: () => {},
       sendThrowable: () => {},
+      isThrowCooldown: false,
+      cooldownRemaining: 0,
     }),
     [
       currentOrientation,

@@ -21,8 +21,6 @@ interface HelperButtonsProps {
   onSmartSort: () => void;
   onHint: () => void;
   disabled?: boolean;
-  /** Optional callback for the throwables button — only shown when provided (multiplayer only). */
-  onThrow?: () => void;
 }
 
 // Task #628: React.memo — bail out when sort/hint callbacks and disabled flag haven't changed.
@@ -31,7 +29,6 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
   onSmartSort,
   onHint,
   disabled = false,
-  onThrow,
 }) => {
   return (
     <View style={styles.container}>
@@ -85,22 +82,6 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
       >
         <Text style={[styles.buttonText, styles.hintButtonText]}>{i18n.t('game.hint')}</Text>
       </Pressable>
-
-      {/* Throwables Button — only rendered in multiplayer (onThrow is provided) */}
-      {onThrow != null && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            styles.throwButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={onThrow}
-          accessibilityRole="button"
-          accessibilityLabel="Throw something at a player"
-        >
-          <Text style={styles.throwButtonEmoji}>🎯</Text>
-        </Pressable>
-      )}
     </View>
   );
 };
@@ -159,17 +140,6 @@ const styles = StyleSheet.create({
   },
   hintButtonText: {
     color: '#FFFFFF', // White text
-  },
-
-  // Throwables Button (Teal - fun accent, compact icon-only)
-  throwButton: {
-    backgroundColor: '#0D9488', // Teal-600
-    borderWidth: 0,
-    minWidth: 44,
-    paddingHorizontal: 8,
-  },
-  throwButtonEmoji: {
-    fontSize: 18,
   },
 });
 

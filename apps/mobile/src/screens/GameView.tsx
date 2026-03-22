@@ -29,6 +29,7 @@ import {
   ThrowablePicker,
   PlayerTargetPicker,
   ThrowableReceiverModal,
+  ThrowButton,
 } from '../components/game';
 import type { ThrowableType } from '../types/multiplayer';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -123,6 +124,8 @@ function GameViewComponent() {
     throwableIncoming,
     throwableDismissIncoming,
     sendThrowable,
+    isThrowCooldown,
+    cooldownRemaining,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -575,16 +578,26 @@ function GameViewComponent() {
               />
             </View>
 
-            {/* Helper Buttons Row (Sort/Smart/Hint/Throw) - INDEPENDENT ABSOLUTE POSITIONING */}
+            {/* Helper Buttons Row (Sort/Smart/Hint) - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.helperButtonsRow}>
               <HelperButtons
                 onSort={handleSort}
                 onSmartSort={handleSmartSort}
                 onHint={handleHint}
                 disabled={effectivePlayerHand.length === 0}
-                onThrow={isMultiplayerGame ? () => setShowThrowablePicker(true) : undefined}
               />
             </View>
+
+            {/* Throw Button — multiplayer only, separate FAB on the right side */}
+            {isMultiplayerGame && (
+              <View style={styles.throwButtonContainer}>
+                <ThrowButton
+                  onPress={() => setShowThrowablePicker(true)}
+                  isThrowCooldown={isThrowCooldown}
+                  cooldownRemaining={cooldownRemaining}
+                />
+              </View>
+            )}
 
             {/* Player's hand */}
             <View style={styles.cardHandContainer}>

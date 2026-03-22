@@ -17,11 +17,9 @@ import {
   Animated,
   TouchableWithoutFeedback,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 interface ThrowableReceiverModalProps {
   visible: boolean;
@@ -95,6 +93,7 @@ export function ThrowableReceiverModal({
   fromName,
   onDismiss,
 }: ThrowableReceiverModalProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const splatAnim = useRef(new Animated.Value(0)).current;
@@ -151,7 +150,15 @@ export function ThrowableReceiverModal({
     >
       <TouchableWithoutFeedback onPress={handleTap} accessible={false}>
         <Animated.View
-          style={[styles.backdrop, { backgroundColor: BG_COLOR[throwable], opacity: opacityAnim }]}
+          style={[
+            styles.backdrop,
+            {
+              width: screenWidth,
+              height: screenHeight,
+              backgroundColor: BG_COLOR[throwable],
+              opacity: opacityAnim,
+            },
+          ]}
         >
           {/* Confetti background pieces */}
           {throwable === 'confetti' && <ConfettiPieces />}
@@ -185,8 +192,6 @@ export function ThrowableReceiverModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    width: SCREEN_W,
-    height: SCREEN_H,
     justifyContent: 'center',
     alignItems: 'center',
   },

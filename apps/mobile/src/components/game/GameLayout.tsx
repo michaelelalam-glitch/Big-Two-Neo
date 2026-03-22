@@ -191,7 +191,7 @@ function GameLayoutComponent({
         {/* Middle row: Left player, Center play area, Right player */}
         <View style={styles.middleRow}>
           {/* Left player (position 2) */}
-          <View style={[styles.leftPlayerContainer, { position: 'relative' }]}>
+          <View style={styles.leftPlayerContainer}>
             <PlayerInfo
               name={players[2].name}
               cardCount={players[2].cardCount}
@@ -237,7 +237,7 @@ function GameLayoutComponent({
           </View>
 
           {/* Right player (position 3) */}
-          <View style={[styles.rightPlayerContainer, { position: 'relative' }]}>
+          <View style={styles.rightPlayerContainer}>
             <PlayerInfo
               name={players[3].name}
               cardCount={players[3].cardCount}

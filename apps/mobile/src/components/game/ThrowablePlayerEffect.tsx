@@ -1,7 +1,7 @@
 /**
  * ThrowablePlayerEffect — small animated overlay rendered on a player's avatar tile.
  *
- * Shows a brief emoji + particle animation (egg splat, smoke puff, confetti burst)
+ * Shows a fireworks-style radial burst animation (egg splat, smoke puff, confetti burst)
  * visible to ALL players in the room when someone throws an item.
  *
  * Designed to sit as an AbsoluteView on top of the PlayerInfo avatar area.
@@ -9,18 +9,12 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { Text, Animated, StyleSheet } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
 
 interface ThrowablePlayerEffectProps {
   throwable: ThrowableType;
 }
-
-const EMOJIS: Record<ThrowableType, string> = {
-  egg: '🥚',
-  smoke: '💨',
-  confetti: '🎊',
-};
 
 const SPLAT_EMOJIS: Record<ThrowableType, string> = {
   egg: '🍳',
@@ -28,68 +22,50 @@ const SPLAT_EMOJIS: Record<ThrowableType, string> = {
   confetti: '✨',
 };
 
-// Small floating particle positions for each type
-const PARTICLE_OFFSETS: Record<ThrowableType, { x: number; y: number }[]> = {
-  egg: [
-    { x: -12, y: -8 },
-    { x: 10, y: -12 },
-    { x: -8, y: 10 },
-    { x: 12, y: 8 },
-  ],
-  smoke: [
-    { x: -10, y: -10 },
-    { x: 0, y: -15 },
-    { x: 10, y: -10 },
-  ],
-  confetti: [
-    { x: -14, y: -8 },
-    { x: 14, y: -8 },
-    { x: -8, y: 12 },
-    { x: 8, y: 12 },
-    { x: 0, y: -16 },
-  ],
+const PROJECTILE_EMOJIS: Record<ThrowableType, string> = {
+  egg: '🥚',
+  smoke: '💨',
+  confetti: '🎊',
 };
 
 const PARTICLE_COLORS: Record<ThrowableType, string[]> = {
-  egg: ['#FBBF24', '#FCD34D', '#F59E0B'],
-  smoke: ['#9CA3AF', '#D1D5DB', '#6B7280'],
-  confetti: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+  egg: ['#FBBF24', '#FCD34D', '#F59E0B', '#FEF3C7', '#FBBF24'],
+  smoke: ['#9CA3AF', '#D1D5DB', '#6B7280', '#E5E7EB', '#9CA3AF'],
+  confetti: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'],
 };
 
-function SingleParticle({
-  x,
-  y,
-  color,
-  delay,
-  throwable,
-}: {
-  x: number;
-  y: number;
-  color: string;
-  delay: number;
-  throwable: ThrowableType;
-}) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0)).current;
+const PARTICLE_COUNT = 10;
 
-  useEffect(() => {
-    Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: x, duration: 400, useNativeDriver: true }),
-        Animated.timing(translateY, {
-          toValue: throwable === 'smoke' ? y - 10 : y,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, [delay, opacity, scale, translateX, translateY, x, y, throwable]);
+/** Single radial burst particle driven by a shared burstAnim value 0→1. */
+function BurstParticle({
+  angle,
+  dist,
+  color,
+  burstAnim,
+  isConfetti,
+}: {
+  angle: number;
+  dist: number;
+  color: string;
+  burstAnim: Animated.Value;
+  isConfetti: boolean;
+}) {
+  const tx = burstAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, Math.cos(angle) * dist],
+  });
+  const ty = burstAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, Math.sin(angle) * dist],
+  });
+  const opacity = burstAnim.interpolate({
+    inputRange: [0, 0.15, 0.65, 1],
+    outputRange: [0, 1, 1, 0],
+  });
+  const scale = burstAnim.interpolate({
+    inputRange: [0, 0.15, 1],
+    outputRange: [0, 1.4, 0.7],
+  });
 
   return (
     <Animated.View
@@ -98,10 +74,10 @@ function SingleParticle({
         {
           backgroundColor: color,
           opacity,
-          transform: [{ translateX }, { translateY }, { scale }],
-          borderRadius: throwable === 'confetti' ? 2 : 6,
-          width: throwable === 'confetti' ? 5 : 7,
-          height: throwable === 'confetti' ? 7 : 7,
+          borderRadius: isConfetti ? 1 : 5,
+          width: isConfetti ? 5 : 8,
+          height: isConfetti ? 8 : 8,
+          transform: [{ translateX: tx }, { translateY: ty }, { scale }],
         },
       ]}
     />
@@ -109,50 +85,69 @@ function SingleParticle({
 }
 
 export function ThrowablePlayerEffect({ throwable }: ThrowablePlayerEffectProps) {
+  const burstAnim = useRef(new Animated.Value(0)).current;
+  const splatScale = useRef(new Animated.Value(0.2)).current;
   const splatOpacity = useRef(new Animated.Value(0)).current;
-  const splatScale = useRef(new Animated.Value(0.3)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.sequence([
+      // Phase 1: radial burst + splat appear simultaneously
       Animated.parallel([
-        Animated.timing(splatOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.spring(splatScale, {
+        Animated.timing(burstAnim, {
           toValue: 1,
+          duration: 450,
           useNativeDriver: true,
-          tension: 120,
-          friction: 6,
         }),
+        Animated.sequence([
+          Animated.delay(80),
+          Animated.parallel([
+            Animated.timing(splatOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+            Animated.spring(splatScale, {
+              toValue: 1,
+              tension: 120,
+              friction: 6,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
       ]),
-      Animated.delay(3500),
-      Animated.timing(containerOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+      // Phase 2: hold
+      Animated.delay(3200),
+      // Phase 3: fade out entire overlay
+      Animated.timing(containerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start();
-  }, [splatOpacity, splatScale, containerOpacity]);
+  }, [burstAnim, splatOpacity, splatScale, containerOpacity]);
 
-  const offsets = PARTICLE_OFFSETS[throwable];
   const colors = PARTICLE_COLORS[throwable];
+  const isConfetti = throwable === 'confetti';
 
   return (
-    <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
-      {/* Particles */}
-      {offsets.map((offset, i) => (
-        <SingleParticle
-          key={i}
-          x={offset.x}
-          y={offset.y}
-          color={colors[i % colors.length] ?? '#FFFFFF'}
-          delay={i * 40}
-          throwable={throwable}
-        />
-      ))}
-      {/* Splat emoji */}
+    <Animated.View pointerEvents="none" style={[styles.container, { opacity: containerOpacity }]}>
+      {Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+        const angle = (i * (2 * Math.PI)) / PARTICLE_COUNT;
+        // Alternate distances for visual depth: 18, 24, or 30 px
+        const dist = 18 + (i % 3) * 6;
+        const color = colors[i % colors.length] ?? '#FFFFFF';
+        return (
+          <BurstParticle
+            key={i}
+            angle={angle}
+            dist={dist}
+            color={color}
+            burstAnim={burstAnim}
+            isConfetti={isConfetti}
+          />
+        );
+      })}
+      {/* Splat emoji — scales in after burst */}
       <Animated.Text
         style={[styles.splatEmoji, { opacity: splatOpacity, transform: [{ scale: splatScale }] }]}
       >
         {SPLAT_EMOJIS[throwable]}
       </Animated.Text>
-      {/* Projectile emoji (small, top-right) */}
-      <Text style={styles.projectileEmoji}>{EMOJIS[throwable]}</Text>
+      {/* Projectile emoji — small corner indicator */}
+      <Text style={styles.projectileEmoji}>{PROJECTILE_EMOJIS[throwable]}</Text>
     </Animated.View>
   );
 }
@@ -166,8 +161,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'none',
-  } as const,
+    // Note: pointerEvents is set as a View prop above, not here (it is not a
+    // style property in React Native).
+  },
   splatEmoji: {
     fontSize: 28,
     textAlign: 'center',
