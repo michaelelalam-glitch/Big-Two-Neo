@@ -18,7 +18,7 @@ DROP FUNCTION IF EXISTS public.get_my_leaderboard_rank_casual(uuid);
 -- Step 2: Recreate paginated functions with p_limit/p_offset bounds.
 --         CREATE OR REPLACE updates the function in-place; existing privileges are preserved.
 --         Grants below reaffirm and document the intended permissions.
---         (REVOKE EXECUTE FROM PUBLIC is done in Step 5 after all functions are created.)
+--         (REVOKE EXECUTE FROM PUBLIC is done in Step 4 after all functions are created.)
 -- --------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard_ranked(
