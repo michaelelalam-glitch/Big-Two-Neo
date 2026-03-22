@@ -2,8 +2,16 @@
 
 exports[`Card — visual regression snapshots renders 2♠ (highest card in Big Two) 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="2 of ♠"
+  accessibilityActions={
+    [
+      {
+        "label": "Select card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Two of Spades"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -14,6 +22,7 @@ exports[`Card — visual regression snapshots renders 2♠ (highest card in Big 
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -203,8 +212,16 @@ exports[`Card — visual regression snapshots renders 2♠ (highest card in Big 
 
 exports[`Card — visual regression snapshots renders 3♥ unselected (baseline) 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="3 of ♥"
+  accessibilityActions={
+    [
+      {
+        "label": "Select card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Three of Hearts"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -215,6 +232,7 @@ exports[`Card — visual regression snapshots renders 3♥ unselected (baseline)
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -404,8 +422,16 @@ exports[`Card — visual regression snapshots renders 3♥ unselected (baseline)
 
 exports[`Card — visual regression snapshots renders 5♦ unselected 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="5 of ♦"
+  accessibilityActions={
+    [
+      {
+        "label": "Select card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Five of Diamonds"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -416,6 +442,7 @@ exports[`Card — visual regression snapshots renders 5♦ unselected 1`] = `
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -605,8 +632,16 @@ exports[`Card — visual regression snapshots renders 5♦ unselected 1`] = `
 
 exports[`Card — visual regression snapshots renders 7♣ unselected 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="7 of ♣"
+  accessibilityActions={
+    [
+      {
+        "label": "Select card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Seven of Clubs"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -617,6 +652,7 @@ exports[`Card — visual regression snapshots renders 7♣ unselected 1`] = `
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -806,8 +842,16 @@ exports[`Card — visual regression snapshots renders 7♣ unselected 1`] = `
 
 exports[`Card — visual regression snapshots renders 9♠ unselected 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="9 of ♠"
+  accessibilityActions={
+    [
+      {
+        "label": "Select card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Nine of Spades"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -818,6 +862,7 @@ exports[`Card — visual regression snapshots renders 9♠ unselected 1`] = `
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -1007,8 +1052,7 @@ exports[`Card — visual regression snapshots renders 9♠ unselected 1`] = `
 
 exports[`Card — visual regression snapshots renders card in disabled state 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="3 of ♥"
+  accessibilityLabel="Three of Hearts"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -1019,6 +1063,7 @@ exports[`Card — visual regression snapshots renders card in disabled state 1`]
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -1208,8 +1253,16 @@ exports[`Card — visual regression snapshots renders card in disabled state 1`]
 
 exports[`Card — visual regression snapshots renders card in selected state (elevated) 1`] = `
 <View
-  accessibilityHint="Double tap to select or deselect this card"
-  accessibilityLabel="3 of ♥"
+  accessibilityActions={
+    [
+      {
+        "label": "Deselect card",
+        "name": "activate",
+      },
+    ]
+  }
+  accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+  accessibilityLabel="Three of Hearts, selected"
   accessibilityRole="button"
   accessibilityState={
     {
@@ -1220,6 +1273,7 @@ exports[`Card — visual regression snapshots renders card in selected state (el
   accessible={true}
   collapsable={false}
   needsOffscreenAlphaCompositing={true}
+  onAccessibilityAction={[Function]}
   ref={null}
   renderToHardwareTextureAndroid={false}
   style={
@@ -1442,8 +1496,20 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
     }
   >
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="3 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Three of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -1454,6 +1520,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -1640,8 +1707,20 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="4 of ♦"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Four of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -1652,6 +1731,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -1838,8 +1918,20 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="5 of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Five of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -1850,6 +1942,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -2036,8 +2129,20 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="6 of ♠"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Six of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -2048,6 +2153,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -2234,8 +2340,20 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="7 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Seven of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -2246,6 +2364,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -2571,8 +2690,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
     }
   >
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="3 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Three of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -2583,6 +2714,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -2769,8 +2901,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="4 of ♦"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Four of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -2781,6 +2925,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -2967,8 +3112,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="5 of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Five of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -2979,6 +3136,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -3165,8 +3323,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="6 of ♠"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Six of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -3177,6 +3347,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -3363,8 +3534,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="7 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Seven of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -3375,6 +3558,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -3561,8 +3745,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="8 of ♦"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Eight of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -3573,6 +3769,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -3759,8 +3956,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="9 of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Nine of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -3771,6 +3980,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -3957,8 +4167,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="10 of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Ten of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -3969,6 +4191,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -4155,8 +4378,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="J of ♠"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Jack of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -4167,6 +4402,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -4353,8 +4589,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="Q of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Queen of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -4365,6 +4613,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -4551,8 +4800,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="K of ♦"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="King of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -4563,6 +4824,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -4749,8 +5011,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="A of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Ace of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -4761,6 +5035,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -4947,8 +5222,20 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="2 of ♠"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Two of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -4959,6 +5246,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -5284,8 +5572,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
     }
   >
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="3 of ♥"
+      accessibilityLabel="Three of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -5296,6 +5583,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -5482,8 +5770,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="4 of ♦"
+      accessibilityLabel="Four of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -5494,6 +5781,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -5680,8 +5968,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="5 of ♣"
+      accessibilityLabel="Five of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -5692,6 +5979,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -5878,8 +6166,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="6 of ♠"
+      accessibilityLabel="Six of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -5890,6 +6177,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -6076,8 +6364,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="7 of ♥"
+      accessibilityLabel="Seven of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -6088,6 +6375,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -6413,8 +6701,20 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
     }
   >
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="3 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Deselect card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Three of Hearts, selected"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -6425,6 +6725,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -6616,8 +6917,20 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="4 of ♦"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Four of Diamonds"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -6628,6 +6941,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -6814,8 +7128,20 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="5 of ♣"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Five of Clubs"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -6826,6 +7152,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -7012,8 +7339,20 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="6 of ♠"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Six of Spades"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -7024,6 +7363,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -7210,8 +7550,20 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       </View>
     </View>
     <View
-      accessibilityHint="Double tap to select or deselect this card"
-      accessibilityLabel="7 of ♥"
+      accessibilityActions={
+        [
+          {
+            "label": "Select card",
+            "name": "activate",
+          },
+          {
+            "label": "Long press",
+            "name": "longpress",
+          },
+        ]
+      }
+      accessibilityHint="Double tap to select or deselect. Long press then drag to rearrange."
+      accessibilityLabel="Seven of Hearts"
       accessibilityRole="button"
       accessibilityState={
         {
@@ -7222,6 +7574,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
       accessible={true}
       collapsable={false}
       needsOffscreenAlphaCompositing={true}
+      onAccessibilityAction={[Function]}
       ref={null}
       renderToHardwareTextureAndroid={false}
       style={
@@ -7614,8 +7967,7 @@ exports[`CenterPlayArea — visual regression snapshots renders pair play 1`] = 
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="K of ♥"
+        accessibilityLabel="King of Hearts"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -7626,6 +7978,7 @@ exports[`CenterPlayArea — visual regression snapshots renders pair play 1`] = 
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -7824,8 +8177,7 @@ exports[`CenterPlayArea — visual regression snapshots renders pair play 1`] = 
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="K of ♦"
+        accessibilityLabel="King of Diamonds"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -7836,6 +8188,7 @@ exports[`CenterPlayArea — visual regression snapshots renders pair play 1`] = 
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -8076,8 +8429,7 @@ exports[`CenterPlayArea — visual regression snapshots renders single card play
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="A of ♥"
+        accessibilityLabel="Ace of Hearts"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -8088,6 +8440,7 @@ exports[`CenterPlayArea — visual regression snapshots renders single card play
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -8328,8 +8681,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="7 of ♥"
+        accessibilityLabel="Seven of Hearts"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -8340,6 +8692,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -8538,8 +8891,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="6 of ♠"
+        accessibilityLabel="Six of Spades"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -8550,6 +8902,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -8748,8 +9101,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="5 of ♣"
+        accessibilityLabel="Five of Clubs"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -8760,6 +9112,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -8958,8 +9311,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="4 of ♦"
+        accessibilityLabel="Four of Diamonds"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -8970,6 +9322,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
@@ -9168,8 +9521,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
       }
     >
       <View
-        accessibilityHint="Double tap to select or deselect this card"
-        accessibilityLabel="3 of ♥"
+        accessibilityLabel="Three of Hearts"
         accessibilityRole="button"
         accessibilityState={
           {
@@ -9180,6 +9532,7 @@ exports[`CenterPlayArea — visual regression snapshots renders straight combo (
         accessible={true}
         collapsable={false}
         needsOffscreenAlphaCompositing={true}
+        onAccessibilityAction={[Function]}
         ref={null}
         renderToHardwareTextureAndroid={false}
         style={
