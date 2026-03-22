@@ -122,9 +122,12 @@ The same `20260322000000_security_hardening.sql` also:
 ### Step 4 — Apply migration via Supabase MCP
 
 Migration applied to `big2-mobile-backend` via `mcp_supabase_apply_migration`.
-File placed in both `apps/mobile/migrations/` (reference) and
-`apps/mobile/supabase/migrations/` (Supabase CLI source of truth) to prevent
-environment drift on `supabase db reset`.
+File placed in `apps/mobile/supabase/migrations/` as the Supabase CLI source of
+truth used by `supabase db push` / `supabase db reset`.
+
+A reference copy also exists in `apps/mobile/migrations/` for historical
+context only. It is **not** used by the Supabase CLI, does **not** affect
+`supabase db reset`, and may drift from the active migration over time.
 
 ### Step 5 — Stage, commit, push new branch, open PR comparing to `game/chinese-poker`
 
