@@ -158,9 +158,10 @@
 
 ## 📋 Current Status Board
 
-### 🟡 TODO — Ready to start (2 tasks)
+### 🟡 TODO — Ready to start (3 tasks)
 - `#650` — Increase card touch targets to iOS HIG 44px minimum
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
+- `#272` — Set up production performance monitoring dashboards
 
 ### ✅ RECENTLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
 - `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshots ✅)
@@ -194,6 +195,7 @@ All remaining tasks in tiers 7–10.
 
 ### Backlog (ordered)
 `#314` `#279` `#255` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253`
+
 
 ### ✅ COMPLETED (26 tasks)
 - `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026 (PR #151)
