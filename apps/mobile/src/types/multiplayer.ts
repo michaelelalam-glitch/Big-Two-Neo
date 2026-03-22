@@ -23,7 +23,7 @@ export interface Room {
   id: string;
   code: string;
   host_id: string | null; // DB column is nullable
-  status: string; // DB column is plain string
+  status: 'waiting' | 'playing' | 'finished' | (string & {}); // known statuses + DB extensibility
   max_players: number | null; // DB column is nullable
   created_at: string | null; // DB column is nullable
   updated_at: string | null; // DB column is nullable

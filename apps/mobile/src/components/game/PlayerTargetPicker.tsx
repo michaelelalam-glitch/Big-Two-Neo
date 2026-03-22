@@ -60,12 +60,9 @@ export function PlayerTargetPicker({
         }),
         Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 200, duration: 180, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-      ]).start();
     }
+    // Note: close animation is omitted — the component returns null when !visible,
+    // so a slide-out animation would never be rendered.
   }, [visible, slideAnim, backdropOpacity]);
 
   if (!visible) return null;
