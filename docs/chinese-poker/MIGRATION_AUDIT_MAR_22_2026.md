@@ -109,7 +109,7 @@ Auth setting — enable via Supabase dashboard or Auth config. Not fixable via m
 ### Step 2 — Create security hardening migration
 Create `20260322000000_security_hardening.sql` that:
 1. Adds `SET search_path = public, pg_catalog` (**or** uses `ALTER FUNCTION ... SET search_path`) to all 62 affected functions (the 2-arg `start_game_with_bots` overload is guarded against missing-function errors)
-2. Enables RLS on `public.room_analytics` + adds a membership-scoped read-only policy for authenticated users (JOIN via `public.players`; falls back to `public.room_players` if `players` is absent)
+2. Enables RLS on `public.room_analytics` and ensures there is **no** client-facing SELECT policy. The `metadata` column contains raw `SQLERRM` error details; access is restricted to service_role only. `20260322000003_round2_corrections.sql` drops any previously-created client SELECT policy from the live DB.
 3. Intentionally leaves `bot_coordinator_locks` **without** any client-facing RLS policy — access is restricted to service_role / SECURITY DEFINER functions only. Adding a broad policy would unnecessarily expose coordinator lock state to all authenticated users.
 
 ### Step 3 — Fix permissive RLS policies (combined into Step 2 migration)
