@@ -23,7 +23,7 @@ export interface Room {
   id: string;
   code: string;
   host_id: string | null; // DB column is nullable
-  status: string; // DB column is plain string
+  status: 'waiting' | 'playing' | 'finished' | (string & {}); // known statuses + DB extensibility
   max_players: number | null; // DB column is nullable
   created_at: string | null; // DB column is nullable
   updated_at: string | null; // DB column is nullable
@@ -190,7 +190,11 @@ export type BroadcastEvent =
   | 'auto_pass_timer_cancelled' // New: Timer cancelled (manual pass or new play)
   | 'auto_pass_executed' // New: Auto-pass executed after timer expired
   | 'turn_auto_played' // New: Turn inactivity auto-play executed
-  | 'chat_message'; // Task #648: In-game text chat message
+  | 'chat_message' // Task #648: In-game text chat message
+  | 'throwable_sent'; // Throwables: player threw egg/smoke/confetti at another player
+
+/** The three throwable item types (GG Poker–style fun interactions). */
+export type ThrowableType = 'egg' | 'smoke' | 'confetti';
 
 /**
  * Score detail for a single player in a multiplayer match.
@@ -221,7 +225,13 @@ export type BroadcastData =
   | { timer_state: AutoPassTimerState; triggering_player_index: number } // auto_pass_timer_started
   | { player_index: number; reason: 'manual_pass' | 'new_play' } // auto_pass_timer_cancelled
   | { player_index: number } // auto_pass_executed
-  | ChatMessage; // chat_message (#648) — use shared type to avoid shape drift
+  | ChatMessage // chat_message (#648) — use shared type to avoid shape drift
+  | {
+      thrower_id: string;
+      thrower_name: string;
+      target_player_index: number;
+      throwable: ThrowableType;
+    }; // throwable_sent
 
 export interface BroadcastPayload {
   event: BroadcastEvent;

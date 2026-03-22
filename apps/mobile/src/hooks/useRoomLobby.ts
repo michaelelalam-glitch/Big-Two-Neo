@@ -177,7 +177,10 @@ export function useRoomLobby({
           .select('*', { count: 'exact', head: true })
           .eq('room_id', existingRoom.id);
 
-        const effectiveMaxPlayers = existingRoom.max_players ?? 4;
+        // Clamp to [2, 4] — the game engine assumes exactly 4 seats (player_index 0–3).
+        // Trusting a DB value > 4 would allow seat indices outside that range
+        // and corrupt room state.  Values < 2 make no sense for a multiplayer game.
+        const effectiveMaxPlayers = Math.min(Math.max(existingRoom.max_players ?? 4, 2), 4);
         if (typeof count === 'number' && count >= effectiveMaxPlayers) {
           throw new Error('Room is full');
         }

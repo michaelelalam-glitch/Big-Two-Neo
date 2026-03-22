@@ -1,11 +1,11 @@
 /**
  * Helper Buttons Component
- * 
+ *
  * Three utility buttons for Big Two gameplay:
  * - Sort: Arrange cards lowest to highest
  * - Smart: Group cards by combo type
  * - Hint: Suggest optimal play
- * 
+ *
  * Implements GAME_HELPER_BUTTONS_SPEC.md
  * Created as part of Task #387: Helper Buttons UI
  * Date: December 13, 2025
@@ -46,9 +46,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Sort cards lowest to highest"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.sortButtonText]}>
-          {i18n.t('game.sort')}
-        </Text>
+        <Text style={[styles.buttonText, styles.sortButtonText]}>{i18n.t('game.sort')}</Text>
       </Pressable>
 
       {/* Smart Sort Button */}
@@ -65,9 +63,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Smart sort by combo type"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.smartButtonText]}>
-          {i18n.t('game.smart')}
-        </Text>
+        <Text style={[styles.buttonText, styles.smartButtonText]}>{i18n.t('game.smart')}</Text>
       </Pressable>
 
       {/* Hint Button */}
@@ -84,9 +80,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Get hint for best play"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.hintButtonText]}>
-          {i18n.t('game.hint')}
-        </Text>
+        <Text style={[styles.buttonText, styles.hintButtonText]}>{i18n.t('game.hint')}</Text>
       </Pressable>
     </View>
   );
@@ -119,7 +113,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', // Match Play/Pass bold text
     color: '#FFFFFF', // White text like Play button
   },
-  
+
   // Sort Button (Gray - match Pass button style)
   sortButton: {
     backgroundColor: '#374151', // Dark gray like Pass button
@@ -129,7 +123,7 @@ const styles = StyleSheet.create({
   sortButtonText: {
     color: '#D1D5DB', // Light gray text
   },
-  
+
   // Smart Button (Blue/Teal - accent style)
   smartButton: {
     backgroundColor: '#0891b2', // Teal/cyan accent
@@ -138,7 +132,7 @@ const styles = StyleSheet.create({
   smartButtonText: {
     color: '#FFFFFF', // White text
   },
-  
+
   // Hint Button (Orange/Amber - warning style)
   hintButton: {
     backgroundColor: '#f59e0b', // Amber/orange accent

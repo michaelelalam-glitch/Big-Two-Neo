@@ -328,6 +328,13 @@ export function LocalAIGame() {
       isChatDrawerOpen: false,
       toggleChatDrawer: () => {},
       localUserId: '',
+      // Throwables are multiplayer-only; no-op stubs here
+      throwableActiveEffects: [null, null, null, null],
+      throwableIncoming: null,
+      throwableDismissIncoming: () => {},
+      sendThrowable: () => {},
+      isThrowCooldown: false,
+      cooldownRemaining: 0,
     }),
     [
       currentOrientation,

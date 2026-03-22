@@ -13,8 +13,9 @@ import type { Card } from '../game/types';
 import type { ChatMessage } from '../types/chat';
 import type { GameStateManager } from '../game/state';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
-import type { AutoPassTimerState } from '../types/multiplayer';
+import type { AutoPassTimerState, ThrowableType } from '../types/multiplayer';
 import type { LiveKitTrackRef } from '../hooks/useVideoChat';
+import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -192,6 +193,20 @@ export interface GameContextType {
   toggleChatDrawer: () => void;
   /** Current user's Supabase ID (for identifying own chat messages). */
   localUserId: string;
+
+  // ── Throwables (GG Poker–style fun projectiles) ───────────────────────────
+  /** Active throwable effect for each display position (0=bottom, 1=top, 2=left, 3=right). */
+  throwableActiveEffects: readonly (ActiveThrowableEffect | null)[];
+  /** Non-null when the local player has been targeted — drives the full-screen popup. */
+  throwableIncoming: IncomingThrowable | null;
+  /** Dismiss the full-screen incoming popup. */
+  throwableDismissIncoming: () => void;
+  /** Send a throwable to a specific player (by game seat index). Only available in multiplayer. */
+  sendThrowable: (targetGameIndex: number, throwable: ThrowableType) => void;
+  /** True while the 30-second post-throw cooldown is active. */
+  isThrowCooldown: boolean;
+  /** Seconds remaining in the cooldown (0 when not in cooldown). */
+  cooldownRemaining: number;
 }
 
 // ---------------------------------------------------------------------------
