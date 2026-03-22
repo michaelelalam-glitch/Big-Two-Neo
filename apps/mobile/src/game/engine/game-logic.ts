@@ -302,10 +302,7 @@ export function canBeatPlay(newCards: Card[], lastPlay: LastPlay | null): boolea
 
   // Task #280: cache result by card-id keys + last-play combo+card ids
   const newKey = makeCacheKey(newCards);
-  const lastKey = lastPlay.cards
-    .map(c => c.id)
-    .sort()
-    .join(',');
+  const lastKey = makeCacheKey(lastPlay.cards);
   const beatKey = `${newKey}|${lastKey}|${lastPlay.combo_type}`;
   const cachedBeat = _beatCache.get(beatKey);
   if (cachedBeat !== undefined) return cachedBeat;
