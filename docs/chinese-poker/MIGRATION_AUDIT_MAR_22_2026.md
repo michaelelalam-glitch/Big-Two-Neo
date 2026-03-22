@@ -92,7 +92,7 @@ Every `public.*` function lacks `SET search_path = public, pg_catalog` (or equiv
 | `leaderboard_global` | Same |
 | `leaderboard_casual` | Same |
 
-These views are intentionally public-readable (leaderboard data). The advisory is informational — no action required unless we want to move them to a `private` schema. **Accepted risk for now.**
+These views are intentionally public-readable (leaderboard data). Initially this advisory was treated as informational only. However, migrations `20260322000001` and `20260322000002` revoke direct `SELECT` on these views for `anon`/`authenticated` and expose the data exclusively via `SECURITY DEFINER` RPC wrappers, fully resolving this advisory.
 
 ### 2F. WARNINGS — Leaked password protection disabled
 

@@ -235,11 +235,11 @@ export default function StatsScreen() {
         // Fetch global_rank at read-time from leaderboard_ranked so it stays
         // accurate without relying on the stored (potentially stale) column.
         // Uses the SECURITY DEFINER RPC wrapper (direct view access revoked).
-        const { data: rankRow, error: rankError } =
-          await // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (
-            supabase.rpc('get_leaderboard_rank_ranked_by_user_id', { p_user_id: userId }) as any
-          ).maybeSingle();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const typedRpc = supabase.rpc('get_leaderboard_rank_ranked_by_user_id', {
+          p_user_id: userId,
+        }) as any;
+        const { data: rankRow, error: rankError } = await typedRpc.maybeSingle();
         if (rankError) {
           // Log the failure and fall back to the stored global_rank from statsData.
           statsLogger.error(

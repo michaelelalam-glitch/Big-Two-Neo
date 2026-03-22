@@ -54,8 +54,8 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_ranked
   ORDER  BY rank
-  LIMIT  LEAST(p_limit, 100)
-  OFFSET GREATEST(p_offset, 0);
+  LIMIT  LEAST(GREATEST(COALESCE(p_limit, 20), 0), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard_casual(
@@ -84,8 +84,8 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_casual
   ORDER  BY rank
-  LIMIT  LEAST(p_limit, 100)
-  OFFSET GREATEST(p_offset, 0);
+  LIMIT  LEAST(GREATEST(COALESCE(p_limit, 20), 0), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard_global(
@@ -114,8 +114,8 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_global
   ORDER  BY rank
-  LIMIT  LEAST(p_limit, 100)
-  OFFSET GREATEST(p_offset, 0);
+  LIMIT  LEAST(GREATEST(COALESCE(p_limit, 20), 0), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 $$;
 
 -- --------------------------------------------------------
