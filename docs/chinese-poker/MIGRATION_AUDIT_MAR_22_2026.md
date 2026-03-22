@@ -15,13 +15,13 @@ The database has **91 applied migrations** spanning December 2025 through March 
 
 > **Important:** The repository has **two** migration directories with different purposes:
 > - `apps/mobile/supabase/migrations/` — **Active Supabase CLI source of truth** (52 files). These are applied by `supabase db push` / `supabase db reset` and correspond to the 91 entries in the Supabase `schema_migrations` table.
-> - `apps/mobile/migrations/` — **Legacy / reference only** (9 hand-crafted files, **not** tracked by Supabase CLI). These were written before the CLI workflow was established and are never applied automatically.
+> - `apps/mobile/migrations/` — **Legacy / reference only** (10 files: 9 original hand-crafted files + 1 reference copy added by this PR, **not** tracked by Supabase CLI). These were written before the CLI workflow was established and are never applied automatically.
 >
 > All drift analysis below applies to the **legacy** `apps/mobile/migrations/` directory. The active `apps/mobile/supabase/migrations/` directory contains the 52 properly-timestamped migrations that match the DB history.
 
-#### Legacy reference files (`apps/mobile/migrations/` — 9 files)
+#### Legacy reference files (`apps/mobile/migrations/` — 10 files)
 
-The legacy `apps/mobile/migrations/` directory contains only **9 files**:
+The legacy `apps/mobile/migrations/` directory contains **10 files** (9 original + 1 reference copy added by this PR):
 
 | Local File | DB Equivalent | Status |
 |---|---|---|
@@ -34,6 +34,7 @@ The legacy `apps/mobile/migrations/` directory contains only **9 files**:
 | `20260321000003_friendships_tighten_with_check.sql` | `20260320150817_friendships_tighten_with_check` | ❌ Different timestamp |
 | `20260321000004_friendships_immutable_parties.sql` | `20260320152037_friendships_immutable_parties` | ❌ Different timestamp |
 | `push_tokens.sql` | *(not tracked)* | ❌ No timestamp prefix — applied manually, untracked |
+| `20260322000000_security_hardening.sql` | *(canonical copy in `supabase/migrations/`)* | 📋 Reference copy added by this PR — not applied by CLI |
 
 ### 1C. Duplicate migration names in DB
 
