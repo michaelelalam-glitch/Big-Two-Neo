@@ -98,19 +98,24 @@ Auth setting — enable via Supabase dashboard or Auth config. Not fixable via m
 
 ### Step 2 — Create security hardening migration
 Create `20260322000000_security_hardening.sql` that:
-1. Adds `SET search_path = public, pg_catalog` (**or** uses `ALTER FUNCTION ... SET search_path`) to all 62 affected functions
-2. Enables RLS on `public.room_analytics` + adds a read-only policy for authenticated users
+1. Adds `SET search_path = public, pg_catalog` (**or** uses `ALTER FUNCTION ... SET search_path`) to all 62 affected functions (the 2-arg `start_game_with_bots` overload is guarded against missing-function errors)
+2. Enables RLS on `public.room_analytics` + adds a read-only policy for authenticated users (broad access; intentional for aggregate analytics)
 3. Adds `ALLOW ALL` policy for `bot_coordinator_locks` scoped to `service_role`
 
-### Step 3 — Fix permissive RLS policies
-Create `20260322000001_tighten_rls_policies.sql` that:
-- Updates `players` UPDATE policy to only allow a user to update their own row
-- Updates `players` INSERT policy to check auth.uid() context
+### Step 3 — Fix permissive RLS policies (combined into Step 2 migration)
+The same `20260322000000_security_hardening.sql` also:
+- Updates `players` UPDATE policy to only allow a user to update their own row (guarded against environments without the `players` table)
+- Updates `players` INSERT policy to check `auth.uid()` context
 - Updates `players` DELETE policy to only allow deleting own row
 - Updates `rooms` INSERT policy to require authenticated caller
-- **Leave** `game_events`, `game_state`, `match_history`, `match_participants` service-role policies alone (these are called from SECURITY DEFINER functions and the `WITH CHECK (true)` is effectively controlled by the function-level auth guard)
+- **Leaves** `game_events`, `game_state`, `match_history`, `match_participants` service-role policies alone (called from SECURITY DEFINER functions with their own auth guards)
 
-### Step 4 — Apply both migrations via Supabase MCP
+### Step 4 — Apply migration via Supabase MCP
+
+Migration applied to `big2-mobile-backend` via `mcp_supabase_apply_migration`.
+File placed in both `apps/mobile/migrations/` (reference) and
+`apps/mobile/supabase/migrations/` (Supabase CLI source of truth) to prevent
+environment drift on `supabase db reset`.
 
 ### Step 5 — Stage, commit, push new branch, open PR comparing to `game/chinese-poker`
 
@@ -120,8 +125,8 @@ Create `20260322000001_tighten_rls_policies.sql` that:
 
 | Step | Status |
 |---|---|
-| Step 1 — fix local file naming | ✅ Complete |
-| Step 2 — security hardening migration | ⬜ Pending |
-| Step 3 — tighten RLS policies | ⬜ Pending |
-| Step 4 — apply migrations | ⬜ Pending |
-| Step 5 — branch/PR | ⬜ Pending |
+| Step 1 — fix local file naming | ✅ Documented (20260321 vs 20260320 drift noted) |
+| Step 2 — security hardening migration (`20260322000000`) | ✅ Applied to production |
+| Step 3 — tighten RLS policies (merged into Step 2) | ✅ Applied to production |
+| Step 4 — apply migration | ✅ Applied via Supabase MCP |
+| Step 5 — branch/PR | ✅ PR #170 opened, Copilot review addressed |
