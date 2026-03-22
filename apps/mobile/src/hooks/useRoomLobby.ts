@@ -289,9 +289,10 @@ export function useRoomLobby({
 
           // Only non-host, non-bot players are required to be ready.
           // The host is the initiator and bots are always ready.
-          const nonHostHumans = updatedPlayers.data?.filter(p => !p.is_host && !p.is_bot) ?? [];
-          const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
-          const hostPlayer = roomPlayers.find(p => p.is_host);
+          // Use strict equality (=== true / !== true) to handle nullable DB booleans safely.
+          const nonHostHumans = updatedPlayers.data?.filter(p => p.is_host !== true && p.is_bot !== true) ?? [];
+          const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready === true);
+          const hostPlayer = roomPlayers.find(p => p.is_host === true);
 
           if (allReady && hostPlayer && hostPlayer.user_id) {
             notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
@@ -316,8 +317,9 @@ export function useRoomLobby({
       if (!isHost || !room) return;
 
       // Only non-host, non-bot players must be ready. Bots are auto-ready; the host is the initiator.
-      const nonHostHumans = roomPlayers.filter(p => !p.is_host && !p.is_bot);
-      const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+      // Use strict equality (=== true / !== true) to handle nullable DB booleans safely.
+      const nonHostHumans = roomPlayers.filter(p => p.is_host !== true && p.is_bot !== true);
+      const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready === true);
       if (!allReady) throw new Error('All non-host players must be ready');
       if (roomPlayers.length < 2) throw new Error('Need at least 2 players to start');
 

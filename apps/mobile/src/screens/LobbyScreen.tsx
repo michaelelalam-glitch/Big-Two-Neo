@@ -927,6 +927,9 @@ export default function LobbyScreen() {
     if (!user) return; // auth not yet loaded — UUID arg would be undefined
     // Bot rows have user_id = null — cannot kick via UUID-typed RPC arg
     if (!playerToKick.user_id) return;
+    // Capture the validated user_id into a local const so async callback does not
+    // rely on a non-null assertion and the guard is clearly visible to TypeScript.
+    const kickedUserId = playerToKick.user_id;
 
     const displayName = playerToKick.profiles?.username || 'Player';
     showConfirm({
@@ -944,7 +947,7 @@ export default function LobbyScreen() {
           const { error } = await supabase.rpc('lobby_kick_player', {
             p_room_id: roomId,
             p_kicker_user_id: user.id,
-            p_kicked_user_id: playerToKick.user_id!, // human players always have user_id
+            p_kicked_user_id: kickedUserId,
           });
           if (error) throw error;
           // Subscription will refresh the player list automatically
