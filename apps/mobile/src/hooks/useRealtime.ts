@@ -182,9 +182,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       // stores them as JSONB, so the runtime shape matches at read-time.
       type GameStateRow = Database['public']['Tables']['game_state']['Row'];
       const row = data as GameStateRow;
+      if (!row.room_id) {
+        networkLogger.error('[fetchGameState] game_state row has null room_id, skipping');
+        setGameState(null);
+        return;
+      }
       const mapped: GameState = {
         id: row.id,
-        room_id: row.room_id ?? '',
+        room_id: row.room_id,
         current_turn: row.current_turn,
         turn_started_at: row.turn_started_at,
         last_play: row.last_play as unknown as GameState['last_play'],

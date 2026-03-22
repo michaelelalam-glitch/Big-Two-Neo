@@ -190,7 +190,11 @@ export function useRoomLobby({
 
         const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
         let player_index = 0;
-        while (takenPositions.has(player_index) && player_index < 4) player_index++;
+        while (takenPositions.has(player_index) && player_index < effectiveMaxPlayers)
+          player_index++;
+        if (player_index >= effectiveMaxPlayers) {
+          throw new Error('Room is full');
+        }
 
         const { error: playerError } = await supabase.from('room_players').insert({
           room_id: existingRoom.id,
