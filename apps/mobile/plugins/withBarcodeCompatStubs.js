@@ -142,9 +142,20 @@ module.exports = function withBarcodeCompatStubs(config) {
   // android/build.gradle. Using withProjectBuildGradle avoids patching files
   // under node_modules, which is brittle across version updates and fails in
   // read-only build environments (Copilot PR-149 r2946350505).
+  //
+  // IMPORTANT: the block must be inserted BEFORE `apply plugin: "expo-root-project"`
+  // so that the afterEvaluate hooks are registered before expo-root-project
+  // eagerly configures (evaluates) subprojects. Appending to the END of
+  // build.gradle causes "Cannot run afterEvaluate when project is already
+  // evaluated" on Gradle 7+ (Copilot PR-169 snapshot-fix).
   config = withProjectBuildGradle(config, (modConfig) => {
     if (!modConfig.modResults.contents.includes('[barcode-compat-stubs]')) {
-      modConfig.modResults.contents += SUBPROJECTS_BLOCK;
+      // Insert immediately before the first `apply plugin:` statement so the
+      // subprojects afterEvaluate hook is registered prior to evaluation.
+      modConfig.modResults.contents = modConfig.modResults.contents.replace(
+        /^(\s*apply plugin:\s*["']expo-root-project["'])/m,
+        `${SUBPROJECTS_BLOCK}\n$1`
+      );
     }
     return modConfig;
   });
