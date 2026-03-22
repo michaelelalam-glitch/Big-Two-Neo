@@ -20,10 +20,18 @@ const STUB_BUILD_GRADLE = `apply plugin: 'com.android.library'
 
 android {
     namespace "expo.modules.interfaces.barcodescanner.compat"
-    // Reference root project SDK values so the stub stays aligned when the app
-    // upgrades its SDK targets (Copilot PR-149 r2946350521).
-    compileSdkVersion (rootProject.findProperty("compileSdkVersion") ?: 35).toInteger()
-    defaultConfig { minSdkVersion (rootProject.findProperty("minSdkVersion") ?: 24).toInteger() }
+    // Use rootProject.ext values (set by expo-root-project from android.*
+    // gradle.properties) to stay aligned with the app's SDK targets.
+    // Fall back to hardcoded defaults (compileSdk 35, minSdk 24) if ext
+    // properties haven't been set yet — e.g. during isolated project eval.
+    compileSdkVersion rootProject.ext.has('compileSdkVersion')
+        ? rootProject.ext.compileSdkVersion.toInteger()
+        : 35
+    defaultConfig {
+        minSdkVersion rootProject.ext.has('minSdkVersion')
+            ? rootProject.ext.minSdkVersion.toInteger()
+            : 24
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
