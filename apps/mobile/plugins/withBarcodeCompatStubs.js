@@ -116,13 +116,16 @@ const STUB_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/r
 // (Copilot PR-149 r2946350505).
 const BARCODE_CONSUMERS = ['expo-camera', 'expo-barcode-scanner'];
 const SUBPROJECTS_BLOCK = `
-// [barcode-compat-stubs] inject compileOnly dep into barcode consumers without editing node_modules
+// [barcode-compat-stubs] inject runtime dep into barcode consumers without editing node_modules
+// Must be 'implementation' (not 'compileOnly') so the stub classes are included
+// in the final APK. compileOnly-only would cause NoClassDefFoundError at runtime
+// when expo-barcode-scanner tries to load BarCodeScannerInterface etc.
 def barcodeConsumers = [${BARCODE_CONSUMERS.map(n => `'${n}'`).join(', ')}]
 subprojects { subproject ->
     afterEvaluate {
         if (barcodeConsumers.contains(subproject.name)) {
             dependencies {
-                compileOnly project(':${LIB_NAME}') // [barcode-compat-stubs]
+                implementation project(':${LIB_NAME}') // [barcode-compat-stubs]
             }
         }
     }
