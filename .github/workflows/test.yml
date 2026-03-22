@@ -495,37 +495,7 @@ jobs:
           avd-name: test_avd
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            # Wait for emulator to be fully ready
-            adb wait-for-device
-            adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done; input keyevent 82'
-            sleep 5
-
-            # Install the APK
-            APK_PATH=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
-            if [ -z "$APK_PATH" ]; then
-              echo "::error::No APK found. Build may have failed."
-              exit 1
-            fi
-            echo "Installing APK: $APK_PATH"
-            adb install "$APK_PATH"
-
-            # Launch app once to warm up
-            adb shell am start -n com.big2mobile.app/.MainActivity || true
-            sleep 10
-            adb shell am force-stop com.big2mobile.app || true
-            sleep 3
-
-            # Run CI-tagged Maestro flows
-            mkdir -p apps/mobile/e2e/results-android
-            set +e
-            maestro test --include-tags ci apps/mobile/e2e/flows/ \
-              --format junit \
-              --output apps/mobile/e2e/results-android/results.xml
-            MAESTRO_EXIT=$?
-            set -e
-            echo "Maestro Android exit code: $MAESTRO_EXIT"
-            exit $MAESTRO_EXIT
+          script: bash apps/mobile/scripts/android-e2e.sh
         timeout-minutes: 30
 
       - name: 📸 Upload Android E2E results
