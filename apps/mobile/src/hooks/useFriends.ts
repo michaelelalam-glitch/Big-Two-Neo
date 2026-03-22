@@ -22,9 +22,9 @@ import { notifyFriendRequest } from '../services/pushNotificationService';
 export interface FriendProfile {
   id: string;
   username?: string;
-  avatar_url?: string;
-  elo_rating?: number;
-  rank?: string;
+  avatar_url?: string | null;
+  elo_rating?: number | null;
+  rank?: string | null;
 }
 
 export interface Friendship {

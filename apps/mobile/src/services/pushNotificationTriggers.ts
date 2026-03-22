@@ -1,6 +1,6 @@
 /**
  * Push Notification Triggers
- * 
+ *
  * Central service for triggering push notifications at key game events.
  * Uses the send-push-notification Edge Function to deliver notifications.
  */
@@ -32,9 +32,9 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
     notificationLogger.info('📤 [sendPushNotification] Invoking Edge Function with payload:', {
       user_count: payload.user_ids.length,
       title: payload.title,
-      type: payload.data?.type
+      type: payload.data?.type,
     });
-    
+
     const response = await supabase.functions.invoke('send-push-notification', {
       body: payload,
     });
@@ -46,57 +46,59 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
         const blob = response.error.context?._bodyInit;
         if (blob && blob._data) {
           // Try to parse error from response
-          const errorText = await fetch(`data:application/json;base64,${btoa(JSON.stringify(blob))}`).catch(() => null);
+          const errorText = await fetch(
+            `data:application/json;base64,${btoa(JSON.stringify(blob))}`
+          ).catch(() => null);
           errorBody = errorText;
         }
-} catch (error) {
+      } catch (error) {
         // Ignore blob parsing errors — logged for diagnostics
         notificationLogger.warn('⚠️ [sendPushNotification] Blob parsing failed:', error);
       }
-      
+
       notificationLogger.error('❌ [sendPushNotification] Edge Function error:', {
         message: response.error.message,
         status: response.error.context?.status,
         error_body: errorBody,
-        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id']
+        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id'],
       });
-      
+
       notificationLogger.error('🔍 CHECK SUPABASE LOGS:', {
         url: 'https://supabase.com/dashboard/project/dppybucldqufbqhwnkxu/logs/edge-functions',
-        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id']
+        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id'],
       });
-      
+
       return false;
     }
-    
+
     const { data } = response;
-    
+
     // Log the full response for debugging
     notificationLogger.info('📥 [sendPushNotification] Edge Function response:', {
-      data: JSON.stringify(data)
+      data: JSON.stringify(data),
     });
 
     // Check individual ticket results from Expo Push API
     if (data?.results && Array.isArray(data.results)) {
       const errors = data.results.filter((r: ExpoPushTicket) => r.status === 'error');
-      
+
       if (errors.length > 0) {
         notificationLogger.error('❌ [sendPushNotification] Expo Push API errors:', {
           total: data.results.length,
           failed: errors.length,
           errors: errors.map((e: ExpoPushTicket) => ({
             error: e.details?.error,
-            message: e.message
-          }))
+            message: e.message,
+          })),
         });
-        
+
         // Log specific error details
         errors.forEach((err: ExpoPushTicket, idx: number) => {
           if (err.details?.error === 'InvalidCredentials') {
             notificationLogger.error(
               `🔐 [sendPushNotification] FCM Configuration Missing!\n` +
-              `   Android push notifications require Firebase Cloud Messaging (FCM) credentials.\n` +
-              `   See: https://docs.expo.dev/push-notifications/fcm-credentials/`
+                `   Android push notifications require Firebase Cloud Messaging (FCM) credentials.\n` +
+                `   See: https://docs.expo.dev/push-notifications/fcm-credentials/`
             );
           } else if (err.details?.error === 'DeviceNotRegistered') {
             notificationLogger.warn('⚠️ [sendPushNotification] Device token expired or invalid');
@@ -104,18 +106,21 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
             notificationLogger.error(`❌ [sendPushNotification] Error ${idx + 1}:`, err.message);
           }
         });
-        
+
         return false;
       }
     }
 
     notificationLogger.info('✅ [sendPushNotification] Success!', {
       sent: data?.sent || 0,
-      successful: data?.results?.filter((r: ExpoPushTicket) => r.status === 'ok').length || 0
+      successful: data?.results?.filter((r: ExpoPushTicket) => r.status === 'ok').length || 0,
     });
     return true;
   } catch (error: unknown) {
-    notificationLogger.error('❌ [sendPushNotification] Exception:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      '❌ [sendPushNotification] Exception:',
+      error instanceof Error ? error.message : String(error)
+    );
     return false;
   }
 }
@@ -142,9 +147,12 @@ async function getRoomPlayerIds(roomId: string, excludeUserId?: string): Promise
       return [];
     }
 
-    return (data || []).map(p => p.user_id).filter(Boolean);
+    return (data || []).map(p => p.user_id).filter((uid): uid is string => uid !== null);
   } catch (error: unknown) {
-    notificationLogger.error('Error fetching room players:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      'Error fetching room players:',
+      error instanceof Error ? error.message : String(error)
+    );
     return [];
   }
 }
@@ -154,10 +162,13 @@ async function getRoomPlayerIds(roomId: string, excludeUserId?: string): Promise
  */
 export async function notifyGameStarted(roomId: string, roomCode: string): Promise<void> {
   notificationLogger.info('🎮 [notifyGameStarted] Called', { roomId, roomCode });
-  
+
   const userIds = await getRoomPlayerIds(roomId);
-  
-  notificationLogger.info('👥 [notifyGameStarted] Found players:', { count: userIds.length, userIds });
+
+  notificationLogger.info('👥 [notifyGameStarted] Found players:', {
+    count: userIds.length,
+    userIds,
+  });
 
   if (userIds.length === 0) {
     notificationLogger.warn('⚠️ [notifyGameStarted] No players to notify for game start');
@@ -177,7 +188,7 @@ export async function notifyGameStarted(roomId: string, roomCode: string): Promi
     sound: 'default',
     badge: 1,
   });
-  
+
   if (success) {
     notificationLogger.info('✅ [notifyGameStarted] Notification sent successfully');
   } else {
@@ -201,7 +212,7 @@ export async function notifyPlayerTurn(
     data: {
       type: 'player_turn',
       roomCode: roomCode, // camelCase
-      roomId: roomId,     // camelCase
+      roomId: roomId, // camelCase
       screen: 'Game',
     },
     sound: 'default',
@@ -232,8 +243,8 @@ export async function notifyGameEnded(
     body: `Congratulations! You won in room ${roomCode}!`,
     data: {
       type: 'game_ended',
-      roomCode: roomCode,   // camelCase
-      roomId: roomId,       // camelCase
+      roomCode: roomCode, // camelCase
+      roomId: roomId, // camelCase
       winner: winnerName,
       is_winner: true,
       screen: 'Game',
@@ -251,8 +262,8 @@ export async function notifyGameEnded(
       body: `${winnerName} won the game in room ${roomCode}`,
       data: {
         type: 'game_ended',
-        roomCode: roomCode,   // camelCase
-        roomId: roomId,       // camelCase
+        roomCode: roomCode, // camelCase
+        roomId: roomId, // camelCase
         winner: winnerName,
         is_winner: false,
         screen: 'Game',
@@ -278,8 +289,8 @@ export async function notifyRoomInvite(
     body: `${inviterName} invited you to join room ${roomCode}`,
     data: {
       type: 'room_invite',
-      roomCode: roomCode,   // camelCase
-      roomId: roomId,       // camelCase
+      roomCode: roomCode, // camelCase
+      roomId: roomId, // camelCase
       inviter: inviterName,
       screen: 'JoinRoom',
     },
@@ -309,8 +320,8 @@ export async function notifyPlayerJoined(
     body: `${joinerName} joined room ${roomCode}`,
     data: {
       type: 'player_joined',
-      roomCode: roomCode,   // camelCase
-      roomId: roomId,       // camelCase
+      roomCode: roomCode, // camelCase
+      roomId: roomId, // camelCase
       player_name: joinerName,
       screen: 'Lobby',
     },
@@ -333,8 +344,8 @@ export async function notifyAutoPassWarning(
     body: `${secondsRemaining}s left to play in room ${roomCode}`,
     data: {
       type: 'auto_pass_warning',
-      roomCode: roomCode,   // camelCase
-      roomId: roomId,       // camelCase
+      roomCode: roomCode, // camelCase
+      roomId: roomId, // camelCase
       seconds_remaining: secondsRemaining,
       screen: 'Game',
     },
@@ -357,8 +368,8 @@ export async function notifyAllPlayersReady(
     body: `All players are ready in room ${roomCode}. You can start the game!`,
     data: {
       type: 'all_players_ready',
-      roomCode: roomCode,   // camelCase
-      roomId: roomId,       // camelCase
+      roomCode: roomCode, // camelCase
+      roomId: roomId, // camelCase
       screen: 'Lobby',
     },
     sound: 'default',

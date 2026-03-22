@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { API } from '../constants';
+import type { Database } from '../types/database.types';
 
 /** Matches Supabase auth's SupportedStorage interface (not exported from @supabase/supabase-js) */
 interface SupabaseAuthStorage {
@@ -27,7 +28,7 @@ const AsyncStorageAdapter = {
   },
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorageAdapter as SupabaseAuthStorage,
     autoRefreshToken: true,

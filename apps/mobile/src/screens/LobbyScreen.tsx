@@ -33,8 +33,8 @@ interface Player {
   id: string;
   user_id: string | null; // null for bot rows
   player_index: number;
-  is_ready: boolean;
-  is_bot: boolean;
+  is_ready: boolean | null; // DB column has no NOT NULL constraint
+  is_bot: boolean | null; // DB column has no NOT NULL constraint
   is_host: boolean | null; // DB column has no NOT NULL constraint
   profiles?: {
     username?: string;
@@ -589,7 +589,7 @@ export default function LobbyScreen() {
         .from('room_players')
         .update({ is_ready: !isReady })
         .eq('room_id', currentRoomId)
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id ?? '');
 
       if (error) throw error;
       setIsReady(!isReady);
@@ -706,7 +706,7 @@ export default function LobbyScreen() {
         .from('room_players')
         .select('id, username, player_index, is_host')
         .eq('room_id', currentRoomId)
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       if (roomPlayerError || !roomPlayerData) {
@@ -773,8 +773,11 @@ export default function LobbyScreen() {
         throw new Error(`Failed to start game: ${startError.message}`);
       }
 
-      if (!startResult || startResult.success !== true) {
-        const errMsg = startResult?.error || 'Failed to start game';
+      // Narrow the Json RPC result to the expected shape
+      type StartGameRpcResult = { success?: boolean; error?: string };
+      const typedStartResult = startResult as StartGameRpcResult | null;
+      if (!typedStartResult || typedStartResult.success !== true) {
+        const errMsg = typedStartResult?.error || 'Failed to start game';
         throw new Error(errMsg);
       }
 
@@ -921,7 +924,7 @@ export default function LobbyScreen() {
           const { error } = await supabase.rpc('lobby_kick_player', {
             p_room_id: roomId,
             p_kicker_user_id: user.id,
-            p_kicked_user_id: playerToKick.user_id,
+            p_kicked_user_id: playerToKick.user_id!, // human players always have user_id
           });
           if (error) throw error;
           // Subscription will refresh the player list automatically

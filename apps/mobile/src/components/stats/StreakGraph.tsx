@@ -1,7 +1,7 @@
 /**
  * StreakGraph Component - Rank Points Progression Chart
  * Shows how player's rank points change over games played
- * 
+ *
  * Features:
  * - Line chart showing rank points over game number (up to 100 games)
  * - Points go up on wins, down on losses
@@ -17,15 +17,15 @@ import { i18n } from '../../i18n';
 interface GameHistory {
   id: string;
   finished_at: string;
-  winner_id: string;
-  player_1_id?: string;
-  player_2_id?: string;
-  player_3_id?: string;
-  player_4_id?: string;
-  player_1_score: number;
-  player_2_score: number;
-  player_3_score: number;
-  player_4_score: number;
+  winner_id: string | null;
+  player_1_id?: string | null;
+  player_2_id?: string | null;
+  player_3_id?: string | null;
+  player_4_id?: string | null;
+  player_1_score: number | null;
+  player_2_score: number | null;
+  player_3_score: number | null;
+  player_4_score: number | null;
 }
 
 interface RankPointsHistoryEntry {
@@ -75,19 +75,19 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
       // Find which player slot the user was in
       let playerScore = 0;
       let isWin = false;
-      
+
       if (game.player_1_id === userId) {
-        playerScore = game.player_1_score;
+        playerScore = game.player_1_score ?? 0;
       } else if (game.player_2_id === userId) {
-        playerScore = game.player_2_score;
+        playerScore = game.player_2_score ?? 0;
       } else if (game.player_3_id === userId) {
-        playerScore = game.player_3_score;
+        playerScore = game.player_3_score ?? 0;
       } else if (game.player_4_id === userId) {
-        playerScore = game.player_4_score;
+        playerScore = game.player_4_score ?? 0;
       }
-      
+
       isWin = game.winner_id === userId;
-      
+
       // Update points based on result (REAL rank point calculation)
       if (isWin) {
         currentPoints += WIN_POINTS;
@@ -123,12 +123,12 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
   // Calculate scales
   const maxGames = Math.min(pointsData.length, 100); // Show up to 100 games
   const displayData = pointsData.slice(-maxGames); // Take last N games
-  
+
   const allPoints = displayData.map(d => d.points);
   const minPoints = Math.min(...allPoints);
   const maxPoints = Math.max(...allPoints);
   const pointsRange = maxPoints - minPoints || 100; // Avoid division by zero
-  
+
   // Add padding to Y scale
   const yMin = minPoints - pointsRange * 0.1;
   const yMax = maxPoints + pointsRange * 0.1;
@@ -141,12 +141,12 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
   const points = displayData.map((data, index) => {
     const x = padding.left + index * xScale;
     const y = padding.top + (yMax - data.points) * yScale;
-    return { 
-      x, 
-      y, 
-      points: data.points, 
+    return {
+      x,
+      y,
+      points: data.points,
       gameNumber: data.gameNumber,
-      isWin: data.isWin 
+      isWin: data.isWin,
     };
   });
 
@@ -154,8 +154,8 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
   const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
 
   // Find highest and lowest points
-  const highestPoint = points.reduce((max, p) => p.points > max.points ? p : max, points[0]);
-  const lowestPoint = points.reduce((min, p) => p.points < min.points ? p : min, points[0]);
+  const highestPoint = points.reduce((max, p) => (p.points > max.points ? p : max), points[0]);
+  const lowestPoint = points.reduce((min, p) => (p.points < min.points ? p : min), points[0]);
 
   // Calculate X-axis label interval
   const labelInterval = Math.ceil(displayData.length / 10);
@@ -163,13 +163,13 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{i18n.t('profile.rankPointsProgression')}</Text>
-      
+
       <View style={styles.graphContainer}>
         <Svg width={graphWidth} height={graphHeight}>
           {/* Y-axis grid lines (5 lines) */}
           {[0, 1, 2, 3, 4].map(i => {
-            const value = yMin + (yRange * i / 4);
-            const y = padding.top + plotHeight - (i * plotHeight / 4);
+            const value = yMin + (yRange * i) / 4;
+            const y = padding.top + plotHeight - (i * plotHeight) / 4;
             return (
               <React.Fragment key={`grid-${i}`}>
                 <Line
@@ -232,16 +232,16 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
             const isHighest = point.points === highestPoint.points;
             const isLowest = point.points === lowestPoint.points;
             const isSpecial = isHighest || isLowest;
-            
+
             // Color coding: green=peak, red=lowest, accent=win, white=loss
-            const fillColor = isHighest 
-              ? COLORS.success 
-              : isLowest 
-                ? COLORS.error 
-                : point.isWin 
-                  ? COLORS.primary 
+            const fillColor = isHighest
+              ? COLORS.success
+              : isLowest
+                ? COLORS.error
+                : point.isWin
+                  ? COLORS.primary
                   : COLORS.white;
-            
+
             return (
               <Circle
                 key={`point-${index}`}
@@ -256,18 +256,20 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
           })}
 
           {/* X-axis labels (game numbers) */}
-          {points.filter((_, i) => i % labelInterval === 0 || i === points.length - 1).map((point, idx) => (
-            <SvgText
-              key={`label-${idx}`}
-              x={point.x}
-              y={graphHeight - padding.bottom + 20}
-              fontSize="10"
-              fill={COLORS.gray.text}
-              textAnchor="middle"
-            >
-              {point.gameNumber}
-            </SvgText>
-          ))}
+          {points
+            .filter((_, i) => i % labelInterval === 0 || i === points.length - 1)
+            .map((point, idx) => (
+              <SvgText
+                key={`label-${idx}`}
+                x={point.x}
+                y={graphHeight - padding.bottom + 20}
+                fontSize="10"
+                fill={COLORS.gray.text}
+                textAnchor="middle"
+              >
+                {point.gameNumber}
+              </SvgText>
+            ))}
 
           {/* Axis labels */}
           <SvgText

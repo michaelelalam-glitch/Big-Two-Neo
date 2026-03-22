@@ -176,7 +176,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       setGameState(null);
     } else if (data) {
-      setGameState(data);
+      // The DB row carries Json for fields such as `hands`, `auto_pass_timer`, etc.
+      // that are typed more specifically in GameState. Cast is safe because the
+      // DB schema mirrors the GameState shape at runtime.
+      setGameState(data as unknown as GameState);
     } else {
       setGameState(null);
     }

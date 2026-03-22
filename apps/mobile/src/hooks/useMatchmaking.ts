@@ -35,7 +35,12 @@ interface UseMatchmakingReturn {
   roomCode: string | null;
   roomId: string | null;
   error: string | null;
-  startMatchmaking: (username: string, skillRating?: number, region?: string, matchType?: 'casual' | 'ranked') => Promise<void>;
+  startMatchmaking: (
+    username: string,
+    skillRating?: number,
+    region?: string,
+    matchType?: 'casual' | 'ranked'
+  ) => Promise<void>;
   cancelMatchmaking: () => Promise<void>;
   resetMatch: () => void;
 }
@@ -103,98 +108,109 @@ export function useMatchmaking(): UseMatchmakingReturn {
    * the user tapping "Find Match" twice in rapid succession) from creating a
    * duplicate Realtime subscription.
    */
-  const startMatchmaking = useCallback(async (
-    username: string,
-    skillRating: number = 1000,
-    region: string = 'global',
-    matchType: 'casual' | 'ranked' = 'casual'
-  ) => {
-    // Debounce: ignore if a start is already in flight or search is active
-    if (isStartingRef.current || isSearching) return;
-    isStartingRef.current = true;
-    isCancelledRef.current = false;
-    isResolvingMatchRef.current = false;
+  const startMatchmaking = useCallback(
+    async (
+      username: string,
+      skillRating: number = 1000,
+      region: string = 'global',
+      matchType: 'casual' | 'ranked' = 'casual'
+    ) => {
+      // Debounce: ignore if a start is already in flight or search is active
+      if (isStartingRef.current || isSearching) return;
+      isStartingRef.current = true;
+      isCancelledRef.current = false;
+      isResolvingMatchRef.current = false;
 
-    try {
-      setError(null);
-      setIsSearching(true);
-      setMatchFound(false);
-      setRoomCode(null);
-      setRoomId(null);
+      try {
+        setError(null);
+        setIsSearching(true);
+        setMatchFound(false);
+        setRoomCode(null);
+        setRoomId(null);
 
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        throw new Error('User not authenticated');
-      }
+        // Get current user
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+        if (authError || !user) {
+          throw new Error('User not authenticated');
+        }
 
-      // Bail out if cancel() was called while getUser() was in flight
-      if (isCancelledRef.current) {
+        // Bail out if cancel() was called while getUser() was in flight
+        if (isCancelledRef.current) {
+          setIsSearching(false);
+          return;
+        }
+
+        userIdRef.current = user.id;
+
+        // One-shot call: registers user in the waiting room and returns an
+        // immediate match if one was already available.
+        const { data, error: matchError } = await supabase.functions.invoke('find-match', {
+          body: {
+            username,
+            skill_rating: skillRating,
+            region,
+            match_type: matchType,
+          },
+        });
+
+        if (matchError) {
+          throw matchError;
+        }
+
+        // Bail out if cancel() was called while find-match was in flight
+        if (isCancelledRef.current) {
+          setIsSearching(false);
+          return;
+        }
+
+        // Runtime validation before type casting
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid response format from find-match');
+        }
+
+        const result = data as {
+          matched: boolean;
+          room_code?: string;
+          room_id?: string;
+          waiting_count: number;
+        };
+
+        // Validate required fields
+        if (typeof result.matched !== 'boolean' || typeof result.waiting_count !== 'number') {
+          throw new Error('Response missing required fields (matched, waiting_count)');
+        }
+
+        // When matched is true, room_code and room_id must be present
+        if (result.matched && (!result.room_code || !result.room_id)) {
+          throw new Error('Matched response missing room details');
+        }
+
+        if (result.matched) {
+          // Immediate match — resolve without subscribing
+          setMatchFound(true);
+          setRoomCode(result.room_code ?? null);
+          setRoomId(result.room_id ?? null);
+          setIsSearching(false);
+          setWaitingCount(4);
+        } else {
+          // Waiting — subscribe to Realtime for match notification (no polling)
+          setWaitingCount(result.waiting_count);
+          subscribeToWaitingRoom(user.id);
+        }
+      } catch (err) {
+        console.error('Error starting matchmaking:', err);
+        setError(err instanceof Error ? err.message : 'Failed to start matchmaking');
         setIsSearching(false);
-        return;
+      } finally {
+        isStartingRef.current = false;
       }
-
-      userIdRef.current = user.id;
-
-      // One-shot call: registers user in the waiting room and returns an
-      // immediate match if one was already available.
-      const { data, error: matchError } = await supabase.functions.invoke('find-match', {
-        body: {
-          username,
-          skill_rating: skillRating,
-          region,
-          match_type: matchType,
-        },
-      });
-
-      if (matchError) {
-        throw matchError;
-      }
-
-      // Bail out if cancel() was called while find-match was in flight
-      if (isCancelledRef.current) {
-        setIsSearching(false);
-        return;
-      }
-
-      // Runtime validation before type casting
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response format from find-match');
-      }
-
-      const result = data as { matched: boolean; room_code?: string; room_id?: string; waiting_count: number };
-
-      // Validate required fields
-      if (typeof result.matched !== 'boolean' || typeof result.waiting_count !== 'number') {
-        throw new Error('Response missing required fields (matched, waiting_count)');
-      }
-
-      // When matched is true, room_code and room_id must be present
-      if (result.matched && (!result.room_code || !result.room_id)) {
-        throw new Error('Matched response missing room details');
-      }
-
-      if (result.matched) {
-        // Immediate match — resolve without subscribing
-        setMatchFound(true);
-        setRoomCode(result.room_code ?? null);
-        setRoomId(result.room_id ?? null);
-        setIsSearching(false);
-        setWaitingCount(4);
-      } else {
-        // Waiting — subscribe to Realtime for match notification (no polling)
-        setWaitingCount(result.waiting_count);
-        subscribeToWaitingRoom(user.id);
-      }
-    } catch (err) {
-      console.error('Error starting matchmaking:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start matchmaking');
-      setIsSearching(false);
-    } finally {
-      isStartingRef.current = false;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSearching]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [isSearching]
+  );
 
   /**
    * Subscribe to waiting room changes for real-time match notification.
@@ -223,7 +239,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
           table: 'waiting_room',
           filter: `user_id=eq.${userId}`,
         },
-        (payload) => {
+        payload => {
           // Ignore events that arrive after cancelMatchmaking() was called
           if (isCancelledRef.current) return;
 
@@ -265,7 +281,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
                 const { data: room, error: roomError } = await supabase
                   .from('rooms')
                   .select('code')
-                  .eq('id', entry.matched_room_id)
+                  // matched_room_id is guaranteed non-null when a match is found
+                  .eq('id', entry.matched_room_id!)
                   .single();
 
                 if (isCancelledRef.current) return;

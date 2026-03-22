@@ -103,15 +103,21 @@ export function useRoomLobby({
             roomError.code === '23505' || roomError.message?.includes('duplicate');
           if (isUniqueViolation && attempt < MAX_ROOM_CREATE_ATTEMPTS - 1) {
             networkLogger.warn(
-              `[useRoomLobby] Room code collision (attempt ${attempt + 1}/${MAX_ROOM_CREATE_ATTEMPTS}), retrying`,
+              `[useRoomLobby] Room code collision (attempt ${attempt + 1}/${MAX_ROOM_CREATE_ATTEMPTS}), retrying`
             );
             continue;
           }
           // P0429 = rate limit exceeded (enforce_create_room_rate_limit trigger — Task #281).
           // Log the event for observability; the throw below surfaces it to the caller
           // regardless of error type — no special control-flow change is needed here.
-          if (roomError.code === 'P0429' || roomError.message?.toLowerCase().includes('rate limit')) {
-            networkLogger.warn('[useRoomLobby] Room creation rate limit exceeded for user', userId?.substring(0, 8));
+          if (
+            roomError.code === 'P0429' ||
+            roomError.message?.toLowerCase().includes('rate limit')
+          ) {
+            networkLogger.warn(
+              '[useRoomLobby] Room creation rate limit exceeded for user',
+              userId?.substring(0, 8)
+            );
           }
           throw roomError;
         }
@@ -122,17 +128,15 @@ export function useRoomLobby({
 
       if (!newRoom) throw new Error('Failed to create room after max attempts');
 
-      const { error: playerError } = await supabase
-        .from('room_players')
-        .insert({
-          room_id: newRoom.id,
-          user_id: userId,
-          username,
-          player_index: 0,
-          is_host: true,
-          is_ready: false,
-          is_bot: false,
-        });
+      const { error: playerError } = await supabase.from('room_players').insert({
+        room_id: newRoom.id,
+        user_id: userId,
+        username,
+        player_index: 0,
+        is_host: true,
+        is_ready: false,
+        is_bot: false,
+      });
 
       if (playerError) throw playerError;
 
@@ -153,42 +157,41 @@ export function useRoomLobby({
   /**
    * Join an existing room by code
    */
-  const joinRoom = useCallback(async (code: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
+  const joinRoom = useCallback(
+    async (code: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const { data: existingRoom, error: roomError } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('status', 'waiting')
-        .single();
+      try {
+        const { data: existingRoom, error: roomError } = await supabase
+          .from('rooms')
+          .select('*')
+          .eq('code', code.toUpperCase())
+          .eq('status', 'waiting')
+          .single();
 
-      if (roomError) throw new Error('Room not found or already started');
+        if (roomError) throw new Error('Room not found or already started');
 
-      const { count } = await supabase
-        .from('room_players')
-        .select('*', { count: 'exact', head: true })
-        .eq('room_id', existingRoom.id);
+        const { count } = await supabase
+          .from('room_players')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', existingRoom.id);
 
-      if (count && count >= existingRoom.max_players) {
-        throw new Error('Room is full');
-      }
+        if (count && existingRoom.max_players !== null && count >= existingRoom.max_players) {
+          throw new Error('Room is full');
+        }
 
-      const { data: existingPlayers } = await supabase
-        .from('room_players')
-        .select('player_index')
-        .eq('room_id', existingRoom.id)
-        .order('player_index');
+        const { data: existingPlayers } = await supabase
+          .from('room_players')
+          .select('player_index')
+          .eq('room_id', existingRoom.id)
+          .order('player_index');
 
-      const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
-      let player_index = 0;
-      while (takenPositions.has(player_index) && player_index < 4) player_index++;
+        const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
+        let player_index = 0;
+        while (takenPositions.has(player_index) && player_index < 4) player_index++;
 
-      const { error: playerError } = await supabase
-        .from('room_players')
-        .insert({
+        const { error: playerError } = await supabase.from('room_players').insert({
           room_id: existingRoom.id,
           user_id: userId,
           username,
@@ -198,21 +201,23 @@ export function useRoomLobby({
           is_bot: false,
         });
 
-      if (playerError) throw playerError;
+        if (playerError) throw playerError;
 
-      setRoom(existingRoom);
-      await joinChannel(existingRoom.id);
-      await broadcastMessage('player_joined', { user_id: userId, username, player_index });
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, username, onError, broadcastMessage]);
+        setRoom(existingRoom);
+        await joinChannel(existingRoom.id);
+        await broadcastMessage('player_joined', { user_id: userId, username, player_index });
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        onError?.(error);
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [userId, username, onError, broadcastMessage]
+  );
 
   /**
    * Leave the current room
@@ -221,12 +226,12 @@ export function useRoomLobby({
     if (!room || !currentPlayer) return;
 
     try {
-      await supabase
-        .from('room_players')
-        .delete()
-        .eq('id', currentPlayer.id);
+      await supabase.from('room_players').delete().eq('id', currentPlayer.id);
 
-      await broadcastMessage('player_left', { user_id: userId, player_index: currentPlayer.player_index });
+      await broadcastMessage('player_left', {
+        user_id: userId,
+        player_index: currentPlayer.player_index,
+      });
 
       if (channelRef.current) {
         await channelRef.current.unsubscribe();
@@ -244,88 +249,115 @@ export function useRoomLobby({
       setError(error);
       onError?.(error);
     }
-  }, [room, currentPlayer, userId, onError, broadcastMessage, channelRef, setRoom, setRoomPlayers, setGameState, setPlayerHands, setIsConnected, setError]);
+  }, [
+    room,
+    currentPlayer,
+    userId,
+    onError,
+    broadcastMessage,
+    channelRef,
+    setRoom,
+    setRoomPlayers,
+    setGameState,
+    setPlayerHands,
+    setIsConnected,
+    setError,
+  ]);
 
   /**
    * Set player ready status
    */
-  const setReady = useCallback(async (ready: boolean): Promise<void> => {
-    if (!currentPlayer) return;
+  const setReady = useCallback(
+    async (ready: boolean): Promise<void> => {
+      if (!currentPlayer) return;
 
-    try {
-      await supabase
-        .from('room_players')
-        .update({ is_ready: ready })
-        .eq('id', currentPlayer.id);
+      try {
+        await supabase.from('room_players').update({ is_ready: ready }).eq('id', currentPlayer.id);
 
-      await broadcastMessage('player_ready', { user_id: userId, ready });
+        await broadcastMessage('player_ready', { user_id: userId, ready });
 
-      if (ready && room) {
-        const updatedPlayers = await supabase
-          .from('room_players')
-          .select('is_ready, user_id, is_host, is_bot')
-          .eq('room_id', room.id);
+        if (ready && room) {
+          const updatedPlayers = await supabase
+            .from('room_players')
+            .select('is_ready, user_id, is_host, is_bot')
+            .eq('room_id', room.id);
 
-        // Only non-host, non-bot players are required to be ready.
-        // The host is the initiator and bots are always ready.
-        const nonHostHumans = updatedPlayers.data?.filter(p => !p.is_host && !p.is_bot) ?? [];
-        const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
-        const hostPlayer = roomPlayers.find(p => p.is_host);
+          // Only non-host, non-bot players are required to be ready.
+          // The host is the initiator and bots are always ready.
+          const nonHostHumans = updatedPlayers.data?.filter(p => !p.is_host && !p.is_bot) ?? [];
+          const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+          const hostPlayer = roomPlayers.find(p => p.is_host);
 
-        if (allReady && hostPlayer && hostPlayer.user_id) {
-          notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
-            console.error('Failed to send all players ready notification:', err)
-          );
+          if (allReady && hostPlayer && hostPlayer.user_id) {
+            notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
+              console.error('Failed to send all players ready notification:', err)
+            );
+          }
         }
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        onError?.(error);
       }
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-    }
-  }, [currentPlayer, userId, onError, broadcastMessage, room, roomPlayers, setError]);
+    },
+    [currentPlayer, userId, onError, broadcastMessage, room, roomPlayers, setError]
+  );
 
   /**
    * Start the game (host only)
    */
-  const startGame = useCallback(async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
-    if (!isHost || !room) return;
+  const startGame = useCallback(
+    async (botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> => {
+      if (!isHost || !room) return;
 
-    // Only non-host, non-bot players must be ready. Bots are auto-ready; the host is the initiator.
-    const nonHostHumans = roomPlayers.filter(p => !p.is_host && !p.is_bot);
-    const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
-    if (!allReady) throw new Error('All non-host players must be ready');
-    if (roomPlayers.length < 2) throw new Error('Need at least 2 players to start');
+      // Only non-host, non-bot players must be ready. Bots are auto-ready; the host is the initiator.
+      const nonHostHumans = roomPlayers.filter(p => !p.is_host && !p.is_bot);
+      const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+      if (!allReady) throw new Error('All non-host players must be ready');
+      if (roomPlayers.length < 2) throw new Error('Need at least 2 players to start');
 
-    try {
-      const botCount = Math.max(0, 4 - roomPlayers.length);
-      const { data: startResult, error: startError } = await supabase.rpc('start_game_with_bots', {
-        p_room_id: room.id,
-        p_bot_count: botCount,
-        p_bot_difficulty: botDifficulty,
-      });
+      try {
+        const botCount = Math.max(0, 4 - roomPlayers.length);
+        const { data: startResult, error: startError } = await supabase.rpc(
+          'start_game_with_bots',
+          {
+            p_room_id: room.id,
+            p_bot_count: botCount,
+            p_bot_difficulty: botDifficulty,
+          }
+        );
 
-      if (startError || !startResult?.success) {
-        throw new Error(startError?.message || startResult?.error || 'Failed to start game');
+        // Narrow the Json RPC result to the known response shape
+        type GameStartRpcResult = {
+          success?: boolean;
+          error?: string;
+          game_state?: GameState;
+          room_id?: string;
+        };
+        const typedResult = startResult as GameStartRpcResult | null;
+        if (startError || !typedResult?.success) {
+          throw new Error(startError?.message || typedResult?.error || 'Failed to start game');
+        }
+
+        const gameStateResult = typedResult.game_state ?? typedResult;
+        if (!gameStateResult?.room_id) {
+          throw new Error('Failed to start game: missing game state from RPC result');
+        }
+
+        notifyGameStarted(room.id, room.code).catch(err =>
+          networkLogger.error('❌ Failed to send game start notifications:', err)
+        );
+
+        await broadcastMessage('game_started', { success: true, roomId: room.id });
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        onError?.(error);
+        throw error;
       }
-
-      const gameStateResult = (startResult as { game_state?: GameState }).game_state ?? startResult;
-      if (!gameStateResult || !gameStateResult.room_id) {
-        throw new Error('Failed to start game: missing game state from RPC result');
-      }
-
-      notifyGameStarted(room.id, room.code).catch(err =>
-        networkLogger.error('❌ Failed to send game start notifications:', err)
-      );
-
-      await broadcastMessage('game_started', { success: true, roomId: room.id });
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      onError?.(error);
-      throw error;
-    }
-  }, [isHost, room, roomPlayers, onError, broadcastMessage, setError]);
+    },
+    [isHost, room, roomPlayers, onError, broadcastMessage, setError]
+  );
 
   return { createRoom, joinRoom, leaveRoom, setReady, startGame };
 }

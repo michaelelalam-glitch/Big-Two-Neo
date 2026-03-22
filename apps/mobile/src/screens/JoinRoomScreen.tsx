@@ -169,7 +169,7 @@ export default function JoinRoomScreen() {
       }
 
       // Always route to Lobby (consistent routing for all game types)
-      roomLogger.info(`[JoinRoom] Routing to Lobby (match_type: ${roomData?.match_type})`);
+      roomLogger.info(`[JoinRoom] Routing to Lobby`);
       navigation.replace('Lobby', { roomCode: roomCode.toUpperCase() });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);

@@ -29,7 +29,7 @@ interface UseServerBotCoordinatorProps {
   /** Current game state from Realtime subscription */
   gameState: GameState | null;
   /** Room players array with is_bot flag */
-  players: { player_index: number; is_bot?: boolean; [key: string]: unknown }[];
+  players: { player_index: number; is_bot?: boolean | null; [key: string]: unknown }[];
   /**
    * True while the auto-pass self-pass is in progress (from useAutoPassTimer).
    * When true, bot-coordinator must NOT fire — it would race with the client's
@@ -69,7 +69,9 @@ export function useServerBotCoordinator({
   // instead of triggering a false "replaced by bot" event on game start when the
   // starting player happens to be a bot.
   const currentTurnIsBotRef = useRef<boolean | null>(null);
-  useEffect(() => { playersRef.current = players; }, [players]);
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   const triggerBotCoordinator = useCallback(async () => {
     const now = Date.now();
@@ -91,7 +93,10 @@ export function useServerBotCoordinator({
         gameLogger.info('[ServerBotCoordinator] ✅ Fallback trigger succeeded');
       }
     } catch (err) {
-      gameLogger.error('[ServerBotCoordinator] ❌ Fallback trigger error:', err instanceof Error ? err.message : String(err));
+      gameLogger.error(
+        '[ServerBotCoordinator] ❌ Fallback trigger error:',
+        err instanceof Error ? err.message : String(err)
+      );
     }
   }, [roomCode]);
 
@@ -198,8 +203,15 @@ export function useServerBotCoordinator({
         fallbackTimerRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- players intentionally excluded; stored in playersRef so timer is not cancelled on every Realtime update that recreates the array
-  }, [enabled, gameState?.current_turn, gameState?.game_phase, roomCode, triggerBotCoordinator, isAutoPassInProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- players intentionally excluded; stored in playersRef so timer is not cancelled on every Realtime update that recreates the array
+  }, [
+    enabled,
+    gameState?.current_turn,
+    gameState?.game_phase,
+    roomCode,
+    triggerBotCoordinator,
+    isAutoPassInProgress,
+  ]);
 
   // Reset triggered turn when the turn actually advances to a human player
   useEffect(() => {
@@ -209,7 +221,7 @@ export function useServerBotCoordinator({
         triggeredForTurnRef.current = null;
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- players excluded (use ref); only re-run when current_turn changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- players excluded (use ref); only re-run when current_turn changes
   }, [gameState?.current_turn]);
 
   // ── Bot-replacement detection ────────────────────────────────────────────────
@@ -223,8 +235,12 @@ export function useServerBotCoordinator({
   // only re-runs when the is_bot status actually changes, NOT on every Realtime
   // heartbeat or unrelated player update that produces a new array reference.
   const playerBotKey = React.useMemo(
-    () => players.map(p => `${p.player_index}:${!!p.is_bot}`).sort().join(','),
-    [players],
+    () =>
+      players
+        .map(p => `${p.player_index}:${!!p.is_bot}`)
+        .sort()
+        .join(','),
+    [players]
   );
 
   useEffect(() => {
@@ -243,7 +259,7 @@ export function useServerBotCoordinator({
       // NOTE: currentTurnIsBotRef is `null` on first render (unknown state),
       // so this only fires on an actual change from `false` (human) to `true` (bot).
       gameLogger.info(
-        `[ServerBotCoordinator] 🔄 Player at turn ${currentTurn} replaced by bot — scheduling immediate fallback trigger`,
+        `[ServerBotCoordinator] 🔄 Player at turn ${currentTurn} replaced by bot — scheduling immediate fallback trigger`
       );
       // Reset any prior "triggered for this turn" record so the main effect fires fresh
       triggeredForTurnRef.current = null;
@@ -256,7 +272,15 @@ export function useServerBotCoordinator({
     }
 
     currentTurnIsBotRef.current = isNowBot;
-  // playerBotKey is a stable string that only changes when is_bot values change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerBotKey, gameState?.current_turn, gameState?.game_phase, enabled, roomCode, triggerBotCoordinator, isAutoPassInProgress]);
+    // playerBotKey is a stable string that only changes when is_bot values change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    playerBotKey,
+    gameState?.current_turn,
+    gameState?.game_phase,
+    enabled,
+    roomCode,
+    triggerBotCoordinator,
+    isAutoPassInProgress,
+  ]);
 }
