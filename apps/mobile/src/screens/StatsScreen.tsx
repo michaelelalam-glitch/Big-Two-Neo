@@ -217,9 +217,13 @@ function toPlayerStats(
     e !== null &&
     !Array.isArray(e) &&
     'timestamp' in e &&
+    typeof (e as Record<string, unknown>).timestamp === 'string' &&
     'points' in e &&
+    typeof (e as Record<string, unknown>).points === 'number' &&
     'is_win' in e &&
-    'game_type' in e;
+    typeof (e as Record<string, unknown>).is_win === 'boolean' &&
+    'game_type' in e &&
+    typeof (e as Record<string, unknown>).game_type === 'string';
   const histRaw = row.rank_points_history;
   return {
     user_id: typeof row.user_id === 'string' ? row.user_id : '',

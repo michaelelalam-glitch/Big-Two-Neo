@@ -584,12 +584,16 @@ export default function LobbyScreen() {
       setIsTogglingReady(true);
       const currentRoomId = roomId || (await getRoomId({ suppressNavigation: true }));
       if (!currentRoomId) return;
+      if (!user?.id) {
+        roomLogger.error('Cannot toggle ready: no authenticated user');
+        return;
+      }
 
       const { error } = await supabase
         .from('room_players')
         .update({ is_ready: !isReady })
         .eq('room_id', currentRoomId)
-        .eq('user_id', user?.id ?? '');
+        .eq('user_id', user.id);
 
       if (error) throw error;
       setIsReady(!isReady);
