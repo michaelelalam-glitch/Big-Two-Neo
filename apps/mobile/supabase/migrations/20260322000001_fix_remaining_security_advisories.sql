@@ -44,12 +44,12 @@ $$;
 --      for both `anon` and `authenticated` roles).
 -- --------------------------------------------------------
 
--- Revoke direct SELECT from unauthenticated API role only.
--- Keep SELECT for "authenticated" to avoid breaking existing clients
--- (e.g., StatsScreen.tsx) until they are migrated to RPC wrappers.
-REVOKE SELECT ON public.leaderboard_ranked    FROM anon;
-REVOKE SELECT ON public.leaderboard_global    FROM anon;
-REVOKE SELECT ON public.leaderboard_casual    FROM anon;
+-- Revoke direct SELECT from both API roles. All clients have been migrated
+-- to use SECURITY DEFINER RPC wrappers, so direct view access is no longer
+-- needed by any role.
+REVOKE SELECT ON public.leaderboard_ranked    FROM anon, authenticated;
+REVOKE SELECT ON public.leaderboard_global    FROM anon, authenticated;
+REVOKE SELECT ON public.leaderboard_casual    FROM anon, authenticated;
 
 -- ---- leaderboard_ranked wrappers ----
 

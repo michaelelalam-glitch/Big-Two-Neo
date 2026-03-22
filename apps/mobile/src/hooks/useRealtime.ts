@@ -28,6 +28,7 @@ import {
   BroadcastData,
   BroadcastPayload,
 } from '../types/multiplayer';
+import type { Database } from '../types/database.types';
 import type { MultiplayerMatchScoreDetail, UseRealtimeOptions } from '../types/realtimeTypes';
 import { isValidTimerStatePayload } from '../utils/edgeFunctionErrors';
 import { networkLogger, gameLogger } from '../utils/logger';
@@ -176,10 +177,31 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       }
       setGameState(null);
     } else if (data) {
-      // The DB row carries Json for fields such as `hands`, `auto_pass_timer`, etc.
-      // that are typed more specifically in GameState. Cast is safe because the
-      // DB schema mirrors the GameState shape at runtime.
-      setGameState(data as unknown as GameState);
+      // Map the DB row into GameState, explicitly assigning each field.
+      // Json-typed columns are cast to their app-layer types; the DB schema
+      // stores them as JSONB, so the runtime shape matches at read-time.
+      type GameStateRow = Database['public']['Tables']['game_state']['Row'];
+      const row = data as GameStateRow;
+      const mapped: GameState = {
+        id: row.id,
+        room_id: row.room_id ?? '',
+        current_turn: row.current_turn,
+        turn_started_at: row.turn_started_at,
+        last_play: row.last_play as unknown as GameState['last_play'],
+        pass_count: row.pass_count ?? 0,
+        game_phase: row.game_phase as GameState['game_phase'],
+        winner: row.winner,
+        game_winner_index: row.game_winner_index,
+        match_number: row.match_number,
+        hands: (row.hands ?? {}) as unknown as GameState['hands'],
+        play_history: (row.play_history ?? []) as unknown as GameState['play_history'],
+        final_scores: row.final_scores as unknown as GameState['final_scores'],
+        scores_history: (row.scores_history ?? []) as unknown as GameState['scores_history'],
+        auto_pass_timer: row.auto_pass_timer as unknown as GameState['auto_pass_timer'],
+        played_cards: (row.played_cards ?? []) as unknown as GameState['played_cards'],
+        updated_at: row.updated_at ?? new Date().toISOString(),
+      };
+      setGameState(mapped);
     } else {
       setGameState(null);
     }

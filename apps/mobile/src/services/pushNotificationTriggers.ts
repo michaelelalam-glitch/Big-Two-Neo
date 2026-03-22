@@ -40,20 +40,16 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
     });
 
     if (response.error) {
-      // Try to read the error body
-      let errorBody = null;
+      // Try to read the error body from the Response context
+      let errorBody: string | null = null;
       try {
-        const blob = response.error.context?._bodyInit;
-        if (blob && blob._data) {
-          // Try to parse error from response
-          const errorText = await fetch(
-            `data:application/json;base64,${btoa(JSON.stringify(blob))}`
-          ).catch(() => null);
-          errorBody = errorText;
+        const ctx = response.error.context;
+        if (ctx && typeof ctx.text === 'function') {
+          errorBody = await ctx.text().catch(() => null);
         }
       } catch (error) {
-        // Ignore blob parsing errors — logged for diagnostics
-        notificationLogger.warn('⚠️ [sendPushNotification] Blob parsing failed:', error);
+        // Ignore response parsing errors — logged for diagnostics
+        notificationLogger.warn('⚠️ [sendPushNotification] Error body parsing failed:', error);
       }
 
       notificationLogger.error('❌ [sendPushNotification] Edge Function error:', {
