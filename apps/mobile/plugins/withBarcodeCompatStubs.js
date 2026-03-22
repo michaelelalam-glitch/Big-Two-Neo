@@ -150,12 +150,24 @@ module.exports = function withBarcodeCompatStubs(config) {
   // evaluated" on Gradle 7+ (Copilot PR-169 snapshot-fix).
   config = withProjectBuildGradle(config, (modConfig) => {
     if (!modConfig.modResults.contents.includes('[barcode-compat-stubs]')) {
+      const original = modConfig.modResults.contents;
       // Insert immediately before the first `apply plugin:` statement so the
       // subprojects afterEvaluate hook is registered prior to evaluation.
-      modConfig.modResults.contents = modConfig.modResults.contents.replace(
+      modConfig.modResults.contents = original.replace(
         /^(\s*apply plugin:\s*["']expo-root-project["'])/m,
         `${SUBPROJECTS_BLOCK}\n$1`
       );
+      // Safety: if the expected marker line was absent (non-standard prebuild
+      // output), fall back to appending so the hook is still injected rather
+      // than silently lost — and emit a warning so the issue is discoverable.
+      if (modConfig.modResults.contents === original) {
+        console.warn(
+          '[withBarcodeCompatStubs] Could not find "apply plugin: expo-root-project" ' +
+          'in android/build.gradle — falling back to append. The afterEvaluate ' +
+          'hook may fail on Gradle 7+ if subprojects are already evaluated.'
+        );
+        modConfig.modResults.contents += SUBPROJECTS_BLOCK;
+      }
     }
     return modConfig;
   });
