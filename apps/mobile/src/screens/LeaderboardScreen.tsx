@@ -111,18 +111,17 @@ export default function LeaderboardScreen() {
         // Per-mode column prefixes for weekly/daily queries
         const modePrefix = leaderboardType === 'casual' ? 'casual' : 'ranked';
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let query: any;
-        if (timeFilter === 'all_time') {
-          const listFnName =
-            leaderboardType === 'casual' ? 'get_leaderboard_casual' : 'get_leaderboard_ranked';
-          query = supabase.rpc(listFnName, { p_limit: PAGE_SIZE, p_offset: startIndex });
-        } else {
-          // Query player_stats with time filter, using per-mode columns
-          query = supabase
-            .from('player_stats')
-            .select(
-              `
+        // Run the appropriate query based on time filter.
+        const listResult = await (timeFilter === 'all_time'
+          ? supabase.rpc(
+              leaderboardType === 'casual' ? 'get_leaderboard_casual' : 'get_leaderboard_ranked',
+              { p_limit: PAGE_SIZE, p_offset: startIndex }
+            )
+          : // Weekly/daily: query player_stats directly with per-mode columns
+            supabase
+              .from('player_stats')
+              .select(
+                `
             user_id,
             rank_points,
             games_played,
@@ -143,16 +142,15 @@ export default function LeaderboardScreen() {
               avatar_url
             )
           `
-            )
-            .gte('last_game_at', timeFilterDate!)
-            .gt(`${modePrefix}_games_played`, 0)
-            .order(`${modePrefix}_rank_points`, { ascending: false })
-            .order(`${modePrefix}_games_won`, { ascending: false })
-            .order('user_id', { ascending: true })
-            .range(startIndex, endIndex);
-        }
-
-        const { data, error } = await query;
+              )
+              .gte('last_game_at', timeFilterDate!)
+              .gt(`${modePrefix}_games_played`, 0)
+              .order(`${modePrefix}_rank_points`, { ascending: false })
+              .order(`${modePrefix}_games_won`, { ascending: false })
+              .order('user_id', { ascending: true })
+              .range(startIndex, endIndex));
+        const data = listResult.data as (LeaderboardEntry | PlayerStatsWithProfile)[] | null;
+        const error = listResult.error;
 
         if (error) {
           statsLogger.error(
@@ -168,26 +166,29 @@ export default function LeaderboardScreen() {
           transformedData = (data || []) as LeaderboardEntry[];
         } else {
           // Transform joined data to match LeaderboardEntry interface, using per-mode columns
-          transformedData = (data || []).map((item: PlayerStatsWithProfile, index: number) => {
-            const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
-            const isCasual = leaderboardType === 'casual';
-            return {
-              user_id: item.user_id,
-              username: profile?.username ?? 'Unknown',
-              avatar_url: profile?.avatar_url ?? null,
-              rank_points:
-                (isCasual ? item.casual_rank_points : item.ranked_rank_points) ?? item.rank_points,
-              games_played:
-                (isCasual ? item.casual_games_played : item.ranked_games_played) ??
-                item.games_played,
-              games_won:
-                (isCasual ? item.casual_games_won : item.ranked_games_won) ?? item.games_won,
-              win_rate: (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate,
-              longest_win_streak: item.longest_win_streak,
-              current_win_streak: item.current_win_streak,
-              rank: startIndex + index + 1, // Calculate rank based on position
-            };
-          });
+          transformedData = ((data || []) as PlayerStatsWithProfile[]).map(
+            (item: PlayerStatsWithProfile, index: number) => {
+              const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+              const isCasual = leaderboardType === 'casual';
+              return {
+                user_id: item.user_id,
+                username: profile?.username ?? 'Unknown',
+                avatar_url: profile?.avatar_url ?? null,
+                rank_points:
+                  (isCasual ? item.casual_rank_points : item.ranked_rank_points) ??
+                  item.rank_points,
+                games_played:
+                  (isCasual ? item.casual_games_played : item.ranked_games_played) ??
+                  item.games_played,
+                games_won:
+                  (isCasual ? item.casual_games_won : item.ranked_games_won) ?? item.games_won,
+                win_rate: (isCasual ? item.casual_win_rate : item.ranked_win_rate) ?? item.win_rate,
+                longest_win_streak: item.longest_win_streak,
+                current_win_streak: item.current_win_streak,
+                rank: startIndex + index + 1, // Calculate rank based on position
+              };
+            }
+          );
         }
 
         if (resetPagination) {
@@ -201,20 +202,20 @@ export default function LeaderboardScreen() {
 
         // Fetch current user's rank separately
         if (user) {
-          let userRankQuery;
-          if (timeFilter === 'all_time') {
-            const rankFnName =
-              leaderboardType === 'casual'
-                ? 'get_leaderboard_rank_casual_by_user_id'
-                : 'get_leaderboard_rank_ranked_by_user_id';
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            userRankQuery = (supabase.rpc(rankFnName, { p_user_id: user.id }) as any).single();
-          } else {
-            // For weekly/daily, calculate user's rank from player_stats
-            userRankQuery = supabase
-              .from('player_stats')
-              .select(
-                `
+          const rankQueryResult = await (timeFilter === 'all_time'
+            ? supabase
+                .rpc(
+                  leaderboardType === 'casual'
+                    ? 'get_leaderboard_rank_casual_by_user_id'
+                    : 'get_leaderboard_rank_ranked_by_user_id',
+                  { p_user_id: user.id }
+                )
+                .single()
+            : // For weekly/daily, calculate user's rank from player_stats
+              supabase
+                .from('player_stats')
+                .select(
+                  `
               user_id,
               rank_points,
               games_played,
@@ -235,14 +236,14 @@ export default function LeaderboardScreen() {
                 avatar_url
               )
             `
-              )
-              .eq('user_id', user.id)
-              .gte('last_game_at', timeFilterDate || '1970-01-01')
-              .gt(`${modePrefix}_games_played`, 0)
-              .single();
-          }
-
-          const { data: userRankData } = await userRankQuery;
+                )
+                .eq('user_id', user.id)
+                .gte('last_game_at', timeFilterDate || '1970-01-01')
+                .gt(`${modePrefix}_games_played`, 0)
+                .single());
+          const userRankData = rankQueryResult.data as
+            | (LeaderboardEntry & PlayerStatsWithProfile)
+            | null;
 
           if (userRankData) {
             if (timeFilter === 'all_time') {

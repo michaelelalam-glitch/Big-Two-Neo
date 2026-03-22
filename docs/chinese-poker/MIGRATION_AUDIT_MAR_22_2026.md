@@ -56,7 +56,7 @@ These are idempotent `CREATE OR REPLACE` or `CREATE TABLE IF NOT EXISTS` stateme
 
 | Table | Issue | Fix |
 |---|---|---|
-| `public.room_analytics` | RLS disabled — table is public-facing but unprotected | Enable RLS + add read policy |
+| `public.room_analytics` | RLS disabled — table is public-facing but unprotected | Enable RLS; no client-facing SELECT policy; restrict reads to service_role only (metadata contains raw SQLERRM) |
 
 ### 2B. WARNINGS — Function mutable `search_path` (62 functions)
 

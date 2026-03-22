@@ -9,7 +9,7 @@
 -- Date: 2026-03-22
 -- Addresses all Supabase security advisor warnings/errors/infos:
 --   1. Set search_path on all public functions (dynamic, environment-safe)
---   2. Enable RLS on public.room_analytics + add scoped read policy
+--   2. Enable RLS on public.room_analytics (no client-facing read policy)
 --   3. bot_coordinator_locks — intentionally no client policy (service-role only)
 --   4. Tighten permissive RLS policies on players and rooms
 -- ============================================================
