@@ -102,8 +102,10 @@ END $$;
 -- ============================================================
 -- 3. bot_coordinator_locks — intentionally no client-facing SELECT policy.
 --    The table was designed with RLS enabled and zero policies so that clients
---    cannot read lock/coordinator state directly. All functions that use this
---    table are SECURITY DEFINER and run as the service role, bypassing RLS.
+--    cannot read lock/coordinator state directly. Functions that use this table
+--    are SECURITY INVOKER and rely on the caller's role; in practice they are
+--    invoked as the service_role (which bypasses RLS in Supabase) or other
+--    appropriately privileged roles via grants.
 --    Adding a broad authenticated SELECT policy here would unnecessarily expose
 --    coordinator_id and lock state to all authenticated users.
 --    If a future requirement needs scoped client reads, add a narrowly scoped
@@ -165,4 +167,4 @@ CREATE POLICY "Authenticated users can create rooms"
   ON public.rooms
   FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (host_id = auth.uid());
