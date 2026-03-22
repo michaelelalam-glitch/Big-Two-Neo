@@ -265,7 +265,11 @@ describe('Card Component', () => {
       expect(touchable.props.accessibilityHint).not.toMatch(/^Double tap to select\./);
     });
 
-    it('shows select hint when unselected in multi-select mode', () => {
+    it('shows generic hint when unselected even if hasMultipleSelected is true (CardHand only passes true for selected cards)', () => {
+      // In practice, CardHand passes hasMultipleSelected={hasMultipleSelected && isThisCardSelected},
+      // so unselected cards always receive hasMultipleSelected={false}. When hasMultipleSelected=true
+      // is passed directly to an unselected card, isSelected && hasMultipleSelected = false, so the
+      // hint falls back to the generic select/deselect hint.
       const { UNSAFE_getByProps } = render(
         <Card
           card={mockCard}
@@ -275,7 +279,7 @@ describe('Card Component', () => {
         />
       );
       const touchable = UNSAFE_getByProps({ accessibilityRole: 'button' });
-      expect(touchable.props.accessibilityHint).toMatch(/^Double tap to select\./);
+      expect(touchable.props.accessibilityHint).toMatch(/select or deselect/i);
     });
   });
 
