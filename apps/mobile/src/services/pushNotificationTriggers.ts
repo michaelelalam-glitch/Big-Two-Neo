@@ -56,12 +56,16 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
         message: response.error.message,
         status: response.error.context?.status,
         error_body: errorBody,
-        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id'],
+        execution_id: (response.error.context as Response | undefined)?.headers?.get(
+          'x-deno-execution-id'
+        ),
       });
 
       notificationLogger.error('🔍 CHECK SUPABASE LOGS:', {
         url: 'https://supabase.com/dashboard/project/dppybucldqufbqhwnkxu/logs/edge-functions',
-        execution_id: response.error.context?.headers?.map?.['x-deno-execution-id'],
+        execution_id: (response.error.context as Response | undefined)?.headers?.get(
+          'x-deno-execution-id'
+        ),
       });
 
       return false;

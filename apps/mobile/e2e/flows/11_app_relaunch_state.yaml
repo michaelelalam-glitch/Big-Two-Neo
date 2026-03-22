@@ -32,6 +32,12 @@ tags:
 # Step 3: Terminate the app (simulate user killing the app)
 - stopApp
 
+# Allow the OS time to fully clean up the process before relaunch.
+# On macos-latest iOS simulators in CI the XCUITest AXServer can linger
+# for a few seconds after stopApp, causing the second launch to race with
+# the cleanup and crash.  A 5 s pause eliminates that race reliably.
+- sleep: 5000
+
 # Step 4: Relaunch WITHOUT clearState — simulates normal re-open
 - launchApp
 

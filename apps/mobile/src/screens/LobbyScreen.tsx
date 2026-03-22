@@ -703,9 +703,15 @@ export default function LobbyScreen() {
       isStartingRef.current = true;
       setIsStarting(true);
       const currentRoomId = roomId || (await getRoomId({ suppressNavigation: true }));
-      if (!currentRoomId) return;
+      if (!currentRoomId) {
+        setIsStarting(false);
+        isStartingRef.current = false;
+        return;
+      }
       if (!user?.id) {
         roomLogger.error('Cannot start with bots: no authenticated user');
+        setIsStarting(false);
+        isStartingRef.current = false;
         return;
       }
 
@@ -743,6 +749,8 @@ export default function LobbyScreen() {
       // Server-side RPC also enforces this (coordinator = first human player = host)
       if (!roomPlayerData.is_host) {
         showError(i18n.t('lobby.onlyHostCanStart'));
+        setIsStarting(false);
+        isStartingRef.current = false;
         return;
       }
 
@@ -761,11 +769,15 @@ export default function LobbyScreen() {
 
       if (totalCount > 4) {
         showError('Too many players! Maximum 4 players allowed.');
+        setIsStarting(false);
+        isStartingRef.current = false;
         return;
       }
 
       if (humanCount === 0) {
         showError('Cannot start game without any players!');
+        setIsStarting(false);
+        isStartingRef.current = false;
         return;
       }
 
