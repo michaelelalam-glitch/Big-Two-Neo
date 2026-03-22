@@ -704,13 +704,17 @@ export default function LobbyScreen() {
       setIsStarting(true);
       const currentRoomId = roomId || (await getRoomId({ suppressNavigation: true }));
       if (!currentRoomId) return;
+      if (!user?.id) {
+        roomLogger.error('Cannot start with bots: no authenticated user');
+        return;
+      }
 
       // Get current user's room_player data
       const { data: roomPlayerData, error: roomPlayerError } = await supabase
         .from('room_players')
         .select('id, username, player_index, is_host')
         .eq('room_id', currentRoomId)
-        .eq('user_id', user?.id ?? '')
+        .eq('user_id', user.id)
         .single();
 
       if (roomPlayerError || !roomPlayerData) {
