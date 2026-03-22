@@ -104,21 +104,19 @@ export default function LeaderboardScreen() {
           timeFilterDate = dayAgo.toISOString();
         }
 
-        // Choose the correct materialized view based on leaderboard type
-        // For all_time, use optimized materialized views
-        // For weekly/daily, query player_stats directly with per-mode columns
-        const viewName = leaderboardType === 'casual' ? 'leaderboard_casual' : 'leaderboard_ranked';
+        // For all_time, use SECURITY DEFINER RPC wrappers (materialized views are
+        // not directly exposed in the API schema — access is via wrapper functions).
+        // For weekly/daily, query player_stats directly with per-mode columns.
 
         // Per-mode column prefixes for weekly/daily queries
         const modePrefix = leaderboardType === 'casual' ? 'casual' : 'ranked';
 
-        let query;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let query: any;
         if (timeFilter === 'all_time') {
-          query = supabase
-            .from(viewName)
-            .select('*')
-            .order('rank', { ascending: true })
-            .range(startIndex, endIndex);
+          const listFnName =
+            leaderboardType === 'casual' ? 'get_leaderboard_casual' : 'get_leaderboard_ranked';
+          query = supabase.rpc(listFnName, { p_limit: PAGE_SIZE, p_offset: startIndex });
         } else {
           // Query player_stats with time filter, using per-mode columns
           query = supabase
@@ -205,7 +203,12 @@ export default function LeaderboardScreen() {
         if (user) {
           let userRankQuery;
           if (timeFilter === 'all_time') {
-            userRankQuery = supabase.from(viewName).select('*').eq('user_id', user.id).single();
+            const rankFnName =
+              leaderboardType === 'casual'
+                ? 'get_my_leaderboard_rank_casual'
+                : 'get_my_leaderboard_rank_ranked';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            userRankQuery = (supabase.rpc(rankFnName, { p_user_id: user.id }) as any).single();
           } else {
             // For weekly/daily, calculate user's rank from player_stats
             userRankQuery = supabase
