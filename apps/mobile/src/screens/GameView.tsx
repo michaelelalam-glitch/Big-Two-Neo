@@ -386,6 +386,10 @@ function GameViewComponent() {
             isChatOpen={isChatDrawerOpen}
             chatUnreadCount={chatUnreadCount}
             playerIds={isMultiplayerGame ? [localUserId, ...remotePlayerIds] : undefined}
+            // Throwables (multiplayer only) — ThrowButton right of Smart button
+            onThrowPress={isMultiplayerGame ? () => setShowThrowablePicker(true) : undefined}
+            isThrowCooldown={isThrowCooldown}
+            cooldownRemaining={cooldownRemaining}
           />
         ) : (
           // PORTRAIT MODE (existing layout)

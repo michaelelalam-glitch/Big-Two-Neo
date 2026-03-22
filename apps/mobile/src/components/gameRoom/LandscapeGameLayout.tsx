@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { gameScreenStyles } from '../../styles/gameScreenStyles';
-import { AutoPassTimer } from '../game';
+import { AutoPassTimer, ThrowButton } from '../game';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
@@ -97,6 +97,11 @@ export interface LandscapeGameLayoutProps {
   disabled?: boolean;
   canPlay?: boolean;
   canPass?: boolean;
+
+  /** Throwables (multiplayer only) */
+  onThrowPress?: () => void;
+  isThrowCooldown?: boolean;
+  cooldownRemaining?: number;
 }
 
 // ============================================================================
@@ -151,6 +156,9 @@ export function LandscapeGameLayout({
   disabled = false,
   canPlay = false,
   canPass = false,
+  onThrowPress,
+  isThrowCooldown = false,
+  cooldownRemaining = 0,
   disconnectedPlayers = [false, false, false, false],
   disconnectTimerStartedAts,
   turnTimerStartedAts,
@@ -480,6 +488,13 @@ export function LandscapeGameLayout({
             >
               <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
+            {onThrowPress != null && (
+              <ThrowButton
+                onPress={onThrowPress}
+                isThrowCooldown={isThrowCooldown}
+                cooldownRemaining={cooldownRemaining}
+              />
+            )}
           </View>
 
           {/* Bottom row: Pass + Sort + Hint */}

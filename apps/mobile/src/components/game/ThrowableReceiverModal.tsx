@@ -146,6 +146,13 @@ export function ThrowableReceiverModal({
       visible={visible}
       animationType="none"
       statusBarTranslucent
+      supportedOrientations={[
+        'portrait',
+        'portrait-upside-down',
+        'landscape',
+        'landscape-left',
+        'landscape-right',
+      ]}
       onRequestClose={onDismiss}
     >
       <TouchableWithoutFeedback onPress={handleTap} accessible={false}>
