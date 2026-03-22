@@ -2,11 +2,10 @@
 -- Leaderboard RPC Hardening (patch for 20260322000001)
 -- ============================================================
 -- Addresses code-review feedback on the initial RPC wrappers:
---  1. Add REVOKE EXECUTE FROM PUBLIC before explicit grants
---  2. Rename get_my_leaderboard_rank_* → get_leaderboard_rank_*_by_user_id
---     (honest naming: these look up ANY user's rank, not just the caller's)
---  3. Grant per-user rank functions to "authenticated" only (not "anon")
---  4. Clamp p_limit to ≤100 and enforce p_offset ≥ 0 on paginated functions
+--  1. Drop old wrongly-named get_my_leaderboard_rank_* functions
+--  2. Recreate paginated functions with NULL-safe p_limit/p_offset clamping
+--  3. Create per-user rank lookup functions with honest names
+--  4. Set explicit EXECUTE permissions (REVOKE PUBLIC, then grant to intended roles)
 -- ============================================================
 
 -- --------------------------------------------------------
@@ -16,17 +15,10 @@ DROP FUNCTION IF EXISTS public.get_my_leaderboard_rank_ranked(uuid);
 DROP FUNCTION IF EXISTS public.get_my_leaderboard_rank_casual(uuid);
 
 -- --------------------------------------------------------
--- Step 2: Revoke PUBLIC EXECUTE from functions already created in 20260322000001
---         (Postgres grants EXECUTE to PUBLIC by default on CREATE FUNCTION)
--- --------------------------------------------------------
-REVOKE EXECUTE ON FUNCTION public.get_leaderboard_ranked(integer, integer)  FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_leaderboard_casual(integer, integer)  FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_leaderboard_global(integer, integer)  FROM PUBLIC;
-
--- --------------------------------------------------------
--- Step 3: Recreate paginated functions with p_limit/p_offset bounds.
+-- Step 2: Recreate paginated functions with p_limit/p_offset bounds.
 --         CREATE OR REPLACE updates the function in-place; existing privileges are preserved.
 --         Grants below reaffirm and document the intended permissions.
+--         (REVOKE EXECUTE FROM PUBLIC is done in Step 5 after all functions are created.)
 -- --------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard_ranked(
@@ -120,7 +112,7 @@ AS $$
 $$;
 
 -- --------------------------------------------------------
--- Step 4: Create per-user rank lookup functions with honest names.
+-- Step 3: Create per-user rank lookup functions with honest names.
 --         These allow looking up any user's rank (used by LeaderboardScreen
 --         and StatsScreen) and are intended only for authenticated callers.
 -- --------------------------------------------------------
@@ -180,7 +172,7 @@ AS $$
 $$;
 
 -- --------------------------------------------------------
--- Step 5: Set explicit EXECUTE permissions on all functions
+-- Step 4: Set explicit EXECUTE permissions on all functions
 --         (REVOKE from PUBLIC first, then grant to intended roles).
 -- --------------------------------------------------------
 

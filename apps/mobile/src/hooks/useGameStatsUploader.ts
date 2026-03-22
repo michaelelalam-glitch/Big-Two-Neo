@@ -272,8 +272,19 @@ export function useGameStatsUploader({
           const playerHand = hands?.[playerHandKey];
           const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
 
-          // user_id: use actual user_id from room_players; bots have is_bot=true
-          const userId = player.is_bot ? `bot_${player.player_index}` : player.user_id;
+          // user_id: use actual user_id from room_players; bots have is_bot=true.
+          // Non-bot players must have a user_id; null indicates inconsistent room_players data.
+          let userId: string;
+          if (player.is_bot) {
+            userId = `bot_${player.player_index}`;
+          } else if (player.user_id) {
+            userId = player.user_id;
+          } else {
+            statsLogger.error('[Stats] Non-bot player has null user_id', {
+              player_index: player.player_index,
+            });
+            userId = `unknown_${player.player_index}`;
+          }
 
           return {
             user_id: userId,
@@ -300,10 +311,18 @@ export function useGameStatsUploader({
           // Fallback: winner is the player with finish_position 1
           const winnerEntry = players.find(p => p.finish_position === 1);
           winnerId = winnerEntry?.user_id || user.id;
+        } else if (winnerPlayer.is_bot) {
+          winnerId = `bot_${winnerPlayer.player_index}`;
+        } else if (winnerPlayer.user_id) {
+          winnerId = winnerPlayer.user_id;
         } else {
-          winnerId = winnerPlayer.is_bot
-            ? `bot_${winnerPlayer.player_index}`
-            : (winnerPlayer.user_id ?? user.id); // bots have no user_id; fall back to current user
+          // Non-bot winner with null user_id indicates inconsistent room_players data.
+          // Abort stats upload rather than misattributing the win.
+          statsLogger.error('[Stats] Non-bot winner has null user_id', {
+            player_index: winnerPlayer.player_index,
+            username: winnerPlayer.username,
+          });
+          return;
         }
 
         // Extract bot_difficulty from the first bot player (all bots share the same difficulty).
