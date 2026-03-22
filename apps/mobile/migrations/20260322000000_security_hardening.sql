@@ -11,9 +11,8 @@
 -- 1. Fix mutable search_path on all public functions.
 --    Uses a dynamic DO block that discovers existing functions via pg_proc
 --    and applies SET search_path = public, pg_catalog to each.
---    Idempotent and environment-safe: only functions that actually exist in
---    this schema are altered — fresh-install or partially-migrated DBs will
---    not fail due to dropped/renamed/not-yet-created functions.
+--    Only functions that do NOT already have an explicit search_path config
+--    are altered — functions with intentional custom configurations are skipped.
 --    prokind = 'f' restricts to regular functions (skips aggregates/procs).
 -- ============================================================
 DO $$
@@ -28,6 +27,8 @@ BEGIN
     JOIN   pg_namespace n ON n.oid = p.pronamespace
     WHERE  n.nspname = 'public'
       AND  p.prokind = 'f'
+      AND  (p.proconfig IS NULL
+            OR NOT array_to_string(p.proconfig, ',') LIKE '%search_path=%')
   LOOP
     sql := format(
       'ALTER FUNCTION public.%I(%s) SET search_path = public, pg_catalog',
@@ -60,9 +61,22 @@ DROP POLICY IF EXISTS "Authenticated users can read room analytics" ON public.ro
 
 DO $$
 BEGIN
-  IF to_regclass('public.players') IS NOT NULL THEN
-    -- Primary schema: public.players is the membership table.
-    -- Scoped to rooms the authenticated user participated in.
+  IF to_regclass('public.room_players') IS NOT NULL THEN
+    -- Canonical membership table on fresh installs (supersedes public.players).
+    CREATE POLICY "Authenticated users can read room analytics"
+      ON public.room_analytics
+      FOR SELECT
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1
+          FROM   public.room_players rp
+          WHERE  rp.room_id = room_analytics.room_id
+            AND  rp.user_id = auth.uid()
+        )
+      );
+  ELSIF to_regclass('public.players') IS NOT NULL THEN
+    -- Legacy membership table (may exist on partially-migrated/production schemas).
     CREATE POLICY "Authenticated users can read room analytics"
       ON public.room_analytics
       FOR SELECT
@@ -74,20 +88,6 @@ BEGIN
           JOIN   public.players p ON p.room_id = r.id
           WHERE  r.id = room_analytics.room_id
             AND  p.user_id = auth.uid()
-        )
-      );
-  ELSIF to_regclass('public.room_players') IS NOT NULL THEN
-    -- Alternative schema: room_players supersedes players (also has room_id + user_id).
-    CREATE POLICY "Authenticated users can read room analytics"
-      ON public.room_analytics
-      FOR SELECT
-      TO authenticated
-      USING (
-        EXISTS (
-          SELECT 1
-          FROM   public.room_players rp
-          WHERE  rp.room_id = room_analytics.room_id
-            AND  rp.user_id = auth.uid()
         )
       );
   END IF;
