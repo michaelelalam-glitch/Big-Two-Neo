@@ -205,8 +205,8 @@ export default function LeaderboardScreen() {
           if (timeFilter === 'all_time') {
             const rankFnName =
               leaderboardType === 'casual'
-                ? 'get_my_leaderboard_rank_casual'
-                : 'get_my_leaderboard_rank_ranked';
+                ? 'get_leaderboard_rank_casual_by_user_id'
+                : 'get_leaderboard_rank_ranked_by_user_id';
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             userRankQuery = (supabase.rpc(rankFnName, { p_user_id: user.id }) as any).single();
           } else {
