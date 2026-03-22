@@ -177,7 +177,8 @@ export function useRoomLobby({
           .select('*', { count: 'exact', head: true })
           .eq('room_id', existingRoom.id);
 
-        if (count && existingRoom.max_players !== null && count >= existingRoom.max_players) {
+        const effectiveMaxPlayers = existingRoom.max_players ?? 4;
+        if (typeof count === 'number' && count >= effectiveMaxPlayers) {
           throw new Error('Room is full');
         }
 

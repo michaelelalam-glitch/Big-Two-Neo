@@ -118,7 +118,7 @@ The same `20260322000000_security_hardening.sql` also:
 - Updates `players` INSERT policy to check `auth.uid()` context
 - Updates `players` DELETE policy to only allow deleting own row
 - Updates `rooms` INSERT policy to require authenticated caller
-- **Leaves** `game_events`, `game_state`, `match_history`, `match_participants` service-role policies alone in this migration (addressed via the follow-up `20260322000001_fix_remaining_security_advisories.sql` which drops the permissive INSERT/ALL WITH CHECK(true) policies)
+- Does **not** address `game_events`, `game_state`, `match_history`, `match_participants` service-role policies in this migration — they are cleaned up by the follow-up `20260322000001_fix_remaining_security_advisories.sql`, which drops the overly-permissive INSERT/ALL WITH CHECK(true) policies for those tables
 
 ### Step 4 — Apply migration via Supabase MCP
 

@@ -40,13 +40,16 @@ $$;
 -- 2-4. Materialized views: revoke direct API access and expose
 --      data exclusively through SECURITY DEFINER wrapper functions.
 --      This removes the "materialized_view_in_api" advisories while
---      keeping the data available to authenticated clients via RPC.
+--      keeping the data available to clients via RPC (public-readable
+--      for both `anon` and `authenticated` roles).
 -- --------------------------------------------------------
 
--- Revoke direct SELECT from API roles
-REVOKE SELECT ON public.leaderboard_ranked    FROM anon, authenticated;
-REVOKE SELECT ON public.leaderboard_global    FROM anon, authenticated;
-REVOKE SELECT ON public.leaderboard_casual    FROM anon, authenticated;
+-- Revoke direct SELECT from unauthenticated API role only.
+-- Keep SELECT for "authenticated" to avoid breaking existing clients
+-- (e.g., StatsScreen.tsx) until they are migrated to RPC wrappers.
+REVOKE SELECT ON public.leaderboard_ranked    FROM anon;
+REVOKE SELECT ON public.leaderboard_global    FROM anon;
+REVOKE SELECT ON public.leaderboard_casual    FROM anon;
 
 -- ---- leaderboard_ranked wrappers ----
 
