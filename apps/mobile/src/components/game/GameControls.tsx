@@ -171,7 +171,7 @@ function GameControlsComponent({
 
   // Task #645: Announce when play becomes enabled (cards selected on active turn).
   // Guard: skip announcement if the transition came from a play attempt resetting
-  // (isPlayingCards flipping false → false "ready to play" after a failed play).
+  // (isPlayingCards flipping true → false after a completed/failed play attempt).
   const prevPlayDisabledRef = React.useRef(isPlayDisabled);
   const prevIsPlayingRef = React.useRef(isPlayingCards);
   React.useEffect(() => {
