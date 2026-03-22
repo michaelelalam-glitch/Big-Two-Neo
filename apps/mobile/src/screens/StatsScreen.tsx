@@ -234,11 +234,12 @@ export default function StatsScreen() {
       } else {
         // Fetch global_rank at read-time from leaderboard_ranked so it stays
         // accurate without relying on the stored (potentially stale) column.
-        const { data: rankRow, error: rankError } = await supabase
-          .from('leaderboard_ranked')
-          .select('rank')
-          .eq('user_id', userId)
-          .maybeSingle();
+        // Uses the SECURITY DEFINER RPC wrapper (direct view access revoked).
+        const { data: rankRow, error: rankError } =
+          await // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (
+            supabase.rpc('get_leaderboard_rank_ranked_by_user_id', { p_user_id: userId }) as any
+          ).maybeSingle();
         if (rankError) {
           // Log the failure and fall back to the stored global_rank from statsData.
           statsLogger.error(

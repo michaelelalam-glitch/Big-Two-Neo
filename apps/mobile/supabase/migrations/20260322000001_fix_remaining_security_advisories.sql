@@ -76,11 +76,11 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_ranked
   ORDER  BY rank
-  LIMIT  p_limit
-  OFFSET p_offset;
+  LIMIT  LEAST(p_limit, 100)
+  OFFSET GREATEST(p_offset, 0);
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_my_leaderboard_rank_ranked(
+CREATE OR REPLACE FUNCTION public.get_leaderboard_rank_ranked_by_user_id(
   p_user_id uuid
 )
 RETURNS TABLE(
@@ -135,11 +135,11 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_casual
   ORDER  BY rank
-  LIMIT  p_limit
-  OFFSET p_offset;
+  LIMIT  LEAST(p_limit, 100)
+  OFFSET GREATEST(p_offset, 0);
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_my_leaderboard_rank_casual(
+CREATE OR REPLACE FUNCTION public.get_leaderboard_rank_casual_by_user_id(
   p_user_id uuid
 )
 RETURNS TABLE(
@@ -194,16 +194,23 @@ AS $$
          longest_win_streak, current_win_streak, rank
   FROM   public.leaderboard_global
   ORDER  BY rank
-  LIMIT  p_limit
-  OFFSET p_offset;
+  LIMIT  LEAST(p_limit, 100)
+  OFFSET GREATEST(p_offset, 0);
 $$;
 
--- Grant EXECUTE to API roles
-GRANT EXECUTE ON FUNCTION public.get_leaderboard_ranked(integer, integer)    TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_my_leaderboard_rank_ranked(uuid)        TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_leaderboard_casual(integer, integer)    TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_my_leaderboard_rank_casual(uuid)        TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_leaderboard_global(integer, integer)    TO anon, authenticated;
+-- Ensure EXECUTE is not available to PUBLIC by default
+REVOKE EXECUTE ON FUNCTION public.get_leaderboard_ranked(integer, integer)              FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_leaderboard_casual(integer, integer)              FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_leaderboard_global(integer, integer)              FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_leaderboard_rank_ranked_by_user_id(uuid)         FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_leaderboard_rank_casual_by_user_id(uuid)         FROM PUBLIC;
+
+-- Grant EXECUTE to API roles (paginated lists: anon + authenticated; per-user: authenticated only)
+GRANT EXECUTE ON FUNCTION public.get_leaderboard_ranked(integer, integer)              TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_leaderboard_casual(integer, integer)              TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_leaderboard_global(integer, integer)              TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_leaderboard_rank_ranked_by_user_id(uuid)         TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_leaderboard_rank_casual_by_user_id(uuid)         TO authenticated;
 
 -- --------------------------------------------------------
 -- 5. game_events: drop INSERT WITH CHECK(true) for public role.

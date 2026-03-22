@@ -182,7 +182,7 @@
 | 13.2 | Reopen the app on the disconnected device within 60 seconds | Rejoin banner appears at the top ("Reconnecting to game...") |
 | 13.3 | Tap the rejoin banner or wait for automatic rejoin | Player returns to correct game state; hand is intact; score is correct |
 | 13.4 | After rejoining, play a valid card | Card plays successfully; other players see it |
-| 13.5 | Start a NEW game after the previously disonnected game ended | play_history resets correctly; new game's plays appear (no ghost plays from prior game) |
+| 13.5 | Start a NEW game after the previously disconnected game ended | play_history resets correctly; new game's plays appear (no ghost plays from prior game) |
 | 13.6 | Force-close the app between two consecutive games | `lastSyncedPlayCountRef` resets to 0; next game's plays are not skipped |
 
 ---

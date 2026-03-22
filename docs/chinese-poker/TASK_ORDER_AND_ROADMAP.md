@@ -158,7 +158,7 @@
 
 ## 📋 Current Status Board
 
-### � TODO — Ready to start (2 tasks)
+### 🟡 TODO — Ready to start (2 tasks)
 - `#650` — Increase card touch targets to iOS HIG 44px minimum
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
 
