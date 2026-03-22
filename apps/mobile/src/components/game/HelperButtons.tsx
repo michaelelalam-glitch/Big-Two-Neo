@@ -1,11 +1,11 @@
 /**
  * Helper Buttons Component
- * 
+ *
  * Three utility buttons for Big Two gameplay:
  * - Sort: Arrange cards lowest to highest
  * - Smart: Group cards by combo type
  * - Hint: Suggest optimal play
- * 
+ *
  * Implements GAME_HELPER_BUTTONS_SPEC.md
  * Created as part of Task #387: Helper Buttons UI
  * Date: December 13, 2025
@@ -21,6 +21,8 @@ interface HelperButtonsProps {
   onSmartSort: () => void;
   onHint: () => void;
   disabled?: boolean;
+  /** Optional callback for the throwables button — only shown when provided (multiplayer only). */
+  onThrow?: () => void;
 }
 
 // Task #628: React.memo — bail out when sort/hint callbacks and disabled flag haven't changed.
@@ -29,6 +31,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
   onSmartSort,
   onHint,
   disabled = false,
+  onThrow,
 }) => {
   return (
     <View style={styles.container}>
@@ -46,9 +49,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Sort cards lowest to highest"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.sortButtonText]}>
-          {i18n.t('game.sort')}
-        </Text>
+        <Text style={[styles.buttonText, styles.sortButtonText]}>{i18n.t('game.sort')}</Text>
       </Pressable>
 
       {/* Smart Sort Button */}
@@ -65,9 +66,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Smart sort by combo type"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.smartButtonText]}>
-          {i18n.t('game.smart')}
-        </Text>
+        <Text style={[styles.buttonText, styles.smartButtonText]}>{i18n.t('game.smart')}</Text>
       </Pressable>
 
       {/* Hint Button */}
@@ -84,10 +83,24 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityLabel="Get hint for best play"
         accessibilityState={{ disabled }}
       >
-        <Text style={[styles.buttonText, styles.hintButtonText]}>
-          {i18n.t('game.hint')}
-        </Text>
+        <Text style={[styles.buttonText, styles.hintButtonText]}>{i18n.t('game.hint')}</Text>
       </Pressable>
+
+      {/* Throwables Button — only rendered in multiplayer (onThrow is provided) */}
+      {onThrow != null && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.throwButton,
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={onThrow}
+          accessibilityRole="button"
+          accessibilityLabel="Throw something at a player"
+        >
+          <Text style={styles.throwButtonEmoji}>🎯</Text>
+        </Pressable>
+      )}
     </View>
   );
 };
@@ -119,7 +132,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', // Match Play/Pass bold text
     color: '#FFFFFF', // White text like Play button
   },
-  
+
   // Sort Button (Gray - match Pass button style)
   sortButton: {
     backgroundColor: '#374151', // Dark gray like Pass button
@@ -129,7 +142,7 @@ const styles = StyleSheet.create({
   sortButtonText: {
     color: '#D1D5DB', // Light gray text
   },
-  
+
   // Smart Button (Blue/Teal - accent style)
   smartButton: {
     backgroundColor: '#0891b2', // Teal/cyan accent
@@ -138,7 +151,7 @@ const styles = StyleSheet.create({
   smartButtonText: {
     color: '#FFFFFF', // White text
   },
-  
+
   // Hint Button (Orange/Amber - warning style)
   hintButton: {
     backgroundColor: '#f59e0b', // Amber/orange accent
@@ -146,6 +159,17 @@ const styles = StyleSheet.create({
   },
   hintButtonText: {
     color: '#FFFFFF', // White text
+  },
+
+  // Throwables Button (Teal - fun accent, compact icon-only)
+  throwButton: {
+    backgroundColor: '#0D9488', // Teal-600
+    borderWidth: 0,
+    minWidth: 44,
+    paddingHorizontal: 8,
+  },
+  throwButtonEmoji: {
+    fontSize: 18,
   },
 });
 

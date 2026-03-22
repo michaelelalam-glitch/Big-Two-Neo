@@ -26,7 +26,11 @@ import {
   GameLayout,
   LiveKitVideoSlot,
   ChatDrawer,
+  ThrowablePicker,
+  PlayerTargetPicker,
+  ThrowableReceiverModal,
 } from '../components/game';
+import type { ThrowableType } from '../types/multiplayer';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
 import { LandscapeGameLayout } from '../components/gameRoom/LandscapeGameLayout';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
@@ -114,12 +118,21 @@ function GameViewComponent() {
     isChatDrawerOpen,
     toggleChatDrawer,
     localUserId,
+    // Throwables
+    throwableActiveEffects,
+    throwableIncoming,
+    throwableDismissIncoming,
+    sendThrowable,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
 
   // Task #652: Track drag zone state for table perimeter glow
   const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
+
+  // Throwables: two-step selection flow (pick type → pick target)
+  const [showThrowablePicker, setShowThrowablePicker] = useState(false);
+  const [pendingThrowableType, setPendingThrowableType] = useState<ThrowableType | null>(null);
 
   // Portrait mode: Add-friend action target (set when long-pressing an opponent name)
   const { friends } = useFriendsContext();
@@ -505,6 +518,7 @@ function GameViewComponent() {
               onOpponentNameLongPress={
                 isMultiplayerGame ? handlePortraitOpponentNameLongPress : undefined
               }
+              throwableActiveEffects={throwableActiveEffects}
             />
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
@@ -561,13 +575,14 @@ function GameViewComponent() {
               />
             </View>
 
-            {/* Helper Buttons Row (Sort/Smart/Hint) - INDEPENDENT ABSOLUTE POSITIONING */}
+            {/* Helper Buttons Row (Sort/Smart/Hint/Throw) - INDEPENDENT ABSOLUTE POSITIONING */}
             <View style={styles.helperButtonsRow}>
               <HelperButtons
                 onSort={handleSort}
                 onSmartSort={handleSmartSort}
                 onHint={handleHint}
                 disabled={effectivePlayerHand.length === 0}
+                onThrow={isMultiplayerGame ? () => setShowThrowablePicker(true) : undefined}
               />
             </View>
 
@@ -630,6 +645,40 @@ function GameViewComponent() {
                 onToggle={toggleChatDrawer}
                 localUserId={localUserId}
               />
+            )}
+
+            {/* Throwables modals (multiplayer only) */}
+            {isMultiplayerGame && (
+              <>
+                <ThrowablePicker
+                  visible={showThrowablePicker}
+                  onSelect={t => {
+                    setPendingThrowableType(t);
+                    setShowThrowablePicker(false);
+                  }}
+                  onClose={() => setShowThrowablePicker(false)}
+                />
+                <PlayerTargetPicker
+                  visible={pendingThrowableType != null}
+                  throwable={pendingThrowableType ?? 'egg'}
+                  opponents={layoutPlayersWithScores
+                    .slice(1)
+                    .flatMap(p =>
+                      p.player_index != null ? [{ name: p.name, player_index: p.player_index }] : []
+                    )}
+                  onSelect={pi => {
+                    sendThrowable(pi, pendingThrowableType!);
+                    setPendingThrowableType(null);
+                  }}
+                  onClose={() => setPendingThrowableType(null)}
+                />
+                <ThrowableReceiverModal
+                  visible={throwableIncoming != null}
+                  throwable={throwableIncoming?.throwable ?? 'egg'}
+                  fromName={throwableIncoming?.from_name ?? ''}
+                  onDismiss={throwableDismissIncoming}
+                />
+              </>
             )}
 
             {/* Portrait mode: Add-friend overlay */}

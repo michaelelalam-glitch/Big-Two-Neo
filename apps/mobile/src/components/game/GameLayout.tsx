@@ -4,11 +4,13 @@ import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
 import { i18n } from '../../i18n';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { Card } from '../../game/types';
+import type { ActiveThrowableEffect } from '../../hooks/useThrowables';
 import type { DragZoneState } from './CardHand';
 // Direct imports avoid the index.ts ↔ GameLayout.tsx require cycle
 import PlayerInfo from './PlayerInfo';
 import CenterPlayArea from './CenterPlayArea';
 import AutoPassTimer from './AutoPassTimer';
+import { ThrowablePlayerEffect } from './ThrowablePlayerEffect';
 
 interface GameLayoutProps {
   /** Array of 4 players in display order [user, top, left, right] */
@@ -49,6 +51,8 @@ interface GameLayoutProps {
   dropZoneState?: DragZoneState;
   /** Called when an opponent name badge is long-pressed; receives display index (1=top, 2=left, 3=right) */
   onOpponentNameLongPress?: (displayIndex: number) => void;
+  /** Active throwable effect for each display position (0=bottom/local, 1=top, 2=left, 3=right). */
+  throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
 }
 
 /**
@@ -74,6 +78,7 @@ function GameLayoutComponent({
   autoPassTimerState,
   dropZoneState = 'idle',
   onOpponentNameLongPress,
+  throwableActiveEffects,
 }: GameLayoutProps) {
   // Task #652: Animated glow for table perimeter when dragging cards
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -147,7 +152,7 @@ function GameLayoutComponent({
   return (
     <>
       {/* Top player (position 1) - OUTSIDE table, above it */}
-      <View style={styles.topPlayerAboveTable}>
+      <View style={[styles.topPlayerAboveTable, { position: 'relative' }]}>
         <PlayerInfo
           name={players[1].name}
           cardCount={players[1].cardCount}
@@ -163,6 +168,12 @@ function GameLayoutComponent({
           videoStreamSlot={players[1].videoStreamSlot}
           onNameLongPress={onOpponentNameLongPress ? () => onOpponentNameLongPress(1) : undefined}
         />
+        {throwableActiveEffects?.[1] != null && (
+          <ThrowablePlayerEffect
+            key={throwableActiveEffects[1]!.id}
+            throwable={throwableActiveEffects[1]!.throwable}
+          />
+        )}
       </View>
 
       {/* Game table area — Task #652: animated border glow on drag */}
@@ -180,7 +191,7 @@ function GameLayoutComponent({
         {/* Middle row: Left player, Center play area, Right player */}
         <View style={styles.middleRow}>
           {/* Left player (position 2) */}
-          <View style={styles.leftPlayerContainer}>
+          <View style={[styles.leftPlayerContainer, { position: 'relative' }]}>
             <PlayerInfo
               name={players[2].name}
               cardCount={players[2].cardCount}
@@ -198,6 +209,12 @@ function GameLayoutComponent({
                 onOpponentNameLongPress ? () => onOpponentNameLongPress(2) : undefined
               }
             />
+            {throwableActiveEffects?.[2] != null && (
+              <ThrowablePlayerEffect
+                key={throwableActiveEffects[2]!.id}
+                throwable={throwableActiveEffects[2]!.throwable}
+              />
+            )}
           </View>
 
           {/* Center play area (last played cards) */}
@@ -220,7 +237,7 @@ function GameLayoutComponent({
           </View>
 
           {/* Right player (position 3) */}
-          <View style={styles.rightPlayerContainer}>
+          <View style={[styles.rightPlayerContainer, { position: 'relative' }]}>
             <PlayerInfo
               name={players[3].name}
               cardCount={players[3].cardCount}
@@ -238,6 +255,12 @@ function GameLayoutComponent({
                 onOpponentNameLongPress ? () => onOpponentNameLongPress(3) : undefined
               }
             />
+            {throwableActiveEffects?.[3] != null && (
+              <ThrowablePlayerEffect
+                key={throwableActiveEffects[3]!.id}
+                throwable={throwableActiveEffects[3]!.throwable}
+              />
+            )}
           </View>
         </View>
       </Animated.View>

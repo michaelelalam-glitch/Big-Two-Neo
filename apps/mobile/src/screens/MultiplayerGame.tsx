@@ -51,6 +51,7 @@ import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
+import { useThrowables } from '../hooks/useThrowables';
 import { i18n } from '../i18n';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
@@ -560,6 +561,7 @@ export function MultiplayerGame() {
     realtimePlayers.length > 0 ? realtimePlayers : multiplayerPlayers;
 
   const {
+    multiplayerSeatIndex,
     multiplayerPlayerHand,
     multiplayerLastPlay,
     multiplayerLastPlayedCards,
@@ -892,6 +894,20 @@ export function MultiplayerGame() {
     isDrawerOpen: isChatDrawerOpen,
   });
 
+  // Throwables — fun GG Poker–style egg/smoke/confetti interactions.
+  const {
+    activeEffects: throwableActiveEffects,
+    incomingThrowable: throwableIncoming,
+    dismissIncoming: throwableDismissIncoming,
+    sendThrowable,
+  } = useThrowables({
+    channel: realtimeChannel,
+    userId: user?.id || '',
+    username: currentPlayerName,
+    layoutPlayers: layoutPlayers,
+    myPlayerIndex: multiplayerSeatIndex,
+  });
+
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
   // actually changes (H2 + H4 audit fix).
@@ -968,6 +984,11 @@ export function MultiplayerGame() {
       isChatDrawerOpen,
       toggleChatDrawer,
       localUserId: user?.id || '',
+      // Throwables
+      throwableActiveEffects,
+      throwableIncoming,
+      throwableDismissIncoming,
+      sendThrowable,
     }),
     [
       currentOrientation,
@@ -1038,6 +1059,10 @@ export function MultiplayerGame() {
       isChatDrawerOpen,
       toggleChatDrawer,
       user?.id,
+      throwableActiveEffects,
+      throwableIncoming,
+      throwableDismissIncoming,
+      sendThrowable,
     ]
   );
 

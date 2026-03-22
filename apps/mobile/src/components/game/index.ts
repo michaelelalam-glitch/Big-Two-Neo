@@ -12,3 +12,7 @@ export { GameLayout } from './GameLayout';
 export { VideoTile } from './VideoTile';
 export { LiveKitVideoSlot, isVideoTrackAvailable } from './LiveKitVideoSlot';
 export { ChatDrawer } from './ChatDrawer';
+export { ThrowablePlayerEffect } from './ThrowablePlayerEffect';
+export { ThrowableReceiverModal } from './ThrowableReceiverModal';
+export { ThrowablePicker } from './ThrowablePicker';
+export { PlayerTargetPicker } from './PlayerTargetPicker';
