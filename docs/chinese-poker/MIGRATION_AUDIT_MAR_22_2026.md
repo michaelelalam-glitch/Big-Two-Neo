@@ -11,8 +11,17 @@ Comprehensive audit of the Supabase migration history for `big2-mobile-backend` 
 ### 1A. Applied DB migrations count
 The database has **91 applied migrations** spanning December 2025 through March 2026.
 
-### 1B. Local migration files
-The local `apps/mobile/migrations/` directory contains only **9 files**:
+### 1B. Migration directories — two separate locations
+
+> **Important:** The repository has **two** migration directories with different purposes:
+> - `apps/mobile/supabase/migrations/` — **Active Supabase CLI source of truth** (52 files). These are applied by `supabase db push` / `supabase db reset` and correspond to the 91 entries in the Supabase `schema_migrations` table.
+> - `apps/mobile/migrations/` — **Legacy / reference only** (9 hand-crafted files, **not** tracked by Supabase CLI). These were written before the CLI workflow was established and are never applied automatically.
+>
+> All drift analysis below applies to the **legacy** `apps/mobile/migrations/` directory. The active `apps/mobile/supabase/migrations/` directory contains the 52 properly-timestamped migrations that match the DB history.
+
+#### Legacy reference files (`apps/mobile/migrations/` — 9 files)
+
+The legacy `apps/mobile/migrations/` directory contains only **9 files**:
 
 | Local File | DB Equivalent | Status |
 |---|---|---|
