@@ -3,14 +3,19 @@
  * Provides minimal stub components so tests importing InactivityCountdownRing
  * (via PlayerInfo → game/index) don't crash.
  *
- * Uses custom element names so snapshots clearly show the SVG structure.
+ * Uses React Native's <View> as the host element (with a testID naming the SVG
+ * component) so snapshots remain readable and the test renderer never
+ * encounters unknown host component strings that throw in RN environments.
  */
 const React = require('react');
+const { View } = require('react-native');
 
+// Each mock renders as a known <View> host component.
+// testID is set to the SVG element name so snapshot output is still readable.
 const createMock =
   (name: string) =>
-  ({ children, ...props }: any) =>
-    React.createElement(name, props, children);
+  ({ children, testID, ...props }: any) =>
+    React.createElement(View, { ...props, testID: testID ?? name }, children);
 
 module.exports = {
   __esModule: true,
