@@ -1,3 +1,10 @@
+-- ============================================================
+-- REFERENCE COPY — NOT applied by the Supabase CLI.
+-- The active migration lives in apps/mobile/supabase/migrations/ (same filename).
+-- This copy is retained for historical context only and will NOT affect
+-- `supabase db push` or `supabase db reset`. Any changes must be made to
+-- the canonical copy in apps/mobile/supabase/migrations/.
+-- ============================================================
 -- Migration: Security Hardening — Fix mutable search_path, RLS gaps, permissive policies
 -- Date: 2026-03-22
 -- Addresses all Supabase security advisor warnings/errors/infos:
