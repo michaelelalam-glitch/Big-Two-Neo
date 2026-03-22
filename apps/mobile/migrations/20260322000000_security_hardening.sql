@@ -39,7 +39,7 @@ BEGIN
       WHEN undefined_function THEN
         RAISE NOTICE 'Skipping % — not found in this environment', sql;
       WHEN OTHERS THEN
-        RAISE NOTICE 'Could not harden function %: %', sql, SQLERRM;
+        RAISE EXCEPTION 'Could not harden function %: %', sql, SQLERRM;
     END;
   END LOOP;
 END $$;
@@ -61,8 +61,8 @@ DROP POLICY IF EXISTS "Authenticated users can read room analytics" ON public.ro
 DO $$
 BEGIN
   IF to_regclass('public.players') IS NOT NULL THEN
-    -- Read: authenticated users may only read room_analytics rows for rooms
-    -- they participated in, scoped via the rooms/players membership join.
+    -- Primary schema: public.players is the membership table.
+    -- Scoped to rooms the authenticated user participated in.
     CREATE POLICY "Authenticated users can read room analytics"
       ON public.room_analytics
       FOR SELECT
@@ -76,9 +76,23 @@ BEGIN
             AND  p.user_id = auth.uid()
         )
       );
+  ELSIF to_regclass('public.room_players') IS NOT NULL THEN
+    -- Alternative schema: room_players supersedes players (also has room_id + user_id).
+    CREATE POLICY "Authenticated users can read room analytics"
+      ON public.room_analytics
+      FOR SELECT
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1
+          FROM   public.room_players rp
+          WHERE  rp.room_id = room_analytics.room_id
+            AND  rp.user_id = auth.uid()
+        )
+      );
   END IF;
-  -- If public.players is absent, no SELECT policy is created: room_analytics
-  -- remains inaccessible to clients (service_role/SECURITY DEFINER still works).
+  -- If neither membership table exists, no policy is created.
+  -- room_analytics remains inaccessible to clients; service_role still works.
 END $$;
 
 -- Insert/update/delete locked to service role only (inserted by server functions)
