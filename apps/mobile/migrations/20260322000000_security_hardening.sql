@@ -53,54 +53,20 @@ BEGIN
 END $$;
 
 -- ============================================================
--- 2. Enable RLS on public.room_analytics (currently unprotected)
---    Scoped SELECT policy: only allows access to rows for rooms the
---    authenticated user participated in (via public.players join).
---    Wrapped in a DO block so the policy is skipped gracefully if
---    public.players does not exist in this environment (superseded by
---    room_players in some schemas).
+-- 2. Enable RLS on public.room_analytics.
+--    RLS is enabled so the table is protected by default.  No client-facing
+--    SELECT policy is created: room_analytics.metadata contains raw SQLERRM
+--    error details that must not be exposed to regular authenticated clients.
+--    Only service_role (which bypasses RLS) is allowed to read this table.
+--    NOTE: This reference copy reflects the canonical migration in
+--    apps/mobile/supabase/migrations/20260322000000_security_hardening.sql.
 -- ============================================================
 
 ALTER TABLE public.room_analytics ENABLE ROW LEVEL SECURITY;
 
--- Drop broad policy if it was applied by a previous run of this migration
+-- room_analytics: no client-facing SELECT policy.
+-- Drop any previously-created authenticated SELECT policy (idempotent).
 DROP POLICY IF EXISTS "Authenticated users can read room analytics" ON public.room_analytics;
-
-DO $$
-BEGIN
-  IF to_regclass('public.room_players') IS NOT NULL THEN
-    -- Canonical membership table on fresh installs (supersedes public.players).
-    CREATE POLICY "Authenticated users can read room analytics"
-      ON public.room_analytics
-      FOR SELECT
-      TO authenticated
-      USING (
-        EXISTS (
-          SELECT 1
-          FROM   public.room_players rp
-          WHERE  rp.room_id = room_analytics.room_id
-            AND  rp.user_id = auth.uid()
-        )
-      );
-  ELSIF to_regclass('public.players') IS NOT NULL THEN
-    -- Legacy membership table (may exist on partially-migrated/production schemas).
-    CREATE POLICY "Authenticated users can read room analytics"
-      ON public.room_analytics
-      FOR SELECT
-      TO authenticated
-      USING (
-        EXISTS (
-          SELECT 1
-          FROM   public.rooms  r
-          JOIN   public.players p ON p.room_id = r.id
-          WHERE  r.id = room_analytics.room_id
-            AND  p.user_id = auth.uid()
-        )
-      );
-  END IF;
-  -- If neither membership table exists, no policy is created.
-  -- room_analytics remains inaccessible to clients; service_role still works.
-END $$;
 
 -- Insert/update/delete locked to service role only (inserted by server functions)
 -- No INSERT/UPDATE/DELETE policy for anon or authenticated — only service role
