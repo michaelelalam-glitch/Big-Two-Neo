@@ -152,7 +152,7 @@ function GameLayoutComponent({
   return (
     <>
       {/* Top player (position 1) - OUTSIDE table, above it */}
-      <View style={[styles.topPlayerAboveTable, { position: 'relative' }]}>
+      <View style={styles.topPlayerAboveTable}>
         <PlayerInfo
           name={players[1].name}
           cardCount={players[1].cardCount}
