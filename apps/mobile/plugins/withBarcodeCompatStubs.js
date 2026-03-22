@@ -114,11 +114,13 @@ const STUB_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/r
 // Injected via withProjectBuildGradle (subprojects hook) rather than patching
 // node_modules directly — avoids dirty working copy / read-only env failures
 // (Copilot PR-149 r2946350505).
+const BARCODE_CONSUMERS = ['expo-camera', 'expo-barcode-scanner'];
 const SUBPROJECTS_BLOCK = `
-// [barcode-compat-stubs] inject compileOnly dep into expo-camera without editing node_modules
+// [barcode-compat-stubs] inject compileOnly dep into barcode consumers without editing node_modules
+def barcodeConsumers = [${BARCODE_CONSUMERS.map(n => `'${n}'`).join(', ')}]
 subprojects { subproject ->
     afterEvaluate {
-        if (subproject.name == 'expo-camera') {
+        if (barcodeConsumers.contains(subproject.name)) {
             dependencies {
                 compileOnly project(':${LIB_NAME}') // [barcode-compat-stubs]
             }
