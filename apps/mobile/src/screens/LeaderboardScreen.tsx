@@ -186,7 +186,7 @@ export default function LeaderboardScreen() {
                   : 'get_leaderboard_rank_ranked_by_user_id',
                 { p_user_id: user.id }
               )
-              .single();
+              .maybeSingle();
             if (rpcRankError) {
               statsLogger.info('[Leaderboard] Error fetching user rank:', rpcRankError);
               setUserRank(null);
