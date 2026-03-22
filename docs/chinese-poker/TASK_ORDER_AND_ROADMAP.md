@@ -1,7 +1,7 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
 > Generated: March 16, 2026 · Last updated: March 22, 2026  
-> Total tasks reviewed: 44 (13 backlog · 12 todo · 6 in_review · 13 completed)
+> Total tasks reviewed: 44 (13 backlog · 5 todo · 0 in_review · 26 completed)
 
 ---
 
@@ -26,8 +26,8 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 1 | `#628` | ✅ Fix GameScreen slow renders — Completed Mar 29, 2026 | 0 days | ✅ Completed |
-| 2 | `#643` | Add React Error Boundaries to game screens | 1 day | 🟡 Medium |
+| 1 | `#628` | ✅ Fix GameScreen slow renders — Completed Mar 19, 2026 | 0 days | ✅ Completed |
+| 2 | `#643` | ✅ Add React Error Boundaries to game screens — Completed Mar 21, 2026 | 0 days | ✅ Completed |
 
 ---
 
@@ -50,12 +50,12 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 7 | `#647` | ✅ Expand Zustand store (replace Context prop drilling) — Completed Mar 29, 2026 | 0 days | ✅ Completed |
-| 8 | `#616` | ✅ CI: Bundle size monitoring (bundlewatch/size-limit) — Completed Mar 29, 2026 | 0 days | ✅ Completed |
-| 9 | `#617` | ✅ Ratchet coverage thresholds +2% per sprint toward 80% — Completed Mar 29, 2026 | 0 days | ✅ Completed |
-| 10 | `#328` | ✅ Add performance benchmarks for card rendering (CI) — Completed Mar 29, 2026 | 0 days | ✅ Completed |
+| 7 | `#647` | ✅ Expand Zustand store (replace Context prop drilling) — Completed Mar 21, 2026 | 0 days | ✅ Completed |
+| 8 | `#616` | ✅ CI: Bundle size monitoring (bundlewatch/size-limit) — Completed Mar 21, 2026 | 0 days | ✅ Completed |
+| 9 | `#617` | ✅ Ratchet coverage thresholds +2% per sprint toward 80% — Completed Mar 21, 2026 | 0 days | ✅ Completed |
+| 10 | `#328` | ✅ Add performance benchmarks for card rendering (CI) — Completed Mar 21, 2026 | 0 days | ✅ Completed |
 
-> ✅ Tasks #617, #616, #328, #647 **COMPLETED** — PR #165 merged. Branch `feat/tasks-617-616-328-647-ci-arch` deleted (Mar 29, 2026).
+> ✅ Tasks #617, #616, #328, #647 **COMPLETED** — PR #165 merged Mar 21, 2026. Branch `feat/tasks-617-616-328-647-ci-arch` deleted.
 
 ---
 
@@ -65,9 +65,9 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 11 | `#325` | 🔵 Add E2E tests (Maestro) — **IN REVIEW** on PR #167 (flows 10 + 11 ✅; Android EAS test profile ✅) | 0 days remaining | 🟡 Medium |
-| 12 | `#327` | 🔵 Add visual regression tests for card UI — **IN REVIEW** on PR #167 (21 snapshot tests ✅) | 0 days remaining | 🟢 Low |
-| 13 | `#273` | 🔵 Write comprehensive tests (unit, integration, E2E) — **IN REVIEW** on PR #167 (32 game-logic tests ✅) | 0 days remaining | 🔴 High |
+| 11 | `#325` | ✅ Add E2E tests (Maestro) — Completed Mar 22, 2026 (PR #167; flows 10 + 11 ✅; Android EAS test profile ✅) | 0 days | 🟡 Medium |
+| 12 | `#327` | ✅ Add visual regression tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshot tests ✅) | 0 days | 🟢 Low |
+| 13 | `#273` | ✅ Write comprehensive tests (unit, integration, E2E) — Completed Mar 22, 2026 (PR #167; 32 game-logic tests ✅) | 0 days | 🔴 High |
 | 14 | `#522` | ✅ Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026 | 0 days | ✅ Completed |
 
 ---
@@ -78,7 +78,7 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 15 | `#645` | 🔵 Improve VoiceOver/TalkBack — WCAG 2.1 AA — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🟢 Low |
+| 15 | `#645` | ✅ Improve VoiceOver/TalkBack — WCAG 2.1 AA — Completed Mar 22, 2026 (PR #168) | 0 days | 🟢 Low |
 
 ---
 
@@ -88,8 +88,8 @@
 
 | # | ID | Title | Est. Time | Priority |
 |---|----|-------|-----------|----------|
-| 16 | `#280` | 🔵 Optimize mobile game engine (memoization, lazy loading) — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🟡 Medium |
-| 17 | `#276` | 🔵 Optimize performance and bundle size (<50MB, <3s start) — **IN REVIEW** on PR #168 (`feat/tasks-645-280-276-accessibility-perf`) | 0 days remaining | 🔴 High |
+| 16 | `#280` | ✅ Optimize mobile game engine (memoization, lazy loading) — Completed Mar 22, 2026 (PR #168) | 0 days | 🟡 Medium |
+| 17 | `#276` | ✅ Optimize performance and bundle size (<50MB, <3s start) — Completed Mar 22, 2026 (PR #168) | 0 days | 🔴 High |
 
 ---
 
@@ -158,35 +158,29 @@
 
 ## 📋 Current Status Board
 
-### 🔵 IN REVIEW (6 tasks — 2 branches)
-**Branch `feat/tasks-327-273-325-tests-e2e`** off `game/chinese-poker` — PR #167 open, Copilot review loop complete (0 non-outdated comments)
-- `#327` — Add visual regression snapshot tests for card UI (21 tests passing ✅)
-- `#273` — Write comprehensive game-engine unit tests (33 tests passing ✅)
-- `#325` — Expand Maestro E2E flows with CI tags (flows 10 + 11 added ✅; Android EAS test profile ✅)
-
-**Branch `feat/tasks-645-280-276-accessibility-perf`** off `game/chinese-poker` — PR #168 open (Mar 22, 2026)
-- `#645` — Improve VoiceOver/TalkBack WCAG 2.1 AA (Card.tsx + GameControls.tsx)
-- `#280` — Optimize mobile game engine (memoize classifyCards, sortHand; lazy bot AI)
-- `#276` — Optimize bundle size & performance (Hermes, metro tree-shaking, image audit)
-
-> 📌 Branch `game/chinese-poker` is **0 ahead / 0 behind** `main` (synced Mar 22, 2026)
-
-### 🟡 TODO — Ready to start (5 tasks)
-- `#643` — Add React Error Boundaries
-- `#648` — [FEATURE] In-game text chat
-- `#650` — Increase card touch targets
+### � TODO — Ready to start (2 tasks)
+- `#650` — Increase card touch targets to iOS HIG 44px minimum
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
-- `#272` — Error tracking & analytics (Sentry + Firebase Analytics)
 
-### ✅ RECENTLY COMPLETED (Mar 22, 2026)
-- `#617` — Ratchet coverage thresholds +2%/sprint — Completed Mar 29, 2026 (PR #165)
-- `#616` — CI: Bundle size monitoring — Completed Mar 29, 2026 (PR #165)
-- `#328` — Performance benchmarks for card rendering (CI) — Completed Mar 29, 2026 (PR #165)
-- `#647` — Expand Zustand store — Completed Mar 29, 2026 (PR #165)
-- `#628` — Fix GameScreen slow renders — Completed Mar 29, 2026
-- `#646` — Configure deep linking, friends list & game invite share — Completed Mar 21, 2026
-- `#652` — Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 21, 2026
-- `#522` — Phase 3.6J: Rejoin testing — Completed Mar 18, 2026
+### ✅ RECENTLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
+- `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshots ✅)
+- `#273` — Write comprehensive game-engine unit tests — Completed Mar 22, 2026 (PR #167; 79/79 suites, 1338 tests ✅)
+- `#325` — Add E2E tests (Maestro) — Completed Mar 22, 2026 (PR #167; flows 10 + 11, Android EAS ✅)
+- `#645` — Improve VoiceOver/TalkBack WCAG 2.1 AA — Completed Mar 22, 2026 (PR #168; Card.tsx + GameControls.tsx ✅)
+- `#280` — Optimize mobile game engine — Completed Mar 22, 2026 (PR #168; memoize classifyCards + sortHand ✅)
+- `#276` — Optimize bundle size & performance — Completed Mar 22, 2026 (PR #168; Hermes + metro tree-shaking ✅)
+- `#643` — Add React Error Boundaries to game screens — Completed Mar 21, 2026
+- `#617` — Ratchet coverage thresholds +2%/sprint — Completed Mar 21, 2026 (PR #165)
+- `#616` — CI: Bundle size monitoring — Completed Mar 21, 2026 (PR #165)
+- `#328` — Performance benchmarks for card rendering (CI) — Completed Mar 21, 2026 (PR #165)
+- `#647` — Expand Zustand store — Completed Mar 21, 2026 (PR #165)
+- `#646` — Configure deep linking, friends list & game invite share — Completed Mar 21, 2026 (PR #163)
+- `#652` — Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 20, 2026 (PR #160)
+- `#628` — Fix GameScreen slow renders — Completed Mar 19, 2026 (PR #156)
+- `#648` — In-game text chat (Supabase Realtime) — Completed Mar 18, 2026 (PR #150)
+- `#522` — Phase 3.6J: Rejoin testing — Completed Mar 18, 2026 (PR #151)
+
+> 📌 Branch `game/chinese-poker` is **0 ahead / 0 behind** `main` (synced Mar 22, 2026 after PR #169 merged)
 
 ### ⚪ BACKLOG — Queued but not ready (13 tasks)
 All remaining tasks in tiers 7–10.
@@ -195,21 +189,26 @@ All remaining tasks in tiers 7–10.
 
 ## 🗃️ Full ID Reference
 
-### 🔵 Active In-Review
-`#327` `#273` `#325` `#645` `#280` `#276`
-
 ### Todo (next up)
-`#643` `#648` `#650` `#315` `#272`
+`#650` `#315` `#272`
 
 ### Backlog (ordered)
 `#314` `#279` `#255` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253`
 
-### ✅ COMPLETED (13 tasks)
-- `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026
-- `#646` — Configure deep linking, friends list & game invite share — Completed Mar 21, 2026
-- `#652` — Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 21, 2026
-- `#617` — Ratchet coverage thresholds +2%/sprint — Completed Mar 29, 2026 (PR #165)
-- `#616` — CI: Bundle size monitoring — Completed Mar 29, 2026 (PR #165)
-- `#328` — Performance benchmarks for card rendering (CI) — Completed Mar 29, 2026 (PR #165)
-- `#647` — Expand Zustand store — Completed Mar 29, 2026 (PR #165)
-- `#628` — Fix GameScreen slow renders — Completed Mar 29, 2026
+### ✅ COMPLETED (26 tasks)
+- `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026 (PR #151)
+- `#648` — In-game text chat (Supabase Realtime) — Completed Mar 18, 2026 (PR #150)
+- `#628` — Fix GameScreen slow renders — Completed Mar 19, 2026 (PR #156)
+- `#652` — Enhance drop zone UX (glow, haptic, drag hint) — Completed Mar 20, 2026 (PR #160)
+- `#643` — Add React Error Boundaries to game screens — Completed Mar 21, 2026
+- `#646` — Configure deep linking, friends list & game invite share — Completed Mar 21, 2026 (PR #163)
+- `#647` — Expand Zustand store — Completed Mar 21, 2026 (PR #165)
+- `#617` — Ratchet coverage thresholds +2%/sprint — Completed Mar 21, 2026 (PR #165)
+- `#616` — CI: Bundle size monitoring — Completed Mar 21, 2026 (PR #165)
+- `#328` — Performance benchmarks for card rendering (CI) — Completed Mar 21, 2026 (PR #165)
+- `#273` — Write comprehensive game-engine unit tests — Completed Mar 22, 2026 (PR #167)
+- `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167)
+- `#325` — Add E2E tests (Maestro; flows 10 + 11) — Completed Mar 22, 2026 (PR #167)
+- `#645` — Improve VoiceOver/TalkBack WCAG 2.1 AA — Completed Mar 22, 2026 (PR #168)
+- `#280` — Optimize mobile game engine (memoize classifyCards + sortHand) — Completed Mar 22, 2026 (PR #168)
+- `#276` — Optimize bundle size & performance — Completed Mar 22, 2026 (PR #168)
