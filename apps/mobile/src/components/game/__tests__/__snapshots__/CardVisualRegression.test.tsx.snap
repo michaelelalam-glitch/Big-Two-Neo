@@ -9839,7 +9839,6 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
@@ -10057,7 +10056,6 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
@@ -10098,7 +10096,6 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
           {
             "alignItems": "center",
             "backgroundColor": "rgba(0,0,0,0.45)",
-            "borderRadius": 31,
             "bottom": 0,
             "justifyContent": "center",
             "left": 0,
@@ -10262,7 +10259,6 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
@@ -10489,7 +10485,6 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
@@ -10731,7 +10726,6 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",

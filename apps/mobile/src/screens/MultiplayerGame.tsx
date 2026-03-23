@@ -460,6 +460,10 @@ export function MultiplayerGame() {
   // ─── CUSTOM CARD ORDER PERSISTENCE ──────────────────────────────────────────
   const CARD_ORDER_KEY = `@big2_card_order_${roomCode}`;
   const hasRestoredCardOrderRef = useRef(false);
+  // Stores the match_number that was active when the card order was last saved.
+  // Used by the auto-sort effect to skip sorting when re-entering a game
+  // mid-match where the player already has a valid custom card arrangement.
+  const restoredMatchNumberRef = useRef<number | null>(null);
 
   // 1. Restore custom card order for this room on mount
   useEffect(() => {
@@ -468,12 +472,18 @@ export function MultiplayerGame() {
       try {
         const stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
         if (stored) {
-          const parsed: string[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          const parsed = JSON.parse(stored);
+          // Support old format (plain array) and new format ({ cards, matchNumber })
+          const cards: string[] = Array.isArray(parsed) ? parsed : (parsed?.cards ?? []);
+          const storedMatchNumber: number | null = Array.isArray(parsed)
+            ? null
+            : (parsed?.matchNumber ?? null);
+          if (Array.isArray(cards) && cards.length > 0) {
             gameLogger.info(
-              `[MultiplayerGame] 🔄 Restoring card order (${parsed.length} cards) for room ${roomCode}`
+              `[MultiplayerGame] 🔄 Restoring card order (${cards.length} cards) for room ${roomCode}`
             );
-            setCustomCardOrder(parsed);
+            setCustomCardOrder(cards);
+            restoredMatchNumberRef.current = storedMatchNumber;
           }
         }
       } catch (err: unknown) {
@@ -487,7 +497,7 @@ export function MultiplayerGame() {
     })();
   }, [CARD_ORDER_KEY, roomCode, setCustomCardOrder]);
 
-  // 2. Persist custom card order whenever it changes
+  // 2. Persist custom card order (with current match_number) whenever it changes
   const isFirstCardOrderRenderRef = useRef(true);
   useEffect(() => {
     if (isFirstCardOrderRenderRef.current) {
@@ -495,14 +505,16 @@ export function MultiplayerGame() {
       return;
     }
     if (customCardOrder.length > 0) {
-      AsyncStorage.setItem(CARD_ORDER_KEY, JSON.stringify(customCardOrder)).catch(err => {
+      const currentMatchNumber = multiplayerGameState?.match_number ?? 1;
+      const data = { cards: customCardOrder, matchNumber: currentMatchNumber };
+      AsyncStorage.setItem(CARD_ORDER_KEY, JSON.stringify(data)).catch(err => {
         gameLogger.error(
           '[MultiplayerGame] Failed to persist card order:',
           err?.message || String(err)
         );
       });
     }
-  }, [customCardOrder, CARD_ORDER_KEY]);
+  }, [customCardOrder, CARD_ORDER_KEY, multiplayerGameState?.match_number]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // MULTIPLAYER HANDS MEMO
@@ -665,8 +677,15 @@ export function MultiplayerGame() {
       // Reset sort guard whenever the match number advances (new deal without
       // passing through an empty-hand state is handled correctly this way).
       if (currentMatchNumber !== prevMatchNumberRef.current) {
+        const isFirstRunAfterMount = prevMatchNumberRef.current === null;
         hasAutoSortedRef.current = false;
         prevMatchNumberRef.current = currentMatchNumber;
+
+        // On first run after mount: if the persisted order was saved for this
+        // exact match, skip auto-sort to preserve the player's arrangement.
+        if (isFirstRunAfterMount && restoredMatchNumberRef.current === currentMatchNumber) {
+          hasAutoSortedRef.current = true;
+        }
       }
       if (!hasAutoSortedRef.current) {
         hasAutoSortedRef.current = true;

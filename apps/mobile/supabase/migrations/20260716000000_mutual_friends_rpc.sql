@@ -6,25 +6,11 @@
 -- Solution: A SECURITY DEFINER function that runs with elevated privileges to
 -- count mutual friends between the calling user and a target user.
 --
--- Dependency note: This function queries the `public.friendships` table which
--- is part of the pre-existing Supabase project schema (established before the
--- migration system was introduced). On a fresh `supabase db reset`, the
--- baseline migration (00000000000000_baseline.sql) must include the friendships
--- table definition, or this migration must be applied after it is created.
-
--- Precondition: abort early with a clear error if friendships table is missing.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'friendships'
-  ) THEN
-    RAISE EXCEPTION
-      'Migration 20260716000000_mutual_friends_rpc requires public.friendships '
-      'to exist. Apply the baseline migration (00000000000000_baseline.sql) first.';
-  END IF;
-END
-$$;
+-- Dependency note: This function depends on the `public.friendships` table.
+-- Ensure that table exists before applying this migration (it is created by the
+-- baseline migration 00000000000000_baseline.sql or by the Supabase-managed
+-- schema). On a fresh `supabase db reset`, the baseline must include the
+-- friendships table definition or run before this migration.
 
 CREATE OR REPLACE FUNCTION public.get_mutual_friends_count(p_other_user_id uuid)
 RETURNS integer

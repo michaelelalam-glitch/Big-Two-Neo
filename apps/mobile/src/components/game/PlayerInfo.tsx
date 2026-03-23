@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: COLORS.gray.medium,
     alignItems: 'center',
     justifyContent: 'center',
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
