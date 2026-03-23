@@ -1063,34 +1063,45 @@ export default function LobbyScreen() {
                 data={invitableFriends}
                 keyExtractor={item => item.id}
                 style={styles.friendListContainer}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.friendInviteRow,
-                      selectedFriendIds.has(item.friend.id) && styles.friendInviteRowSelected,
-                    ]}
-                    onPress={() => toggleFriendSelection(item.friend.id)}
-                  >
-                    <View style={styles.friendInviteAvatar}>
-                      <Text style={styles.friendInviteAvatarText}>
-                        {(item.friend.username ?? '?').slice(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={styles.friendInviteName} numberOfLines={1}>
-                      {item.friend.username ?? i18n.t('friends.unknownPlayer')}
-                    </Text>
-                    <View
+                renderItem={({ item }) => {
+                  const isOnline = onlineUserIds.has(item.friend.id);
+                  return (
+                    <TouchableOpacity
                       style={[
-                        styles.friendInviteCheck,
-                        selectedFriendIds.has(item.friend.id) && styles.friendInviteCheckSelected,
+                        styles.friendInviteRow,
+                        selectedFriendIds.has(item.friend.id) && styles.friendInviteRowSelected,
                       ]}
+                      onPress={() => toggleFriendSelection(item.friend.id)}
                     >
-                      {selectedFriendIds.has(item.friend.id) && (
-                        <Text style={styles.friendInviteCheckMark}>✓</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                )}
+                      <View style={styles.friendInviteAvatar}>
+                        <Text style={styles.friendInviteAvatarText}>
+                          {(item.friend.username ?? '?').slice(0, 2).toUpperCase()}
+                        </Text>
+                        {isOnline && <View style={styles.onlineDot} />}
+                      </View>
+                      <Text
+                        style={[
+                          styles.friendInviteName,
+                          !isOnline && styles.friendInviteNameOffline,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.friend.username ?? i18n.t('friends.unknownPlayer')}
+                      </Text>
+                      {item.is_favorite && <Text style={styles.favoriteStar}>⭐</Text>}
+                      <View
+                        style={[
+                          styles.friendInviteCheck,
+                          selectedFriendIds.has(item.friend.id) && styles.friendInviteCheckSelected,
+                        ]}
+                      >
+                        {selectedFriendIds.has(item.friend.id) && (
+                          <Text style={styles.friendInviteCheckMark}>✓</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
               />
             )}
             <View style={styles.modalActions}>
@@ -1693,6 +1704,24 @@ const styles = StyleSheet.create({
     flex: 1,
     color: COLORS.white,
     fontSize: FONT_SIZES.sm,
+  },
+  friendInviteNameOffline: {
+    opacity: 0.5,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  favoriteStar: {
+    fontSize: 14,
+    marginRight: SPACING.xs,
   },
   friendInviteCheck: {
     width: 24,

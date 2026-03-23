@@ -224,7 +224,7 @@ export function useThrowables({
         /* best-effort */
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only
+  }, [userId]); // Re-run when userId changes to restore the correct user's cooldown
 
   const startCooldown = useCallback(() => {
     isCooldownActiveRef.current = true;

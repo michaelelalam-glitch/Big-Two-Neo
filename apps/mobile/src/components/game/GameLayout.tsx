@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { COLORS, SPACING, LAYOUT, POSITIONING, SHADOWS } from '../../constants';
+import { useUserPreferencesStore } from '../../store';
 import { i18n } from '../../i18n';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { Card } from '../../game/types';
@@ -80,6 +81,12 @@ function GameLayoutComponent({
   onOpponentNameLongPress,
   throwableActiveEffects,
 }: GameLayoutProps) {
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const throwableClipSize = useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    return Math.round(LAYOUT.avatarSize * (scaleMap[profilePhotoSize] ?? 1.0));
+  }, [profilePhotoSize]);
+
   // Task #652: Animated glow for table perimeter when dragging cards
   const glowAnim = useRef(new Animated.Value(0)).current;
   const glowPulse = useRef<Animated.CompositeAnimation | null>(null);
@@ -169,10 +176,21 @@ function GameLayoutComponent({
           onNameLongPress={onOpponentNameLongPress ? () => onOpponentNameLongPress(1) : undefined}
         />
         {throwableActiveEffects?.[1] != null && (
-          <ThrowablePlayerEffect
-            key={throwableActiveEffects[1]!.id}
-            throwable={throwableActiveEffects[1]!.throwable}
-          />
+          <View
+            style={[
+              styles.throwableClip,
+              {
+                width: throwableClipSize,
+                height: throwableClipSize,
+                borderRadius: throwableClipSize / 2,
+              },
+            ]}
+          >
+            <ThrowablePlayerEffect
+              key={throwableActiveEffects[1]!.id}
+              throwable={throwableActiveEffects[1]!.throwable}
+            />
+          </View>
         )}
       </View>
 
@@ -210,10 +228,21 @@ function GameLayoutComponent({
               }
             />
             {throwableActiveEffects?.[2] != null && (
-              <ThrowablePlayerEffect
-                key={throwableActiveEffects[2]!.id}
-                throwable={throwableActiveEffects[2]!.throwable}
-              />
+              <View
+                style={[
+                  styles.throwableClip,
+                  {
+                    width: throwableClipSize,
+                    height: throwableClipSize,
+                    borderRadius: throwableClipSize / 2,
+                  },
+                ]}
+              >
+                <ThrowablePlayerEffect
+                  key={throwableActiveEffects[2]!.id}
+                  throwable={throwableActiveEffects[2]!.throwable}
+                />
+              </View>
             )}
           </View>
 
@@ -256,10 +285,21 @@ function GameLayoutComponent({
               }
             />
             {throwableActiveEffects?.[3] != null && (
-              <ThrowablePlayerEffect
-                key={throwableActiveEffects[3]!.id}
-                throwable={throwableActiveEffects[3]!.throwable}
-              />
+              <View
+                style={[
+                  styles.throwableClip,
+                  {
+                    width: throwableClipSize,
+                    height: throwableClipSize,
+                    borderRadius: throwableClipSize / 2,
+                  },
+                ]}
+              >
+                <ThrowablePlayerEffect
+                  key={throwableActiveEffects[3]!.id}
+                  throwable={throwableActiveEffects[3]!.throwable}
+                />
+              </View>
             )}
           </View>
         </View>
@@ -315,6 +355,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: LAYOUT.playerOverlapOffset,
     top: POSITIONING.sidePlayerTop,
+  },
+  throwableClip: {
+    width: LAYOUT.avatarSize,
+    height: LAYOUT.avatarSize,
+    borderRadius: LAYOUT.avatarSize / 2,
+    overflow: 'hidden',
+    position: 'absolute',
+    top: 0,
+    alignSelf: 'center',
   },
 });
 
