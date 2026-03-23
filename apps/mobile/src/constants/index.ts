@@ -153,6 +153,15 @@ export const MODAL = {
   leaveGameBorderWidth: 1,
 };
 
+/** All orientations the app supports — used in every Modal's supportedOrientations prop */
+export const MODAL_SUPPORTED_ORIENTATIONS: (
+  | 'portrait'
+  | 'portrait-upside-down'
+  | 'landscape'
+  | 'landscape-left'
+  | 'landscape-right'
+)[] = ['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right'];
+
 // Center Play Area
 export const CENTER_PLAY = {
   emptyStateBorderRadius: 16,

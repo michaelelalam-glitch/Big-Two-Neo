@@ -17,6 +17,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 
 interface PlayerTargetPickerProps {
   visible: boolean;
@@ -73,7 +74,7 @@ export function PlayerTargetPicker({
       visible={visible}
       animationType="none"
       onRequestClose={onClose}
-      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <TouchableWithoutFeedback onPress={onClose} accessible={false}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
