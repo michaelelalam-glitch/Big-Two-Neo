@@ -18,6 +18,7 @@ import { useGameAudio } from '../hooks/useGameAudio';
 import { useGameCleanup } from '../hooks/useGameCleanup';
 import { useGameEndCallbacks } from '../hooks/useGameEndCallbacks';
 import { useGameStateManager } from '../hooks/useGameStateManager';
+import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { useHelperButtons } from '../hooks/useHelperButtons';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
@@ -148,6 +149,30 @@ export function LocalAIGame() {
     }
     return result;
   }, [playerHand, customCardOrder]);
+
+  // Auto-sort hand when cards are first dealt or a new match begins.
+  // Keyed off gameState.currentMatch so new deals are detected reliably
+  // even when card IDs persist across matches (e.g. '3D', 'AS').
+  const hasAutoSortedRef = useRef(false);
+  const prevMatchNumberRef = useRef<number | null>(null);
+  useEffect(() => {
+    const hand = (playerHand ?? []) as Card[];
+    const currentMatchNumber = gameState?.currentMatch ?? 1;
+
+    if (hand.length > 0) {
+      // Reset sort guard whenever the match number advances (new deal without
+      // passing through an empty-hand state is handled correctly this way).
+      if (currentMatchNumber !== prevMatchNumberRef.current) {
+        hasAutoSortedRef.current = false;
+        prevMatchNumberRef.current = currentMatchNumber;
+      }
+      if (!hasAutoSortedRef.current) {
+        hasAutoSortedRef.current = true;
+        const sorted = sortHandLowestToHighest(hand);
+        setCustomCardOrder(sorted.map(c => c.id));
+      }
+    }
+  }, [playerHand, gameState?.currentMatch, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({

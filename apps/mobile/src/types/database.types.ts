@@ -1485,6 +1485,10 @@ export type Database = {
       generate_room_code: { Args: never; Returns: string };
       generate_room_code_v2: { Args: never; Returns: string };
       get_card_value: { Args: { p_card: Json }; Returns: number };
+      get_mutual_friends_count: {
+        Args: { p_other_user_id: string };
+        Returns: number;
+      };
       get_leaderboard_casual: {
         Args: { p_limit?: number; p_offset?: number };
         Returns: {

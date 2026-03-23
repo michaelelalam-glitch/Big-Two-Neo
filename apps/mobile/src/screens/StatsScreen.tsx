@@ -346,6 +346,7 @@ export default function StatsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [historyTab, setHistoryTab] = useState<HistoryTab>('recent');
+  const [mutualFriendsCount, setMutualFriendsCount] = useState<number>(0);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -449,6 +450,33 @@ export default function StatsScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Compute mutual friends count for other players' profiles
+  useEffect(() => {
+    if (isOwnProfile || !userId) {
+      setMutualFriendsCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_mutual_friends_count', {
+          p_other_user_id: userId,
+        });
+        if (cancelled) return;
+        if (error) {
+          setMutualFriendsCount(0);
+          return;
+        }
+        setMutualFriendsCount(data ?? 0);
+      } catch {
+        if (!cancelled) setMutualFriendsCount(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, isOwnProfile]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -842,6 +870,11 @@ export default function StatsScreen() {
           <Text style={styles.username}>{profile.username}</Text>
           {/* Add friend button — shown only when viewing another player's profile */}
           {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
+          {!isOwnProfile && mutualFriendsCount > 0 && (
+            <Text style={styles.mutualFriends}>
+              👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''}
+            </Text>
+          )}
           {/* Header: show ranked ELO on ranked tab, casual ELO otherwise */}
           <Text style={styles.rankPoints}>
             {activeTab === 'ranked'
@@ -1355,6 +1388,11 @@ const styles = StyleSheet.create({
   globalRank: {
     color: COLORS.white + '99',
     fontSize: FONT_SIZES.md,
+    marginTop: SPACING.xs,
+  },
+  mutualFriends: {
+    color: COLORS.white + 'AA',
+    fontSize: FONT_SIZES.sm,
     marginTop: SPACING.xs,
   },
   // Tab Bar

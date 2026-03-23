@@ -417,8 +417,69 @@ export function findRecommendedPlay(
     return null;
   }
 
-  // Leading (no last play) - play lowest single
+  // Leading (no last play) - recommend best combo to shed cards efficiently
   if (!lastPlay) {
+    // Find all available combos from hand
+    const rankCounts = countByRank(sorted);
+    const pairs: Card[][] = [];
+    const triples: Card[][] = [];
+    const fiveCards: Card[][] = [];
+
+    // Find pairs and triples by scanning sorted hand (preserves rank order)
+    // Object.entries on numeric-ish keys reorders them, so we iterate the sorted
+    // hand instead to guarantee lowest-rank-first ordering.
+    const seenRanks = new Set<string>();
+    for (const card of sorted) {
+      if (seenRanks.has(card.rank)) continue;
+      seenRanks.add(card.rank);
+      const count = rankCounts[card.rank] ?? 0;
+      const cards = sorted.filter(c => c.rank === card.rank);
+      if (count >= 3) {
+        triples.push(cards.slice(0, 3));
+      }
+      if (count >= 2) {
+        pairs.push(cards.slice(0, 2));
+      }
+    }
+
+    // Find 5-card combos: straights
+    for (const seq of VALID_STRAIGHT_SEQUENCES) {
+      const straightCards: Card[] = [];
+      for (const rank of seq) {
+        const card = sorted.find(c => c.rank === rank && !straightCards.some(sc => sc.id === c.id));
+        if (card) straightCards.push(card);
+      }
+      if (straightCards.length === 5) {
+        const straightInfo = isStraight(straightCards);
+        if (straightInfo.valid) {
+          fiveCards.push(straightCards);
+          break; // Take lowest straight
+        }
+      }
+    }
+
+    // Find 5-card combos: full houses (triple + pair, lowest triple first)
+    if (triples.length > 0 && pairs.length > 0) {
+      for (const triple of triples) {
+        const tripleRank = triple[0].rank;
+        const pairForFullHouse = pairs.find(p => p[0].rank !== tripleRank);
+        if (pairForFullHouse) {
+          fiveCards.push([...triple, ...pairForFullHouse]);
+          break; // Take lowest full house
+        }
+      }
+    }
+
+    // Prefer combos that shed cards: 5-card > triple > pair > single
+    if (fiveCards.length > 0) {
+      return fiveCards[0].map(c => c.id);
+    }
+    if (triples.length > 0) {
+      return triples[0].map(c => c.id);
+    }
+    if (pairs.length > 0) {
+      return pairs[0].map(c => c.id);
+    }
     return [sorted[0].id];
   }
 

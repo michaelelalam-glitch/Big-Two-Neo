@@ -130,6 +130,11 @@ export interface Translations {
     privacyDescription: string;
     profileVisibility: string;
     showOnlineStatus: string;
+    profilePhotoSize: string;
+    profilePhotoSizeDescription: string;
+    profilePhotoSizeSmall: string;
+    profilePhotoSizeMedium: string;
+    profilePhotoSizeLarge: string;
 
     // Game Settings
     cardSortOrder: string;
@@ -148,8 +153,24 @@ export interface Translations {
     // Notifications
     pushNotifications: string;
     pushNotificationsDescription: string;
+    stayUpdatedNotifications: string;
     enableNotifications: string;
+    enableNotificationsDescription: string;
     notificationTypes: string;
+    gameInvites: string;
+    gameInvitesDescription: string;
+    yourTurn: string;
+    yourTurnDescription: string;
+    gameStarted: string;
+    gameStartedDescription: string;
+    friendRequests: string;
+    friendRequestsDescription: string;
+    testing: string;
+    sendTestNotification: string;
+    debugInfo: string;
+    pushToken: string;
+    userIdLabel: string;
+    platformLabel: string;
 
     // Audio & Haptics
     soundEffects: string;
@@ -204,6 +225,9 @@ export interface Translations {
     joinRoomDescription: string;
     howToPlay: string;
     howToPlayDescription: string;
+    roomClosedTitle: string;
+    roomClosedMessage: string;
+    joinCasualLobby: string;
     leaderboard: string;
     rankedLeaderboard: string;
     rankedLeaderboardDescription: string;
@@ -526,6 +550,7 @@ export interface Translations {
     alreadyInAnotherRoom: string;
     joinRoomError: string;
     kickedFromRoom: string;
+    kickedFromRoomByHost: string;
     tip: string;
     askFriendForCode: string;
     createRoomRateLimited: string;
@@ -842,6 +867,11 @@ const en: Translations = {
     privacyDescription: 'Control who can see your profile',
     profileVisibility: 'Profile Visibility',
     showOnlineStatus: 'Show Online Status',
+    profilePhotoSize: 'Profile Photo Size',
+    profilePhotoSizeDescription: 'Size of profile photos in-game',
+    profilePhotoSizeSmall: 'Small',
+    profilePhotoSizeMedium: 'Medium',
+    profilePhotoSizeLarge: 'Large',
 
     cardSortOrder: 'Card Sort Order',
     cardSortOrderDescription: 'How to sort your cards in hand',
@@ -857,9 +887,25 @@ const en: Translations = {
     disabled: 'Disabled',
 
     pushNotifications: 'Push Notifications',
-    pushNotificationsDescription: 'Receive notifications for game events',
+    pushNotificationsDescription: 'Receive push notifications for game events',
+    stayUpdatedNotifications: 'Stay updated with game invites, turn notifications, and more.',
     enableNotifications: 'Enable Notifications',
+    enableNotificationsDescription: 'Receive push notifications for game events',
     notificationTypes: 'Notification Types',
+    gameInvites: 'Game Invites',
+    gameInvitesDescription: 'Get notified when someone invites you to a game',
+    yourTurn: 'Your Turn',
+    yourTurnDescription: "Get notified when it's your turn to play",
+    gameStarted: 'Game Started',
+    gameStartedDescription: 'Get notified when a game you joined starts',
+    friendRequests: 'Friend Requests',
+    friendRequestsDescription: 'Get notified when someone sends you a friend request',
+    testing: 'Testing',
+    sendTestNotification: 'Send Test Notification',
+    debugInfo: 'Debug Info',
+    pushToken: 'Push Token:',
+    userIdLabel: 'User ID:',
+    platformLabel: 'Platform:',
 
     soundEffects: 'Sound Effects',
     soundEffectsDescription: 'Play sounds during gameplay',
@@ -911,6 +957,9 @@ const en: Translations = {
     joinRoomDescription: 'Enter a room code',
     howToPlay: '📖 How to Play',
     howToPlayDescription: 'Learn the rules',
+    roomClosedTitle: 'Room Closed',
+    roomClosedMessage: 'The room you were in has been closed by the host.',
+    joinCasualLobby: 'Join Casual Lobby',
     leaderboard: '🏆 Leaderboard',
     rankedLeaderboard: '🏆 Ranked Leaderboard',
     rankedLeaderboardDescription: 'See top players by ELO rating',
@@ -1205,6 +1254,8 @@ const en: Translations = {
     goToCurrentRoom: 'Go to Current Room',
     alreadyInAnotherRoom: 'You are already in another room. Please leave it first.',
     kickedFromRoom: 'You have been kicked from this room and cannot rejoin',
+    kickedFromRoomByHost:
+      '{{hostName}} has kicked you out of the game lobby and you cannot re-enter',
     joinRoomError: 'Failed to join room',
     tip: 'Tip',
     askFriendForCode: 'Ask your friend for the room code and enter it here to join their game',
@@ -1506,6 +1557,11 @@ const ar: Translations = {
     privacyDescription: 'التحكم في من يمكنه رؤية ملفك الشخصي',
     profileVisibility: 'رؤية الملف الشخصي',
     showOnlineStatus: 'إظهار الحالة على الإنترنت',
+    profilePhotoSize: 'حجم صورة الملف الشخصي',
+    profilePhotoSizeDescription: 'حجم صور الملف الشخصي في اللعبة',
+    profilePhotoSizeSmall: 'صغير',
+    profilePhotoSizeMedium: 'متوسط',
+    profilePhotoSizeLarge: 'كبير',
 
     cardSortOrder: 'ترتيب البطاقات',
     cardSortOrderDescription: 'كيفية ترتيب البطاقات في يدك',
@@ -1521,9 +1577,25 @@ const ar: Translations = {
     disabled: 'معطل',
 
     pushNotifications: 'إشعارات الدفع',
-    pushNotificationsDescription: 'تلقي إشعارات لأحداث اللعبة',
+    pushNotificationsDescription: 'تلقي إشعارات الدفع لأحداث اللعبة',
+    stayUpdatedNotifications: 'ابقَ على اطلاع بدعوات اللعبة وإشعارات الدور والمزيد.',
     enableNotifications: 'تفعيل الإشعارات',
+    enableNotificationsDescription: 'تلقي إشعارات الدفع لأحداث اللعبة',
     notificationTypes: 'أنواع الإشعارات',
+    gameInvites: 'دعوات اللعبة',
+    gameInvitesDescription: 'احصل على إشعار عندما يدعوك شخص ما إلى لعبة',
+    yourTurn: 'دورك',
+    yourTurnDescription: 'احصل على إشعار عندما يحين دورك للعب',
+    gameStarted: 'بدأت اللعبة',
+    gameStartedDescription: 'احصل على إشعار عندما تبدأ لعبة انضممت إليها',
+    friendRequests: 'طلبات الصداقة',
+    friendRequestsDescription: 'احصل على إشعار عندما يرسل لك شخص ما طلب صداقة',
+    testing: 'اختبار',
+    sendTestNotification: 'إرسال إشعار تجريبي',
+    debugInfo: 'معلومات التصحيح',
+    pushToken: 'رمز الدفع:',
+    userIdLabel: 'معرف المستخدم:',
+    platformLabel: 'المنصة:',
 
     soundEffects: 'المؤثرات الصوتية',
     soundEffectsDescription: 'تشغيل الأصوات أثناء اللعب',
@@ -1586,6 +1658,9 @@ const ar: Translations = {
     rankedMatchDescription: 'مباراة تنافسية بتصنيف ELO',
     howToPlay: '📖 كيف تلعب',
     howToPlayDescription: 'تعلم قواعد اللعبة',
+    roomClosedTitle: 'تم إغلاق الغرفة',
+    roomClosedMessage: 'تم إغلاق الغرفة التي كنت فيها من قبل المضيف.',
+    joinCasualLobby: 'انضم إلى لوبي عادي',
     findGame: '🎮 ابحث عن لعبة',
     findGameDescription: 'العب مباريات أونلاين',
     offlinePractice: '🤖 تدريب بدون إنترنت',
@@ -1805,6 +1880,7 @@ const ar: Translations = {
     goToCurrentRoom: 'اذهب إلى الغرفة الحالية',
     alreadyInAnotherRoom: 'أنت بالفعل في غرفة أخرى. يرجى المغادرة أولاً.',
     kickedFromRoom: 'لقد تمت إزالتك من هذه الغرفة ولا يمكنك الانضمام إليها مجدداً',
+    kickedFromRoomByHost: '{{hostName}} قام بطردك من اللعبة ولا يمكنك العودة',
     joinRoomError: 'فشل الانضمام إلى الغرفة',
     tip: 'نصيحة',
     askFriendForCode: 'اطلب من صديقك رمز الغرفة وأدخله هنا للانضمام إلى لعبته',
@@ -2198,6 +2274,11 @@ const de: Translations = {
     privacyDescription: 'Steuern Sie, wer Ihr Profil sehen kann',
     profileVisibility: 'Profilsichtbarkeit',
     showOnlineStatus: 'Online-Status anzeigen',
+    profilePhotoSize: 'Profilfotogröße',
+    profilePhotoSizeDescription: 'Größe der Profilfotos im Spiel',
+    profilePhotoSizeSmall: 'Klein',
+    profilePhotoSizeMedium: 'Mittel',
+    profilePhotoSizeLarge: 'Groß',
 
     cardSortOrder: 'Kartensortierung',
     cardSortOrderDescription: 'Wie Ihre Karten sortiert werden',
@@ -2213,9 +2294,28 @@ const de: Translations = {
     disabled: 'Deaktiviert',
 
     pushNotifications: 'Push-Benachrichtigungen',
-    pushNotificationsDescription: 'Benachrichtigungen für Spielereignisse erhalten',
+    pushNotificationsDescription: 'Push-Benachrichtigungen für Spielereignisse erhalten',
+    stayUpdatedNotifications:
+      'Bleiben Sie auf dem Laufenden mit Spieleinladungen, Zugbenachrichtigungen und mehr.',
     enableNotifications: 'Benachrichtigungen aktivieren',
+    enableNotificationsDescription: 'Push-Benachrichtigungen für Spielereignisse erhalten',
     notificationTypes: 'Benachrichtigungstypen',
+    gameInvites: 'Spieleinladungen',
+    gameInvitesDescription: 'Benachrichtigung erhalten, wenn Sie jemand zu einem Spiel einlädt',
+    yourTurn: 'Ihr Zug',
+    yourTurnDescription: 'Benachrichtigung erhalten, wenn Sie an der Reihe sind',
+    gameStarted: 'Spiel gestartet',
+    gameStartedDescription:
+      'Benachrichtigung erhalten, wenn ein Spiel beginnt, dem Sie beigetreten sind',
+    friendRequests: 'Freundschaftsanfragen',
+    friendRequestsDescription:
+      'Benachrichtigung erhalten, wenn Ihnen jemand eine Freundschaftsanfrage sendet',
+    testing: 'Testen',
+    sendTestNotification: 'Testbenachrichtigung senden',
+    debugInfo: 'Debug-Info',
+    pushToken: 'Push-Token:',
+    userIdLabel: 'Benutzer-ID:',
+    platformLabel: 'Plattform:',
 
     soundEffects: 'Soundeffekte',
     soundEffectsDescription: 'Sounds während des Spiels abspielen',
@@ -2279,6 +2379,9 @@ const de: Translations = {
     rankedMatchDescription: 'Wettbewerbsorientiertes ELO-Match',
     howToPlay: '📖 Wie man spielt',
     howToPlayDescription: 'Spielregeln lernen',
+    roomClosedTitle: 'Raum geschlossen',
+    roomClosedMessage: 'Der Raum, in dem Sie sich befanden, wurde vom Gastgeber geschlossen.',
+    joinCasualLobby: 'Casual-Lobby beitreten',
     findGame: '🎮 Spiel finden',
     findGameDescription: 'Online-Matches spielen',
     offlinePractice: '🤖 Offline-Training',
@@ -2505,6 +2608,8 @@ const de: Translations = {
     goToCurrentRoom: 'Zum aktuellen Raum gehen',
     alreadyInAnotherRoom: 'Du bist bereits in einem anderen Raum. Bitte verlasse ihn zuerst.',
     kickedFromRoom: 'Du wurdest aus diesem Raum geworfen und kannst nicht erneut beitreten',
+    kickedFromRoomByHost:
+      '{{hostName}} hat dich aus der Lobby geworfen und du kannst nicht erneut beitreten',
     joinRoomError: 'Fehler beim Beitreten zum Raum',
     tip: 'Tipp',
     askFriendForCode:

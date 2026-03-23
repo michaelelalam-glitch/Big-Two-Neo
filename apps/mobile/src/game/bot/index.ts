@@ -246,52 +246,48 @@ export class BotAI {
 
     // ========== HARD DIFFICULTY: Strategic leading ==========
     if (this._difficulty === 'hard') {
-      // If opponent is low on cards, try 5-card combo to force a pass
-      if (minOpponentCards <= 4) {
-        const fiveCardCombo = this.findBest5CardCombo(sorted);
-        if (fiveCardCombo) {
-          return {
-            cards: fiveCardCombo,
-            reasoning: `[HARD] Opponent has ${minOpponentCards} cards, playing 5-card combo to force pass`,
-          };
-        }
-      }
-
-      // If we have many cards, try to lead with triples to shed cards fast
-      if (sorted.length > 8) {
-        const triples = this.findAllTriples(sorted);
-        if (triples.length > 0) {
-          return { cards: triples[0], reasoning: '[HARD] Leading with triple to shed cards fast' };
-        }
-      }
-
-      // Try to lead with pairs to preserve singles for endgame
-      const lowestPair = this.findLowestPair(sorted);
-      if (lowestPair && sorted.length > 4) {
+      // Always try 5-card combo first (sheds most cards per play)
+      const fiveCardCombo = this.findBest5CardCombo(sorted);
+      if (fiveCardCombo) {
         return {
-          cards: lowestPair,
-          reasoning: '[HARD] Leading with lowest pair (preserving singles)',
+          cards: fiveCardCombo,
+          reasoning: `[HARD] Leading with strongest 5-card combo to shed cards efficiently`,
         };
       }
 
-      // If low on cards, play lowest single
+      // Try triples next
+      const triples = this.findAllTriples(sorted);
+      if (triples.length > 0) {
+        return { cards: triples[0], reasoning: '[HARD] Leading with triple to shed cards fast' };
+      }
+
+      // Try pairs
+      const lowestPair = this.findLowestPair(sorted);
+      if (lowestPair) {
+        return {
+          cards: lowestPair,
+          reasoning: '[HARD] Leading with pair (preserving singles)',
+        };
+      }
+
+      // Fallback: play lowest single
       return { cards: [sorted[0].id], reasoning: '[HARD] Leading with lowest single' };
     }
 
     // ========== MEDIUM DIFFICULTY: Balanced leading ==========
+    // 30% chance to try 5-card combo first
+    if (Math.random() < 0.3 && sorted.length >= 5) {
+      const fiveCardCombo = this.findBest5CardCombo(sorted);
+      if (fiveCardCombo) {
+        return { cards: fiveCardCombo, reasoning: '[MEDIUM] Leading with 5-card combo' };
+      }
+    }
+
     // 40% chance to lead with pairs
     if (Math.random() < 0.4) {
       const lowestPair = this.findLowestPair(sorted);
       if (lowestPair) {
         return { cards: lowestPair, reasoning: '[MEDIUM] Leading with pair' };
-      }
-    }
-
-    // 15% chance to try 5-card combo
-    if (Math.random() < 0.15 && sorted.length >= 5) {
-      const fiveCardCombo = this.findBest5CardCombo(sorted);
-      if (fiveCardCombo) {
-        return { cards: fiveCardCombo, reasoning: '[MEDIUM] Leading with 5-card combo' };
       }
     }
 

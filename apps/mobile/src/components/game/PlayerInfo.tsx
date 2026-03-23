@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   scoreDisplayStyles,
 } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { useUserPreferencesStore } from '../../store/userPreferencesSlice';
 import InactivityCountdownRing from './InactivityCountdownRing';
 
 interface PlayerInfoProps {
@@ -64,6 +65,8 @@ function renderAvatarVideoContent({
   isDisconnected,
   isVideoChatConnecting,
   videoStreamSlot,
+  innerRadius,
+  iconSize,
 }: {
   isCameraOn: boolean;
   isMicOn?: boolean;
@@ -71,6 +74,8 @@ function renderAvatarVideoContent({
   isDisconnected: boolean;
   isVideoChatConnecting: boolean;
   videoStreamSlot?: React.ReactNode;
+  innerRadius: number;
+  iconSize: number;
 }): React.ReactNode {
   if (isVideoChatConnecting) {
     return <ActivityIndicator size="small" color={COLORS.white} />;
@@ -79,11 +84,11 @@ function renderAvatarVideoContent({
   if (isCameraOn) {
     return videoStreamSlot ? (
       // Real SDK video stream fills the full avatar circle
-      <View style={avatarStyles.videoFill}>{videoStreamSlot}</View>
+      <View style={[avatarStyles.videoFill, { borderRadius: innerRadius }]}>{videoStreamSlot}</View>
     ) : (
       // Stub placeholder until LiveKit SDK is installed
-      <View style={avatarStyles.videoPlaceholder}>
-        <Text style={avatarStyles.videoPlaceholderIcon}>📷</Text>
+      <View style={[avatarStyles.videoPlaceholder, { borderRadius: innerRadius }]}>
+        <Text style={[avatarStyles.videoPlaceholderIcon, { fontSize: iconSize }]}>📷</Text>
         {isLocalPlayer && (
           <View style={avatarStyles.liveBadge}>
             <Text style={avatarStyles.liveBadgeText}>LIVE</Text>
@@ -102,7 +107,11 @@ function renderAvatarVideoContent({
   return (
     <>
       <Text
-        style={[avatarStyles.avatarProfileIcon, isDisconnected && avatarStyles.avatarIconFaded]}
+        style={[
+          avatarStyles.avatarProfileIcon,
+          { fontSize: iconSize },
+          isDisconnected && avatarStyles.avatarIconFaded,
+        ]}
       >
         👤
       </Text>
@@ -137,6 +146,20 @@ function PlayerInfoComponent({
   videoStreamSlot,
   onNameLongPress,
 }: PlayerInfoProps) {
+  // Profile photo size preference
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const avatarScale = useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    const scale = scaleMap[profilePhotoSize] ?? 1.0;
+    const size = Math.round(LAYOUT.avatarSize * scale);
+    return {
+      size,
+      borderRadius: Math.round(size / 2),
+      innerRadius: Math.round((size - LAYOUT.avatarBorderWidth * 2) / 2),
+      iconSize: Math.round(LAYOUT.avatarIconSize * scale),
+    };
+  }, [profilePhotoSize]);
+
   // Show the video tile when:
   //  a) isCameraOn is explicitly provided (remote player camera state known), OR
   //  b) This is the local player and the opt-in handler is wired (tile is the
@@ -168,13 +191,27 @@ function PlayerInfoComponent({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
+      <View
+        style={[
+          styles.avatarContainer,
+          {
+            width: avatarScale.size,
+            height: avatarScale.size,
+            borderRadius: avatarScale.borderRadius,
+          },
+          isActive && !showRing && styles.activeAvatar,
+        ]}
+      >
         {/* Avatar body — video feed replaces profile photo when camera is on */}
         {showVideoTile ? (
           // Video-aware avatar: tap to toggle camera (local player only)
           isLocalPlayer ? (
             <Pressable
-              style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}
+              style={[
+                styles.avatar,
+                { borderRadius: avatarScale.innerRadius },
+                isDisconnected && styles.avatarDisconnected,
+              ]}
               onPress={onVideoChatToggle}
               disabled={!onVideoChatToggle || isVideoChatConnecting}
               accessibilityRole="button"
@@ -197,10 +234,18 @@ function PlayerInfoComponent({
                 isDisconnected,
                 isVideoChatConnecting,
                 videoStreamSlot,
+                innerRadius: avatarScale.innerRadius,
+                iconSize: avatarScale.iconSize,
               })}
             </Pressable>
           ) : (
-            <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
+            <View
+              style={[
+                styles.avatar,
+                { borderRadius: avatarScale.innerRadius },
+                isDisconnected && styles.avatarDisconnected,
+              ]}
+            >
               {renderAvatarVideoContent({
                 isCameraOn: !!isCameraOn,
                 isMicOn,
@@ -208,13 +253,29 @@ function PlayerInfoComponent({
                 isDisconnected,
                 isVideoChatConnecting: false,
                 videoStreamSlot,
+                innerRadius: avatarScale.innerRadius,
+                iconSize: avatarScale.iconSize,
               })}
             </View>
           )
         ) : (
           // Standard avatar — no video chat
-          <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
-            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+          <View
+            style={[
+              styles.avatar,
+              { borderRadius: avatarScale.innerRadius },
+              isDisconnected && styles.avatarDisconnected,
+            ]}
+          >
+            <Text
+              style={[
+                styles.avatarIcon,
+                { fontSize: avatarScale.iconSize },
+                isDisconnected && styles.avatarIconFaded,
+              ]}
+            >
+              👤
+            </Text>
           </View>
         )}
         {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
@@ -224,11 +285,15 @@ function PlayerInfoComponent({
             type={ringType}
             startedAt={ringStartedAt}
             onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+            size={avatarScale.size}
           />
         )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
-          <View style={styles.disconnectOverlay} pointerEvents="none">
+          <View
+            style={[styles.disconnectOverlay, { borderRadius: avatarScale.innerRadius }]}
+            pointerEvents="none"
+          >
             <ActivityIndicator size="small" color={COLORS.white} />
           </View>
         )}
@@ -303,7 +368,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: COLORS.gray.medium,
     alignItems: 'center',
     justifyContent: 'center',
@@ -347,7 +412,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -366,19 +431,19 @@ const avatarStyles = StyleSheet.create({
   videoFill: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     overflow: 'hidden',
   },
   videoPlaceholder: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: '#1a3a5c',
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoPlaceholderIcon: {
-    fontSize: LAYOUT.avatarIconSize,
+    // fontSize set dynamically via inline style (avatarScale.iconSize)
     textAlign: 'center',
   },
   liveBadge: {
@@ -412,9 +477,8 @@ const avatarStyles = StyleSheet.create({
   cameraOffIcon: {
     fontSize: 10,
   },
-  // Profile photo (camera off) styles — mirrors main styles.avatarIcon
+  // Profile photo (camera off) styles — fontSize set dynamically via iconSize
   avatarProfileIcon: {
-    fontSize: LAYOUT.avatarIconSize,
     textAlign: 'center',
   },
   avatarIconFaded: {

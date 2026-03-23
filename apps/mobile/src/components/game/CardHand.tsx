@@ -150,6 +150,44 @@ function CardHandComponent({
   // Separate state: display cards (managed independently)
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
 
+  // Track card IDs that were optimistically removed via drag-to-play.
+  // The sync effect below must not re-add them until the parent's `cards` prop
+  // actually drops them (confirming the play was accepted).
+  const optimisticallyRemovedRef = useRef(new Set<string>());
+  const optimisticRollbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Rollback optimistic removals after a timeout if the parent props haven't confirmed
+  const scheduleOptimisticRollback = useCallback(() => {
+    if (optimisticRollbackTimerRef.current) clearTimeout(optimisticRollbackTimerRef.current);
+    optimisticRollbackTimerRef.current = setTimeout(() => {
+      if (optimisticallyRemovedRef.current.size > 0) {
+        optimisticallyRemovedRef.current.clear();
+        // Re-sync display cards with parent cards
+        setDisplayCards(prev => {
+          // Only update if the parent cards are different
+          const parentIds = new Set(cards.map(c => c.id));
+          const currentIds = new Set(prev.map(c => c.id));
+          if (
+            parentIds.size !== currentIds.size ||
+            ![...parentIds].every(id => currentIds.has(id))
+          ) {
+            return cards;
+          }
+          return prev;
+        });
+      }
+    }, 3000); // 3s safety net — server should respond well within
+  }, [cards]);
+
+  // Clean up the rollback timer on unmount to avoid setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (optimisticRollbackTimerRef.current) {
+        clearTimeout(optimisticRollbackTimerRef.current);
+      }
+    };
+  }, []);
+
   // Selection state: If external state is provided, use it; otherwise use internal state.
   // The setter pattern (const setSelectedCardIds = onSelectionChange ?? setInternalSelectedCardIds)
   // was intentionally removed because:
@@ -161,30 +199,40 @@ function CardHandComponent({
 
   // Update display cards when prop cards change
   React.useEffect(() => {
-    // CRITICAL FIX: Only update if cards actually changed (not just reordered)
-    // Compare card IDs to detect if it's the same set of cards
-    const currentIds = new Set(displayCards.map(c => c.id));
+    // Prune confirmed removals from the optimistic set: if the parent's cards no
+    // longer contain an ID we optimistically removed, the play was accepted.
     const newIds = new Set(cards.map(c => c.id));
+    for (const id of optimisticallyRemovedRef.current) {
+      if (!newIds.has(id)) {
+        optimisticallyRemovedRef.current.delete(id);
+      }
+    }
 
-    // Check if it's the same set of cards (just potentially reordered)
+    // Filter parent cards to exclude anything still optimistically removed
+    const filteredCards =
+      optimisticallyRemovedRef.current.size > 0
+        ? cards.filter(c => !optimisticallyRemovedRef.current.has(c.id))
+        : cards;
+
+    // CRITICAL FIX: Only update if cards actually changed (not just reordered)
+    const currentIds = new Set(displayCards.map(c => c.id));
+    const filteredIds = new Set(filteredCards.map(c => c.id));
+
     const sameCardSet =
-      currentIds.size === newIds.size && [...currentIds].every(id => newIds.has(id));
+      currentIds.size === filteredIds.size && [...currentIds].every(id => filteredIds.has(id));
 
     if (!sameCardSet) {
       // Cards actually changed (added/removed) - reset drag state and update display
       setDragState(initialDragState);
-      setDisplayCards(cards);
+      setDisplayCards(filteredCards);
     } else {
       // Same cards, potentially reordered by parent (via customCardOrder)
-      // Check if the parent order is different from current display order
-      const orderChanged = cards.some((card, index) => {
+      const orderChanged = filteredCards.some((card, index) => {
         return displayCards[index]?.id !== card.id;
       });
 
       if (orderChanged || displayCards.length === 0) {
-        // Parent changed the order (via customCardOrder) OR initial load
-        // Update displayCards to match parent's order
-        setDisplayCards(cards);
+        setDisplayCards(filteredCards);
       }
     }
   }, [cards, displayCards]);
@@ -380,6 +428,16 @@ function CardHandComponent({
         if (canDragToPlay && dragState.isDraggingMultiple && isUpwardDrag) {
           const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+          // Track optimistically removed cards so the sync effect doesn't re-add them
+          for (const id of selectedCardIds) {
+            optimisticallyRemovedRef.current.add(id);
+          }
+
+          // Immediately remove played cards from display so they don't flash back
+          setDisplayCards(prev => prev.filter(c => !selectedCardIds.has(c.id)));
+          scheduleOptimisticRollback();
+
           onPlayCards(selected);
 
           // Clear selection after playing
@@ -403,6 +461,14 @@ function CardHandComponent({
             void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
               () => {}
             );
+
+            // Track optimistically removed card
+            optimisticallyRemovedRef.current.add(cardId);
+
+            // Immediately remove played card from display so it doesn't flash back
+            setDisplayCards(prev => prev.filter(c => c.id !== cardId));
+            scheduleOptimisticRollback();
+
             onPlayCards([card]);
           }
         } else if (

@@ -13,6 +13,15 @@ jest.mock('../../services/supabase');
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
+jest.mock('../../store/userPreferencesSlice', () => {
+  const mockState = { showOnlineStatus: true };
+  const mock = jest.fn((selector?: (s: typeof mockState) => unknown) =>
+    selector ? selector(mockState) : mockState
+  );
+  // Expose state so tests can mutate it
+  (mock as any).__state = mockState;
+  return { useUserPreferencesStore: mock };
+});
 
 // AppState mock — captures the listener so tests can fire AppState changes.
 const mockAddEventListener = jest.fn();
@@ -188,6 +197,35 @@ describe('usePresence', () => {
 
       // removeChannel called for the existing channel before the new one
       expect(supabase.removeChannel).toHaveBeenCalled();
+    });
+  });
+
+  describe('showOnlineStatus toggle', () => {
+    it('calls untrack when showOnlineStatus is disabled', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUserPreferencesStore } = require('../../store/userPreferencesSlice');
+      const mockState = (useUserPreferencesStore as any).__state;
+
+      (useAuth as jest.Mock).mockReturnValue({ user: { id: 'user-1' } });
+      const untrackMock = jest.fn().mockResolvedValue({});
+      const trackMock = jest.fn().mockResolvedValue({});
+      (supabase.channel as jest.Mock).mockReturnValue(
+        makeChannel({ untrack: untrackMock, track: trackMock })
+      );
+
+      const { rerender } = renderHook(() => usePresence());
+
+      // Toggle off
+      await act(async () => {
+        mockState.showOnlineStatus = false;
+        rerender({});
+        await Promise.resolve();
+      });
+
+      expect(untrackMock).toHaveBeenCalled();
+
+      // Restore for other tests
+      mockState.showOnlineStatus = true;
     });
   });
 });

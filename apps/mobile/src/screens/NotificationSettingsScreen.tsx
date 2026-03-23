@@ -12,20 +12,29 @@ import {
 import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { i18n } from '../i18n';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 import { showError, showSuccess, showConfirm, showInfo } from '../utils';
 import { notificationLogger } from '../utils/logger';
 
 export default function NotificationSettingsScreen() {
+  const t = (key: string) => i18n.t(key);
   const { expoPushToken, isRegistered, registerPushNotifications, unregisterPushNotifications } =
     useNotifications();
   const { user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  // Note: Individual notification type toggles removed until backend preference storage is implemented
-  // Current implementation: Master toggle only (enable/disable all notifications)
-  // TODO: Add granular notification preferences in future iteration (Task #TBD) with database persistence
+  const {
+    notifyGameInvites,
+    setNotifyGameInvites,
+    notifyYourTurn,
+    setNotifyYourTurn,
+    notifyGameStarted,
+    setNotifyGameStarted,
+    notifyFriendRequests,
+    setNotifyFriendRequests,
+  } = useUserPreferencesStore();
 
   const checkNotificationStatus = useCallback(async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -40,7 +49,7 @@ export default function NotificationSettingsScreen() {
     if (value) {
       // Request permissions and register
       const { status } = await Notifications.requestPermissionsAsync();
-      
+
       if (status === 'granted') {
         await registerPushNotifications();
         setNotificationsEnabled(true);
@@ -50,20 +59,21 @@ export default function NotificationSettingsScreen() {
           title: 'Permissions Required',
           message: 'Please enable notifications in your device settings to receive game updates.',
           confirmText: 'Open Settings',
-          onConfirm: () => Linking.openSettings()
+          onConfirm: () => Linking.openSettings(),
         });
       }
     } else {
       // Unregister
       showConfirm({
         title: 'Disable Notifications',
-        message: 'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
+        message:
+          'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
         confirmText: 'Disable',
         destructive: true,
         onConfirm: async () => {
           await unregisterPushNotifications();
           setNotificationsEnabled(false);
-        }
+        },
       });
     }
   };
@@ -90,7 +100,10 @@ export default function NotificationSettingsScreen() {
       showInfo('You should receive a notification in 2 seconds!', 'Test Notification Sent');
     } catch (error: unknown) {
       // Only log error message/code to avoid exposing notification service internals
-      notificationLogger.error('Error sending test notification:', error instanceof Error ? error.message : String(error));
+      notificationLogger.error(
+        'Error sending test notification:',
+        error instanceof Error ? error.message : String(error)
+      );
       showError('Failed to send test notification.');
     }
   };
@@ -99,16 +112,14 @@ export default function NotificationSettingsScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Push Notifications</Text>
-          <Text style={styles.sectionDescription}>
-            Stay updated with game invites, turn notifications, and more.
-          </Text>
+          <Text style={styles.sectionTitle}>{t('settings.pushNotifications')}</Text>
+          <Text style={styles.sectionDescription}>{t('settings.stayUpdatedNotifications')}</Text>
 
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingTitle}>Enable Notifications</Text>
+              <Text style={styles.settingTitle}>{t('settings.enableNotifications')}</Text>
               <Text style={styles.settingDescription}>
-                Receive push notifications for game events
+                {t('settings.enableNotificationsDescription')}
               </Text>
             </View>
             <Switch
@@ -122,34 +133,87 @@ export default function NotificationSettingsScreen() {
           {notificationsEnabled && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.subsectionTitle}>About Notifications</Text>
-              <Text style={styles.infoText}>
-                You&apos;ll receive notifications for game invites, your turn, game start, and friend requests.
-                {'\n\n'}
-                Granular notification preferences (choose which types to receive) will be available in a future update.
-              </Text>
+              <Text style={styles.subsectionTitle}>{t('settings.notificationTypes')}</Text>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>{t('settings.gameInvites')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.gameInvitesDescription')}
+                  </Text>
+                </View>
+                <Switch
+                  value={notifyGameInvites}
+                  onValueChange={setNotifyGameInvites}
+                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
+                  thumbColor={notifyGameInvites ? COLORS.white : COLORS.gray.medium}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>{t('settings.yourTurn')}</Text>
+                  <Text style={styles.settingDescription}>{t('settings.yourTurnDescription')}</Text>
+                </View>
+                <Switch
+                  value={notifyYourTurn}
+                  onValueChange={setNotifyYourTurn}
+                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
+                  thumbColor={notifyYourTurn ? COLORS.white : COLORS.gray.medium}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>{t('settings.gameStarted')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.gameStartedDescription')}
+                  </Text>
+                </View>
+                <Switch
+                  value={notifyGameStarted}
+                  onValueChange={setNotifyGameStarted}
+                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
+                  thumbColor={notifyGameStarted ? COLORS.white : COLORS.gray.medium}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>{t('settings.friendRequests')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.friendRequestsDescription')}
+                  </Text>
+                </View>
+                <Switch
+                  value={notifyFriendRequests}
+                  onValueChange={setNotifyFriendRequests}
+                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
+                  thumbColor={notifyFriendRequests ? COLORS.white : COLORS.gray.medium}
+                />
+              </View>
             </>
           )}
         </View>
 
         {notificationsEnabled && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Testing</Text>
+            <Text style={styles.sectionTitle}>{t('settings.testing')}</Text>
             <TouchableOpacity style={styles.testButton} onPress={testNotification}>
-              <Text style={styles.testButtonText}>Send Test Notification</Text>
+              <Text style={styles.testButtonText}>{t('settings.sendTestNotification')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {expoPushToken && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Debug Info</Text>
+            <Text style={styles.sectionTitle}>{t('settings.debugInfo')}</Text>
             <View style={styles.debugBox}>
-              <Text style={styles.debugLabel}>Push Token:</Text>
+              <Text style={styles.debugLabel}>{t('settings.pushToken')}</Text>
               <Text style={styles.debugValue}>{expoPushToken}</Text>
-              <Text style={styles.debugLabel}>User ID:</Text>
+              <Text style={styles.debugLabel}>{t('settings.userIdLabel')}</Text>
               <Text style={styles.debugValue}>{user?.id}</Text>
-              <Text style={styles.debugLabel}>Platform:</Text>
+              <Text style={styles.debugLabel}>{t('settings.platformLabel')}</Text>
               <Text style={styles.debugValue}>{Platform.OS}</Text>
             </View>
           </View>

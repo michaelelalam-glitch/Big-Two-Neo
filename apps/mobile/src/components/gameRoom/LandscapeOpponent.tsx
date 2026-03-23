@@ -15,9 +15,10 @@
  * Date: December 18, 2025
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
+import { useUserPreferencesStore } from '../../store/userPreferencesSlice';
 import {
   getScoreBadgeColor,
   formatScore,
@@ -75,6 +76,20 @@ export function LandscapeOpponent({
   onAvatarPress,
   onNameLongPress,
 }: LandscapeOpponentProps) {
+  // Profile photo size preference (mirrors PlayerInfo scaling)
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const avatarScale = useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    const scale = scaleMap[profilePhotoSize] ?? 1.0;
+    const size = Math.round(LAYOUT.avatarSize * scale);
+    return {
+      size,
+      borderRadius: Math.round(size / 2),
+      innerRadius: Math.round((size - LAYOUT.avatarBorderWidth * 2) / 2),
+      iconSize: Math.round(LAYOUT.avatarIconSize * scale),
+    };
+  }, [profilePhotoSize]);
+
   const hasConnectionTimer = !!disconnectTimerStartedAt;
   const hasTurnTimer = !!turnTimerStartedAt;
   const showRing = hasConnectionTimer || hasTurnTimer;
@@ -108,14 +123,44 @@ export function LandscapeOpponent({
         accessibilityState={!onAvatarPress ? { disabled: true } : undefined}
       >
         <View
-          style={[styles.avatarContainer, isActive && !showRing && styles.avatarContainerActive]}
+          style={[
+            styles.avatarContainer,
+            {
+              width: avatarScale.size,
+              height: avatarScale.size,
+              borderRadius: avatarScale.borderRadius,
+            },
+            isActive && !showRing && styles.avatarContainerActive,
+          ]}
         >
-          <View style={[styles.avatarInner, isDisconnected && styles.avatarInnerDisconnected]}>
+          <View
+            style={[
+              styles.avatarInner,
+              { borderRadius: avatarScale.innerRadius },
+              isDisconnected && styles.avatarInnerDisconnected,
+            ]}
+          >
             {photoUrl ? (
               // TODO: Render actual profile photo when available
-              <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+              <Text
+                style={[
+                  styles.avatarIcon,
+                  { fontSize: avatarScale.iconSize },
+                  isDisconnected && styles.avatarIconFaded,
+                ]}
+              >
+                👤
+              </Text>
             ) : (
-              <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+              <Text
+                style={[
+                  styles.avatarIcon,
+                  { fontSize: avatarScale.iconSize },
+                  isDisconnected && styles.avatarIconFaded,
+                ]}
+              >
+                👤
+              </Text>
             )}
           </View>
           {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
@@ -125,11 +170,15 @@ export function LandscapeOpponent({
               type={ringType}
               startedAt={ringStartedAt}
               onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+              size={avatarScale.size}
             />
           )}
           {/* Disconnect spinner overlay */}
           {isDisconnected && (
-            <View style={styles.disconnectOverlay} pointerEvents="none">
+            <View
+              style={[styles.disconnectOverlay, { borderRadius: avatarScale.innerRadius }]}
+              pointerEvents="none"
+            >
               <ActivityIndicator size="small" color={COLORS.white} />
             </View>
           )}

@@ -1,6 +1,6 @@
 /**
  * Push Notification Service
- * 
+ *
  * Utility functions to send push notifications via Supabase Edge Function
  * for game events (invites, turns, game start, etc.)
  */
@@ -17,7 +17,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/send-push-notification`;
 
 interface NotificationData {
-  type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request';
+  type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'friend_accepted';
   roomCode?: string;
   [key: string]: unknown;
 }
@@ -44,8 +44,8 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'apikey': SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({
         user_ids: options.userIds,
@@ -59,7 +59,10 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
     if (!response.ok) {
       const error = await response.json();
       // Log only error message, not full response (may contain API keys)
-      notificationLogger.error('Failed to send push notifications:', error?.message || error?.error || 'API request failed');
+      notificationLogger.error(
+        'Failed to send push notifications:',
+        error?.message || error?.error || 'API request failed'
+      );
       return false;
     }
 
@@ -67,7 +70,10 @@ async function sendPushNotifications(options: SendNotificationOptions): Promise<
     notificationLogger.info(`✅ Sent ${result.sent} notification(s)`);
     return true;
   } catch (error: unknown) {
-    notificationLogger.error('Error sending push notifications:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      'Error sending push notifications:',
+      error instanceof Error ? error.message : String(error)
+    );
     return false;
   }
 }
@@ -114,10 +120,7 @@ export async function notifyYourTurn(
 /**
  * Send game started notification
  */
-export async function notifyGameStarted(
-  userIds: string[],
-  roomCode: string
-): Promise<boolean> {
+export async function notifyGameStarted(userIds: string[], roomCode: string): Promise<boolean> {
   return sendPushNotifications({
     userIds,
     title: 'Game Started!',
@@ -132,16 +135,27 @@ export async function notifyGameStarted(
 /**
  * Send friend request notification
  */
-export async function notifyFriendRequest(
-  userId: string,
-  senderName: string
-): Promise<boolean> {
+export async function notifyFriendRequest(userId: string, senderName: string): Promise<boolean> {
   return sendPushNotifications({
     userIds: [userId],
     title: 'Friend Request',
     body: `${senderName} sent you a friend request`,
     data: {
       type: 'friend_request',
+    },
+  });
+}
+
+/**
+ * Send notification when a friend request is accepted
+ */
+export async function notifyFriendAccepted(userId: string, accepterName: string): Promise<boolean> {
+  return sendPushNotifications({
+    userIds: [userId],
+    title: 'Friend Request Accepted',
+    body: `${accepterName} accepted your friend request`,
+    data: {
+      type: 'friend_accepted',
     },
   });
 }
@@ -158,7 +172,7 @@ export async function notifyOtherPlayers(
   notificationType: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' = 'game_started'
 ): Promise<boolean> {
   const otherPlayerIds = allPlayerIds.filter(id => id !== currentPlayerId);
-  
+
   if (otherPlayerIds.length === 0) {
     return true; // No one to notify
   }
@@ -179,5 +193,6 @@ export default {
   notifyYourTurn,
   notifyGameStarted,
   notifyFriendRequest,
+  notifyFriendAccepted,
   notifyOtherPlayers,
 };

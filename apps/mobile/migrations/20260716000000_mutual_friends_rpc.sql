@@ -1,0 +1,12 @@
+-- Legacy/reference-only migration file.
+--
+-- Note: Migrations under apps/mobile/migrations/ are not applied by the
+-- Supabase CLI and must not be treated as the source of truth.
+--
+-- The authoritative definition of the mutual friends RPC
+-- (get_mutual_friends_count) lives under:
+--   apps/mobile/supabase/migrations/
+--
+-- This file is intentionally left without executable SQL to avoid confusion
+-- and drift between legacy reference migrations and the real deployment
+-- migrations managed by Supabase.

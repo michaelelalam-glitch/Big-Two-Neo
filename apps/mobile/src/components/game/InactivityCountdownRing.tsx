@@ -27,7 +27,6 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
@@ -51,17 +50,15 @@ const COUNTDOWN_DURATION_MS = 60_000;
  */
 const CLOCK_SKEW_WARN_THRESHOLD_MS = 2_000;
 
-/** Ring visual settings */
-const RING_SIZE = LAYOUT.avatarSize; // 70px — same as avatar container
+/** Ring visual settings (defaults, can be overridden by size prop) */
+const DEFAULT_RING_SIZE = LAYOUT.avatarSize; // 70px — default avatar size
 const RING_STROKE_WIDTH = 4; // Slightly thinner than avatar border (4px) so it overlays cleanly
-const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 /** Ring colors by type */
-const TURN_COLOR_FULL = '#FFD700';   // Yellow — it's your turn, play within 60s
-const TURN_COLOR_LOW  = '#FFC107';   // Amber — under 15s remaining
-const CONN_COLOR_FULL = '#4A4A4A';   // Charcoal grey — player disconnected
-const CONN_COLOR_LOW  = '#2E2E2E';   // Dark charcoal — under 15s remaining
+const TURN_COLOR_FULL = '#FFD700'; // Yellow — it's your turn, play within 60s
+const TURN_COLOR_LOW = '#FFC107'; // Amber — under 15s remaining
+const CONN_COLOR_FULL = '#4A4A4A'; // Charcoal grey — player disconnected
+const CONN_COLOR_LOW = '#2E2E2E'; // Dark charcoal — under 15s remaining
 
 const RING_BACKGROUND: Record<'turn' | 'connection', string> = {
   turn: 'rgba(255,215,0,0.2)',
@@ -79,6 +76,8 @@ interface InactivityCountdownRingProps {
   startedAt: string;
   /** Called when the countdown reaches 0 (timer expired) */
   onExpired?: () => void;
+  /** Optional size override — defaults to LAYOUT.avatarSize (70px) */
+  size?: number;
 }
 
 /**
@@ -113,7 +112,17 @@ export default function InactivityCountdownRing({
   type,
   startedAt,
   onExpired,
+  size = DEFAULT_RING_SIZE,
 }: InactivityCountdownRingProps) {
+  // Calculate ring dimensions based on size
+  const ringDimensions = useMemo(() => {
+    const ringSize = size;
+    const radius = (ringSize - RING_STROKE_WIDTH) / 2;
+    const circumference = 2 * Math.PI * radius;
+    return { ringSize, radius, circumference };
+  }, [size]);
+
+  const { ringSize, radius, circumference } = ringDimensions;
   // Keep stable refs for callbacks so we never need to re-schedule the Reanimated
   // animation just because the parent re-created its onExpired arrow function or
   // because the `type` prop changed (type is synced via typeRef + typeShared).
@@ -143,7 +152,7 @@ export default function InactivityCountdownRing({
     const skew = serverMs - Date.now(); // positive when server is ahead of client
     if (skew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
       networkLogger.warn(
-        `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`,
+        `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`
       );
     }
   }, [startedAt]);
@@ -159,7 +168,10 @@ export default function InactivityCountdownRing({
   // startedAt/type change — no per-frame JS updates. Screen readers announce the ring
   // type and approximate remaining time without reintroducing JS-thread re-renders.
   const accessibilityLabel = useMemo(() => {
-    const remainingSeconds = Math.max(0, Math.ceil(initialProgress * COUNTDOWN_DURATION_MS / 1000));
+    const remainingSeconds = Math.max(
+      0,
+      Math.ceil((initialProgress * COUNTDOWN_DURATION_MS) / 1000)
+    );
     const action = type === 'turn' ? 'auto-play' : 'bot replacement';
     return remainingSeconds > 0
       ? `${type === 'turn' ? 'Turn' : 'Disconnect'} timer — about ${remainingSeconds}s until ${action}`
@@ -173,7 +185,9 @@ export default function InactivityCountdownRing({
   // restarting the animation when `type` prop changes. Synced from JS thread via
   // a separate useEffect so the color update arrives on the UI thread automatically.
   const typeShared = useSharedValue<'turn' | 'connection'>(type);
-  useEffect(() => { typeShared.value = type; }, [type, typeShared]);
+  useEffect(() => {
+    typeShared.value = type;
+  }, [type, typeShared]);
 
   // JS-side visibility: only used to mount/unmount the SVG element. One boolean
   // flag avoids keeping the entire render tree alive after expiry.
@@ -191,12 +205,12 @@ export default function InactivityCountdownRing({
       networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     } else {
       networkLogger.debug(
-        `[InactivityRing] Timer expired with no onExpired handler: type=${typeRef.current}`,
+        `[InactivityRing] Timer expired with no onExpired handler: type=${typeRef.current}`
       );
     }
     setVisible(false);
     onExpiredRef.current?.();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
   // Schedule (or reschedule) the depletion animation whenever startedAt changes.
@@ -213,7 +227,7 @@ export default function InactivityCountdownRing({
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
     networkLogger.info(
-      `[InactivityRing] Scheduling ${typeRef.current} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`,
+      `[InactivityRing] Scheduling ${typeRef.current} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`
     );
 
     if (remaining <= 0) {
@@ -227,7 +241,7 @@ export default function InactivityCountdownRing({
     // Assign synchronously so the arc is at the correct position for the first frame.
     progress.value = initial;
     // Drive to 0 over the remaining duration — entirely on the UI thread.
-    progress.value = withTiming(0, { duration: remaining, easing: Easing.linear }, (finished) => {
+    progress.value = withTiming(0, { duration: remaining, easing: Easing.linear }, finished => {
       'worklet';
       if (finished) {
         runOnJS(handleExpired)();
@@ -241,8 +255,8 @@ export default function InactivityCountdownRing({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startTimeMs]); // startTimeMs is memoised on [startedAt] — same trigger, no duplicate
-                     // resolveStartTimeMs call. type → typeShared.value (color only, no
-                     // animation restart); handleExpired, progress, typeShared are stable.
+  // resolveStartTimeMs call. type → typeShared.value (color only, no
+  // animation restart); handleExpired, progress, typeShared are stable.
 
   // --- Animated props (UI thread worklet) ---
   // CLOCKWISE depletion from 12 o'clock:
@@ -251,12 +265,17 @@ export default function InactivityCountdownRing({
   //   and combined with rotation=-90 the visible arc starts at 12 o'clock.
   const arcAnimatedProps = useAnimatedProps(() => {
     const p = progress.value;
-    const visibleArc = p * RING_CIRCUMFERENCE;
-    const gap = RING_CIRCUMFERENCE - visibleArc;
+    const visibleArc = p * circumference;
+    const gap = circumference - visibleArc;
     const isTurn = typeShared.value === 'turn';
-    const stroke = p <= 0.25
-      ? (isTurn ? TURN_COLOR_LOW : CONN_COLOR_LOW)
-      : (isTurn ? TURN_COLOR_FULL : CONN_COLOR_FULL);
+    const stroke =
+      p <= 0.25
+        ? isTurn
+          ? TURN_COLOR_LOW
+          : CONN_COLOR_LOW
+        : isTurn
+          ? TURN_COLOR_FULL
+          : CONN_COLOR_FULL;
     return {
       strokeDasharray: `${visibleArc} ${gap}`,
       strokeDashoffset: -gap,
@@ -268,46 +287,44 @@ export default function InactivityCountdownRing({
 
   return (
     <Animated.View
-      style={styles.container}
+      style={[
+        {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: ringSize,
+          height: ringSize,
+          zIndex: 6, // Above avatar (z:0) but below card badge (z:10)
+        },
+      ]}
       pointerEvents="none"
       accessible={true}
       accessibilityLabel={accessibilityLabel}
     >
-      <Svg width={RING_SIZE} height={RING_SIZE}>
+      <Svg width={ringSize} height={ringSize}>
         {/* Background track — static, no animation needed */}
         <Circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_RADIUS}
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={radius}
           stroke={RING_BACKGROUND[type]}
           strokeWidth={RING_STROKE_WIDTH}
           fill="none"
         />
         {/* Animated countdown arc — driven entirely on the UI thread */}
         <AnimatedCircle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_RADIUS}
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={radius}
           strokeWidth={RING_STROKE_WIDTH}
           fill="none"
           strokeLinecap="round"
           rotation={-90}
-          originX={RING_SIZE / 2}
-          originY={RING_SIZE / 2}
+          originX={ringSize / 2}
+          originY={ringSize / 2}
           animatedProps={arcAnimatedProps}
         />
       </Svg>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: RING_SIZE,
-    height: RING_SIZE,
-    zIndex: 6, // Above avatar (z:0) but below card badge (z:10)
-  },
-});

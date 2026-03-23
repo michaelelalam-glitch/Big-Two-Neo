@@ -28,7 +28,7 @@ import { authLogger } from '../utils/logger';
 
 export type RootStackParamList = {
   GameSelection: undefined;
-  Home: undefined;
+  Home: { roomClosed?: boolean } | undefined;
   SignIn: undefined;
   Profile: undefined;
   CreateRoom: undefined;
@@ -210,9 +210,21 @@ export default function AppNavigator() {
                   <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
                   <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
                   <Stack.Screen name="MatchTypeSelection" component={MatchTypeSelectionScreen} />
-                  <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
-                  <Stack.Screen name="Lobby" component={LobbyScreen} />
-                  <Stack.Screen name="Game" component={GameScreen} />
+                  <Stack.Screen
+                    name="Matchmaking"
+                    component={MatchmakingScreen}
+                    options={{ gestureEnabled: false }}
+                  />
+                  <Stack.Screen
+                    name="Lobby"
+                    component={LobbyScreen}
+                    options={{ gestureEnabled: false }}
+                  />
+                  <Stack.Screen
+                    name="Game"
+                    component={GameScreen}
+                    options={{ gestureEnabled: false }}
+                  />
                   <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
                   <Stack.Screen name="MatchHistory" component={MatchHistoryScreen} />
                   <Stack.Screen name="Stats" component={StatsScreen} />
