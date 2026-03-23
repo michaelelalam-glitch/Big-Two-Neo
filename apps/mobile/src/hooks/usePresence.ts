@@ -10,10 +10,11 @@
  *   isOnline('some-user-id') // → true / false
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 
 interface UsePresenceResult {
   /** Set of user IDs that are currently online */
@@ -26,6 +27,7 @@ const PRESENCE_CHANNEL = 'app-presence';
 
 export function usePresence(): UsePresenceResult {
   const { user } = useAuth();
+  const showOnlineStatus = useUserPreferencesStore(s => s.showOnlineStatus);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -125,7 +127,33 @@ export function usePresence(): UsePresenceResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const isOnline = useCallback((userId: string) => onlineUserIds.has(userId), [onlineUserIds]);
+  // Respect showOnlineStatus toggle: untrack when disabled, re-track when enabled
+  useEffect(() => {
+    if (!user?.id || !channelRef.current) return;
+    if (!showOnlineStatus) {
+      void channelRef.current.untrack().catch(() => {});
+    } else {
+      void channelRef.current.track({ user_id: user.id }).catch(() => {});
+    }
+  }, [showOnlineStatus, user?.id]);
 
-  return { onlineUserIds, isOnline };
+  const isOnline = useCallback(
+    (userId: string) => {
+      // When showOnlineStatus is off, never report the current user as online
+      if (!showOnlineStatus && userId === user?.id) return false;
+      return onlineUserIds.has(userId);
+    },
+    [onlineUserIds, showOnlineStatus, user?.id]
+  );
+
+  // Gate returned set: exclude current user when they opted out of online status
+  const gatedOnlineUserIds = useMemo(() => {
+    if (showOnlineStatus || !user?.id) return onlineUserIds;
+    if (!onlineUserIds.has(user.id)) return onlineUserIds;
+    const filtered = new Set(onlineUserIds);
+    filtered.delete(user.id);
+    return filtered;
+  }, [onlineUserIds, showOnlineStatus, user?.id]);
+
+  return { onlineUserIds: gatedOnlineUserIds, isOnline };
 }

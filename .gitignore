@@ -17,3 +17,10 @@ apps/mobile/Big2Mobile.app/
 .vscode/mcp.json
 coverage/
 .vscode/settings.json
+
+# Temp/scratch files
+.commit-msg.txt
+.tmp_commit_msg*.txt
+.tmp_write_migration.py
+parse_review.py
+parse_r4.py

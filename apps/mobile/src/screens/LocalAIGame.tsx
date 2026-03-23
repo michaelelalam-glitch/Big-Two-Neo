@@ -18,6 +18,7 @@ import { useGameAudio } from '../hooks/useGameAudio';
 import { useGameCleanup } from '../hooks/useGameCleanup';
 import { useGameEndCallbacks } from '../hooks/useGameEndCallbacks';
 import { useGameStateManager } from '../hooks/useGameStateManager';
+import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { useHelperButtons } from '../hooks/useHelperButtons';
 import { useOneCardLeftAlert } from '../hooks/useOneCardLeftAlert';
 import { useOrientationManager } from '../hooks/useOrientationManager';
@@ -148,6 +149,20 @@ export function LocalAIGame() {
     }
     return result;
   }, [playerHand, customCardOrder]);
+
+  // Auto-sort hand when cards are first dealt
+  const hasAutoSortedRef = useRef(false);
+  useEffect(() => {
+    const hand = (playerHand ?? []) as Card[];
+    if (hand.length > 0 && customCardOrder.length === 0 && !hasAutoSortedRef.current) {
+      hasAutoSortedRef.current = true;
+      const sorted = sortHandLowestToHighest(hand);
+      setCustomCardOrder(sorted.map(c => c.id));
+    }
+    if (hand.length === 0) {
+      hasAutoSortedRef.current = false;
+    }
+  }, [playerHand, customCardOrder, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({

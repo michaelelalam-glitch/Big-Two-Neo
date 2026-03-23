@@ -17,7 +17,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
 import { i18n } from '../i18n';
-import { notifyFriendRequest } from '../services/pushNotificationService';
+import { notifyFriendRequest, notifyFriendAccepted } from '../services/pushNotificationService';
 
 export interface FriendProfile {
   id: string;
@@ -259,9 +259,15 @@ export function useFriends(): UseFriendsResult {
       if (!data || data.length === 0) {
         throw new Error(i18n.t('friends.requestAlreadyHandled'));
       }
+      // Notify the requester that their request was accepted
+      const requesterId = data[0].requester_id;
+      const accepterName = profile?.username || user.email || i18n.t('friends.unknownPlayer');
+      notifyFriendAccepted(requesterId, accepterName).catch(() => {
+        // Swallow push errors — the acceptance was saved successfully
+      });
       await fetchAll();
     },
-    [user?.id, fetchAll]
+    [user?.id, user?.email, profile?.username, fetchAll]
   );
 
   const declineRequest = useCallback(
