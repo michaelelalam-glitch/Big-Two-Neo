@@ -36,6 +36,7 @@ import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { showError } from '../utils';
+import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
 import type { Card } from '../game/types';
@@ -115,14 +116,26 @@ export function MultiplayerGame() {
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => () => {
-      gameLogger.info('🔄 [MultiplayerGame] Play Again → navigating to Lobby with same room');
-      // Navigate to Lobby so the player can re-queue / rejoin the same room.
-      // index: 1 makes Lobby the active screen; Home is kept in the back-stack
-      // so the user can still navigate home from the lobby.
-      navigation.reset({
-        index: 1,
-        routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
-      });
+      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → same lobby
+      if (roomInfo?.ranked_mode) {
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Ranked matchmaking');
+        navigation.reset({
+          index: 1,
+          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'ranked' } }],
+        });
+      } else if (roomInfo?.is_public) {
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Casual matchmaking');
+        navigation.reset({
+          index: 1,
+          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
+        });
+      } else {
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Lobby with same room');
+        navigation.reset({
+          index: 1,
+          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
+        });
+      }
     });
 
     setOnReturnToMenu(() => () => {
@@ -132,7 +145,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [roomCode, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  }, [roomCode, roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
@@ -444,6 +457,54 @@ export function MultiplayerGame() {
   }, [scoreHistory, ROOM_SCORE_KEY]);
   // ─────────────────────────────────────────────────────────────────────────────
 
+  // ─── CUSTOM CARD ORDER PERSISTENCE ──────────────────────────────────────────
+  const CARD_ORDER_KEY = `@big2_card_order_${roomCode}`;
+  const hasRestoredCardOrderRef = useRef(false);
+
+  // 1. Restore custom card order for this room on mount
+  useEffect(() => {
+    if (hasRestoredCardOrderRef.current) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
+        if (stored) {
+          const parsed: string[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            gameLogger.info(
+              `[MultiplayerGame] 🔄 Restoring card order (${parsed.length} cards) for room ${roomCode}`
+            );
+            setCustomCardOrder(parsed);
+          }
+        }
+      } catch (err: unknown) {
+        gameLogger.error(
+          '[MultiplayerGame] Failed to restore card order:',
+          err instanceof Error ? err.message : String(err)
+        );
+      } finally {
+        hasRestoredCardOrderRef.current = true;
+      }
+    })();
+  }, [CARD_ORDER_KEY, roomCode, setCustomCardOrder]);
+
+  // 2. Persist custom card order whenever it changes
+  const isFirstCardOrderRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstCardOrderRenderRef.current) {
+      isFirstCardOrderRenderRef.current = false;
+      return;
+    }
+    if (customCardOrder.length > 0) {
+      AsyncStorage.setItem(CARD_ORDER_KEY, JSON.stringify(customCardOrder)).catch(err => {
+        gameLogger.error(
+          '[MultiplayerGame] Failed to persist card order:',
+          err?.message || String(err)
+        );
+      });
+    }
+  }, [customCardOrder, CARD_ORDER_KEY]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // MULTIPLAYER HANDS MEMO
   const multiplayerHandsByIndex = React.useMemo(() => {
     const hands = multiplayerGameState?.hands;
@@ -588,6 +649,24 @@ export function MultiplayerGame() {
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is a safety dep
   }, [multiplayerPlayerHand, multiplayerHandsByIndex, customCardOrder]);
+
+  // Auto-sort hand when cards are first dealt (no existing custom order)
+  const hasAutoSortedRef = useRef(false);
+  useEffect(() => {
+    // Wait until card order restore has completed to avoid racing with it
+    if (!hasRestoredCardOrderRef.current) return;
+    const hand = (multiplayerPlayerHand ?? []) as Card[];
+    if (hand.length > 0 && customCardOrder.length === 0 && !hasAutoSortedRef.current) {
+      hasAutoSortedRef.current = true;
+      const sorted = sortHandLowestToHighest(hand);
+      setCustomCardOrder(sorted.map(c => c.id));
+      gameLogger.info('[MultiplayerGame] Auto-sorted dealt hand');
+    }
+    // Reset when a new round starts (hand changes completely)
+    if (hand.length === 0) {
+      hasAutoSortedRef.current = false;
+    }
+  }, [multiplayerPlayerHand, customCardOrder, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({

@@ -28,6 +28,8 @@ import { hapticManager } from '../utils/hapticManager';
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../utils/settings';
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
+export type ProfilePhotoSize = 'small' | 'medium' | 'large';
+
 export interface UserPreferencesState {
   // Audio & haptics
   soundEnabled: boolean;
@@ -42,6 +44,15 @@ export interface UserPreferencesState {
   profileVisibility: boolean;
   showOnlineStatus: boolean;
 
+  // Notification type preferences
+  notifyGameInvites: boolean;
+  notifyYourTurn: boolean;
+  notifyGameStarted: boolean;
+  notifyFriendRequests: boolean;
+
+  // Display
+  profilePhotoSize: ProfilePhotoSize;
+
   // Actions
   setSoundEnabled: (enabled: boolean) => void;
   setVibrationEnabled: (enabled: boolean) => void;
@@ -50,6 +61,11 @@ export interface UserPreferencesState {
   setAutoPassTimer: (timer: AutoPassTimer) => void;
   setProfileVisibility: (visible: boolean) => void;
   setShowOnlineStatus: (show: boolean) => void;
+  setProfilePhotoSize: (size: ProfilePhotoSize) => void;
+  setNotifyGameInvites: (enabled: boolean) => void;
+  setNotifyYourTurn: (enabled: boolean) => void;
+  setNotifyGameStarted: (enabled: boolean) => void;
+  setNotifyFriendRequests: (enabled: boolean) => void;
   /** Hydrate the store from existing manager/AsyncStorage values on first mount */
   hydrate: (
     partial: Partial<
@@ -62,6 +78,11 @@ export interface UserPreferencesState {
         | 'setAutoPassTimer'
         | 'setProfileVisibility'
         | 'setShowOnlineStatus'
+        | 'setProfilePhotoSize'
+        | 'setNotifyGameInvites'
+        | 'setNotifyYourTurn'
+        | 'setNotifyGameStarted'
+        | 'setNotifyFriendRequests'
         | 'hydrate'
       >
     >
@@ -83,6 +104,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       autoPassTimer: DEFAULT_SETTINGS.autoPassTimer,
       profileVisibility: DEFAULT_SETTINGS.profileVisibility,
       showOnlineStatus: DEFAULT_SETTINGS.showOnlineStatus,
+      notifyGameInvites: true,
+      notifyYourTurn: true,
+      notifyGameStarted: true,
+      notifyFriendRequests: true,
+      profilePhotoSize: 'medium' as ProfilePhotoSize,
 
       setSoundEnabled: enabled => {
         // Optimistic update: mirrors SoundManager's own in-memory flag mutation
@@ -106,6 +132,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setAutoPassTimer: timer => set({ autoPassTimer: timer }),
       setProfileVisibility: visible => set({ profileVisibility: visible }),
       setShowOnlineStatus: show => set({ showOnlineStatus: show }),
+      setProfilePhotoSize: size => set({ profilePhotoSize: size }),
+      setNotifyGameInvites: enabled => set({ notifyGameInvites: enabled }),
+      setNotifyYourTurn: enabled => set({ notifyYourTurn: enabled }),
+      setNotifyGameStarted: enabled => set({ notifyGameStarted: enabled }),
+      setNotifyFriendRequests: enabled => set({ notifyFriendRequests: enabled }),
 
       hydrate: partial => set(partial),
     }),
@@ -127,6 +158,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         autoPassTimer: state.autoPassTimer,
         profileVisibility: state.profileVisibility,
         showOnlineStatus: state.showOnlineStatus,
+        profilePhotoSize: state.profilePhotoSize,
+        notifyGameInvites: state.notifyGameInvites,
+        notifyYourTurn: state.notifyYourTurn,
+        notifyGameStarted: state.notifyGameStarted,
+        notifyFriendRequests: state.notifyFriendRequests,
       }),
     }
   )

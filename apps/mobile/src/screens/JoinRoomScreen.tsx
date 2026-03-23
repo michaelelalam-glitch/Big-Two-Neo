@@ -7,6 +7,7 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -152,7 +153,31 @@ export default function JoinRoomScreen() {
           showError(i18n.t('room.alreadyInAnotherRoom'));
           return;
         } else if (joinError.message?.includes('kicked from this private room')) {
-          throw new Error(i18n.t('room.kickedFromRoom'));
+          // Fetch the room host name for a more informative error message
+          let hostName = 'The host';
+          try {
+            const { data: hostData } = await supabase
+              .from('room_players')
+              .select('profiles(username)')
+              .eq('room_id', roomData?.id)
+              .eq('is_host', true)
+              .single();
+            const profiles = hostData?.profiles as
+              | { username?: string }
+              | { username?: string }[]
+              | null;
+            const profile_ = Array.isArray(profiles) ? profiles[0] : profiles;
+            if (profile_?.username) hostName = profile_.username;
+          } catch {
+            /* best-effort */
+          }
+          Alert.alert(
+            i18n.t('lobby.kickedTitle'),
+            i18n.t('room.kickedFromRoomByHost', { hostName }),
+            [{ text: i18n.t('common.ok'), style: 'default' }],
+            { cancelable: false }
+          );
+          return;
         }
         // Note: Username conflicts are prevented by the global username uniqueness constraint.
         // The auto-generated Player_{user_id} format ensures each user's username is unique globally.

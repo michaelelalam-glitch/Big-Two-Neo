@@ -3,19 +3,31 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { notificationLogger } from '../utils/logger';
+import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 import { supabase } from './supabase';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
 // CRITICAL FIX: Removed deprecated shouldShowAlert - use shouldShowBanner and shouldShowList instead
 // This prevents notification dismissal from blocking the game event loop
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    // REMOVED: shouldShowAlert (deprecated, causes event blocking on Android)
-  }),
+  handleNotification: async notification => {
+    const type = notification.request.content.data?.type as string | undefined;
+    const prefs = useUserPreferencesStore.getState();
+    const typeMap: Record<string, boolean> = {
+      game_invite: prefs.notifyGameInvites,
+      your_turn: prefs.notifyYourTurn,
+      game_started: prefs.notifyGameStarted,
+      friend_request: prefs.notifyFriendRequests,
+      friend_accepted: prefs.notifyFriendRequests,
+    };
+    const allowed = type ? (typeMap[type] ?? true) : true;
+    return {
+      shouldPlaySound: allowed,
+      shouldSetBadge: allowed,
+      shouldShowBanner: allowed,
+      shouldShowList: allowed,
+    };
+  },
 });
 
 export interface PushToken {
@@ -59,7 +71,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     } else {
       // For iOS, still use Expo push token
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      
+
       if (!projectId) {
         notificationLogger.error('Project ID not found in app configuration');
         return null;
@@ -113,7 +125,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     return token;
   } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details (DB connections, stack traces, etc.)
-    notificationLogger.error('Error registering for push notifications:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      'Error registering for push notifications:',
+      error instanceof Error ? error.message : String(error)
+    );
     return null;
   }
 }
@@ -121,32 +136,33 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 /**
  * Saves the push token to the database for the current user
  */
-export async function savePushTokenToDatabase(
-  userId: string,
-  pushToken: string
-): Promise<boolean> {
+export async function savePushTokenToDatabase(userId: string, pushToken: string): Promise<boolean> {
   try {
-    notificationLogger.info('💾 [savePushToken] Starting database save...', { userId: userId.substring(0, 8), platform: Platform.OS });
-    
+    notificationLogger.info('💾 [savePushToken] Starting database save...', {
+      userId: userId.substring(0, 8),
+      platform: Platform.OS,
+    });
+
     const platform = Platform.OS as 'ios' | 'android' | 'web';
 
-    const { error } = await supabase
-      .from('push_tokens')
-      .upsert(
-        {
-          user_id: userId,
-          push_token: pushToken,
-          platform: platform,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'user_id',
-        }
-      );
+    const { error } = await supabase.from('push_tokens').upsert(
+      {
+        user_id: userId,
+        push_token: pushToken,
+        platform: platform,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    );
 
     if (error) {
       // Only log error message/code to avoid exposing internal error details
-      notificationLogger.error('❌ [savePushToken] Database error:', error?.message || error?.code || 'Unknown error');
+      notificationLogger.error(
+        '❌ [savePushToken] Database error:',
+        error?.message || error?.code || 'Unknown error'
+      );
       return false;
     }
 
@@ -154,7 +170,10 @@ export async function savePushTokenToDatabase(
     return true;
   } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details
-    notificationLogger.error('Error saving push token to database:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      'Error saving push token to database:',
+      error instanceof Error ? error.message : String(error)
+    );
     return false;
   }
 }
@@ -164,13 +183,13 @@ export async function savePushTokenToDatabase(
  */
 export async function removePushTokenFromDatabase(userId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('push_tokens')
-      .delete()
-      .eq('user_id', userId);
+    const { error } = await supabase.from('push_tokens').delete().eq('user_id', userId);
 
     if (error) {
-      notificationLogger.error('Error removing push token:', error?.message || error?.code || 'Unknown error');
+      notificationLogger.error(
+        'Error removing push token:',
+        error?.message || error?.code || 'Unknown error'
+      );
       return false;
     }
 
@@ -178,7 +197,10 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
     return true;
   } catch (error: unknown) {
     // Only log error message/code to avoid exposing internal error details
-    notificationLogger.error('Error removing push token from database:', error instanceof Error ? error.message : String(error));
+    notificationLogger.error(
+      'Error removing push token from database:',
+      error instanceof Error ? error.message : String(error)
+    );
     return false;
   }
 }
@@ -188,7 +210,7 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
  */
 export function setupNotificationListeners() {
   // Listener for notifications received while app is in foreground
-  const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+  const notificationListener = Notifications.addNotificationReceivedListener(notification => {
     // Log only essential fields to avoid exposing sensitive user data
     const { title, body } = notification.request.content;
     const type = notification.request.content.data?.type;
@@ -197,14 +219,14 @@ export function setupNotificationListeners() {
   });
 
   // Listener for when user taps on notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+  const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
     // Log only essential fields to avoid exposing sensitive user data
     const title = response?.notification?.request?.content?.title;
     const type = response?.notification?.request?.content?.data?.type;
     const notifId = response?.notification?.request?.identifier;
     notificationLogger.info('👆 Notification tapped:', { title, type, id: notifId });
     const data = response.notification.request.content.data;
-    
+
     // Handle deep linking based on notification data
     handleNotificationData(data);
   });

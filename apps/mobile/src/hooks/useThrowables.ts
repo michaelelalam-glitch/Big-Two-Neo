@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ThrowableType } from '../types/multiplayer';
 
@@ -83,6 +84,11 @@ const EFFECT_DURATION_MS = 5_000;
 /** Cooldown after throwing (ms). */
 const COOLDOWN_MS = 30_000;
 const COOLDOWN_SECS = 30;
+
+/** AsyncStorage key for persisting cooldown end timestamp, scoped per user. */
+function cooldownStorageKey(uid: string): string {
+  return `throwable_cooldown_end_${uid}`;
+}
 
 let _seqThrowable = 0;
 function nextThrowableId(uid: string): string {
@@ -183,11 +189,52 @@ export function useThrowables({
     };
   }, []);
 
+  // Restore cooldown state on mount (survives disconnect/reconnect).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(cooldownStorageKey(userId));
+        if (!stored) return;
+        const endTime = Number(stored);
+        const remaining = Math.ceil((endTime - Date.now()) / 1000);
+        if (remaining > 0) {
+          isCooldownActiveRef.current = true;
+          cooldownEndRef.current = endTime;
+          setIsThrowCooldown(true);
+          setCooldownRemaining(remaining);
+          if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+          cooldownIntervalRef.current = setInterval(() => {
+            const r = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+            if (r <= 0) {
+              isCooldownActiveRef.current = false;
+              clearInterval(cooldownIntervalRef.current!);
+              cooldownIntervalRef.current = null;
+              setIsThrowCooldown(false);
+              setCooldownRemaining(0);
+              void AsyncStorage.removeItem(cooldownStorageKey(userId)).catch(() => {});
+            } else {
+              setCooldownRemaining(r);
+            }
+          }, 500);
+        } else {
+          // Expired while away — clean up
+          void AsyncStorage.removeItem(cooldownStorageKey(userId)).catch(() => {});
+        }
+      } catch {
+        /* best-effort */
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only
+
   const startCooldown = useCallback(() => {
     isCooldownActiveRef.current = true;
-    cooldownEndRef.current = Date.now() + COOLDOWN_MS;
+    const endTime = Date.now() + COOLDOWN_MS;
+    cooldownEndRef.current = endTime;
     setIsThrowCooldown(true);
     setCooldownRemaining(COOLDOWN_SECS);
+
+    // Persist cooldown end time so it survives reconnections
+    void AsyncStorage.setItem(cooldownStorageKey(userId), String(endTime)).catch(() => {});
 
     if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
     cooldownIntervalRef.current = setInterval(() => {
@@ -198,11 +245,12 @@ export function useThrowables({
         cooldownIntervalRef.current = null;
         setIsThrowCooldown(false);
         setCooldownRemaining(0);
+        void AsyncStorage.removeItem(cooldownStorageKey(userId)).catch(() => {});
       } else {
         setCooldownRemaining(remaining);
       }
     }, 500);
-  }, []);
+  }, [userId]);
 
   const dismissIncoming = useCallback(() => {
     if (incomingTimerRef.current) {

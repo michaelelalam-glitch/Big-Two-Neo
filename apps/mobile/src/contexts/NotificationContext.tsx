@@ -25,7 +25,7 @@ import { useAuth } from './AuthContext';
 
 export interface AppNotification {
   id: string;
-  type: 'game_invite' | 'friend_request' | 'game_started' | 'your_turn';
+  type: 'game_invite' | 'friend_request' | 'friend_accepted' | 'game_started' | 'your_turn';
   title: string;
   body: string;
   data: Record<string, unknown>;
@@ -248,7 +248,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
         } else if ((data.type === 'your_turn' || data.type === 'game_started') && data.roomCode) {
           pendingUrl = `big2mobile://game/${data.roomCode as string}`;
-        } else if (data.type === 'friend_request') {
+        } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
           pendingUrl = 'big2mobile://profile';
         }
         if (pendingUrl) {
@@ -272,7 +272,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         navigation.navigate('Game', { roomCode: data.roomCode as string });
       } else if (data.type === 'game_started' && data.roomCode) {
         navigation.navigate('Game', { roomCode: data.roomCode as string });
-      } else if (data.type === 'friend_request') {
+      } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
         navigation.navigate('Profile');
       }
     },

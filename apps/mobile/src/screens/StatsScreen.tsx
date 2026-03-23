@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';
 import { AddFriendButton } from '../components/friends';
+import { useFriendsContext } from '../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
@@ -346,6 +347,8 @@ export default function StatsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [historyTab, setHistoryTab] = useState<HistoryTab>('recent');
+  const [mutualFriendsCount, setMutualFriendsCount] = useState<number>(0);
+  const { friends: myFriends } = useFriendsContext();
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -449,6 +452,38 @@ export default function StatsScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Compute mutual friends count for other players' profiles
+  useEffect(() => {
+    if (isOwnProfile || !userId || myFriends.length === 0) {
+      setMutualFriendsCount(0);
+      return;
+    }
+    const myFriendIds = new Set(myFriends.map(f => f.friend.id));
+    (async () => {
+      try {
+        // Fetch the other user's accepted friendships
+        const { data, error } = await supabase
+          .from('friendships')
+          .select('requester_id, addressee_id')
+          .eq('status', 'accepted')
+          .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+        if (error) {
+          setMutualFriendsCount(0);
+          return;
+        }
+        if (data) {
+          const theirFriendIds = data.map(f =>
+            f.requester_id === userId ? f.addressee_id : f.requester_id
+          );
+          const mutual = theirFriendIds.filter(id => myFriendIds.has(id));
+          setMutualFriendsCount(mutual.length);
+        }
+      } catch {
+        setMutualFriendsCount(0);
+      }
+    })();
+  }, [userId, isOwnProfile, myFriends]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -842,6 +877,11 @@ export default function StatsScreen() {
           <Text style={styles.username}>{profile.username}</Text>
           {/* Add friend button — shown only when viewing another player's profile */}
           {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
+          {!isOwnProfile && mutualFriendsCount > 0 && (
+            <Text style={styles.mutualFriends}>
+              👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''}
+            </Text>
+          )}
           {/* Header: show ranked ELO on ranked tab, casual ELO otherwise */}
           <Text style={styles.rankPoints}>
             {activeTab === 'ranked'
@@ -1355,6 +1395,11 @@ const styles = StyleSheet.create({
   globalRank: {
     color: COLORS.white + '99',
     fontSize: FONT_SIZES.md,
+    marginTop: SPACING.xs,
+  },
+  mutualFriends: {
+    color: COLORS.white + 'AA',
+    fontSize: FONT_SIZES.sm,
     marginTop: SPACING.xs,
   },
   // Tab Bar

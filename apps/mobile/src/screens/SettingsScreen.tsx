@@ -53,6 +53,8 @@ export default function SettingsScreen() {
     setAutoPassTimer,
     setProfileVisibility,
     setShowOnlineStatus,
+    profilePhotoSize,
+    setProfilePhotoSize,
     hydrate,
   } = useUserPreferencesStore();
 
@@ -333,17 +335,51 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <View style={[styles.settingRow, { opacity: 0.6 }]}>
+          <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.showOnlineStatus')}</Text>
             </View>
             <Switch
               value={showOnlineStatus}
               onValueChange={handleToggleOnlineStatus}
-              disabled={true}
-              trackColor={{ false: COLORS.gray.dark, true: COLORS.gray.medium }}
-              thumbColor={COLORS.gray.medium}
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.secondary }}
+              thumbColor={showOnlineStatus ? COLORS.white : COLORS.gray.medium}
             />
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Profile Photo Size */}
+          <View style={styles.settingGroup}>
+            <Text style={styles.settingTitle}>{t('settings.profilePhotoSize')}</Text>
+            <Text style={styles.settingDescription}>
+              {t('settings.profilePhotoSizeDescription')}
+            </Text>
+            <View style={styles.buttonGroup}>
+              {(['small', 'medium', 'large'] as const).map(size => {
+                const labelKey =
+                  `settings.profilePhotoSize${size.charAt(0).toUpperCase() + size.slice(1)}` as const;
+                return (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.optionButton,
+                      profilePhotoSize === size && styles.optionButtonActive,
+                    ]}
+                    onPress={() => setProfilePhotoSize(size)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionButtonText,
+                        profilePhotoSize === size && styles.optionButtonTextActive,
+                      ]}
+                    >
+                      {t(labelKey)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
 

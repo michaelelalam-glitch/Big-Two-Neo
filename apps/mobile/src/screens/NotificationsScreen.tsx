@@ -1,10 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useNotifications, AppNotification } from '../contexts/NotificationContext';
+import { useFriendsContext } from '../contexts/FriendsContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { i18n } from '../i18n';
 
@@ -28,6 +29,8 @@ function notifIcon(type: AppNotification['type']): string {
       return '🎮';
     case 'friend_request':
       return '👤';
+    case 'friend_accepted':
+      return '🤝';
     case 'game_started':
       return '🚀';
     case 'your_turn':
@@ -40,6 +43,8 @@ function notifIcon(type: AppNotification['type']): string {
 export default function NotificationsScreen() {
   const navigation = useNavigation<NotificationsNavProp>();
   const { storedNotifications, unreadCount, markAllRead, clearAll } = useNotifications();
+  const { incomingPending, acceptRequest, declineRequest } = useFriendsContext();
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Mark all as read whenever the screen gains focus (not just on initial mount),
   // so notifications received while navigating away are also cleared on return.
@@ -59,30 +64,102 @@ export default function NotificationsScreen() {
         roomCode: item.data.roomCode as string,
         joining: true,
       });
-    } else if (item.type === 'friend_request') {
+    } else if (item.type === 'friend_request' || item.type === 'friend_accepted') {
       navigation.navigate('Profile');
     } else if ((item.type === 'game_started' || item.type === 'your_turn') && item.data?.roomCode) {
       navigation.navigate('Game', { roomCode: item.data.roomCode as string });
     }
   };
 
-  const renderItem = ({ item }: { item: AppNotification }) => (
-    <TouchableOpacity
-      style={[styles.row, !item.read && styles.rowUnread]}
-      onPress={() => handleNotifPress(item)}
-      activeOpacity={0.7}
-    >
-      <Text style={styles.icon}>{notifIcon(item.type)}</Text>
-      <View style={styles.rowContent}>
-        <Text style={styles.rowTitle}>{item.title}</Text>
-        <Text style={styles.rowBody} numberOfLines={2}>
-          {item.body}
-        </Text>
-        <Text style={styles.rowTime}>{formatRelativeTime(item.receivedAt)}</Text>
-      </View>
-      {!item.read && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+  // Find the matching pending friendship for a friend_request notification
+  const findPendingRequest = (item: AppNotification) => {
+    if (item.type !== 'friend_request') return null;
+
+    // Prefer matching via structured data (friendshipId) when available
+    const friendshipId = item.data?.friendshipId as string | undefined;
+    if (friendshipId) {
+      return incomingPending.find(req => req.id === friendshipId) ?? null;
+    }
+
+    // Fallback: match by sender username from notification body
+    return (
+      incomingPending.find(req => {
+        const username = req.friend.username;
+        return username && username.length > 0 && item.body.includes(username);
+      }) ?? null
+    );
+  };
+
+  const handleAcceptRequest = async (friendshipId: string) => {
+    setProcessingIds(prev => new Set(prev).add(friendshipId));
+    try {
+      await acceptRequest(friendshipId);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(friendshipId);
+        return next;
+      });
+    }
+  };
+
+  const handleDeclineRequest = async (friendshipId: string) => {
+    setProcessingIds(prev => new Set(prev).add(friendshipId));
+    try {
+      await declineRequest(friendshipId);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(friendshipId);
+        return next;
+      });
+    }
+  };
+
+  const renderItem = ({ item }: { item: AppNotification }) => {
+    const pendingRequest = findPendingRequest(item);
+    const isProcessing = pendingRequest ? processingIds.has(pendingRequest.id) : false;
+
+    return (
+      <TouchableOpacity
+        style={[styles.row, !item.read && styles.rowUnread]}
+        onPress={() => handleNotifPress(item)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.icon}>{notifIcon(item.type)}</Text>
+        <View style={styles.rowContent}>
+          <Text style={styles.rowTitle}>{item.title}</Text>
+          <Text style={styles.rowBody} numberOfLines={2}>
+            {item.body}
+          </Text>
+          {pendingRequest && (
+            <View style={styles.friendActions}>
+              <TouchableOpacity
+                style={[styles.friendBtn, styles.friendBtnAccept]}
+                onPress={() => handleAcceptRequest(pendingRequest.id)}
+                disabled={isProcessing}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.friendBtnText}>
+                  {isProcessing ? '...' : i18n.t('friends.accept') || 'Accept'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.friendBtn, styles.friendBtnDecline]}
+                onPress={() => handleDeclineRequest(pendingRequest.id)}
+                disabled={isProcessing}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.friendBtnText}>{i18n.t('friends.decline') || 'Decline'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <Text style={styles.rowTime}>{formatRelativeTime(item.receivedAt)}</Text>
+        </View>
+        {!item.read && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -213,5 +290,26 @@ const styles = StyleSheet.create({
   emptyText: {
     color: COLORS.gray.medium,
     fontSize: FONT_SIZES.md,
+  },
+  friendActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  friendBtn: {
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: SPACING.md,
+  },
+  friendBtnAccept: {
+    backgroundColor: COLORS.success,
+  },
+  friendBtnDecline: {
+    backgroundColor: COLORS.error,
+  },
+  friendBtnText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: FONT_SIZES.xs,
   },
 });
