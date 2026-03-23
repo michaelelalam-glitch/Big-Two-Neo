@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   scoreDisplayStyles,
 } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
+import { useUserPreferencesStore } from '../../store/userPreferencesSlice';
 import InactivityCountdownRing from './InactivityCountdownRing';
 
 interface PlayerInfoProps {
@@ -137,6 +138,20 @@ function PlayerInfoComponent({
   videoStreamSlot,
   onNameLongPress,
 }: PlayerInfoProps) {
+  // Profile photo size preference
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const avatarScale = useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    const scale = scaleMap[profilePhotoSize] ?? 1.0;
+    const size = Math.round(LAYOUT.avatarSize * scale);
+    return {
+      size,
+      borderRadius: Math.round(size / 2),
+      innerRadius: Math.round((size - LAYOUT.avatarBorderWidth * 2) / 2),
+      iconSize: Math.round(LAYOUT.avatarIconSize * scale),
+    };
+  }, [profilePhotoSize]);
+
   // Show the video tile when:
   //  a) isCameraOn is explicitly provided (remote player camera state known), OR
   //  b) This is the local player and the opt-in handler is wired (tile is the
@@ -168,7 +183,17 @@ function PlayerInfoComponent({
       accessibilityLabel={accessibilityLabel}
     >
       {/* Avatar with turn indicator */}
-      <View style={[styles.avatarContainer, isActive && !showRing && styles.activeAvatar]}>
+      <View
+        style={[
+          styles.avatarContainer,
+          {
+            width: avatarScale.size,
+            height: avatarScale.size,
+            borderRadius: avatarScale.borderRadius,
+          },
+          isActive && !showRing && styles.activeAvatar,
+        ]}
+      >
         {/* Avatar body — video feed replaces profile photo when camera is on */}
         {showVideoTile ? (
           // Video-aware avatar: tap to toggle camera (local player only)
@@ -213,8 +238,22 @@ function PlayerInfoComponent({
           )
         ) : (
           // Standard avatar — no video chat
-          <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
-            <Text style={[styles.avatarIcon, isDisconnected && styles.avatarIconFaded]}>👤</Text>
+          <View
+            style={[
+              styles.avatar,
+              { borderRadius: avatarScale.innerRadius },
+              isDisconnected && styles.avatarDisconnected,
+            ]}
+          >
+            <Text
+              style={[
+                styles.avatarIcon,
+                { fontSize: avatarScale.iconSize },
+                isDisconnected && styles.avatarIconFaded,
+              ]}
+            >
+              👤
+            </Text>
           </View>
         )}
         {/* Dual-mode countdown ring (yellow = turn, charcoal grey = disconnect) */}
