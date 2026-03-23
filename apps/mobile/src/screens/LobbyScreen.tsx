@@ -56,7 +56,7 @@ export default function LobbyScreen() {
   const route = useRoute<LobbyScreenRouteProp>();
   const { roomCode, playAgain = false, joining = false } = route.params;
   const { user, profile } = useAuth();
-  const { friends } = useFriendsContext();
+  const { friends, onlineUserIds } = useFriendsContext();
 
   // Invite friends modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -683,8 +683,18 @@ export default function LobbyScreen() {
     });
   };
 
-  // Friends who are not already in the room
-  const invitableFriends = friends.filter(f => !players.some(p => p.user_id === f.friend.id));
+  // Friends who are not already in the room, sorted by online > favorites > alphabetical
+  const invitableFriends = friends
+    .filter(f => !players.some(p => p.user_id === f.friend.id))
+    .sort((a, b) => {
+      const aOnline = onlineUserIds.has(a.friend.id) ? 1 : 0;
+      const bOnline = onlineUserIds.has(b.friend.id) ? 1 : 0;
+      if (bOnline !== aOnline) return bOnline - aOnline;
+      const aFav = a.is_favorite ? 1 : 0;
+      const bFav = b.is_favorite ? 1 : 0;
+      if (bFav !== aFav) return bFav - aFav;
+      return (a.friend.username || '').localeCompare(b.friend.username || '');
+    });
 
   const handleStartWithBots = async () => {
     if (isStarting || isStartingRef.current) {
