@@ -18,9 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { gameScreenStyles } from '../../styles/gameScreenStyles';
-import { AutoPassTimer, ThrowButton } from '../game';
+import { AutoPassTimer, ThrowButton, ThrowablePlayerEffect } from '../game';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
+import type { ActiveThrowableEffect } from '../../hooks/useThrowables';
 import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
 import { AddFriendButton } from '../friends';
 import { useFriendsContext } from '../../contexts/FriendsContext';
@@ -102,6 +103,8 @@ export interface LandscapeGameLayoutProps {
   onThrowPress?: () => void;
   isThrowCooldown?: boolean;
   cooldownRemaining?: number;
+  /** Active throwable effects per display slot [0=local, 1=top, 2=left, 3=right] */
+  throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
 }
 
 // ============================================================================
@@ -159,6 +162,7 @@ export function LandscapeGameLayout({
   onThrowPress,
   isThrowCooldown = false,
   cooldownRemaining = 0,
+  throwableActiveEffects,
   disconnectedPlayers = [false, false, false, false],
   disconnectTimerStartedAts,
   turnTimerStartedAts,
@@ -355,6 +359,12 @@ export function LandscapeGameLayout({
             onAvatarPress={playerIds[1] ? () => handleOpponentAvatarPress(1) : undefined}
             onNameLongPress={playerIds[1] ? () => handleOpponentNameLongPress(1) : undefined}
           />
+          {throwableActiveEffects?.[1] != null && (
+            <ThrowablePlayerEffect
+              key={throwableActiveEffects[1]!.id}
+              throwable={throwableActiveEffects[1]!.throwable}
+            />
+          )}
         </View>
 
         {/* Left opponent - Player at index 2 (left player, +3 positions = 1 counterclockwise) */}
@@ -371,6 +381,12 @@ export function LandscapeGameLayout({
             onAvatarPress={playerIds[2] ? () => handleOpponentAvatarPress(2) : undefined}
             onNameLongPress={playerIds[2] ? () => handleOpponentNameLongPress(2) : undefined}
           />
+          {throwableActiveEffects?.[2] != null && (
+            <ThrowablePlayerEffect
+              key={throwableActiveEffects[2]!.id}
+              throwable={throwableActiveEffects[2]!.throwable}
+            />
+          )}
         </View>
 
         {/* Right opponent - Player at index 3 (right player, +1 position clockwise) */}
@@ -387,6 +403,12 @@ export function LandscapeGameLayout({
             onAvatarPress={playerIds[3] ? () => handleOpponentAvatarPress(3) : undefined}
             onNameLongPress={playerIds[3] ? () => handleOpponentNameLongPress(3) : undefined}
           />
+          {throwableActiveEffects?.[3] != null && (
+            <ThrowablePlayerEffect
+              key={throwableActiveEffects[3]!.id}
+              throwable={throwableActiveEffects[3]!.throwable}
+            />
+          )}
         </View>
 
         {/* Inline Add Friend overlay — shown after avatar tap */}
@@ -464,6 +486,12 @@ export function LandscapeGameLayout({
             turnTimerStartedAt={turnTimerStartedAts?.[0]}
             onCountdownExpired={onCountdownExpireds?.[0]}
           />
+          {throwableActiveEffects?.[0] != null && (
+            <ThrowablePlayerEffect
+              key={throwableActiveEffects[0]!.id}
+              throwable={throwableActiveEffects[0]!.throwable}
+            />
+          )}
         </View>
 
         {/* Action buttons - RIGHT SIDE (2-row layout) */}

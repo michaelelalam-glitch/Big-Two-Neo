@@ -68,7 +68,13 @@ export function PlayerTargetPicker({
   if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
+    >
       <TouchableWithoutFeedback onPress={onClose} accessible={false}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
       </TouchableWithoutFeedback>
