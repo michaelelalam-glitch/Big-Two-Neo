@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  Alert,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
@@ -23,8 +24,11 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
+type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home'>;
+
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const route = useRoute<HomeScreenRouteProp>();
   const { user, profile } = useAuth();
   const { unreadCount } = useNotifications();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -57,6 +61,20 @@ export default function HomeScreen() {
     handleOfflinePractice,
     handleStartOfflineWithDifficulty,
   } = useMatchmakingFlow(user, profile, navigation, checkGameExclusivity, setCurrentRoom);
+
+  // Show popup when navigated here after room was closed
+  useEffect(() => {
+    if (route.params?.roomClosed) {
+      Alert.alert(i18n.t('home.roomClosedTitle'), i18n.t('home.roomClosedMessage'), [
+        { text: i18n.t('common.ok'), style: 'cancel' },
+        {
+          text: i18n.t('home.joinCasualLobby'),
+          onPress: () => handleCasualMatch(),
+        },
+      ]);
+      navigation.setParams({ roomClosed: undefined });
+    }
+  }, [route.params?.roomClosed, handleCasualMatch, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>

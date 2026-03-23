@@ -225,6 +225,9 @@ export interface Translations {
     joinRoomDescription: string;
     howToPlay: string;
     howToPlayDescription: string;
+    roomClosedTitle: string;
+    roomClosedMessage: string;
+    joinCasualLobby: string;
     leaderboard: string;
     rankedLeaderboard: string;
     rankedLeaderboardDescription: string;
@@ -954,6 +957,9 @@ const en: Translations = {
     joinRoomDescription: 'Enter a room code',
     howToPlay: '📖 How to Play',
     howToPlayDescription: 'Learn the rules',
+    roomClosedTitle: 'Room Closed',
+    roomClosedMessage: 'The room you were in has been closed by the host.',
+    joinCasualLobby: 'Join Casual Lobby',
     leaderboard: '🏆 Leaderboard',
     rankedLeaderboard: '🏆 Ranked Leaderboard',
     rankedLeaderboardDescription: 'See top players by ELO rating',
@@ -1652,6 +1658,9 @@ const ar: Translations = {
     rankedMatchDescription: 'مباراة تنافسية بتصنيف ELO',
     howToPlay: '📖 كيف تلعب',
     howToPlayDescription: 'تعلم قواعد اللعبة',
+    roomClosedTitle: 'تم إغلاق الغرفة',
+    roomClosedMessage: 'تم إغلاق الغرفة التي كنت فيها من قبل المضيف.',
+    joinCasualLobby: 'انضم إلى لوبي عادي',
     findGame: '🎮 ابحث عن لعبة',
     findGameDescription: 'العب مباريات أونلاين',
     offlinePractice: '🤖 تدريب بدون إنترنت',
@@ -2370,6 +2379,9 @@ const de: Translations = {
     rankedMatchDescription: 'Wettbewerbsorientiertes ELO-Match',
     howToPlay: '📖 Wie man spielt',
     howToPlayDescription: 'Spielregeln lernen',
+    roomClosedTitle: 'Raum geschlossen',
+    roomClosedMessage: 'Der Raum, in dem Sie sich befanden, wurde vom Gastgeber geschlossen.',
+    joinCasualLobby: 'Casual-Lobby beitreten',
     findGame: '🎮 Spiel finden',
     findGameDescription: 'Online-Matches spielen',
     offlinePractice: '🤖 Offline-Training',

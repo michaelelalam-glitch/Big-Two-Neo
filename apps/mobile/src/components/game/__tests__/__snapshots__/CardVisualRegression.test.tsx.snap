@@ -9815,6 +9815,11 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
           "width": 70,
         },
         {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
+        {
           "backgroundColor": "#E74C3C",
           "elevation": 8,
           "shadowColor": "#E74C3C",
@@ -9834,11 +9839,13 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
             "width": "100%",
+          },
+          {
+            "borderRadius": 31,
           },
           false,
         ]
@@ -9850,6 +9857,9 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]
@@ -10031,6 +10041,11 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
           "padding": 4,
           "width": 70,
         },
+        {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
         false,
       ]
     }
@@ -10041,11 +10056,13 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
             "width": "100%",
+          },
+          {
+            "borderRadius": 31,
           },
           {
             "opacity": 0.5,
@@ -10061,6 +10078,9 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
               "textAlign": "center",
             },
             {
+              "fontSize": 40,
+            },
+            {
               "opacity": 0.6,
             },
           ]
@@ -10072,18 +10092,22 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
     <View
       pointerEvents="none"
       style={
-        {
-          "alignItems": "center",
-          "backgroundColor": "rgba(0,0,0,0.45)",
-          "borderRadius": 31,
-          "bottom": 0,
-          "justifyContent": "center",
-          "left": 0,
-          "position": "absolute",
-          "right": 0,
-          "top": 0,
-          "zIndex": 5,
-        }
+        [
+          {
+            "alignItems": "center",
+            "backgroundColor": "rgba(0,0,0,0.45)",
+            "bottom": 0,
+            "justifyContent": "center",
+            "left": 0,
+            "position": "absolute",
+            "right": 0,
+            "top": 0,
+            "zIndex": 5,
+          },
+          {
+            "borderRadius": 31,
+          },
+        ]
       }
     >
       <ActivityIndicator
@@ -10220,6 +10244,11 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
           "padding": 4,
           "width": 70,
         },
+        {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
         false,
       ]
     }
@@ -10230,11 +10259,13 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
             "width": "100%",
+          },
+          {
+            "borderRadius": 31,
           },
           false,
         ]
@@ -10246,6 +10277,9 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]
@@ -10427,6 +10461,11 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
           "padding": 4,
           "width": 70,
         },
+        {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
         false,
       ]
     }
@@ -10446,11 +10485,13 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
             "width": "100%",
+          },
+          {
+            "borderRadius": 31,
           },
           false,
         ]
@@ -10458,22 +10499,30 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
     >
       <View
         style={
-          {
-            "alignItems": "center",
-            "backgroundColor": "#1a3a5c",
-            "borderRadius": 31,
-            "height": "100%",
-            "justifyContent": "center",
-            "width": "100%",
-          }
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#1a3a5c",
+              "height": "100%",
+              "justifyContent": "center",
+              "width": "100%",
+            },
+            {
+              "borderRadius": 31,
+            },
+          ]
         }
       >
         <Text
           style={
-            {
-              "fontSize": 40,
-              "textAlign": "center",
-            }
+            [
+              {
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 40,
+              },
+            ]
           }
         >
           📷
@@ -10653,6 +10702,11 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
           "width": 70,
         },
         {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
+        {
           "backgroundColor": "#E74C3C",
           "elevation": 8,
           "shadowColor": "#E74C3C",
@@ -10672,11 +10726,13 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
           {
             "alignItems": "center",
             "backgroundColor": "#9E9E9E",
-            "borderRadius": 31,
             "height": "100%",
             "justifyContent": "center",
             "overflow": "hidden",
             "width": "100%",
+          },
+          {
+            "borderRadius": 31,
           },
           false,
         ]
@@ -10688,6 +10744,9 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]

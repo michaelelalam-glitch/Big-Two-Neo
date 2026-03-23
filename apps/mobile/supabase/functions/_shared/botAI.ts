@@ -87,8 +87,39 @@ export class BotAI {
       return { cards: [threeD.id], reasoning: '[AUTO] Playing 3♦ (only option)' };
     }
 
-    // Leading — play the highest single card
+    // Leading — play the strongest combo (5-card > triple > pair > single)
     if (!lastPlay) {
+      // Try to find highest 5-card combo first (straight flush > four-of-a-kind > full house > flush > straight)
+      const fiveCardCombo = this.findBest5CardCombo(sorted);
+      if (fiveCardCombo) {
+        return {
+          cards: fiveCardCombo,
+          reasoning: '[AUTO] Leading with strongest 5-card combo',
+        };
+      }
+
+      // Try to find highest triple
+      const triples = this.findAllTriples(sorted);
+      if (triples.length > 0) {
+        const highestTriple = triples[triples.length - 1]; // findAllTriples returns sorted low→high
+        const tripleRank = sorted.find(c => c.id === highestTriple[0])?.rank ?? '?';
+        return {
+          cards: highestTriple,
+          reasoning: `[AUTO] Leading with highest triple (${tripleRank})`,
+        };
+      }
+
+      // Try to find highest pair
+      const highestPair = this.findHighestPair(sorted);
+      if (highestPair) {
+        const pairRank = sorted.find(c => c.id === highestPair[0])?.rank ?? '?';
+        return {
+          cards: highestPair,
+          reasoning: `[AUTO] Leading with highest pair (${pairRank})`,
+        };
+      }
+
+      // No combo found — play highest single
       const highest = sorted[sorted.length - 1];
       return {
         cards: [highest.id],
@@ -351,6 +382,13 @@ export class BotAI {
   private findLowestPair(hand: Card[]): string[] | null {
     for (let i = 0; i < hand.length - 1; i++) {
       if (hand[i].rank === hand[i + 1].rank) return [hand[i].id, hand[i + 1].id];
+    }
+    return null;
+  }
+
+  private findHighestPair(hand: Card[]): string[] | null {
+    for (let i = hand.length - 1; i > 0; i--) {
+      if (hand[i].rank === hand[i - 1].rank) return [hand[i - 1].id, hand[i].id];
     }
     return null;
   }

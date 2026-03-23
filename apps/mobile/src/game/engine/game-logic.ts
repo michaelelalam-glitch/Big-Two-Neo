@@ -458,6 +458,18 @@ export function findRecommendedPlay(
       }
     }
 
+    // Find 5-card combos: full houses (triple + pair, lowest triple first)
+    if (triples.length > 0 && pairs.length > 0) {
+      for (const triple of triples) {
+        const tripleRank = triple[0].rank;
+        const pairForFullHouse = pairs.find(p => p[0].rank !== tripleRank);
+        if (pairForFullHouse) {
+          fiveCards.push([...triple, ...pairForFullHouse]);
+          break; // Take lowest full house
+        }
+      }
+    }
+
     // Prefer combos that shed cards: 5-card > triple > pair > single
     if (fiveCards.length > 0) {
       return fiveCards[0].map(c => c.id);

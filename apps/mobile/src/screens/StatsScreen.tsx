@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';
 import { AddFriendButton } from '../components/friends';
-import { useFriendsContext } from '../contexts/FriendsContext';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
@@ -348,7 +347,6 @@ export default function StatsScreen() {
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [historyTab, setHistoryTab] = useState<HistoryTab>('recent');
   const [mutualFriendsCount, setMutualFriendsCount] = useState<number>(0);
-  const { friends: myFriends } = useFriendsContext();
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -455,35 +453,30 @@ export default function StatsScreen() {
 
   // Compute mutual friends count for other players' profiles
   useEffect(() => {
-    if (isOwnProfile || !userId || myFriends.length === 0) {
+    if (isOwnProfile || !userId) {
       setMutualFriendsCount(0);
       return;
     }
-    const myFriendIds = new Set(myFriends.map(f => f.friend.id));
+    let cancelled = false;
     (async () => {
       try {
-        // Fetch the other user's accepted friendships
-        const { data, error } = await supabase
-          .from('friendships')
-          .select('requester_id, addressee_id')
-          .eq('status', 'accepted')
-          .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+        const { data, error } = await supabase.rpc('get_mutual_friends_count', {
+          p_other_user_id: userId,
+        });
+        if (cancelled) return;
         if (error) {
           setMutualFriendsCount(0);
           return;
         }
-        if (data) {
-          const theirFriendIds = data.map(f =>
-            f.requester_id === userId ? f.addressee_id : f.requester_id
-          );
-          const mutual = theirFriendIds.filter(id => myFriendIds.has(id));
-          setMutualFriendsCount(mutual.length);
-        }
+        setMutualFriendsCount(data ?? 0);
       } catch {
-        setMutualFriendsCount(0);
+        if (!cancelled) setMutualFriendsCount(0);
       }
     })();
-  }, [userId, isOwnProfile, myFriends]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, isOwnProfile]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
