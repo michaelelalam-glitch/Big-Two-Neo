@@ -14,13 +14,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { i18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import {
-  soundManager,
-  hapticManager,
-  SoundType,
-  showError,
-  showConfirm,
-} from '../utils';
+import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
 import type { Card } from '../game/types';
@@ -64,124 +58,137 @@ export function useGameActions({
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
 
-  const handlePlayCards = useCallback(async (cards: Card[]) => {
-    if (isPlayingCardsRef.current) {
-      gameLogger.warn('⚠️ [GameScreen] Card play already in progress, ignoring duplicate request');
-      return;
-    }
-
-    if (isLocalAIGame) {
-      if (!gameManagerRef.current) {
-        gameLogger.error('❌ [GameScreen] Game not initialized');
+  const handlePlayCards = useCallback(
+    async (cards: Card[]) => {
+      if (isPlayingCardsRef.current) {
+        gameLogger.warn(
+          '⚠️ [GameScreen] Card play already in progress, ignoring duplicate request'
+        );
         return;
       }
 
-      try {
-        isPlayingCardsRef.current = true;
-        hapticManager.playCard();
-
-        const sortedCards = sortCardsForDisplay(cards);
-        const cardIds = sortedCards.map(card => card.id);
-
-        const result = await gameManagerRef.current.playCards(cardIds);
-
-        if (!result.success) {
-          gameLogger.warn(`❌ [GameScreen] Invalid play: ${result.error}`);
-          soundManager.playSound(SoundType.INVALID_MOVE);
-          showError(result.error || 'Invalid play');
+      if (isLocalAIGame) {
+        if (!gameManagerRef.current) {
+          gameLogger.error('❌ [GameScreen] Game not initialized');
           return;
         }
 
-        setSelectedCardIds(new Set());
-        soundManager.playSound(SoundType.CARD_PLAY);
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
-        soundManager.playSound(SoundType.INVALID_MOVE);
-        showError(msg || 'Failed to play cards');
-      } finally {
-        isPlayingCardsRef.current = false;
-      }
-    } else {
-      if (!multiplayerPlayCards) {
-        gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
-        return;
-      }
+        try {
+          isPlayingCardsRef.current = true;
+          hapticManager.playCard();
 
-      try {
-        isPlayingCardsRef.current = true;
-        hapticManager.playCard();
+          const sortedCards = sortCardsForDisplay(cards);
+          const cardIds = sortedCards.map(card => card.id);
 
-        const sortedCards = sortCardsForDisplay(cards);
+          const result = await gameManagerRef.current.playCards(cardIds);
 
-        // Task #573: Client-side validation — catch common errors before server round-trip
-        if (getMultiplayerValidationState) {
-          const validationState = getMultiplayerValidationState();
-          if (validationState) {
-            const { lastPlay, isFirstPlayOfGame, playerHand } = validationState;
-
-            // 1. Verify all selected cards are actually in the player's hand
-            const handCardIds = new Set(playerHand.map(c => c.id));
-            const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
-            if (missingCard) {
-              soundManager.playSound(SoundType.INVALID_MOVE);
-              showError(i18n.t('game.cardNotInHand'));
-              isPlayingCardsRef.current = false;
-              return;
-            }
-
-            // 2. Verify the combination itself is valid
-            const combo = classifyCards(sortedCards);
-            if (combo === 'unknown') {
-              soundManager.playSound(SoundType.INVALID_MOVE);
-              showError(i18n.t('game.invalidCombo'));
-              isPlayingCardsRef.current = false;
-              return;
-            }
-
-            // 3. First play of game must include the 3 of Diamonds.
-            // Use rank+suit check instead of id string comparison since the server
-            // stores cards in suit-first format ('D3') while local state uses
-            // rank-first format ('3D'). Checking rank/suit fields works for both.
-            if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
-              soundManager.playSound(SoundType.INVALID_MOVE);
-              showError(i18n.t('game.firstPlayMustInclude3D'));
-              isPlayingCardsRef.current = false;
-              return;
-            }
-
-            // 4. Must beat the current last play (if one exists)
-            if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
-              soundManager.playSound(SoundType.INVALID_MOVE);
-              showError(i18n.t('game.cannotBeat'));
-              isPlayingCardsRef.current = false;
-              return;
-            }
-
-            gameLogger.info('✅ [GameActions] Client-side validation passed', {
-              combo,
-              cardCount: sortedCards.length,
-              isFirstPlay: isFirstPlayOfGame,
-              hasLastPlay: !!lastPlay,
-            });
+          if (!result.success) {
+            gameLogger.warn(`❌ [GameScreen] Invalid play: ${result.error}`);
+            soundManager.playSound(SoundType.INVALID_MOVE);
+            showError(result.error || 'Invalid play');
+            return;
           }
+
+          setSelectedCardIds(new Set());
+          soundManager.playSound(SoundType.CARD_PLAY);
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
+          soundManager.playSound(SoundType.INVALID_MOVE);
+          showError(msg || 'Failed to play cards');
+        } finally {
+          isPlayingCardsRef.current = false;
         }
-        await multiplayerPlayCards(sortedCards as Card[]);
-        setSelectedCardIds(new Set());
-        soundManager.playSound(SoundType.CARD_PLAY);
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
-        throw error; // Re-throw so GameControls can handle
-      } finally {
-        isPlayingCardsRef.current = false;
+      } else {
+        if (!multiplayerPlayCards) {
+          gameLogger.error('❌ [GameScreen] Multiplayer not initialized');
+          return;
+        }
+
+        try {
+          isPlayingCardsRef.current = true;
+          hapticManager.playCard();
+
+          const sortedCards = sortCardsForDisplay(cards);
+
+          // Task #573: Client-side validation — catch common errors before server round-trip
+          if (getMultiplayerValidationState) {
+            const validationState = getMultiplayerValidationState();
+            if (validationState) {
+              const { lastPlay, isFirstPlayOfGame, playerHand } = validationState;
+
+              // 1. Verify all selected cards are actually in the player's hand
+              const handCardIds = new Set(playerHand.map(c => c.id));
+              const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
+              if (missingCard) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                showError(i18n.t('game.cardNotInHand'));
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 2. Verify the combination itself is valid
+              const combo = classifyCards(sortedCards);
+              if (combo === 'unknown') {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                showError(i18n.t('game.invalidCombo'));
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 3. First play of game must include the 3 of Diamonds.
+              // Use rank+suit check instead of id string comparison since the server
+              // stores cards in suit-first format ('D3') while local state uses
+              // rank-first format ('3D'). Checking rank/suit fields works for both.
+              if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                showError(i18n.t('game.firstPlayMustInclude3D'));
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 4. Must beat the current last play (if one exists)
+              if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                showError(i18n.t('game.cannotBeat'));
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              gameLogger.info('✅ [GameActions] Client-side validation passed', {
+                combo,
+                cardCount: sortedCards.length,
+                isFirstPlay: isFirstPlayOfGame,
+                hasLastPlay: !!lastPlay,
+              });
+            }
+          }
+          await multiplayerPlayCards(sortedCards as Card[]);
+          setSelectedCardIds(new Set());
+          soundManager.playSound(SoundType.CARD_PLAY);
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
+          throw error; // Re-throw so GameControls can handle
+        } finally {
+          isPlayingCardsRef.current = false;
+        }
       }
-    }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPlayCards, setSelectedCardIds, getMultiplayerValidationState]);
+    },
+    [
+      isLocalAIGame,
+      gameManagerRef,
+      multiplayerPlayCards,
+      setSelectedCardIds,
+      getMultiplayerValidationState,
+    ]
+  );
 
   const handlePass = useCallback(async () => {
     if (isPassingRef.current) {
-      gameLogger.warn('⚠️ [GameScreen] Pass action already in progress, ignoring duplicate request');
+      gameLogger.warn(
+        '⚠️ [GameScreen] Pass action already in progress, ignoring duplicate request'
+      );
       return;
     }
 
@@ -222,6 +229,18 @@ export function useGameActions({
 
       try {
         isPassingRef.current = true;
+
+        // Client-side pre-validation: cannot pass when leading (no last play on board)
+        if (getMultiplayerValidationState) {
+          const validationState = getMultiplayerValidationState();
+          if (validationState && !validationState.lastPlay) {
+            soundManager.playSound(SoundType.INVALID_MOVE);
+            showError(i18n.t('game.cannotPassMessage'));
+            isPassingRef.current = false;
+            return;
+          }
+        }
+
         hapticManager.pass();
 
         await multiplayerPass();
@@ -230,7 +249,9 @@ export function useGameActions({
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes('Not your turn')) {
-          gameLogger.warn('⚠️ [GameScreen] Suppressed "Not your turn" pass error (likely auto-pass race)');
+          gameLogger.warn(
+            '⚠️ [GameScreen] Suppressed "Not your turn" pass error (likely auto-pass race)'
+          );
         } else {
           gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
           showError(msg || 'Failed to pass');
