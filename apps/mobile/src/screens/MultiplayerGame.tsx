@@ -650,38 +650,34 @@ export function MultiplayerGame() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is a safety dep
   }, [multiplayerPlayerHand, multiplayerHandsByIndex, customCardOrder]);
 
-  // Auto-sort hand when cards are first dealt or a new deal occurs
+  // Auto-sort hand when cards are first dealt or a new match begins.
+  // Keyed off multiplayerGameState.match_number so new deals are detected
+  // reliably even when card IDs persist across matches (e.g. '3D', 'AS').
   const hasAutoSortedRef = useRef(false);
-  const prevHandIdsRef = useRef<Set<string>>(new Set());
+  const prevMatchNumberRef = useRef<number | null>(null);
   useEffect(() => {
     // Wait until card order restore has completed to avoid racing with it
     if (!hasRestoredCardOrderRef.current) return;
     const hand = (multiplayerPlayerHand ?? []) as Card[];
+    const currentMatchNumber = multiplayerGameState?.match_number ?? 1;
 
-    // Detect a completely new deal: hand has cards AND the card IDs are
-    // entirely different from the previous hand (new set of 13 cards dealt).
     if (hand.length > 0) {
-      const currentIds = new Set(hand.map(c => c.id));
-      const isNewDeal =
-        prevHandIdsRef.current.size === 0 ||
-        hand.length !== prevHandIdsRef.current.size ||
-        hand.some(card => !prevHandIdsRef.current.has(card.id));
-
-      if (isNewDeal && !hasAutoSortedRef.current) {
+      // Reset sort guard whenever the match number advances (new deal without
+      // passing through an empty-hand state is handled correctly this way).
+      if (currentMatchNumber !== prevMatchNumberRef.current) {
+        hasAutoSortedRef.current = false;
+        prevMatchNumberRef.current = currentMatchNumber;
+      }
+      if (!hasAutoSortedRef.current) {
         hasAutoSortedRef.current = true;
         const sorted = sortHandLowestToHighest(hand);
         setCustomCardOrder(sorted.map(c => c.id));
-        gameLogger.info('[MultiplayerGame] Auto-sorted dealt hand (new deal detected)');
+        gameLogger.info(
+          '[MultiplayerGame] Auto-sorted dealt hand (match #' + currentMatchNumber + ')'
+        );
       }
-      prevHandIdsRef.current = currentIds;
     }
-
-    // Reset when a new round starts (hand empties between deals)
-    if (hand.length === 0) {
-      hasAutoSortedRef.current = false;
-      prevHandIdsRef.current = new Set();
-    }
-  }, [multiplayerPlayerHand, setCustomCardOrder]);
+  }, [multiplayerPlayerHand, multiplayerGameState?.match_number, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({

@@ -66,6 +66,7 @@ function renderAvatarVideoContent({
   isVideoChatConnecting,
   videoStreamSlot,
   innerRadius,
+  iconSize,
 }: {
   isCameraOn: boolean;
   isMicOn?: boolean;
@@ -74,6 +75,7 @@ function renderAvatarVideoContent({
   isVideoChatConnecting: boolean;
   videoStreamSlot?: React.ReactNode;
   innerRadius: number;
+  iconSize: number;
 }): React.ReactNode {
   if (isVideoChatConnecting) {
     return <ActivityIndicator size="small" color={COLORS.white} />;
@@ -86,7 +88,7 @@ function renderAvatarVideoContent({
     ) : (
       // Stub placeholder until LiveKit SDK is installed
       <View style={[avatarStyles.videoPlaceholder, { borderRadius: innerRadius }]}>
-        <Text style={avatarStyles.videoPlaceholderIcon}>📷</Text>
+        <Text style={[avatarStyles.videoPlaceholderIcon, { fontSize: iconSize }]}>📷</Text>
         {isLocalPlayer && (
           <View style={avatarStyles.liveBadge}>
             <Text style={avatarStyles.liveBadgeText}>LIVE</Text>
@@ -105,7 +107,11 @@ function renderAvatarVideoContent({
   return (
     <>
       <Text
-        style={[avatarStyles.avatarProfileIcon, isDisconnected && avatarStyles.avatarIconFaded]}
+        style={[
+          avatarStyles.avatarProfileIcon,
+          { fontSize: iconSize },
+          isDisconnected && avatarStyles.avatarIconFaded,
+        ]}
       >
         👤
       </Text>
@@ -229,6 +235,7 @@ function PlayerInfoComponent({
                 isVideoChatConnecting,
                 videoStreamSlot,
                 innerRadius: avatarScale.innerRadius,
+                iconSize: avatarScale.iconSize,
               })}
             </Pressable>
           ) : (
@@ -247,6 +254,7 @@ function PlayerInfoComponent({
                 isVideoChatConnecting: false,
                 videoStreamSlot,
                 innerRadius: avatarScale.innerRadius,
+                iconSize: avatarScale.iconSize,
               })}
             </View>
           )
@@ -423,19 +431,19 @@ const avatarStyles = StyleSheet.create({
   videoFill: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     overflow: 'hidden',
   },
   videoPlaceholder: {
     width: '100%',
     height: '100%',
-    borderRadius: LAYOUT.avatarInnerRadius,
+    // borderRadius set dynamically via inline style (avatarScale.innerRadius)
     backgroundColor: '#1a3a5c',
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoPlaceholderIcon: {
-    fontSize: LAYOUT.avatarIconSize,
+    // fontSize set dynamically via inline style (avatarScale.iconSize)
     textAlign: 'center',
   },
   liveBadge: {
@@ -469,9 +477,8 @@ const avatarStyles = StyleSheet.create({
   cameraOffIcon: {
     fontSize: 10,
   },
-  // Profile photo (camera off) styles — mirrors main styles.avatarIcon
+  // Profile photo (camera off) styles — fontSize set dynamically via iconSize
   avatarProfileIcon: {
-    fontSize: LAYOUT.avatarIconSize,
     textAlign: 'center',
   },
   avatarIconFaded: {

@@ -457,20 +457,25 @@ export default function StatsScreen() {
       setMutualFriendsCount(0);
       return;
     }
+    let cancelled = false;
     (async () => {
       try {
         const { data, error } = await supabase.rpc('get_mutual_friends_count', {
           p_other_user_id: userId,
         });
+        if (cancelled) return;
         if (error) {
           setMutualFriendsCount(0);
           return;
         }
         setMutualFriendsCount(data ?? 0);
       } catch {
-        setMutualFriendsCount(0);
+        if (!cancelled) setMutualFriendsCount(0);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [userId, isOwnProfile]);
 
   const onRefresh = useCallback(() => {
@@ -865,7 +870,7 @@ export default function StatsScreen() {
           <Text style={styles.username}>{profile.username}</Text>
           {/* Add friend button — shown only when viewing another player's profile */}
           {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
-          {!isOwnProfile && (
+          {!isOwnProfile && mutualFriendsCount > 0 && (
             <Text style={styles.mutualFriends}>
               👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''}
             </Text>

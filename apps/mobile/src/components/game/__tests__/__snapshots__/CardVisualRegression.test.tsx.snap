@@ -10508,7 +10508,6 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
             {
               "alignItems": "center",
               "backgroundColor": "#1a3a5c",
-              "borderRadius": 31,
               "height": "100%",
               "justifyContent": "center",
               "width": "100%",
@@ -10521,10 +10520,14 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
       >
         <Text
           style={
-            {
-              "fontSize": 40,
-              "textAlign": "center",
-            }
+            [
+              {
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 40,
+              },
+            ]
           }
         >
           📷
