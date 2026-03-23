@@ -865,7 +865,7 @@ export default function StatsScreen() {
           <Text style={styles.username}>{profile.username}</Text>
           {/* Add friend button — shown only when viewing another player's profile */}
           {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
-          {!isOwnProfile && mutualFriendsCount > 0 && (
+          {!isOwnProfile && (
             <Text style={styles.mutualFriends}>
               👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''}
             </Text>

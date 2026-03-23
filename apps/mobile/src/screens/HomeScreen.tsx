@@ -74,7 +74,7 @@ export default function HomeScreen() {
       ]);
       navigation.setParams({ roomClosed: undefined });
     }
-  }, [route.params?.roomClosed]);
+  }, [route.params?.roomClosed, handleCasualMatch, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>

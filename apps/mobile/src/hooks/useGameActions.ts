@@ -236,7 +236,6 @@ export function useGameActions({
           if (validationState && !validationState.lastPlay) {
             soundManager.playSound(SoundType.INVALID_MOVE);
             showError(i18n.t('game.cannotPassMessage'));
-            isPassingRef.current = false;
             return;
           }
         }

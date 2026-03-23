@@ -160,7 +160,8 @@ export function LocalAIGame() {
       const currentIds = new Set(hand.map(c => c.id));
       const isNewDeal =
         prevHandIdsRef.current.size === 0 ||
-        ![...currentIds].some(id => prevHandIdsRef.current.has(id));
+        hand.length !== prevHandIdsRef.current.size ||
+        hand.some(card => !prevHandIdsRef.current.has(card.id));
 
       if (isNewDeal && !hasAutoSortedRef.current) {
         hasAutoSortedRef.current = true;

@@ -11,7 +11,7 @@ RETURNS integer
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_catalog
 AS $$
   SELECT count(*)::integer
   FROM (

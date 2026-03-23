@@ -87,8 +87,17 @@ export class BotAI {
       return { cards: [threeD.id], reasoning: '[AUTO] Playing 3♦ (only option)' };
     }
 
-    // Leading — play the strongest combo (highest triple > highest pair > highest single)
+    // Leading — play the strongest combo (5-card > triple > pair > single)
     if (!lastPlay) {
+      // Try to find highest 5-card combo first (straight flush > four-of-a-kind > full house > flush > straight)
+      const fiveCardCombo = this.findBest5CardCombo(sorted);
+      if (fiveCardCombo) {
+        return {
+          cards: fiveCardCombo,
+          reasoning: '[AUTO] Leading with strongest 5-card combo',
+        };
+      }
+
       // Try to find highest triple
       const triples = this.findAllTriples(sorted);
       if (triples.length > 0) {

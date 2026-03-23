@@ -10094,18 +10094,23 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
     <View
       pointerEvents="none"
       style={
-        {
-          "alignItems": "center",
-          "backgroundColor": "rgba(0,0,0,0.45)",
-          "borderRadius": 31,
-          "bottom": 0,
-          "justifyContent": "center",
-          "left": 0,
-          "position": "absolute",
-          "right": 0,
-          "top": 0,
-          "zIndex": 5,
-        }
+        [
+          {
+            "alignItems": "center",
+            "backgroundColor": "rgba(0,0,0,0.45)",
+            "borderRadius": 31,
+            "bottom": 0,
+            "justifyContent": "center",
+            "left": 0,
+            "position": "absolute",
+            "right": 0,
+            "top": 0,
+            "zIndex": 5,
+          },
+          {
+            "borderRadius": 31,
+          },
+        ]
       }
     >
       <ActivityIndicator
@@ -10490,20 +10495,28 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
             "overflow": "hidden",
             "width": "100%",
           },
+          {
+            "borderRadius": 31,
+          },
           false,
         ]
       }
     >
       <View
         style={
-          {
-            "alignItems": "center",
-            "backgroundColor": "#1a3a5c",
-            "borderRadius": 31,
-            "height": "100%",
-            "justifyContent": "center",
-            "width": "100%",
-          }
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#1a3a5c",
+              "borderRadius": 31,
+              "height": "100%",
+              "justifyContent": "center",
+              "width": "100%",
+            },
+            {
+              "borderRadius": 31,
+            },
+          ]
         }
       >
         <Text

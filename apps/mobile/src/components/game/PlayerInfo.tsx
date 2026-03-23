@@ -65,6 +65,7 @@ function renderAvatarVideoContent({
   isDisconnected,
   isVideoChatConnecting,
   videoStreamSlot,
+  innerRadius,
 }: {
   isCameraOn: boolean;
   isMicOn?: boolean;
@@ -72,6 +73,7 @@ function renderAvatarVideoContent({
   isDisconnected: boolean;
   isVideoChatConnecting: boolean;
   videoStreamSlot?: React.ReactNode;
+  innerRadius: number;
 }): React.ReactNode {
   if (isVideoChatConnecting) {
     return <ActivityIndicator size="small" color={COLORS.white} />;
@@ -80,10 +82,10 @@ function renderAvatarVideoContent({
   if (isCameraOn) {
     return videoStreamSlot ? (
       // Real SDK video stream fills the full avatar circle
-      <View style={avatarStyles.videoFill}>{videoStreamSlot}</View>
+      <View style={[avatarStyles.videoFill, { borderRadius: innerRadius }]}>{videoStreamSlot}</View>
     ) : (
       // Stub placeholder until LiveKit SDK is installed
-      <View style={avatarStyles.videoPlaceholder}>
+      <View style={[avatarStyles.videoPlaceholder, { borderRadius: innerRadius }]}>
         <Text style={avatarStyles.videoPlaceholderIcon}>📷</Text>
         {isLocalPlayer && (
           <View style={avatarStyles.liveBadge}>
@@ -199,7 +201,11 @@ function PlayerInfoComponent({
           // Video-aware avatar: tap to toggle camera (local player only)
           isLocalPlayer ? (
             <Pressable
-              style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}
+              style={[
+                styles.avatar,
+                { borderRadius: avatarScale.innerRadius },
+                isDisconnected && styles.avatarDisconnected,
+              ]}
               onPress={onVideoChatToggle}
               disabled={!onVideoChatToggle || isVideoChatConnecting}
               accessibilityRole="button"
@@ -222,10 +228,17 @@ function PlayerInfoComponent({
                 isDisconnected,
                 isVideoChatConnecting,
                 videoStreamSlot,
+                innerRadius: avatarScale.innerRadius,
               })}
             </Pressable>
           ) : (
-            <View style={[styles.avatar, isDisconnected && styles.avatarDisconnected]}>
+            <View
+              style={[
+                styles.avatar,
+                { borderRadius: avatarScale.innerRadius },
+                isDisconnected && styles.avatarDisconnected,
+              ]}
+            >
               {renderAvatarVideoContent({
                 isCameraOn: !!isCameraOn,
                 isMicOn,
@@ -233,6 +246,7 @@ function PlayerInfoComponent({
                 isDisconnected,
                 isVideoChatConnecting: false,
                 videoStreamSlot,
+                innerRadius: avatarScale.innerRadius,
               })}
             </View>
           )
@@ -268,7 +282,10 @@ function PlayerInfoComponent({
         )}
         {/* Disconnect spinner overlay */}
         {isDisconnected && (
-          <View style={styles.disconnectOverlay} pointerEvents="none">
+          <View
+            style={[styles.disconnectOverlay, { borderRadius: avatarScale.innerRadius }]}
+            pointerEvents="none"
+          >
             <ActivityIndicator size="small" color={COLORS.white} />
           </View>
         )}
