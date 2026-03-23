@@ -30,6 +30,7 @@ import {
   PlayerTargetPicker,
   ThrowableReceiverModal,
   ThrowButton,
+  ThrowablePlayerEffect,
 } from '../components/game';
 import type { ThrowableType } from '../types/multiplayer';
 import { GameEndModal, GameEndErrorBoundary } from '../components/gameEnd';
@@ -390,6 +391,7 @@ function GameViewComponent() {
             onThrowPress={isMultiplayerGame ? () => setShowThrowablePicker(true) : undefined}
             isThrowCooldown={isThrowCooldown}
             cooldownRemaining={cooldownRemaining}
+            throwableActiveEffects={throwableActiveEffects}
           />
         ) : (
           // PORTRAIT MODE (existing layout)
@@ -550,6 +552,13 @@ function GameViewComponent() {
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
                 videoStreamSlot={localVideoSlot}
               />
+              {/* Throwable effect overlay for local player (display index 0) */}
+              {throwableActiveEffects?.[0] != null && (
+                <ThrowablePlayerEffect
+                  key={throwableActiveEffects[0]!.id}
+                  throwable={throwableActiveEffects[0]!.throwable}
+                />
+              )}
             </View>
 
             {/* Drag-to-play hint — rendered above action/helper buttons so it isn't

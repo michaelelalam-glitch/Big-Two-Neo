@@ -20,6 +20,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 
 interface ThrowableReceiverModalProps {
   visible: boolean;
@@ -146,13 +147,7 @@ export function ThrowableReceiverModal({
       visible={visible}
       animationType="none"
       statusBarTranslucent
-      supportedOrientations={[
-        'portrait',
-        'portrait-upside-down',
-        'landscape',
-        'landscape-left',
-        'landscape-right',
-      ]}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       onRequestClose={onDismiss}
     >
       <TouchableWithoutFeedback onPress={handleTap} accessible={false}>
