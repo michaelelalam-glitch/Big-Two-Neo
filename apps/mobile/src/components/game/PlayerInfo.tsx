@@ -263,6 +263,7 @@ function PlayerInfoComponent({
             type={ringType}
             startedAt={ringStartedAt}
             onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+            size={avatarScale.size}
           />
         )}
         {/* Disconnect spinner overlay */}

@@ -2,25 +2,59 @@
 
 **Branch:** `fix/app-improvements-batch-2`  
 **Base:** `game/chinese-poker`  
-**Date:** July 2025
+**Date:** March 23, 2026  
+**PR:** #176
 
 ---
 
 ## Task List
 
-| # | Status | Task | Files Changed |
-|---|--------|------|---------------|
-| 1 | ⬜ | Fix double pass popup when leading | `useGameActions.ts` |
-| 2 | ⬜ | Auto-sort dealt cards on every new deal | `MultiplayerGame.tsx`, `LocalAIGame.tsx` |
-| 3 | ⬜ | Fix hint helper — recommend plays when leading (not 1st round) | `MultiplayerGame.tsx`, `game-logic.ts` |
-| 4 | ⬜ | AutoPlay strongest combo when bot is leading | `bot/index.ts` |
-| 5 | ⬜ | Disable swipe-back navigation in game lobbies | `AppNavigator.tsx` |
-| 6 | ⬜ | Room closed popup on homescreen with casual lobby option | `MultiplayerGame.tsx`, `HomeScreen.tsx`, `i18n/index.ts` |
-| 7 | ⬜ | Invite friends sort: online → favorites → offline | `LobbyScreen.tsx` |
-| 8 | ⬜ | Fix mutual friends count (RLS blocks cross-user query) | Migration SQL, `StatsScreen.tsx` |
-| 9 | ⬜ | Fix profile photo size not applying in game room | `PlayerInfo.tsx`, `constants/index.ts` |
-| 10 | ⬜ | Investigate Reanimated ShadowTreeCloner crash | `docs/REANIMATED_CRASH_ANALYSIS.md` |
-| 11 | ⬜ | Reset all leaderboard and player stats | Migration SQL |
+| # | Status | Task | Commits | Files Changed |
+|---|--------|------|---------|---------------|
+| 1 | ✅ | Fix double pass popup when leading | `45388ea` | `useGameActions.ts` |
+| 2 | ✅ | Auto-sort dealt cards on every new deal | `46d2d36` | `MultiplayerGame.tsx`, `LocalAIGame.tsx` |
+| 3 | ✅ | Fix hint helper — recommend plays when leading | `36d00c0` | `MultiplayerGame.tsx`, `game-logic.ts` |
+| 4 | ✅ | Human AutoPlay strongest combo when leading | TBD | `botAI.ts` (edge function) |
+| 5 | ✅ | Disable swipe-back navigation in game lobbies | `a477b3f` | `AppNavigator.tsx` |
+| 6 | ✅ | Room closed popup on homescreen | `3b17d51` | `MultiplayerGame.tsx`, `HomeScreen.tsx`, `i18n/index.ts` |
+| 7 | ✅ | Invite friends sort: online → favorites → offline | `e84beb7` | `LobbyScreen.tsx` |
+| 8 | ⚠️ | Fix mutual friends count + apply migration | `df719ad`, `1621dfd` | Migration ready, needs manual apply |
+| 9 | ✅ | Fix profile photo size in game room | `962815a` | `PlayerInfo.tsx` |
+| 10 | ✅ | Investigate Reanimated crash | `57ffb5c` | `docs/REANIMATED_CRASH_ANALYSIS.md` |
+| 11 | ⚠️ | Reset all leaderboard and stats + apply migration | - | Migration ready, needs manual apply |
+| 12 | ✅ | InactivityCountdownRing scale with profile photo size | TBD | `InactivityCountdownRing.tsx`, `PlayerInfo.tsx` |
+| - | ✅ | Bot leading strategy (bonus) | `16e55d7` | `bot/index.ts` |
+| - | ✅ | Test fixes (audio mock, snapshots) | `23f1c5e` | `jest.config.js`, `audioFile.ts` |
+| - | ✅ | Manual test guide | `d6f07ae` | `MANUAL_TEST_GUIDE_BATCH_2.md` |
+
+---
+
+## Migration Notes
+
+**Task 8 & 11 require manual migration application:**
+
+1. **Mutual Friends RPC** (`20260716000000_mutual_friends_rpc.sql`)
+   - Location: `apps/mobile/supabase/migrations/`
+   - Purpose: Adds SECURITY DEFINER RPC for cross-user friend queries
+   - Apply via: Supabase Dashboard SQL Editor
+
+2. **Reset All Stats** (`20260715000000_reset_all_player_stats.sql`)
+   - Location: `apps/mobile/supabase/migrations/`
+   - Purpose: Resets all player stats and leaderboard to defaults
+   - ⚠️ **DESTRUCTIVE** — requires explicit approval
+   - Apply via: Supabase Dashboard SQL Editor
+
+**Steps to apply:**
+```bash
+# Option 1: Supabase Dashboard
+1. Open: https://supabase.com/dashboard/project/{your-project}/sql/new
+2. Copy migration file contents
+3. Paste and run
+
+# Option 2: psql (if DATABASE_URL is set)
+psql "$DATABASE_URL" -f apps/mobile/supabase/migrations/20260716000000_mutual_friends_rpc.sql
+psql "$DATABASE_URL" -f apps/mobile/supabase/migrations/20260715000000_reset_all_player_stats.sql
+```
 
 ---
 
