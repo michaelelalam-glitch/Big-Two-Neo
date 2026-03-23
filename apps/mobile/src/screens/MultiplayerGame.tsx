@@ -356,7 +356,7 @@ export function MultiplayerGame() {
     },
     onRoomClosed: () => {
       gameLogger.warn('[MultiplayerGame] Room was closed while away');
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Home', params: { roomClosed: true } }] });
     },
   });
 

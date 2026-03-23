@@ -28,7 +28,7 @@ import { authLogger } from '../utils/logger';
 
 export type RootStackParamList = {
   GameSelection: undefined;
-  Home: undefined;
+  Home: { roomClosed?: boolean } | undefined;
   SignIn: undefined;
   Profile: undefined;
   CreateRoom: undefined;
