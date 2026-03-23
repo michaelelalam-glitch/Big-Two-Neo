@@ -650,23 +650,37 @@ export function MultiplayerGame() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerHandsByIndex is a safety dep
   }, [multiplayerPlayerHand, multiplayerHandsByIndex, customCardOrder]);
 
-  // Auto-sort hand when cards are first dealt (no existing custom order)
+  // Auto-sort hand when cards are first dealt or a new deal occurs
   const hasAutoSortedRef = useRef(false);
+  const prevHandIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     // Wait until card order restore has completed to avoid racing with it
     if (!hasRestoredCardOrderRef.current) return;
     const hand = (multiplayerPlayerHand ?? []) as Card[];
-    if (hand.length > 0 && customCardOrder.length === 0 && !hasAutoSortedRef.current) {
-      hasAutoSortedRef.current = true;
-      const sorted = sortHandLowestToHighest(hand);
-      setCustomCardOrder(sorted.map(c => c.id));
-      gameLogger.info('[MultiplayerGame] Auto-sorted dealt hand');
+
+    // Detect a completely new deal: hand has cards AND the card IDs are
+    // entirely different from the previous hand (new set of 13 cards dealt).
+    if (hand.length > 0) {
+      const currentIds = new Set(hand.map(c => c.id));
+      const isNewDeal =
+        prevHandIdsRef.current.size === 0 ||
+        ![...currentIds].some(id => prevHandIdsRef.current.has(id));
+
+      if (isNewDeal && !hasAutoSortedRef.current) {
+        hasAutoSortedRef.current = true;
+        const sorted = sortHandLowestToHighest(hand);
+        setCustomCardOrder(sorted.map(c => c.id));
+        gameLogger.info('[MultiplayerGame] Auto-sorted dealt hand (new deal detected)');
+      }
+      prevHandIdsRef.current = currentIds;
     }
-    // Reset when a new round starts (hand changes completely)
+
+    // Reset when a new round starts (hand empties between deals)
     if (hand.length === 0) {
       hasAutoSortedRef.current = false;
+      prevHandIdsRef.current = new Set();
     }
-  }, [multiplayerPlayerHand, customCardOrder, setCustomCardOrder]);
+  }, [multiplayerPlayerHand, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({

@@ -150,19 +150,31 @@ export function LocalAIGame() {
     return result;
   }, [playerHand, customCardOrder]);
 
-  // Auto-sort hand when cards are first dealt
+  // Auto-sort hand when cards are first dealt or a new deal occurs
   const hasAutoSortedRef = useRef(false);
+  const prevHandIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const hand = (playerHand ?? []) as Card[];
-    if (hand.length > 0 && customCardOrder.length === 0 && !hasAutoSortedRef.current) {
-      hasAutoSortedRef.current = true;
-      const sorted = sortHandLowestToHighest(hand);
-      setCustomCardOrder(sorted.map(c => c.id));
+
+    if (hand.length > 0) {
+      const currentIds = new Set(hand.map(c => c.id));
+      const isNewDeal =
+        prevHandIdsRef.current.size === 0 ||
+        ![...currentIds].some(id => prevHandIdsRef.current.has(id));
+
+      if (isNewDeal && !hasAutoSortedRef.current) {
+        hasAutoSortedRef.current = true;
+        const sorted = sortHandLowestToHighest(hand);
+        setCustomCardOrder(sorted.map(c => c.id));
+      }
+      prevHandIdsRef.current = currentIds;
     }
+
     if (hand.length === 0) {
       hasAutoSortedRef.current = false;
+      prevHandIdsRef.current = new Set();
     }
-  }, [playerHand, customCardOrder, setCustomCardOrder]);
+  }, [playerHand, setCustomCardOrder]);
 
   // Helper buttons
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
