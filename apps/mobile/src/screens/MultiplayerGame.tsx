@@ -686,7 +686,7 @@ export function MultiplayerGame() {
   const { handleSort, handleSmartSort, handleHint } = useHelperButtons({
     playerHand: effectivePlayerHand,
     lastPlay: multiplayerLastPlay || null,
-    isFirstPlay: multiplayerLastPlay === null,
+    isFirstPlay: multiplayerGameState?.game_phase === 'first_play',
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
