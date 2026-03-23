@@ -9815,6 +9815,11 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
           "width": 70,
         },
         {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
+        {
           "backgroundColor": "#E74C3C",
           "elevation": 8,
           "shadowColor": "#E74C3C",
@@ -9840,6 +9845,9 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
             "overflow": "hidden",
             "width": "100%",
           },
+          {
+            "borderRadius": 31,
+          },
           false,
         ]
       }
@@ -9850,6 +9858,9 @@ exports[`PlayerInfo — visual regression snapshots renders active player (curre
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]
@@ -10031,6 +10042,11 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
           "padding": 4,
           "width": 70,
         },
+        {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
         false,
       ]
     }
@@ -10048,6 +10064,9 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
             "width": "100%",
           },
           {
+            "borderRadius": 31,
+          },
+          {
             "opacity": 0.5,
           },
         ]
@@ -10059,6 +10078,9 @@ exports[`PlayerInfo — visual regression snapshots renders disconnected player 
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             {
               "opacity": 0.6,
@@ -10220,6 +10242,11 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
           "padding": 4,
           "width": 70,
         },
+        {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
         false,
       ]
     }
@@ -10236,6 +10263,9 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
             "overflow": "hidden",
             "width": "100%",
           },
+          {
+            "borderRadius": 31,
+          },
           false,
         ]
       }
@@ -10246,6 +10276,9 @@ exports[`PlayerInfo — visual regression snapshots renders inactive player (wai
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]
@@ -10425,6 +10458,11 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
           "height": 70,
           "marginBottom": 8,
           "padding": 4,
+          "width": 70,
+        },
+        {
+          "borderRadius": 35,
+          "height": 70,
           "width": 70,
         },
         false,
@@ -10653,6 +10691,11 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
           "width": 70,
         },
         {
+          "borderRadius": 35,
+          "height": 70,
+          "width": 70,
+        },
+        {
           "backgroundColor": "#E74C3C",
           "elevation": 8,
           "shadowColor": "#E74C3C",
@@ -10678,6 +10721,9 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
             "overflow": "hidden",
             "width": "100%",
           },
+          {
+            "borderRadius": 31,
+          },
           false,
         ]
       }
@@ -10688,6 +10734,9 @@ exports[`PlayerInfo — visual regression snapshots renders player with 1 card l
             {
               "fontSize": 40,
               "textAlign": "center",
+            },
+            {
+              "fontSize": 40,
             },
             false,
           ]
