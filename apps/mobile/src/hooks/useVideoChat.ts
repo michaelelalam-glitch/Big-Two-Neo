@@ -31,7 +31,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, Linking, AppState } from 'react-native';
 import { Audio } from 'expo-av';
 import { gameLogger } from '../utils/logger';
 import { i18n } from '../i18n';
@@ -48,9 +48,9 @@ export type MediaPermissionStatus = 'undetermined' | 'granted' | 'denied' | 'res
  * Pass this directly as `trackRef` to `<VideoTrack>` from `@livekit/react-native`.
  */
 export interface LiveKitTrackRef {
-  participant: object;    // livekit-client Participant
-  publication: object;    // livekit-client TrackPublication
-  source: unknown;        // Track.Source enum value
+  participant: object; // livekit-client Participant
+  publication: object; // livekit-client TrackPublication
+  source: unknown; // Track.Source enum value
 }
 
 export interface VideoChatParticipant {
@@ -110,9 +110,15 @@ export class StubVideoChatAdapter implements VideoChatAdapter {
   async disableCamera(): Promise<void> {}
   async enableMicrophone(): Promise<void> {}
   async disableMicrophone(): Promise<void> {}
-  getParticipants(): VideoChatParticipant[] { return []; }
-  onParticipantsChanged(_cb: (participants: VideoChatParticipant[]) => void): () => void { return () => {}; }
-  onError(_cb: (error: Error) => void): () => void { return () => {}; }
+  getParticipants(): VideoChatParticipant[] {
+    return [];
+  }
+  onParticipantsChanged(_cb: (participants: VideoChatParticipant[]) => void): () => void {
+    return () => {};
+  }
+  onError(_cb: (error: Error) => void): () => void {
+    return () => {};
+  }
 }
 
 /**
@@ -243,17 +249,26 @@ export function useVideoChat({
   const [isChatConnected, setIsChatConnected] = useState(false);
   const [isLocalCameraOn, setIsLocalCameraOn] = useState(false);
   const [isLocalMicOn, setIsLocalMicOn] = useState(false);
-  const [cameraPermissionStatus, setCameraPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
-  const [micPermissionStatus, setMicPermissionStatus] = useState<MediaPermissionStatus>('undetermined');
+  const [cameraPermissionStatus, setCameraPermissionStatus] =
+    useState<MediaPermissionStatus>('undetermined');
+  const [micPermissionStatus, setMicPermissionStatus] =
+    useState<MediaPermissionStatus>('undetermined');
   const [remoteParticipants, setRemoteParticipants] = useState<VideoChatParticipant[]>([]);
   // Separate connecting states for video (camera+session) and audio (mic-only).
   // Splitting lets the UI show a spinner only on the button that is in-flight
   // rather than on both simultaneously.
-  const [isConnecting, setIsConnecting] = useState(false);     // video/session toggle
-  const [isAudioConnecting, setIsAudioConnecting] = useState(false);  // voice-only toggle
+  const [isConnecting, setIsConnecting] = useState(false); // video/session toggle
+  const [isAudioConnecting, setIsAudioConnecting] = useState(false); // voice-only toggle
   // Ref companion: used to short-circuit re-entrant calls before setState
   // triggers a re-render (ref reads are synchronous, state reads are not).
   const isTogglingRef = useRef(false);
+
+  // Auto-reconnect: track the user's intended camera/mic state so we can
+  // restore it after an unexpected disconnect or app foreground return.
+  const desiredCameraRef = useRef(false);
+  const desiredMicRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 3;
 
   // Track the previous adapterProp so the swap-teardown effect can detect a
   // genuine adapter change. adapterRef.current is already updated during render
@@ -290,23 +305,21 @@ export function useVideoChat({
     if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onParticipantsChanged(setRemoteParticipants);
     return unsubscribe;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChatConnected, adapterProp]);
 
   // Subscribe to SDK errors. Disconnect errors (emitted by LiveKitVideoChat-
   // Adapter on RoomEvent.Disconnected) are treated as fatal: reset all local
   // and remote chat state so the UI never sticks in a "connected" state after
   // an unexpected network drop or server-side kick.
+  // Auto-reconnect: attempt to re-establish the session with previous camera/mic
+  // state before giving up.
   useEffect(() => {
     if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
       gameLogger.warn('[VideoChat] SDK error:', err.message);
-      // Treat disconnect errors as fatal — reset the full session state so the
-      // UI reflects the true "disconnected" state even without an explicit
-      // toggleVideoChat() call.
       if (err instanceof UnexpectedDisconnectError) {
-        // Best-effort adapter teardown so hardware capture stops even if the
-        // adapter itself hasn't fully cleaned up after the unexpected drop.
+        // Best-effort adapter teardown so hardware capture stops
         adapterRef.current.disableMicrophone().catch(() => {});
         adapterRef.current.disableCamera().catch(() => {});
         adapterRef.current.disconnect().catch(() => {});
@@ -315,11 +328,55 @@ export function useVideoChat({
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
         gameLogger.warn('[VideoChat] Session reset after unexpected disconnect.');
+
+        // Auto-reconnect if we have room/user context and haven't exceeded attempts
+        if (roomId && userId && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          const wantCamera = desiredCameraRef.current;
+          const wantMic = desiredMicRef.current;
+          reconnectAttemptsRef.current += 1;
+          const attempt = reconnectAttemptsRef.current;
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 1s, 2s, 4s
+
+          gameLogger.info(
+            `[VideoChat] Auto-reconnect attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`
+          );
+          setTimeout(async () => {
+            try {
+              await adapterRef.current.connect(roomId, userId);
+              if (wantCamera) {
+                await adapterRef.current.enableCamera();
+                setIsLocalCameraOn(true);
+              }
+              if (wantMic) {
+                try {
+                  await adapterRef.current.enableMicrophone();
+                  setIsLocalMicOn(true);
+                } catch {
+                  /* mic failure is non-fatal */
+                }
+              }
+              setRemoteParticipants(adapterRef.current.getParticipants());
+              setIsChatConnected(true);
+              reconnectAttemptsRef.current = 0; // reset on success
+              gameLogger.info(
+                `[VideoChat] Auto-reconnect succeeded (camera=${wantCamera}, mic=${wantMic})`
+              );
+            } catch (reconnectErr) {
+              gameLogger.warn(
+                '[VideoChat] Auto-reconnect failed:',
+                reconnectErr instanceof Error ? reconnectErr.message : String(reconnectErr)
+              );
+              adapterRef.current.disableMicrophone().catch(() => {});
+              adapterRef.current.disableCamera().catch(() => {});
+              adapterRef.current.disconnect().catch(() => {});
+            }
+          }, delay);
+        }
       }
     });
     return unsubscribe;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChatConnected, adapterProp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatConnected, adapterProp, roomId, userId]);
 
   // Track the previous roomId so the roomId-change effect can distinguish
   // a genuine room navigation from the initial mount.
@@ -352,12 +409,61 @@ export function useVideoChat({
       setRemoteParticipants([]);
     }
     prevRoomIdRef.current = roomId;
-  // isChatConnected included so the effect sees the current session state when
-  // roomId fires. Re-runs on isChatConnected change are harmless: the roomId
-  // comparison always fails (prevRoomIdRef.current === roomId) so no teardown
-  // fires — only prevRoomIdRef.current is updated (no-op, same value).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // isChatConnected included so the effect sees the current session state when
+    // roomId fires. Re-runs on isChatConnected change are harmless: the roomId
+    // comparison always fails (prevRoomIdRef.current === roomId) so no teardown
+    // fires — only prevRoomIdRef.current is updated (no-op, same value).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, isChatConnected]);
+
+  // AppState foreground listener: when the app returns to the foreground,
+  // check if video chat was active and reconnect if the session dropped.
+  // This handles iOS/Android backgrounding where WebSocket connections may be
+  // terminated by the OS.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async nextState => {
+      if (nextState !== 'active') return;
+      // Only attempt reconnection if the user had an active session
+      if (!desiredCameraRef.current && !desiredMicRef.current) return;
+      if (!roomId || !userId) return;
+      // If still connected, nothing to do
+      if (isChatConnected) return;
+
+      gameLogger.info('[VideoChat] App returned to foreground — attempting session restoration');
+      const wantCamera = desiredCameraRef.current;
+      const wantMic = desiredMicRef.current;
+
+      try {
+        await adapterRef.current.connect(roomId, userId);
+        if (wantCamera) {
+          await adapterRef.current.enableCamera();
+          setIsLocalCameraOn(true);
+        }
+        if (wantMic) {
+          try {
+            await adapterRef.current.enableMicrophone();
+            setIsLocalMicOn(true);
+          } catch {
+            /* mic failure is non-fatal */
+          }
+        }
+        setRemoteParticipants(adapterRef.current.getParticipants());
+        setIsChatConnected(true);
+        reconnectAttemptsRef.current = 0;
+        gameLogger.info('[VideoChat] Foreground reconnect succeeded');
+      } catch (err) {
+        gameLogger.warn(
+          '[VideoChat] Foreground reconnect failed:',
+          err instanceof Error ? err.message : String(err)
+        );
+        adapterRef.current.disableMicrophone().catch(() => {});
+        adapterRef.current.disableCamera().catch(() => {});
+        adapterRef.current.disconnect().catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, userId, isChatConnected]);
 
   // Hardware teardown on unmount ONLY — no setState here to avoid React warnings
   // when the component is already being destroyed. State is discarded on unmount
@@ -374,17 +480,17 @@ export function useVideoChat({
   const requestCameraPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
     if (Platform.OS === 'android') {
       try {
-        const result = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: i18n.t('chat.cameraPermissionTitle'),
-            message: i18n.t('chat.cameraPermissionMessage'),
-            buttonPositive: i18n.t('common.ok'),
-          }
-        );
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA, {
+          title: i18n.t('chat.cameraPermissionTitle'),
+          message: i18n.t('chat.cameraPermissionMessage'),
+          buttonPositive: i18n.t('common.ok'),
+        });
         const status: MediaPermissionStatus =
-          result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' :
-          result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? 'restricted' : 'denied';
+          result === PermissionsAndroid.RESULTS.GRANTED
+            ? 'granted'
+            : result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+              ? 'restricted'
+              : 'denied';
         setCameraPermissionStatus(status);
         return status;
       } catch {
@@ -414,8 +520,7 @@ export function useVideoChat({
         // immediately without re-prompting.
         const result = await Camera.requestCameraPermissionsAsync();
         const mapped: MediaPermissionStatus =
-          result.status === 'granted' ? 'granted' :
-          !result.canAskAgain         ? 'restricted' : 'denied';
+          result.status === 'granted' ? 'granted' : !result.canAskAgain ? 'restricted' : 'denied';
         setCameraPermissionStatus(mapped);
         return mapped;
       } catch {
@@ -430,10 +535,13 @@ export function useVideoChat({
         // expo-camera plugin.
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { permissions: webRTCPerms, mediaDevices: webRTCDevices } = require('@livekit/react-native-webrtc') as {
-            permissions: { query(d: { name: string }): Promise<string> };
-            mediaDevices: { getUserMedia(c: object): Promise<{ getTracks(): { stop(): void }[] }> };
-          };
+          const { permissions: webRTCPerms, mediaDevices: webRTCDevices } =
+            require('@livekit/react-native-webrtc') as {
+              permissions: { query(d: { name: string }): Promise<string> };
+              mediaDevices: {
+                getUserMedia(c: object): Promise<{ getTracks(): { stop(): void }[] }>;
+              };
+            };
           const current = await webRTCPerms.query({ name: 'camera' });
           if (current === 'granted') {
             setCameraPermissionStatus('granted');
@@ -477,8 +585,11 @@ export function useVideoChat({
           }
         );
         const status: MediaPermissionStatus =
-          result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' :
-          result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? 'restricted' : 'denied';
+          result === PermissionsAndroid.RESULTS.GRANTED
+            ? 'granted'
+            : result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+              ? 'restricted'
+              : 'denied';
         setMicPermissionStatus(status);
         return status;
       } catch {
@@ -506,8 +617,7 @@ export function useVideoChat({
         // immediately without re-prompting.
         const result = await Audio.requestPermissionsAsync();
         const mapped: MediaPermissionStatus =
-          result.status === 'granted' ? 'granted' :
-          !result.canAskAgain         ? 'restricted' : 'denied';
+          result.status === 'granted' ? 'granted' : !result.canAskAgain ? 'restricted' : 'denied';
         setMicPermissionStatus(mapped);
         return mapped;
       } catch {
@@ -549,7 +659,9 @@ export function useVideoChat({
           // Attach .catch() to handle the rare case where the Settings app
           // is unavailable (e.g. deep-link restricted by MDM) without leaving
           // an unhandled promise rejection.
-          onPress: () => { Linking.openSettings().catch(() => {}); },
+          onPress: () => {
+            Linking.openSettings().catch(() => {});
+          },
         },
       ]
     );
@@ -625,11 +737,12 @@ export function useVideoChat({
               );
             }
           }
-          // Seed remote participants immediately from current SDK state so the UI
-          // shows existing participants without waiting for the next event.
           setRemoteParticipants(adapterRef.current.getParticipants());
           setIsChatConnected(true);
           setIsLocalCameraOn(true);
+          desiredCameraRef.current = true;
+          desiredMicRef.current = micEnabled;
+          reconnectAttemptsRef.current = 0;
           // Log reflects what was actually enabled — permission 'granted' does not
           // guarantee enableMicrophone() succeeded (may have thrown).
           gameLogger.info(
@@ -640,7 +753,10 @@ export function useVideoChat({
         } catch (err) {
           // Connection failure is non-fatal — video chat is always opt-in.
           // Best-effort cleanup so the adapter does not remain half-connected.
-          gameLogger.warn('[VideoChat] Failed to enable video chat:', err instanceof Error ? err.message : String(err));
+          gameLogger.warn(
+            '[VideoChat] Failed to enable video chat:',
+            err instanceof Error ? err.message : String(err)
+          );
           adapterRef.current.disableMicrophone().catch(() => {});
           adapterRef.current.disableCamera().catch(() => {});
           adapterRef.current.disconnect().catch(() => {});
@@ -652,10 +768,7 @@ export function useVideoChat({
           setRemoteParticipants([]);
           // Alert the user so the toggle reverting to off is not silent/confusing.
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
-            Alert.alert(
-              i18n.t('chat.connectFailedTitle'),
-              i18n.t('chat.connectFailedMessage'),
-            );
+            Alert.alert(i18n.t('chat.connectFailedTitle'), i18n.t('chat.connectFailedMessage'));
           }
         }
       } else if (!isLocalCameraOn) {
@@ -668,16 +781,22 @@ export function useVideoChat({
           camPermission = await requestCameraPermission();
         }
         if (camPermission !== 'granted') {
-          gameLogger.info('[VideoChat] Camera permission not granted — voice→video upgrade blocked.');
+          gameLogger.info(
+            '[VideoChat] Camera permission not granted — voice→video upgrade blocked.'
+          );
           showPermissionDeniedAlert('camera');
           return;
         }
         try {
           await adapterRef.current.enableCamera();
           setIsLocalCameraOn(true);
+          desiredCameraRef.current = true;
           gameLogger.info('[VideoChat] Camera enabled — upgraded from voice-only to video.');
         } catch (err) {
-          gameLogger.warn('[VideoChat] Camera enable failed during voice→video upgrade:', err instanceof Error ? err.message : String(err));
+          gameLogger.warn(
+            '[VideoChat] Camera enable failed during voice→video upgrade:',
+            err instanceof Error ? err.message : String(err)
+          );
         }
       } else {
         // ── Opt-out path — camera is on, disconnect the full session ────────────
@@ -688,6 +807,9 @@ export function useVideoChat({
         setIsLocalCameraOn(false);
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
+        desiredCameraRef.current = false;
+        desiredMicRef.current = false;
+        reconnectAttemptsRef.current = 0;
         gameLogger.info('[VideoChat] Local camera + mic disabled.');
       }
     } finally {
@@ -696,13 +818,24 @@ export function useVideoChat({
       isTogglingRef.current = false;
       setIsConnecting(false);
     }
-  }, [roomId, userId, isChatConnected, isLocalCameraOn, cameraPermissionStatus, micPermissionStatus, requestCameraPermission, requestMicPermission, showPermissionDeniedAlert]);
+  }, [
+    roomId,
+    userId,
+    isChatConnected,
+    isLocalCameraOn,
+    cameraPermissionStatus,
+    micPermissionStatus,
+    requestCameraPermission,
+    requestMicPermission,
+    showPermissionDeniedAlert,
+  ]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
     if (!isChatConnected) return;
     if (isLocalMicOn) {
       await adapterRef.current.disableMicrophone().catch(() => {});
       setIsLocalMicOn(false);
+      desiredMicRef.current = false;
       gameLogger.info('[VideoChat] Microphone muted.');
     } else {
       // Re-request on 'denied' so users who previously denied can retry in-game.
@@ -719,12 +852,22 @@ export function useVideoChat({
       try {
         await adapterRef.current.enableMicrophone();
         setIsLocalMicOn(true);
+        desiredMicRef.current = true;
         gameLogger.info('[VideoChat] Microphone unmuted.');
       } catch (err) {
-        gameLogger.warn('[VideoChat] Failed to enable microphone:', err instanceof Error ? err.message : String(err));
+        gameLogger.warn(
+          '[VideoChat] Failed to enable microphone:',
+          err instanceof Error ? err.message : String(err)
+        );
       }
     }
-  }, [isChatConnected, isLocalMicOn, micPermissionStatus, requestMicPermission, showPermissionDeniedAlert]);
+  }, [
+    isChatConnected,
+    isLocalMicOn,
+    micPermissionStatus,
+    requestMicPermission,
+    showPermissionDeniedAlert,
+  ]);
 
   /**
    * Toggle voice-only chat (audio only — no camera).
@@ -767,9 +910,15 @@ export function useVideoChat({
           setIsChatConnected(true);
           // isLocalCameraOn remains false — this is the voice-only indicator.
           setIsLocalMicOn(true);
+          desiredCameraRef.current = false;
+          desiredMicRef.current = true;
+          reconnectAttemptsRef.current = 0;
           gameLogger.info('[VoiceChat] Mic enabled (audio-only mode).');
         } catch (err) {
-          gameLogger.warn('[VoiceChat] Failed to enable voice chat:', err instanceof Error ? err.message : String(err));
+          gameLogger.warn(
+            '[VoiceChat] Failed to enable voice chat:',
+            err instanceof Error ? err.message : String(err)
+          );
           adapterRef.current.disableMicrophone().catch(() => {});
           adapterRef.current.disconnect().catch(() => {});
           setIsChatConnected(false);
@@ -779,7 +928,7 @@ export function useVideoChat({
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
             Alert.alert(
               i18n.t('chat.voiceConnectFailedTitle'),
-              i18n.t('chat.voiceConnectFailedMessage'),
+              i18n.t('chat.voiceConnectFailedMessage')
             );
           }
         }
@@ -790,13 +939,24 @@ export function useVideoChat({
         setIsChatConnected(false);
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
+        desiredCameraRef.current = false;
+        desiredMicRef.current = false;
+        reconnectAttemptsRef.current = 0;
         gameLogger.info('[VoiceChat] Voice chat disconnected.');
       }
     } finally {
       isTogglingRef.current = false;
       setIsAudioConnecting(false);
     }
-  }, [roomId, userId, isChatConnected, isLocalCameraOn, micPermissionStatus, requestMicPermission, showPermissionDeniedAlert]);
+  }, [
+    roomId,
+    userId,
+    isChatConnected,
+    isLocalCameraOn,
+    micPermissionStatus,
+    requestMicPermission,
+    showPermissionDeniedAlert,
+  ]);
 
   // voiceChatEnabled is a derived value: connected but camera is off.
   const voiceChatEnabled = isChatConnected && !isLocalCameraOn;
@@ -817,7 +977,7 @@ export function useVideoChat({
     // adapterProp in deps so the callback is recreated when the adapter is
     // hot-swapped (e.g. real adapter injected after Expo Go guard fires).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [adapterProp],
+    [adapterProp]
   );
 
   /**
@@ -831,6 +991,7 @@ export function useVideoChat({
       if (isLocalCameraOn) {
         await adapterRef.current.disableCamera();
         setIsLocalCameraOn(false);
+        desiredCameraRef.current = false;
         gameLogger.info('[VideoChat] Camera disabled (session remains active).');
       } else {
         let camPermission = cameraPermissionStatus;
@@ -844,12 +1005,22 @@ export function useVideoChat({
         }
         await adapterRef.current.enableCamera();
         setIsLocalCameraOn(true);
+        desiredCameraRef.current = true;
         gameLogger.info('[VideoChat] Camera enabled (session already active).');
       }
     } catch (err) {
-      gameLogger.warn('[VideoChat] Camera toggle failed:', err instanceof Error ? err.message : String(err));
+      gameLogger.warn(
+        '[VideoChat] Camera toggle failed:',
+        err instanceof Error ? err.message : String(err)
+      );
     }
-  }, [isChatConnected, isLocalCameraOn, cameraPermissionStatus, requestCameraPermission, showPermissionDeniedAlert]);
+  }, [
+    isChatConnected,
+    isLocalCameraOn,
+    cameraPermissionStatus,
+    requestCameraPermission,
+    showPermissionDeniedAlert,
+  ]);
 
   return {
     isChatConnected,
