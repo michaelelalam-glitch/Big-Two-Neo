@@ -395,6 +395,8 @@ function GameViewComponent() {
             isThrowCooldown={isThrowCooldown}
             cooldownRemaining={cooldownRemaining}
             throwableActiveEffects={throwableActiveEffects}
+            isLocalMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}
+            onMicToggle={isMultiplayerGame ? toggleMic : undefined}
           />
         ) : (
           // PORTRAIT MODE (existing layout)
@@ -554,6 +556,7 @@ function GameViewComponent() {
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
                 videoStreamSlot={localVideoSlot}
+                onMicToggle={isMultiplayerGame ? toggleMic : undefined}
               />
               {/* Throwable effect overlay for local player (display index 0) */}
               {throwableActiveEffects?.[0] != null && (

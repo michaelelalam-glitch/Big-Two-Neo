@@ -46,6 +46,8 @@ interface PlayerInfoProps {
   videoStreamSlot?: React.ReactNode;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
+  /** Called when the local player presses the mic toggle button on the avatar */
+  onMicToggle?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +147,7 @@ function PlayerInfoComponent({
   onVideoChatToggle,
   videoStreamSlot,
   onNameLongPress,
+  onMicToggle,
 }: PlayerInfoProps) {
   // Profile photo size preference
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -301,6 +304,18 @@ function PlayerInfoComponent({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Mic toggle button — local player only, top-left of avatar (portrait) */}
+        {isLocalPlayer && isMicOn !== undefined && onMicToggle && (
+          <Pressable
+            style={styles.micTogglePortrait}
+            onPress={onMicToggle}
+            accessibilityRole="button"
+            accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+            hitSlop={6}
+          >
+            <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+          </Pressable>
+        )}
         {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
         {totalScore !== undefined && (
           <View
@@ -420,6 +435,21 @@ const styles = StyleSheet.create({
   },
   nameBadgeDisconnected: {
     opacity: 0.6,
+  },
+  micTogglePortrait: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  micToggleIcon: {
+    fontSize: 11,
   },
 });
 

@@ -16,7 +16,14 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Pressable,
+} from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import { useUserPreferencesStore } from '../../store/userPreferencesSlice';
 import {
@@ -56,6 +63,10 @@ interface LandscapeOpponentProps {
   onAvatarPress?: () => void;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
+  /** Whether this player's mic is on (undefined = mic state unknown / not applicable) */
+  isMicOn?: boolean;
+  /** Called when the mic toggle button is pressed (local player only) */
+  onMicToggle?: () => void;
 }
 
 // ============================================================================
@@ -75,6 +86,8 @@ export function LandscapeOpponent({
   onCountdownExpired,
   onAvatarPress,
   onNameLongPress,
+  isMicOn,
+  onMicToggle,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -186,6 +199,18 @@ export function LandscapeOpponent({
           <View style={styles.badgePosition}>
             <CardCountBadge cardCount={cardCount} visible={true} />
           </View>
+          {/* Mic toggle button — mid-right of avatar (landscape) */}
+          {isMicOn !== undefined && onMicToggle && (
+            <Pressable
+              style={styles.micToggleLandscape}
+              onPress={onMicToggle}
+              accessibilityRole="button"
+              accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+              hitSlop={6}
+            >
+              <Text style={styles.micToggleIcon}>{isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}</Text>
+            </Pressable>
+          )}
           {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
           {totalScore !== undefined && (
             <View
@@ -338,6 +363,22 @@ const styles = StyleSheet.create({
   },
   nameBadgeDisconnected: {
     opacity: 0.6,
+  },
+  micToggleLandscape: {
+    position: 'absolute',
+    right: -10,
+    top: '50%',
+    marginTop: -10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  micToggleIcon: {
+    fontSize: 11,
   },
 });
 

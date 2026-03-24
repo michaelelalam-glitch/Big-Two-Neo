@@ -107,6 +107,10 @@ export interface LandscapeGameLayoutProps {
   cooldownRemaining?: number;
   /** Active throwable effects per display slot [0=local, 1=top, 2=left, 3=right] */
   throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
+  /** Whether the local player's mic is on (for mic toggle button) */
+  isLocalMicOn?: boolean;
+  /** Called when the local player presses the mic toggle button */
+  onMicToggle?: () => void;
 }
 
 // ============================================================================
@@ -170,6 +174,8 @@ export function LandscapeGameLayout({
   turnTimerStartedAts,
   onCountdownExpireds,
   playerIds = [],
+  isLocalMicOn,
+  onMicToggle,
 }: LandscapeGameLayoutProps) {
   // Friends context to check friendship status in-game
   const { friends } = useFriendsContext();
@@ -529,6 +535,8 @@ export function LandscapeGameLayout({
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[0]}
             turnTimerStartedAt={turnTimerStartedAts?.[0]}
             onCountdownExpired={onCountdownExpireds?.[0]}
+            isMicOn={isLocalMicOn}
+            onMicToggle={onMicToggle}
           />
           {throwableActiveEffects?.[0] != null && (
             <ThrowablePlayerEffect
