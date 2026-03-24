@@ -137,7 +137,8 @@ export function MultiplayerGame() {
       }
 
       try {
-        // 1. Clean up old room membership to prevent "already in room" conflicts
+        // 1. Clean up old room membership to prevent "already in room" conflicts.
+        // Delete by user_id (direct membership) AND by human_user_id (bot-replacement rows).
         const { error: cleanupError } = await supabase
           .from('room_players')
           .delete()
@@ -146,6 +147,17 @@ export function MultiplayerGame() {
           gameLogger.warn(
             '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
             cleanupError.message
+          );
+        }
+        // Also clean up bot-replacement rows where user was replaced
+        const { error: botCleanupError } = await supabase.rpc(
+          'delete_room_players_by_human_user_id',
+          { human_user_id: user.id }
+        );
+        if (botCleanupError) {
+          gameLogger.warn(
+            '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
+            botCleanupError.message
           );
         }
         // Brief wait for DB replication
