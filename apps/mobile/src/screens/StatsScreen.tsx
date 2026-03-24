@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';
 import { AddFriendButton } from '../components/friends';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -353,6 +353,7 @@ export default function StatsScreen() {
   >([]);
   const [mutualFriendsModalVisible, setMutualFriendsModalVisible] = useState(false);
   const [mutualFriendsLoading, setMutualFriendsLoading] = useState(false);
+  const mutualFriendsLoadingRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -490,23 +491,25 @@ export default function StatsScreen() {
   }, [fetchData]);
 
   const openMutualFriendsList = useCallback(async () => {
-    if (!userId || mutualFriendsLoading) return;
+    if (!userId || mutualFriendsLoadingRef.current) return;
+    mutualFriendsLoadingRef.current = true;
     setMutualFriendsModalVisible(true);
     setMutualFriendsLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_mutual_friends_list' as any, {
+      const { data, error } = await supabase.rpc('get_mutual_friends_list', {
         p_other_user_id: userId,
       });
       if (error) {
         statsLogger.error('[Stats] Mutual friends list error:', error.message);
         setMutualFriendsList([]);
       } else {
-        setMutualFriendsList((data as { friend_id: string; username: string }[]) ?? []);
+        setMutualFriendsList(data ?? []);
       }
     } catch {
       setMutualFriendsList([]);
     } finally {
       setMutualFriendsLoading(false);
+      mutualFriendsLoadingRef.current = false;
     }
   }, [userId]);
 
@@ -1312,6 +1315,7 @@ export default function StatsScreen() {
         visible={mutualFriendsModalVisible}
         transparent
         animationType="slide"
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         onRequestClose={() => setMutualFriendsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>

@@ -1489,6 +1489,13 @@ export type Database = {
         Args: { p_other_user_id: string };
         Returns: number;
       };
+      get_mutual_friends_list: {
+        Args: { p_other_user_id: string };
+        Returns: {
+          friend_id: string;
+          username: string;
+        }[];
+      };
       get_leaderboard_casual: {
         Args: { p_limit?: number; p_offset?: number };
         Returns: {
