@@ -107,6 +107,20 @@ export interface LandscapeGameLayoutProps {
   cooldownRemaining?: number;
   /** Active throwable effects per display slot [0=local, 1=top, 2=left, 3=right] */
   throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
+
+  /** Drag zone state for table glow (matches portrait GameLayout) */
+  dropZoneState?: import('../game/CardHand').DragZoneState;
+  /** Callback when drag zone state changes (from LandscapeYourPosition) */
+  onDragZoneChange?: (state: import('../game/CardHand').DragZoneState) => void;
+
+  /** Video chat: camera on per display slot [bottom, top, left, right] */
+  isCameraOns?: boolean[];
+  /** Video chat: mic on per display slot */
+  isMicOns?: boolean[];
+  /** Video chat: connecting per display slot */
+  isVideoChatConnectings?: boolean[];
+  /** Video chat: video stream slot elements per display slot */
+  videoStreamSlots?: (React.ReactNode | undefined)[];
 }
 
 // ============================================================================
@@ -170,6 +184,12 @@ export function LandscapeGameLayout({
   turnTimerStartedAts,
   onCountdownExpireds,
   playerIds = [],
+  dropZoneState,
+  onDragZoneChange,
+  isCameraOns,
+  isMicOns,
+  isVideoChatConnectings,
+  videoStreamSlots,
 }: LandscapeGameLayoutProps) {
   // Friends context to check friendship status in-game
   const { friends } = useFriendsContext();
@@ -366,6 +386,10 @@ export function LandscapeGameLayout({
             onCountdownExpired={onCountdownExpireds?.[1]}
             onAvatarPress={playerIds[1] ? () => handleOpponentAvatarPress(1) : undefined}
             onNameLongPress={playerIds[1] ? () => handleOpponentNameLongPress(1) : undefined}
+            isCameraOn={isCameraOns?.[1]}
+            isMicOn={isMicOns?.[1]}
+            isVideoChatConnecting={isVideoChatConnectings?.[1]}
+            videoStreamSlot={videoStreamSlots?.[1]}
           />
           {throwableActiveEffects?.[1] != null && (
             <View
@@ -402,6 +426,10 @@ export function LandscapeGameLayout({
             onCountdownExpired={onCountdownExpireds?.[2]}
             onAvatarPress={playerIds[2] ? () => handleOpponentAvatarPress(2) : undefined}
             onNameLongPress={playerIds[2] ? () => handleOpponentNameLongPress(2) : undefined}
+            isCameraOn={isCameraOns?.[2]}
+            isMicOn={isMicOns?.[2]}
+            isVideoChatConnecting={isVideoChatConnectings?.[2]}
+            videoStreamSlot={videoStreamSlots?.[2]}
           />
           {throwableActiveEffects?.[2] != null && (
             <View
@@ -436,6 +464,10 @@ export function LandscapeGameLayout({
             onCountdownExpired={onCountdownExpireds?.[3]}
             onAvatarPress={playerIds[3] ? () => handleOpponentAvatarPress(3) : undefined}
             onNameLongPress={playerIds[3] ? () => handleOpponentNameLongPress(3) : undefined}
+            isCameraOn={isCameraOns?.[3]}
+            isMicOn={isMicOns?.[3]}
+            isVideoChatConnecting={isVideoChatConnectings?.[3]}
+            videoStreamSlot={videoStreamSlots?.[3]}
           />
           {throwableActiveEffects?.[3] != null && (
             <View
@@ -509,6 +541,7 @@ export function LandscapeGameLayout({
             lastPlayedBy={lastPlayedBy ?? null}
             combinationType={lastPlayComboType ?? null}
             comboDisplayText={lastPlayCombo ?? undefined}
+            dropZoneState={dropZoneState}
           />
 
           {/* Auto-Pass Timer Display (OVERLAY on table) */}
@@ -531,6 +564,10 @@ export function LandscapeGameLayout({
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[0]}
             turnTimerStartedAt={turnTimerStartedAts?.[0]}
             onCountdownExpired={onCountdownExpireds?.[0]}
+            isCameraOn={isCameraOns?.[0]}
+            isMicOn={isMicOns?.[0]}
+            isVideoChatConnecting={isVideoChatConnectings?.[0]}
+            videoStreamSlot={videoStreamSlots?.[0]}
           />
           {throwableActiveEffects?.[0] != null && (
             <ThrowablePlayerEffect
@@ -620,6 +657,7 @@ export function LandscapeGameLayout({
             onSelectionChange={onSelectionChange}
             onPlayCards={onPlayCardsCallback}
             onCardsReorder={onCardsReorder}
+            onDragZoneChange={onDragZoneChange}
           />
         </View>
       </View>
