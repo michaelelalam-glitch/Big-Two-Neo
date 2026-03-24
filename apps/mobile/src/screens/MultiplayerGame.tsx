@@ -180,7 +180,7 @@ export function MultiplayerGame() {
           p_user_id: user.id,
           p_username: username,
           p_is_public: info.is_public,
-          p_is_matchmaking: info.is_public,
+          p_is_matchmaking: info.is_matchmaking,
           p_ranked_mode: info.ranked_mode,
         });
 

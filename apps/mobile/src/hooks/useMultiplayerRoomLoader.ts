@@ -20,6 +20,7 @@ export interface RoomInfo {
   code: string;
   ranked_mode: boolean;
   is_public: boolean;
+  is_matchmaking: boolean;
 }
 
 interface UseMultiplayerRoomLoaderOptions {
@@ -44,7 +45,7 @@ export function useMultiplayerRoomLoader({
       try {
         const { data: roomData, error: roomError } = await supabase
           .from('rooms')
-          .select('id, code, ranked_mode, is_public')
+          .select('id, code, ranked_mode, is_public, is_matchmaking')
           .eq('code', roomCode)
           .single();
 
@@ -62,6 +63,7 @@ export function useMultiplayerRoomLoader({
             code: roomData.code,
             ranked_mode: roomData.ranked_mode ?? false,
             is_public: roomData.is_public ?? true,
+            is_matchmaking: roomData.is_matchmaking ?? false,
           });
         }
 
