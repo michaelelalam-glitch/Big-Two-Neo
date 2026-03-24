@@ -26,6 +26,9 @@ tags:
     visible: "Leaderboard"
     timeout: 10000
 
+# Step 2b: Verify leaderboard has actual content (not just title)
+- assertVisible: "Rank"
+
 # Step 3: Take screenshot
 - takeScreenshot: "07_leaderboard"
 
@@ -40,6 +43,9 @@ tags:
 - extendedWaitUntil:
     visible: "Profile"
     timeout: 10000
+
+# Step 5b: Verify profile has actual content (not just title)
+- assertVisible: "Games Played"
 
 # Step 6: Take screenshot of profile
 - takeScreenshot: "07_profile"
