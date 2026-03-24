@@ -1,6 +1,6 @@
 # Batch 3 Fixes Summary
 
-**Branch:** `fix/app-improvements-batch-2`  
+**Branch:** `fix/app-improvements-batch-3`  
 **PR:** #178 → `game/chinese-poker`  
 **Date:** March 23-24, 2026
 

@@ -1,6 +1,6 @@
 # Batch 3 - Manual Testing Checklist
 
-**Branch:** `fix/app-improvements-batch-2`  
+**Branch:** `fix/app-improvements-batch-3`  
 **Tester:** _______________  
 **Date:** _______________
 
