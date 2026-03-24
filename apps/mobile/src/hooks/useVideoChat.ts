@@ -421,6 +421,7 @@ export function useVideoChat({
   // This handles iOS/Android backgrounding where WebSocket connections may be
   // terminated by the OS.
   useEffect(() => {
+    if (!AppState?.addEventListener) return;
     const subscription = AppState.addEventListener('change', async nextState => {
       if (nextState !== 'active') return;
       // Only attempt reconnection if the user had an active session
@@ -461,7 +462,7 @@ export function useVideoChat({
         adapterRef.current.disconnect().catch(() => {});
       }
     });
-    return () => subscription.remove();
+    return () => subscription?.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, userId, isChatConnected]);
 
