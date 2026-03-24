@@ -1155,7 +1155,7 @@ Deno.serve(async (req) => {
       .filter(([idx]) => Number(idx) !== player.player_index)
       .every(([, hand]) => {
         const handArr = Array.isArray(hand) ? hand : [];
-        return handArr.length > 0 && handArr.length < comboSize;
+        return handArr.length < comboSize;
       });
 
     const shouldTriggerAutoPass = isHighestPlay || allOpponentsCantRespond;
