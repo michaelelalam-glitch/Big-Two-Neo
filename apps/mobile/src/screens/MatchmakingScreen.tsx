@@ -1,5 +1,13 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +23,7 @@ type MatchmakingScreenRouteProp = RouteProp<RootStackParamList, 'Matchmaking'>;
 
 /**
  * Matchmaking Screen - Quick Match Queue
- * 
+ *
  * Features:
  * - Joins matchmaking queue automatically on mount
  * - Shows waiting player count
@@ -28,10 +36,10 @@ export default function MatchmakingScreen() {
   const navigation = useNavigation<MatchmakingScreenNavigationProp>();
   const route = useRoute<MatchmakingScreenRouteProp>();
   const { user, profile } = useAuth();
-  
+
   // Get match type from route params (default: 'casual')
   const matchType = route.params?.matchType || 'casual';
-  
+
   const {
     isSearching,
     waitingCount,
@@ -69,7 +77,7 @@ export default function MatchmakingScreen() {
   useEffect(() => {
     if (matchFound && roomCode) {
       resetMatch();
-      
+
       // Route to Lobby for all game types (consistent routing)
       navigation.replace('Lobby', { roomCode });
     }
@@ -90,7 +98,7 @@ export default function MatchmakingScreen() {
   const handleStartWithAI = async () => {
     // Cancel matchmaking first
     await cancelMatchmaking();
-    
+
     // Navigate directly to Game screen with a special flag for AI game
     // GameScreen will detect no roomCode and start a local game
     navigation.replace('Game', { roomCode: 'LOCAL_AI_GAME' });
@@ -98,7 +106,7 @@ export default function MatchmakingScreen() {
 
   const getSearchingText = () => {
     if (!isSearching) return i18n.t('matchmaking.initializing');
-    
+
     if (waitingCount === 0) {
       return i18n.t('matchmaking.searching');
     } else if (waitingCount === 1) {
@@ -126,6 +134,84 @@ export default function MatchmakingScreen() {
     }
   };
 
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
+  // Shared blocks used in both portrait and landscape
+  const matchTypeBadge = (
+    <View style={[styles.matchTypeBadge, matchType === 'ranked' && styles.matchTypeBadgeRanked]}>
+      <Text style={styles.matchTypeBadgeText}>
+        {matchType === 'casual' ? '😊 ' : '🏆 '}
+        {i18n.t(`matchmaking.${matchType}`)}
+      </Text>
+    </View>
+  );
+
+  const searchingAnimation = (
+    <View style={styles.animationContainer}>
+      <ActivityIndicator size="large" color={COLORS.success} />
+      <Text style={styles.searchingText}>{getSearchingText()}</Text>
+    </View>
+  );
+
+  const waitingCountBlock = (
+    <View style={styles.countContainer}>
+      <Text style={[styles.countText, isLandscape && styles.countTextLandscape]}>
+        {waitingCount}
+      </Text>
+      <Text style={styles.countLabel}>{i18n.t('matchmaking.playersInQueue')}</Text>
+    </View>
+  );
+
+  const statusMessage = <Text style={styles.statusMessage}>{getWaitingMessage()}</Text>;
+
+  const progressBlock = (
+    <>
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBar, { width: `${(waitingCount / 4) * 100}%` }]} />
+      </View>
+      <Text style={styles.progressText}>
+        {waitingCount}/4 {i18n.t('matchmaking.playersNeeded')}
+      </Text>
+    </>
+  );
+
+  const roomCodeBlock =
+    roomCode && waitingCount < 4 ? (
+      <View style={styles.roomCodeContainer}>
+        <Text style={styles.roomCodeLabel}>🔗 {i18n.t('matchmaking.shareWithFriends')}</Text>
+        <View style={styles.roomCodeBox}>
+          <Text style={styles.roomCodeText}>{roomCode}</Text>
+        </View>
+        <Text style={styles.roomCodeHint}>{i18n.t('matchmaking.friendsCanJoin')}</Text>
+      </View>
+    ) : null;
+
+  const infoBox = (
+    <View style={styles.infoBox}>
+      <Text style={styles.infoTitle}>ℹ️ {i18n.t('matchmaking.howItWorks')}</Text>
+      <Text style={styles.infoText}>{i18n.t('matchmaking.description')}</Text>
+    </View>
+  );
+
+  const actionButtons = (
+    <>
+      <TouchableOpacity style={styles.startWithAIButton} onPress={handleStartWithAI}>
+        <Text style={styles.startWithAIButtonText}>🤖 {i18n.t('lobby.startWithBots')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+        <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const errorBlock = error ? (
+    <View style={styles.errorContainer}>
+      <Text style={styles.errorText}>❌ {error}</Text>
+    </View>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -134,90 +220,41 @@ export default function MatchmakingScreen() {
         showsVerticalScrollIndicator={true}
         bounces={true}
       >
-        <View style={styles.content}>
-          {/* Header */}
-          <Text style={styles.title}>{i18n.t('matchmaking.title')}</Text>
-        
-        {/* Match Type Badge */}
-        <View style={[
-          styles.matchTypeBadge,
-          matchType === 'ranked' && styles.matchTypeBadgeRanked
-        ]}>
-          <Text style={styles.matchTypeBadgeText}>
-            {matchType === 'casual' ? '😊 ' : '🏆 '}
-            {i18n.t(`matchmaking.${matchType}`)}
-          </Text>
-        </View>
-        
-        {/* Searching Animation */}
-        <View style={styles.animationContainer}>
-          <ActivityIndicator size="large" color={COLORS.success} />
-          <Text style={styles.searchingText}>{getSearchingText()}</Text>
-        </View>
-
-        {/* Waiting Count */}
-        <View style={styles.countContainer}>
-          <Text style={styles.countText}>{waitingCount}</Text>
-          <Text style={styles.countLabel}>{i18n.t('matchmaking.playersInQueue')}</Text>
-        </View>
-
-        {/* Status Message */}
-        <Text style={styles.statusMessage}>{getWaitingMessage()}</Text>
-
-        {/* Room Code Display (for sharing) */}
-        {roomCode && waitingCount < 4 && (
-          <View style={styles.roomCodeContainer}>
-            <Text style={styles.roomCodeLabel}>
-              🔗 {i18n.t('matchmaking.shareWithFriends')}
-            </Text>
-            <View style={styles.roomCodeBox}>
-              <Text style={styles.roomCodeText}>{roomCode}</Text>
+        {isLandscape ? (
+          // LANDSCAPE: two-column layout
+          <View style={styles.landscapeRoot}>
+            {/* Left column: status & animation */}
+            <View style={styles.landscapeLeft}>
+              <Text style={styles.titleLandscape}>{i18n.t('matchmaking.title')}</Text>
+              {matchTypeBadge}
+              {searchingAnimation}
+              {waitingCountBlock}
+              {statusMessage}
+              {progressBlock}
             </View>
-            <Text style={styles.roomCodeHint}>
-              {i18n.t('matchmaking.friendsCanJoin')}
-            </Text>
+            {/* Right column: info, room code, actions */}
+            <View style={styles.landscapeRight}>
+              {roomCodeBlock}
+              {infoBox}
+              {actionButtons}
+              {errorBlock}
+            </View>
+          </View>
+        ) : (
+          // PORTRAIT: single-column layout (original)
+          <View style={styles.content}>
+            <Text style={styles.title}>{i18n.t('matchmaking.title')}</Text>
+            {matchTypeBadge}
+            {searchingAnimation}
+            {waitingCountBlock}
+            {statusMessage}
+            {roomCodeBlock}
+            {progressBlock}
+            {infoBox}
+            {actionButtons}
+            {errorBlock}
           </View>
         )}
-
-        {/* Progress Bar */}
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${(waitingCount / 4) * 100}%` }]} />
-        </View>
-        <Text style={styles.progressText}>
-          {waitingCount}/4 {i18n.t('matchmaking.playersNeeded')}
-        </Text>
-
-        {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>ℹ️ {i18n.t('matchmaking.howItWorks')}</Text>
-          <Text style={styles.infoText}>
-            {i18n.t('matchmaking.description')}
-          </Text>
-        </View>
-
-        {/* Start with AI Button */}
-        <TouchableOpacity
-          style={styles.startWithAIButton}
-          onPress={handleStartWithAI}
-        >
-          <Text style={styles.startWithAIButtonText}>🤖 {i18n.t('lobby.startWithBots')}</Text>
-        </TouchableOpacity>
-
-        {/* Cancel Button */}
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={handleCancel}
-        >
-          <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
-        </TouchableOpacity>
-
-        {/* Error Display */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>❌ {error}</Text>
-          </View>
-        )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -412,5 +449,31 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
+  },
+  // Landscape layout
+  landscapeRoot: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: SPACING.md,
+    gap: SPACING.lg,
+  },
+  landscapeLeft: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  landscapeRight: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleLandscape: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    marginBottom: SPACING.md,
+  },
+  countTextLandscape: {
+    fontSize: 48,
   },
 });
