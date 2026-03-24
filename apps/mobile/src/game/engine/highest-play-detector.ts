@@ -434,41 +434,27 @@ function isHighestRemainingFiveCardCombo(
       const allSameSuit = sorted.every(c => c.suit === suit);
       if (!allSameSuit) return false;
 
-      // If this is a royal flush, check if any higher suit royal exists
-      if (straightInfo.sequence === '10JQKA') {
-        for (const otherSuit of SUITS) {
-          if (SUIT_VALUE[otherSuit] > SUIT_VALUE[suit]) {
-            const royalIds = ['10', 'J', 'Q', 'K', 'A'].map(r => `${r}${otherSuit}`);
-            if (royalIds.every(id => remaining.some(c => c.id === id))) {
-              return false;
-            }
-          }
-        }
-        return true;
-      }
-
-      // For non-royal straight flushes, check if any stronger straight flush can still be formed
       // Find the current sequence index
       const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
         seq => seq.join('') === straightInfo.sequence
       );
 
-      // Check for same suit, higher sequence
-      for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
-        const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
-        const ids = seq.map(rank => `${rank}${suit}`);
-        if (ids.every(id => remaining.some(c => c.id === id))) {
-          return false; // A higher sequence exists in the same suit
-        }
-      }
+      // Check ALL suits for ANY straight flush that beats this one:
+      // - Higher sequence in ANY suit beats this (regardless of suit value)
+      // - Same sequence in a HIGHER suit beats this
+      // This covers royal flushes, non-royal straight flushes, and cross-suit comparisons.
+      for (const checkSuit of SUITS) {
+        for (let seqIdx = 0; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+          const isHigherSequence = seqIdx > currentSeqIdx;
+          const isSameSequenceHigherSuit =
+            seqIdx === currentSeqIdx && SUIT_VALUE[checkSuit] > SUIT_VALUE[suit];
 
-      // Check for same sequence, higher suit
-      for (const otherSuit of SUITS) {
-        if (SUIT_VALUE[otherSuit] > SUIT_VALUE[suit]) {
-          const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
-          const ids = currentSeq.map(rank => `${rank}${otherSuit}`);
+          if (!isHigherSequence && !isSameSequenceHigherSuit) continue;
+
+          const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+          const ids = seq.map(rank => `${rank}${checkSuit}`);
           if (ids.every(id => remaining.some(c => c.id === id))) {
-            return false; // Same sequence exists in a higher suit
+            return false; // A stronger straight flush can be formed
           }
         }
       }
