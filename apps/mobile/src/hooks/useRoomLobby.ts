@@ -222,9 +222,8 @@ export function useRoomLobby({
       } finally {
         setLoading(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [userId, username, onError, broadcastMessage]
+    [userId, username, onError, broadcastMessage, joinChannel, setError, setLoading, setRoom]
   );
 
   /**
@@ -293,8 +292,10 @@ export function useRoomLobby({
           // Only non-host, non-bot players are required to be ready.
           // The host is the initiator and bots are always ready.
           // Use strict equality (=== true / !== true) to handle nullable DB booleans safely.
-          const nonHostHumans = updatedPlayers.data?.filter(p => p.is_host !== true && p.is_bot !== true) ?? [];
-          const allReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready === true);
+          const nonHostHumans =
+            updatedPlayers.data?.filter(p => p.is_host !== true && p.is_bot !== true) ?? [];
+          const allReady =
+            nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready === true);
           const hostPlayer = roomPlayers.find(p => p.is_host === true);
 
           if (allReady && hostPlayer && hostPlayer.user_id) {

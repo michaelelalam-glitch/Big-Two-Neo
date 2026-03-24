@@ -182,8 +182,9 @@ export function useThrowables({
 
   // Clear all timers on unmount.
   useEffect(() => {
+    const timers = dismissTimersRef.current;
     return () => {
-      Object.values(dismissTimersRef.current).forEach(t => clearTimeout(t));
+      Object.values(timers).forEach(t => clearTimeout(t));
       if (incomingTimerRef.current) clearTimeout(incomingTimerRef.current);
       if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
     };

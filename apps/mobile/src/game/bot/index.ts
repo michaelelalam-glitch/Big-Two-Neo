@@ -205,7 +205,7 @@ export class BotAI {
     const activeOpponentCounts = playerCardCounts.filter(
       (count, index) => index !== currentPlayerIndex && count > 0
     );
-    const minOpponentCards =
+    const _minOpponentCards =
       activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
 
     // CRITICAL: Check "One Card Left" rule when leading

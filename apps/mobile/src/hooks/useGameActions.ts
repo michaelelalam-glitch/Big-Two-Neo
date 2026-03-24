@@ -259,7 +259,13 @@ export function useGameActions({
         isPassingRef.current = false;
       }
     }
-  }, [isLocalAIGame, gameManagerRef, multiplayerPass, setSelectedCardIds]);
+  }, [
+    isLocalAIGame,
+    gameManagerRef,
+    multiplayerPass,
+    setSelectedCardIds,
+    getMultiplayerValidationState,
+  ]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);
