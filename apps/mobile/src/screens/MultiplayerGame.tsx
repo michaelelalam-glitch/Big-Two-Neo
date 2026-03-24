@@ -96,6 +96,12 @@ export function MultiplayerGame() {
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+  // Keep a ref mirror of roomInfo so the Play Again callback always reads the latest value,
+  // avoiding stale-closure issues when the Alert.alert onPress fires.
+  const roomInfoRef = useRef<RoomInfo | null>(null);
+  useEffect(() => {
+    roomInfoRef.current = roomInfo;
+  }, [roomInfo]);
   // Track when game transitions to 'playing' to calculate duration
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
@@ -116,30 +122,40 @@ export function MultiplayerGame() {
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => () => {
+      // Read from ref to always get the latest roomInfo, even if the closure is stale
+      const info = roomInfoRef.current;
+      gameLogger.info('🔄 [MultiplayerGame] Play Again pressed, roomInfo:', {
+        hasInfo: !!info,
+        is_public: info?.is_public,
+        ranked_mode: info?.ranked_mode,
+      });
       // Route based on game mode: ranked → ranked queue, casual → casual queue, private → create new room
-      if (roomInfo?.ranked_mode) {
+      if (info?.ranked_mode) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Ranked matchmaking');
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'ranked' } }],
         });
-      } else if (roomInfo?.is_public && !roomInfo?.ranked_mode) {
+      } else if (info?.is_public) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Casual matchmaking');
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
         });
-      } else if (roomInfo) {
+      } else if (info) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Create new private room');
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'CreateRoom' }],
         });
       } else {
-        gameLogger.warn('🔄 [MultiplayerGame] Play Again → Home (roomInfo unavailable)');
+        // Fallback: roomInfo not loaded — default to casual matchmaking rather than going Home
+        gameLogger.warn(
+          '🔄 [MultiplayerGame] Play Again → Casual matchmaking (roomInfo unavailable, fallback)'
+        );
         navigation.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
+          index: 1,
+          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
         });
       }
     });
@@ -151,7 +167,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  }, [navigation, setOnPlayAgain, setOnReturnToMenu]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
