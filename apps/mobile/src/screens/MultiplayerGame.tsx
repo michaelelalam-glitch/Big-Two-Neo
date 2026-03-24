@@ -137,17 +137,21 @@ export function MultiplayerGame() {
       }
 
       try {
-        // 1. Clean up old room membership to prevent "already in room" conflicts.
-        // Delete by user_id (direct membership) AND by human_user_id (bot-replacement rows).
-        const { error: cleanupError } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('user_id', user.id);
-        if (cleanupError) {
-          gameLogger.warn(
-            '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
-            cleanupError.message
-          );
+        // 1. Clean up old room membership (scoped to current room) to prevent
+        // "already in room" conflicts. Uses both user_id (direct) and
+        // human_user_id (bot-replacement) cleanup paths.
+        if (info?.id) {
+          const { error: cleanupError } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('room_id', info.id);
+          if (cleanupError) {
+            gameLogger.warn(
+              '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
+              cleanupError.message
+            );
+          }
         }
         // Also clean up bot-replacement rows where user was replaced
         const { error: botCleanupError } = await supabase.rpc(

@@ -1202,13 +1202,14 @@ Deno.serve(async (req) => {
         player_index: player.player_index,
       };
 
-      console.log('✅ Auto-pass timer CREATED (highest play detected):', {
+      const timerReason = isHighestPlay ? 'unbeatable_combo' : 'opponents_cant_respond';
+      console.log(`✅ Auto-pass timer CREATED (${timerReason}):`, {
         serverTimeMs,
         endTimestamp,
         sequenceId,
         cards: cards.map(c => c.id),
         comboType,
-        reason: isHighestPlay ? 'unbeatable_combo' : 'opponents_cant_respond',
+        reason: timerReason,
       });
     } else if (matchEnded) {
       console.log('ℹ️ Auto-pass timer NOT created - match ended (player played last card)');
