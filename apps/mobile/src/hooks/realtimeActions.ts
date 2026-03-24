@@ -5,7 +5,15 @@
  * These are pure async functions (not hooks). The hook wraps them in useCallback.
  */
 
-import type { Card, GameState, Player, Room, BroadcastEvent, BroadcastData, ComboType } from '../types/multiplayer';
+import type {
+  Card,
+  GameState,
+  Player,
+  Room,
+  BroadcastEvent,
+  BroadcastData,
+  ComboType,
+} from '../types/multiplayer';
 import type {
   PlayCardsResponse,
   StartNewMatchResponse,
@@ -74,9 +82,10 @@ export async function executePlayCards({
   if (effectivePlayerIndex === undefined) throw new Error('Player index not resolved');
 
   // --- Find the player performing the play ---
-  const playingPlayer = playerIndex !== undefined
-    ? roomPlayers.find(p => p.player_index === playerIndex)
-    : currentPlayer;
+  const playingPlayer =
+    playerIndex !== undefined
+      ? roomPlayers.find(p => p.player_index === playerIndex)
+      : currentPlayer;
   if (!playingPlayer) throw new Error(`Player with index ${playerIndex} not found`);
 
   gameLogger.info('[useRealtime] 📡 Calling play-cards Edge Function...', {
@@ -86,13 +95,16 @@ export async function executePlayCards({
   });
 
   // --- Edge Function call ---
-  const { data: result, error: playError } = await invokeWithRetry<PlayCardsResponse>('play-cards', {
-    body: {
-      room_code: room!.code,
-      player_id: playingPlayer.user_id,
-      cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
-    },
-  });
+  const { data: result, error: playError } = await invokeWithRetry<PlayCardsResponse>(
+    'play-cards',
+    {
+      body: {
+        room_code: room!.code,
+        player_id: playingPlayer.user_id,
+        cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
+      },
+    }
+  );
 
   if (playError || !result?.success) {
     gameLogger.error('[useRealtime] 🔍 Full error object structure:', {
@@ -105,11 +117,19 @@ export async function executePlayCards({
       result,
     });
 
-    const errorMessage = await extractEdgeFunctionErrorAsync(playError, result, 'Server validation failed');
+    const errorMessage = await extractEdgeFunctionErrorAsync(
+      playError,
+      result,
+      'Server validation failed'
+    );
     const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
     const statusCode = playError?.context?.status || 'unknown';
 
-    gameLogger.error('[useRealtime] ❌ Server validation failed:', { message: errorMessage, status: statusCode, debug: debugInfo });
+    gameLogger.error('[useRealtime] ❌ Server validation failed:', {
+      message: errorMessage,
+      status: statusCode,
+      debug: debugInfo,
+    });
     gameLogger.error('[useRealtime] 📦 Full error context:', { error: playError, result });
 
     // ── "Lost response" recovery ──────────────────────────────────────────────
@@ -127,7 +147,7 @@ export async function executePlayCards({
       const recoveryMatchNumber = gameState.match_number ?? 1;
       gameLogger.warn(
         `[useRealtime] ⚡ "Game already ended" on play-cards — likely lost-response retry. ` +
-        `Silently calling start_new_match for match ${recoveryMatchNumber} as safety net.`
+          `Silently calling start_new_match for match ${recoveryMatchNumber} as safety net.`
       );
       (async () => {
         await new Promise(r => setTimeout(r, 500));
@@ -136,7 +156,10 @@ export async function executePlayCards({
           { body: { room_id: room!.id, expected_match_number: recoveryMatchNumber } }
         );
         if (snmError) {
-          gameLogger.warn('[useRealtime] start_new_match (lost-response recovery) failed:', snmError);
+          gameLogger.warn(
+            '[useRealtime] start_new_match (lost-response recovery) failed:',
+            snmError
+          );
         } else {
           gameLogger.info('[useRealtime] ✅ start_new_match (lost-response recovery):', snmData);
         }
@@ -175,7 +198,12 @@ export async function executePlayCards({
   // Auto-pass timer from server response
   const autoPassTimerState = result.auto_pass_timer || null;
   const isHighestPlay = result.highest_play_detected || false;
-  gameLogger.info('[useRealtime] ⏰ Server timer state:', { isHighestPlay, timerState: autoPassTimerState });
+  const autoPassTriggered = result.auto_pass_triggered || false;
+  gameLogger.info('[useRealtime] ⏰ Server timer state:', {
+    isHighestPlay,
+    autoPassTriggered,
+    timerState: autoPassTimerState,
+  });
 
   // --- Broadcasting ---
   // Skip cards_played broadcast on an already_finished retry — the original play was
@@ -187,7 +215,7 @@ export async function executePlayCards({
       combo_type: comboType,
     });
 
-    if (isHighestPlay && autoPassTimerState) {
+    if (autoPassTriggered && autoPassTimerState) {
       try {
         await broadcastMessage('auto_pass_timer_started', {
           timer_state: autoPassTimerState,
@@ -195,7 +223,10 @@ export async function executePlayCards({
         });
         gameLogger.info('[useRealtime] ⏰ Auto-pass timer broadcasted:', autoPassTimerState);
       } catch (timerBroadcastError) {
-        gameLogger.error('[useRealtime] ⚠️ Auto-pass timer broadcast failed (non-fatal):', timerBroadcastError);
+        gameLogger.error(
+          '[useRealtime] ⚠️ Auto-pass timer broadcast failed (non-fatal):',
+          timerBroadcastError
+        );
       }
     }
   }
@@ -235,9 +266,10 @@ export async function executePlayCards({
           await new Promise(resolve => setTimeout(resolve, 1500));
 
           gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
-          const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
-            body: { room_id: room!.id, expected_match_number: currentMatchNumber },
-          });
+          const { data: newMatchData, error: newMatchError } =
+            await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
+              body: { room_id: room!.id, expected_match_number: currentMatchNumber },
+            });
 
           if (newMatchError || !newMatchData) {
             gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
@@ -249,7 +281,9 @@ export async function executePlayCards({
             //     already advanced the match; the new game_state will arrive via the DB
             //     postgres_changes subscription, not via a game_over update.
             // In both cases we skip broadcasting new_match_started here.
-            gameLogger.warn('[useRealtime] ⚠️ start_new_match returned already_advanced/game_over — skipping new_match_started broadcast');
+            gameLogger.warn(
+              '[useRealtime] ⚠️ start_new_match returned already_advanced/game_over — skipping new_match_started broadcast'
+            );
           } else {
             gameLogger.info('[useRealtime] ✅ New match started successfully:', newMatchData);
             await broadcastMessage('new_match_started', {
@@ -262,7 +296,7 @@ export async function executePlayCards({
         } catch (matchStartError) {
           gameLogger.error('[useRealtime] 💥 Match start failed (non-fatal):', matchStartError);
         }
-      })().catch((unhandledError) => {
+      })().catch(unhandledError => {
         gameLogger.error('[useRealtime] 💥 Unhandled error in match start flow:', unhandledError);
       });
     }
@@ -277,33 +311,46 @@ export async function executePlayCards({
   if (alreadyFinished && matchWillEnd) {
     gameLogger.warn(
       `[useRealtime] ⚡ already_finished=true — winner retry confirmed. ` +
-      `Calling start_new_match for match ${currentMatchNumber} silently.`
+        `Calling start_new_match for match ${currentMatchNumber} silently.`
     );
     (async () => {
       try {
         await new Promise(resolve => setTimeout(resolve, 500));
-        const { data: newMatchData, error: newMatchError } = await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
-          body: { room_id: room!.id, expected_match_number: currentMatchNumber },
-        });
+        const { data: newMatchData, error: newMatchError } =
+          await invokeWithRetry<StartNewMatchResponse>('start_new_match', {
+            body: { room_id: room!.id, expected_match_number: currentMatchNumber },
+          });
         if (newMatchError || !newMatchData) {
-          gameLogger.error('[useRealtime] ❌ start_new_match (already-finished) failed:', newMatchError);
+          gameLogger.error(
+            '[useRealtime] ❌ start_new_match (already-finished) failed:',
+            newMatchError
+          );
         } else {
-          gameLogger.info('[useRealtime] ✅ start_new_match (already-finished) succeeded:', newMatchData);
+          gameLogger.info(
+            '[useRealtime] ✅ start_new_match (already-finished) succeeded:',
+            newMatchData
+          );
         }
       } catch (err) {
         gameLogger.error('[useRealtime] 💥 start_new_match (already-finished) threw:', err);
       }
-    })().catch((e) => gameLogger.error('[useRealtime] 💥 Unhandled start_new_match (already-finished):', e));
+    })().catch(e =>
+      gameLogger.error('[useRealtime] 💥 Unhandled start_new_match (already-finished):', e)
+    );
   }
 
   // Auto-pass timer cancellation (non-blocking)
-  const hadPreviousTimer = gameState.auto_pass_timer !== null && gameState.auto_pass_timer !== undefined;
+  const hadPreviousTimer =
+    gameState.auto_pass_timer !== null && gameState.auto_pass_timer !== undefined;
   if (hadPreviousTimer) {
     broadcastMessage('auto_pass_timer_cancelled', {
       player_index: effectivePlayerIndex,
       reason: 'new_play' as const,
-    }).catch((cancelError) => {
-      gameLogger.warn('[useRealtime] ⚠️ Timer cancellation broadcast failed (non-fatal):', cancelError);
+    }).catch(cancelError => {
+      gameLogger.warn(
+        '[useRealtime] ⚠️ Timer cancellation broadcast failed (non-fatal):',
+        cancelError
+      );
     });
   }
 }
@@ -339,9 +386,10 @@ export async function executePass({
   broadcastMessage,
   setGameState,
 }: PassParams): Promise<void> {
-  const passingPlayer = playerIndex !== undefined
-    ? roomPlayers.find(p => p.player_index === playerIndex)
-    : currentPlayer;
+  const passingPlayer =
+    playerIndex !== undefined
+      ? roomPlayers.find(p => p.player_index === playerIndex)
+      : currentPlayer;
 
   // Reject pass attempts when the match/game has already ended
   if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
@@ -371,15 +419,22 @@ export async function executePass({
     is_bot: playerIndex !== undefined,
   });
 
-  const { data: result, error: passError } = await invokeWithRetry<PlayerPassResponse>('player-pass', {
-    body: {
-      room_code: room.code,
-      player_id: passingPlayer.user_id,
-    },
-  });
+  const { data: result, error: passError } = await invokeWithRetry<PlayerPassResponse>(
+    'player-pass',
+    {
+      body: {
+        room_code: room.code,
+        player_id: passingPlayer.user_id,
+      },
+    }
+  );
 
   if (passError || !result?.success) {
-    const errorMessage = await extractEdgeFunctionErrorAsync(passError, result, 'Pass validation failed');
+    const errorMessage = await extractEdgeFunctionErrorAsync(
+      passError,
+      result,
+      'Pass validation failed'
+    );
     const statusCode = passError?.context?.status || 'unknown';
 
     gameLogger.error('[useRealtime] ❌ Pass failed:', {

@@ -160,9 +160,6 @@ export function MultiplayerGame() {
             botCleanupError.message
           );
         }
-        // Brief wait for DB replication
-        await new Promise(resolve => setTimeout(resolve, 100));
-
         // 2. Create new room AND join atomically via get_or_create_room RPC.
         // This prevents the race condition where navigating to the Lobby before
         // the user is in room_players triggers the "kicked by host" detection.

@@ -858,6 +858,7 @@ Deno.serve(async (req) => {
             combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
             match_scores: null,      // Scores were already committed; client reads from Realtime
             highest_play_detected: false,
+            auto_pass_triggered: false,
             auto_pass_timer: null,
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1373,7 +1374,8 @@ Deno.serve(async (req) => {
         cards_remaining: updatedHand.length,
         match_ended: matchEnded,
         auto_pass_timer: autoPassTimerState,
-        highest_play_detected: shouldTriggerAutoPass,
+        highest_play_detected: isHighestPlay,
+        auto_pass_triggered: shouldTriggerAutoPass,
         match_scores: matchScores,
         game_over: gameOver,
         final_winner_index: finalWinnerIndex,
