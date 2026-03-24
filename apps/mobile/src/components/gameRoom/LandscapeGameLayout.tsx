@@ -369,6 +369,7 @@ export function LandscapeGameLayout({
           />
           {throwableActiveEffects?.[1] != null && (
             <View
+              pointerEvents="none"
               style={[
                 styles.throwableClip,
                 {
@@ -402,6 +403,7 @@ export function LandscapeGameLayout({
           />
           {throwableActiveEffects?.[2] != null && (
             <View
+              pointerEvents="none"
               style={[
                 styles.throwableClip,
                 {
@@ -435,6 +437,7 @@ export function LandscapeGameLayout({
           />
           {throwableActiveEffects?.[3] != null && (
             <View
+              pointerEvents="none"
               style={[
                 styles.throwableClip,
                 {

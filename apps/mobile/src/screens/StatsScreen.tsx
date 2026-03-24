@@ -493,12 +493,14 @@ export default function StatsScreen() {
   const openMutualFriendsList = useCallback(async () => {
     if (!userId || mutualFriendsLoadingRef.current) return;
     mutualFriendsLoadingRef.current = true;
+    let cancelled = false;
     setMutualFriendsModalVisible(true);
     setMutualFriendsLoading(true);
     try {
       const { data, error } = await supabase.rpc('get_mutual_friends_list', {
         p_other_user_id: userId,
       });
+      if (cancelled) return;
       if (error) {
         statsLogger.error('[Stats] Mutual friends list error:', error.message);
         setMutualFriendsList([]);
@@ -506,11 +508,14 @@ export default function StatsScreen() {
         setMutualFriendsList(data ?? []);
       }
     } catch {
-      setMutualFriendsList([]);
+      if (!cancelled) setMutualFriendsList([]);
     } finally {
-      setMutualFriendsLoading(false);
+      if (!cancelled) setMutualFriendsLoading(false);
       mutualFriendsLoadingRef.current = false;
     }
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   // ─── Per-mode derived data ─────────────────────────────────────────────────
@@ -1321,7 +1326,7 @@ export default function StatsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Mutual Friends</Text>
+              <Text style={styles.modalTitle}>{i18n.t('profile.mutualFriends')}</Text>
               <TouchableOpacity onPress={() => setMutualFriendsModalVisible(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -1329,7 +1334,7 @@ export default function StatsScreen() {
             {mutualFriendsLoading ? (
               <ActivityIndicator color={COLORS.accent} style={{ marginTop: SPACING.xl }} />
             ) : mutualFriendsList.length === 0 ? (
-              <Text style={styles.modalEmpty}>No mutual friends found</Text>
+              <Text style={styles.modalEmpty}>{i18n.t('profile.noMutualFriends')}</Text>
             ) : (
               <FlatList
                 data={mutualFriendsList}
@@ -1347,7 +1352,9 @@ export default function StatsScreen() {
                         {(item.username ?? '?').charAt(0).toUpperCase()}
                       </Text>
                     </View>
-                    <Text style={styles.mutualFriendName}>{item.username ?? 'Unknown'}</Text>
+                    <Text style={styles.mutualFriendName}>
+                      {item.username ?? i18n.t('profile.unknownPlayer')}
+                    </Text>
                   </TouchableOpacity>
                 )}
               />

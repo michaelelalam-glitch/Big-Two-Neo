@@ -30,8 +30,8 @@ AS $$
     WHERE f2.status = 'accepted'
       AND (f2.requester_id = p_other_user_id OR f2.addressee_id = p_other_user_id)
   ) mf
-  LEFT JOIN public.profiles p ON p.id = mf.friend_id
-  ORDER BY p.username ASC NULLS LAST;
+  JOIN public.profiles p ON p.id = mf.friend_id
+  ORDER BY p.username ASC;
 $$;
 
 -- Grant execute to authenticated users only

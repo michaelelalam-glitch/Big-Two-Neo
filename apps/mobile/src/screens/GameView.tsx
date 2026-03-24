@@ -563,6 +563,7 @@ function GameViewComponent() {
               {/* Throwable effect overlay for local player (display index 0) */}
               {throwableActiveEffects?.[0] != null && (
                 <View
+                  pointerEvents="none"
                   style={{
                     width: throwableClipSize,
                     height: throwableClipSize,

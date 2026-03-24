@@ -177,6 +177,7 @@ function GameLayoutComponent({
         />
         {throwableActiveEffects?.[1] != null && (
           <View
+            pointerEvents="none"
             style={[
               styles.throwableClip,
               {
@@ -229,6 +230,7 @@ function GameLayoutComponent({
             />
             {throwableActiveEffects?.[2] != null && (
               <View
+                pointerEvents="none"
                 style={[
                   styles.throwableClip,
                   {
@@ -286,6 +288,7 @@ function GameLayoutComponent({
             />
             {throwableActiveEffects?.[3] != null && (
               <View
+                pointerEvents="none"
                 style={[
                   styles.throwableClip,
                   {

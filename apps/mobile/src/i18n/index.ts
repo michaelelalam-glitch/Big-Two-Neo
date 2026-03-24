@@ -634,6 +634,9 @@ export interface Translations {
     historyEmptyWon: string;
     historyEmptyLost: string;
     historyEmptyIncomplete: string;
+    mutualFriends: string;
+    noMutualFriends: string;
+    unknownPlayer: string;
   };
 
   // Leaderboard Screen
@@ -1339,6 +1342,9 @@ const en: Translations = {
     historyEmptyWon: 'No wins yet.',
     historyEmptyLost: 'No losses.',
     historyEmptyIncomplete: 'No incomplete games.',
+    mutualFriends: 'Mutual Friends',
+    noMutualFriends: 'No mutual friends found',
+    unknownPlayer: 'Unknown',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -1964,6 +1970,9 @@ const ar: Translations = {
     historyEmptyWon: 'لا انتصارات بعد.',
     historyEmptyLost: 'لا خسائر.',
     historyEmptyIncomplete: 'لا توجد ألعاب غير مكتملة.',
+    mutualFriends: 'أصدقاء مشتركون',
+    noMutualFriends: 'لا يوجد أصدقاء مشتركون',
+    unknownPlayer: 'غير معروف',
   },
   leaderboard: {
     title: 'لوحة المتصدرين',
@@ -2694,6 +2703,9 @@ const de: Translations = {
     historyEmptyWon: 'Noch keine Siege.',
     historyEmptyLost: 'Keine Niederlagen.',
     historyEmptyIncomplete: 'Keine unvollständigen Spiele.',
+    mutualFriends: 'Gemeinsame Freunde',
+    noMutualFriends: 'Keine gemeinsamen Freunde gefunden',
+    unknownPlayer: 'Unbekannt',
   },
   leaderboard: {
     title: 'Bestenliste',
