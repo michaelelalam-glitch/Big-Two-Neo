@@ -275,6 +275,13 @@ export function MultiplayerGame() {
               setTimeout(() => {
                 supabase.removeChannel(broadcastChannel);
               }, 5000);
+            } else if (
+              status === 'CHANNEL_ERROR' ||
+              status === 'TIMED_OUT' ||
+              status === 'CLOSED'
+            ) {
+              gameLogger.warn(`📡 [MultiplayerGame] Broadcast channel ${status} — removing`);
+              supabase.removeChannel(broadcastChannel);
             }
           });
         }
