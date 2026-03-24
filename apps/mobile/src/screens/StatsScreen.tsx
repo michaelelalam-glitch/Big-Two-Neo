@@ -910,10 +910,12 @@ export default function StatsScreen() {
           {!isOwnProfile && mutualFriendsCount > 0 && (
             <TouchableOpacity onPress={openMutualFriendsList}>
               <Text style={styles.mutualFriends}>
-                {i18n.t('profile.mutualFriendsLabel', {
-                  count: mutualFriendsCount,
-                  plural: mutualFriendsCount !== 1 ? 's' : '',
-                })}
+                {i18n.t(
+                  mutualFriendsCount === 1
+                    ? 'profile.mutualFriendsLabelOne'
+                    : 'profile.mutualFriendsLabelMany',
+                  { count: mutualFriendsCount }
+                )}
               </Text>
             </TouchableOpacity>
           )}

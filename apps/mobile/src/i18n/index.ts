@@ -636,6 +636,8 @@ export interface Translations {
     historyEmptyIncomplete: string;
     mutualFriends: string;
     mutualFriendsLabel: string;
+    mutualFriendsLabelOne: string;
+    mutualFriendsLabelMany: string;
     noMutualFriends: string;
     unknownPlayer: string;
   };
@@ -1345,6 +1347,8 @@ const en: Translations = {
     historyEmptyIncomplete: 'No incomplete games.',
     mutualFriends: 'Mutual Friends',
     mutualFriendsLabel: '👥 {{count}} mutual friend{{plural}} ›',
+    mutualFriendsLabelOne: '👥 {{count}} mutual friend ›',
+    mutualFriendsLabelMany: '👥 {{count}} mutual friends ›',
     noMutualFriends: 'No mutual friends found',
     unknownPlayer: 'Unknown',
   },
@@ -1974,6 +1978,8 @@ const ar: Translations = {
     historyEmptyIncomplete: 'لا توجد ألعاب غير مكتملة.',
     mutualFriends: 'أصدقاء مشتركون',
     mutualFriendsLabel: '👥 {{count}} صديق مشترك{{plural}} ›',
+    mutualFriendsLabelOne: '👥 {{count}} صديق مشترك ›',
+    mutualFriendsLabelMany: '👥 {{count}} أصدقاء مشتركون ›',
     noMutualFriends: 'لا يوجد أصدقاء مشتركون',
     unknownPlayer: 'غير معروف',
   },
@@ -2708,6 +2714,8 @@ const de: Translations = {
     historyEmptyIncomplete: 'Keine unvollständigen Spiele.',
     mutualFriends: 'Gemeinsame Freunde',
     mutualFriendsLabel: '👥 {{count}} gemeinsamer Freund{{plural}} ›',
+    mutualFriendsLabelOne: '👥 {{count}} gemeinsamer Freund ›',
+    mutualFriendsLabelMany: '👥 {{count}} gemeinsame Freunde ›',
     noMutualFriends: 'Keine gemeinsamen Freunde gefunden',
     unknownPlayer: 'Unbekannt',
   },
