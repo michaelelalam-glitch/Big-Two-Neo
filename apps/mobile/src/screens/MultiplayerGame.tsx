@@ -13,6 +13,7 @@ import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
+import { supabase } from '../services/supabase';
 import { useConnectionManager } from '../hooks/useConnectionManager';
 import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
@@ -121,7 +122,7 @@ export function MultiplayerGame() {
 
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
-    setOnPlayAgain(() => () => {
+    setOnPlayAgain(() => async () => {
       // Read from ref to always get the latest roomInfo, even if the closure is stale
       const info = roomInfoRef.current;
       gameLogger.info('🔄 [MultiplayerGame] Play Again pressed, roomInfo:', {
@@ -129,34 +130,50 @@ export function MultiplayerGame() {
         is_public: info?.is_public,
         ranked_mode: info?.ranked_mode,
       });
-      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → create new room
-      if (info?.ranked_mode) {
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Ranked matchmaking');
+
+      try {
+        // Generate a 6-character room code
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        // Create a new room with the same settings as the current game
+        const { data: newRoom, error: createError } = await supabase
+          .from('rooms')
+          .insert({
+            code,
+            host_id: user?.id,
+            status: 'waiting',
+            max_players: 4,
+            is_public: info?.is_public ?? true,
+            ranked_mode: info?.ranked_mode ?? false,
+            is_matchmaking: info?.is_public ?? true,
+          })
+          .select('id, code')
+          .single();
+
+        if (createError || !newRoom) {
+          gameLogger.error(
+            '❌ [MultiplayerGame] Play Again: failed to create room:',
+            createError?.message
+          );
+          showError('Failed to create new room. Please try again.');
+          return;
+        }
+
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', newRoom.code);
+
+        // Navigate to the Lobby with the new room code
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'ranked' } }],
+          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: newRoom.code } }],
         });
-      } else if (info?.is_public) {
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Casual matchmaking');
-        navigation.reset({
-          index: 1,
-          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
-        });
-      } else if (info) {
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Create new private room');
-        navigation.reset({
-          index: 1,
-          routes: [{ name: 'Home' }, { name: 'CreateRoom' }],
-        });
-      } else {
-        // Fallback: roomInfo not loaded — default to casual matchmaking rather than going Home
-        gameLogger.warn(
-          '🔄 [MultiplayerGame] Play Again → Casual matchmaking (roomInfo unavailable, fallback)'
-        );
-        navigation.reset({
-          index: 1,
-          routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
-        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        gameLogger.error('❌ [MultiplayerGame] Play Again error:', msg);
+        showError('Failed to create new room. Please try again.');
       }
     });
 

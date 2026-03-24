@@ -13,13 +13,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../../constants';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -66,19 +60,21 @@ export function TurnAutoPlayModal({
   // version without needing onTimeout in the dep array (which would restart
   // the interval — and reset the countdown — on every parent re-render).
   const onTimeoutRef = useRef(onTimeout);
-  useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
 
   // Reset timer when modal opens
   useEffect(() => {
     if (!visible) return;
-    
+
     setSecondsLeft(RESPONSE_TIMEOUT_S);
     const startTime = Date.now();
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = Math.max(0, RESPONSE_TIMEOUT_S - elapsed);
       setSecondsLeft(remaining);
-      
+
       if (remaining === 0) {
         clearInterval(interval);
         onTimeoutRef.current?.();
@@ -90,7 +86,7 @@ export function TurnAutoPlayModal({
 
   const renderAutoPlayedCards = () => {
     if (!cards || cards.length === 0) return null;
-    
+
     const cardText = cards.map(c => `${c.rank}${c.suit}`).join(', ');
     return (
       <View style={styles.cardsBox}>
@@ -108,6 +104,12 @@ export function TurnAutoPlayModal({
       statusBarTranslucent
       accessibilityViewIsModal
       onRequestClose={onConfirm}
+      supportedOrientations={[
+        'portrait',
+        'portrait-upside-down',
+        'landscape-left',
+        'landscape-right',
+      ]}
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
@@ -144,9 +146,7 @@ export function TurnAutoPlayModal({
           </TouchableOpacity>
 
           {/* Timer warning */}
-          <Text style={styles.timerText}>
-            {secondsLeft}s remaining
-          </Text>
+          <Text style={styles.timerText}>{secondsLeft}s remaining</Text>
         </View>
       </View>
     </Modal>

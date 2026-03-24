@@ -15,14 +15,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../../constants';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -100,6 +93,12 @@ export function RejoinModal({
       statusBarTranslucent
       accessibilityViewIsModal
       onRequestClose={onDismiss ?? (() => {})}
+      supportedOrientations={[
+        'portrait',
+        'portrait-upside-down',
+        'landscape-left',
+        'landscape-right',
+      ]}
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
@@ -115,8 +114,8 @@ export function RejoinModal({
               ? `${botUsername} (bot) is playing in your seat.`
               : 'A bot is playing in your seat.'}
             {'\n\n'}
-            Tap <Text style={styles.bold}>Reclaim My Seat</Text> to jump back in — the game
-            keeps going for everyone else.
+            Tap <Text style={styles.bold}>Reclaim My Seat</Text> to jump back in — the game keeps
+            going for everyone else.
           </Text>
 
           {/* Error */}
