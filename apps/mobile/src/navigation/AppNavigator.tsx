@@ -35,7 +35,7 @@ export type RootStackParamList = {
   JoinRoom: undefined;
   MatchTypeSelection: undefined;
   Matchmaking: { matchType?: 'casual' | 'ranked' };
-  Lobby: { roomCode: string; playAgain?: boolean; joining?: boolean };
+  Lobby: { roomCode: string; joining?: boolean };
   Game: { roomCode: string; forceNewGame?: boolean; botDifficulty?: 'easy' | 'medium' | 'hard' };
   Leaderboard: undefined;
   MatchHistory: undefined;

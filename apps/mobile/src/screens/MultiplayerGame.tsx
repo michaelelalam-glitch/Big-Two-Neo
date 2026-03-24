@@ -116,7 +116,7 @@ export function MultiplayerGame() {
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => () => {
-      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → same lobby
+      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → create new room
       if (roomInfo?.ranked_mode) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Ranked matchmaking');
         navigation.reset({
@@ -130,13 +130,12 @@ export function MultiplayerGame() {
           routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
         });
       } else if (roomInfo) {
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Lobby with same room');
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Create new private room');
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
+          routes: [{ name: 'Home' }, { name: 'CreateRoom' }],
         });
       } else {
-        // roomInfo not loaded — fall back to Home to avoid navigating to a stale/dead lobby
         gameLogger.warn('🔄 [MultiplayerGame] Play Again → Home (roomInfo unavailable)');
         navigation.reset({
           index: 0,
@@ -152,7 +151,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [roomCode, roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  }, [roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook

@@ -54,7 +54,7 @@ interface RoomType {
 export default function LobbyScreen() {
   const navigation = useNavigation<LobbyScreenNavigationProp>();
   const route = useRoute<LobbyScreenRouteProp>();
-  const { roomCode, playAgain = false, joining = false } = route.params;
+  const { roomCode, joining = false } = route.params;
   const { user, profile } = useAuth();
   const { friends, onlineUserIds } = useFriendsContext();
 
@@ -232,44 +232,15 @@ export default function LobbyScreen() {
       return data.id;
     }
 
-    // Handle ended/finished rooms: reset to 'waiting' for Play Again, otherwise send home.
+    // Handle ended/finished rooms: navigate home since the game is over.
     // Accept both 'ended' (legacy) and 'finished' (current complete-game Step 3b value).
     if (data.status === 'ended' || data.status === 'finished') {
-      if (playAgain) {
-        if (user?.id === data.host_id) {
-          // Only the original room host may reset status — other players would
-          // be rejected by the RLS UPDATE policy (host_id = auth.uid()).
-          const { error: resetError } = await supabase
-            .from('rooms')
-            .update({ status: 'waiting' })
-            .eq('code', roomCode);
-          if (resetError) {
-            roomLogger.error(
-              '[LobbyScreen] Failed to reset ended room for Play Again:',
-              resetError.message
-            );
-            if (!options?.suppressNavigation && !isLeavingRef.current) {
-              isLeavingRef.current = true;
-              navigation.replace('Home');
-            }
-            return null;
-          }
-          roomLogger.info('[LobbyScreen] Room reset to waiting for Play Again (host)');
-        } else {
-          // Non-host: cannot update the room row.  Return the room_id so the
-          // subscription channel is established; subscribeToRoomsTable will
-          // call loadPlayers() once the host's reset fires status='waiting'.
-          roomLogger.info('[LobbyScreen] Play Again: non-host waiting for host to reset room');
-          return data.id;
-        }
-      } else {
-        roomLogger.info('[LobbyScreen] Room ended and not a play-again — navigating Home');
-        if (!options?.suppressNavigation && !isLeavingRef.current) {
-          isLeavingRef.current = true;
-          navigation.replace('Home');
-        }
-        return null;
+      roomLogger.info('[LobbyScreen] Room ended — navigating Home');
+      if (!options?.suppressNavigation && !isLeavingRef.current) {
+        isLeavingRef.current = true;
+        navigation.replace('Home');
       }
+      return null;
     }
 
     // Set matchmaking status (backward compatibility)
@@ -426,13 +397,13 @@ export default function LobbyScreen() {
         });
         setIsHost(false);
 
-        // Kicked: if not in a play-again or invite-join flow the current user
+        // Kicked: if not in an invite-join flow the current user
         // has been removed from the room — show them who kicked them then
         // navigate home.
         // Guard: user?.id must be set — when AuthContext is still loading the
         // find() above returns undefined for every update, which would fire
         // this alert incorrectly for every player-list change.
-        if (!playAgain && !joining && !isLeavingRef.current && user?.id) {
+        if (!joining && !isLeavingRef.current && user?.id) {
           const kickerHost = players.find(p => p.is_host === true);
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
@@ -473,23 +444,6 @@ export default function LobbyScreen() {
           }
           // loadPlayers will fire again via the realtime subscription
           return;
-        }
-
-        // Play Again: re-join the reset room atomically. join_room_atomic handles
-        // player_index assignment and host promotion so whichever player arrives
-        // first becomes the new host naturally.
-        if (playAgain && user && !isLeavingRef.current) {
-          const username = profile?.username || user.email?.split('@')[0] || 'Player';
-          roomLogger.info('[LobbyScreen] Play Again — auto-joining reset room as:', username);
-          const { error: joinError } = await supabase.rpc('join_room_atomic', {
-            p_room_code: roomCode,
-            p_user_id: user.id,
-            p_username: username,
-          });
-          if (joinError) {
-            roomLogger.error('[LobbyScreen] Failed to re-join for Play Again:', joinError.message);
-          }
-          // loadPlayers will be called again via the room_players realtime subscription
         }
       }
     } catch (error: unknown) {
@@ -554,13 +508,6 @@ export default function LobbyScreen() {
               // Pass botDifficulty so the host's selected difficulty is preserved in stats.
               navigation.replace('Game', { roomCode, forceNewGame: true, botDifficulty });
             }, 100);
-          } else if (payload.new?.status === 'waiting' && playAgain && !isLeavingRef.current) {
-            // Host has reset the room for Play Again — non-host players waiting
-            // on the ended room can now auto-join via join_room_atomic.
-            roomLogger.info(
-              '[LobbyScreen] Room reset to waiting (Play Again) — triggering auto-join'
-            );
-            loadPlayersRef.current();
           }
         }
       )
