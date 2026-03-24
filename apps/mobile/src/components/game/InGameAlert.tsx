@@ -14,7 +14,7 @@
  *
  * Usage:
  *   // Render once in GameView:
- *   <InGameAlert ref={inGameAlertRef} orientation={currentOrientation} />
+ *   <InGameAlert ref={inGameAlertRef} />
  *
  *   // Show from anywhere with access to the ref:
  *   inGameAlertRef.current?.show({ title: 'Error', message: 'Something failed' });
@@ -50,87 +50,80 @@ export interface InGameAlertHandle {
 // Component
 // ---------------------------------------------------------------------------
 
-interface InGameAlertProps {
-  orientation: 'portrait' | 'landscape';
-}
+export const InGameAlert = forwardRef<InGameAlertHandle>((_props, ref) => {
+  const [visible, setVisible] = useState(false);
+  const [alertOptions, setAlertOptions] = useState<InGameAlertOptions | null>(null);
 
-export const InGameAlert = forwardRef<InGameAlertHandle, InGameAlertProps>(
-  ({ orientation }, ref) => {
-    const [visible, setVisible] = useState(false);
-    const [alertOptions, setAlertOptions] = useState<InGameAlertOptions | null>(null);
+  const show = useCallback((options: InGameAlertOptions) => {
+    setAlertOptions(options);
+    setVisible(true);
+  }, []);
 
-    const show = useCallback((options: InGameAlertOptions) => {
-      setAlertOptions(options);
-      setVisible(true);
-    }, []);
+  const hide = useCallback(() => {
+    setVisible(false);
+    setAlertOptions(null);
+  }, []);
 
-    const hide = useCallback(() => {
-      setVisible(false);
-      setAlertOptions(null);
-    }, []);
+  useImperativeHandle(ref, () => ({ show, hide }), [show, hide]);
 
-    useImperativeHandle(ref, () => ({ show, hide }), [show, hide]);
+  const handleButtonPress = useCallback(
+    (onPress?: () => void) => {
+      hide();
+      onPress?.();
+    },
+    [hide]
+  );
 
-    const handleButtonPress = useCallback(
-      (onPress?: () => void) => {
-        hide();
-        onPress?.();
-      },
-      [hide]
-    );
+  // Include all orientations so the Modal can always present without
+  // crashing on iOS (if the device's current interface orientation isn't
+  // in the list, iOS throws). Uses the repo-wide constant.
+  const supportedOrientations = MODAL_SUPPORTED_ORIENTATIONS;
 
-    // Include both portrait and landscape in supportedOrientations so the
-    // Modal can always present without crashing on iOS (if the device's current
-    // interface orientation isn't in the list, iOS throws). The game-orientation
-    // Reuse the repo-wide constant that includes all orientations.
-    const supportedOrientations = MODAL_SUPPORTED_ORIENTATIONS;
+  const buttons = alertOptions?.buttons ?? [
+    { text: i18n.t('common.ok'), style: 'default' as const },
+  ];
 
-    const buttons = alertOptions?.buttons ?? [
-      { text: i18n.t('common.ok'), style: 'default' as const },
-    ];
-
-    return (
-      <Modal
-        visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={hide}
-        supportedOrientations={supportedOrientations}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.alertContainer}>
-            {alertOptions?.title && <Text style={styles.title}>{alertOptions.title}</Text>}
-            <Text style={styles.message}>{alertOptions?.message}</Text>
-            <View style={styles.buttonRow}>
-              {buttons.map((btn, idx) => (
-                <TouchableOpacity
-                  key={idx}
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={hide}
+      supportedOrientations={supportedOrientations}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.alertContainer}>
+          {alertOptions?.title && <Text style={styles.title}>{alertOptions.title}</Text>}
+          <Text style={styles.message}>{alertOptions?.message}</Text>
+          <View style={styles.buttonRow}>
+            {buttons.map((btn, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[
+                  styles.button,
+                  btn.style === 'destructive' && styles.buttonDestructive,
+                  btn.style === 'cancel' && styles.buttonCancel,
+                  buttons.length > 1 && idx < buttons.length - 1 && styles.buttonWithSeparator,
+                ]}
+                onPress={() => handleButtonPress(btn.onPress)}
+              >
+                <Text
                   style={[
-                    styles.button,
-                    btn.style === 'destructive' && styles.buttonDestructive,
-                    btn.style === 'cancel' && styles.buttonCancel,
-                    buttons.length > 1 && idx < buttons.length - 1 && styles.buttonWithSeparator,
+                    styles.buttonText,
+                    btn.style === 'destructive' && styles.buttonTextDestructive,
+                    btn.style === 'cancel' && styles.buttonTextCancel,
                   ]}
-                  onPress={() => handleButtonPress(btn.onPress)}
                 >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      btn.style === 'destructive' && styles.buttonTextDestructive,
-                      btn.style === 'cancel' && styles.buttonTextCancel,
-                    ]}
-                  >
-                    {btn.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {btn.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-      </Modal>
-    );
-  }
-);
+      </View>
+    </Modal>
+  );
+});
 
 InGameAlert.displayName = 'InGameAlert';
 

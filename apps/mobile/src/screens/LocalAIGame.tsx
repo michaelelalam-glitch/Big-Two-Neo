@@ -425,7 +425,7 @@ export function LocalAIGame() {
       <GameContextProvider value={gameContextValue}>
         <GameView />
       </GameContextProvider>
-      <InGameAlert ref={inGameAlertRef} orientation={currentOrientation} />
+      <InGameAlert ref={inGameAlertRef} />
     </>
   );
 }

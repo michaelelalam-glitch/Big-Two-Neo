@@ -74,13 +74,14 @@ export function FriendsList() {
         setSearching(false);
         return;
       }
+      if (!user?.id) return;
       setSearching(true);
       const token = ++searchTokenRef.current;
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username')
         .ilike('username', `%${trimmed}%`)
-        .neq('id', user?.id ?? '')
+        .neq('id', user.id)
         .limit(10);
       if (!mountedRef.current) return;
       // Discard stale responses — only apply if this is still the latest query.
@@ -98,8 +99,10 @@ export function FriendsList() {
   const handleSearchChange = useCallback(
     (text: string) => {
       setSearchQuery(text);
-      // Clear stale results immediately so the UI doesn't show old data during debounce.
+      // Clear stale results and show loading state immediately so the UI
+      // doesn't flash "no results" during the 400ms debounce.
       setSearchResults([]);
+      if (text.trim().length >= 2) setSearching(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => searchUsers(text), 400);
     },
