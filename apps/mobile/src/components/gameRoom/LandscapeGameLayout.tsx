@@ -376,6 +376,8 @@ export function LandscapeGameLayout({
                   width: throwableClipSize,
                   height: throwableClipSize,
                   borderRadius: throwableClipSize / 2,
+                  left: 0,
+                  alignSelf: undefined,
                 },
               ]}
             >
