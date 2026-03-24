@@ -184,7 +184,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [navigation, setOnPlayAgain, setOnReturnToMenu]);
+  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook

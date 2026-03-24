@@ -645,7 +645,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw error;
       }
     },
-    [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]
+    [gameState, currentPlayer, roomPlayers, room, broadcastMessage]
   );
 
   /**
@@ -681,7 +681,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw error;
       }
     },
-    [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage, isAutoPassInProgress]
+    [gameState, currentPlayer, roomPlayers, room, broadcastMessage, isAutoPassInProgress]
   );
 
   /**
