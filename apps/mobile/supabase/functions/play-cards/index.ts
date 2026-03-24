@@ -529,7 +529,41 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     }
   }
   
-  // Check if same combo type but stronger exists
+  // For Straight Flush: enumerate all stronger straight flushes across all suits
+  if (comboType === 'Straight Flush') {
+    const sorted = sortHand(cards);
+    const suit = sorted[0].suit;
+    const allSameSuit = sorted.every(c => c.suit === suit);
+    if (!allSameSuit) return false;
+
+    const straightInfo = isStraight(cards);
+    if (!straightInfo.valid) return false;
+
+    const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
+      seq => seq.join('') === straightInfo.sequence
+    );
+
+    const suits: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
+    for (const checkSuit of suits) {
+      for (let seqIdx = 0; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+        const isHigherSequence = seqIdx > currentSeqIdx;
+        const isSameSequenceHigherSuit =
+          seqIdx === currentSeqIdx && SUIT_VALUE[checkSuit] > SUIT_VALUE[suit];
+
+        if (!isHigherSequence && !isSameSequenceHigherSuit) continue;
+
+        const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+        const ids = seq.map(rank => `${rank}${checkSuit}`);
+        if (ids.every(id => remaining.some(c => c.id === id))) {
+          return false; // A stronger straight flush can be formed
+        }
+      }
+    }
+
+    return true;
+  }
+
+  // For other types: use generateCombosOfType
   const sameTypeCombos = generateCombosOfType(notInCurrent, comboType as ComboType);
   if (sameTypeCombos.length === 0) {
     return true;
