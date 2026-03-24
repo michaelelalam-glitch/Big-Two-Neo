@@ -567,7 +567,6 @@ function GameViewComponent() {
                     width: throwableClipSize,
                     height: throwableClipSize,
                     borderRadius: throwableClipSize / 2,
-                    overflow: 'hidden',
                     position: 'absolute',
                     top: 0,
                     alignSelf: 'center',

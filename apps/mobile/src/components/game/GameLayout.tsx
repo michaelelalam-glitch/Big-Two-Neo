@@ -126,7 +126,7 @@ function GameLayoutComponent({
       if (glowPulse.current) {
         try {
           glowPulse.current.stop();
-        } catch (e) {
+        } catch {
           // best-effort
         }
         glowPulse.current = null;
@@ -360,7 +360,6 @@ const styles = StyleSheet.create({
     width: LAYOUT.avatarSize,
     height: LAYOUT.avatarSize,
     borderRadius: LAYOUT.avatarSize / 2,
-    overflow: 'hidden',
     position: 'absolute',
     top: 0,
     alignSelf: 'center',
