@@ -35,7 +35,7 @@ tags:
 
 # Step 5: Enter an invalid room code into the input field
 - tapOn:
-    text: "ABC123"
+    id: "room-code-input"
 - inputText: "ZZZZZ1"
 
 # Step 6: Tap Join Room button (the action button, index 1 to skip header)
@@ -46,14 +46,14 @@ tags:
 # Step 7: Wait for error response (invalid room)
 # App should show an error since ZZZZZ1 doesn't exist
 - extendedWaitUntil:
-    visible: "Room not found|not found|doesn't exist|Invalid"
+    visible: "Room not found"
     timeout: 10000
 
 # Step 8: Take screenshot of error state
 - takeScreenshot: "05_join_room_error"
 
 # Step 9: Navigate back
-- tapOn: "← Back"
+- back
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000

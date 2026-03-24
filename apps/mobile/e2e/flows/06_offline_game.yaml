@@ -49,8 +49,8 @@ tags:
 - tapOn:
     id: "pass-button"
 
-# Step 8: Verify the game state advanced (another player's turn or action occurred)
-# After passing, the turn should move to the next player
+# Step 8: Capture the post-pass game state for later visual verification
+# This step only records a screenshot; it does not assert that the turn advanced
 - takeScreenshot: "06_game_after_pass"
 
 # Step 9: Take final screenshot

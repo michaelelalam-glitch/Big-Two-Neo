@@ -91,6 +91,7 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate('Leaderboard')}
               accessibilityRole="button"
               accessibilityLabel={i18n.t('home.leaderboard')}
+              testID="leaderboard-button"
             >
               <Text style={styles.leaderboardButtonText}>🏆</Text>
             </TouchableOpacity>
@@ -119,6 +120,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => navigation.navigate('Settings')}
+              testID="home-settings-button"
             >
               <Text style={styles.settingsButtonText}>⚙️</Text>
             </TouchableOpacity>

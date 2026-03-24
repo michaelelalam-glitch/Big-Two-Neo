@@ -20,8 +20,9 @@ tags:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 2: Navigate to Leaderboard (top bar button: "🏆 Leaderboard")
-- tapOn: "Leaderboard"
+# Step 2: Navigate to Leaderboard (top bar button: 🏆 icon with testID)
+- tapOn:
+    id: "leaderboard-button"
 - extendedWaitUntil:
     visible: "Leaderboard"
     timeout: 10000
