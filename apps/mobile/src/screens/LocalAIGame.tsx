@@ -361,7 +361,16 @@ export function LocalAIGame() {
       sendThrowable: () => {},
       isThrowCooldown: false,
       cooldownRemaining: 0,
-      showInGameAlert: opts => Alert.alert(opts.title ?? 'Alert', opts.message),
+      showInGameAlert: opts =>
+        Alert.alert(
+          opts.title ?? 'Alert',
+          opts.message,
+          opts.buttons?.map(button => ({
+            text: button.text,
+            onPress: button.onPress,
+            style: button.style,
+          }))
+        ),
     }),
     [
       currentOrientation,

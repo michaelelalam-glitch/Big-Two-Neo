@@ -10637,6 +10637,36 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
         </Text>
       </Animated.View>
     </View>
+    <View
+      accessibilityLabel="Microphone on"
+      accessibilityRole="text"
+      accessible={true}
+      pointerEvents="none"
+      style={
+        {
+          "alignItems": "center",
+          "backgroundColor": "rgba(0,0,0,0.65)",
+          "borderRadius": 10,
+          "height": 20,
+          "justifyContent": "center",
+          "left": -4,
+          "position": "absolute",
+          "top": -4,
+          "width": 20,
+          "zIndex": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 11,
+          }
+        }
+      >
+        🎤
+      </Text>
+    </View>
   </View>
   <TouchableOpacity
     accessibilityLabel="Me"

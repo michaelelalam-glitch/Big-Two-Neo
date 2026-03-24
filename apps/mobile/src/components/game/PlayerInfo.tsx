@@ -304,18 +304,29 @@ function PlayerInfoComponent({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
-        {/* Mic toggle button — local player only, top-left of avatar (portrait) */}
-        {isLocalPlayer && isMicOn !== undefined && onMicToggle && (
-          <Pressable
-            style={styles.micTogglePortrait}
-            onPress={onMicToggle}
-            accessibilityRole="button"
-            accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-            hitSlop={6}
-          >
-            <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
-          </Pressable>
-        )}
+        {/* Mic toggle/indicator — top-left of avatar (portrait) */}
+        {isMicOn !== undefined &&
+          (isLocalPlayer && onMicToggle ? (
+            <Pressable
+              style={styles.micTogglePortrait}
+              onPress={onMicToggle}
+              accessibilityRole="button"
+              accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+              hitSlop={6}
+            >
+              <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+            </Pressable>
+          ) : (
+            <View
+              style={styles.micTogglePortrait}
+              accessible={true}
+              accessibilityRole="text"
+              accessibilityLabel={isMicOn ? 'Microphone on' : 'Microphone off'}
+              pointerEvents="none"
+            >
+              <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+            </View>
+          ))}
         {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
         {totalScore !== undefined && (
           <View

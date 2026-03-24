@@ -11,7 +11,7 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
 import { InGameAlert } from '../components/game/InGameAlert';
-import type { InGameAlertHandle } from '../components/game/InGameAlert';
+import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/InGameAlert';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
@@ -93,20 +93,9 @@ export function MultiplayerGame() {
 
   // In-game alert ref — orientation-aware replacement for Alert.alert
   const inGameAlertRef = useRef<InGameAlertHandle>(null);
-  const showInGameAlert = useCallback(
-    (options: {
-      title?: string;
-      message: string;
-      buttons?: {
-        text: string;
-        style?: 'default' | 'cancel' | 'destructive';
-        onPress?: () => void;
-      }[];
-    }) => {
-      inGameAlertRef.current?.show(options);
-    },
-    []
-  );
+  const showInGameAlert = useCallback((options: InGameAlertOptions) => {
+    inGameAlertRef.current?.show(options);
+  }, []);
 
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);

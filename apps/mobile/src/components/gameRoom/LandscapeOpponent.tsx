@@ -199,18 +199,33 @@ export function LandscapeOpponent({
           <View style={styles.badgePosition}>
             <CardCountBadge cardCount={cardCount} visible={true} />
           </View>
-          {/* Mic toggle button — mid-right of avatar (landscape) */}
-          {isMicOn !== undefined && onMicToggle && (
-            <Pressable
-              style={styles.micToggleLandscape}
-              onPress={onMicToggle}
-              accessibilityRole="button"
-              accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-              hitSlop={6}
-            >
-              <Text style={styles.micToggleIcon}>{isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}</Text>
-            </Pressable>
-          )}
+          {/* Mic toggle/indicator — mid-right of avatar (landscape) */}
+          {isMicOn !== undefined &&
+            (onMicToggle ? (
+              <Pressable
+                style={styles.micToggleLandscape}
+                onPress={onMicToggle}
+                accessibilityRole="button"
+                accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                hitSlop={6}
+              >
+                <Text style={styles.micToggleIcon}>
+                  {isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}
+                </Text>
+              </Pressable>
+            ) : (
+              <View
+                style={styles.micToggleLandscape}
+                accessible={true}
+                accessibilityRole="text"
+                accessibilityLabel={isMicOn ? 'Microphone on' : 'Microphone off'}
+                pointerEvents="none"
+              >
+                <Text style={styles.micToggleIcon}>
+                  {isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}
+                </Text>
+              </View>
+            ))}
           {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
           {totalScore !== undefined && (
             <View

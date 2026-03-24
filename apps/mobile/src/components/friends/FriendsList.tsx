@@ -8,7 +8,7 @@
  * Consumes useFriends + usePresence; meant to be embedded in ProfileScreen.
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -54,6 +54,14 @@ export function FriendsList() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const searchUsers = useCallback(
     async (query: string) => {
@@ -70,6 +78,7 @@ export function FriendsList() {
         .ilike('username', `%${trimmed}%`)
         .neq('id', user?.id ?? '')
         .limit(10);
+      if (!mountedRef.current) return;
       if (!error && data) {
         setSearchResults(data as SearchResult[]);
       } else {
@@ -116,6 +125,11 @@ export function FriendsList() {
           <TouchableOpacity
             style={styles.clearButton}
             onPress={() => {
+              if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+                debounceRef.current = null;
+              }
+              setSearching(false);
               setSearchQuery('');
               setSearchResults([]);
             }}
