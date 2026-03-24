@@ -7,8 +7,10 @@
  * appear in landscape — breaking the UI.
  *
  * Solution: This component uses a React Native <Modal> with supportedOrientations
- * set to ONLY the current game orientation, forcing the alert to render correctly
- * regardless of the physical device orientation.
+ * that includes both portrait and landscape variants (game orientation listed
+ * first for preference). This prevents iOS from throwing when the device's
+ * current interface orientation is not in the supported set, while still
+ * rendering correctly for the game's chosen orientation.
  *
  * Usage:
  *   // Render once in GameView:

@@ -390,6 +390,12 @@ export function useVideoChat({
       setIsLocalCameraOn(false);
       setIsLocalMicOn(false);
       setRemoteParticipants([]);
+      // Reset one-time guards so auto-restore/autoConnect can re-run for the new room.
+      hasRestoredPrefsRef.current = false;
+      hasAutoConnectedRef.current = false;
+      setRestoreFinished(false);
+      desiredCameraRef.current = false;
+      desiredMicRef.current = false;
     }
     prevRoomIdRef.current = roomId;
     // isChatConnected included so the effect sees the current session state when
