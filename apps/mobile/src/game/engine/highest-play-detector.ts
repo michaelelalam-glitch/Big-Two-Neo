@@ -552,44 +552,27 @@ function isHighestRemainingFiveCardCombo(
 
     case 'Flush': {
       // For flush, we already verified no stronger combo types exist (SF, 4K, FH)
-      // Now enumerate all possible flushes and check if this is the highest
+      // Now check if any flush from ANY suit beats this one.
+      // canBeatPlay compares Flush by highest card value (rank*10 + suit).
 
       const currentSuit = sorted[0].suit;
       const allSameSuit = sorted.every(c => c.suit === currentSuit);
       if (!allSameSuit) return false;
 
-      // Generate all possible 5-card flushes from remaining cards
-      // Check if any higher suit has a possible flush
+      const currentHighest = sorted[sorted.length - 1];
+      const currentHighestValue =
+        RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
+
       for (const checkSuit of SUITS) {
-        if (SUIT_VALUE[checkSuit] > SUIT_VALUE[currentSuit]) {
-          const higherSuitCards = availableCards.filter(c => c.suit === checkSuit);
-          if (higherSuitCards.length >= 5) return false; // A flush in a higher suit exists
-        }
+        const suitCards = availableCards.filter(c => c.suit === checkSuit);
+        if (suitCards.length < 5) continue;
+        const sortedSuit = sortHand(suitCards);
+        const bestCard = sortedSuit[sortedSuit.length - 1];
+        const bestValue = RANK_VALUE[bestCard.rank] * 10 + SUIT_VALUE[bestCard.suit];
+        if (bestValue > currentHighestValue) return false;
       }
 
-      const suitCards = availableCards.filter(c => c.suit === currentSuit);
-
-      if (suitCards.length < 5) {
-        // No other flush possible in this suit
-        return true;
-      }
-
-      // Check if there's a higher 5-card combination in the same suit
-      // Sort by rank to find highest 5 cards
-      const sortedSuitCards = sortHand(suitCards);
-      const top5 = sortedSuitCards.slice(-5);
-
-      // Compare current flush with best possible flush
-      const currentSorted = sortHand(sorted);
-      for (let i = 4; i >= 0; i--) {
-        const currentRank = RANK_VALUE[currentSorted[i].rank];
-        const bestRank = RANK_VALUE[top5[i].rank];
-
-        if (currentRank > bestRank) return true;
-        if (currentRank < bestRank) return false;
-      }
-
-      return true; // Same flush
+      return true; // No flush from any suit beats this one
     }
 
     case 'Straight': {

@@ -469,7 +469,13 @@ export function useVideoChat({
         adapterRef.current.disconnect().catch(() => {});
       }
     });
-    return () => subscription?.remove();
+    return () => {
+      subscription?.remove();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, userId, isChatConnected]);
 

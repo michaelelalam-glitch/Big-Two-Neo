@@ -619,27 +619,23 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     const currentSuit = sorted[0].suit;
     if (!sorted.every(c => c.suit === currentSuit)) return false;
 
-    // Check if any higher suit has a possible flush
-    const suits2: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
-    for (const checkSuit of suits2) {
-      if (SUIT_VALUE[checkSuit] > SUIT_VALUE[currentSuit]) {
-        const higherSuitCards = notInCurrent.filter(c => c.suit === checkSuit);
-        if (higherSuitCards.length >= 5) return false; // A flush in a higher suit exists
-      }
+    // Compare against the BEST possible flush from ALL suits (not just same suit).
+    // canBeatPlay compares Flush by highest card value (rank*10 + suit).
+    const currentHighest = sorted[sorted.length - 1];
+    const currentHighestValue = RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
+
+    const allSuits: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
+    for (const checkSuit of allSuits) {
+      const suitCards = notInCurrent.filter(c => c.suit === checkSuit);
+      if (suitCards.length < 5) continue;
+      // Best flush in this suit = top 5 by rank
+      const sortedSuit = sortHand(suitCards);
+      const bestCard = sortedSuit[sortedSuit.length - 1];
+      const bestValue = RANK_VALUE[bestCard.rank] * 10 + SUIT_VALUE[bestCard.suit];
+      if (bestValue > currentHighestValue) return false;
     }
 
-    const suitCards = notInCurrent.filter(c => c.suit === currentSuit);
-    if (suitCards.length < 5) return true; // No other flush in this suit
-
-    const sortedSuitCards = sortHand(suitCards);
-    const top5 = sortedSuitCards.slice(-5);
-    for (let i = 4; i >= 0; i--) {
-      const currentRank = RANK_VALUE[sorted[i].rank];
-      const bestRank = RANK_VALUE[top5[i].rank];
-      if (currentRank > bestRank) return true;
-      if (currentRank < bestRank) return false;
-    }
-    return true; // Same flush
+    return true; // No flush from any suit beats this one
   }
 
   if (comboType === 'Straight') {
