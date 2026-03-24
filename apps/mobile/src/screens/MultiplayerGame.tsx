@@ -202,7 +202,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id]);
+  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id, showInGameAlert]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
@@ -975,6 +975,7 @@ export function MultiplayerGame() {
     roomId: roomInfo?.id,
     userId: user?.id,
     adapter: videoChatAdapter,
+    autoConnect: true,
   });
 
   // Guard: LiveKit requires native WebRTC modules. Show a clear alert when the
