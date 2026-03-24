@@ -131,30 +131,45 @@ export function MultiplayerGame() {
         ranked_mode: info?.ranked_mode,
       });
 
+      if (!user?.id) {
+        showError('Not logged in. Please sign in and try again.');
+        return;
+      }
+
       try {
-        // Generate a 6-character room code
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        // 1. Clean up old room membership to prevent "already in room" conflicts
+        const { error: cleanupError } = await supabase
+          .from('room_players')
+          .delete()
+          .eq('user_id', user.id);
+        if (cleanupError) {
+          gameLogger.warn(
+            '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
+            cleanupError.message
+          );
         }
+        // Brief wait for DB replication
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Create a new room with the same settings as the current game
-        const { data: newRoom, error: createError } = await supabase
-          .from('rooms')
-          .insert({
-            code,
-            host_id: user?.id,
-            status: 'waiting',
-            max_players: 4,
-            is_public: info?.is_public ?? true,
-            ranked_mode: info?.ranked_mode ?? false,
-            is_matchmaking: info?.is_public ?? true,
-          })
-          .select('id, code')
-          .single();
+        // 2. Create new room AND join atomically via get_or_create_room RPC.
+        // This prevents the race condition where navigating to the Lobby before
+        // the user is in room_players triggers the "kicked by host" detection.
+        const username = profile?.username || user?.email?.split('@')[0] || 'Player';
+        const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
+          p_user_id: user.id,
+          p_username: username,
+          p_is_public: info?.is_public ?? true,
+          p_is_matchmaking: info?.is_public ?? true,
+          p_ranked_mode: info?.ranked_mode ?? false,
+        });
 
-        if (createError || !newRoom) {
+        const result = roomResult as {
+          success: boolean;
+          room_code: string;
+          room_id: string;
+        } | null;
+
+        if (createError || !result?.success || !result.room_code) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: failed to create room:',
             createError?.message
@@ -163,12 +178,12 @@ export function MultiplayerGame() {
           return;
         }
 
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', newRoom.code);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', result.room_code);
 
         // Navigate to the Lobby with the new room code
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: newRoom.code } }],
+          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: result.room_code } }],
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -184,7 +199,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id]);
+  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id, profile?.username, user?.email]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
