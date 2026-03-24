@@ -554,7 +554,7 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
 
         const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
         const ids = seq.map(rank => `${rank}${checkSuit}`);
-        if (ids.every(id => remaining.some(c => c.id === id))) {
+        if (ids.every(id => notInCurrent.some(c => c.id === id))) {
           return false; // A stronger straight flush can be formed
         }
       }
@@ -563,25 +563,108 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     return true;
   }
 
-  // For other types: use generateCombosOfType
-  const sameTypeCombos = generateCombosOfType(notInCurrent, comboType as ComboType);
-  if (sameTypeCombos.length === 0) {
+  // Type-specific checks for non–Straight Flush combos
+  const sorted = sortHand(cards);
+
+  if (comboType === 'Four of a Kind') {
+    // Ranks ordered by Big Two value (3 lowest, 2 highest)
+    const ranksDesc = Object.keys(RANK_VALUE).sort((a, b) => RANK_VALUE[b] - RANK_VALUE[a]);
+    let highestQuadRank: string | null = null;
+    for (const rank of ranksDesc) {
+      if (notInCurrent.filter(c => c.rank === rank).length >= 4) {
+        highestQuadRank = rank;
+        break;
+      }
+    }
+    if (!highestQuadRank) return true; // No other 4K possible
+
+    const playedQuadRank = ranksDesc.find(rank => sorted.filter(c => c.rank === rank).length >= 4) ?? null;
+    if (!playedQuadRank) return false;
+
+    return RANK_VALUE[playedQuadRank] >= RANK_VALUE[highestQuadRank];
+  }
+
+  if (comboType === 'Full House') {
+    const rankCounts: Record<string, number> = {};
+    for (const card of notInCurrent) {
+      rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+    }
+
+    const ranksDesc = Object.keys(RANK_VALUE).sort((a, b) => RANK_VALUE[b] - RANK_VALUE[a]);
+    let highestTripleRank: string | null = null;
+    for (const rank of ranksDesc) {
+      if (rankCounts[rank] && rankCounts[rank] >= 3) {
+        highestTripleRank = rank;
+        break;
+      }
+    }
+    if (!highestTripleRank) return true;
+
+    let highestPairRank: string | null = null;
+    for (const rank of ranksDesc) {
+      if (rank !== highestTripleRank && rankCounts[rank] && rankCounts[rank] >= 2) {
+        highestPairRank = rank;
+        break;
+      }
+    }
+    if (!highestPairRank) return true;
+
+    const playedCounts = countByRank(sorted);
+    const playedTripleRank = Object.keys(playedCounts).find(r => playedCounts[r] === 3) ?? null;
+    return playedTripleRank !== null && RANK_VALUE[playedTripleRank] >= RANK_VALUE[highestTripleRank];
+  }
+
+  if (comboType === 'Flush') {
+    const currentSuit = sorted[0].suit;
+    if (!sorted.every(c => c.suit === currentSuit)) return false;
+
+    const suitCards = notInCurrent.filter(c => c.suit === currentSuit);
+    if (suitCards.length < 5) return true; // No other flush in this suit
+
+    const sortedSuitCards = sortHand(suitCards);
+    const top5 = sortedSuitCards.slice(-5);
+    for (let i = 4; i >= 0; i--) {
+      const currentRank = RANK_VALUE[sorted[i].rank];
+      const bestRank = RANK_VALUE[top5[i].rank];
+      if (currentRank > bestRank) return true;
+      if (currentRank < bestRank) return false;
+    }
+    return true; // Same flush
+  }
+
+  if (comboType === 'Straight') {
+    const straightInfo = isStraight(sorted);
+    if (!straightInfo.valid) return false;
+
+    const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
+      seq => seq.join('') === straightInfo.sequence
+    );
+    if (currentSeqIdx === -1) return false;
+
+    // Check if any higher sequence can be formed from remaining cards
+    for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+      const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+      if (seq.every(rank => notInCurrent.some(c => c.rank === rank))) {
+        return false;
+      }
+    }
+
+    // Same sequence: check if a higher top-card suit exists
+    const highestCard = sorted[sorted.length - 1];
+    const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
+    for (const rank of currentSeq) {
+      const cardsOfRank = notInCurrent.filter(c => c.rank === rank);
+      for (const card of cardsOfRank) {
+        if (card.rank === highestCard.rank && SUIT_VALUE[card.suit] > SUIT_VALUE[highestCard.suit]) {
+          return false;
+        }
+      }
+    }
+
     return true;
   }
-  
-  const sorted = sortHand(cards);
-  const highest = sorted[sorted.length - 1];
-  
-  for (const combo of sameTypeCombos) {
-    const comboSorted = sortHand(combo);
-    const comboHighest = comboSorted[comboSorted.length - 1];
-    
-    if (getCardValue(comboHighest) > getCardValue(highest)) {
-      return false;
-    }
-  }
-  
-  return true;
+
+  return false;
 }
 
 function canFormCombo(cards: Card[], comboType: ComboType): boolean {

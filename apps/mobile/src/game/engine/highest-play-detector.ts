@@ -439,6 +439,10 @@ function isHighestRemainingFiveCardCombo(
         seq => seq.join('') === straightInfo.sequence
       );
 
+      // Exclude current play's cards from the pool — they are no longer available
+      // for opponents to form a stronger straight flush.
+      const availableCards = remaining.filter(c => !cards.some(p => p.id === c.id));
+
       // Check ALL suits for ANY straight flush that beats this one:
       // - Higher sequence in ANY suit beats this (regardless of suit value)
       // - Same sequence in a HIGHER suit beats this
@@ -453,7 +457,7 @@ function isHighestRemainingFiveCardCombo(
 
           const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
           const ids = seq.map(rank => `${rank}${checkSuit}`);
-          if (ids.every(id => remaining.some(c => c.id === id))) {
+          if (ids.every(id => availableCards.some(c => c.id === id))) {
             return false; // A stronger straight flush can be formed
           }
         }
