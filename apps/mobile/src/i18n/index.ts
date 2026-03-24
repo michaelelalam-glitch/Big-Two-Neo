@@ -754,6 +754,7 @@ export interface Translations {
     noFriendsToInvite: string;
     searchPlaceholder: string;
     noResults: string;
+    clearSearch: string;
   };
 
   notifications: {
@@ -1456,6 +1457,7 @@ const en: Translations = {
     inviteFriends: '👥 Invite Friends',
     noFriendsToInvite: 'All your friends are already in this room.',
     searchPlaceholder: 'Search players by username...',
+    clearSearch: 'Clear search',
     noResults: 'No players found',
   },
   notifications: {
@@ -2176,6 +2178,7 @@ const ar: Translations = {
     inviteFriends: '👥 دعوة الأصدقاء',
     noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
     searchPlaceholder: 'ابحث عن لاعبين باسم المستخدم...',
+    clearSearch: 'مسح البحث',
     noResults: 'لم يتم العثور على لاعبين',
   },
   notifications: {
@@ -2923,6 +2926,7 @@ const de: Translations = {
     inviteFriends: '👥 Freunde einladen',
     noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',
     searchPlaceholder: 'Spieler nach Benutzernamen suchen...',
+    clearSearch: 'Suche löschen',
     noResults: 'Keine Spieler gefunden',
   },
   notifications: {

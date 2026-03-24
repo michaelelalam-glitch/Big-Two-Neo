@@ -130,6 +130,8 @@ export function FriendsList() {
         {searchQuery.length > 0 && (
           <TouchableOpacity
             style={styles.clearButton}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('friends.clearSearch')}
             onPress={() => {
               if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
