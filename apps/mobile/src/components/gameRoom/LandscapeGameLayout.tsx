@@ -23,6 +23,8 @@ import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { ActiveThrowableEffect } from '../../hooks/useThrowables';
 import type { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
+import { LAYOUT } from '../../constants';
+import { useUserPreferencesStore } from '../../store';
 import { AddFriendButton } from '../friends';
 import { useFriendsContext } from '../../contexts/FriendsContext';
 import { LandscapeYourPosition } from './LandscapeYourPosition';
@@ -171,6 +173,12 @@ export function LandscapeGameLayout({
 }: LandscapeGameLayoutProps) {
   // Friends context to check friendship status in-game
   const { friends } = useFriendsContext();
+
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const throwableClipSize = React.useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    return Math.round(LAYOUT.avatarSize * (scaleMap[profilePhotoSize] ?? 1.0));
+  }, [profilePhotoSize]);
 
   // Scoreboard expand/collapse state
   const [isScoreboardExpanded, setIsScoreboardExpanded] = React.useState(false);
@@ -360,10 +368,21 @@ export function LandscapeGameLayout({
             onNameLongPress={playerIds[1] ? () => handleOpponentNameLongPress(1) : undefined}
           />
           {throwableActiveEffects?.[1] != null && (
-            <ThrowablePlayerEffect
-              key={throwableActiveEffects[1]!.id}
-              throwable={throwableActiveEffects[1]!.throwable}
-            />
+            <View
+              style={[
+                styles.throwableClip,
+                {
+                  width: throwableClipSize,
+                  height: throwableClipSize,
+                  borderRadius: throwableClipSize / 2,
+                },
+              ]}
+            >
+              <ThrowablePlayerEffect
+                key={throwableActiveEffects[1]!.id}
+                throwable={throwableActiveEffects[1]!.throwable}
+              />
+            </View>
           )}
         </View>
 
@@ -382,10 +401,21 @@ export function LandscapeGameLayout({
             onNameLongPress={playerIds[2] ? () => handleOpponentNameLongPress(2) : undefined}
           />
           {throwableActiveEffects?.[2] != null && (
-            <ThrowablePlayerEffect
-              key={throwableActiveEffects[2]!.id}
-              throwable={throwableActiveEffects[2]!.throwable}
-            />
+            <View
+              style={[
+                styles.throwableClip,
+                {
+                  width: throwableClipSize,
+                  height: throwableClipSize,
+                  borderRadius: throwableClipSize / 2,
+                },
+              ]}
+            >
+              <ThrowablePlayerEffect
+                key={throwableActiveEffects[2]!.id}
+                throwable={throwableActiveEffects[2]!.throwable}
+              />
+            </View>
           )}
         </View>
 
@@ -404,10 +434,21 @@ export function LandscapeGameLayout({
             onNameLongPress={playerIds[3] ? () => handleOpponentNameLongPress(3) : undefined}
           />
           {throwableActiveEffects?.[3] != null && (
-            <ThrowablePlayerEffect
-              key={throwableActiveEffects[3]!.id}
-              throwable={throwableActiveEffects[3]!.throwable}
-            />
+            <View
+              style={[
+                styles.throwableClip,
+                {
+                  width: throwableClipSize,
+                  height: throwableClipSize,
+                  borderRadius: throwableClipSize / 2,
+                },
+              ]}
+            >
+              <ThrowablePlayerEffect
+                key={throwableActiveEffects[3]!.id}
+                throwable={throwableActiveEffects[3]!.throwable}
+              />
+            </View>
           )}
         </View>
 
@@ -632,15 +673,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 60, // Move CLOSER TO TABLE (away from scoreboard)
     top: '50%',
-    transform: [{ translateY: -58 }], // Raised (from -40) to prevent overlap with the new total-score badge below avatars
+    transform: [{ translateY: -80 }], // Raised further to prevent Steve's photo overlapping bot name
     zIndex: 5,
   },
   rightOpponent: {
     position: 'absolute',
     right: 60,
     top: '50%',
-    transform: [{ translateY: -58 }], // Raised (from -40) to match left opponent
+    transform: [{ translateY: -80 }], // Raised to match left opponent
     zIndex: 5,
+  },
+
+  throwableClip: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    position: 'absolute',
+    top: 0,
+    alignSelf: 'center',
   },
 
   mainArea: {

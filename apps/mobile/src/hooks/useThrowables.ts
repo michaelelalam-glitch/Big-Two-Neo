@@ -182,8 +182,9 @@ export function useThrowables({
 
   // Clear all timers on unmount.
   useEffect(() => {
+    const timers = dismissTimersRef.current;
     return () => {
-      Object.values(dismissTimersRef.current).forEach(t => clearTimeout(t));
+      Object.values(timers).forEach(t => clearTimeout(t));
       if (incomingTimerRef.current) clearTimeout(incomingTimerRef.current);
       if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
     };
@@ -224,7 +225,7 @@ export function useThrowables({
         /* best-effort */
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only
+  }, [userId]); // Re-run when userId changes to restore the correct user's cooldown
 
   const startCooldown = useCallback(() => {
     isCooldownActiveRef.current = true;

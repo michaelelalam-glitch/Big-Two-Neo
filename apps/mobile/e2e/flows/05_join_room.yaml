@@ -48,7 +48,6 @@ tags:
 - extendedWaitUntil:
     visible: "Room not found|not found|doesn't exist|Invalid"
     timeout: 10000
-    optional: true
 
 # Step 8: Take screenshot of error state
 - takeScreenshot: "05_join_room_error"

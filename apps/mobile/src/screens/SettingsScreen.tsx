@@ -21,7 +21,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
-import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
+import type { AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 
@@ -41,15 +41,11 @@ export default function SettingsScreen() {
   const {
     soundEnabled,
     vibrationEnabled,
-    cardSortOrder,
-    animationSpeed,
     autoPassTimer,
     profileVisibility,
     showOnlineStatus,
     setSoundEnabled,
     setVibrationEnabled,
-    setCardSortOrder,
-    setAnimationSpeed,
     setAutoPassTimer,
     setProfileVisibility,
     setShowOnlineStatus,
@@ -136,20 +132,6 @@ export default function SettingsScreen() {
   };
 
   // Game settings handlers
-  const handleCardSortChange = (order: CardSortOrder) => {
-    setCardSortOrder(order); // Zustand persist replaces AsyncStorage.setItem
-    if (vibrationEnabled) {
-      hapticManager.trigger(HapticType.SELECTION);
-    }
-  };
-
-  const handleAnimationSpeedChange = (speed: AnimationSpeed) => {
-    setAnimationSpeed(speed); // Zustand persist replaces AsyncStorage.setItem
-    if (vibrationEnabled) {
-      hapticManager.trigger(HapticType.SELECTION);
-    }
-  };
-
   const handleAutoPassTimerChange = (timer: AutoPassTimer) => {
     setAutoPassTimer(timer); // Zustand persist replaces AsyncStorage.setItem
     if (vibrationEnabled) {
@@ -308,21 +290,15 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('settings.profileSettings')}</Text>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.comingSoonBanner}>
-            <Text style={styles.comingSoonText}>
-              🔮 {t('settings.profileComingSoonDescription')}
-            </Text>
           </View>
 
           <View style={[styles.settingRow, { opacity: 0.6 }]}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.profileVisibility')}</Text>
               <Text style={styles.settingDescription}>{t('settings.privacyDescription')}</Text>
+              <View style={[styles.comingSoonBadge, { marginTop: 4 }]}>
+                <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
+              </View>
             </View>
             <Switch
               value={profileVisibility}
@@ -386,98 +362,6 @@ export default function SettingsScreen() {
         {/* Game Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.gameSettings')}</Text>
-
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingTitle}>{t('settings.cardSortOrder')}</Text>
-            <Text style={styles.settingDescription}>{t('settings.cardSortOrderDescription')}</Text>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[styles.optionButton, cardSortOrder === 'suit' && styles.optionButtonActive]}
-                onPress={() => handleCardSortChange('suit')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    cardSortOrder === 'suit' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.sortBySuit')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, cardSortOrder === 'rank' && styles.optionButtonActive]}
-                onPress={() => handleCardSortChange('rank')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    cardSortOrder === 'rank' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.sortByRank')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingTitle}>{t('settings.animationSpeed')}</Text>
-            <Text style={styles.settingDescription}>{t('settings.animationSpeedDescription')}</Text>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  animationSpeed === 'slow' && styles.optionButtonActive,
-                ]}
-                onPress={() => handleAnimationSpeedChange('slow')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    animationSpeed === 'slow' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.slow')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  animationSpeed === 'normal' && styles.optionButtonActive,
-                ]}
-                onPress={() => handleAnimationSpeedChange('normal')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    animationSpeed === 'normal' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.normal')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  animationSpeed === 'fast' && styles.optionButtonActive,
-                ]}
-                onPress={() => handleAnimationSpeedChange('fast')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    animationSpeed === 'fast' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.fast')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
 
           <View style={styles.settingGroup}>
             <Text style={styles.settingTitle}>{t('settings.autoPassTimer')}</Text>

@@ -502,6 +502,7 @@ function CardHandComponent({
       onPlayCards,
       onSelectionChange,
       onCardsReorder,
+      scheduleOptimisticRollback,
     ]
   );
 

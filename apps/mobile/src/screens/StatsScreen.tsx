@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  Modal,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';
 import { AddFriendButton } from '../components/friends';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -347,6 +348,12 @@ export default function StatsScreen() {
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [historyTab, setHistoryTab] = useState<HistoryTab>('recent');
   const [mutualFriendsCount, setMutualFriendsCount] = useState<number>(0);
+  const [mutualFriendsList, setMutualFriendsList] = useState<
+    { friend_id: string; username: string }[]
+  >([]);
+  const [mutualFriendsModalVisible, setMutualFriendsModalVisible] = useState(false);
+  const [mutualFriendsLoading, setMutualFriendsLoading] = useState(false);
+  const mutualFriendsLoadingRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -482,6 +489,29 @@ export default function StatsScreen() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  const openMutualFriendsList = useCallback(async () => {
+    if (!userId || mutualFriendsLoadingRef.current) return;
+    mutualFriendsLoadingRef.current = true;
+    setMutualFriendsModalVisible(true);
+    setMutualFriendsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_mutual_friends_list', {
+        p_other_user_id: userId,
+      });
+      if (error) {
+        statsLogger.error('[Stats] Mutual friends list error:', error.message);
+        setMutualFriendsList([]);
+      } else {
+        setMutualFriendsList(data ?? []);
+      }
+    } catch {
+      setMutualFriendsList([]);
+    } finally {
+      setMutualFriendsLoading(false);
+      mutualFriendsLoadingRef.current = false;
+    }
+  }, [userId]);
 
   // ─── Per-mode derived data ─────────────────────────────────────────────────
   // Filter game history by game_type for per-mode tabs
@@ -871,9 +901,11 @@ export default function StatsScreen() {
           {/* Add friend button — shown only when viewing another player's profile */}
           {!isOwnProfile && userId && <AddFriendButton targetUserId={userId} compact={false} />}
           {!isOwnProfile && mutualFriendsCount > 0 && (
-            <Text style={styles.mutualFriends}>
-              👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''}
-            </Text>
+            <TouchableOpacity onPress={openMutualFriendsList}>
+              <Text style={styles.mutualFriends}>
+                👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''} ›
+              </Text>
+            </TouchableOpacity>
           )}
           {/* Header: show ranked ELO on ranked tab, casual ELO otherwise */}
           <Text style={styles.rankPoints}>
@@ -1277,6 +1309,52 @@ export default function StatsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Mutual Friends List Modal */}
+      <Modal
+        visible={mutualFriendsModalVisible}
+        transparent
+        animationType="slide"
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+        onRequestClose={() => setMutualFriendsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Mutual Friends</Text>
+              <TouchableOpacity onPress={() => setMutualFriendsModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {mutualFriendsLoading ? (
+              <ActivityIndicator color={COLORS.accent} style={{ marginTop: SPACING.xl }} />
+            ) : mutualFriendsList.length === 0 ? (
+              <Text style={styles.modalEmpty}>No mutual friends found</Text>
+            ) : (
+              <FlatList
+                data={mutualFriendsList}
+                keyExtractor={item => item.friend_id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.mutualFriendRow}
+                    onPress={() => {
+                      setMutualFriendsModalVisible(false);
+                      navigation.push('Stats', { userId: item.friend_id });
+                    }}
+                  >
+                    <View style={styles.mutualFriendAvatar}>
+                      <Text style={styles.mutualFriendAvatarText}>
+                        {(item.username ?? '?').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={styles.mutualFriendName}>{item.username ?? 'Unknown'}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1738,5 +1816,66 @@ const styles = StyleSheet.create({
     color: COLORS.white + '66',
     fontSize: FONT_SIZES.xs,
     fontStyle: 'italic',
+  },
+  // Mutual Friends Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    maxHeight: '60%',
+    backgroundColor: COLORS.secondary,
+    borderRadius: 16,
+    padding: SPACING.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  modalTitle: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+  },
+  modalClose: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.xl,
+    padding: SPACING.xs,
+  },
+  modalEmpty: {
+    color: COLORS.white + '99',
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    marginTop: SPACING.xl,
+  },
+  mutualFriendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.white + '11',
+  },
+  mutualFriendAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.accent + '33',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  mutualFriendAvatarText: {
+    color: COLORS.accent,
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+  },
+  mutualFriendName: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
   },
 });

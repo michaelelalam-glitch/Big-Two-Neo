@@ -13,7 +13,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Text, Animated, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { Animated, StyleSheet, LayoutChangeEvent } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
 
 interface ThrowablePlayerEffectProps {
@@ -44,7 +44,7 @@ interface ParticleSpec {
 function buildEggParticles(size: number): ParticleSpec[] {
   // 12 amber droplets, biased downward (gravity: sin>0 = lower half)
   const colors = ['#FBBF24', '#FCD34D', '#F59E0B', '#FEF3C7', '#FBBF24', '#F59E0B'];
-  const r = size * 0.42;
+  const r = size * 0.65;
   return Array.from({ length: 12 }, (_, i) => {
     // angle range: 30°–150° (lower hemisphere) for majority; 2 go sideways
     const baseAngle =
@@ -60,8 +60,8 @@ function buildEggParticles(size: number): ParticleSpec[] {
       dist,
       color: colors[i % colors.length] ?? '#FBBF24',
       isRect: false,
-      w: 7 + (i % 3) * 2,
-      h: 7 + (i % 3) * 2,
+      w: 10 + (i % 3) * 3,
+      h: 10 + (i % 3) * 3,
       endOpacity: 0,
     };
   });
@@ -70,7 +70,7 @@ function buildEggParticles(size: number): ParticleSpec[] {
 function buildSmokeParticles(size: number): ParticleSpec[] {
   // 10 grey puffs drifting upward
   const colors = ['#9CA3AF', '#D1D5DB', '#6B7280', '#E5E7EB', '#9CA3AF'];
-  const r = size * 0.4;
+  const r = size * 0.6;
   return Array.from({ length: 10 }, (_, i) => {
     // angle range: -150° to -30° (upper hemisphere) — sin<0
     const baseAngle = -Math.PI * 0.82 + (i / 9) * (Math.PI * 0.64);
@@ -81,8 +81,8 @@ function buildSmokeParticles(size: number): ParticleSpec[] {
       dist,
       color: colors[i % colors.length] ?? '#9CA3AF',
       isRect: false,
-      w: 9 + (i % 4) * 2,
-      h: 9 + (i % 4) * 2,
+      w: 12 + (i % 4) * 3,
+      h: 12 + (i % 4) * 3,
       endOpacity: 0,
     };
   });
@@ -91,7 +91,7 @@ function buildSmokeParticles(size: number): ParticleSpec[] {
 function buildConfettiParticles(size: number): ParticleSpec[] {
   // 14 multicolour rectangles evenly distributed full-circle
   const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6'];
-  const r = size * 0.48;
+  const r = size * 0.7;
   return Array.from({ length: 14 }, (_, i) => {
     const angle = (i * (2 * Math.PI)) / 14;
     const dist = r * (0.45 + (i % 3) * 0.2);
@@ -101,8 +101,8 @@ function buildConfettiParticles(size: number): ParticleSpec[] {
       dist,
       color: colors[i % colors.length] ?? '#EF4444',
       isRect: true,
-      w: 4 + (i % 3) * 2,
-      h: 7 + (i % 2) * 3,
+      w: 6 + (i % 3) * 3,
+      h: 9 + (i % 2) * 4,
       endOpacity: 0.05,
     };
   });
@@ -198,7 +198,7 @@ export function ThrowablePlayerEffect({ throwable }: ThrowablePlayerEffectProps)
         ? buildSmokeParticles(containerSize)
         : buildConfettiParticles(containerSize);
 
-  const splatSize = Math.max(18, containerSize * 0.38);
+  const splatSize = Math.max(24, containerSize * 0.55);
 
   return (
     <Animated.View

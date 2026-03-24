@@ -85,13 +85,15 @@ export default function HomeScreen() {
         bounces={true}
       >
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.leaderboardButton}
-            onPress={() => navigation.navigate('Leaderboard')}
-          >
-            <Text style={styles.leaderboardButtonText}>{i18n.t('home.leaderboard')}</Text>
-          </TouchableOpacity>
-          <View style={styles.headerRight}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.leaderboardButton}
+              onPress={() => navigation.navigate('Leaderboard')}
+              accessibilityRole="button"
+              accessibilityLabel={i18n.t('home.leaderboard')}
+            >
+              <Text style={styles.leaderboardButtonText}>🏆</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.bellButton}
               onPress={() => navigation.navigate('Notifications')}
@@ -112,6 +114,8 @@ export default function HomeScreen() {
                 </View>
               )}
             </TouchableOpacity>
+          </View>
+          <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => navigation.navigate('Settings')}
@@ -419,21 +423,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    alignItems: 'center',
+  },
   headerRight: {
     flexDirection: 'row',
     gap: SPACING.sm,
     alignItems: 'center',
   },
   leaderboardButton: {
-    backgroundColor: COLORS.gold,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.gray.dark,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
   },
   leaderboardButtonText: {
-    color: COLORS.primary,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
+    fontSize: FONT_SIZES.lg,
   },
   settingsButton: {
     backgroundColor: COLORS.gray.dark,

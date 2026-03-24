@@ -116,24 +116,30 @@ export function MultiplayerGame() {
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => () => {
-      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → same lobby
+      // Route based on game mode: ranked → ranked queue, casual → casual queue, private → create new room
       if (roomInfo?.ranked_mode) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Ranked matchmaking');
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'ranked' } }],
         });
-      } else if (roomInfo?.is_public) {
+      } else if (roomInfo?.is_public && !roomInfo?.ranked_mode) {
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Casual matchmaking');
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'Matchmaking', params: { matchType: 'casual' } }],
         });
-      } else {
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Lobby with same room');
+      } else if (roomInfo) {
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Create new private room');
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode, playAgain: true } }],
+          routes: [{ name: 'Home' }, { name: 'CreateRoom' }],
+        });
+      } else {
+        gameLogger.warn('🔄 [MultiplayerGame] Play Again → Home (roomInfo unavailable)');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
         });
       }
     });
@@ -145,7 +151,7 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [roomCode, roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
+  }, [roomInfo, navigation, setOnPlayAgain, setOnReturnToMenu]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
@@ -499,13 +505,24 @@ export function MultiplayerGame() {
 
   // 2. Persist custom card order (with current match_number) whenever it changes
   const isFirstCardOrderRenderRef = useRef(true);
+  const lastPersistedMatchRef = useRef<number | null>(null);
   useEffect(() => {
     if (isFirstCardOrderRenderRef.current) {
       isFirstCardOrderRenderRef.current = false;
       return;
     }
+    const currentMatchNumber = multiplayerGameState?.match_number ?? 1;
+    // Skip persisting when the match number just changed — the old customCardOrder
+    // still references the previous match's hand and would overwrite the new match.
+    if (
+      lastPersistedMatchRef.current !== null &&
+      lastPersistedMatchRef.current !== currentMatchNumber
+    ) {
+      lastPersistedMatchRef.current = currentMatchNumber;
+      return;
+    }
+    lastPersistedMatchRef.current = currentMatchNumber;
     if (customCardOrder.length > 0) {
-      const currentMatchNumber = multiplayerGameState?.match_number ?? 1;
       const data = { cards: customCardOrder, matchNumber: currentMatchNumber };
       AsyncStorage.setItem(CARD_ORDER_KEY, JSON.stringify(data)).catch(err => {
         gameLogger.error(
@@ -964,6 +981,9 @@ export function MultiplayerGame() {
       const lp = layoutPlayers[displayIdx];
       if (!lp) return '';
       const mp = effectiveMultiplayerPlayers.find(p => p.player_index === lp.player_index);
+      // Bots (including bot-replaced players) should not expose a user_id
+      // so that long-press / add-friend actions are disabled for them.
+      if (mp?.is_bot) return '';
       return mp?.user_id ?? '';
     });
   }, [layoutPlayers, effectiveMultiplayerPlayers]);
