@@ -268,6 +268,7 @@ export function useVideoChat({
   const desiredCameraRef = useRef(false);
   const desiredMicRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MAX_RECONNECT_ATTEMPTS = 3;
 
   // Track the previous adapterProp so the swap-teardown effect can detect a
@@ -340,7 +341,13 @@ export function useVideoChat({
           gameLogger.info(
             `[VideoChat] Auto-reconnect attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`
           );
-          setTimeout(async () => {
+          reconnectTimerRef.current = setTimeout(async () => {
+            reconnectTimerRef.current = null;
+            // Staleness guard: user may have toggled off during the delay
+            if (!desiredCameraRef.current && !desiredMicRef.current) {
+              gameLogger.info('[VideoChat] Auto-reconnect cancelled — user opted out');
+              return;
+            }
             try {
               await adapterRef.current.connect(roomId, userId);
               if (wantCamera) {
@@ -811,6 +818,10 @@ export function useVideoChat({
         desiredCameraRef.current = false;
         desiredMicRef.current = false;
         reconnectAttemptsRef.current = 0;
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
         gameLogger.info('[VideoChat] Local camera + mic disabled.');
       }
     } finally {
@@ -943,6 +954,10 @@ export function useVideoChat({
         desiredCameraRef.current = false;
         desiredMicRef.current = false;
         reconnectAttemptsRef.current = 0;
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
         gameLogger.info('[VoiceChat] Voice chat disconnected.');
       }
     } finally {

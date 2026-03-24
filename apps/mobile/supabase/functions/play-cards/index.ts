@@ -542,6 +542,7 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
       seq => seq.join('') === straightInfo.sequence
     );
+    if (currentSeqIdx === -1) return false;
 
     const suits: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
     for (const checkSuit of suits) {
@@ -618,6 +619,15 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     const currentSuit = sorted[0].suit;
     if (!sorted.every(c => c.suit === currentSuit)) return false;
 
+    // Check if any higher suit has a possible flush
+    const suits2: ('D' | 'C' | 'H' | 'S')[] = ['D', 'C', 'H', 'S'];
+    for (const checkSuit of suits2) {
+      if (SUIT_VALUE[checkSuit] > SUIT_VALUE[currentSuit]) {
+        const higherSuitCards = notInCurrent.filter(c => c.suit === checkSuit);
+        if (higherSuitCards.length >= 5) return false; // A flush in a higher suit exists
+      }
+    }
+
     const suitCards = notInCurrent.filter(c => c.suit === currentSuit);
     if (suitCards.length < 5) return true; // No other flush in this suit
 
@@ -649,12 +659,11 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
       }
     }
 
-    // Same sequence: check if a higher top-card suit exists
+    // Same sequence: check if a higher top-card suit exists AND all 5 ranks available
     const highestCard = sorted[sorted.length - 1];
     const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
-    for (const rank of currentSeq) {
-      const cardsOfRank = notInCurrent.filter(c => c.rank === rank);
-      for (const card of cardsOfRank) {
+    if (currentSeq.every(rank => notInCurrent.some(c => c.rank === rank))) {
+      for (const card of notInCurrent) {
         if (card.rank === highestCard.rank && SUIT_VALUE[card.suit] > SUIT_VALUE[highestCard.suit]) {
           return false;
         }
