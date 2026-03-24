@@ -4,7 +4,7 @@
 **Base:** `game/chinese-poker`
 **PR:** #181
 **Date:** March 24, 2026
-**Status:** All tasks completed
+**Status:** All tasks completed, CI passing, Copilot review in progress
 
 ---
 

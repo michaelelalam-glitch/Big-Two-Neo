@@ -529,10 +529,58 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     }
   }
   
-  // Cannot enumerate all same-type combos server-side (expensive combinatorial
-  // expansion). Conservatively return false rather than falsely claiming a play
-  // is highest — the client-side highest-play-detector handles the full check.
+  // For Straight Flush and Four of a Kind we can efficiently check if any
+  // stronger same-type combo exists without full combinatorial enumeration.
+  // Other types (FH, Flush, Straight) conservatively return false.
+  if (comboType === 'Straight Flush') {
+    return isHighestRemainingStraightFlush(cards, notInCurrent);
+  }
+  if (comboType === 'Four of a Kind') {
+    return isHighestRemainingFourOfAKind(cards, notInCurrent);
+  }
+  // Conservative for Full House / Flush / Straight — enumeration is too expensive.
   return false;
+}
+
+/** Check if the played SF is the highest remaining Straight Flush. */
+function isHighestRemainingStraightFlush(cards: Card[], notInCurrent: Card[]): boolean {
+  const sorted = sortHand(cards);
+  const myHighest = getCardValue(sorted[sorted.length - 1]);
+
+  // Group remaining cards (excluding current play) by suit
+  const bySuit: { [suit: string]: Set<string> } = {};
+  for (const c of notInCurrent) {
+    if (!bySuit[c.suit]) bySuit[c.suit] = new Set();
+    bySuit[c.suit].add(c.rank);
+  }
+
+  for (const suit in bySuit) {
+    const ranks = bySuit[suit];
+    if (ranks.size < 5) continue;
+    for (const seq of VALID_STRAIGHT_SEQUENCES) {
+      if (seq.every(r => ranks.has(r))) {
+        // Build a virtual card for the highest rank in this sequence + suit
+        const highRank = seq[seq.length - 1];
+        const highValue = RANK_VALUE[highRank] * 10 + SUIT_VALUE[suit];
+        if (highValue > myHighest) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** Check if the played FoaK is the highest remaining Four of a Kind. */
+function isHighestRemainingFourOfAKind(cards: Card[], notInCurrent: Card[]): boolean {
+  const myQuadRank = getQuadRank(cards);
+  const myQuadValue = RANK_VALUE[myQuadRank];
+
+  const counts = countByRank(notInCurrent);
+  for (const rank in counts) {
+    if (counts[rank] >= 4 && RANK_VALUE[rank] > myQuadValue) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function canFormCombo(cards: Card[], comboType: ComboType): boolean {

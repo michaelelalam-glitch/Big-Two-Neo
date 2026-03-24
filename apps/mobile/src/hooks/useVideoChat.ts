@@ -413,7 +413,8 @@ export function useVideoChat({
 
   // Tracks when the restore async IIFE has fully finished (connected + tracks enabled)
   // so the auto-connect effect below doesn't race with an in-flight restore.
-  const hasRestoreFinishedRef = useRef(false);
+  // Uses state (not ref) so the autoConnect effect re-runs when restore completes.
+  const [restoreFinished, setRestoreFinished] = useState(false);
 
   // ── Auto-restore chat prefs on mount (Task: remember mic/camera on reconnect) ──
   // Reads stored camera/mic prefs from AsyncStorage and auto-enables media when
@@ -428,12 +429,12 @@ export function useVideoChat({
       try {
         const stored = await AsyncStorage.getItem(chatPrefsKey);
         if (!stored || cancelled) {
-          hasRestoreFinishedRef.current = true;
+          setRestoreFinished(true);
           return;
         }
         const prefs = JSON.parse(stored) as { camera?: boolean; mic?: boolean };
         if (!prefs.camera && !prefs.mic) {
-          hasRestoreFinishedRef.current = true;
+          setRestoreFinished(true);
           return;
         }
 
@@ -490,7 +491,7 @@ export function useVideoChat({
           err instanceof Error ? err.message : String(err)
         );
       } finally {
-        hasRestoreFinishedRef.current = true;
+        setRestoreFinished(true);
       }
     })();
 
@@ -512,7 +513,7 @@ export function useVideoChat({
     if (!autoConnect || !roomId || !userId || hasAutoConnectedRef.current) return;
     // Wait for restore async IIFE to finish before deciding — prevents duplicate
     // connect() calls when restore is still in-flight.
-    if (!hasRestoreFinishedRef.current) return;
+    if (!restoreFinished) return;
     // If restore already connected us, skip.
     if (isChatConnected) {
       hasAutoConnectedRef.current = true;
@@ -541,7 +542,7 @@ export function useVideoChat({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoConnect, roomId, userId, isChatConnected]);
+  }, [autoConnect, roomId, userId, isChatConnected, restoreFinished]);
 
   const requestCameraPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
     if (Platform.OS === 'android') {
