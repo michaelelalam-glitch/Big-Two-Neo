@@ -8,15 +8,7 @@
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-  Alert,
-} from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import {
   CardHand,
   PlayerInfo,
@@ -135,6 +127,7 @@ function GameViewComponent() {
     sendThrowable,
     isThrowCooldown,
     cooldownRemaining,
+    showInGameAlert,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -161,9 +154,11 @@ function GameViewComponent() {
       if (!opponentId) return;
       const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
       if (isFriend) {
-        Alert.alert(opponentName, i18n.t('friends.alreadyFriends'), [
-          { text: i18n.t('common.ok'), style: 'cancel' },
-        ]);
+        showInGameAlert({
+          title: opponentName,
+          message: i18n.t('friends.alreadyFriends'),
+          buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
+        });
       } else {
         setPortraitActionTarget({ id: opponentId, name: opponentName });
       }

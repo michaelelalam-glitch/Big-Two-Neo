@@ -10,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
+import { InGameAlert } from '../components/game/InGameAlert';
+import type { InGameAlertHandle } from '../components/game/InGameAlert';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
@@ -36,7 +38,6 @@ import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { showError } from '../utils';
 import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
@@ -89,6 +90,23 @@ export function MultiplayerGame() {
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
+
+  // In-game alert ref — orientation-aware replacement for Alert.alert
+  const inGameAlertRef = useRef<InGameAlertHandle>(null);
+  const showInGameAlert = useCallback(
+    (options: {
+      title?: string;
+      message: string;
+      buttons?: {
+        text: string;
+        style?: 'default' | 'cancel' | 'destructive';
+        onPress?: () => void;
+      }[];
+    }) => {
+      inGameAlertRef.current?.show(options);
+    },
+    []
+  );
 
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
@@ -159,7 +177,7 @@ export function MultiplayerGame() {
             '❌ [MultiplayerGame] Play Again: failed to create room:',
             createError?.message
           );
-          showError('Failed to create new room. Please try again.');
+          showInGameAlert({ message: 'Failed to create new room. Please try again.' });
           return;
         }
 
@@ -173,7 +191,7 @@ export function MultiplayerGame() {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         gameLogger.error('❌ [MultiplayerGame] Play Again error:', msg);
-        showError('Failed to create new room. Please try again.');
+        showInGameAlert({ message: 'Failed to create new room. Please try again.' });
       }
     });
 
@@ -208,7 +226,7 @@ export function MultiplayerGame() {
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
 
-  // Suppresses the onError → showError toast while connectWithRetry is in progress.
+  // Suppresses the onError → showInGameAlert toast while connectWithRetry is in progress.
   // Without this, every failed intermediate attempt (attempt 0, 1) would surface
   // an error toast to the user even when a later retry succeeds.
   const suppressConnectErrorsRef = useRef(false);
@@ -255,12 +273,12 @@ export function MultiplayerGame() {
       // Suppress connect errors while connectWithRetry has pending retries.
       // This prevents showing an error toast on attempt 0/1 when attempt 1/2
       // may still succeed. suppressConnectErrorsRef is cleared before the
-      // final-attempt showError call and on effect cleanup.
+      // final-attempt showInGameAlert call and on effect cleanup.
       if (suppressConnectErrorsRef.current) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed connect error during retry');
         return;
       }
-      showError(error.message);
+      showInGameAlert({ message: error.message });
     },
     onDisconnect: () => {
       gameLogger.warn('[MultiplayerGame] Multiplayer disconnected');
@@ -343,7 +361,7 @@ export function MultiplayerGame() {
           suppressConnectErrorsRef.current = false;
           console.error('[MultiplayerGame] ❌ Failed to connect after 4 attempts:', err);
           gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
-          showError(err?.message || 'Failed to connect to room');
+          showInGameAlert({ message: err?.message || 'Failed to connect to room' });
         }
       }
     };
@@ -1165,6 +1183,7 @@ export function MultiplayerGame() {
       sendThrowable,
       isThrowCooldown,
       cooldownRemaining,
+      showInGameAlert,
     }),
     [
       currentOrientation,
@@ -1241,6 +1260,7 @@ export function MultiplayerGame() {
       sendThrowable,
       isThrowCooldown,
       cooldownRemaining,
+      showInGameAlert,
     ]
   );
 
@@ -1249,6 +1269,12 @@ export function MultiplayerGame() {
       <GameContextProvider value={gameContextValue}>
         <GameView />
       </GameContextProvider>
+
+      {/* In-game alert — orientation-aware replacement for native Alert.alert.
+          Uses a Modal with supportedOrientations locked to the current game
+          orientation so popups always match the game layout, not the physical
+          device orientation. */}
+      <InGameAlert ref={inGameAlertRef} orientation={currentOrientation} />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
           or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".

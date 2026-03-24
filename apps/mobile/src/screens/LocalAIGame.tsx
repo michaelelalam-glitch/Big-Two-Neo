@@ -5,6 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Alert } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -360,6 +361,7 @@ export function LocalAIGame() {
       sendThrowable: () => {},
       isThrowCooldown: false,
       cooldownRemaining: 0,
+      showInGameAlert: opts => Alert.alert(opts.title ?? 'Alert', opts.message),
     }),
     [
       currentOrientation,
