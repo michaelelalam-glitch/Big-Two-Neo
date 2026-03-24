@@ -15,7 +15,8 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -33,10 +34,9 @@ tags:
 # Step 4: Take screenshot
 - takeScreenshot: "04_create_room_screen"
 
-# Step 5: Tap "Create Room" button (the action button, not the header)
+# Step 5: Tap "Create Room" submit button (uses testID to avoid index-based fragility)
 - tapOn:
-    text: "Create Room"
-    index: 1
+    id: "create-room-submit-button"
 
 # Step 6: Verify navigation to Lobby
 - extendedWaitUntil:

@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +30,8 @@ export default function GameSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.greeting}>
-          {i18n.t('gameSelection.welcome')} {profile?.username || user?.email?.split('@')[0] || 'Player'}!
+          {i18n.t('gameSelection.welcome')}{' '}
+          {profile?.username || user?.email?.split('@')[0] || 'Player'}!
         </Text>
         <Text style={styles.headerSubtitle}>{i18n.t('gameSelection.subtitle')}</Text>
       </View>
@@ -44,6 +39,7 @@ export default function GameSelectionScreen() {
       <View style={styles.content}>
         {/* Chinese Poker Card */}
         <TouchableOpacity
+          testID="chinese-poker-card"
           style={[styles.gameCard, styles.chinesePokerCard]}
           onPress={handleChinesePoker}
           activeOpacity={0.85}
@@ -52,11 +48,9 @@ export default function GameSelectionScreen() {
             <Text style={styles.gameEmoji}>🀄</Text>
             <View style={styles.gameInfo}>
               <Text style={styles.gameTitle}>{i18n.t('gameSelection.chinesePokerTitle')}</Text>
-              <Text style={styles.gameDescription}>
-                {i18n.t('gameSelection.chinesePokerDesc')}
-              </Text>
+              <Text style={styles.gameDescription}>{i18n.t('gameSelection.chinesePokerDesc')}</Text>
             </View>
-            <View style={styles.playBadge}>
+            <View testID="play-chinese-poker-button" style={styles.playBadge}>
               <Text style={styles.playBadgeText}>{i18n.t('gameSelection.playButton')}</Text>
             </View>
           </View>
@@ -64,6 +58,7 @@ export default function GameSelectionScreen() {
 
         {/* Lebanese Deal Card */}
         <TouchableOpacity
+          testID="lebanese-deal-card"
           style={[styles.gameCard, styles.lebaneseDealCard]}
           onPress={handleLebaneseDeal}
           activeOpacity={0.85}
@@ -72,12 +67,12 @@ export default function GameSelectionScreen() {
             <Text style={styles.gameEmoji}>🃏</Text>
             <View style={styles.gameInfo}>
               <Text style={styles.gameTitle}>{i18n.t('gameSelection.lebaneseDealTitle')}</Text>
-              <Text style={styles.gameDescription}>
-                {i18n.t('gameSelection.lebaneseDealDesc')}
-              </Text>
+              <Text style={styles.gameDescription}>{i18n.t('gameSelection.lebaneseDealDesc')}</Text>
             </View>
             <View style={[styles.playBadge, styles.comingSoonBadge]}>
-              <Text style={[styles.playBadgeText, styles.comingSoonBadgeText]}>{i18n.t('gameSelection.soonButton')}</Text>
+              <Text style={[styles.playBadgeText, styles.comingSoonBadgeText]}>
+                {i18n.t('gameSelection.soonButton')}
+              </Text>
             </View>
           </View>
           {/* Overlay to visually indicate disabled */}

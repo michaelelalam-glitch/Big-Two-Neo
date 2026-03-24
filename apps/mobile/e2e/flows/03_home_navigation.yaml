@@ -17,7 +17,8 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 
 # Step 3: Verify Home screen main elements
 - extendedWaitUntil:
@@ -53,8 +54,9 @@ tags:
 - assertVisible: "Cancel"
 - takeScreenshot: "03_find_game_modal"
 
-# Step 9: Dismiss modal
+# Step 9: Dismiss modal and verify it closed
 - tapOn: "Cancel"
+- assertNotVisible: "Choose your game mode"
 
 # Step 10: Test "Offline Practice" opens bot difficulty modal
 - tapOn: "Offline Practice"
@@ -66,5 +68,6 @@ tags:
 - assertVisible: "Hard"
 - takeScreenshot: "03_bot_difficulty_modal"
 
-# Step 11: Dismiss modal
+# Step 11: Dismiss modal and verify it closed
 - tapOn: "Cancel"
+- assertNotVisible: "Bot Difficulty"

@@ -18,7 +18,8 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -49,9 +50,12 @@ tags:
 - tapOn:
     id: "pass-button"
 
-# Step 8: Capture the post-pass game state for later visual verification
-# This step only records a screenshot; it does not assert that the turn advanced
-- takeScreenshot: "06_game_after_pass"
+# Step 8: Verify the game is still running and no error overlay appeared after pass
+- assertVisible:
+    id: "pass-button"
+- assertNotVisible:
+    text: "Error"
+    optional: true
 
-# Step 9: Take final screenshot
-- takeScreenshot: "06_game_in_progress"
+# Step 9: Take screenshot of post-pass game state
+- takeScreenshot: "06_game_after_pass"
