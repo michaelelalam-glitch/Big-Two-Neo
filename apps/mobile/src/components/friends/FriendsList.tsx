@@ -98,6 +98,8 @@ export function FriendsList() {
   const handleSearchChange = useCallback(
     (text: string) => {
       setSearchQuery(text);
+      // Clear stale results immediately so the UI doesn't show old data during debounce.
+      setSearchResults([]);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => searchUsers(text), 400);
     },
@@ -137,6 +139,8 @@ export function FriendsList() {
                 clearTimeout(debounceRef.current);
                 debounceRef.current = null;
               }
+              // Invalidate any in-flight Supabase request so its response is discarded.
+              searchTokenRef.current += 1;
               setSearching(false);
               setSearchQuery('');
               setSearchResults([]);

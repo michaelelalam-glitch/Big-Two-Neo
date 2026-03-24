@@ -22,7 +22,7 @@
 
 import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 import { i18n } from '../../i18n';
 
 // ---------------------------------------------------------------------------
@@ -82,17 +82,8 @@ export const InGameAlert = forwardRef<InGameAlertHandle, InGameAlertProps>(
     // Include both portrait and landscape in supportedOrientations so the
     // Modal can always present without crashing on iOS (if the device's current
     // interface orientation isn't in the list, iOS throws). The game-orientation
-    // is listed first so it's preferred.
-    const supportedOrientations: (
-      | 'portrait'
-      | 'portrait-upside-down'
-      | 'landscape'
-      | 'landscape-left'
-      | 'landscape-right'
-    )[] =
-      orientation === 'landscape'
-        ? ['landscape', 'landscape-left', 'landscape-right', 'portrait', 'portrait-upside-down']
-        : ['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right'];
+    // Reuse the repo-wide constant that includes all orientations.
+    const supportedOrientations = MODAL_SUPPORTED_ORIENTATIONS;
 
     const buttons = alertOptions?.buttons ?? [
       { text: i18n.t('common.ok'), style: 'default' as const },
