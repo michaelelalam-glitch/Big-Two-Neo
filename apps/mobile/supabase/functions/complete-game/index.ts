@@ -773,6 +773,16 @@ async function broadcastGameEnded(
       // instead of rewarding a low game score earned before departure.
       const effectiveScore = (!isCompleted && !isVoided) ? 200 : player.score;
 
+      if (player.finish_position == null) {
+        console.warn(`[Complete Game] Missing finish_position for ${player.username} (${player.user_id}), defaulting to 4`);
+      }
+      if (player.combos_played == null) {
+        console.warn(`[Complete Game] Missing combos_played for ${player.username} (${player.user_id}), defaulting to {}`);
+      }
+      if (player.cards_left == null) {
+        console.warn(`[Complete Game] Missing cards_left for ${player.username} (${player.user_id}), defaulting to 0`);
+      }
+
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,
         p_won: won,
