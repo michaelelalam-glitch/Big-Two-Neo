@@ -354,6 +354,12 @@ export default function StatsScreen() {
   const [mutualFriendsModalVisible, setMutualFriendsModalVisible] = useState(false);
   const [mutualFriendsLoading, setMutualFriendsLoading] = useState(false);
   const mutualFriendsLoadingRef = useRef(false);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -493,14 +499,13 @@ export default function StatsScreen() {
   const openMutualFriendsList = useCallback(async () => {
     if (!userId || mutualFriendsLoadingRef.current) return;
     mutualFriendsLoadingRef.current = true;
-    let cancelled = false;
     setMutualFriendsModalVisible(true);
     setMutualFriendsLoading(true);
     try {
       const { data, error } = await supabase.rpc('get_mutual_friends_list', {
         p_other_user_id: userId,
       });
-      if (cancelled) return;
+      if (!isMountedRef.current) return;
       if (error) {
         statsLogger.error('[Stats] Mutual friends list error:', error.message);
         setMutualFriendsList([]);
@@ -508,14 +513,11 @@ export default function StatsScreen() {
         setMutualFriendsList(data ?? []);
       }
     } catch {
-      if (!cancelled) setMutualFriendsList([]);
+      if (isMountedRef.current) setMutualFriendsList([]);
     } finally {
-      if (!cancelled) setMutualFriendsLoading(false);
+      if (isMountedRef.current) setMutualFriendsLoading(false);
       mutualFriendsLoadingRef.current = false;
     }
-    return () => {
-      cancelled = true;
-    };
   }, [userId]);
 
   // ─── Per-mode derived data ─────────────────────────────────────────────────
@@ -908,7 +910,10 @@ export default function StatsScreen() {
           {!isOwnProfile && mutualFriendsCount > 0 && (
             <TouchableOpacity onPress={openMutualFriendsList}>
               <Text style={styles.mutualFriends}>
-                👥 {mutualFriendsCount} mutual friend{mutualFriendsCount !== 1 ? 's' : ''} ›
+                {i18n.t('profile.mutualFriendsLabel', {
+                  count: mutualFriendsCount,
+                  plural: mutualFriendsCount !== 1 ? 's' : '',
+                })}
               </Text>
             </TouchableOpacity>
           )}

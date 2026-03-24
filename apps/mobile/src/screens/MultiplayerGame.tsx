@@ -503,25 +503,35 @@ export function MultiplayerGame() {
     })();
   }, [CARD_ORDER_KEY, roomCode, setCustomCardOrder]);
 
-  // 2. Persist custom card order (with current match_number) whenever it changes
+  // 2. Reset custom card order and stored order when match number changes to avoid
+  // carrying a previous match's order into a new hand.
+  const lastMatchNumberForOrderResetRef = useRef<number | null>(null);
+  useEffect(() => {
+    const currentMatchNumber = multiplayerGameState?.match_number ?? null;
+    if (currentMatchNumber === null) return;
+    if (
+      lastMatchNumberForOrderResetRef.current !== null &&
+      lastMatchNumberForOrderResetRef.current !== currentMatchNumber
+    ) {
+      setCustomCardOrder([]);
+      AsyncStorage.removeItem(CARD_ORDER_KEY).catch(err => {
+        gameLogger.error(
+          '[MultiplayerGame] Failed to clear stored card order on match change:',
+          err?.message || String(err)
+        );
+      });
+    }
+    lastMatchNumberForOrderResetRef.current = currentMatchNumber;
+  }, [multiplayerGameState?.match_number, setCustomCardOrder, CARD_ORDER_KEY]);
+
+  // 3. Persist custom card order (with current match_number) whenever it changes
   const isFirstCardOrderRenderRef = useRef(true);
-  const lastPersistedMatchRef = useRef<number | null>(null);
   useEffect(() => {
     if (isFirstCardOrderRenderRef.current) {
       isFirstCardOrderRenderRef.current = false;
       return;
     }
     const currentMatchNumber = multiplayerGameState?.match_number ?? 1;
-    // Skip persisting when the match number just changed — the old customCardOrder
-    // still references the previous match's hand and would overwrite the new match.
-    if (
-      lastPersistedMatchRef.current !== null &&
-      lastPersistedMatchRef.current !== currentMatchNumber
-    ) {
-      lastPersistedMatchRef.current = currentMatchNumber;
-      return;
-    }
-    lastPersistedMatchRef.current = currentMatchNumber;
     if (customCardOrder.length > 0) {
       const data = { cards: customCardOrder, matchNumber: currentMatchNumber };
       AsyncStorage.setItem(CARD_ORDER_KEY, JSON.stringify(data)).catch(err => {

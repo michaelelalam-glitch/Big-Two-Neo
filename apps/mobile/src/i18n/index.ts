@@ -635,6 +635,7 @@ export interface Translations {
     historyEmptyLost: string;
     historyEmptyIncomplete: string;
     mutualFriends: string;
+    mutualFriendsLabel: string;
     noMutualFriends: string;
     unknownPlayer: string;
   };
@@ -1343,6 +1344,7 @@ const en: Translations = {
     historyEmptyLost: 'No losses.',
     historyEmptyIncomplete: 'No incomplete games.',
     mutualFriends: 'Mutual Friends',
+    mutualFriendsLabel: '👥 {{count}} mutual friend{{plural}} ›',
     noMutualFriends: 'No mutual friends found',
     unknownPlayer: 'Unknown',
   },
@@ -1971,6 +1973,7 @@ const ar: Translations = {
     historyEmptyLost: 'لا خسائر.',
     historyEmptyIncomplete: 'لا توجد ألعاب غير مكتملة.',
     mutualFriends: 'أصدقاء مشتركون',
+    mutualFriendsLabel: '👥 {{count}} صديق مشترك{{plural}} ›',
     noMutualFriends: 'لا يوجد أصدقاء مشتركون',
     unknownPlayer: 'غير معروف',
   },
@@ -2704,6 +2707,7 @@ const de: Translations = {
     historyEmptyLost: 'Keine Niederlagen.',
     historyEmptyIncomplete: 'Keine unvollständigen Spiele.',
     mutualFriends: 'Gemeinsame Freunde',
+    mutualFriendsLabel: '👥 {{count}} gemeinsamer Freund{{plural}} ›',
     noMutualFriends: 'Keine gemeinsamen Freunde gefunden',
     unknownPlayer: 'Unbekannt',
   },
