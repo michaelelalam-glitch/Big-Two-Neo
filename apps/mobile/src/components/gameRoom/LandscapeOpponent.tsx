@@ -74,7 +74,7 @@ export function LandscapeOpponent({
   name,
   cardCount,
   isActive,
-  photoUrl,
+  photoUrl: _photoUrl,
   layout = 'vertical',
   totalScore,
   isDisconnected = false,

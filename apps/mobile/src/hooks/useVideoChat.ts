@@ -534,8 +534,8 @@ export function useVideoChat({
         // Info.plist NSCameraUsageDescription key in app.json rather than by the
         // expo-camera plugin.
         try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const { permissions: webRTCPerms, mediaDevices: webRTCDevices } =
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             require('@livekit/react-native-webrtc') as {
               permissions: { query(d: { name: string }): Promise<string> };
               mediaDevices: {
