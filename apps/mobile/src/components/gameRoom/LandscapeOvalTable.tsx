@@ -1,25 +1,26 @@
 /**
  * LandscapeOvalTable Component
- * 
+ *
  * Poker-style oval play area for landscape game room
- * 
+ *
  * Features:
  * - 420×240pt oval shape (iPhone 17 base)
  * - Green poker table gradient background
  * - Displays last played cards in center
  * - Shows combo type and player name
  * - Adaptive sizing for tablets
- * 
+ *
  * Task #455: Implement oval poker table play area
  * Date: December 19, 2025
  */
 
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../../constants';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { COLORS, SHADOWS } from '../../constants';
 import { i18n } from '../../i18n';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import type { Card as CardType } from '../../game/types';
+import type { DragZoneState } from '../game/CardHand';
 import LandscapeCard from './LandscapeCard';
 
 // ============================================================================
@@ -35,6 +36,8 @@ interface LandscapeOvalTableProps {
   combinationType?: string | null;
   /** Formatted display text (e.g., "Straight to 6", "Flush ♥ (A high)") */
   comboDisplayText?: string;
+  /** Current drag zone state for animated glow (matches portrait GameLayout) */
+  dropZoneState?: DragZoneState;
 }
 
 // ============================================================================
@@ -46,7 +49,60 @@ export function LandscapeOvalTable({
   lastPlayedBy,
   combinationType,
   comboDisplayText,
+  dropZoneState = 'idle',
 }: LandscapeOvalTableProps) {
+  // Animated glow for table perimeter when dragging cards (matches portrait GameLayout)
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const glowPulse = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (glowPulse.current) {
+      glowPulse.current.stop();
+      glowPulse.current = null;
+    }
+
+    if (dropZoneState === 'active') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0.5, duration: 400, useNativeDriver: false }),
+        ])
+      );
+      glowPulse.current = pulse;
+      pulse.start();
+    } else if (dropZoneState === 'approaching') {
+      Animated.timing(glowAnim, { toValue: 0.4, duration: 200, useNativeDriver: false }).start();
+    } else {
+      Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    }
+  }, [dropZoneState, glowAnim]);
+
+  useEffect(() => {
+    return () => {
+      if (glowPulse.current) {
+        try {
+          glowPulse.current.stop();
+        } catch {
+          /* best-effort */
+        }
+        glowPulse.current = null;
+      }
+    };
+  }, []);
+
+  const glowBorderColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.table.border, COLORS.accent],
+  });
+  const glowShadowRadius = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [SHADOWS.table.radius, 24],
+  });
+  const glowShadowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [SHADOWS.table.opacity, 0.8],
+  });
+
   // Sort cards for display (highest card first - matches portrait CenterPlayArea)
   // This ensures straights show as 6-5-4-3-2 instead of 3-4-5-6-2
   const displayCards = useMemo(() => {
@@ -76,14 +132,8 @@ export function LandscapeOvalTable({
       {/* Cards container */}
       <View style={styles.cardsContainer}>
         {displayCards.map((card, index) => (
-          <View
-            key={card.id}
-            style={[
-              styles.cardWrapper,
-              cardWrapperStyles[index],
-            ]}
-          >
-            <LandscapeCard 
+          <View key={card.id} style={[styles.cardWrapper, cardWrapperStyles[index]]}>
+            <LandscapeCard
               card={card}
               size="hand" // 60×84pt - matches portrait hand card size
             />
@@ -105,14 +155,22 @@ export function LandscapeOvalTable({
   );
 
   return (
-    <View
-      style={styles.container}
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          borderColor: glowBorderColor,
+          shadowColor: COLORS.accent,
+          shadowRadius: glowShadowRadius,
+          shadowOpacity: glowShadowOpacity,
+        },
+      ]}
       testID="oval-table-container"
     >
       <View style={styles.innerContent}>
         {displayCards.length === 0 ? renderEmptyState() : renderPlayedCards()}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -189,6 +247,4 @@ const styles = StyleSheet.create({
   cardWrapper: {
     // Positioning handled by marginLeft and zIndex
   },
-
 });
-
