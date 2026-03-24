@@ -74,7 +74,12 @@ export function FriendsList() {
         setSearching(false);
         return;
       }
-      if (!user?.id) return;
+      if (!user?.id) {
+        // Auth not ready yet — clear any loading state/results and bail out.
+        setSearchResults([]);
+        setSearching(false);
+        return;
+      }
       setSearching(true);
       const token = ++searchTokenRef.current;
       const { data, error } = await supabase
