@@ -1,6 +1,6 @@
 /**
  * PlayHistoryModal Component
- * 
+ *
  * Modal overlay displaying card-by-card play history
  * Features:
  * - Modal overlay positioned centrally
@@ -10,7 +10,7 @@
  * - Latest hand in current match highlighted
  * - Smooth animations for expand/collapse
  * - Close button
- * 
+ *
  * Created as part of Task #347: PlayHistoryModal component
  * Date: December 12, 2025
  */
@@ -19,11 +19,12 @@ import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { PlayHistoryModalProps, PlayHistoryMatch, PlayHistoryHand } from '../../types/scoreboard';
 import { i18n } from '../../i18n';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 import HandCard from './components/HandCard';
 import { usePlayHistoryModalStyles } from './hooks/useResponsiveStyles';
 
 // Type for FlatList items (header, current match, past matches)
-type ListItem = 
+type ListItem =
   | { type: 'current'; data: PlayHistoryMatch }
   | { type: 'divider' }
   | { type: 'pastHeader' }
@@ -43,21 +44,21 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
 }) => {
   // Use responsive styles
   const styles = usePlayHistoryModalStyles();
-  
+
   // Separate past and current matches (sorted once)
   const pastMatches = useMemo(() => {
     return playHistory
-      .filter((m) => m.matchNumber < currentMatch)
+      .filter(m => m.matchNumber < currentMatch)
       .sort((a, b) => b.matchNumber - a.matchNumber); // Newest first
   }, [playHistory, currentMatch]);
-  
-  const currentMatchData = playHistory.find((m) => m.matchNumber === currentMatch);
-  
+
+  const currentMatchData = playHistory.find(m => m.matchNumber === currentMatch);
+
   // Memoize reversed hands for current match (performance optimization)
   const currentMatchReversedHands = useMemo(() => {
     return currentMatchData?.hands ? [...currentMatchData.hands].reverse() : [];
   }, [currentMatchData?.hands]);
-  
+
   // Memoize reversed hands for each past match (performance optimization)
   const pastMatchReversedHands = useMemo(() => {
     const map = new Map<number, PlayHistoryHand[]>();
@@ -70,26 +71,26 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
   // Build flat list data (memoized for performance)
   const listData = useMemo(() => {
     const items: ListItem[] = [];
-    
+
     // Current match
     if (currentMatchData) {
       items.push({ type: 'current', data: currentMatchData });
     }
-    
+
     // Divider and past header if there are past matches
     if (pastMatches.length > 0) {
       items.push({ type: 'divider' });
       items.push({ type: 'pastHeader' });
-      
+
       // Add past matches (already sorted)
-      pastMatches.forEach((match) => {
+      pastMatches.forEach(match => {
         items.push({ type: 'pastMatch', data: match, matchNumber: match.matchNumber });
       });
     }
-    
+
     return items;
   }, [currentMatchData, pastMatches]);
-  
+
   // Key extractor
   const keyExtractor = useCallback((item: ListItem, index: number) => {
     if (item.type === 'current') return 'current-match';
@@ -98,138 +99,139 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
     if (item.type === 'pastMatch') return `match-${item.matchNumber}`;
     return `item-${index}`;
   }, []);
-  
-  // Render item (memoized)
-  const renderItem = useCallback(({ item }: { item: ListItem }) => {
-    if (item.type === 'current') {
-      return (
-        <View style={[styles.matchCard, styles.matchCardCurrent]}>
-          {/* Match Header - Task #376: Make collapsible */}
-          <TouchableOpacity
-            style={styles.matchCardHeader}
-            onPress={() => onToggleMatch(currentMatch)}
-            activeOpacity={0.7}
-            accessibilityLabel={`${collapsedMatches.has(currentMatch) ? 'Expand' : 'Collapse'} current match`}
-            accessibilityHint={`${collapsedMatches.has(currentMatch) ? 'Show' : 'Hide'} card plays for current match`}
-            accessibilityRole="button"
-          >
-            <View style={styles.matchCardHeaderTouchable}>
-              <Text style={styles.matchCardTitle}>
-                {i18n.t('game.matchCurrentLabel', { n: currentMatch })}
-              </Text>
-              <Text style={styles.matchCardIcon}>
-                {collapsedMatches.has(currentMatch) ? '▶' : '▼'}
-              </Text>
-            </View>
-          </TouchableOpacity>
 
-          {/* Hands - Task #376: Collapsible */}
-          {!collapsedMatches.has(currentMatch) && (
-            <View style={styles.matchCardContent}>
-              {item.data.hands.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
-                  {i18n.t('game.noCardsThisMatch')}
+  // Render item (memoized)
+  const renderItem = useCallback(
+    ({ item }: { item: ListItem }) => {
+      if (item.type === 'current') {
+        return (
+          <View style={[styles.matchCard, styles.matchCardCurrent]}>
+            {/* Match Header - Task #376: Make collapsible */}
+            <TouchableOpacity
+              style={styles.matchCardHeader}
+              onPress={() => onToggleMatch(currentMatch)}
+              activeOpacity={0.7}
+              accessibilityLabel={`${collapsedMatches.has(currentMatch) ? 'Expand' : 'Collapse'} current match`}
+              accessibilityHint={`${collapsedMatches.has(currentMatch) ? 'Show' : 'Hide'} card plays for current match`}
+              accessibilityRole="button"
+            >
+              <View style={styles.matchCardHeaderTouchable}>
+                <Text style={styles.matchCardTitle}>
+                  {i18n.t('game.matchCurrentLabel', { n: currentMatch })}
                 </Text>
-                <Text style={styles.emptyStateTextSmall}>
-                  {i18n.t('game.cardsWillAppear')}
+                <Text style={styles.matchCardIcon}>
+                  {collapsedMatches.has(currentMatch) ? '▶' : '▼'}
                 </Text>
               </View>
-            ) : (
-              // Task #377: Use memoized reversed hands array (performance optimized)
-              currentMatchReversedHands.map((hand: PlayHistoryHand, index: number) => {
-                const originalIndex = item.data.hands.length - 1 - index;
-                const isLatest = originalIndex === item.data.hands.length - 1;
-                const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
-                
-                return (
-                  <HandCard
-                    key={`current-hand-${originalIndex}`}
-                    hand={hand}
-                    playerName={playerName}
-                    isLatest={isLatest}
-                    isCurrentMatch={true}
-                  />
-                );
-              })
-            )}
-            </View>
-          )}
-        </View>
-      );
-    }
-    
-    if (item.type === 'divider') {
-      return <View style={styles.divider} />;
-    }
-    
-    if (item.type === 'pastHeader') {
-      return (
-        <Text style={styles.pastMatchesHeaderText}>
-          {i18n.t('game.pastMatchesHeader')}
-        </Text>
-      );
-    }
-    
-    if (item.type === 'pastMatch') {
-      const match = item.data;
-      const isCollapsed = collapsedMatches.has(match.matchNumber);
-      
-      return (
-        <View style={styles.matchCard}>
-          {/* Match Header (Touchable) */}
-          <TouchableOpacity
-            style={styles.matchCardHeader}
-            onPress={() => onToggleMatch(match.matchNumber)}
-            activeOpacity={0.7}
-            accessibilityLabel={`${isCollapsed ? 'Expand' : 'Collapse'} match ${match.matchNumber}`}
-            accessibilityHint={`${isCollapsed ? 'Show' : 'Hide'} card plays for this match`}
-            accessibilityRole="button"
-          >
-            <View style={styles.matchCardHeaderTouchable}>
-              <Text style={styles.matchCardTitle}>
-                {i18n.t('game.matchNum', { n: match.matchNumber })}
-              </Text>
-              <Text style={styles.matchCardIcon}>
-                {isCollapsed ? '▶' : '▼'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {/* Hands (Collapsible) */}
-          {!isCollapsed && (
-            <View style={styles.matchCardContent}>
-              {match.hands.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>
-                    {i18n.t('game.noPlaysRecorded')}
-                  </Text>
-                </View>
-              ) : (
-                // Task #377: Use memoized reversed hands array (performance optimized)
-                (pastMatchReversedHands.get(match.matchNumber) || []).map((hand: PlayHistoryHand, index: number) => {
-                  const originalIndex = match.hands.length - 1 - index;
-                  const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
-                  
-                  return (
-                    <HandCard
-                      key={`match-${match.matchNumber}-hand-${originalIndex}`}
-                      hand={hand}
-                      playerName={playerName}
-                      isLatest={false}
-                      isCurrentMatch={false}
-                    />
-                  );
-                })
-              )}
-            </View>
-          )}
-        </View>
-      );
-    }
-    
-    return null;
-  }, [currentMatch, playerNames, collapsedMatches, onToggleMatch, styles, currentMatchReversedHands, pastMatchReversedHands]);
+            {/* Hands - Task #376: Collapsible */}
+            {!collapsedMatches.has(currentMatch) && (
+              <View style={styles.matchCardContent}>
+                {item.data.hands.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>{i18n.t('game.noCardsThisMatch')}</Text>
+                    <Text style={styles.emptyStateTextSmall}>{i18n.t('game.cardsWillAppear')}</Text>
+                  </View>
+                ) : (
+                  // Task #377: Use memoized reversed hands array (performance optimized)
+                  currentMatchReversedHands.map((hand: PlayHistoryHand, index: number) => {
+                    const originalIndex = item.data.hands.length - 1 - index;
+                    const isLatest = originalIndex === item.data.hands.length - 1;
+                    const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
+
+                    return (
+                      <HandCard
+                        key={`current-hand-${originalIndex}`}
+                        hand={hand}
+                        playerName={playerName}
+                        isLatest={isLatest}
+                        isCurrentMatch={true}
+                      />
+                    );
+                  })
+                )}
+              </View>
+            )}
+          </View>
+        );
+      }
+
+      if (item.type === 'divider') {
+        return <View style={styles.divider} />;
+      }
+
+      if (item.type === 'pastHeader') {
+        return <Text style={styles.pastMatchesHeaderText}>{i18n.t('game.pastMatchesHeader')}</Text>;
+      }
+
+      if (item.type === 'pastMatch') {
+        const match = item.data;
+        const isCollapsed = collapsedMatches.has(match.matchNumber);
+
+        return (
+          <View style={styles.matchCard}>
+            {/* Match Header (Touchable) */}
+            <TouchableOpacity
+              style={styles.matchCardHeader}
+              onPress={() => onToggleMatch(match.matchNumber)}
+              activeOpacity={0.7}
+              accessibilityLabel={`${isCollapsed ? 'Expand' : 'Collapse'} match ${match.matchNumber}`}
+              accessibilityHint={`${isCollapsed ? 'Show' : 'Hide'} card plays for this match`}
+              accessibilityRole="button"
+            >
+              <View style={styles.matchCardHeaderTouchable}>
+                <Text style={styles.matchCardTitle}>
+                  {i18n.t('game.matchNum', { n: match.matchNumber })}
+                </Text>
+                <Text style={styles.matchCardIcon}>{isCollapsed ? '▶' : '▼'}</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Hands (Collapsible) */}
+            {!isCollapsed && (
+              <View style={styles.matchCardContent}>
+                {match.hands.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>{i18n.t('game.noPlaysRecorded')}</Text>
+                  </View>
+                ) : (
+                  // Task #377: Use memoized reversed hands array (performance optimized)
+                  (pastMatchReversedHands.get(match.matchNumber) || []).map(
+                    (hand: PlayHistoryHand, index: number) => {
+                      const originalIndex = match.hands.length - 1 - index;
+                      const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
+
+                      return (
+                        <HandCard
+                          key={`match-${match.matchNumber}-hand-${originalIndex}`}
+                          hand={hand}
+                          playerName={playerName}
+                          isLatest={false}
+                          isCurrentMatch={false}
+                        />
+                      );
+                    }
+                  )
+                )}
+              </View>
+            )}
+          </View>
+        );
+      }
+
+      return null;
+    },
+    [
+      currentMatch,
+      playerNames,
+      collapsedMatches,
+      onToggleMatch,
+      styles,
+      currentMatchReversedHands,
+      pastMatchReversedHands,
+    ]
+  );
 
   return (
     <Modal
@@ -238,22 +240,18 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent={true}
-      supportedOrientations={['portrait', 'landscape']}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       {/* Overlay */}
       <View style={styles.modalOverlay}>
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
+
         {/* Modal Container (prevent close on tap) */}
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>📜 {i18n.t('gameEnd.playHistory')}</Text>
-            
+
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={onClose}
@@ -268,9 +266,7 @@ export const PlayHistoryModal: React.FC<PlayHistoryModalProps> = ({
           {/* Content - Optimized FlatList */}
           {playHistory.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {i18n.t('game.noPlayHistoryYet')}
-              </Text>
+              <Text style={styles.emptyStateText}>{i18n.t('game.noPlayHistoryYet')}</Text>
             </View>
           ) : (
             <FlatList
