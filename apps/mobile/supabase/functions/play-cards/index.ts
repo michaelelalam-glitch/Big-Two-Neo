@@ -1146,10 +1146,25 @@ Deno.serve(async (req) => {
     // By excluding 'cards' from played_cards, we correctly identify all cards that COULD beat this play.
     // If no unplayed cards can beat it, we know this is the highest possible play and trigger auto-pass.
     const isHighestPlay = isHighestPossiblePlay(cards, played_cards);
+
+    // Check if all opponents have fewer cards than needed to form this combo type.
+    // E.g., if a 5-card combo is played and all opponents have < 5 cards, no one can respond.
+    // Same logic applies for triples (< 3 cards) and pairs (< 2 cards).
+    const comboSize = cards.length;
+    const allOpponentsCantRespond = comboSize >= 2 && Object.entries(updatedHands)
+      .filter(([idx]) => Number(idx) !== player.player_index)
+      .every(([, hand]) => {
+        const handArr = Array.isArray(hand) ? hand : [];
+        return handArr.length > 0 && handArr.length < comboSize;
+      });
+
+    const shouldTriggerAutoPass = isHighestPlay || allOpponentsCantRespond;
     let autoPassTimerState = null;
 
     console.log('⏰ Auto-pass timer check:', {
       isHighestPlay,
+      allOpponentsCantRespond,
+      shouldTriggerAutoPass,
       cardsLength: cards.length,
       cardsPlayed: cards.map(c => c.id),
       totalPlayedCards: updatedPlayedCards.length,
@@ -1161,7 +1176,7 @@ Deno.serve(async (req) => {
     // there's no one left to auto-pass. Creating a timer here causes the client-side
     // AutoPassTimer to loop at remaining=0 indefinitely, spamming logs and potentially
     // blocking the start_new_match transition.
-    if (isHighestPlay && !matchEnded) {
+    if (shouldTriggerAutoPass && !matchEnded) {
       const serverTimeMs = Date.now();
       const durationMs = 10000; // 10 seconds
       const endTimestamp = serverTimeMs + durationMs;
@@ -1192,11 +1207,12 @@ Deno.serve(async (req) => {
         sequenceId,
         cards: cards.map(c => c.id),
         comboType,
+        reason: isHighestPlay ? 'unbeatable_combo' : 'opponents_cant_respond',
       });
     } else if (matchEnded) {
       console.log('ℹ️ Auto-pass timer NOT created - match ended (player played last card)');
     } else {
-      console.log('ℹ️ Auto-pass timer NOT created - not highest play');
+      console.log('ℹ️ Auto-pass timer NOT created - not highest play and opponents can respond');
     }
 
     // 14. Update game state (including timer and match winner)
@@ -1357,7 +1373,7 @@ Deno.serve(async (req) => {
         cards_remaining: updatedHand.length,
         match_ended: matchEnded,
         auto_pass_timer: autoPassTimerState,
-        highest_play_detected: isHighestPlay,
+        highest_play_detected: shouldTriggerAutoPass,
         match_scores: matchScores,
         game_over: gameOver,
         final_winner_index: finalWinnerIndex,
