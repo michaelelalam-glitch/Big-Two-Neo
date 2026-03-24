@@ -422,7 +422,7 @@ function isHighestRemainingFiveCardCombo(
   }
 
   // Same strength - check if this is the best of this type
-  const remaining = getRemainingCards(playedCards);
+  const remaining = getRemainingCards(playedCards).filter(c => !cards.some(p => p.id === c.id));
   const sorted = sortHand(cards);
 
   switch (type) {
