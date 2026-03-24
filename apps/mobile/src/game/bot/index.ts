@@ -201,13 +201,7 @@ export class BotAI {
     nextPlayerIndex?: number
   ): BotPlayResult {
     const sorted = sortHand(hand);
-    // Compute opponent card counts by index, excluding the current player and empty hands
-    const activeOpponentCounts = playerCardCounts.filter(
-      (count, index) => index !== currentPlayerIndex && count > 0
-    );
-    const minOpponentCards =
-      activeOpponentCounts.length > 0 ? Math.min(...activeOpponentCounts) : 0;
-
+    // Determine next active opponent and their card count using the provided playerCardCounts
     // CRITICAL: Check "One Card Left" rule when leading
     // Use pre-computed nextPlayerIndex when provided (multiplayer uses sequential turn order),
     // otherwise fall back to anticlockwise turn order (local games).

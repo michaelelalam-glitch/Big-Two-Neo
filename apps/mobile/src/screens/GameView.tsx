@@ -47,8 +47,16 @@ import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
 import { useFriendsContext } from '../contexts/FriendsContext';
 import { AddFriendButton } from '../components/friends';
+import { useUserPreferencesStore } from '../store';
+import { LAYOUT } from '../constants';
 
 function GameViewComponent() {
+  const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
+  const throwableClipSize = useMemo(() => {
+    const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+    return Math.round(LAYOUT.avatarSize * (scaleMap[profilePhotoSize] ?? 1.0));
+  }, [profilePhotoSize]);
+
   const {
     isLocalAIGame,
     currentOrientation,
@@ -554,10 +562,22 @@ function GameViewComponent() {
               />
               {/* Throwable effect overlay for local player (display index 0) */}
               {throwableActiveEffects?.[0] != null && (
-                <ThrowablePlayerEffect
-                  key={throwableActiveEffects[0]!.id}
-                  throwable={throwableActiveEffects[0]!.throwable}
-                />
+                <View
+                  pointerEvents="none"
+                  style={{
+                    width: throwableClipSize,
+                    height: throwableClipSize,
+                    borderRadius: throwableClipSize / 2,
+                    position: 'absolute',
+                    top: 0,
+                    alignSelf: 'center',
+                  }}
+                >
+                  <ThrowablePlayerEffect
+                    key={throwableActiveEffects[0]!.id}
+                    throwable={throwableActiveEffects[0]!.throwable}
+                  />
+                </View>
               )}
             </View>
 

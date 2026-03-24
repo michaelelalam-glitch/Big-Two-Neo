@@ -502,6 +502,7 @@ function CardHandComponent({
       onPlayCards,
       onSelectionChange,
       onCardsReorder,
+      scheduleOptimisticRollback,
     ]
   );
 
@@ -583,6 +584,7 @@ function CardHandComponent({
           {/* Main actions */}
           <View style={styles.mainActions}>
             <Pressable
+              testID="pass-button"
               style={[styles.button, styles.passButton, !canPlay && styles.buttonDisabled]}
               onPress={handlePass}
               disabled={!canPlay || disabled}

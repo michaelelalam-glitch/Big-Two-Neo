@@ -37,7 +37,8 @@ tags:
     visible: "Choose a game to play"
     timeout: 15000
 
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000

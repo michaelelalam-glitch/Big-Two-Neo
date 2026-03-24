@@ -15,7 +15,8 @@ tags:
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 15000
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 - extendedWaitUntil:
     visible: "Big2 Mobile"
     timeout: 10000
@@ -35,16 +36,16 @@ tags:
     visible: "Big2 Mobile"
     timeout: 10000
 
-# Step 5: Navigate to Settings (gear icon ⚙️ in top bar)
-# The gear renders as a visual glyph, tap by the unicode character
-- tapOn: "⚙️"
+# Step 5: Navigate to Settings (gear icon in top bar)
+- tapOn:
+    id: "home-settings-button"
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 10000
 
 # Step 6: Verify settings sections
 - assertVisible: "Game Settings"
-- assertVisible: "Card Sort Order"
+- assertVisible: "Auto Pass Timer"
 
 # Step 7: Take screenshot
 - takeScreenshot: "08_settings"

@@ -636,15 +636,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         setError(error);
         // FIX: Skip onError for bot plays (playerIndex provided) — bot errors are handled
         // by BotCoordinator's own catch block.
-        if (playerIndex === undefined) {
-          onError?.(error);
-        } else {
+        // FIX: Also skip onError for human plays — the error is re-thrown to the caller
+        // (useGameActions) which handles display. Calling onError here AND re-throwing
+        // caused duplicate error popups.
+        if (playerIndex !== undefined) {
           gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
         }
         throw error;
       }
     },
-    [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage]
+    [gameState, currentPlayer, roomPlayers, room, broadcastMessage]
   );
 
   /**
@@ -671,15 +672,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         const error = err as Error;
         setError(error);
         // FIX: Skip onError for bot passes (playerIndex provided) — same rationale as playCards.
-        if (playerIndex === undefined) {
-          onError?.(error);
-        } else {
+        // FIX: Also skip onError for human passes — the error is re-thrown to the caller
+        // (useGameActions) which handles display. Calling onError here AND re-throwing
+        // caused duplicate error popups.
+        if (playerIndex !== undefined) {
           gameLogger.warn('[useRealtime] ⚠️ Bot pass error (suppressed from UI):', error.message);
         }
         throw error;
       }
     },
-    [gameState, currentPlayer, roomPlayers, room, onError, broadcastMessage, isAutoPassInProgress]
+    [gameState, currentPlayer, roomPlayers, room, broadcastMessage, isAutoPassInProgress]
   );
 
   /**

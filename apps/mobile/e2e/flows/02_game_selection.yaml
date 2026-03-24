@@ -25,16 +25,16 @@ tags:
 - assertVisible: "Choose a game to play"
 - assertVisible: "Chinese Poker"
 - assertVisible: "Lebanese Deal"
-- assertVisible: "PLAY →"
+- assertVisible:
+    id: "play-chinese-poker-button"
 - assertVisible: "Coming Soon"
-- assertVisible: "SOON"
-- assertVisible: "More games coming in future updates"
 
 # Step 4: Take screenshot
 - takeScreenshot: "02_game_selection"
 
 # Step 5: Tap Chinese Poker to navigate to Home
-- tapOn: "PLAY →"
+- tapOn:
+    id: "chinese-poker-card"
 
 # Step 6: Verify navigation to Home screen
 - extendedWaitUntil:

@@ -26,7 +26,7 @@ tags:
 - assertVisible:
     id: "sign-in-title"
 
-# Step 4: Verify Google sign-in button is tappable (present and not disabled)
+# Step 4: Verify Google sign-in button is visible (presence check only — does not verify enabled state)
 - assertVisible:
     id: "google-sign-in-button"
 

@@ -30,6 +30,8 @@ export function usePresence(): UsePresenceResult {
   const showOnlineStatus = useUserPreferencesStore(s => s.showOnlineStatus);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const showOnlineStatusRef = useRef(showOnlineStatus);
+  showOnlineStatusRef.current = showOnlineStatus;
 
   const updateOnlineSet = useCallback((presenceState: Record<string, { user_id?: string }[]>) => {
     const ids = new Set<string>();
@@ -80,6 +82,8 @@ export function usePresence(): UsePresenceResult {
       })
       .subscribe(async status => {
         if (status === 'SUBSCRIBED') {
+          // Only track presence on initial subscribe if online status is enabled
+          if (!showOnlineStatusRef.current) return;
           try {
             await channel.track({ user_id: user.id });
           } catch (error) {
