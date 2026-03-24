@@ -164,9 +164,7 @@ export function MultiplayerGame() {
             botCleanupError.message
           );
         }
-        // 2. Create new room AND join atomically via get_or_create_room RPC.
-        // This prevents the race condition where navigating to the Lobby before
-        // the user is in room_players triggers the "kicked by host" detection.
+
         if (!info) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
@@ -176,6 +174,64 @@ export function MultiplayerGame() {
         }
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
+
+        // 2. Listen for a "play_again_room" broadcast from another player who
+        //    already created a room. Wait up to 2 seconds before falling back
+        //    to creating our own room.
+        let receivedRoomCode: string | null = null;
+
+        if (info.id) {
+          const playAgainChannel = supabase.channel(`play-again:${info.id}`);
+          receivedRoomCode = await new Promise<string | null>(resolve => {
+            const timeout = setTimeout(() => {
+              supabase.removeChannel(playAgainChannel);
+              resolve(null);
+            }, 2000);
+
+            playAgainChannel
+              .on('broadcast', { event: 'play_again_room' }, payload => {
+                clearTimeout(timeout);
+                const code = payload?.payload?.room_code as string | undefined;
+                if (code) {
+                  gameLogger.info('🔄 [MultiplayerGame] Received play_again_room broadcast:', code);
+                  resolve(code);
+                } else {
+                  resolve(null);
+                }
+                supabase.removeChannel(playAgainChannel);
+              })
+              .subscribe();
+          });
+        }
+
+        if (receivedRoomCode) {
+          // Another player already created a room — join it
+          gameLogger.info(
+            '🔄 [MultiplayerGame] Play Again → Joining existing room:',
+            receivedRoomCode
+          );
+          const { error: joinError } = await supabase.rpc('join_room_atomic', {
+            p_room_code: receivedRoomCode,
+            p_user_id: user.id,
+            p_username: username,
+          });
+
+          if (joinError) {
+            gameLogger.warn(
+              '⚠️ [MultiplayerGame] Failed to join broadcasted room, creating new one:',
+              joinError.message
+            );
+            // Fall through to create own room
+          } else {
+            navigation.reset({
+              index: 1,
+              routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: receivedRoomCode } }],
+            });
+            return;
+          }
+        }
+
+        // 3. Create new room AND join atomically via get_or_create_room RPC.
         const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
           p_user_id: user.id,
           p_username: username,
@@ -200,6 +256,28 @@ export function MultiplayerGame() {
         }
 
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', result.room_code);
+
+        // 4. Broadcast the new room code to other players on the old room channel
+        if (info.id) {
+          const broadcastChannel = supabase.channel(`play-again:${info.id}`);
+          broadcastChannel.subscribe(async status => {
+            if (status === 'SUBSCRIBED') {
+              await broadcastChannel.send({
+                type: 'broadcast',
+                event: 'play_again_room',
+                payload: { room_code: result.room_code },
+              });
+              gameLogger.info(
+                '📡 [MultiplayerGame] Broadcasted play_again_room:',
+                result.room_code
+              );
+              // Keep channel alive for 5 seconds so late joiners can receive it
+              setTimeout(() => {
+                supabase.removeChannel(broadcastChannel);
+              }, 5000);
+            }
+          });
+        }
 
         // Navigate to the Lobby with the new room code
         navigation.reset({
