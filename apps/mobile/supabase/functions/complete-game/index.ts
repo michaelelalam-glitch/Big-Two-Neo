@@ -746,9 +746,15 @@ async function broadcastGameEnded(
     }
 
     const statsUpdatePromises = realPlayerData.map(async (player) => {
+      // Guard: skip players with missing/invalid user_id (e.g. corrupted payload)
+      if (!player.user_id || typeof player.user_id !== 'string') {
+        console.error(`[Complete Game] Skipping stats for player with invalid user_id:`, player.username, player.user_id);
+        return { user_id: player.user_id ?? 'unknown', success: false, error: 'Missing or invalid user_id' };
+      }
+
       const won = player.user_id === gameData.winner_id;
 
-      console.log(`[Complete Game] Updating stats for ${player.username}: won=${won}, position=${player.finish_position}, disconnected=${player.disconnected}`);
+      console.log(`[Complete Game] Updating stats for ${player.username} (${player.user_id}): won=${won}, position=${player.finish_position}, score=${player.score}, combos=${JSON.stringify(player.combos_played)}, cards_left=${player.cards_left}, disconnected=${player.disconnected}`);
 
       // A player is voided when they were the last human to leave an unfinished game.
       // serverVoidedPlayerId is computed from room_players above — never from the client.
@@ -770,19 +776,19 @@ async function broadcastGameEnded(
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
         p_user_id: player.user_id,
         p_won: won,
-        p_finish_position: player.finish_position,
+        p_finish_position: player.finish_position ?? 4,
         p_score: effectiveScore,
-        p_combos_played: player.combos_played,
+        p_combos_played: player.combos_played ?? {},
         p_game_type: gameData.game_type,
         p_completed: isCompleted,
-        p_cards_left: player.cards_left,
+        p_cards_left: player.cards_left ?? 0,
         p_voided: isVoided,
         p_bot_multiplier: botMultiplier,
         p_ranked_elo_change: rankedEloDeltaMap.get(player.user_id) ?? 0,
       });
 
       if (statsError) {
-        console.error(`[Complete Game] Failed to update stats for ${player.username}:`, statsError);
+        console.error(`[Complete Game] Failed to update stats for ${player.username} (${player.user_id}):`, JSON.stringify(statsError));
         return { user_id: player.user_id, success: false, error: statsError.message };
       }
 
@@ -836,7 +842,9 @@ async function broadcastGameEnded(
     }
 
     if (failedStats.length > 0) {
-      console.error('[Complete Game] Some stats updates failed:', failedStats);
+      console.error('[Complete Game] Some stats updates failed:', JSON.stringify(failedStats));
+      console.error('[Complete Game] Game context: room_id=%s, game_type=%s, player_count=%d, game_completed=%s',
+        gameData.room_id, gameData.game_type, realPlayerData.length, gameData.game_completed);
       return new Response(
         JSON.stringify({ 
           error: 'Partial failure updating stats', 
