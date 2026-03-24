@@ -163,13 +163,21 @@ export function MultiplayerGame() {
         // 2. Create new room AND join atomically via get_or_create_room RPC.
         // This prevents the race condition where navigating to the Lobby before
         // the user is in room_players triggers the "kicked by host" detection.
+        if (!info) {
+          gameLogger.error(
+            '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
+          );
+          showError('Unable to create a new game room right now. Please try again.');
+          return;
+        }
+
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
         const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
           p_user_id: user.id,
           p_username: username,
-          p_is_public: info?.is_public ?? true,
-          p_is_matchmaking: info?.is_public ?? true,
-          p_ranked_mode: info?.ranked_mode ?? false,
+          p_is_public: info.is_public,
+          p_is_matchmaking: info.is_public,
+          p_ranked_mode: info.ranked_mode,
         });
 
         const result = roomResult as {
