@@ -752,6 +752,8 @@ export interface Translations {
     requestReceived: string;
     inviteFriends: string;
     noFriendsToInvite: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
 
   notifications: {
@@ -1453,6 +1455,8 @@ const en: Translations = {
     requestReceived: 'Request Received',
     inviteFriends: '👥 Invite Friends',
     noFriendsToInvite: 'All your friends are already in this room.',
+    searchPlaceholder: 'Search players by username...',
+    noResults: 'No players found',
   },
   notifications: {
     title: '🔔 Notifications',
@@ -2171,6 +2175,8 @@ const ar: Translations = {
     requestReceived: 'طلب مستلم',
     inviteFriends: '👥 دعوة الأصدقاء',
     noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
+    searchPlaceholder: 'ابحث عن لاعبين باسم المستخدم...',
+    noResults: 'لم يتم العثور على لاعبين',
   },
   notifications: {
     title: '🔔 الإشعارات',
@@ -2916,6 +2922,8 @@ const de: Translations = {
     requestReceived: 'Anfrage erhalten',
     inviteFriends: '👥 Freunde einladen',
     noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',
+    searchPlaceholder: 'Spieler nach Benutzernamen suchen...',
+    noResults: 'Keine Spieler gefunden',
   },
   notifications: {
     title: '🔔 Benachrichtigungen',
