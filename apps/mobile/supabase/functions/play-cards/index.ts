@@ -529,25 +529,10 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     }
   }
   
-  // Check if same combo type but stronger exists
-  const sameTypeCombos = generateCombosOfType(notInCurrent, comboType as ComboType);
-  if (sameTypeCombos.length === 0) {
-    return true;
-  }
-  
-  const sorted = sortHand(cards);
-  const highest = sorted[sorted.length - 1];
-  
-  for (const combo of sameTypeCombos) {
-    const comboSorted = sortHand(combo);
-    const comboHighest = comboSorted[comboSorted.length - 1];
-    
-    if (getCardValue(comboHighest) > getCardValue(highest)) {
-      return false;
-    }
-  }
-  
-  return true;
+  // Cannot enumerate all same-type combos server-side (expensive combinatorial
+  // expansion). Conservatively return false rather than falsely claiming a play
+  // is highest — the client-side highest-play-detector handles the full check.
+  return false;
 }
 
 function canFormCombo(cards: Card[], comboType: ComboType): boolean {
@@ -578,8 +563,11 @@ function canFormStraightFlush(cards: Card[]): boolean {
   
   for (const suit in bySuit) {
     if (bySuit[suit].length >= 5) {
-      const straightInfo = isStraight(bySuit[suit].slice(0, 5));
-      if (straightInfo.valid) return true;
+      // Check all valid straight sequences within this suit's cards
+      const suitRanks = new Set(bySuit[suit].map(c => c.rank));
+      for (const seq of VALID_STRAIGHT_SEQUENCES) {
+        if (seq.every(r => suitRanks.has(r))) return true;
+      }
     }
   }
   return false;
@@ -614,9 +602,9 @@ function canFormStraight(cards: Card[]): boolean {
   return false;
 }
 
-function generateCombosOfType(cards: Card[], comboType: ComboType): Card[][] {
-  // Simplified implementation - return empty for now
-  // Full implementation would generate all possible combos of that type
+function generateCombosOfType(_cards: Card[], _comboType: ComboType): Card[][] {
+  // Stub — full combinatorial generation is handled client-side.
+  // isHighestRemainingFiveCardCombo uses conservative return false instead.
   return [];
 }
 

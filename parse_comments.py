@@ -1,5 +1,9 @@
 import json, sys
 
+if len(sys.argv) < 2:
+    print("Usage: python parse_comments.py <json_file>")
+    sys.exit(1)
+
 with open(sys.argv[1]) as f:
     data = json.load(f)
 

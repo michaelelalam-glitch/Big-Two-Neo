@@ -55,6 +55,9 @@ export function FriendsList() {
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  // Token to discard stale search responses — incremented on every new query so
+  // a slow older response never overwrites a newer result.
+  const searchTokenRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -72,6 +75,7 @@ export function FriendsList() {
         return;
       }
       setSearching(true);
+      const token = ++searchTokenRef.current;
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username')
@@ -79,6 +83,8 @@ export function FriendsList() {
         .neq('id', user?.id ?? '')
         .limit(10);
       if (!mountedRef.current) return;
+      // Discard stale responses — only apply if this is still the latest query.
+      if (token !== searchTokenRef.current) return;
       if (!error && data) {
         setSearchResults(data as SearchResult[]);
       } else {

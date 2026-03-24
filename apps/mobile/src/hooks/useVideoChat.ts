@@ -411,6 +411,10 @@ export function useVideoChat({
     };
   }, []);
 
+  // Tracks when the restore async IIFE has fully finished (connected + tracks enabled)
+  // so the auto-connect effect below doesn't race with an in-flight restore.
+  const hasRestoreFinishedRef = useRef(false);
+
   // ── Auto-restore chat prefs on mount (Task: remember mic/camera on reconnect) ──
   // Reads stored camera/mic prefs from AsyncStorage and auto-enables media when
   // the player returns to a room where they previously had chat active.
@@ -423,9 +427,15 @@ export function useVideoChat({
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(chatPrefsKey);
-        if (!stored || cancelled) return;
+        if (!stored || cancelled) {
+          hasRestoreFinishedRef.current = true;
+          return;
+        }
         const prefs = JSON.parse(stored) as { camera?: boolean; mic?: boolean };
-        if (!prefs.camera && !prefs.mic) return;
+        if (!prefs.camera && !prefs.mic) {
+          hasRestoreFinishedRef.current = true;
+          return;
+        }
 
         desiredCameraRef.current = !!prefs.camera;
         desiredMicRef.current = !!prefs.mic;
@@ -444,7 +454,10 @@ export function useVideoChat({
         if (prefs.camera) {
           try {
             await adapterRef.current.enableCamera();
-            if (!cancelled) setIsLocalCameraOn(true);
+            if (!cancelled) {
+              setIsLocalCameraOn(true);
+              setCameraPermissionStatus('granted');
+            }
           } catch (err) {
             gameLogger.warn(
               '[VideoChat] Auto-restore camera failed:',
@@ -455,7 +468,10 @@ export function useVideoChat({
         if (prefs.mic) {
           try {
             await adapterRef.current.enableMicrophone();
-            if (!cancelled) setIsLocalMicOn(true);
+            if (!cancelled) {
+              setIsLocalMicOn(true);
+              setMicPermissionStatus('granted');
+            }
           } catch (err) {
             gameLogger.warn(
               '[VideoChat] Auto-restore mic failed:',
@@ -473,6 +489,8 @@ export function useVideoChat({
           '[VideoChat] Auto-restore chat prefs failed:',
           err instanceof Error ? err.message : String(err)
         );
+      } finally {
+        hasRestoreFinishedRef.current = true;
       }
     })();
 
@@ -492,8 +510,9 @@ export function useVideoChat({
   const hasAutoConnectedRef = useRef(false);
   useEffect(() => {
     if (!autoConnect || !roomId || !userId || hasAutoConnectedRef.current) return;
-    // Wait for restore attempt to complete before deciding.
-    if (!hasRestoredPrefsRef.current) return;
+    // Wait for restore async IIFE to finish before deciding — prevents duplicate
+    // connect() calls when restore is still in-flight.
+    if (!hasRestoreFinishedRef.current) return;
     // If restore already connected us, skip.
     if (isChatConnected) {
       hasAutoConnectedRef.current = true;

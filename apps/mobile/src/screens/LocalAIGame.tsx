@@ -5,7 +5,6 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +34,8 @@ import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import { InGameAlert } from '../components/game/InGameAlert';
+import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/InGameAlert';
 import { GameView } from './GameView';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -57,6 +58,12 @@ export function LocalAIGame() {
   const { openGameEndModal, setOnPlayAgain, setOnReturnToMenu } = useGameEnd();
   const { roomCode, forceNewGame = false, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
+
+  // In-game alert ref — orientation-aware replacement for Alert.alert
+  const inGameAlertRef = useRef<InGameAlertHandle>(null);
+  const showInGameAlert = useCallback((options: InGameAlertOptions) => {
+    inGameAlertRef.current?.show(options);
+  }, []);
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -361,16 +368,7 @@ export function LocalAIGame() {
       sendThrowable: () => {},
       isThrowCooldown: false,
       cooldownRemaining: 0,
-      showInGameAlert: opts =>
-        Alert.alert(
-          opts.title ?? 'Alert',
-          opts.message,
-          opts.buttons?.map(button => ({
-            text: button.text,
-            onPress: button.onPress,
-            style: button.style,
-          }))
-        ),
+      showInGameAlert,
     }),
     [
       currentOrientation,
@@ -418,12 +416,16 @@ export function LocalAIGame() {
       isPlayerReady,
       gameManagerRef,
       isMountedRef,
+      showInGameAlert,
     ]
   );
 
   return (
-    <GameContextProvider value={gameContextValue}>
-      <GameView />
-    </GameContextProvider>
+    <>
+      <GameContextProvider value={gameContextValue}>
+        <GameView />
+      </GameContextProvider>
+      <InGameAlert ref={inGameAlertRef} orientation={currentOrientation} />
+    </>
   );
 }

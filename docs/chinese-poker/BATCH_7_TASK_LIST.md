@@ -147,12 +147,12 @@ Pending CI + Copilot review completion.
 
 | # | Task | Status | Priority |
 |---|------|--------|----------|
-| 1 | Fix Portrait Popup Orientation | ⬜ | High |
-| 2 | Remember Mic/Camera on Reconnect | ⬜ | High |
-| 3 | Other Players See/Hear Video/Mic | ⬜ | High |
-| 4 | Add Mic Toggle Button on Avatar | ⬜ | Medium |
-| 5 | Add Friend Search in Profile | ⬜ | Medium |
-| 6 | Landscape Matchmaking Screen | ⬜ | Medium |
-| 7 | Address PR 180 Comments | ⬜ | High |
-| 8 | CI/CD + Copilot Review Loop | ⬜ | High |
+| 1 | Fix Portrait Popup Orientation | ✅ | High |
+| 2 | Remember Mic/Camera on Reconnect | ✅ | High |
+| 3 | Other Players See/Hear Video/Mic | ✅ | High |
+| 4 | Add Mic Toggle Button on Avatar | ✅ | Medium |
+| 5 | Add Friend Search in Profile | ✅ | Medium |
+| 6 | Landscape Matchmaking Screen | ✅ | Medium |
+| 7 | Address PR 180 Comments | ✅ | High |
+| 8 | CI/CD + Copilot Review Loop | ✅ | High |
 | 9 | Merge to Chinese Poker | ⬜ | High |
