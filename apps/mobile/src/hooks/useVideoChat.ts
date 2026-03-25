@@ -435,12 +435,12 @@ export function useVideoChat({
       try {
         const stored = await AsyncStorage.getItem(chatPrefsKey);
         if (!stored || cancelled) {
-          setRestoreFinished(true);
+          if (!cancelled) setRestoreFinished(true);
           return;
         }
         const prefs = JSON.parse(stored) as { camera?: boolean; mic?: boolean };
         if (!prefs.camera && !prefs.mic) {
-          setRestoreFinished(true);
+          if (!cancelled) setRestoreFinished(true);
           return;
         }
 
@@ -497,7 +497,9 @@ export function useVideoChat({
           err instanceof Error ? err.message : String(err)
         );
       } finally {
-        setRestoreFinished(true);
+        if (!cancelled) {
+          setRestoreFinished(true);
+        }
       }
     })();
 
