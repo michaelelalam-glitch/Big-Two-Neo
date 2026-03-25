@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   },
   modalButtonContainerLandscape: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: SPACING.sm,
   },
   modalButtonLandscape: {
