@@ -1914,3 +1914,61 @@ describe('useVideoChat — autoConnect as listener', () => {
     expect(result.current.isChatConnected).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Persistence — toggles write/clear AsyncStorage
+// ---------------------------------------------------------------------------
+
+describe('useVideoChat — persistence on toggle', () => {
+  beforeEach(() => {
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+    (AsyncStorage.removeItem as jest.Mock).mockClear();
+    if (typeof (PermissionsAndroid as any).request !== 'function') {
+      (PermissionsAndroid as any).request = jest.fn();
+    }
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('calls setItem when camera is toggled on (opt-in)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const adapter = makeAdapter();
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      expect.stringContaining(ROOM_ID),
+      expect.stringContaining('"camera":true')
+    );
+  });
+
+  it('calls removeItem when camera is toggled off (both off)', async () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'ios' });
+    const adapter = makeAdapter();
+
+    const { result } = renderHook(() =>
+      useVideoChat({ roomId: ROOM_ID, userId: USER_ID, adapter })
+    );
+
+    // Opt in
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+    (AsyncStorage.removeItem as jest.Mock).mockClear();
+
+    // Opt out — both camera and mic off → removeItem
+    await act(async () => {
+      await result.current.toggleVideoChat();
+    });
+
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(expect.stringContaining(ROOM_ID));
+  });
+});

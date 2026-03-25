@@ -544,8 +544,13 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
 
 /** Check if the played SF is the highest remaining Straight Flush. */
 function isHighestRemainingStraightFlush(cards: Card[], notInCurrent: Card[]): boolean {
-  const sorted = sortHand(cards);
-  const myHighest = getCardValue(sorted[sorted.length - 1]);
+  // Compare by (seqIndex, suit) — same ordering as canBeatPlay.
+  // A-2-3-4-5 is seqIndex 0 (lowest), 10-J-Q-K-A is seqIndex 9 (highest).
+  const mySeqIdx = findStraightSequenceIndex(cards.map(c => c.rank));
+  if (mySeqIdx === -1) return false;
+  const myTopRank = VALID_STRAIGHT_SEQUENCES[mySeqIdx][4];
+  const myTopCard = cards.find(c => c.rank === myTopRank);
+  const mySuitValue = myTopCard ? SUIT_VALUE[myTopCard.suit] : 0;
 
   // Group remaining cards (excluding current play) by suit
   const bySuit: { [suit: string]: Set<string> } = {};
@@ -557,12 +562,12 @@ function isHighestRemainingStraightFlush(cards: Card[], notInCurrent: Card[]): b
   for (const suit in bySuit) {
     const ranks = bySuit[suit];
     if (ranks.size < 5) continue;
-    for (const seq of VALID_STRAIGHT_SEQUENCES) {
+    for (let seqIdx = 0; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+      const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
       if (seq.every(r => ranks.has(r))) {
-        // Build a virtual card for the highest rank in this sequence + suit
-        const highRank = seq[seq.length - 1];
-        const highValue = RANK_VALUE[highRank] * 10 + SUIT_VALUE[suit];
-        if (highValue > myHighest) return false;
+        // Compare by sequence index first, then by suit of the top-rank card
+        if (seqIdx > mySeqIdx) return false;
+        if (seqIdx === mySeqIdx && SUIT_VALUE[suit] > mySuitValue) return false;
       }
     }
   }
