@@ -64,6 +64,8 @@ interface LandscapeOpponentProps {
   onAvatarPress?: () => void;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
+  /** Whether this opponent is a bot (suppresses camera/mic indicators) */
+  isBot?: boolean;
   /** Video chat: camera actively streaming */
   isCameraOn?: boolean;
   /** Whether this player's mic is on (undefined = mic state unknown / not applicable) */
@@ -93,6 +95,7 @@ export function LandscapeOpponent({
   onCountdownExpired,
   onAvatarPress,
   onNameLongPress,
+  isBot = false,
   isCameraOn,
   isMicOn,
   onMicToggle,
@@ -184,7 +187,7 @@ export function LandscapeOpponent({
                 >
                   👤
                 </Text>
-                {isCameraOn === false && (
+                {isCameraOn === false && !isBot && (
                   <View style={styles.cameraOffBadge} pointerEvents="none">
                     <Text style={styles.cameraOffIcon}>📵</Text>
                   </View>
@@ -216,7 +219,7 @@ export function LandscapeOpponent({
             <CardCountBadge cardCount={cardCount} visible={true} />
           </View>
           {/* Mic toggle/indicator — mid-right of avatar (landscape) */}
-          {isMicOn !== undefined &&
+          {isMicOn !== undefined && !isBot &&
             (onMicToggle ? (
               <Pressable
                 style={styles.micToggleLandscape}
@@ -242,10 +245,10 @@ export function LandscapeOpponent({
                 <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
               </View>
             ))}
-          {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
+          {/* Total score badge positioned on avatar (top-left) - Task #590 */}
           {totalScore !== undefined && (
             <View
-              style={scoreDisplayStyles.scoreBadgePosition}
+              style={styles.scoreBadgeTopLeft}
               accessible={true}
               accessibilityRole="text"
               accessibilityLabel={`Score: ${formatScore(totalScore)}`}
@@ -447,6 +450,13 @@ const styles = StyleSheet.create({
   },
   cameraOffIcon: {
     fontSize: 10,
+  },
+  // Score badge at top-left (avoids overlap with camera-off badge at bottom-left)
+  scoreBadgeTopLeft: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    zIndex: 10,
   },
 });
 

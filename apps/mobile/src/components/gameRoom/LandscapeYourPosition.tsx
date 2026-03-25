@@ -94,46 +94,90 @@ export function LandscapeYourPosition({
   const [dragState, setDragState] = useState<DragState>(initialDragState);
   // Track last reported zone to avoid redundant callbacks (matches portrait CardHand)
   const lastZoneRef = useRef<DragZoneState>('idle');
+  const optimisticallyRemovedRef = useRef(new Set<string>());
+  const optimisticRollbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
+
+  // Rollback optimistic removals after a timeout if the parent props haven't confirmed
+  const scheduleOptimisticRollback = useCallback(() => {
+    if (optimisticRollbackTimerRef.current) clearTimeout(optimisticRollbackTimerRef.current);
+    optimisticRollbackTimerRef.current = setTimeout(() => {
+      if (optimisticallyRemovedRef.current.size > 0) {
+        optimisticallyRemovedRef.current.clear();
+        setDisplayCards(prev => {
+          const parentIds = new Set(cards.map(c => c.id));
+          const currentIds = new Set(prev.map(c => c.id));
+          if (
+            parentIds.size !== currentIds.size ||
+            ![...parentIds].every(id => currentIds.has(id))
+          ) {
+            return cards;
+          }
+          return prev;
+        });
+      }
+    }, 3000);
+  }, [cards]);
+
+  // Clean up the rollback timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (optimisticRollbackTimerRef.current) {
+        clearTimeout(optimisticRollbackTimerRef.current);
+      }
+    };
+  }, []);
 
   // Update display cards ONLY when cards are added/removed OR parent explicitly reorders
   // CRITICAL: Do NOT auto-reorder during play/pass/button presses
   React.useEffect(() => {
-    const currentIds = new Set(displayCards.map(c => c.id));
+    // Prune confirmed removals from the optimistic set: if parent cards no longer contain
+    // an ID we optimistically removed, the play was accepted by the server.
     const newIds = new Set(cards.map(c => c.id));
+    for (const id of optimisticallyRemovedRef.current) {
+      if (!newIds.has(id)) {
+        optimisticallyRemovedRef.current.delete(id);
+      }
+    }
+
+    // Filter parent cards to exclude anything still optimistically removed
+    const filteredCards =
+      optimisticallyRemovedRef.current.size > 0
+        ? cards.filter(c => !optimisticallyRemovedRef.current.has(c.id))
+        : cards;
+
+    const currentIds = new Set(displayCards.map(c => c.id));
+    const filteredIds = new Set(filteredCards.map(c => c.id));
 
     // Check if cards actually changed (not just reordered)
     const sameCardSet =
-      currentIds.size === newIds.size && [...currentIds].every(id => newIds.has(id));
+      currentIds.size === filteredIds.size && [...currentIds].every(id => filteredIds.has(id));
 
     if (!sameCardSet) {
       // Cards were added or removed (play/pass action) - update display
       // But preserve the relative order of remaining cards
-      const remainingCards = displayCards.filter(c => newIds.has(c.id));
-      const newCards = cards.filter(c => !currentIds.has(c.id));
+      const remainingCards = displayCards.filter(c => filteredIds.has(c.id));
+      const addedCards = filteredCards.filter(c => !currentIds.has(c.id));
 
       // Combine: keep user's custom order for existing cards, append new cards
-      setDisplayCards([...remainingCards, ...newCards]);
+      setDisplayCards([...remainingCards, ...addedCards]);
       setDragState(initialDragState);
     }
-    // CRITICAL FIX (Issue #1): ALWAYS initialize displayCards if empty OR if cards exist but displayCards doesn't match
-    // This fixes drag-drop not working on first game load in landscape mode
+    // CRITICAL FIX (Issue #1): ALWAYS initialize displayCards if empty
     else if (displayCards.length === 0) {
-      setDisplayCards(cards);
+      setDisplayCards(filteredCards);
     }
     // CRITICAL FIX (Issue #2): If same card set but different order, AND user didn't manually rearrange,
     // update to match parent's order (this allows helper buttons to work)
-    // Note: Edge case - if cards are reordered AND removed simultaneously, newCards.length may not equal cards.length
-    // Current implementation handles this by appending newCards to remainingCards (line 111)
     else if (sameCardSet && displayCards.length > 0) {
       // Check if order actually changed
-      const orderChanged = !displayCards.every((card, idx) => card.id === cards[idx]?.id);
+      const orderChanged = !displayCards.every((card, idx) => card.id === filteredCards[idx]?.id);
       // Only update if NOT currently dragging (preserve user's manual rearrangement)
       if (orderChanged && !dragState.draggedCardId) {
         gameLogger.info(
           '🔄 [LandscapeYourPosition] Parent reordered cards (helper button), updating display'
         );
-        setDisplayCards(cards);
+        setDisplayCards(filteredCards);
       }
     }
   }, [cards, displayCards, dragState.draggedCardId]);
@@ -259,6 +303,12 @@ export function LandscapeYourPosition({
         if (dragState.isDraggingMultiple && isUpwardDrag && onPlayCards) {
           const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Optimistically remove cards from display - don't wait for server confirmation
+          for (const id of selectedCardIds) {
+            optimisticallyRemovedRef.current.add(id);
+          }
+          setDisplayCards(prev => prev.filter(c => !selectedCardIds.has(c.id)));
+          scheduleOptimisticRollback();
           onPlayCards(selected);
           onSelectionChange(new Set());
         }
@@ -272,6 +322,10 @@ export function LandscapeYourPosition({
           const card = orderedCards.find(c => c.id === cardId);
           if (card) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Optimistically remove card from display - don't wait for server confirmation
+            optimisticallyRemovedRef.current.add(cardId);
+            setDisplayCards(prev => prev.filter(c => c.id !== cardId));
+            scheduleOptimisticRollback();
             onPlayCards([card]);
           }
         }
@@ -302,6 +356,7 @@ export function LandscapeYourPosition({
       onSelectionChange,
       onCardsReorder,
       onDragZoneChange,
+      scheduleOptimisticRollback,
     ]
   );
 

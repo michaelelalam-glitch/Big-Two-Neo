@@ -238,6 +238,7 @@ export function LocalAIGame() {
     setSelectedCardIds,
     navigation,
     isMountedRef,
+    onAlert: showInGameAlert,
   });
 
   // Computed values

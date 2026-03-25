@@ -41,10 +41,11 @@ export default function MatchmakingScreen() {
   // On iOS, expo-screen-orientation may still hold a portrait lock from the
   // game screen. Release it here so the matchmaking screen can auto-rotate in
   // landscape when the device is held sideways. Android handles this natively.
+  // Also re-unlock on focus so navigating back from lobby restores rotation.
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
     let cancelled = false;
-    (async () => {
+    const unlock = async () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const ScreenOrientation = require('expo-screen-orientation');
@@ -52,11 +53,14 @@ export default function MatchmakingScreen() {
       } catch {
         // expo-screen-orientation not available — safe to ignore
       }
-    })();
+    };
+    void unlock();
+    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, []);
+  }, [navigation]);
 
   // Get match type from route params (default: 'casual')
   const matchType = route.params?.matchType || 'casual';
