@@ -450,8 +450,8 @@ export function useVideoChat({
           return;
         }
 
-        desiredCameraRef.current = !!prefs.camera;
-        desiredMicRef.current = !!prefs.mic;
+        desiredCameraRef.current = false;
+        desiredMicRef.current = false;
 
         gameLogger.info(
           '[VideoChat] Restoring chat prefs — camera:',
@@ -468,6 +468,7 @@ export function useVideoChat({
           try {
             await adapterRef.current.enableCamera();
             if (!cancelled) {
+              desiredCameraRef.current = true;
               setIsLocalCameraOn(true);
               setCameraPermissionStatus('granted');
             }
@@ -482,6 +483,7 @@ export function useVideoChat({
           try {
             await adapterRef.current.enableMicrophone();
             if (!cancelled) {
+              desiredMicRef.current = true;
               setIsLocalMicOn(true);
               setMicPermissionStatus('granted');
             }
@@ -493,6 +495,9 @@ export function useVideoChat({
           }
         }
         if (!cancelled) {
+          // Persist actual restored state so stale prefs don't accumulate from
+          // partially successful restores (e.g. camera denied but mic OK).
+          persistChatPrefs(desiredCameraRef.current, desiredMicRef.current);
           setRemoteParticipants(adapterRef.current.getParticipants());
           setIsChatConnected(true);
           gameLogger.info('[VideoChat] Chat prefs restored successfully.');
