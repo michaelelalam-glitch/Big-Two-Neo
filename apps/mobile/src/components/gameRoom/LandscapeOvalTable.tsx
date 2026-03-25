@@ -102,6 +102,10 @@ export function LandscapeOvalTable({
     inputRange: [0, 1],
     outputRange: [SHADOWS.table.opacity, 0.8],
   });
+  const glowShadowColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#000000', COLORS.accent],
+  });
 
   // Sort cards for display (highest card first - matches portrait CenterPlayArea)
   // This ensures straights show as 6-5-4-3-2 instead of 3-4-5-6-2
@@ -160,7 +164,7 @@ export function LandscapeOvalTable({
         styles.container,
         {
           borderColor: glowBorderColor,
-          shadowColor: COLORS.accent,
+          shadowColor: glowShadowColor,
           shadowRadius: glowShadowRadius,
           shadowOpacity: glowShadowOpacity,
         },
