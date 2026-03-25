@@ -1423,10 +1423,11 @@ export function MultiplayerGame() {
           orientation so popups always appear aligned with the game layout, not the
           physical device rotation.
           Only constrain to the game orientation when the native orientation lock
-          is confirmed active (isLocked). Without the lock, currentOrientation
-          may diverge from the real interface orientation (e.g. Expo Go / missing
-          module simulates orientation changes), causing an iOS Modal presentation
-          crash if the list doesn't include the actual interface orientation. */}
+          is confirmed active. useOrientationManager initialises isLocked=false
+          when expo-screen-orientation is absent (e.g. Expo Go) and sets it false
+          again if lockAsync fails, so this gate is reliable. Without the lock,
+          currentOrientation is UI-only and may diverge from the real interface
+          orientation, causing an iOS Modal crash. */}
       <InGameAlert
         ref={inGameAlertRef}
         {...(isLocked ? { gameOrientation: currentOrientation } : {})}
