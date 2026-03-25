@@ -605,6 +605,7 @@ export function LandscapeGameLayout({
             isCameraOn={isCameraOns?.[0]}
             isVideoChatConnecting={isVideoChatConnectings?.[0]}
             videoStreamSlot={videoStreamSlots?.[0]}
+            isLocalPlayer={true}
           />
           {throwableActiveEffects?.[0] != null && (
             <ThrowablePlayerEffect

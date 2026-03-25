@@ -76,6 +76,8 @@ interface LandscapeOpponentProps {
   isVideoChatConnecting?: boolean;
   /** Video chat: injected <LiveKitVideoSlot /> element */
   videoStreamSlot?: ReactNode;
+  /** Whether this is the local player's own position — suppresses redundant camera-off badge */
+  isLocalPlayer?: boolean;
 }
 
 // ============================================================================
@@ -101,6 +103,7 @@ export function LandscapeOpponent({
   onMicToggle,
   isVideoChatConnecting,
   videoStreamSlot,
+  isLocalPlayer = false,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -187,7 +190,7 @@ export function LandscapeOpponent({
                 >
                   👤
                 </Text>
-                {isCameraOn === false && !isBot && (
+                {isCameraOn === false && !isBot && !isLocalPlayer && (
                   <View style={styles.cameraOffBadge} pointerEvents="none">
                     <Text style={styles.cameraOffIcon}>📵</Text>
                   </View>
@@ -219,7 +222,8 @@ export function LandscapeOpponent({
             <CardCountBadge cardCount={cardCount} visible={true} />
           </View>
           {/* Mic toggle/indicator — mid-right of avatar (landscape) */}
-          {isMicOn !== undefined && !isBot &&
+          {isMicOn !== undefined &&
+            !isBot &&
             (onMicToggle ? (
               <Pressable
                 style={styles.micToggleLandscape}

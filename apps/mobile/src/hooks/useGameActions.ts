@@ -69,14 +69,16 @@ export function useGameActions({
 
   // Platform-aware error display: InGameAlert modal on iOS (orientation-safe),
   // Toast/system-Alert via showError on Android.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- alertError is a render-stable helper; onAlert is in handlePlayCards/handlePass dep arrays so those callbacks recreate when onAlert changes, capturing the latest alertError.
-  const alertError = (message: string) => {
-    if (Platform.OS === 'ios' && onAlert) {
-      onAlert({ title: i18n.t('common.error'), message });
-    } else {
-      showError(message);
-    }
-  };
+  const alertError = useCallback(
+    (message: string) => {
+      if (Platform.OS === 'ios' && onAlert) {
+        onAlert({ title: i18n.t('common.error'), message });
+      } else {
+        showError(message);
+      }
+    },
+    [onAlert]
+  );
 
   const handlePlayCards = useCallback(
     async (cards: Card[]) => {
@@ -207,7 +209,7 @@ export function useGameActions({
       multiplayerPlayCards,
       setSelectedCardIds,
       getMultiplayerValidationState,
-      onAlert,
+      alertError,
     ]
   );
 
@@ -296,7 +298,7 @@ export function useGameActions({
     multiplayerPass,
     setSelectedCardIds,
     getMultiplayerValidationState,
-    onAlert,
+    alertError,
   ]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand

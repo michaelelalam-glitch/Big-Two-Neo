@@ -51,7 +51,9 @@ export default function HomeScreen() {
       }
     };
     void unlock();
-    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
+    const unsubscribe = navigation.addListener('focus', () => {
+      void unlock();
+    });
     return () => {
       cancelled = true;
       unsubscribe();
@@ -270,9 +272,17 @@ export default function HomeScreen() {
           <View
             style={[
               styles.modalContainer,
-              { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' },
+              { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.9 : '100%' },
             ]}
           >
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowDifficultyModal(false)}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>{i18n.t('home.botDifficultyTitle')}</Text>
             <Text style={styles.modalSubtitle}>{i18n.t('home.botDifficultySubtitle')}</Text>
 
@@ -338,13 +348,6 @@ export default function HomeScreen() {
                   <Text style={styles.modalButtonSubtext}>{i18n.t('home.hardDesc')}</Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowDifficultyModal(false)}
-              >
-                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
-              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -365,6 +368,14 @@ export default function HomeScreen() {
               { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.65 : '100%' },
             ]}
           >
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowFindGameModal(false)}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>{i18n.t('home.findGame')}</Text>
             <Text style={styles.modalSubtitle}>{i18n.t('home.chooseGameMode')}</Text>
 
@@ -419,13 +430,6 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowFindGameModal(false)}
-              >
-                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
-              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -709,6 +713,21 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray.medium,
     fontWeight: '600',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: SPACING.sm,
+    left: SPACING.sm,
+    zIndex: 10,
+    padding: SPACING.sm,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: COLORS.white,
+    fontWeight: 'bold',
+    lineHeight: 20,
   },
   modalScrollContent: {
     flexGrow: 1,
