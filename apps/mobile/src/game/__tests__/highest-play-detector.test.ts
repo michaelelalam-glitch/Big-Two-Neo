@@ -344,5 +344,46 @@ describe('Highest Play Detector', () => {
 
       expect(isHighestPossiblePlay(cards, [])).toBe(false);
     });
+
+    it('cross-suit straight flush: cards from different suits are NOT a straight flush', () => {
+      // Play 5 consecutive ranks but from mixed suits — NOT a straight flush.
+      // Should not trigger highest-play detection for Straight Flush.
+      const mixedSuits: Card[] = [
+        { id: '10S', rank: '10' as const, suit: 'S' as const },
+        { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+        { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+        { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+        { id: 'AS', rank: 'A' as const, suit: 'S' as const },
+      ];
+
+      // No cards played — all straight flushes remain possible,
+      // so this mixed-suit straight is NOT the highest play.
+      expect(isHighestPossiblePlay(mixedSuits, [])).toBe(false);
+    });
+
+    it('cross-suit straight flush: same-suit run IS detected after higher SFs are eliminated', () => {
+      // Eliminate Spades Royal (highest SF) by playing a key Spade card.
+      // In Big Two suit ranking: Spades > Hearts > Clubs > Diamonds,
+      // so Hearts Royal becomes the highest remaining SF.
+      const playedCards: Card[] = [
+        // Break Spades straights
+        { id: '3S', rank: '3' as const, suit: 'S' as const },
+        { id: '6S', rank: '6' as const, suit: 'S' as const },
+        { id: '9S', rank: '9' as const, suit: 'S' as const },
+        { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+      ];
+
+      const heartsRoyal: Card[] = [
+        { id: '10H', rank: '10' as const, suit: 'H' as const },
+        { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+        { id: 'QH', rank: 'Q' as const, suit: 'H' as const },
+        { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+        { id: 'AH', rank: 'A' as const, suit: 'H' as const },
+      ];
+
+      // Spades Royal is broken (QS played). Hearts > Clubs > Diamonds in suit
+      // ranking, so Hearts Royal IS the highest remaining straight flush.
+      expect(isHighestPossiblePlay(heartsRoyal, playedCards)).toBe(true);
+    });
   });
 });

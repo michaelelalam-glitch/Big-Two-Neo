@@ -17,3 +17,5 @@ export { ThrowableReceiverModal } from './ThrowableReceiverModal';
 export { ThrowablePicker } from './ThrowablePicker';
 export { PlayerTargetPicker } from './PlayerTargetPicker';
 export { ThrowButton } from './ThrowButton';
+export { InGameAlert } from './InGameAlert';
+export type { InGameAlertHandle, InGameAlertOptions } from './InGameAlert';

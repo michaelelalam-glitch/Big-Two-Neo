@@ -16,7 +16,14 @@
  */
 
 import React, { useMemo, type ReactNode } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Pressable,
+} from 'react-native';
 import { COLORS, LAYOUT } from '../../constants';
 import { useUserPreferencesStore } from '../../store/userPreferencesSlice';
 import {
@@ -26,6 +33,7 @@ import {
 } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from '../game/InactivityCountdownRing';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -58,8 +66,10 @@ interface LandscapeOpponentProps {
   onNameLongPress?: () => void;
   /** Video chat: camera actively streaming */
   isCameraOn?: boolean;
-  /** Video chat: microphone actively streaming */
+  /** Whether this player's mic is on (undefined = mic state unknown / not applicable) */
   isMicOn?: boolean;
+  /** Called when the mic toggle button is pressed (local player only) */
+  onMicToggle?: () => void;
   /** Video chat: connection being established */
   isVideoChatConnecting?: boolean;
   /** Video chat: injected <LiveKitVideoSlot /> element */
@@ -85,6 +95,7 @@ export function LandscapeOpponent({
   onNameLongPress,
   isCameraOn,
   isMicOn,
+  onMicToggle,
   isVideoChatConnecting,
   videoStreamSlot,
 }: LandscapeOpponentProps) {
@@ -209,6 +220,33 @@ export function LandscapeOpponent({
           <View style={styles.badgePosition}>
             <CardCountBadge cardCount={cardCount} visible={true} />
           </View>
+          {/* Mic toggle/indicator — mid-right of avatar (landscape) */}
+          {isMicOn !== undefined &&
+            (onMicToggle ? (
+              <Pressable
+                style={styles.micToggleLandscape}
+                onPress={onMicToggle}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isMicOn ? i18n.t('chat.muteMicrophone') : i18n.t('chat.unmuteMicrophone')
+                }
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+              </Pressable>
+            ) : (
+              <View
+                style={styles.micToggleLandscape}
+                accessible={true}
+                accessibilityRole="text"
+                accessibilityLabel={
+                  isMicOn ? i18n.t('chat.microphoneOn') : i18n.t('chat.microphoneOff')
+                }
+                pointerEvents="none"
+              >
+                <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+              </View>
+            ))}
           {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
           {totalScore !== undefined && (
             <View
@@ -361,6 +399,22 @@ const styles = StyleSheet.create({
   },
   nameBadgeDisconnected: {
     opacity: 0.6,
+  },
+  micToggleLandscape: {
+    position: 'absolute',
+    right: -10,
+    top: '50%',
+    marginTop: -10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  micToggleIcon: {
+    fontSize: 11,
   },
 
   // Video chat styles (matches portrait PlayerInfo avatarStyles)
