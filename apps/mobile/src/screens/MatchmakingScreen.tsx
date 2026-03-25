@@ -165,13 +165,15 @@ export default function MatchmakingScreen() {
 
   const statusMessage = <Text style={styles.statusMessage}>{getWaitingMessage()}</Text>;
 
+  const playersForNextMatch = Math.min(waitingCount, 4);
+
   const progressBlock = (
     <>
       <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${(waitingCount / 4) * 100}%` }]} />
+        <View style={[styles.progressBar, { width: `${(playersForNextMatch / 4) * 100}%` }]} />
       </View>
       <Text style={styles.progressText}>
-        {waitingCount}/4 {i18n.t('matchmaking.playersNeeded')}
+        {playersForNextMatch}/4 {i18n.t('matchmaking.playersNeeded')}
       </Text>
     </>
   );

@@ -525,7 +525,6 @@ export function useVideoChat({
       hasAutoConnectedRef.current = true;
       return;
     }
-    hasAutoConnectedRef.current = true;
     let cancelled = false;
 
     (async () => {
@@ -533,6 +532,9 @@ export function useVideoChat({
         gameLogger.info('[VideoChat] Auto-connecting as listener (receive-only)...');
         await adapterRef.current.connect(roomId, userId);
         if (cancelled) return;
+        // Only mark auto-connect done after a successful connect so transient
+        // failures or adapter swaps allow a retry on the next effect run.
+        hasAutoConnectedRef.current = true;
         setRemoteParticipants(adapterRef.current.getParticipants());
         setIsChatConnected(true);
         gameLogger.info('[VideoChat] Auto-connected as listener — remote streams active.');

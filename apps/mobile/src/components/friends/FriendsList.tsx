@@ -104,6 +104,9 @@ export function FriendsList() {
   const handleSearchChange = useCallback(
     (text: string) => {
       setSearchQuery(text);
+      // Invalidate any in-flight Supabase request immediately so stale
+      // responses from a previous debounce cycle can't overwrite state.
+      ++searchTokenRef.current;
       // Clear stale results and show loading state immediately so the UI
       // doesn't flash "no results" during the 400ms debounce.
       setSearchResults([]);
