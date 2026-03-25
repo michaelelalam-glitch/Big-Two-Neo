@@ -69,6 +69,11 @@ export interface Translations {
     tapTurnCameraOn: string;
     tapMute: string;
     tapUnmute: string;
+    // Accessibility labels for mic toggle
+    muteMicrophone: string;
+    unmuteMicrophone: string;
+    microphoneOn: string;
+    microphoneOff: string;
     // Phase 4 — permission UX
     cameraPermissionTitle: string;
     cameraPermissionMessage: string;
@@ -815,6 +820,10 @@ const en: Translations = {
     tapTurnCameraOn: 'tap to turn camera on',
     tapMute: 'tap to mute',
     tapUnmute: 'tap to unmute',
+    muteMicrophone: 'Mute microphone',
+    unmuteMicrophone: 'Unmute microphone',
+    microphoneOn: 'Microphone on',
+    microphoneOff: 'Microphone off',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Camera Access',
     cameraPermissionMessage: 'Big Two needs camera access to show your video to other players.',
@@ -1516,6 +1525,10 @@ const ar: Translations = {
     tapTurnCameraOn: 'اضغط لتشغيل الكاميرا',
     tapMute: 'اضغط لكتم الصوت',
     tapUnmute: 'اضغط لإلغاء كتم الصوت',
+    muteMicrophone: 'كتم الميكروفون',
+    unmuteMicrophone: 'إلغاء كتم الميكروفون',
+    microphoneOn: 'الميكروفون مفعّل',
+    microphoneOff: 'الميكروفون مغلق',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'الوصول إلى الكاميرا',
     cameraPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الكاميرا لعرض الفيديو للاعبين الآخرين.',
@@ -2237,6 +2250,10 @@ const de: Translations = {
     tapTurnCameraOn: 'Zum Einschalten der Kamera tippen',
     tapMute: 'Zum Stummschalten tippen',
     tapUnmute: 'Stummschaltung aufheben',
+    muteMicrophone: 'Mikrofon stummschalten',
+    unmuteMicrophone: 'Mikrofon Stummschaltung aufheben',
+    microphoneOn: 'Mikrofon an',
+    microphoneOff: 'Mikrofon aus',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Kamerazugriff',
     cameraPermissionMessage:

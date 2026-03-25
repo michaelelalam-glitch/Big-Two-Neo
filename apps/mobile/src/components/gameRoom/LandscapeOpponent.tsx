@@ -33,6 +33,7 @@ import {
 } from '../../styles/scoreDisplayStyles';
 import { CardCountBadge } from '../scoreboard/CardCountBadge';
 import InactivityCountdownRing from '../game/InactivityCountdownRing';
+import { i18n } from '../../i18n';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -206,7 +207,9 @@ export function LandscapeOpponent({
                 style={styles.micToggleLandscape}
                 onPress={onMicToggle}
                 accessibilityRole="button"
-                accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                accessibilityLabel={
+                  isMicOn ? i18n.t('chat.muteMicrophone') : i18n.t('chat.unmuteMicrophone')
+                }
                 hitSlop={6}
               >
                 <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
@@ -216,7 +219,9 @@ export function LandscapeOpponent({
                 style={styles.micToggleLandscape}
                 accessible={true}
                 accessibilityRole="text"
-                accessibilityLabel={isMicOn ? 'Microphone on' : 'Microphone off'}
+                accessibilityLabel={
+                  isMicOn ? i18n.t('chat.microphoneOn') : i18n.t('chat.microphoneOff')
+                }
                 pointerEvents="none"
               >
                 <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
