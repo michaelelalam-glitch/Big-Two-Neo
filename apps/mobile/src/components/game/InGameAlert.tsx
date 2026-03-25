@@ -93,7 +93,12 @@ export const InGameAlert = forwardRef<InGameAlertHandle>((_props, ref) => {
       supportedOrientations={supportedOrientations}
     >
       <View style={styles.overlay}>
-        <View style={styles.alertContainer}>
+        <View
+          style={styles.alertContainer}
+          accessible
+          accessibilityRole="alert"
+          accessibilityViewIsModal
+        >
           {alertOptions?.title && <Text style={styles.title}>{alertOptions.title}</Text>}
           <Text style={styles.message}>{alertOptions?.message}</Text>
           <View style={styles.buttonRow}>
