@@ -215,7 +215,12 @@ export function LandscapeYourPosition({
       // Single drag: check if horizontal (rearrange) or vertical (play)
       const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
       if (!isHorizontalDrag) {
-        setDragState(prev => ({ ...prev, targetIndex: null }));
+        // Update sharedTranslation so drop-zone hint UI reacts to single-card vertical drags
+        setDragState(prev => ({
+          ...prev,
+          sharedTranslation: { x: translationX, y: translationY },
+          targetIndex: null,
+        }));
         return;
       }
 
