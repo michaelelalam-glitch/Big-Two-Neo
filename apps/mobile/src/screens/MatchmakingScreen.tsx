@@ -244,7 +244,7 @@ export default function MatchmakingScreen() {
       >
         {isLandscape ? (
           // LANDSCAPE: two-column layout with minHeight to prevent column collapse on iOS
-          <View style={[styles.landscapeRoot, { minHeight: height - SPACING.xl }]}>
+          <View style={[styles.landscapeRoot, { minHeight: Math.max(0, height - SPACING.xl) }]}>
             {/* Left column: status & animation */}
             <View style={styles.landscapeLeft}>
               <Text style={styles.titleLandscape}>{i18n.t('matchmaking.title')}</Text>

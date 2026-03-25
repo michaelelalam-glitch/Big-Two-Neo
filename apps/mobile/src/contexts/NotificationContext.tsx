@@ -277,7 +277,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         // notifications — navigate to Notifications instead so they can see
         // the update without losing their current game context.
         const state = navigation.getState();
-        const currentRoute = state?.routes?.[state.index ?? -1]?.name;
+        const routes = state?.routes;
+        const idx = typeof state?.index === 'number' ? state.index : 0;
+        const currentRoute =
+          routes && idx >= 0 && idx < routes.length ? routes[idx]?.name : undefined;
         if (currentRoute === 'Lobby' || currentRoute === 'Game') {
           navigation.navigate('Notifications');
         } else {
