@@ -33,10 +33,14 @@ export function useGameEndCallbacks({
   clearHistory,
 }: UseGameEndCallbacksOptions): void {
   useEffect(() => {
-    const manager = gameManagerRef.current;
-    if (!manager) return;
-
     setOnPlayAgain(() => async () => {
+      // Access ref lazily so this callback works even when registered before
+      // the game manager finishes initializing (avoiding early-return on mount).
+      const manager = gameManagerRef.current;
+      if (!manager) {
+        showError('Game not ready. Please try again.');
+        return;
+      }
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
       try {
         // Clear scoreboard history so the new game starts with 0 scores
@@ -65,5 +69,13 @@ export function useGameEndCallbacks({
     // botDifficulty included so "Play Again" always uses the latest difficulty.
     // setOnPlayAgain / setOnReturnToMenu are stable setters — safe to include.
     // clearHistory is a stable useCallback from ScoreboardContext — safe to include.
-  }, [currentPlayerName, navigation, gameManagerRef, botDifficulty, setOnPlayAgain, setOnReturnToMenu, clearHistory]);
+  }, [
+    currentPlayerName,
+    navigation,
+    gameManagerRef,
+    botDifficulty,
+    setOnPlayAgain,
+    setOnReturnToMenu,
+    clearHistory,
+  ]);
 }

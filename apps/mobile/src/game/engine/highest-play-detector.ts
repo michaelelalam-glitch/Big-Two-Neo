@@ -564,13 +564,16 @@ function isHighestRemainingFiveCardCombo(
       const currentHighestValue =
         RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
 
+      // Issue 2 note: Cross-suit comparison is correct for Big Two flush rules.
+      // Early termination via `return false` is already applied as soon as a
+      // beating flush is found — no further suits are checked at that point.
       for (const checkSuit of SUITS) {
         const suitCards = remaining.filter(c => c.suit === checkSuit);
         if (suitCards.length < 5) continue;
         const sortedSuit = sortHand(suitCards);
         const bestCard = sortedSuit[sortedSuit.length - 1];
         const bestValue = RANK_VALUE[bestCard.rank] * 10 + SUIT_VALUE[bestCard.suit];
-        if (bestValue > currentHighestValue) return false;
+        if (bestValue > currentHighestValue) return false; // early termination
       }
 
       return true; // No flush from any suit beats this one
@@ -605,49 +608,25 @@ function isHighestRemainingFiveCardCombo(
       const highestCard = sorted[sorted.length - 1];
       const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
 
-      // Find all possible straights of the same sequence from remaining cards
-      const possibleStraights: Card[][] = [];
-
-      // Generate all combinations by trying different suits for each rank
-      const generateStraightsRecursive = (rankIdx: number, current: Card[]): void => {
-        if (rankIdx === currentSeq.length) {
-          possibleStraights.push([...current]);
-          return;
-        }
-
-        const rank = currentSeq[rankIdx];
-        const cardsOfRank = remaining.filter(c => c.rank === rank);
-
-        for (const card of cardsOfRank) {
-          current.push(card);
-          generateStraightsRecursive(rankIdx + 1, current);
-          current.pop();
-        }
-      };
-
-      generateStraightsRecursive(0, []);
-
-      if (possibleStraights.length === 0) {
-        return true; // No other straights of same sequence possible
+      // Issue 1 optimization: Only the highest-rank card's suit determines which
+      // same-sequence straight wins. Instead of generating all 4^5 suit combinations,
+      // check that the full sequence is completable and then compare the best available
+      // suit at the highest rank position — O(n) vs O(4^5).
+      const allRanksAvailable = currentSeq.every(rank => remaining.some(c => c.rank === rank));
+      if (!allRanksAvailable) {
+        return true; // No other straight of same sequence can be formed
       }
 
-      // Find the straight with the highest suit
-      let bestStraight = possibleStraights[0];
-      for (const straight of possibleStraights) {
-        const straightSorted = sortHand(straight);
-        const bestSorted = sortHand(bestStraight);
-        const straightHigh = straightSorted[straightSorted.length - 1];
-        const bestHigh = bestSorted[bestSorted.length - 1];
-
-        if (SUIT_VALUE[straightHigh.suit] > SUIT_VALUE[bestHigh.suit]) {
-          bestStraight = straight;
-        }
+      // Find the highest suit available for the top rank in the sequence
+      const highestRank = currentSeq[currentSeq.length - 1];
+      const cardsAtHighestRank = remaining.filter(c => c.rank === highestRank);
+      let bestAvailableSuitValue = -1;
+      for (const card of cardsAtHighestRank) {
+        const sv = SUIT_VALUE[card.suit];
+        if (sv > bestAvailableSuitValue) bestAvailableSuitValue = sv;
       }
 
-      const bestSorted = sortHand(bestStraight);
-      const bestHigh = bestSorted[bestSorted.length - 1];
-
-      return SUIT_VALUE[highestCard.suit] >= SUIT_VALUE[bestHigh.suit];
+      return SUIT_VALUE[highestCard.suit] >= bestAvailableSuitValue;
     }
 
     default:
@@ -697,15 +676,43 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
     case 3: // Triple
       return isHighestRemainingTriple(sorted, playedCards);
 
-    case 5: // Five-card combos
+    case 4:
+      // Issue 3: Big Two has no 4-card plays — warn instead of silently returning false.
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[isHighestPossiblePlay] Received invalid 4-card play — Big Two has no 4-card combos'
+      );
+      return false;
+
+    case 5: {
+      // Five-card combos
+      // Issue 4: Defensive guard — classifyCards should return a valid 5-card combo type.
+      // If it doesn't, log a warning so misclassification bugs are surface-visible.
+      const validFiveCardTypes: ComboType[] = [
+        'Straight Flush',
+        'Four of a Kind',
+        'Full House',
+        'Flush',
+        'Straight',
+      ];
+      if (!validFiveCardTypes.includes(type)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[isHighestPossiblePlay] classifyCards returned '${type}' for a 5-card play — expected a five-card combo type`
+        );
+        return false;
+      }
       // Pass allUsedCards (playedCards + current play) so that `remaining` inside
       // isHighestRemainingFiveCardCombo excludes the just-played cards. Without
       // this, canFormComboOfStrength could think a stronger combo can be formed
       // by combining the current play's cards with other remaining cards, causing
       // false-negative auto-pass timer triggers.
       return isHighestRemainingFiveCardCombo(sorted, type, [...playedCards, ...cards]);
+    }
 
     default:
+      // eslint-disable-next-line no-console
+      console.warn(`[isHighestPossiblePlay] Received invalid play of ${cards.length} cards`);
       return false;
   }
 }
