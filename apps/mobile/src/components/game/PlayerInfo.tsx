@@ -232,7 +232,8 @@ function PlayerInfoComponent({
             >
               {renderAvatarVideoContent({
                 isCameraOn: !!isCameraOn,
-                isMicOn,
+                // Hide inner mic indicator when outer toggle overlay is shown
+                isMicOn: isLocalPlayer && onMicToggle ? undefined : isMicOn,
                 isLocalPlayer,
                 isDisconnected,
                 isVideoChatConnecting,
