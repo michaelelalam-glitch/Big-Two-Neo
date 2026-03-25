@@ -83,10 +83,12 @@ export function FriendsList() {
       setSearching(true);
       const token = ++searchTokenRef.current;
       try {
+        // Escape SQL LIKE wildcards to prevent wildcard injection
+        const escaped = trimmed.replace(/[%_\\]/g, '\\$&');
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username')
-          .ilike('username', `${trimmed}%`)
+          .ilike('username', `${escaped}%`)
           .neq('id', user.id)
           .limit(10);
         if (!mountedRef.current) return;
