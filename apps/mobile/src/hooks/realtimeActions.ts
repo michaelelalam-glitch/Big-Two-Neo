@@ -198,7 +198,7 @@ export async function executePlayCards({
   // Auto-pass timer from server response
   const autoPassTimerState = result.auto_pass_timer || null;
   const isHighestPlay = result.highest_play_detected || false;
-  const autoPassTriggered = result.auto_pass_triggered || false;
+  const autoPassTriggered = result.auto_pass_timer != null;
   gameLogger.info('[useRealtime] ⏰ Server timer state:', {
     isHighestPlay,
     autoPassTriggered,

@@ -51,7 +51,7 @@ export interface InGameAlertHandle {
 // Component
 // ---------------------------------------------------------------------------
 
-export const InGameAlert = forwardRef<InGameAlertHandle>((_props, ref) => {
+export const InGameAlert = forwardRef<InGameAlertHandle, Record<string, never>>((_props, ref) => {
   const [visible, setVisible] = useState(false);
   const [alertOptions, setAlertOptions] = useState<InGameAlertOptions | null>(null);
 

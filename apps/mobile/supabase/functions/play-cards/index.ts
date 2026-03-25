@@ -1206,7 +1206,30 @@ Deno.serve(async (req) => {
     // there's no one left to auto-pass. Creating a timer here causes the client-side
     // AutoPassTimer to loop at remaining=0 indefinitely, spamming logs and potentially
     // blocking the start_new_match transition.
-    if (isHighestPlay && !matchEnded) {
+
+    // Also check if all opponents can't respond because they have fewer cards than
+    // the combo size — they physically cannot play a response, so auto-pass should
+    // trigger even if the play isn't strictly the "highest possible".
+    const comboSize = cards.length;
+    const allOpponentsCantRespond = comboSize > 1 && [0, 1, 2, 3]
+      .filter(i => i !== player.player_index)
+      .every(i => {
+        const hand = updatedHands[i];
+        return !hand || (Array.isArray(hand) ? hand.length : 0) < comboSize;
+      });
+
+    if (allOpponentsCantRespond && !isHighestPlay) {
+      console.log('⏰ All opponents have fewer cards than combo size:', {
+        comboSize,
+        opponentHandSizes: [0, 1, 2, 3]
+          .filter(i => i !== player.player_index)
+          .map(i => ({ player: i, cards: Array.isArray(updatedHands[i]) ? updatedHands[i].length : 0 })),
+      });
+    }
+
+    const shouldCreateTimer = (isHighestPlay || allOpponentsCantRespond) && !matchEnded;
+
+    if (shouldCreateTimer) {
       const serverTimeMs = Date.now();
       const durationMs = 10000; // 10 seconds
       const endTimestamp = serverTimeMs + durationMs;
@@ -1231,7 +1254,8 @@ Deno.serve(async (req) => {
         player_index: player.player_index,
       };
 
-      console.log('✅ Auto-pass timer CREATED (highest play detected):', {
+      console.log('✅ Auto-pass timer CREATED:', {
+        reason: isHighestPlay ? 'highest_play' : 'opponents_cant_respond',
         serverTimeMs,
         endTimestamp,
         sequenceId,

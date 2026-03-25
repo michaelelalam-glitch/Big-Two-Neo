@@ -25,7 +25,6 @@ export interface PlayCardsResponse {
   combo_type?: string;
   auto_pass_timer?: AutoPassTimerState | null;
   highest_play_detected?: boolean;
-  auto_pass_triggered?: boolean;
   next_turn?: number;
   passes?: number;
   trick_cleared?: boolean;
