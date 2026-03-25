@@ -1420,8 +1420,15 @@ export function MultiplayerGame() {
       {/* In-game alert — orientation-aware replacement for native Alert.alert.
           Uses a Modal with supportedOrientations restricted to the game's chosen
           orientation so popups always appear aligned with the game layout, not the
-          physical device rotation. */}
-      <InGameAlert ref={inGameAlertRef} gameOrientation={currentOrientation} />
+          physical device rotation.
+          Only constrain to the game orientation when the native orientation lock
+          is confirmed active (orientationAvailable). Without the lock, currentOrientation
+          is simulated (Expo Go / missing module) and may diverge from the real interface
+          orientation, causing an iOS Modal presentation crash. */}
+      <InGameAlert
+        ref={inGameAlertRef}
+        {...(orientationAvailable ? { gameOrientation: currentOrientation } : {})}
+      />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
           or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".

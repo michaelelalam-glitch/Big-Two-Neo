@@ -194,6 +194,7 @@ export function useGameActions({
       multiplayerPlayCards,
       setSelectedCardIds,
       getMultiplayerValidationState,
+      onAlert,
     ]
   );
 
@@ -281,6 +282,7 @@ export function useGameActions({
     multiplayerPass,
     setSelectedCardIds,
     getMultiplayerValidationState,
+    onAlert,
   ]);
 
   // Refs to access play/pass handlers for drag-to-play from CardHand

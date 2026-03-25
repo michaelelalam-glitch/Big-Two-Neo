@@ -427,7 +427,14 @@ export function LocalAIGame() {
       <GameContextProvider value={gameContextValue}>
         <GameView />
       </GameContextProvider>
-      <InGameAlert ref={inGameAlertRef} gameOrientation={currentOrientation} />
+      {/* Only constrain to game orientation when native lock is confirmed active;
+          simulated orientation (Expo Go / missing module) can diverge from the real
+          interface orientation, causing an iOS Modal presentation crash. */}
+      {orientationAvailable ? (
+        <InGameAlert ref={inGameAlertRef} gameOrientation={currentOrientation} />
+      ) : (
+        <InGameAlert ref={inGameAlertRef} />
+      )}
     </>
   );
 }
