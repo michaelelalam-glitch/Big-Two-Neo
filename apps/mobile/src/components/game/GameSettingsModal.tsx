@@ -8,10 +8,10 @@ import {
   ScrollView,
   useWindowDimensions,
   Share,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
+import { useGameContext } from '../../contexts/GameContext';
 import {
   COLORS,
   SPACING,
@@ -72,6 +72,8 @@ function GameSettingsModalComponent({
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
+  const { showInGameAlert } = useGameContext();
+
   // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
   const soundEnabled = useUserPreferencesStore(s => s.soundEnabled);
   const vibrationEnabled = useUserPreferencesStore(s => s.vibrationEnabled);
@@ -124,9 +126,15 @@ function GameSettingsModalComponent({
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      Alert.alert(i18n.t('lobby.copiedTitle'), i18n.t('lobby.copiedMessage', { roomCode }));
+      showInGameAlert({
+        title: i18n.t('lobby.copiedTitle'),
+        message: i18n.t('lobby.copiedMessage', { roomCode }),
+      });
     } else if (result === 'failed') {
-      Alert.alert(i18n.t('lobby.copyFailedTitle'), i18n.t('lobby.copyFailedMessage', { roomCode }));
+      showInGameAlert({
+        title: i18n.t('lobby.copyFailedTitle'),
+        message: i18n.t('lobby.copyFailedMessage', { roomCode }),
+      });
     }
     // 'shared': Share sheet was presented — no additional alert needed
   }, [roomCode, vibrationEnabled]);

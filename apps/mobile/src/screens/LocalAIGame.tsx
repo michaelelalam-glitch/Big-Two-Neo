@@ -191,6 +191,7 @@ export function LocalAIGame() {
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
+    onAlert: showInGameAlert,
   });
 
   // Game end callbacks (play again / return to menu)

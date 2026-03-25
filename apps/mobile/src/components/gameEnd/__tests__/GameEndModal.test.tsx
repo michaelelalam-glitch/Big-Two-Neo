@@ -1,7 +1,7 @@
 /**
  * GameEndModal Component Tests
  * Task #423: Unit tests for GameEndModal
- * 
+ *
  * Smoke tests to verify component renders correctly
  */
 
@@ -28,6 +28,13 @@ jest.mock('../../scoreboard/components/CardImage', () => ({
   CardImage: 'CardImage',
 }));
 
+// Mock GameContext so GameEndModal can call useGameContext()
+jest.mock('../../../contexts/GameContext', () => ({
+  useGameContext: () => ({
+    showInGameAlert: jest.fn(),
+  }),
+}));
+
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
   SafeAreaProvider: 'SafeAreaProvider',
@@ -39,7 +46,9 @@ jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
 
   const createMockAnimation = (): any => ({
-    start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),
+    start: jest.fn((cb?: any) => {
+      if (cb) cb({ finished: true });
+    }),
     stop: jest.fn(),
     reset: jest.fn(),
   });
@@ -97,16 +106,24 @@ const MOCK_PLAY_HISTORY = [
     matchNumber: 1,
     hands: [
       { by: 0 as 0, type: 'single', count: 1, cards: [{ id: '3s', rank: '3', suit: 's' }] },
-      { by: 1 as 1, type: 'pair',   count: 2, cards: [{ id: '4h', rank: '4', suit: 'h' }, { id: '4d', rank: '4', suit: 'd' }] },
+      {
+        by: 1 as 1,
+        type: 'pair',
+        count: 2,
+        cards: [
+          { id: '4h', rank: '4', suit: 'h' },
+          { id: '4d', rank: '4', suit: 'd' },
+        ],
+      },
     ],
   },
 ];
 
 const MOCK_FINAL_SCORES = [
-  { player_name: 'Alice',   cumulative_score: 35, player_index: 0, points_added: 20 },
-  { player_name: 'Bob',     cumulative_score: 15, player_index: 1, points_added: 10 },
-  { player_name: 'Charlie', cumulative_score: 5,  player_index: 2, points_added: 5 },
-  { player_name: 'Diana',   cumulative_score: 10, player_index: 3, points_added: 0 },
+  { player_name: 'Alice', cumulative_score: 35, player_index: 0, points_added: 20 },
+  { player_name: 'Bob', cumulative_score: 15, player_index: 1, points_added: 10 },
+  { player_name: 'Charlie', cumulative_score: 5, player_index: 2, points_added: 5 },
+  { player_name: 'Diana', cumulative_score: 10, player_index: 3, points_added: 0 },
 ];
 
 const PLAYER_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana'];

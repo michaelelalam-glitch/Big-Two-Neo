@@ -5,7 +5,6 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -139,7 +138,7 @@ export function MultiplayerGame() {
       });
 
       if (!user?.id) {
-        showError('Not logged in. Please sign in and try again.');
+        showInGameAlert({ message: 'Not logged in. Please sign in and try again.' });
         return;
       }
 
@@ -176,7 +175,9 @@ export function MultiplayerGame() {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
           );
-          showError('Unable to create a new game room right now. Please try again.');
+          showInGameAlert({
+            message: 'Unable to create a new game room right now. Please try again.',
+          });
           return;
         }
 
@@ -902,6 +903,7 @@ export function MultiplayerGame() {
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
+    onAlert: showInGameAlert,
   });
 
   // Cleanup: navigation cleanup + mount tracking
@@ -1107,28 +1109,28 @@ export function MultiplayerGame() {
       const devHint = __DEV__
         ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
         : '';
-      Alert.alert(
-        i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint
-      );
+      showInGameAlert({
+        title: i18n.t('chat.devBuildRequiredTitle'),
+        message: i18n.t('chat.devBuildRequiredMessage') + devHint,
+      });
       return;
     }
     await _toggleVideoChat();
-  }, [_toggleVideoChat, isLiveKitUnavailable]);
+  }, [_toggleVideoChat, isLiveKitUnavailable, showInGameAlert]);
 
   const toggleVoiceChat = useCallback(async () => {
     if (isLiveKitUnavailable) {
       const devHint = __DEV__
         ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
         : '';
-      Alert.alert(
-        i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint
-      );
+      showInGameAlert({
+        title: i18n.t('chat.devBuildRequiredTitle'),
+        message: i18n.t('chat.devBuildRequiredMessage') + devHint,
+      });
       return;
     }
     await _toggleVoiceChat();
-  }, [_toggleVoiceChat, isLiveKitUnavailable]);
+  }, [_toggleVoiceChat, isLiveKitUnavailable, showInGameAlert]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.

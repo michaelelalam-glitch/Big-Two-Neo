@@ -399,25 +399,36 @@ function GameViewComponent() {
             onMicToggle={isMultiplayerGame ? toggleMic : undefined}
             dropZoneState={dropZoneState}
             onDragZoneChange={setDropZoneState}
-            isCameraOns={[
-              isLocalCameraOn,
-              (enrichedRemotePlayers[1] as { isCameraOn?: boolean })?.isCameraOn ?? false,
-              (enrichedRemotePlayers[2] as { isCameraOn?: boolean })?.isCameraOn ?? false,
-              (enrichedRemotePlayers[3] as { isCameraOn?: boolean })?.isCameraOn ?? false,
-            ]}
-            isMicOns={[
-              isLocalMicOn,
-              (enrichedRemotePlayers[1] as { isMicOn?: boolean })?.isMicOn ?? false,
-              (enrichedRemotePlayers[2] as { isMicOn?: boolean })?.isMicOn ?? false,
-              (enrichedRemotePlayers[3] as { isMicOn?: boolean })?.isMicOn ?? false,
-            ]}
-            isVideoChatConnectings={[isVideoChatConnecting, false, false, false]}
+            isCameraOns={
+              isMultiplayerGame && isChatConnected
+                ? [
+                    isLocalCameraOn,
+                    (enrichedRemotePlayers[1] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                    (enrichedRemotePlayers[2] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                    (enrichedRemotePlayers[3] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                  ]
+                : undefined
+            }
+            isMicOns={
+              isMultiplayerGame && isChatConnected
+                ? [
+                    isLocalMicOn,
+                    (enrichedRemotePlayers[1] as { isMicOn?: boolean })?.isMicOn ?? false,
+                    (enrichedRemotePlayers[2] as { isMicOn?: boolean })?.isMicOn ?? false,
+                    (enrichedRemotePlayers[3] as { isMicOn?: boolean })?.isMicOn ?? false,
+                  ]
+                : undefined
+            }
+            isVideoChatConnectings={
+              isMultiplayerGame ? [isVideoChatConnecting, false, false, false] : undefined
+            }
             videoStreamSlots={[
               localVideoSlot,
               (enrichedRemotePlayers[1] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
               (enrichedRemotePlayers[2] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
               (enrichedRemotePlayers[3] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
             ]}
+            showInGameAlert={showInGameAlert}
           />
         ) : (
           // PORTRAIT MODE (existing layout)

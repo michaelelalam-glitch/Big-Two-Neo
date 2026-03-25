@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
@@ -125,6 +125,16 @@ export interface LandscapeGameLayoutProps {
   isVideoChatConnectings?: boolean[];
   /** Video chat: video stream slot elements per display slot */
   videoStreamSlots?: (React.ReactNode | undefined)[];
+  /** Orientation-aware alert (replaces native Alert.alert for landscape) */
+  showInGameAlert?: (options: {
+    title?: string;
+    message: string;
+    buttons?: {
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[];
+  }) => void;
 }
 
 // ============================================================================
@@ -196,6 +206,7 @@ export function LandscapeGameLayout({
   isMicOns,
   isVideoChatConnectings,
   videoStreamSlots,
+  showInGameAlert,
 }: LandscapeGameLayoutProps) {
   // Friends context to check friendship status in-game
   const { friends } = useFriendsContext();
@@ -240,15 +251,23 @@ export function LandscapeGameLayout({
     const opponentId = playerIds[displayIndex];
     const opponentName = playerNames[displayIndex] ?? i18n.t('friends.unknownPlayer');
     if (!opponentId) return;
-    Alert.alert(opponentName, undefined, [
-      {
-        text: i18n.t('friends.addFriend'),
-        onPress: () => {
-          setOpponentActionTarget({ id: opponentId, name: opponentName });
-        },
-      },
-      { text: i18n.t('common.cancel'), style: 'cancel' },
-    ]);
+    if (showInGameAlert) {
+      showInGameAlert({
+        title: opponentName,
+        message: i18n.t('friends.addFriend'),
+        buttons: [
+          {
+            text: i18n.t('friends.addFriend'),
+            onPress: () => {
+              setOpponentActionTarget({ id: opponentId, name: opponentName });
+            },
+          },
+          { text: i18n.t('common.cancel'), style: 'cancel' },
+        ],
+      });
+    } else {
+      setOpponentActionTarget({ id: opponentId, name: opponentName });
+    }
   };
 
   /** Handle long-press on opponent name: show Add Friend or Already Friends */
@@ -258,9 +277,13 @@ export function LandscapeGameLayout({
     if (!opponentId) return;
     const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
     if (isFriend) {
-      Alert.alert(opponentName, i18n.t('friends.alreadyFriends'), [
-        { text: i18n.t('common.ok'), style: 'cancel' },
-      ]);
+      if (showInGameAlert) {
+        showInGameAlert({
+          title: opponentName,
+          message: i18n.t('friends.alreadyFriends'),
+          buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
+        });
+      }
     } else {
       setOpponentActionTarget({ id: opponentId, name: opponentName });
     }

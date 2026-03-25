@@ -26,13 +26,13 @@ import {
   StyleSheet,
   Platform,
   Share,
-  Alert,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
+import { useGameContext } from '../../contexts/GameContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
@@ -61,6 +61,8 @@ export const GameEndModal: React.FC = () => {
     onPlayAgain,
     onReturnToMenu,
   } = useGameEnd();
+
+  const { showInGameAlert } = useGameContext();
 
   const [activeTab, setActiveTab] = useState<TabType>('score');
   const [showFireworks, setShowFireworks] = useState(false);
@@ -172,7 +174,10 @@ export const GameEndModal: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sharing results:', error);
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      showInGameAlert({
+        title: i18n.t('gameEnd.shareError'),
+        message: i18n.t('gameEnd.shareErrorMessage'),
+      });
     }
   };
 
@@ -186,9 +191,12 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
     if (result === 'copied') {
-      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
+      showInGameAlert({ message: i18n.t('gameEnd.copyResultsSuccess') });
     } else if (result === 'failed') {
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      showInGameAlert({
+        title: i18n.t('gameEnd.shareError'),
+        message: i18n.t('gameEnd.shareErrorMessage'),
+      });
     }
     // 'shared': Share sheet was presented — no additional alert needed
   };
@@ -227,29 +235,36 @@ export const GameEndModal: React.FC = () => {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
 
-    Alert.alert(i18n.t('gameEnd.playAgainTitle'), i18n.t('gameEnd.playAgainMessage'), [
-      {
-        text: i18n.t('common.cancel'),
-        style: 'cancel',
-      },
-      {
-        text: i18n.t('gameEnd.newGame'),
-        onPress: async () => {
-          try {
-            // Close the modal first
-            setShowGameEndModal(false);
-
-            // Call the callback provided by GameScreen (if exists)
-            if (onPlayAgain) {
-              onPlayAgain();
-            }
-          } catch (error) {
-            console.error('Error restarting game:', error);
-            Alert.alert(i18n.t('gameEnd.restartError'), i18n.t('gameEnd.restartErrorMessage'));
-          }
+    showInGameAlert({
+      title: i18n.t('gameEnd.playAgainTitle'),
+      message: i18n.t('gameEnd.playAgainMessage'),
+      buttons: [
+        {
+          text: i18n.t('common.cancel'),
+          style: 'cancel',
         },
-      },
-    ]);
+        {
+          text: i18n.t('gameEnd.newGame'),
+          onPress: async () => {
+            try {
+              // Close the modal first
+              setShowGameEndModal(false);
+
+              // Call the callback provided by GameScreen (if exists)
+              if (onPlayAgain) {
+                onPlayAgain();
+              }
+            } catch (error) {
+              console.error('Error restarting game:', error);
+              showInGameAlert({
+                title: i18n.t('gameEnd.restartError'),
+                message: i18n.t('gameEnd.restartErrorMessage'),
+              });
+            }
+          },
+        },
+      ],
+    });
   };
 
   // Task #417: Return to Menu logic
@@ -262,30 +277,37 @@ export const GameEndModal: React.FC = () => {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
 
-    Alert.alert(i18n.t('gameEnd.returnToMenuTitle'), i18n.t('gameEnd.returnToMenuMessage'), [
-      {
-        text: i18n.t('game.stay'),
-        style: 'cancel',
-      },
-      {
-        text: i18n.t('gameEnd.leaveGame'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            // Close the modal first
-            setShowGameEndModal(false);
-
-            // Call the callback provided by GameScreen (if exists)
-            if (onReturnToMenu) {
-              onReturnToMenu();
-            }
-          } catch (error) {
-            console.error('Error leaving game:', error);
-            Alert.alert(i18n.t('gameEnd.leaveError'), i18n.t('gameEnd.leaveErrorMessage'));
-          }
+    showInGameAlert({
+      title: i18n.t('gameEnd.returnToMenuTitle'),
+      message: i18n.t('gameEnd.returnToMenuMessage'),
+      buttons: [
+        {
+          text: i18n.t('game.stay'),
+          style: 'cancel',
         },
-      },
-    ]);
+        {
+          text: i18n.t('gameEnd.leaveGame'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Close the modal first
+              setShowGameEndModal(false);
+
+              // Call the callback provided by GameScreen (if exists)
+              if (onReturnToMenu) {
+                onReturnToMenu();
+              }
+            } catch (error) {
+              console.error('Error leaving game:', error);
+              showInGameAlert({
+                title: i18n.t('gameEnd.leaveError'),
+                message: i18n.t('gameEnd.leaveErrorMessage'),
+              });
+            }
+          },
+        },
+      ],
+    });
   };
 
   // CRITICAL FIX: Show loading state while waiting for data
