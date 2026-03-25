@@ -71,10 +71,11 @@ const ORIENTATION_LOCKS = ScreenOrientation ? {
 export function useOrientationManager(): OrientationManagerState {
   const [currentOrientation, setCurrentOrientation] = useState<OrientationMode>('portrait');
   const [isChanging, setIsChanging] = useState(false);
-  // Initialize isLocked based on module availability: false when expo-screen-orientation
-  // is not present (Expo Go / missing module) so callers can reliably distinguish between
-  // "locked via native API" and "UI-only simulated orientation".
-  const [isLocked, setIsLocked] = useState(ScreenOrientation !== null);
+  // Initialize isLocked to false. It is set true only after lockAsync succeeds
+  // (in applyOrientation) and false again when the lock fails or is released.
+  // This ensures callers get an accurate "native lock is active" signal rather
+  // than a module-availability proxy that can be true before any lock is applied.
+  const [isLocked, setIsLocked] = useState(false);
 
   // Load saved orientation preference on mount AND unlock on unmount
   useEffect(() => {
@@ -101,6 +102,7 @@ export function useOrientationManager(): OrientationManagerState {
       ScreenOrientation.removeOrientationChangeListener(subscription);
       // Unlock to allow auto-rotation on other screens
       ScreenOrientation.unlockAsync().then(() => {
+        setIsLocked(false);
         gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
       }).catch((error: unknown) => {
         gameLogger.error('❌ [Orientation] Failed to unlock:', error);
