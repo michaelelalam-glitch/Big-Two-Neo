@@ -10,11 +10,13 @@ import {
   Modal,
   Share,
   Alert,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -57,6 +59,32 @@ export default function LobbyScreen() {
   const { roomCode, joining = false } = route.params;
   const { user, profile } = useAuth();
   const { friends, onlineUserIds } = useFriendsContext();
+
+  // Landscape detection for responsive overlay
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
+  // On iOS, expo-screen-orientation may still hold a portrait lock from the
+  // game screen. Release it here so the lobby can auto-rotate in landscape.
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let cancelled = false;
+    const unlock = async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const ScreenOrientation = require('expo-screen-orientation');
+        if (!cancelled) await ScreenOrientation.unlockAsync();
+      } catch {
+        // expo-screen-orientation not available — safe to ignore
+      }
+    };
+    void unlock();
+    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [navigation]);
 
   // Invite friends modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -991,9 +1019,10 @@ export default function LobbyScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setShowInviteModal(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+        <View style={isLandscape ? styles.modalOverlayLandscape : styles.modalOverlay}>
+          <View style={isLandscape ? styles.modalCardLandscape : styles.modalCard}>
             <Text style={styles.modalTitle}>
               {i18n.t('friends.inviteFriends') || 'Invite Friends'}
             </Text>
@@ -1601,12 +1630,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
+  modalOverlayLandscape: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalCard: {
     backgroundColor: COLORS.background.dark,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: SPACING.lg,
     maxHeight: '70%',
+  },
+  modalCardLandscape: {
+    backgroundColor: COLORS.background.dark,
+    borderRadius: 16,
+    padding: SPACING.lg,
+    maxHeight: '90%',
+    width: '65%',
   },
   modalTitle: {
     color: COLORS.white,

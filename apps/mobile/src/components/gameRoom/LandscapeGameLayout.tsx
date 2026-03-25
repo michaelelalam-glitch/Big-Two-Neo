@@ -413,6 +413,7 @@ export function LandscapeGameLayout({
             isActive={isOpponentActive(1)}
             layout="horizontal"
             totalScore={totalScores[1]}
+            isBot={!playerIds[1]}
             isDisconnected={disconnectedPlayers[1]}
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[1]}
             turnTimerStartedAt={turnTimerStartedAts?.[1]}
@@ -453,6 +454,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[2] || 0}
             isActive={isOpponentActive(2)}
             totalScore={totalScores[2]}
+            isBot={!playerIds[2]}
             isDisconnected={disconnectedPlayers[2]}
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[2]}
             turnTimerStartedAt={turnTimerStartedAts?.[2]}
@@ -491,6 +493,7 @@ export function LandscapeGameLayout({
             cardCount={cardCounts[3] || 0}
             isActive={isOpponentActive(3)}
             totalScore={totalScores[3]}
+            isBot={!playerIds[3]}
             isDisconnected={disconnectedPlayers[3]}
             disconnectTimerStartedAt={disconnectTimerStartedAts?.[3]}
             turnTimerStartedAt={turnTimerStartedAts?.[3]}

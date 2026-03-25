@@ -42,6 +42,12 @@ interface UseGameActionsOptions {
   isMountedRef: React.RefObject<boolean>;
   /** Optional: returns current game state for client-side pre-validation (Task #573) */
   getMultiplayerValidationState?: () => MultiplayerValidationState | null;
+  /**
+   * Orientation-aware alert callback (replaces native Alert.alert for invalid-play
+   * errors on iOS). When provided, all in-game error popups go through InGameAlert
+   * which respects the game's orientation lock rather than the physical device rotation.
+   */
+  onAlert?: (options: { message: string }) => void;
 }
 
 export function useGameActions({
@@ -53,6 +59,7 @@ export function useGameActions({
   navigation,
   isMountedRef,
   getMultiplayerValidationState,
+  onAlert,
 }: UseGameActionsOptions) {
   // Task #568: Separate refs to prevent cross-operation blocking
   const isPlayingCardsRef = useRef(false);
@@ -85,7 +92,8 @@ export function useGameActions({
           if (!result.success) {
             gameLogger.warn(`❌ [GameScreen] Invalid play: ${result.error}`);
             soundManager.playSound(SoundType.INVALID_MOVE);
-            showError(result.error || 'Invalid play');
+            const msg = result.error || 'Invalid play';
+            if (onAlert) onAlert({ message: msg }); else showError(msg);
             return;
           }
 
@@ -95,7 +103,8 @@ export function useGameActions({
           const msg = error instanceof Error ? error.message : String(error);
           gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
           soundManager.playSound(SoundType.INVALID_MOVE);
-          showError(msg || 'Failed to play cards');
+          const errMsg = msg || 'Failed to play cards';
+          if (onAlert) onAlert({ message: errMsg }); else showError(errMsg);
         } finally {
           isPlayingCardsRef.current = false;
         }
@@ -122,7 +131,8 @@ export function useGameActions({
               const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
               if (missingCard) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
-                showError(i18n.t('game.cardNotInHand'));
+                const m = i18n.t('game.cardNotInHand');
+                if (onAlert) onAlert({ message: m }); else showError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -131,7 +141,8 @@ export function useGameActions({
               const combo = classifyCards(sortedCards);
               if (combo === 'unknown') {
                 soundManager.playSound(SoundType.INVALID_MOVE);
-                showError(i18n.t('game.invalidCombo'));
+                const m = i18n.t('game.invalidCombo');
+                if (onAlert) onAlert({ message: m }); else showError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -142,7 +153,8 @@ export function useGameActions({
               // rank-first format ('3D'). Checking rank/suit fields works for both.
               if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
-                showError(i18n.t('game.firstPlayMustInclude3D'));
+                const m = i18n.t('game.firstPlayMustInclude3D');
+                if (onAlert) onAlert({ message: m }); else showError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -150,7 +162,8 @@ export function useGameActions({
               // 4. Must beat the current last play (if one exists)
               if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
-                showError(i18n.t('game.cannotBeat'));
+                const m = i18n.t('game.cannotBeat');
+                if (onAlert) onAlert({ message: m }); else showError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -207,7 +220,8 @@ export function useGameActions({
         if (!result.success) {
           gameLogger.warn(`❌ [GameScreen] Cannot pass: ${result.error}`);
           soundManager.playSound(SoundType.INVALID_MOVE);
-          showError(result.error || 'Cannot pass');
+          const m = result.error || 'Cannot pass';
+          if (onAlert) onAlert({ message: m }); else showError(m);
           return;
         }
 
@@ -235,7 +249,8 @@ export function useGameActions({
           const validationState = getMultiplayerValidationState();
           if (validationState && !validationState.lastPlay) {
             soundManager.playSound(SoundType.INVALID_MOVE);
-            showError(i18n.t('game.cannotPassMessage'));
+            const m = i18n.t('game.cannotPassMessage');
+            if (onAlert) onAlert({ message: m }); else showError(m);
             return;
           }
         }
@@ -253,7 +268,8 @@ export function useGameActions({
           );
         } else {
           gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
-          showError(msg || 'Failed to pass');
+          const failMsg = msg || 'Failed to pass';
+          if (onAlert) onAlert({ message: failMsg }); else showError(failMsg);
         }
       } finally {
         isPassingRef.current = false;

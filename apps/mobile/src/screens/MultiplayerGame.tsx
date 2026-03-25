@@ -975,6 +975,7 @@ export function MultiplayerGame() {
     navigation,
     isMountedRef,
     getMultiplayerValidationState,
+    onAlert: showInGameAlert,
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
