@@ -2,7 +2,7 @@
  * @module useHelperButtons
  * Provides Sort, Smart Sort, and Hint button handlers for the game screen.
  */
-import { Platform, ToastAndroid } from 'react-native';
+import { Alert, Platform, ToastAndroid } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
@@ -80,6 +80,8 @@ export function useHelperButtons({
       ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
     } else if (onAlert) {
       onAlert({ message: 'Hand organized by combos' });
+    } else {
+      Alert.alert('', 'Hand organized by combos');
     }
 
     gameLogger.info('[useHelperButtons] Smart sorted hand by combo type');
@@ -102,6 +104,8 @@ export function useHelperButtons({
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
       } else if (onAlert) {
         onAlert({ message: 'No valid play - recommend passing' });
+      } else {
+        Alert.alert('', 'No valid play - recommend passing');
       }
 
       gameLogger.info('[useHelperButtons] Hint: No valid play, recommend pass');
@@ -128,6 +132,8 @@ export function useHelperButtons({
         ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
       } else if (onAlert) {
         onAlert({ message: `Recommended: ${comboType}` });
+      } else {
+        Alert.alert('', `Recommended: ${comboType}`);
       }
 
       gameLogger.info(`[useHelperButtons] Hint: Recommended ${cardCount} card(s)`);
