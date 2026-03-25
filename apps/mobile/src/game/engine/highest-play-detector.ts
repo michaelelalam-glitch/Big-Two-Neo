@@ -457,7 +457,7 @@ function isHighestRemainingFiveCardCombo(
 
           const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
           const ids = seq.map(rank => `${rank}${checkSuit}`);
-          if (ids.every(id => availableCards.some(c => c.id === id))) {
+          if (ids.every(id => remaining.some(c => c.id === id))) {
             return false; // A stronger straight flush can be formed
           }
         }
@@ -472,7 +472,7 @@ function isHighestRemainingFiveCardCombo(
       // remaining, so the highest remaining quad may be a LOWER rank than the played quad.
       let highestQuadRank: string | null = null;
       for (const rank of [...RANKS].reverse()) {
-        if (availableCards.filter(c => c.rank === rank).length >= 4) {
+        if (remaining.filter(c => c.rank === rank).length >= 4) {
           highestQuadRank = rank;
           break;
         }
@@ -493,7 +493,7 @@ function isHighestRemainingFiveCardCombo(
     case 'Full House': {
       // Find the highest possible triple rank and pair from remaining cards
       const rankCounts: Record<string, number> = {};
-      for (const card of availableCards) {
+      for (const card of remaining) {
         rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
       }
 
@@ -565,7 +565,7 @@ function isHighestRemainingFiveCardCombo(
         RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
 
       for (const checkSuit of SUITS) {
-        const suitCards = availableCards.filter(c => c.suit === checkSuit);
+        const suitCards = remaining.filter(c => c.suit === checkSuit);
         if (suitCards.length < 5) continue;
         const sortedSuit = sortHand(suitCards);
         const bestCard = sortedSuit[sortedSuit.length - 1];
@@ -593,7 +593,7 @@ function isHighestRemainingFiveCardCombo(
       // Check if any higher sequence can be formed
       for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
         const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
-        const canForm = seq.every(rank => availableCards.some(c => c.rank === rank));
+        const canForm = seq.every(rank => remaining.some(c => c.rank === rank));
 
         if (canForm) {
           return false; // A higher straight is possible
@@ -616,7 +616,7 @@ function isHighestRemainingFiveCardCombo(
         }
 
         const rank = currentSeq[rankIdx];
-        const cardsOfRank = availableCards.filter(c => c.rank === rank);
+        const cardsOfRank = remaining.filter(c => c.rank === rank);
 
         for (const card of cardsOfRank) {
           current.push(card);

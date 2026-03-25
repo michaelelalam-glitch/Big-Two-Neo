@@ -148,22 +148,30 @@ export default function MatchmakingScreen() {
   );
 
   const searchingAnimation = (
-    <View style={styles.animationContainer}>
-      <ActivityIndicator size="large" color={COLORS.success} />
-      <Text style={styles.searchingText}>{getSearchingText()}</Text>
+    <View style={[styles.animationContainer, isLandscape && styles.animationContainerLandscape]}>
+      <ActivityIndicator size={isLandscape ? 'small' : 'large'} color={COLORS.success} />
+      <Text style={[styles.searchingText, isLandscape && styles.searchingTextLandscape]}>
+        {getSearchingText()}
+      </Text>
     </View>
   );
 
   const waitingCountBlock = (
-    <View style={styles.countContainer}>
+    <View style={[styles.countContainer, isLandscape && styles.countContainerLandscape]}>
       <Text style={[styles.countText, isLandscape && styles.countTextLandscape]}>
         {waitingCount}
       </Text>
-      <Text style={styles.countLabel}>{i18n.t('matchmaking.playersInQueue')}</Text>
+      <Text style={[styles.countLabel, isLandscape && styles.countLabelLandscape]}>
+        {i18n.t('matchmaking.playersInQueue')}
+      </Text>
     </View>
   );
 
-  const statusMessage = <Text style={styles.statusMessage}>{getWaitingMessage()}</Text>;
+  const statusMessage = (
+    <Text style={[styles.statusMessage, isLandscape && styles.statusMessageLandscape]}>
+      {getWaitingMessage()}
+    </Text>
+  );
 
   const playersForNextMatch = Math.min(waitingCount, 4);
 
@@ -172,7 +180,7 @@ export default function MatchmakingScreen() {
       <View style={styles.progressBarContainer}>
         <View style={[styles.progressBar, { width: `${(playersForNextMatch / 4) * 100}%` }]} />
       </View>
-      <Text style={styles.progressText}>
+      <Text style={[styles.progressText, isLandscape && styles.progressTextLandscape]}>
         {playersForNextMatch}/4 {i18n.t('matchmaking.playersNeeded')}
       </Text>
     </>
@@ -180,32 +188,44 @@ export default function MatchmakingScreen() {
 
   const roomCodeBlock =
     roomCode && waitingCount < 4 ? (
-      <View style={styles.roomCodeContainer}>
+      <View style={[styles.roomCodeContainer, isLandscape && styles.roomCodeContainerLandscape]}>
         <Text style={styles.roomCodeLabel}>🔗 {i18n.t('matchmaking.shareWithFriends')}</Text>
         <View style={styles.roomCodeBox}>
-          <Text style={styles.roomCodeText}>{roomCode}</Text>
+          <Text style={[styles.roomCodeText, isLandscape && styles.roomCodeTextLandscape]}>
+            {roomCode}
+          </Text>
         </View>
         <Text style={styles.roomCodeHint}>{i18n.t('matchmaking.friendsCanJoin')}</Text>
       </View>
     ) : null;
 
   const infoBox = (
-    <View style={styles.infoBox}>
+    <View style={[styles.infoBox, isLandscape && styles.infoBoxLandscape]}>
       <Text style={styles.infoTitle}>ℹ️ {i18n.t('matchmaking.howItWorks')}</Text>
       <Text style={styles.infoText}>{i18n.t('matchmaking.description')}</Text>
     </View>
   );
 
   const actionButtons = (
-    <>
-      <TouchableOpacity style={styles.startWithAIButton} onPress={handleStartWithAI}>
-        <Text style={styles.startWithAIButtonText}>🤖 {i18n.t('lobby.startWithBots')}</Text>
+    <View style={isLandscape ? styles.actionButtonsRowLandscape : undefined}>
+      <TouchableOpacity
+        style={[styles.startWithAIButton, isLandscape && styles.startWithAIButtonLandscape]}
+        onPress={handleStartWithAI}
+      >
+        <Text style={[styles.startWithAIButtonText, isLandscape && styles.buttonTextLandscape]}>
+          🤖 {i18n.t('lobby.startWithBots')}
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-        <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
+      <TouchableOpacity
+        style={[styles.cancelButton, isLandscape && styles.cancelButtonLandscape]}
+        onPress={handleCancel}
+      >
+        <Text style={[styles.cancelButtonText, isLandscape && styles.buttonTextLandscape]}>
+          {i18n.t('common.cancel')}
+        </Text>
       </TouchableOpacity>
-    </>
+    </View>
   );
 
   const errorBlock = error ? (
@@ -218,13 +238,13 @@ export default function MatchmakingScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]}
         showsVerticalScrollIndicator={true}
         bounces={true}
       >
         {isLandscape ? (
-          // LANDSCAPE: two-column layout
-          <View style={styles.landscapeRoot}>
+          // LANDSCAPE: two-column layout with minHeight to prevent column collapse on iOS
+          <View style={[styles.landscapeRoot, { minHeight: height - SPACING.xl }]}>
             {/* Left column: status & animation */}
             <View style={styles.landscapeLeft}>
               <Text style={styles.titleLandscape}>{i18n.t('matchmaking.title')}</Text>
@@ -273,6 +293,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  scrollContentLandscape: {
+    paddingBottom: SPACING.md,
+  },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -289,15 +312,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
+  animationContainerLandscape: {
+    marginBottom: SPACING.sm,
+  },
   searchingText: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.success,
     marginTop: SPACING.md,
     fontWeight: '600',
   },
+  searchingTextLandscape: {
+    fontSize: FONT_SIZES.md,
+    marginTop: SPACING.xs,
+  },
   countContainer: {
     alignItems: 'center',
     marginBottom: SPACING.lg,
+  },
+  countContainerLandscape: {
+    marginBottom: SPACING.sm,
   },
   countText: {
     fontSize: 72,
@@ -308,12 +341,19 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray.medium,
   },
+  countLabelLandscape: {
+    fontSize: FONT_SIZES.sm,
+  },
   statusMessage: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.white,
     textAlign: 'center',
     marginBottom: SPACING.xl,
     paddingHorizontal: SPACING.lg,
+  },
+  statusMessageLandscape: {
+    fontSize: FONT_SIZES.md,
+    marginBottom: SPACING.sm,
   },
   roomCodeContainer: {
     width: '100%',
@@ -324,6 +364,10 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.lg,
     alignItems: 'center',
+  },
+  roomCodeContainerLandscape: {
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   roomCodeLabel: {
     fontSize: FONT_SIZES.md,
@@ -344,6 +388,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 4,
     fontFamily: 'monospace',
+  },
+  roomCodeTextLandscape: {
+    fontSize: FONT_SIZES.lg,
   },
   roomCodeHint: {
     fontSize: FONT_SIZES.xs,
@@ -368,6 +415,9 @@ const styles = StyleSheet.create({
     color: COLORS.gray.medium,
     marginBottom: SPACING.xl,
   },
+  progressTextLandscape: {
+    marginBottom: SPACING.sm,
+  },
   infoBox: {
     width: '100%',
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -376,6 +426,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.xl,
+  },
+  infoBoxLandscape: {
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   infoTitle: {
     fontSize: FONT_SIZES.md,
@@ -454,7 +508,6 @@ const styles = StyleSheet.create({
   },
   // Landscape layout
   landscapeRoot: {
-    flex: 1,
     flexDirection: 'row',
     padding: SPACING.md,
     gap: SPACING.lg,
@@ -477,5 +530,24 @@ const styles = StyleSheet.create({
   },
   countTextLandscape: {
     fontSize: 48,
+  },
+  actionButtonsRowLandscape: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  startWithAIButtonLandscape: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    flex: 1,
+  },
+  cancelButtonLandscape: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    flex: 1,
+  },
+  buttonTextLandscape: {
+    fontSize: FONT_SIZES.md,
   },
 });

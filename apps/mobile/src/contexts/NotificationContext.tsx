@@ -273,7 +273,16 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       } else if (data.type === 'game_started' && data.roomCode) {
         navigation.navigate('Game', { roomCode: data.roomCode as string });
       } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
-        navigation.navigate('Profile');
+        // Don't yank user out of an active Lobby/Game session for friend
+        // notifications — navigate to Notifications instead so they can see
+        // the update without losing their current game context.
+        const state = navigation.getState();
+        const currentRoute = state?.routes?.[state.index ?? -1]?.name;
+        if (currentRoute === 'Lobby' || currentRoute === 'Game') {
+          navigation.navigate('Notifications');
+        } else {
+          navigation.navigate('Profile');
+        }
       }
     },
     [navigation, addStoredNotification, isLoggedIn]
