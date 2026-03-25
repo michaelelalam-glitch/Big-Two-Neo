@@ -1,9 +1,9 @@
 /**
  * LandscapeYourPosition Component (FULL REWRITE)
- * 
+ *
  * Bottom player position with FULL card hand interaction for landscape mode
  * NOW USES: Portrait Card component with ALL features (drag/drop/select/rearrange)
- * 
+ *
  * Features:
  * - Full drag-and-drop to play cards on table
  * - Drag to rearrange card order
@@ -11,12 +11,12 @@
  * - Lift-up animation for selected cards
  * - Multi-card selection and play
  * - Exactly matches portrait CardHand behavior
- * 
+ *
  * Task #461: Make landscape cards behave EXACTLY like portrait
  * Date: December 18, 2025
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
@@ -24,6 +24,7 @@ import { i18n } from '../../i18n';
 import { gameLogger } from '../../utils/logger';
 import Card from '../game/Card';
 import type { Card as CardType } from '../../game/types';
+import type { DragZoneState } from '../game/CardHand';
 
 // ============================================================================
 // CONSTANTS
@@ -31,6 +32,7 @@ import type { Card as CardType } from '../../game/types';
 
 const CARD_SPACING = 40; // For drag calculations
 const DRAG_TO_PLAY_THRESHOLD = -80; // Drag up to play
+const DRAG_APPROACH_THRESHOLD = -40; // 50% of threshold — approaching zone
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -52,6 +54,8 @@ interface LandscapeYourPositionProps {
   /** Callbacks for playing cards */
   onPlayCards?: (cards: CardType[]) => void;
   onCardsReorder?: (cards: CardType[]) => void;
+  /** Drag zone state change callback (for table glow) */
+  onDragZoneChange?: (state: DragZoneState) => void;
 }
 
 // Drag state interface (matches portrait CardHand)
@@ -84,28 +88,30 @@ export function LandscapeYourPosition({
   disabled = false,
   onPlayCards,
   onCardsReorder,
+  onDragZoneChange,
 }: LandscapeYourPositionProps) {
-  
   // Drag state (matches portrait CardHand)
   const [dragState, setDragState] = useState<DragState>(initialDragState);
+  // Track last reported zone to avoid redundant callbacks (matches portrait CardHand)
+  const lastZoneRef = useRef<DragZoneState>('idle');
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
-  
+
   // Update display cards ONLY when cards are added/removed OR parent explicitly reorders
   // CRITICAL: Do NOT auto-reorder during play/pass/button presses
   React.useEffect(() => {
     const currentIds = new Set(displayCards.map(c => c.id));
     const newIds = new Set(cards.map(c => c.id));
-    
+
     // Check if cards actually changed (not just reordered)
-    const sameCardSet = currentIds.size === newIds.size && 
-                        [...currentIds].every(id => newIds.has(id));
-    
+    const sameCardSet =
+      currentIds.size === newIds.size && [...currentIds].every(id => newIds.has(id));
+
     if (!sameCardSet) {
       // Cards were added or removed (play/pass action) - update display
       // But preserve the relative order of remaining cards
       const remainingCards = displayCards.filter(c => newIds.has(c.id));
       const newCards = cards.filter(c => !currentIds.has(c.id));
-      
+
       // Combine: keep user's custom order for existing cards, append new cards
       setDisplayCards([...remainingCards, ...newCards]);
       setDragState(initialDragState);
@@ -124,7 +130,9 @@ export function LandscapeYourPosition({
       const orderChanged = !displayCards.every((card, idx) => card.id === cards[idx]?.id);
       // Only update if NOT currently dragging (preserve user's manual rearrangement)
       if (orderChanged && !dragState.draggedCardId) {
-        gameLogger.info('🔄 [LandscapeYourPosition] Parent reordered cards (helper button), updating display');
+        gameLogger.info(
+          '🔄 [LandscapeYourPosition] Parent reordered cards (helper button), updating display'
+        );
         setDisplayCards(cards);
       }
     }
@@ -133,114 +141,164 @@ export function LandscapeYourPosition({
   const orderedCards = displayCards;
 
   // Toggle card selection (matches portrait)
-  const handleToggleSelect = useCallback((cardId: string) => {
-    if (disabled) return;
-    
-    const newSet = new Set(selectedCardIds);
-    if (newSet.has(cardId)) {
-      newSet.delete(cardId);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      newSet.add(cardId);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    onSelectionChange(newSet);
-  }, [disabled, selectedCardIds, onSelectionChange]);
+  const handleToggleSelect = useCallback(
+    (cardId: string) => {
+      if (disabled) return;
+
+      const newSet = new Set(selectedCardIds);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        newSet.add(cardId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      onSelectionChange(newSet);
+    },
+    [disabled, selectedCardIds, onSelectionChange]
+  );
 
   // Handle drag start
-  const handleDragStart = useCallback((cardId: string) => {
-    const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
-    setDragState({
-      draggedCardId: cardId,
-      targetIndex: null,
-      longPressedCardId: null,
-      isDraggingMultiple: isMultiDrag,
-      sharedTranslation: { x: 0, y: 0 },
-    });
-  }, [selectedCardIds]);
+  const handleDragStart = useCallback(
+    (cardId: string) => {
+      const isMultiDrag = selectedCardIds.has(cardId) && selectedCardIds.size > 1;
+      setDragState({
+        draggedCardId: cardId,
+        targetIndex: null,
+        longPressedCardId: null,
+        isDraggingMultiple: isMultiDrag,
+        sharedTranslation: { x: 0, y: 0 },
+      });
+    },
+    [selectedCardIds]
+  );
 
   // Handle long press
   const handleLongPress = useCallback((cardId: string) => {
     setDragState(prev => ({ ...prev, longPressedCardId: cardId }));
     setTimeout(() => {
-      setDragState(prev => 
-        prev.longPressedCardId === cardId 
-          ? { ...prev, longPressedCardId: null } 
-          : prev
+      setDragState(prev =>
+        prev.longPressedCardId === cardId ? { ...prev, longPressedCardId: null } : prev
       );
     }, 300);
   }, []);
 
   // Handle drag update
-  const handleDragUpdate = useCallback((cardId: string, translationX: number, translationY: number) => {
-    if (!dragState.draggedCardId || dragState.draggedCardId !== cardId) return;
-    
-    // Multi-drag: synchronized movement
-    if (dragState.isDraggingMultiple) {
-      setDragState(prev => ({
-        ...prev,
-        sharedTranslation: { x: translationX, y: translationY },
-        targetIndex: null,
-      }));
-      return;
-    }
-    
-    // Single drag: check if horizontal (rearrange) or vertical (play)
-    const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
-    if (!isHorizontalDrag) {
-      setDragState(prev => ({ ...prev, targetIndex: null }));
-      return;
-    }
-    
-    const currentIndex = orderedCards.findIndex(c => c.id === cardId);
-    if (currentIndex === -1) return;
-    
-    const positionShift = Math.round(translationX / CARD_SPACING);
-    const targetIndex = Math.max(0, Math.min(orderedCards.length - 1, currentIndex + positionShift));
-    
-    if (targetIndex !== currentIndex) {
-      setDragState(prev => ({ ...prev, targetIndex }));
-    } else {
-      setDragState(prev => ({ ...prev, targetIndex: null }));
-    }
-  }, [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards]);
+  const handleDragUpdate = useCallback(
+    (cardId: string, translationX: number, translationY: number) => {
+      if (!dragState.draggedCardId || dragState.draggedCardId !== cardId) return;
+
+      // Report drop zone proximity (matches portrait CardHand zone detection)
+      if (onDragZoneChange) {
+        const zone: DragZoneState =
+          translationY < DRAG_TO_PLAY_THRESHOLD
+            ? 'active'
+            : translationY < DRAG_APPROACH_THRESHOLD
+              ? 'approaching'
+              : 'idle';
+        if (zone !== lastZoneRef.current) {
+          lastZoneRef.current = zone;
+          onDragZoneChange(zone);
+        }
+      }
+
+      // Multi-drag: synchronized movement
+      if (dragState.isDraggingMultiple) {
+        setDragState(prev => ({
+          ...prev,
+          sharedTranslation: { x: translationX, y: translationY },
+          targetIndex: null,
+        }));
+        return;
+      }
+
+      // Single drag: check if horizontal (rearrange) or vertical (play)
+      const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
+      if (!isHorizontalDrag) {
+        setDragState(prev => ({ ...prev, targetIndex: null }));
+        return;
+      }
+
+      const currentIndex = orderedCards.findIndex(c => c.id === cardId);
+      if (currentIndex === -1) return;
+
+      const positionShift = Math.round(translationX / CARD_SPACING);
+      const targetIndex = Math.max(
+        0,
+        Math.min(orderedCards.length - 1, currentIndex + positionShift)
+      );
+
+      if (targetIndex !== currentIndex) {
+        setDragState(prev => ({ ...prev, targetIndex }));
+      } else {
+        setDragState(prev => ({ ...prev, targetIndex: null }));
+      }
+    },
+    [dragState.draggedCardId, dragState.isDraggingMultiple, orderedCards, onDragZoneChange]
+  );
 
   // Handle drag end
-  const handleDragEnd = useCallback((cardId: string, translationX: number, translationY: number) => {
-    if (dragState.draggedCardId) {
-      const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
-      const isUpwardDrag = translationY < DRAG_TO_PLAY_THRESHOLD;
-      
-      // Multi-drag upward = play all selected
-      if (dragState.isDraggingMultiple && isUpwardDrag && onPlayCards) {
-        const selected = orderedCards.filter((card) => selectedCardIds.has(card.id));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onPlayCards(selected);
-        onSelectionChange(new Set());
+  const handleDragEnd = useCallback(
+    (cardId: string, translationX: number, translationY: number) => {
+      // Reset drop zone state on drag end
+      if (onDragZoneChange && lastZoneRef.current !== 'idle') {
+        lastZoneRef.current = 'idle';
+        onDragZoneChange('idle');
       }
-      // Single drag upward = play this card
-      else if (isUpwardDrag && !isHorizontalDrag && !dragState.isDraggingMultiple && onPlayCards) {
-        const card = orderedCards.find(c => c.id === cardId);
-        if (card) {
+
+      if (dragState.draggedCardId) {
+        const isHorizontalDrag = Math.abs(translationX) > Math.abs(translationY);
+        const isUpwardDrag = translationY < DRAG_TO_PLAY_THRESHOLD;
+
+        // Multi-drag upward = play all selected
+        if (dragState.isDraggingMultiple && isUpwardDrag && onPlayCards) {
+          const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          onPlayCards([card]);
+          onPlayCards(selected);
+          onSelectionChange(new Set());
         }
-      }
-      // Horizontal drag = rearrange
-      else if (isHorizontalDrag && dragState.targetIndex !== null && !dragState.isDraggingMultiple) {
-        const currentIndex = orderedCards.findIndex(c => c.id === cardId);
-        if (currentIndex !== -1 && dragState.targetIndex !== currentIndex) {
-          const newCards = [...orderedCards];
-          const [draggedCard] = newCards.splice(currentIndex, 1);
-          newCards.splice(dragState.targetIndex, 0, draggedCard);
-          setDisplayCards(newCards);
-          if (onCardsReorder) onCardsReorder(newCards);
+        // Single drag upward = play this card
+        else if (
+          isUpwardDrag &&
+          !isHorizontalDrag &&
+          !dragState.isDraggingMultiple &&
+          onPlayCards
+        ) {
+          const card = orderedCards.find(c => c.id === cardId);
+          if (card) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            onPlayCards([card]);
+          }
         }
+        // Horizontal drag = rearrange
+        else if (
+          isHorizontalDrag &&
+          dragState.targetIndex !== null &&
+          !dragState.isDraggingMultiple
+        ) {
+          const currentIndex = orderedCards.findIndex(c => c.id === cardId);
+          if (currentIndex !== -1 && dragState.targetIndex !== currentIndex) {
+            const newCards = [...orderedCards];
+            const [draggedCard] = newCards.splice(currentIndex, 1);
+            newCards.splice(dragState.targetIndex, 0, draggedCard);
+            setDisplayCards(newCards);
+            if (onCardsReorder) onCardsReorder(newCards);
+          }
+        }
+
+        setDragState(initialDragState);
       }
-      
-      setDragState(initialDragState);
-    }
-  }, [dragState, orderedCards, selectedCardIds, onPlayCards, onSelectionChange, onCardsReorder]);
+    },
+    [
+      dragState,
+      orderedCards,
+      selectedCardIds,
+      onPlayCards,
+      onSelectionChange,
+      onCardsReorder,
+      onDragZoneChange,
+    ]
+  );
 
   // Empty state
   if (cards.length === 0) {
@@ -259,8 +317,8 @@ export function LandscapeYourPosition({
       {dragState.draggedCardId && dragState.sharedTranslation.y < DRAG_TO_PLAY_THRESHOLD && (
         <View style={styles.playDropZone}>
           <Text style={styles.playDropZoneText}>
-            {dragState.isDraggingMultiple 
-              ? `Release to play ${selectedCardIds.size} cards` 
+            {dragState.isDraggingMultiple
+              ? `Release to play ${selectedCardIds.size} cards`
               : 'Release to play card'}
           </Text>
         </View>
@@ -272,16 +330,15 @@ export function LandscapeYourPosition({
           const isThisCardSelected = selectedCardIds.has(card.id);
           const hasMultipleSelected = selectedCardIds.size > 1;
           const isDraggingThisGroup = dragState.isDraggingMultiple && isThisCardSelected;
-          const isTargetPosition = dragState.targetIndex === index && 
-                                  dragState.draggedCardId !== card.id &&
-                                  !dragState.isDraggingMultiple;
-          
+          const isTargetPosition =
+            dragState.targetIndex === index &&
+            dragState.draggedCardId !== card.id &&
+            !dragState.isDraggingMultiple;
+
           return (
             <React.Fragment key={card.id}>
               {/* Drop zone indicator for rearranging */}
-              {isTargetPosition && (
-                <View style={styles.dropZoneIndicator} />
-              )}
+              {isTargetPosition && <View style={styles.dropZoneIndicator} />}
               <Card
                 card={card}
                 isSelected={isThisCardSelected}
@@ -292,7 +349,13 @@ export function LandscapeYourPosition({
                 onLongPress={() => handleLongPress(card.id)}
                 disabled={disabled}
                 size="hand" // Portrait size
-                zIndex={dragState.draggedCardId === card.id ? 3000 : (dragState.longPressedCardId === card.id ? 2000 : index + 1)}
+                zIndex={
+                  dragState.draggedCardId === card.id
+                    ? 3000
+                    : dragState.longPressedCardId === card.id
+                      ? 2000
+                      : index + 1
+                }
                 hasMultipleSelected={hasMultipleSelected && isThisCardSelected}
                 isDraggingGroup={isDraggingThisGroup}
                 sharedDragX={dragState.sharedTranslation.x}

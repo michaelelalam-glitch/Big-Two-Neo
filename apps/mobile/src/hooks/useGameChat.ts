@@ -8,7 +8,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '../types/chat';
-import { filterMessage } from '../utils/profanityFilter';
 import { gameLogger } from '../utils/logger';
 import { soundManager, SoundType } from '../utils/soundManager';
 
@@ -63,7 +62,9 @@ export function useGameChat({
   const userIdRef = useRef(userId);
   const isDrawerOpenRef = useRef(isDrawerOpen);
 
-  useEffect(() => { userIdRef.current = userId; }, [userId]);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
   // Keep ref in sync so the broadcast handler can check without stale closure.
   useEffect(() => {
@@ -93,7 +94,12 @@ export function useGameChat({
     // versions that double-wrap the broadcast payload.
     let isActive = true;
 
-    const handler = (payload: { event?: string; data?: ChatMessage; timestamp?: string; payload?: { data?: ChatMessage } }) => {
+    const handler = (payload: {
+      event?: string;
+      data?: ChatMessage;
+      timestamp?: string;
+      payload?: { data?: ChatMessage };
+    }) => {
       if (!isActive) return;
       const raw = payload?.data ?? payload?.payload?.data;
       if (!raw || !raw.id || !raw.user_id || !raw.message) return;
@@ -106,26 +112,24 @@ export function useGameChat({
         raw.created_at && !Number.isNaN(Date.parse(raw.created_at))
           ? raw.created_at
           : new Date().toISOString();
-      // Apply profanity filter on receive so a modified client can't bypass it
-      // by broadcasting unfiltered text (Copilot PR-150 r2950195912).
       const msg: ChatMessage = {
         ...raw,
         username: raw.username || raw.user_id,
         created_at,
-        message: filterMessage(raw.message),
+        message: raw.message,
       };
 
-      setMessages((prev) => {
+      setMessages(prev => {
         // Deduplicate: optimistic local add + broadcast echo can create duplicates
         // (Copilot PR-150 r2950068891).
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        if (prev.some(m => m.id === msg.id)) return prev;
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
 
       // Increment unread if drawer is closed and message is from someone else.
       if (!isDrawerOpenRef.current && msg.user_id !== userIdRef.current) {
-        setUnreadCount((c) => c + 1);
+        setUnreadCount(c => c + 1);
       }
 
       // Play a notification sound for every incoming message from another player.
@@ -162,18 +166,16 @@ export function useGameChat({
       if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       cooldownTimerRef.current = setTimeout(() => setIsCooldown(false), COOLDOWN_MS);
 
-      const filtered = filterMessage(trimmed);
-
       const msg: ChatMessage = {
         id: nextId(userId),
         user_id: userId,
         username,
-        message: filtered,
+        message: trimmed,
         created_at: new Date().toISOString(),
       };
 
       // Optimistic: add to local messages immediately.
-      setMessages((prev) => {
+      setMessages(prev => {
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
@@ -192,12 +194,12 @@ export function useGameChat({
           // Roll back the optimistic message so the sender isn't left with a
           // ghost message that never reached other players
           // (Copilot PR-150 r2950125732).
-          setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+          setMessages(prev => prev.filter(m => m.id !== msg.id));
         });
 
       return true;
     },
-    [channel, userId, username],
+    [channel, userId, username]
   );
 
   return { messages, sendMessage, unreadCount, isCooldown };

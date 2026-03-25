@@ -15,7 +15,7 @@
  * Date: December 18, 2025
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -64,10 +64,16 @@ interface LandscapeOpponentProps {
   onAvatarPress?: () => void;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
+  /** Video chat: camera actively streaming */
+  isCameraOn?: boolean;
   /** Whether this player's mic is on (undefined = mic state unknown / not applicable) */
   isMicOn?: boolean;
   /** Called when the mic toggle button is pressed (local player only) */
   onMicToggle?: () => void;
+  /** Video chat: connection being established */
+  isVideoChatConnecting?: boolean;
+  /** Video chat: injected <LiveKitVideoSlot /> element */
+  videoStreamSlot?: ReactNode;
 }
 
 // ============================================================================
@@ -78,7 +84,7 @@ export function LandscapeOpponent({
   name,
   cardCount,
   isActive,
-  photoUrl,
+  photoUrl: _photoUrl,
   layout = 'vertical',
   totalScore,
   isDisconnected = false,
@@ -87,8 +93,11 @@ export function LandscapeOpponent({
   onCountdownExpired,
   onAvatarPress,
   onNameLongPress,
+  isCameraOn,
   isMicOn,
   onMicToggle,
+  isVideoChatConnecting,
+  videoStreamSlot,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -154,27 +163,38 @@ export function LandscapeOpponent({
               isDisconnected && styles.avatarInnerDisconnected,
             ]}
           >
-            {photoUrl ? (
-              // TODO: Render actual profile photo when available
-              <Text
-                style={[
-                  styles.avatarIcon,
-                  { fontSize: avatarScale.iconSize },
-                  isDisconnected && styles.avatarIconFaded,
-                ]}
-              >
-                👤
-              </Text>
+            {isVideoChatConnecting ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : isCameraOn && videoStreamSlot ? (
+              <View style={[styles.videoFill, { borderRadius: avatarScale.innerRadius }]}>
+                {videoStreamSlot}
+              </View>
+            ) : isCameraOn ? (
+              <View style={[styles.videoPlaceholder, { borderRadius: avatarScale.innerRadius }]}>
+                <Text style={[styles.avatarIcon, { fontSize: avatarScale.iconSize }]}>📷</Text>
+                {isMicOn !== undefined && (
+                  <View style={styles.micIndicator}>
+                    <Text style={styles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+                  </View>
+                )}
+              </View>
             ) : (
-              <Text
-                style={[
-                  styles.avatarIcon,
-                  { fontSize: avatarScale.iconSize },
-                  isDisconnected && styles.avatarIconFaded,
-                ]}
-              >
-                👤
-              </Text>
+              <>
+                <Text
+                  style={[
+                    styles.avatarIcon,
+                    { fontSize: avatarScale.iconSize },
+                    isDisconnected && styles.avatarIconFaded,
+                  ]}
+                >
+                  👤
+                </Text>
+                {isCameraOn === false && (
+                  <View style={styles.cameraOffBadge} pointerEvents="none">
+                    <Text style={styles.cameraOffIcon}>📵</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
           {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
@@ -395,6 +415,43 @@ const styles = StyleSheet.create({
   },
   micToggleIcon: {
     fontSize: 11,
+  },
+
+  // Video chat styles (matches portrait PlayerInfo avatarStyles)
+  videoFill: {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1a1a2e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  micIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 8,
+    padding: 2,
+  },
+  micIndicatorIcon: {
+    fontSize: 10,
+  },
+  cameraOffBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    padding: 2,
+  },
+  cameraOffIcon: {
+    fontSize: 10,
   },
 });
 

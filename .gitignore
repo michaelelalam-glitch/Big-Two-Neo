@@ -24,3 +24,4 @@ coverage/
 .tmp_write_migration.py
 parse_review.py
 parse_r4.py
+parse_comments.py

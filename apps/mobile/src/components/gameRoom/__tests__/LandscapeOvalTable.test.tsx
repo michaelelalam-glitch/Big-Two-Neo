@@ -1,6 +1,6 @@
 /**
  * Tests for LandscapeOvalTable Component
- * 
+ *
  * Task #455: Implement oval poker table play area
  * Date: December 19, 2025
  */
@@ -50,9 +50,7 @@ const mockCards: Card[] = [
   { id: '3', suit: 'D' as const, rank: 'Q' as const },
 ];
 
-const mockSingleCard: Card[] = [
-  { id: '1', suit: 'S' as const, rank: '3' as const },
-];
+const mockSingleCard: Card[] = [{ id: '1', suit: 'S' as const, rank: '3' as const }];
 
 // ============================================================================
 // TEST SUITE: EMPTY STATE
@@ -60,34 +58,20 @@ const mockSingleCard: Card[] = [
 
 describe('LandscapeOvalTable - Empty State', () => {
   it('renders empty state when no cards played', () => {
-    const { getByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
-    );
+    const { getByText } = render(<LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />);
 
     expect(getByText('No cards played yet')).toBeTruthy();
   });
 
   it('renders empty state when empty card array', () => {
-    const { getByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={[]}
-        lastPlayedBy={null}
-      />
-    );
+    const { getByText } = render(<LandscapeOvalTable lastPlayed={[]} lastPlayedBy={null} />);
 
     expect(getByText('No cards played yet')).toBeTruthy();
   });
 
   it('does not render last play info in empty state', () => {
     const { queryByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy="Alice"
-        comboDisplayText="Pair"
-      />
+      <LandscapeOvalTable lastPlayed={null} lastPlayedBy="Alice" comboDisplayText="Pair" />
     );
 
     expect(queryByText(/Last played by/)).toBeNull();
@@ -102,10 +86,7 @@ describe('LandscapeOvalTable - Empty State', () => {
 describe('LandscapeOvalTable - Active State', () => {
   it('renders cards when cards are played', () => {
     const { getAllByTestId } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Alice"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Alice" />
     );
 
     const cards = getAllByTestId(/^landscape-card-/);
@@ -113,12 +94,7 @@ describe('LandscapeOvalTable - Active State', () => {
   });
 
   it('renders last played by text', () => {
-    const { getByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Bob"
-      />
-    );
+    const { getByText } = render(<LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Bob" />);
 
     expect(getByText(/Last played by Bob/)).toBeTruthy();
   });
@@ -138,10 +114,7 @@ describe('LandscapeOvalTable - Active State', () => {
 
   it('does not render combo text when not provided', () => {
     const { queryByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Dave"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Dave" />
     );
 
     // Should not crash, just no combo text
@@ -171,46 +144,40 @@ describe('LandscapeOvalTable - Active State', () => {
 describe('LandscapeOvalTable - Dimensions', () => {
   it('applies correct oval table dimensions (420×240pt)', () => {
     const { getByTestId } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Alice"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Alice" />
     );
 
     const container = getByTestId('oval-table-container');
     const styles = container.props.style;
 
+    // Animated.View returns an array of style objects — flatten before asserting
+    const flatStyle = Array.isArray(styles) ? Object.assign({}, ...styles) : styles;
+
     // Container should have width: 420, height: 240
-    expect(styles).toMatchObject({
+    expect(flatStyle).toMatchObject({
       width: 420,
       height: 240,
     });
   });
 
   it('applies correct border radius (120pt for oval ends)', () => {
-    const { getByTestId } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
-    );
+    const { getByTestId } = render(<LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />);
 
     const container = getByTestId('oval-table-container');
     const styles = container.props.style;
 
-    expect(styles.borderRadius).toBe(120); // Half of height
+    const flatStyle = Array.isArray(styles) ? Object.assign({}, ...styles) : styles;
+
+    expect(flatStyle.borderRadius).toBe(120); // Half of height
   });
 
   it('applies poker table styling (green gradient)', () => {
     const { getByTestId } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Bob"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Bob" />
     );
 
     const gradient = getByTestId('oval-table-container');
-    
+
     // LinearGradient is mocked as View, so check it exists
     expect(gradient).toBeTruthy();
     expect(gradient.props.testID).toBe('oval-table-container');
@@ -224,36 +191,20 @@ describe('LandscapeOvalTable - Dimensions', () => {
 describe('LandscapeOvalTable - Card Sorting', () => {
   it('calls sortCardsForDisplay with cards and combo type', () => {
     const sortCardsForDisplay = require('../../../utils/cardSorting').sortCardsForDisplay;
-    
+
     render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Alice"
-        combinationType="Straight"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Alice" combinationType="Straight" />
     );
 
-    expect(sortCardsForDisplay).toHaveBeenCalledWith(
-      mockCards,
-      'Straight'
-    );
+    expect(sortCardsForDisplay).toHaveBeenCalledWith(mockCards, 'Straight');
   });
 
   it('handles null combinationType gracefully', () => {
     const sortCardsForDisplay = require('../../../utils/cardSorting').sortCardsForDisplay;
-    
-    render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Bob"
-        combinationType={null}
-      />
-    );
 
-    expect(sortCardsForDisplay).toHaveBeenCalledWith(
-      mockCards,
-      undefined
-    );
+    render(<LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Bob" combinationType={null} />);
+
+    expect(sortCardsForDisplay).toHaveBeenCalledWith(mockCards, undefined);
   });
 });
 
@@ -264,10 +215,7 @@ describe('LandscapeOvalTable - Card Sorting', () => {
 describe('LandscapeOvalTable - Integration', () => {
   it('transitions from empty to active state', () => {
     const { getByText, rerender, queryByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
+      <LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />
     );
 
     // Initially empty
@@ -290,53 +238,27 @@ describe('LandscapeOvalTable - Integration', () => {
 
   it('updates when player changes', () => {
     const { getByText, rerender } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Alice"
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Alice" />
     );
 
     expect(getByText(/Last played by Alice/)).toBeTruthy();
 
-    rerender(
-      <LandscapeOvalTable
-        lastPlayed={mockSingleCard}
-        lastPlayedBy="Bob"
-      />
-    );
+    rerender(<LandscapeOvalTable lastPlayed={mockSingleCard} lastPlayedBy="Bob" />);
 
     expect(getByText(/Last played by Bob/)).toBeTruthy();
   });
 
   it('handles rapid state changes gracefully', () => {
     const { rerender, getByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
+      <LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />
     );
 
     // Rapid transitions
-    rerender(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy="Alice"
-      />
-    );
+    rerender(<LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy="Alice" />);
 
-    rerender(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
-    );
+    rerender(<LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />);
 
-    rerender(
-      <LandscapeOvalTable
-        lastPlayed={mockSingleCard}
-        lastPlayedBy="Bob"
-      />
-    );
+    rerender(<LandscapeOvalTable lastPlayed={mockSingleCard} lastPlayedBy="Bob" />);
 
     // Should render final state correctly
     expect(getByText(/Last played by Bob/)).toBeTruthy();
@@ -349,22 +271,14 @@ describe('LandscapeOvalTable - Integration', () => {
 
 describe('LandscapeOvalTable - Props Validation', () => {
   it('handles all optional props being undefined', () => {
-    const { getByText } = render(
-      <LandscapeOvalTable
-        lastPlayed={null}
-        lastPlayedBy={null}
-      />
-    );
+    const { getByText } = render(<LandscapeOvalTable lastPlayed={null} lastPlayedBy={null} />);
 
     expect(getByText('No cards played yet')).toBeTruthy();
   });
 
   it('handles lastPlayedBy null with cards', () => {
     const { queryByText, getAllByTestId } = render(
-      <LandscapeOvalTable
-        lastPlayed={mockCards}
-        lastPlayedBy={null}
-      />
+      <LandscapeOvalTable lastPlayed={mockCards} lastPlayedBy={null} />
     );
 
     // Should render cards but no "Last played by" text

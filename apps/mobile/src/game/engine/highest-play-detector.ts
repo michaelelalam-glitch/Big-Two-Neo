@@ -437,41 +437,28 @@ function isHighestRemainingFiveCardCombo(
       const allSameSuit = sorted.every(c => c.suit === suit);
       if (!allSameSuit) return false;
 
-      // If this is a royal flush, check if any higher suit royal exists
-      if (straightInfo.sequence === '10JQKA') {
-        for (const otherSuit of SUITS) {
-          if (SUIT_VALUE[otherSuit] > SUIT_VALUE[suit]) {
-            const royalIds = ['10', 'J', 'Q', 'K', 'A'].map(r => `${r}${otherSuit}`);
-            if (royalIds.every(id => remaining.some(c => c.id === id))) {
-              return false;
-            }
-          }
-        }
-        return true;
-      }
-
-      // For non-royal straight flushes, check if any stronger straight flush can still be formed
       // Find the current sequence index
       const currentSeqIdx = VALID_STRAIGHT_SEQUENCES.findIndex(
         seq => seq.join('') === straightInfo.sequence
       );
+      if (currentSeqIdx === -1) return false;
 
-      // Check for same suit, higher sequence
-      for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
-        const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
-        const ids = seq.map(rank => `${rank}${suit}`);
-        if (ids.every(id => remaining.some(c => c.id === id))) {
-          return false; // A higher sequence exists in the same suit
-        }
-      }
+      // Check ALL suits for ANY straight flush that beats this one:
+      // - Higher sequence in ANY suit beats this (regardless of suit value)
+      // - Same sequence in a HIGHER suit beats this
+      // This covers royal flushes, non-royal straight flushes, and cross-suit comparisons.
+      for (const checkSuit of SUITS) {
+        for (let seqIdx = 0; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+          const isHigherSequence = seqIdx > currentSeqIdx;
+          const isSameSequenceHigherSuit =
+            seqIdx === currentSeqIdx && SUIT_VALUE[checkSuit] > SUIT_VALUE[suit];
 
-      // Check for same sequence, higher suit
-      for (const otherSuit of SUITS) {
-        if (SUIT_VALUE[otherSuit] > SUIT_VALUE[suit]) {
-          const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
-          const ids = currentSeq.map(rank => `${rank}${otherSuit}`);
-          if (ids.every(id => remaining.some(c => c.id === id))) {
-            return false; // Same sequence exists in a higher suit
+          if (!isHigherSequence && !isSameSequenceHigherSuit) continue;
+
+          const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+          const ids = seq.map(rank => `${rank}${checkSuit}`);
+          if (ids.every(id => availableCards.some(c => c.id === id))) {
+            return false; // A stronger straight flush can be formed
           }
         }
       }
@@ -485,7 +472,7 @@ function isHighestRemainingFiveCardCombo(
       // remaining, so the highest remaining quad may be a LOWER rank than the played quad.
       let highestQuadRank: string | null = null;
       for (const rank of [...RANKS].reverse()) {
-        if (remaining.filter(c => c.rank === rank).length >= 4) {
+        if (availableCards.filter(c => c.rank === rank).length >= 4) {
           highestQuadRank = rank;
           break;
         }
@@ -506,7 +493,7 @@ function isHighestRemainingFiveCardCombo(
     case 'Full House': {
       // Find the highest possible triple rank and pair from remaining cards
       const rankCounts: Record<string, number> = {};
-      for (const card of remaining) {
+      for (const card of availableCards) {
         rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
       }
 
@@ -566,36 +553,27 @@ function isHighestRemainingFiveCardCombo(
 
     case 'Flush': {
       // For flush, we already verified no stronger combo types exist (SF, 4K, FH)
-      // Now enumerate all possible flushes and check if this is the highest
+      // Now check if any flush from ANY suit beats this one.
+      // canBeatPlay compares Flush by highest card value (rank*10 + suit).
 
       const currentSuit = sorted[0].suit;
       const allSameSuit = sorted.every(c => c.suit === currentSuit);
       if (!allSameSuit) return false;
 
-      // Generate all possible 5-card flushes from remaining cards
-      const suitCards = remaining.filter(c => c.suit === currentSuit);
+      const currentHighest = sorted[sorted.length - 1];
+      const currentHighestValue =
+        RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
 
-      if (suitCards.length < 5) {
-        // No other flush possible in this suit
-        return true;
+      for (const checkSuit of SUITS) {
+        const suitCards = availableCards.filter(c => c.suit === checkSuit);
+        if (suitCards.length < 5) continue;
+        const sortedSuit = sortHand(suitCards);
+        const bestCard = sortedSuit[sortedSuit.length - 1];
+        const bestValue = RANK_VALUE[bestCard.rank] * 10 + SUIT_VALUE[bestCard.suit];
+        if (bestValue > currentHighestValue) return false;
       }
 
-      // Check if there's a higher 5-card combination in the same suit
-      // Sort by rank to find highest 5 cards
-      const sortedSuitCards = sortHand(suitCards);
-      const top5 = sortedSuitCards.slice(-5);
-
-      // Compare current flush with best possible flush
-      const currentSorted = sortHand(sorted);
-      for (let i = 4; i >= 0; i--) {
-        const currentRank = RANK_VALUE[currentSorted[i].rank];
-        const bestRank = RANK_VALUE[top5[i].rank];
-
-        if (currentRank > bestRank) return true;
-        if (currentRank < bestRank) return false;
-      }
-
-      return true; // Same flush
+      return true; // No flush from any suit beats this one
     }
 
     case 'Straight': {
@@ -615,7 +593,7 @@ function isHighestRemainingFiveCardCombo(
       // Check if any higher sequence can be formed
       for (let seqIdx = currentSeqIdx + 1; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
         const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
-        const canForm = seq.every(rank => remaining.some(c => c.rank === rank));
+        const canForm = seq.every(rank => availableCards.some(c => c.rank === rank));
 
         if (canForm) {
           return false; // A higher straight is possible
@@ -638,7 +616,7 @@ function isHighestRemainingFiveCardCombo(
         }
 
         const rank = currentSeq[rankIdx];
-        const cardsOfRank = remaining.filter(c => c.rank === rank);
+        const cardsOfRank = availableCards.filter(c => c.rank === rank);
 
         for (const card of cardsOfRank) {
           current.push(card);

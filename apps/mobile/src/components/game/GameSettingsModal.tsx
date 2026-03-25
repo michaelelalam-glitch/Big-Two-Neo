@@ -12,7 +12,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
-import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  OVERLAYS,
+  MODAL,
+  MODAL_SUPPORTED_ORIENTATIONS,
+} from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
 import { useUserPreferencesStore } from '../../store';
@@ -144,7 +151,7 @@ function GameSettingsModalComponent({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      supportedOrientations={['portrait', 'landscape']}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <View

@@ -273,6 +273,56 @@ describe('Highest Play Detector', () => {
       // So Royal Hearts is NOT the highest possible straight flush
       expect(isHighestPossiblePlay(royalHearts, playedCards)).toBe(false);
     });
+
+    it('does NOT detect non-royal straight flush as highest when higher sequence in another suit exists', () => {
+      // 3-4-5-6-7♠ is NOT highest because 4-5-6-7-8♥ (a higher sequence in Hearts) is still possible
+      const playedCards: Card[] = [];
+      const lowStraightFlush: Card[] = [
+        { id: '3S', rank: '3' as const, suit: 'S' as const },
+        { id: '4S', rank: '4' as const, suit: 'S' as const },
+        { id: '5S', rank: '5' as const, suit: 'S' as const },
+        { id: '6S', rank: '6' as const, suit: 'S' as const },
+        { id: '7S', rank: '7' as const, suit: 'S' as const },
+      ];
+
+      expect(isHighestPossiblePlay(lowStraightFlush, playedCards)).toBe(false);
+    });
+
+    it('detects non-royal straight flush as highest when all higher cross-suit sequences are broken', () => {
+      // 5-6-7-8-9♦ should be highest if all stronger straight flushes are broken
+      // by having at least one card from each broken (played cards remove key cards)
+      const playedCards: Card[] = [
+        // Break all higher straight flushes in ALL suits:
+        // 6-10 range: played 10D, 10C, 10H, 10S → breaks 6-7-8-9-10 in every suit
+        { id: '10D', rank: '10' as const, suit: 'D' as const },
+        { id: '10C', rank: '10' as const, suit: 'C' as const },
+        { id: '10H', rank: '10' as const, suit: 'H' as const },
+        { id: '10S', rank: '10' as const, suit: 'S' as const },
+        // Break JD→ breaks 7-J, 8-Q, 9-K, 10-A in Diamonds (but not other suits)
+        // We actually need to break ALL straight flushes that beat 5-6-7-8-9♦
+        // Those are: any SF with higher top card, OR same top card but higher suit (impossible, ♦ is lowest)
+        // Higher sequences: 6-7-8-9-10 (any suit), 7-8-9-10-J (any suit), etc.
+        // Since all 10s are played → 6-7-8-9-10 is broken in ALL suits ✓
+        // Need to break 7-8-9-10-J in all suits (10 is gone for all → already broken) ✓
+        // All sequences needing 10 are broken. But 9-10-J-Q-K also needs 10 → broken ✓
+        // 10-J-Q-K-A also needs 10 → broken ✓
+        // So remaining threats: sequences NOT containing 10, which are:
+        // 5-6-7-8-9 in C, H, S (same sequence, higher suits than ♦)
+        { id: '9C', rank: '9' as const, suit: 'C' as const }, // Breaks 5-6-7-8-9♣
+        { id: '9H', rank: '9' as const, suit: 'H' as const }, // Breaks 5-6-7-8-9♥
+        { id: '9S', rank: '9' as const, suit: 'S' as const }, // Breaks 5-6-7-8-9♠
+      ];
+
+      const straightFlush: Card[] = [
+        { id: '5D', rank: '5' as const, suit: 'D' as const },
+        { id: '6D', rank: '6' as const, suit: 'D' as const },
+        { id: '7D', rank: '7' as const, suit: 'D' as const },
+        { id: '8D', rank: '8' as const, suit: 'D' as const },
+        { id: '9D', rank: '9' as const, suit: 'D' as const },
+      ];
+
+      expect(isHighestPossiblePlay(straightFlush, playedCards)).toBe(true);
+    });
   });
 
   // ============================================
