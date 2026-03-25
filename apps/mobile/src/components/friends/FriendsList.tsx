@@ -86,7 +86,7 @@ export function FriendsList() {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username')
-          .ilike('username', `%${trimmed}%`)
+          .ilike('username', `${trimmed}%`)
           .neq('id', user.id)
           .limit(10);
         if (!mountedRef.current) return;

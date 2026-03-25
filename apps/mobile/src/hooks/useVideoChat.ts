@@ -523,6 +523,9 @@ export function useVideoChat({
   // if the local player hasn't opted in to publish their own camera/mic.
   // Skipped when the auto-restore effect above already connected with stored
   // prefs (hasRestoredPrefsRef + isChatConnected guard).
+  // Retry key: incremented on transient failure (after a delay) so the effect
+  // re-runs even when no other deps change.
+  const [autoConnectRetryKey, setAutoConnectRetryKey] = useState(0);
   useEffect(() => {
     if (!autoConnect || !roomId || !userId || hasAutoConnectedRef.current) return;
     // Wait for restore async IIFE to finish before deciding — prevents duplicate
@@ -534,6 +537,7 @@ export function useVideoChat({
       return;
     }
     let cancelled = false;
+    let retryCleanup: (() => void) | undefined;
 
     (async () => {
       try {
@@ -551,14 +555,22 @@ export function useVideoChat({
           '[VideoChat] Auto-connect failed (non-fatal):',
           err instanceof Error ? err.message : String(err)
         );
+        // Schedule a retry after 3 s so the effect re-runs via the retryKey dep.
+        if (!cancelled) {
+          const retryTimer = setTimeout(() => {
+            if (!cancelled) setAutoConnectRetryKey(k => k + 1);
+          }, 3000);
+          retryCleanup = () => clearTimeout(retryTimer);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+      retryCleanup?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoConnect, roomId, userId, isChatConnected, restoreFinished]);
+  }, [autoConnect, roomId, userId, isChatConnected, restoreFinished, autoConnectRetryKey]);
 
   const requestCameraPermission = useCallback(async (): Promise<MediaPermissionStatus> => {
     if (Platform.OS === 'android') {

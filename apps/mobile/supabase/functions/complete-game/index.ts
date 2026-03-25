@@ -768,17 +768,22 @@ async function broadcastGameEnded(
       const effectiveScore = (!isCompleted && !isVoided) ? 200 : player.score;
 
       // Validate required stats fields — reject rather than silently writing incorrect data
-      if (
-        player.finish_position == null ||
-        player.combos_played == null ||
-        player.cards_left == null
-      ) {
+      const missingFields: string[] = [];
+      if (player.finish_position == null) missingFields.push('finish_position');
+      if (player.combos_played == null) missingFields.push('combos_played');
+      if (player.cards_left == null) missingFields.push('cards_left');
+      if (missingFields.length > 0) {
         console.error(`[Complete Game] Missing required stats for ${player.username}:`, {
           finish_position: player.finish_position,
           combos_played: player.combos_played,
           cards_left: player.cards_left,
+          missingFields,
         });
-        return { user_id: player.user_id, success: false, error: 'Missing required stats fields' };
+        return {
+          user_id: player.user_id,
+          success: false,
+          error: `Missing required stats fields: ${missingFields.join(', ')}`,
+        };
       }
 
       const { error: statsError } = await supabaseAdmin.rpc('update_player_stats_after_game', {
