@@ -9,11 +9,12 @@ import {
   Modal,
   Alert,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { ActiveGameBanner } from '../components/home/ActiveGameBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -33,6 +34,29 @@ export default function HomeScreen() {
   const { unreadCount } = useNotifications();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isLandscape = screenWidth > screenHeight;
+
+  // On iOS, expo-screen-orientation may still hold a portrait lock from the
+  // game screen. Release it here so the home screen modals can appear in
+  // the correct orientation when the device is held in landscape.
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let cancelled = false;
+    const unlock = async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const ScreenOrientation = require('expo-screen-orientation');
+        if (!cancelled) await ScreenOrientation.unlockAsync();
+      } catch {
+        // expo-screen-orientation not available — safe to ignore
+      }
+    };
+    void unlock();
+    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [navigation]);
 
   const {
     currentRoom,
@@ -240,6 +264,7 @@ export default function HomeScreen() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => setShowDifficultyModal(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.modalOverlay}>
           <View
@@ -331,6 +356,7 @@ export default function HomeScreen() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => setShowFindGameModal(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.modalOverlay}>
           <View

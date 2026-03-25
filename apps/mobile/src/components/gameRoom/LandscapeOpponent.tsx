@@ -245,10 +245,10 @@ export function LandscapeOpponent({
                 <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
               </View>
             ))}
-          {/* Total score badge positioned on avatar (top-left) - Task #590 */}
+          {/* Total score badge positioned on avatar (bottom-left, matches portrait) - Task #590 */}
           {totalScore !== undefined && (
             <View
-              style={styles.scoreBadgeTopLeft}
+              style={scoreDisplayStyles.scoreBadgePosition}
               accessible={true}
               accessibilityRole="text"
               accessibilityLabel={`Score: ${formatScore(totalScore)}`}
@@ -450,13 +450,6 @@ const styles = StyleSheet.create({
   },
   cameraOffIcon: {
     fontSize: 10,
-  },
-  // Score badge at top-left (avoids overlap with camera-off badge at bottom-left)
-  scoreBadgeTopLeft: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    zIndex: 10,
   },
 });
 
