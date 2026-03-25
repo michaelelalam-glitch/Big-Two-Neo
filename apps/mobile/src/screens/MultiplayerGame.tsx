@@ -109,6 +109,9 @@ export function MultiplayerGame() {
   useEffect(() => {
     roomInfoRef.current = roomInfo;
   }, [roomInfo]);
+  // Mirror isHost so the Play Again callback avoids stale closures
+  const isHostRef = useRef(false);
+
   // Track when game transitions to 'playing' to calculate duration
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
@@ -183,18 +186,21 @@ export function MultiplayerGame() {
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-        // 2. Listen for a "play_again_room" broadcast from another player who
-        //    already created a room. Wait up to 2 seconds before falling back
-        //    to creating our own room.
+        // 2. Deterministic creator: host creates immediately, non-host listens
+        //    for a broadcast first (up to 5s) before falling back to creating.
+        //    This prevents the race where multiple players press Play Again
+        //    simultaneously, all listen, nobody broadcasts, and everyone
+        //    creates separate rooms.
+        const amHost = isHostRef.current;
         let receivedRoomCode: string | null = null;
 
-        if (info.id) {
+        if (!amHost && info.id) {
           const playAgainChannel = supabase.channel(`play-again:${info.id}`);
           receivedRoomCode = await new Promise<string | null>(resolve => {
             const timeout = setTimeout(() => {
               supabase.removeChannel(playAgainChannel);
               resolve(null);
-            }, 2000);
+            }, 5000);
 
             playAgainChannel
               .on('broadcast', { event: 'play_again_room' }, payload => {
@@ -429,6 +435,11 @@ export function MultiplayerGame() {
     // producing different UIs per player.  useMatchEndHandler uses DB-authoritative data
     // so every player — winner and losers — sees the same correct modal.
   });
+
+  // Keep isHostRef in sync so Play Again callback avoids stale closures
+  useEffect(() => {
+    isHostRef.current = isMultiplayerHost;
+  }, [isMultiplayerHost]);
 
   // Track when game starts (for duration calculation)
   // Placed after useRealtime so multiplayerGameState is already declared.
