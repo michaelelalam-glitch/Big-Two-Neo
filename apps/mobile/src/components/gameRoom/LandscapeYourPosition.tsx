@@ -302,7 +302,7 @@ export function LandscapeYourPosition({
         // Multi-drag upward = play all selected
         if (dragState.isDraggingMultiple && isUpwardDrag && onPlayCards) {
           const selected = orderedCards.filter(card => selectedCardIds.has(card.id));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           // Optimistically remove cards from display - don't wait for server confirmation
           for (const id of selectedCardIds) {
             optimisticallyRemovedRef.current.add(id);
@@ -321,7 +321,7 @@ export function LandscapeYourPosition({
         ) {
           const card = orderedCards.find(c => c.id === cardId);
           if (card) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
             // Optimistically remove card from display - don't wait for server confirmation
             optimisticallyRemovedRef.current.add(cardId);
             setDisplayCards(prev => prev.filter(c => c.id !== cardId));
