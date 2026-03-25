@@ -1100,8 +1100,9 @@ export function useVideoChat({
     persistChatPrefs,
   ]);
 
-  // voiceChatEnabled is a derived value: connected but camera is off.
-  const voiceChatEnabled = isChatConnected && !isLocalCameraOn;
+  // voiceChatEnabled is a derived value: connected, mic on, and camera off.
+  // In listener mode (autoConnect, no local tracks), this is correctly false.
+  const voiceChatEnabled = isChatConnected && isLocalMicOn && !isLocalCameraOn;
 
   /**
    * Returns the LiveKit TrackReference for a participant's camera track.

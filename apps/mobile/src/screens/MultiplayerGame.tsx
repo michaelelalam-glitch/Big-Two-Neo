@@ -215,9 +215,9 @@ export function MultiplayerGame() {
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
 
-  // Suppresses the onError → showInGameAlert toast while connectWithRetry is in progress.
+  // Suppresses the onError → showInGameAlert in-game alert/modal while connectWithRetry is in progress.
   // Without this, every failed intermediate attempt (attempt 0, 1) would surface
-  // an error toast to the user even when a later retry succeeds.
+  // an error alert to the user even when a later retry succeeds.
   const suppressConnectErrorsRef = useRef(false);
 
   // Server-side multiplayer game state via Realtime

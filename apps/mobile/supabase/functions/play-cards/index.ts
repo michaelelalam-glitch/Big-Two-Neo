@@ -538,7 +538,11 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
   if (comboType === 'Four of a Kind') {
     return isHighestRemainingFourOfAKind(cards, notInCurrent);
   }
-  // Conservative for Full House / Flush / Straight — enumeration is too expensive.
+  // Conservative for Full House / Flush / Straight — enumeration is too expensive
+  // in an edge function context. This means auto-pass will NOT trigger for these
+  // combo types (only Straight Flush and Four of a Kind are checked). This is an
+  // intentional trade-off: false negatives are harmless (timer just doesn't fire),
+  // while false positives would incorrectly auto-pass when beatable plays exist.
   return false;
 }
 
