@@ -137,7 +137,7 @@ function GameSettingsModalComponent({
       });
     }
     // 'shared': Share sheet was presented — no additional alert needed
-  }, [roomCode, vibrationEnabled]);
+  }, [roomCode, vibrationEnabled, showInGameAlert]);
 
   const handleShareRoomCode = useCallback(async () => {
     if (!roomCode) return;

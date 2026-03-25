@@ -266,6 +266,7 @@ export function LandscapeGameLayout({
         ],
       });
     } else {
+      // Fallback: directly show add friend action when alert unavailable
       setOpponentActionTarget({ id: opponentId, name: opponentName });
     }
   };
@@ -277,13 +278,11 @@ export function LandscapeGameLayout({
     if (!opponentId) return;
     const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
     if (isFriend) {
-      if (showInGameAlert) {
-        showInGameAlert({
-          title: opponentName,
-          message: i18n.t('friends.alreadyFriends'),
-          buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
-        });
-      }
+      showInGameAlert?.({
+        title: opponentName,
+        message: i18n.t('friends.alreadyFriends'),
+        buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
+      });
     } else {
       setOpponentActionTarget({ id: opponentId, name: opponentName });
     }
