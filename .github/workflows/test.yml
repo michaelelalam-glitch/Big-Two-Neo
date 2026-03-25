@@ -371,24 +371,45 @@ jobs:
           # cannot be automated in CI — they run locally or in dedicated
           # integration environments with test credentials.
           #
-          # timeout-minutes is 25 to account for:
+          # timeout-minutes is 45 to account for:
           #   - XCUITest driver startup on a cold macos-latest runner: up to 5 min
           #     (MAESTRO_DRIVER_STARTUP_TIMEOUT=300000 below)
           #   - App launch + sign-in screen render (Release JS bundle): up to 3 min
           #   - Test assertions and screenshot: ~1 min
           #   - Buffer for runner variance: ~5 min
+          #   - One retry after simulator warm-up on "App crashed" flakes: ~10 min
           #   Prior value of 10 min was too short: Maestro was killed mid-startup,
           #   producing exit 65 and no results XML.
-          set +e
-          maestro test --include-tags ci e2e/flows/ \
-            --format junit \
-            --output e2e/results/results.xml
-          MAESTRO_EXIT=$?
-          set -e
+          #
+          # Retry logic: iOS simulator can crash on clearState: true (flaky).
+          # We attempt once, and if it fails we re-warm the simulator then retry.
+          MAX_ATTEMPTS=2
+          MAESTRO_EXIT=1
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "--- Maestro attempt $attempt/$MAX_ATTEMPTS ---"
+            set +e
+            maestro test --include-tags ci e2e/flows/ \
+              --format junit \
+              --output e2e/results/results.xml
+            MAESTRO_EXIT=$?
+            set -e
+            if [ $MAESTRO_EXIT -eq 0 ]; then
+              break
+            fi
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator before retry..."
+              xcrun simctl terminate booted com.big2mobile.app || true
+              sleep 10
+              xcrun simctl launch booted com.big2mobile.app || true
+              sleep 15
+              xcrun simctl terminate booted com.big2mobile.app || true
+              sleep 5
+            fi
+          done
           echo "Maestro exit code: $MAESTRO_EXIT"
           echo "Results file: $(test -f e2e/results/results.xml && echo PRESENT || echo MISSING)"
           exit $MAESTRO_EXIT
-        timeout-minutes: 25
+        timeout-minutes: 45
         env:
           # Give Maestro's XCUITest driver up to 5 minutes to start the
           # XCTest server on port 7001. Default (~90s) is too short on
