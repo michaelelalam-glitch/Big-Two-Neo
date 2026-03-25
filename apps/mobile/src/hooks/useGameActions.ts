@@ -284,7 +284,7 @@ export function useGameActions({
         } else {
           gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
           const failMsg = msg || 'Failed to pass';
-          if (onAlert) onAlert({ message: failMsg }); else showError(failMsg);
+          alertError(failMsg);
         }
       } finally {
         isPassingRef.current = false;
