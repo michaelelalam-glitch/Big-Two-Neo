@@ -47,11 +47,22 @@ export interface InGameAlertHandle {
   hide: () => void;
 }
 
+export interface InGameAlertProps {
+  /**
+   * The game's chosen orientation (set by the in-game orientation toggle).
+   * When provided, the modal is constrained to only the matching orientations
+   * so it always renders aligned with the game layout rather than the physical
+   * device rotation. When omitted, all orientations are supported (safe fallback).
+   */
+  gameOrientation?: 'portrait' | 'landscape';
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export const InGameAlert = forwardRef<InGameAlertHandle, object>((_props, ref) => {
+export const InGameAlert = forwardRef<InGameAlertHandle, InGameAlertProps>(
+  ({ gameOrientation }, ref) => {
   const [visible, setVisible] = useState(false);
   const [alertOptions, setAlertOptions] = useState<InGameAlertOptions | null>(null);
 
@@ -75,10 +86,18 @@ export const InGameAlert = forwardRef<InGameAlertHandle, object>((_props, ref) =
     [hide]
   );
 
-  // Include all orientations so the Modal can always present without
-  // crashing on iOS (if the device's current interface orientation isn't
-  // in the list, iOS throws). Uses the repo-wide constant.
-  const supportedOrientations = MODAL_SUPPORTED_ORIENTATIONS;
+  // Restrict the modal's supported orientations to match the game's chosen
+  // orientation so the popup always appears aligned with the game layout,
+  // regardless of how the player physically holds their device.
+  // When gameOrientation is not provided, fall back to all orientations
+  // (prevents iOS from throwing if the current interface orientation is
+  // not in the supported list).
+  const supportedOrientations: typeof MODAL_SUPPORTED_ORIENTATIONS =
+    gameOrientation === 'portrait'
+      ? ['portrait', 'portrait-upside-down']
+      : gameOrientation === 'landscape'
+        ? ['landscape-left', 'landscape-right', 'landscape']
+        : MODAL_SUPPORTED_ORIENTATIONS;
 
   const buttons = alertOptions?.buttons ?? [
     { text: i18n.t('common.ok'), style: 'default' as const },

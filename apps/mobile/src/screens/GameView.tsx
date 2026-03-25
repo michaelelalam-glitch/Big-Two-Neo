@@ -564,6 +564,7 @@ function GameViewComponent() {
               onOpponentNameLongPress={
                 isMultiplayerGame ? handlePortraitOpponentNameLongPress : undefined
               }
+              opponentPlayerIds={isMultiplayerGame ? remotePlayerIds : undefined}
               throwableActiveEffects={throwableActiveEffects}
             />
 

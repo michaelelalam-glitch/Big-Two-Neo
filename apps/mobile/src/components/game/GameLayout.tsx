@@ -52,6 +52,12 @@ interface GameLayoutProps {
   dropZoneState?: DragZoneState;
   /** Called when an opponent name badge is long-pressed; receives display index (1=top, 2=left, 3=right) */
   onOpponentNameLongPress?: (displayIndex: number) => void;
+  /**
+   * User IDs for remote opponents at display positions [1, 2, 3]. An empty
+   * string or missing entry means the slot is occupied by a bot — long-press
+   * will be disabled for that slot (mirrors LandscapeGameLayout behaviour).
+   */
+  opponentPlayerIds?: readonly string[];
   /** Active throwable effect for each display position (0=bottom/local, 1=top, 2=left, 3=right). */
   throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
 }
@@ -79,6 +85,7 @@ function GameLayoutComponent({
   autoPassTimerState,
   dropZoneState = 'idle',
   onOpponentNameLongPress,
+  opponentPlayerIds,
   throwableActiveEffects,
 }: GameLayoutProps) {
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -173,7 +180,7 @@ function GameLayoutComponent({
           isMicOn={players[1].isMicOn}
           isVideoChatConnecting={players[1].isVideoChatConnecting}
           videoStreamSlot={players[1].videoStreamSlot}
-          onNameLongPress={onOpponentNameLongPress ? () => onOpponentNameLongPress(1) : undefined}
+          onNameLongPress={onOpponentNameLongPress && opponentPlayerIds?.[0] ? () => onOpponentNameLongPress(1) : undefined}
         />
         {throwableActiveEffects?.[1] != null && (
           <View
@@ -226,7 +233,7 @@ function GameLayoutComponent({
               isVideoChatConnecting={players[2].isVideoChatConnecting}
               videoStreamSlot={players[2].videoStreamSlot}
               onNameLongPress={
-                onOpponentNameLongPress ? () => onOpponentNameLongPress(2) : undefined
+                onOpponentNameLongPress && opponentPlayerIds?.[1] ? () => onOpponentNameLongPress(2) : undefined
               }
             />
             {throwableActiveEffects?.[2] != null && (
@@ -284,7 +291,7 @@ function GameLayoutComponent({
               isVideoChatConnecting={players[3].isVideoChatConnecting}
               videoStreamSlot={players[3].videoStreamSlot}
               onNameLongPress={
-                onOpponentNameLongPress ? () => onOpponentNameLongPress(3) : undefined
+                onOpponentNameLongPress && opponentPlayerIds?.[2] ? () => onOpponentNameLongPress(3) : undefined
               }
             />
             {throwableActiveEffects?.[3] != null && (
