@@ -413,6 +413,7 @@ function isHighestRemainingFiveCardCombo(
   playedCards: Card[]
 ): boolean {
   const currentStrength = COMBO_STRENGTH[type];
+  const currentCardIds = new Set(cards.map(c => c.id));
 
   // CRITICAL: Check if any STRONGER combo type can still be formed
   for (let strength = 8; strength > currentStrength; strength--) {
@@ -422,7 +423,9 @@ function isHighestRemainingFiveCardCombo(
   }
 
   // Same strength - check if this is the best of this type
-  const remaining = getRemainingCards(playedCards).filter(c => !cards.some(p => p.id === c.id));
+  const remaining = getRemainingCards(playedCards).filter(c => {
+    return !currentCardIds.has(c.id);
+  });
   const sorted = sortHand(cards);
 
   switch (type) {

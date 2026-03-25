@@ -568,7 +568,9 @@ export function useVideoChat({
   // Skipped when the auto-restore effect above already connected with stored
   // prefs (hasRestoredPrefsRef + isChatConnected guard).
   // Retry key: incremented on transient failure (after a delay) so the effect
-  // re-runs even when no other deps change.
+  // re-runs even when no other deps change. Limited to MAX_AUTO_CONNECT_RETRIES
+  // with exponential backoff to avoid unbounded background loop.
+  const MAX_AUTO_CONNECT_RETRIES = 3;
   const [autoConnectRetryKey, setAutoConnectRetryKey] = useState(0);
   useEffect(() => {
     if (!autoConnect || !roomId || !userId || hasAutoConnectedRef.current) return;
@@ -599,12 +601,17 @@ export function useVideoChat({
           '[VideoChat] Auto-connect failed (non-fatal):',
           err instanceof Error ? err.message : String(err)
         );
-        // Schedule a retry after 3 s so the effect re-runs via the retryKey dep.
-        if (!cancelled) {
+        // Schedule a retry with exponential backoff, up to MAX_AUTO_CONNECT_RETRIES.
+        if (!cancelled && autoConnectRetryKey < MAX_AUTO_CONNECT_RETRIES) {
+          const delay = 3000 * Math.pow(2, autoConnectRetryKey); // 3s, 6s, 12s
           const retryTimer = setTimeout(() => {
             if (!cancelled) setAutoConnectRetryKey(k => k + 1);
-          }, 3000);
+          }, delay);
           retryCleanup = () => clearTimeout(retryTimer);
+        } else if (!cancelled) {
+          gameLogger.warn(
+            `[VideoChat] Auto-connect gave up after ${MAX_AUTO_CONNECT_RETRIES} retries.`
+          );
         }
       }
     })();
