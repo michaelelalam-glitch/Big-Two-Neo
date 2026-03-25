@@ -583,10 +583,14 @@ function isHighestRemainingFourOfAKind(cards: Card[], notInCurrent: Card[]): boo
   const myQuadRank = getQuadRank(cards);
   const myQuadValue = RANK_VALUE[myQuadRank];
 
+  if (notInCurrent.length < 5) return true;
+
   const counts = countByRank(notInCurrent);
   for (const rank in counts) {
     if (counts[rank] >= 4 && RANK_VALUE[rank] > myQuadValue) {
-      return false;
+      // Verify at least one non-quad kicker exists to form a valid 5-card combo
+      const hasKicker = notInCurrent.some(c => c.rank !== rank);
+      if (hasKicker) return false;
     }
   }
   return true;

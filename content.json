@@ -1,0 +1,1097 @@
+{
+  "review_threads": [
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "showInGameAlert is implemented via native Alert.alert, which (a) ignores the optional `buttons` field in InGameAlertOptions and (b) reintroduces the iOS orientation mismatch this PR is trying to eliminate. Consider wiring LocalAIGame to the same <InGameAlert> modal/ref approach as MultiplayerGame, or at least map `options.buttons` through to Alert.alert’s button array so callers don’t silently lose actions.\n```suggestion\n      showInGameAlert: opts =>\n        Alert.alert(\n          opts.title ?? 'Alert',\n          opts.message,\n          opts.buttons?.map(button => ({\n            text: button.text,\n            onPress: button.onPress,\n            style: button.style,\n          }))\n        ),\n```",
+          "path": "apps/mobile/src/screens/LocalAIGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:04Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658532"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "showInGameAlert’s `options` parameter is re-declared inline here, which duplicates the exported InGameAlertOptions type already used by GameContextType. Using the shared type (import InGameAlertOptions) will prevent the options shape from drifting between the context contract and the caller implementation.",
+          "path": "apps/mobile/src/screens/MultiplayerGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:05Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658589"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The debounced search can update state after the component unmounts (pending setTimeout + in-flight Supabase request). Add an effect cleanup to clear the timeout on unmount and/or a request-id/cancel flag so late responses don’t call setSearchResults/setSearching on an unmounted component.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 127,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:05Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658621"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "Pressing the clear (✕) button resets `searchQuery`/`searchResults`, but it doesn’t cancel any pending debounce timer. This can cause the previous debounced search to run after clearing and repopulate results unexpectedly. Clear `debounceRef.current` here as well (and consider resetting `searching` to false).\n```suggestion\n            onPress={() => {\n              // Cancel any pending debounced search\n              if (debounceRef.current) {\n                clearTimeout(debounceRef.current);\n                debounceRef.current = null;\n              }\n              // Reset searching state and clear query/results\n              setSearching(false);\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 157,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:05Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658642"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "useVideoChat has comprehensive unit tests in src/hooks/__tests__/useVideoChat.test.ts, but the new AsyncStorage restore + `autoConnect` listener behavior isn’t covered. Adding tests for (1) restoring persisted prefs (connect + enabling tracks), (2) autoConnect connecting without publishing local tracks, and (3) persisting updates when toggling mic/camera would help prevent regressions in this fairly stateful logic.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 486,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:06Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658670"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The mic UI is currently gated on `isMicOn !== undefined && onMicToggle`, so if you ever pass `isMicOn` for remote players (indicator-only) without an `onMicToggle`, nothing will render. Consider rendering a non-pressable indicator whenever `isMicOn` is defined, and only making it interactive when `onMicToggle` is provided.\n```suggestion\n          {isMicOn !== undefined && (\n            onMicToggle ? (\n              <Pressable\n                style={styles.micToggleLandscape}\n                onPress={onMicToggle}\n                accessibilityRole=\"button\"\n                accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}\n                hitSlop={6}\n              >\n                <Text style={styles.micToggleIcon}>{isMicOn ? '\\ud83c\\udfa4' : '\\ud83d\\udd07'}</Text>\n              </Pressable>\n            ) : (\n              <View\n                style={styles.micToggleLandscape}\n                accessible={true}\n                accessibilityRole=\"text\"\n                accessibilityLabel={isMicOn ? 'Microphone on' : 'Microphone off'}\n                pointerEvents=\"none\"\n              >\n                <Text style={styles.micToggleIcon}>{isMicOn ? '\\ud83c\\udfa4' : '\\ud83d\\udd07'}</Text>\n              </View>\n            )\n```",
+          "path": "apps/mobile/src/components/gameRoom/LandscapeOpponent.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:06Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658699"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This task-list doc is being added alongside the implementation, but it still shows \"PR: TBD\", all tasks as \"Not Started\", and \"What was done: _Pending_\" sections. Either update it to reflect the completed work (or explicitly mark it as a pre-implementation template) so the documentation doesn’t mislead future readers.",
+          "path": "docs/chinese-poker/BATCH_7_TASK_LIST.md",
+          "line": 28,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:39:06Z",
+          "updated_at": "2026-03-24T13:39:07Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981658737"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "During auto-restore, the hook calls `enableCamera()` / `enableMicrophone()` directly but never updates `cameraPermissionStatus` / `micPermissionStatus`. If permissions were granted/denied during this flow, the state may remain `'undetermined'`, leading to unnecessary re-prompts or incorrect UI/logic on later toggles. Consider reusing `requestCameraPermission`/`requestMicPermission` (or at least updating the permission status state based on the observed outcome) as part of the restore path.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:44Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981761864"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`searchUsers` can race: multiple debounced queries can be in-flight at once, and a slower response for an older query can overwrite `searchResults` for a newer query (no request id / cancellation). Consider tracking the latest query token (incrementing counter/ref) and only applying results if the token matches, or using an abortable request pattern so stale responses don’t win.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 109,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:45Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981761919"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The summary table statuses are all still marked as ⬜ even though the document header and each task section says the tasks are complete. This makes the task list internally inconsistent; consider updating the Summary rows to match the ✅ statuses (and leave only Task 9 as not started).\n```suggestion\n| 1 | Fix Portrait Popup Orientation | ✅ | High |\n| 2 | Remember Mic/Camera on Reconnect | ✅ | High |\n| 3 | Other Players See/Hear Video/Mic | ✅ | High |\n| 4 | Add Mic Toggle Button on Avatar | ✅ | Medium |\n| 5 | Add Friend Search in Profile | ✅ | Medium |\n| 6 | Landscape Matchmaking Screen | ✅ | Medium |\n| 7 | Address PR 180 Comments | ✅ | High |\n| 8 | CI/CD + Copilot Review Loop | ✅ | High |\n```",
+          "path": "docs/chinese-poker/BATCH_7_TASK_LIST.md",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:45Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981761965"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This script assumes `sys.argv[1]` exists; running it without an argument will raise `IndexError` before printing anything useful. Consider adding a small argv length check + usage message (and optionally a `__main__` guard) so it fails gracefully.\n```suggestion\n\ndef main() -> None:\n    if len(sys.argv) < 2:\n        print(f\"Usage: {sys.argv[0]} <comments-json-file>\")\n        sys.exit(1)\n\n    with open(sys.argv[1]) as f:\n        data = json.load(f)\n\n    if isinstance(data, list):\n        items = data\n    elif isinstance(data, dict) and 'items' in data:\n        items = data['items']\n    else:\n        print(\"Unknown format:\", type(data))\n        sys.exit(1)\n\n    new_comments = []\n    outdated_comments = []\n\n    for c in items:\n        if isinstance(c, str):\n            print(\"String item:\", c[:200])\n            continue\n        is_outdated = c.get('position') is None or c.get('line') is None\n        entry = {\n            'id': c.get('id'),\n            'path': c.get('path', ''),\n            'line': c.get('line'),\n            'body': str(c.get('body', ''))[:200],\n            'user': c.get('user', {}).get('login', '') if isinstance(c.get('user'), dict) else '',\n        }\n        if is_outdated:\n            outdated_comments.append(entry)\n        else:\n            new_comments.append(entry)\n\n    print(f\"\\n=== NEW (non-outdated) comments: {len(new_comments)} ===\")\n    for c in new_comments:\n        print(f\"  ID:{c['id']} | {c['path']}:{c['line']} | @{c['user']}\")\n        print(f\"    {c['body']}\")\n        print()\n\n    print(f\"=== OUTDATED comments: {len(outdated_comments)} ===\")\n    for c in outdated_comments:\n        print(f\"  ID:{c['id']} | {c['path']} | @{c['user']} | {c['body'][:80]}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```",
+          "path": "parse_comments.py",
+          "line": 46,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:45Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981762002"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`showInGameAlert` in LocalAIGame is implemented via `Alert.alert`, which is the orientation problem this PR is addressing for iOS (native alerts follow physical device orientation). If Local AI games also allow the in-game orientation toggle, this will reintroduce the mismatch; consider rendering `<InGameAlert>` here as well (or lifting it into `GameView` so both MultiplayerGame and LocalAIGame share the same orientation-aware implementation).",
+          "path": "apps/mobile/src/screens/LocalAIGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:46Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981762042"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`autoConnect` effect is intended to wait until the prefs-restore attempt completes, but it only checks `hasRestoredPrefsRef.current`, which is set to `true` immediately at the start of the restore effect. This allows `autoConnect` to call `adapter.connect()` while the restore IIFE may still be in-flight, causing duplicate concurrent connects (and potentially double-enabling tracks) on mount. Consider tracking restore completion separately (e.g., `restoreFinishedRef`/state) and only auto-connect after the restore async work has finished and confirmed no active connection was established.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 588,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T13:52:46Z",
+          "updated_at": "2026-03-24T13:52:46Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2981762061"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`supportedOrientations` is being restricted to only portrait or only landscape. On iOS, presenting a `Modal` whose supported orientations don’t intersect the device’s current interface orientation can throw an exception (this is why the codebase defines `MODAL_SUPPORTED_ORIENTATIONS`). It’s safer to pass `supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}` and rely on the app’s orientation lock/layout to render correctly, or otherwise ensure this cannot be presented while the device is in an unsupported orientation.",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T22:51:49Z",
+          "updated_at": "2026-03-24T22:51:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984777887"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The default button label falls back to hardcoded \"OK\", which bypasses existing i18n (e.g. `common.ok`) and will show English text in non-English locales. Consider importing `i18n` here (or accepting a default from callers) so the default button text is localized.",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T22:51:49Z",
+          "updated_at": "2026-03-24T22:51:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984777903"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`isHighestRemainingFiveCardCombo` now always returns `false`, which means `isHighestPossiblePlay()` will never report a highest play for any 5-card combo. As a result, the server will never create an auto-pass timer for 5-card plays (see the auto-pass creation at `const isHighestPlay = isHighestPossiblePlay(...)`). If false negatives are intended, consider renaming/flagging this as an approximation (or implementing a cheap same-type comparison for at least straights/flushes/straight flushes) so auto-pass still works for the most common 5-card cases.\n```suggestion\n  // At this point, no stronger 5-card combo type can be formed from the remaining cards.\n  // We *do not* attempt an exhaustive same-type comparison here (that would require\n  // expensive combinatorial expansion). Instead, we conservatively approximate:\n  // treat the current 5-card combo as highest remaining for server-side purposes\n  // (e.g. auto-pass timers), while the client-side highest-play-detector performs\n  // any full, exact checking needed for gameplay.\n  return true;\n```",
+          "path": "apps/mobile/supabase/functions/play-cards/index.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T22:51:50Z",
+          "updated_at": "2026-03-24T22:51:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984777912"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`autoConnect` is gated on `hasRestoreFinishedRef.current`, but that ref update doesn't trigger a re-render/effect rerun. If there are no stored prefs (or restore early-returns without setting state), this effect will return on the first run and never re-run, so auto-connect as listener will never happen. Consider using state (e.g. `restoreFinished`), or always run auto-connect and internally await the restore promise, or set some state in the restore effect’s `finally` to trigger this effect once restore completes.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T22:51:50Z",
+          "updated_at": "2026-03-24T22:51:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984777926"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The roomId-change effect tears down adapter state, but it doesn’t reset the one-time guards used by auto-restore/autoConnect (hasRestoredPrefsRef, hasAutoConnectedRef, restoreFinished, desired* refs). If the hook instance is reused for a new roomId (without unmount), auto-restore and autoConnect will never run for the new room, and desired refs may carry over stale values. Reset these refs/state whenever prevRoomIdRef.current changes to a new roomId (even if not currently connected).",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 456,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:16:22Z",
+          "updated_at": "2026-03-24T23:16:23Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984854957"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This test file imports AsyncStorage and later treats AsyncStorage.getItem as a jest.Mock (calling mockReset/mockResolvedValue). There is no jest.mock for AsyncStorage in this file, so in most Jest setups these will either be real native methods or auto-mocked functions without Promise-returning behavior, and persistChatPrefs() will crash when calling .catch() on setItem/removeItem. Add an explicit jest.mock('@react-native-async-storage/async-storage', ...) that provides getItem/setItem/removeItem as Promise-returning jest.fn mocks.",
+          "path": "apps/mobile/src/hooks/__tests__/useVideoChat.test.ts",
+          "line": 14,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:16:22Z",
+          "updated_at": "2026-03-24T23:16:23Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984854973"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The header comment says supportedOrientations is set to ONLY the current game orientation, but the implementation intentionally includes both portrait and landscape variants to avoid iOS presentation crashes. Update the comment to match the actual behavior/rationale so future changes don’t “fix” this back into a crashy state.\n```suggestion\n * Solution: This component uses a React Native <Modal> whose `supportedOrientations`\n * explicitly includes both portrait and landscape variants to avoid iOS\n * presentation crashes, while the content itself is laid out according to the\n * current game orientation. Do not restrict `supportedOrientations` to a single\n * orientation, or iOS may crash when presenting the modal.\n```",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:16:22Z",
+          "updated_at": "2026-03-24T23:16:23Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984854992"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This comment says the Modal’s supportedOrientations is locked to the current game orientation, but InGameAlert currently includes both portrait and landscape orientations (to avoid iOS throwing when the device orientation isn’t in the supported list). Consider rewording this comment to reflect the actual implementation and why.\n```suggestion\n          Renders its content according to the current game orientation while\n          using a Modal whose supportedOrientations includes both portrait and\n          landscape (to avoid iOS errors when the device orientation differs). */}\n```",
+          "path": "apps/mobile/src/screens/MultiplayerGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:16:23Z",
+          "updated_at": "2026-03-24T23:16:23Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984855009"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The clear (✕) button in the new friends search bar has no accessibilityRole/Label. Add an accessibilityRole=\"button\" and a descriptive accessibilityLabel (preferably via i18n) so screen readers don’t announce an ambiguous control.\n```suggestion\n            style={styles.clearButton}\n            accessibilityRole=\"button\"\n            accessibilityLabel={i18n.t('friends.clearSearch')}\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 154,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:27:15Z",
+          "updated_at": "2026-03-24T23:27:15Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984890999"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "InGameAlert hard-codes its own supportedOrientations list instead of reusing the repo-wide MODAL_SUPPORTED_ORIENTATIONS constant. This duplicates the canonical list in constants and risks drift if supported orientations change. Suggest importing MODAL_SUPPORTED_ORIENTATIONS and deriving the preferred-order array from it (e.g., reorder so the current game orientation is first) rather than redefining the values inline.",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:36:19Z",
+          "updated_at": "2026-03-24T23:36:20Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984923378"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "handleSearchChange doesn’t clear searchResults when the query changes, so the UI can display stale results for ~400ms (until the debounced request completes). Consider clearing searchResults (and optionally setting searching=true) immediately on text change so the results list never shows data from a previous query while a new query is pending.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 125,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:36:19Z",
+          "updated_at": "2026-03-24T23:36:20Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984923404"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The clear-search handler resets searchQuery/results but doesn’t invalidate in-flight Supabase requests. If a request was already dispatched, its response can still land and repopulate searchResults after clearing. Consider incrementing searchTokenRef (or tracking the active query string) when clearing so any pending responses are discarded.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 167,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:36:20Z",
+          "updated_at": "2026-03-24T23:36:20Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984923422"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`searchUsers` always adds `.neq('id', user?.id ?? '')`. Since `profiles.id` is a UUID, passing an empty string when `user?.id` is not yet available can cause a Postgres “invalid input syntax for type uuid” error and break search. Only apply the `.neq` filter when `user?.id` is defined, or early-return until the user is loaded.\n```suggestion\n      let searchQueryBuilder = supabase\n        .from('profiles')\n        .select('id, username')\n        .ilike('username', `%${trimmed}%`);\n      if (user?.id) {\n        searchQueryBuilder = searchQueryBuilder.neq('id', user.id);\n      }\n      const { data, error } = await searchQueryBuilder.limit(10);\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:45:23Z",
+          "updated_at": "2026-03-24T23:45:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984950090"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "While typing a >=2-char query, `handleSearchChange` clears results immediately but doesn’t set `searching` true until the debounced `searchUsers` runs 400ms later. This causes a brief (and misleading) “noResults” empty state flash before the spinner starts. Consider setting `searching` true immediately when starting a debounced search, and clearing it if the query becomes <2 chars.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 127,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:45:23Z",
+          "updated_at": "2026-03-24T23:45:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984950112"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`orientation` is destructured from props but never used. This will likely trip `no-unused-vars`/TS linting, and the header comment says the game orientation is listed first even though the code always uses `MODAL_SUPPORTED_ORIENTATIONS` unchanged. Either remove the `orientation` prop from the component/call sites, or use it to derive a supportedOrientations array ordered by the current game orientation.",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:45:24Z",
+          "updated_at": "2026-03-24T23:45:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984950122"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "In `searchUsers`, when `user?.id` is missing you `return` without clearing `searching`. Because `handleSearchChange` sets `searching` to true immediately for 2+ chars, this can leave the UI stuck in a loading state if auth is still initializing. Consider setting `setSearching(false)` (and possibly clearing results) before returning, or gating `handleSearchChange` until `user?.id` is available.\n```suggestion\n      if (!user?.id) {\n        // Auth not ready yet — clear any loading state/results and bail out.\n        setSearchResults([]);\n        setSearching(false);\n        return;\n      }\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-24T23:53:48Z",
+          "updated_at": "2026-03-24T23:53:48Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2984976173"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The header comment says supportedOrientations includes both portrait/landscape with the *game orientation listed first*, but the implementation always uses MODAL_SUPPORTED_ORIENTATIONS (static order: portrait-first). Either reorder dynamically based on the current game orientation (e.g., accept a prop like preferredOrientation and build the array) or update the comment to match the actual behavior.\n```suggestion\n * defined by MODAL_SUPPORTED_ORIENTATIONS, which includes both portrait and\n * landscape variants. This prevents iOS from throwing when the device's current\n * interface orientation is not in the supported set, while still rendering\n * correctly under the game's chosen orientation lock.\n```",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:05:17Z",
+          "updated_at": "2026-03-25T00:05:17Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985005531"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The mic icon strings are written as surrogate escape sequences ('\\ud83c\\udfa4' / '\\ud83d\\udd07'), while the portrait component uses literal emoji ('🎤' / '🔇'). For readability/consistency (and to avoid accidental broken surrogate pairs), prefer using the same literal emoji or a shared icon component.",
+          "path": "apps/mobile/src/components/gameRoom/LandscapeOpponent.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:05:17Z",
+          "updated_at": "2026-03-25T00:05:17Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985005542"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`isHighestRemainingStraightFlush` compares straight flush strength using `getCardValue()` of the highest sorted card and a computed `highValue = RANK_VALUE[topRank]*10 + SUIT_VALUE[suit]`. This breaks for the A‑2‑3‑4‑5 straight flush because the highest *card* by `getCardValue` is the Ace, but straight/straight-flush ordering in this file is defined by `VALID_STRAIGHT_SEQUENCES` index (see `canBeatPlay`), with A‑2‑3‑4‑5 as the *lowest* straight. As a result, an A‑2‑3‑4‑5 straight flush can be incorrectly treated as “highest remaining”. Suggest computing the current play’s `seqIndex` via `findStraightSequenceIndex`, and comparing remaining sequences by `(seqIndex, suit)` the same way `canBeatPlay` does (seqIndex first, then suit of the top-rank card / suit of the straight flush).",
+          "path": "apps/mobile/supabase/functions/play-cards/index.ts",
+          "line": 575,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:13:03Z",
+          "updated_at": "2026-03-25T00:13:04Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985026805"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "New persistence behavior (`persistChatPrefs`) is introduced/expanded across the toggle paths (e.g., after a successful `toggleVideoChat` opt-in it calls `AsyncStorage.setItem/removeItem`). The test suite added coverage for restore/autoConnect, but there are currently no assertions that preferences are actually written/cleared when the user toggles camera/mic (e.g., ensuring `setItem` is called with the expected key/payload, and `removeItem` when both are off). Adding focused assertions here would prevent regressions where toggles stop persisting silently.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 901,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:13:03Z",
+          "updated_at": "2026-03-25T00:13:04Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985026820"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The stale-response guard can still allow an older in-flight Supabase response to overwrite newer UI state because `searchTokenRef` is only incremented when `searchUsers()` actually runs (after the debounce). If the user types a new query (or clears below 2 chars) while a previous request is in-flight, that previous request may resolve before the next debounced `searchUsers()` runs, and its `token` will still match `searchTokenRef.current`, so `setSearchResults()` can apply results for the wrong query. Consider incrementing the token immediately in `handleSearchChange` (on every query change / clear) and/or verifying the response matches the latest `searchQuery` before applying results.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 125,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:23:30Z",
+          "updated_at": "2026-03-25T00:23:31Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985059882"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`waitingCount` comes from the server-provided queue size (`waiting_count`) and can exceed 4, but the progress bar width uses `(waitingCount / 4) * 100` and the label renders `{waitingCount}/4`. This can produce widths >100% and confusing text like `12/4`. Clamp the progress UI to a max of 4 (e.g., `Math.min(waitingCount, 4)`) or switch the text to reflect total queue size separately from “players needed for a match.”\n```suggestion\n  const playersForNextMatch = Math.min(waitingCount, 4);\n\n  const progressBlock = (\n    <>\n      <View style={styles.progressBarContainer}>\n        <View\n          style={[\n            styles.progressBar,\n            { width: `${(playersForNextMatch / 4) * 100}%` },\n          ]}\n        />\n      </View>\n      <Text style={styles.progressText}>\n        {playersForNextMatch}/4 {i18n.t('matchmaking.playersNeeded')}\n```",
+          "path": "apps/mobile/src/screens/MatchmakingScreen.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:23:30Z",
+          "updated_at": "2026-03-25T00:23:31Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985059899"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The `hasAutoConnectedRef` guard is set to true before the async `connect()` succeeds. If auto-connect fails (transient network/auth) or if `adapter` is hot-swapped (the hook explicitly supports adapter swaps and tears down the previous session), the effect will never retry because `hasAutoConnectedRef.current` stays true. Consider only marking auto-connect “done” after a successful connect, and/or resetting `hasAutoConnectedRef` (and `hasRestoredPrefsRef` if needed) when `adapterProp` changes so the listener connection can be re-established with the new adapter.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:23:31Z",
+          "updated_at": "2026-03-25T00:23:31Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985059916"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The new mic toggle uses hard-coded English accessibility labels (e.g., \"Mute microphone\" / \"Unmute microphone\" / \"Microphone on/off\"). Elsewhere in the app accessibility labels are localized via `i18n.t(...)`; please switch these strings to i18n keys so screen readers are localized consistently.",
+          "path": "apps/mobile/src/components/game/PlayerInfo.tsx",
+          "line": 330,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:36:21Z",
+          "updated_at": "2026-03-25T00:36:22Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985091537"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The new landscape mic toggle/indicator uses hard-coded English accessibility labels (\"Mute microphone\" / \"Unmute microphone\" / \"Microphone on/off\"). Since other accessibility labels are localized via `i18n.t(...)`, these should be moved to i18n keys for consistent localization.",
+          "path": "apps/mobile/src/components/gameRoom/LandscapeOpponent.tsx",
+          "line": 226,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:36:22Z",
+          "updated_at": "2026-03-25T00:36:22Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985091548"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`isHighestRemainingFiveCardCombo` now unconditionally returns `false` for Full House / Flush / Straight, which means `isHighestPossiblePlay()` can never detect these 5-card plays as “highest”. Since this result drives the auto-pass timer creation later in this function, this effectively disables auto-pass for those combo types. Consider implementing efficient same-type checks for FH/Flush/Straight (similar to the Straight Flush/Four-of-a-Kind fast paths) or updating the feature contract so auto-pass isn’t expected for these types.",
+          "path": "apps/mobile/supabase/functions/play-cards/index.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:47:27Z",
+          "updated_at": "2026-03-25T00:47:28Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985118270"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "Comment still refers to showing an “error toast”, but this code path now calls `showInGameAlert` (a modal). Updating the wording will avoid confusion when debugging connect retry behavior.\n```suggestion\n  // Suppresses the onError → showInGameAlert in-game alert/modal while connectWithRetry is in progress.\n  // Without this, every failed intermediate attempt (attempt 0, 1) would surface\n  // an error alert to the user even when a later retry succeeds.\n```",
+          "path": "apps/mobile/src/screens/MultiplayerGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:47:28Z",
+          "updated_at": "2026-03-25T00:47:28Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985118289"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "With `autoConnect` introducing a “listener” state where `isChatConnected=true` but `isLocalMicOn=false` and `isLocalCameraOn=false`, `voiceChatEnabled = isChatConnected && !isLocalCameraOn` will incorrectly report voice chat as enabled in listener mode. Consider changing this derived flag to reflect actual mic publishing state (e.g., `isChatConnected && isLocalMicOn && !isLocalCameraOn`) or introducing a separate `isListening`/`connectionMode` value.\n```suggestion\n  // voiceChatEnabled is a derived value: connected, mic on, and camera off.\n  const voiceChatEnabled = isChatConnected && isLocalMicOn && !isLocalCameraOn;\n```",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:47:28Z",
+          "updated_at": "2026-03-25T00:47:28Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985118299"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "PlayerInfo already renders a mic status indicator inside the avatar video content (see renderAvatarVideoContent: the bottom-right mic icon). This new top-left mic toggle/indicator will cause two mic icons to appear for the local player whenever isMicOn is set. Consider reusing the existing indicator for the local toggle, or conditionally hiding the inner mic indicator when isLocalPlayer && onMicToggle is provided so only one mic affordance is shown.\n```suggestion\n\n```",
+          "path": "apps/mobile/src/components/game/PlayerInfo.tsx",
+          "line": 334,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T00:57:46Z",
+          "updated_at": "2026-03-25T00:57:47Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985143314"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "In the auto-restore effect, when `cancelled` is true (e.g. during unmount), this branch can still call `setRestoreFinished(true)`, which risks a state update on an unmounted component. Guard these `setRestoreFinished` calls with `if (!cancelled)` (or track mounted state) before setting state.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 490,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:07:47Z",
+          "updated_at": "2026-03-25T01:07:48Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985166545"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The `finally` block always calls `setRestoreFinished(true)` even if the effect has been cancelled (e.g. component unmounted / room changed quickly). This can trigger React warnings about setting state on an unmounted component. Only set state when not cancelled (or use an `isMountedRef`).\n```suggestion\n        if (!cancelled) {\n          setRestoreFinished(true);\n        }\n```",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:07:48Z",
+          "updated_at": "2026-03-25T01:07:48Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985166564"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "PR description says the friend search added 3 new i18n keys but only names `searchPlaceholder` and `noResults`. This diff also adds `clearSearch`; please update the PR description (or docs) to reflect the actual set of keys added.",
+          "path": "apps/mobile/src/i18n/index.ts",
+          "line": 762,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:07:48Z",
+          "updated_at": "2026-03-25T01:07:48Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985166574"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "searchUsers awaits the Supabase query without a try/catch. If the underlying fetch rejects (e.g., network error), this will throw from the debounced setTimeout callback, leaving `searching` stuck true and potentially causing an unhandled promise rejection. Wrap the query in try/catch (or try/finally) and ensure `setSearching(false)` runs on all paths (including thrown errors).\n```suggestion\n      try {\n        const { data, error } = await supabase\n          .from('profiles')\n          .select('id, username')\n          .ilike('username', `%${trimmed}%`)\n          .neq('id', user.id)\n          .limit(10);\n        if (!mountedRef.current) return;\n        // Discard stale responses — only apply if this is still the latest query.\n        if (token !== searchTokenRef.current) return;\n        if (!error && data) {\n          setSearchResults(data as SearchResult[]);\n        } else {\n          setSearchResults([]);\n        }\n      } catch (_err) {\n        // On unexpected errors (e.g., network issues), clear results if still current.\n        if (!mountedRef.current) return;\n        if (token !== searchTokenRef.current) return;\n        setSearchResults([]);\n      } finally {\n        if (!mountedRef.current) return;\n        if (token !== searchTokenRef.current) return;\n        setSearching(false);\n      }\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:20:26Z",
+          "updated_at": "2026-03-25T01:20:26Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985197780"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "autoConnect uses `hasAutoConnectedRef` to run only once, but that ref is never reset on `adapterProp` hot-swap. Since the adapter-swap effect can force `isChatConnected` back to false, a subsequent swap can leave the hook permanently disconnected because autoConnect will early-return on `hasAutoConnectedRef.current === true`. Consider resetting `hasAutoConnectedRef` (and possibly `restoreFinished`/restore guards) when `adapterProp` changes, or include `adapterProp` in the autoConnect effect dependencies and key the one-time guard by adapter instance + roomId/userId.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:20:26Z",
+          "updated_at": "2026-03-25T01:20:26Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985197795"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This `useCallback` closure calls `showInGameAlert`, but `showInGameAlert` is not included in the callback's dependency array (it appears immediately after this hunk). This will trigger `react-hooks/exhaustive-deps` and can cause a stale closure if the context value changes. Add `showInGameAlert` to the deps array.",
+          "path": "apps/mobile/src/screens/GameView.tsx",
+          "line": 161,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:31:11Z",
+          "updated_at": "2026-03-25T01:31:11Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985222919"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The usage comment says to \"Render once in GameView\", but in this PR the alert is rendered by the parent screens (e.g. `MultiplayerGame` / `LocalAIGame`) as a sibling of `GameContextProvider`, not inside `GameView`. Please update the doc comment so future callers mount it in the correct place.\n```suggestion\n *   // Render once per game screen (e.g. in MultiplayerGame / LocalAIGame)\n *   // as a sibling of GameContextProvider:\n```",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:31:11Z",
+          "updated_at": "2026-03-25T01:31:11Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985222937"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The username search uses `.ilike('username', `%${trimmed}%`)` which cannot use the existing btree index on `profiles(username)` due to the leading wildcard, so this will degrade to a full scan as the profiles table grows. Consider switching to a prefix search (e.g. `${trimmed}%`) or adding a trigram (pg_trgm) GIN index if substring matching is required.\n```suggestion\n          .ilike('username', `${trimmed}%`)\n```",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:41:23Z",
+          "updated_at": "2026-03-25T01:41:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985246979"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "In the `autoConnect` effect, if `adapter.connect()` throws, no state is updated and the deps remain unchanged, so the effect will not retry (and `hasAutoConnectedRef` also stays false). This can leave the app permanently disconnected in listener mode after a transient failure. Consider implementing a retry/backoff (or at least toggling a piece of state / scheduling a delayed retry) so autoConnect can recover without requiring the user to manually toggle chat.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 620,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:41:23Z",
+          "updated_at": "2026-03-25T01:41:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985246992"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The returned error string `'Missing required stats fields'` is quite generic for a 500 response and may be hard to diagnose client-side or in logs that only capture the response body. Consider including which field(s) are missing (or an error code + missingFields array) in the returned payload while keeping the detailed values in server logs.\n```suggestion\n      const missingFields: string[] = [];\n      if (player.finish_position == null) {\n        missingFields.push('finish_position');\n      }\n      if (player.combos_played == null) {\n        missingFields.push('combos_played');\n      }\n      if (player.cards_left == null) {\n        missingFields.push('cards_left');\n      }\n      if (missingFields.length > 0) {\n        console.error(`[Complete Game] Missing required stats for ${player.username}:`, {\n          finish_position: player.finish_position,\n          combos_played: player.combos_played,\n          cards_left: player.cards_left,\n          missingFields,\n        });\n        const errorMessage = `Missing required stats fields: ${missingFields.join(', ')}`;\n        return { user_id: player.user_id, success: false, error: errorMessage };\n```",
+          "path": "apps/mobile/supabase/functions/complete-game/index.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T01:41:24Z",
+          "updated_at": "2026-03-25T01:41:24Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985247000"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`voiceChatEnabled` is now derived as `isChatConnected && isLocalMicOn && !isLocalCameraOn`, but the earlier docstrings in this file (and the exported return type docs) still describe it as `isChatConnected && !isLocalCameraOn` and say it can be true even if the mic is muted. Please update the surrounding documentation to match the new semantics so callers don’t misinterpret listener mode / muted mic states.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 1183,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:28:01Z",
+          "updated_at": "2026-03-25T03:28:02Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985511583"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The Supabase search uses a prefix match (`ilike('username', `${trimmed}%`)`), but the PR description/docs say this is a partial match search. If the intent is to match usernames containing the query anywhere, use a contains pattern (e.g. `%${trimmed}%`) or update the PR/docs to reflect prefix-only behavior.",
+          "path": "apps/mobile/src/components/friends/FriendsList.tsx",
+          "line": 91,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:28:02Z",
+          "updated_at": "2026-03-25T03:28:02Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985511609"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`desiredCameraRef`/`desiredMicRef` are set from AsyncStorage before confirming `enableCamera()`/`enableMicrophone()` succeed. If either enable call fails (e.g., permission denied), the refs can remain `true` while state stays off, causing subsequent persistence to keep writing stale prefs and re-attempting restores on every remount. Consider updating these refs based on actual enable success (and/or clearing stored prefs when restore fails) so persisted state matches what’s really active.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:38:03Z",
+          "updated_at": "2026-03-25T03:38:03Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985541369"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "useVideoChat still uses native Alert.alert for the permission-denied UX. In-game this reintroduces the same iOS orientation mismatch that InGameAlert is meant to solve. Consider routing these alerts through an injected callback (e.g., options.onAlert/onShowInGameAlert) or returning an error state so the game screen can display them via InGameAlert instead of Alert.alert.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:45:40Z",
+          "updated_at": "2026-03-25T03:45:41Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985557916"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "On video-chat connect failure this code shows a native Alert.alert. Since this hook is used from in-game screens, the alert can still render in the device’s physical orientation on iOS (the issue Batch 7 is addressing). Prefer surfacing this failure to the caller (callback/return value) so MultiplayerGame/LocalAIGame can show it via InGameAlert.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 928,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:45:40Z",
+          "updated_at": "2026-03-25T03:45:41Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985557927"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "Voice-chat connect failure currently triggers a native Alert.alert. For in-game usage this can still ignore the game’s locked orientation on iOS. Prefer bubbling this error up (callback/returned error) so the screen can render it with the InGameAlert modal instead of Alert.alert.",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 1122,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T03:45:41Z",
+          "updated_at": "2026-03-25T03:45:41Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985557939"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This change makes the Edge Function’s auto-pass “highest play” detection return `false` for Full House / Flush / Straight (disabling the auto-pass timer for those 5-card types). That’s a meaningful behavior change and isn’t mentioned in the PR description’s file list/summary; please confirm it’s intentional and either (a) document it in the PR description or (b) add an inline comment explaining why server-side auto-pass is now restricted to Straight Flush + Four of a Kind.",
+          "path": "apps/mobile/supabase/functions/play-cards/index.ts",
+          "line": 546,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:00:52Z",
+          "updated_at": "2026-03-25T04:00:52Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985594749"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "InGameAlert’s Modal isn’t marked as a modal for screen readers. Consider adding `accessibilityViewIsModal` (and ensuring the content inside is focusable) so VoiceOver/TalkBack don’t navigate to elements behind the alert. This matches existing modal patterns (e.g., RejoinModal/TurnAutoPlayModal).\n```suggestion\n        <View\n          style={styles.alertContainer}\n          accessible\n          accessibilityRole=\"alert\"\n          accessibilityViewIsModal\n        >\n```",
+          "path": "apps/mobile/src/components/game/InGameAlert.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:00:52Z",
+          "updated_at": "2026-03-25T04:00:52Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985594758"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`getRemainingCards(...).filter(c => !cards.some(...))` does an O(n*m) scan on every call. Since this runs in highest-play detection, it’s easy to make it O(n) by building a Set of the current play’s card ids and filtering against that.",
+          "path": "apps/mobile/src/game/engine/highest-play-detector.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:09:29Z",
+          "updated_at": "2026-03-25T04:09:30Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985613790"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The auto-connect listener effect schedules a retry every 3s on any connect() failure and never stops retrying. This can create an unbounded background loop (battery/network/log spam) if the room is invalid or the backend is down. Consider adding a max retry count and/or exponential backoff, and stop retrying once the error is clearly non-recoverable (e.g., room not found / auth error).",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:09:29Z",
+          "updated_at": "2026-03-25T04:09:30Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985613803"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "`hitSlop` is being passed as a number. In React Native typings this prop is typically an Insets object (e.g. `{ top, left, bottom, right }`), so `hitSlop={6}` may fail type-checking and/or behave inconsistently. Use an explicit insets object for the mic toggle press target.\n```suggestion\n              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}\n```",
+          "path": "apps/mobile/src/components/game/PlayerInfo.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:16:49Z",
+          "updated_at": "2026-03-25T04:16:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985631017"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The auto-connect retry state (`autoConnectRetryKey`) isn’t reset when the adapter is swapped, even though other one-shot guards are reset. If auto-connect previously exhausted retries, a new adapter may give up immediately without retrying. Consider resetting the retry key/state here as part of the adapter-change reset.\n```suggestion\n    desiredMicRef.current = false;\n    // Reset auto-connect retry state so a new adapter can perform its own retries.\n    setAutoConnectRetryKey(0);\n```",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 368,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:16:50Z",
+          "updated_at": "2026-03-25T04:16:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985631034"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": false,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "The auto-connect retry state (`autoConnectRetryKey`) isn’t reset on room changes, even though other auto-restore/autoConnect guards are reset. If retries were exhausted in a prior room, the new room may not get the intended retry/backoff behavior. Reset the retry key/state in this roomId-change reset as well.\n```suggestion\n      setRestoreFinished(false);\n      // Also reset auto-connect retry state so a new room gets a fresh retry budget.\n      setAutoConnectRetryKey(0);\n```",
+          "path": "apps/mobile/src/hooks/useVideoChat.ts",
+          "line": 444,
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:16:50Z",
+          "updated_at": "2026-03-25T04:16:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985631038"
+        }
+      ],
+      "total_count": 1
+    },
+    {
+      "is_resolved": false,
+      "is_outdated": true,
+      "is_collapsed": false,
+      "comments": [
+        {
+          "body": "This comment says the Modal’s supportedOrientations lists the *game orientation first*, but `InGameAlert` currently uses `MODAL_SUPPORTED_ORIENTATIONS` (portrait-first, per constants). Either update the comment to match the implementation, or adjust `InGameAlert` to accept a preferred-orientation ordering if that ordering is actually required.\n```suggestion\n          landscape so popups always render correctly without iOS throwing\n          when the device orientation differs. */}\n```",
+          "path": "apps/mobile/src/screens/MultiplayerGame.tsx",
+          "author": "copilot-pull-request-reviewer",
+          "created_at": "2026-03-25T04:16:50Z",
+          "updated_at": "2026-03-25T04:16:50Z",
+          "html_url": "https://github.com/michaelelalam-glitch/Big-Two-Neo/pull/181#discussion_r2985631043"
+        }
+      ],
+      "total_count": 1
+    }
+  ],
+  "totalCount": 66,
+  "pageInfo": {
+    "hasNextPage": false,
+    "hasPreviousPage": false,
+    "startCursor": "Y3Vyc29yOnYyOpK0MjAyNi0wMy0yNFQxMzozOTowNFrOdm0w8A==",
+    "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0wMy0yNVQwNDoxNjo1MFrOdpqHHA=="
+  }
+}
