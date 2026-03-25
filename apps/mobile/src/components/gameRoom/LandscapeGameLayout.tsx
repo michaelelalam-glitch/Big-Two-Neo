@@ -19,6 +19,7 @@ import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
 import { gameScreenStyles } from '../../styles/gameScreenStyles';
 import { AutoPassTimer, ThrowButton, ThrowablePlayerEffect } from '../game';
+import type { InGameAlertOptions } from '../game';
 import type { Card as CardType } from '../../game/types';
 import type { AutoPassTimerState } from '../../types/multiplayer';
 import type { ActiveThrowableEffect } from '../../hooks/useThrowables';
@@ -126,15 +127,7 @@ export interface LandscapeGameLayoutProps {
   /** Video chat: video stream slot elements per display slot */
   videoStreamSlots?: (React.ReactNode | undefined)[];
   /** Orientation-aware alert (replaces native Alert.alert for landscape) */
-  showInGameAlert?: (options: {
-    title?: string;
-    message: string;
-    buttons?: {
-      text: string;
-      style?: 'default' | 'cancel' | 'destructive';
-      onPress?: () => void;
-    }[];
-  }) => void;
+  showInGameAlert?: (options: InGameAlertOptions) => void;
 }
 
 // ============================================================================
@@ -254,7 +247,7 @@ export function LandscapeGameLayout({
     if (showInGameAlert) {
       showInGameAlert({
         title: opponentName,
-        message: i18n.t('friends.tapToAdd') || 'Tap to send a friend request',
+        message: 'Tap to send a friend request',
         buttons: [
           {
             text: i18n.t('friends.addFriend'),

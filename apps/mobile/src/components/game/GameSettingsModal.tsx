@@ -22,6 +22,7 @@ import {
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
 import { useUserPreferencesStore } from '../../store';
+import type { InGameAlertOptions } from './InGameAlert';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -49,15 +50,7 @@ interface GameSettingsModalProps {
   /** Mute/unmute microphone */
   onToggleMic?: () => Promise<void>;
   /** Orientation-aware in-game alert */
-  showInGameAlert?: (options: {
-    title?: string;
-    message: string;
-    buttons?: {
-      text: string;
-      style?: 'default' | 'cancel' | 'destructive';
-      onPress?: () => void;
-    }[];
-  }) => void;
+  showInGameAlert?: (options: InGameAlertOptions) => void;
 }
 
 // Task #628: React.memo — bail out of re-renders driven by GameContext changes
