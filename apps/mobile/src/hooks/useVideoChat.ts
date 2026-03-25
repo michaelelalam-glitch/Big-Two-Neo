@@ -13,7 +13,7 @@
  *
  * Return value (11 fields exposed via GameContext):
  *   isChatConnected   — true while the room session is active (voice OR video).
- *   voiceChatEnabled  — derived: isChatConnected && !isLocalCameraOn.
+ *   voiceChatEnabled  — derived: isChatConnected && isLocalMicOn && !isLocalCameraOn.
  *   isLocalCameraOn   — true when the local camera track is publishing.
  *   isLocalMicOn      — true when the local mic track is unmuted.
  *   isConnecting      — true while an async connect/disconnect is in-flight.
@@ -167,11 +167,10 @@ export interface UseVideoChatReturn {
   isChatConnected: boolean;
   /**
    * Whether the session is connected with the camera off (voice-only mode).
-   * Derived: `isChatConnected && !isLocalCameraOn`.
-   * True whenever the session is connected and the camera is NOT streaming —
-   * regardless of whether the mic is muted and regardless of how the session
-   * was started (`toggleVoiceChat` or `toggleVideoChat` + camera disabled).
-   * Does NOT guarantee the microphone is unmuted; check `isLocalMicOn` for that.
+   * Derived: `isChatConnected && isLocalMicOn && !isLocalCameraOn`.
+   * True whenever the session is connected, the mic is unmuted, and the camera
+   * is NOT streaming. False in listener mode (mic muted) even though the session
+   * is connected — callers should check `isChatConnected` for session presence.
    */
   voiceChatEnabled: boolean;
   /** Whether the local camera is currently streaming */
