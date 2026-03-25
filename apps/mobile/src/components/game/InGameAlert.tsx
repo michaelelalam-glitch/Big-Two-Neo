@@ -13,7 +13,8 @@
  * correctly under the game's chosen orientation lock.
  *
  * Usage:
- *   // Render once in GameView:
+ *   // Render once per game screen (e.g. in MultiplayerGame / LocalAIGame)
+ *   // as a sibling of GameContextProvider:
  *   <InGameAlert ref={inGameAlertRef} />
  *
  *   // Show from anywhere with access to the ref:

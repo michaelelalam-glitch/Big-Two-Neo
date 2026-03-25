@@ -163,7 +163,7 @@ function GameViewComponent() {
         setPortraitActionTarget({ id: opponentId, name: opponentName });
       }
     },
-    [remotePlayerIds, layoutPlayersWithScores, friends]
+    [remotePlayerIds, layoutPlayersWithScores, friends, showInGameAlert]
   );
 
   // Drag hint pulse animation — only running when the hint is actually visible
