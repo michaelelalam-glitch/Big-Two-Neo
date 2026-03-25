@@ -232,7 +232,8 @@ export function useGameActions({
         const msg = error instanceof Error ? error.message : String(error);
         gameLogger.error('❌ [GameScreen] Error passing:', msg);
         soundManager.playSound(SoundType.INVALID_MOVE);
-        showError(msg || 'Failed to pass');
+        const failMsg = msg || 'Failed to pass';
+        if (onAlert) onAlert({ message: failMsg }); else showError(failMsg);
       } finally {
         isPassingRef.current = false;
       }

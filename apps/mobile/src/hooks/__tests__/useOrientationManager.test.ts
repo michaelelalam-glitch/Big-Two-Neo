@@ -46,7 +46,9 @@ describe('useOrientationManager', () => {
     
     expect(result.current.currentOrientation).toBe('portrait');
     expect(result.current.isChanging).toBe(false);
-    expect(result.current.isLocked).toBe(true);
+    // isLocked starts false until lockAsync succeeds (pessimistic default, set
+    // true only after native lock is confirmed active in applyOrientation)
+    expect(result.current.isLocked).toBe(false);
   });
 
   it('toggles from portrait to landscape', async () => {
