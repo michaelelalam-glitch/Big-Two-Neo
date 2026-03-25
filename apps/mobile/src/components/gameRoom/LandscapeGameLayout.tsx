@@ -247,7 +247,7 @@ export function LandscapeGameLayout({
     if (showInGameAlert) {
       showInGameAlert({
         title: opponentName,
-        message: 'Tap to send a friend request',
+        message: i18n.t('friends.tapToSendFriendRequest'),
         buttons: [
           {
             text: i18n.t('friends.addFriend'),
@@ -259,8 +259,16 @@ export function LandscapeGameLayout({
         ],
       });
     } else {
-      // Fallback: directly show add friend action when alert unavailable
-      setOpponentActionTarget({ id: opponentId, name: opponentName });
+      // Fallback: native Alert.alert with same confirmation buttons
+      Alert.alert(opponentName, i18n.t('friends.tapToSendFriendRequest'), [
+        {
+          text: i18n.t('friends.addFriend'),
+          onPress: () => {
+            setOpponentActionTarget({ id: opponentId, name: opponentName });
+          },
+        },
+        { text: i18n.t('common.cancel'), style: 'cancel' },
+      ]);
     }
   };
 

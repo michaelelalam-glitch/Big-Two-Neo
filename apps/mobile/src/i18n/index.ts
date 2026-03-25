@@ -739,6 +739,7 @@ export interface Translations {
     addFriend: string;
     added: string;
     alreadyFriends: string;
+    tapToSendFriendRequest: string;
     requestPending: string;
     requestSent: string;
     cancelRequest: string;
@@ -1447,6 +1448,7 @@ const en: Translations = {
     addFriend: 'Add Friend',
     added: 'Friend request sent!',
     alreadyFriends: 'Friends',
+    tapToSendFriendRequest: 'Tap to send a friend request',
     requestPending: "You're already friends or a request is already pending.",
     requestSent: 'Request Sent',
     cancelRequest: 'Cancel',
@@ -2172,6 +2174,7 @@ const ar: Translations = {
     addFriend: 'إضافة صديق',
     added: 'تم إرسال طلب الصداقة!',
     alreadyFriends: 'أصدقاء',
+    tapToSendFriendRequest: 'اضغط لإرسال طلب صداقة',
     requestPending: 'أنتما أصدقاء بالفعل أو الطلب معلق.',
     requestSent: 'تم الإرسال',
     cancelRequest: 'إلغاء',
@@ -2923,6 +2926,7 @@ const de: Translations = {
     addFriend: 'Freund hinzufügen',
     added: 'Freundschaftsanfrage gesendet!',
     alreadyFriends: 'Freunde',
+    tapToSendFriendRequest: 'Tippe, um eine Freundschaftsanfrage zu senden',
     requestPending: 'Ihr seid bereits befreundet oder eine Anfrage ist ausstehend.',
     requestSent: 'Gesendet',
     cancelRequest: 'Abbrechen',
