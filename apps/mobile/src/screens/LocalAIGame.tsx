@@ -83,6 +83,7 @@ export function LocalAIGame() {
     currentOrientation,
     toggleOrientation,
     isAvailable: orientationAvailable,
+    isLocked,
   } = useOrientationManager();
 
   // Bot turn management
@@ -427,14 +428,16 @@ export function LocalAIGame() {
       <GameContextProvider value={gameContextValue}>
         <GameView />
       </GameContextProvider>
-      {/* Only constrain to game orientation when native lock is confirmed active;
+      {/* Keep a single InGameAlert instance to avoid remounting (which would null
+          the ref mid-render and drop in-flight showInGameAlert calls). Only constrain
+          to game orientation when the native lock is confirmed active (isLocked);
           simulated orientation (Expo Go / missing module) can diverge from the real
-          interface orientation, causing an iOS Modal presentation crash. */}
-      {orientationAvailable ? (
-        <InGameAlert ref={inGameAlertRef} gameOrientation={currentOrientation} />
-      ) : (
-        <InGameAlert ref={inGameAlertRef} />
-      )}
+          interface orientation, causing an iOS Modal crash if the restricted list
+          doesn't include the actual interface orientation. */}
+      <InGameAlert
+        ref={inGameAlertRef}
+        {...(isLocked ? { gameOrientation: currentOrientation } : {})}
+      />
     </>
   );
 }

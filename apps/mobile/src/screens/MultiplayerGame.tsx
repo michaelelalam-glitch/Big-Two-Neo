@@ -120,6 +120,7 @@ export function MultiplayerGame() {
     currentOrientation,
     toggleOrientation,
     isAvailable: orientationAvailable,
+    isLocked,
   } = useOrientationManager();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
@@ -1422,12 +1423,13 @@ export function MultiplayerGame() {
           orientation so popups always appear aligned with the game layout, not the
           physical device rotation.
           Only constrain to the game orientation when the native orientation lock
-          is confirmed active (orientationAvailable). Without the lock, currentOrientation
-          is simulated (Expo Go / missing module) and may diverge from the real interface
-          orientation, causing an iOS Modal presentation crash. */}
+          is confirmed active (isLocked). Without the lock, currentOrientation
+          may diverge from the real interface orientation (e.g. Expo Go / missing
+          module simulates orientation changes), causing an iOS Modal presentation
+          crash if the list doesn't include the actual interface orientation. */}
       <InGameAlert
         ref={inGameAlertRef}
-        {...(orientationAvailable ? { gameOrientation: currentOrientation } : {})}
+        {...(isLocked ? { gameOrientation: currentOrientation } : {})}
       />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
