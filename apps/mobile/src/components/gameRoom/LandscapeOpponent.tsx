@@ -209,9 +209,7 @@ export function LandscapeOpponent({
                 accessibilityLabel={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
                 hitSlop={6}
               >
-                <Text style={styles.micToggleIcon}>
-                  {isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}
-                </Text>
+                <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
               </Pressable>
             ) : (
               <View
@@ -221,9 +219,7 @@ export function LandscapeOpponent({
                 accessibilityLabel={isMicOn ? 'Microphone on' : 'Microphone off'}
                 pointerEvents="none"
               >
-                <Text style={styles.micToggleIcon}>
-                  {isMicOn ? '\ud83c\udfa4' : '\ud83d\udd07'}
-                </Text>
+                <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
               </View>
             ))}
           {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}

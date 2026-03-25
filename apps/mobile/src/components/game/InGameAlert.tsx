@@ -7,10 +7,10 @@
  * appear in landscape — breaking the UI.
  *
  * Solution: This component uses a React Native <Modal> with supportedOrientations
- * that includes both portrait and landscape variants (game orientation listed
- * first for preference). This prevents iOS from throwing when the device's
- * current interface orientation is not in the supported set, while still
- * rendering correctly for the game's chosen orientation.
+ * defined by MODAL_SUPPORTED_ORIENTATIONS, which includes both portrait and
+ * landscape variants. This prevents iOS from throwing when the device's current
+ * interface orientation is not in the supported set, while still rendering
+ * correctly under the game's chosen orientation lock.
  *
  * Usage:
  *   // Render once in GameView:
