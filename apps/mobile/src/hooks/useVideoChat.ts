@@ -366,6 +366,8 @@ export function useVideoChat({
     setRestoreFinished(false);
     desiredCameraRef.current = false;
     desiredMicRef.current = false;
+    // Reset auto-connect retry state so a new adapter can perform its own retries.
+    setAutoConnectRetryKey(0);
   }, [adapterProp, isChatConnected]);
 
   // Subscribe to remote participant changes while video chat is active.
@@ -442,6 +444,8 @@ export function useVideoChat({
       setRestoreFinished(false);
       desiredCameraRef.current = false;
       desiredMicRef.current = false;
+      // Also reset auto-connect retry state so a new room gets a fresh retry budget.
+      setAutoConnectRetryKey(0);
     }
     prevRoomIdRef.current = roomId;
     // isChatConnected included so the effect sees the current session state when

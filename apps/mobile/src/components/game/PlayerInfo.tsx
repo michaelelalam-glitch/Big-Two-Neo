@@ -315,7 +315,7 @@ function PlayerInfoComponent({
               accessibilityLabel={
                 isMicOn ? i18n.t('chat.muteMicrophone') : i18n.t('chat.unmuteMicrophone')
               }
-              hitSlop={6}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
             </Pressable>

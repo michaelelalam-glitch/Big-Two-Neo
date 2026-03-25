@@ -1263,8 +1263,8 @@ export function MultiplayerGame() {
 
       {/* In-game alert — orientation-aware replacement for native Alert.alert.
           Uses a Modal with supportedOrientations including both portrait and
-          landscape (game orientation listed first) so popups always render
-          correctly without iOS throwing when the device orientation differs. */}
+          landscape so popups always render correctly without iOS throwing
+          when the device orientation differs. */}
       <InGameAlert ref={inGameAlertRef} />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
