@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, Pressable, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
@@ -254,7 +254,7 @@ export function LandscapeGameLayout({
     if (showInGameAlert) {
       showInGameAlert({
         title: opponentName,
-        message: i18n.t('friends.addFriend'),
+        message: i18n.t('friends.tapToAdd') || 'Tap to send a friend request',
         buttons: [
           {
             text: i18n.t('friends.addFriend'),
@@ -278,11 +278,15 @@ export function LandscapeGameLayout({
     if (!opponentId) return;
     const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
     if (isFriend) {
-      showInGameAlert?.({
-        title: opponentName,
-        message: i18n.t('friends.alreadyFriends'),
-        buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
-      });
+      if (showInGameAlert) {
+        showInGameAlert({
+          title: opponentName,
+          message: i18n.t('friends.alreadyFriends'),
+          buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
+        });
+      } else {
+        Alert.alert(opponentName, i18n.t('friends.alreadyFriends'));
+      }
     } else {
       setOpponentActionTarget({ id: opponentId, name: opponentName });
     }

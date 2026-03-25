@@ -709,6 +709,7 @@ function GameViewComponent() {
               onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
               onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
               onToggleMic={isMultiplayerGame ? toggleMic : undefined}
+              showInGameAlert={showInGameAlert}
             />
 
             {/* Task #648: In-game text chat drawer (multiplayer only) */}

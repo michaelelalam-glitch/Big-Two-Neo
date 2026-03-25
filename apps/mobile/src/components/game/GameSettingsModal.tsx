@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
-import { useGameContext } from '../../contexts/GameContext';
 import {
   COLORS,
   SPACING,
@@ -49,6 +48,16 @@ interface GameSettingsModalProps {
   onToggleCamera?: () => Promise<void>;
   /** Mute/unmute microphone */
   onToggleMic?: () => Promise<void>;
+  /** Orientation-aware in-game alert */
+  showInGameAlert?: (options: {
+    title?: string;
+    message: string;
+    buttons?: {
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[];
+  }) => void;
 }
 
 // Task #628: React.memo — bail out of re-renders driven by GameContext changes
@@ -67,12 +76,11 @@ function GameSettingsModalComponent({
   onToggleVideoChat,
   onToggleCamera,
   onToggleMic,
+  showInGameAlert,
 }: GameSettingsModalProps) {
   // Detect orientation
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-
-  const { showInGameAlert } = useGameContext();
 
   // Task #647: read sound/vibration from Zustand store (eliminates async useEffect on mount)
   const soundEnabled = useUserPreferencesStore(s => s.soundEnabled);
@@ -126,12 +134,12 @@ function GameSettingsModalComponent({
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      showInGameAlert({
+      showInGameAlert?.({
         title: i18n.t('lobby.copiedTitle'),
         message: i18n.t('lobby.copiedMessage', { roomCode }),
       });
     } else if (result === 'failed') {
-      showInGameAlert({
+      showInGameAlert?.({
         title: i18n.t('lobby.copyFailedTitle'),
         message: i18n.t('lobby.copyFailedMessage', { roomCode }),
       });
