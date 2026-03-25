@@ -155,6 +155,21 @@ export interface UseVideoChatOptions {
    * Defaults to false.
    */
   autoConnect?: boolean;
+  /**
+   * Optional alert callback. When provided, user-facing alerts (permission denied,
+   * connect failure) are routed through this instead of native Alert.alert.
+   * Game screens should pass `showInGameAlert` so alerts render via InGameAlert
+   * (respecting orientation locks on iOS).
+   */
+  onAlert?: (options: {
+    title: string;
+    message: string;
+    buttons?: {
+      text: string;
+      style?: 'cancel' | 'default' | 'destructive';
+      onPress?: () => void;
+    }[];
+  }) => void;
 }
 
 export interface UseVideoChatReturn {
@@ -240,7 +255,32 @@ export function useVideoChat({
   userId,
   adapter: adapterProp,
   autoConnect = false,
+  onAlert,
 }: UseVideoChatOptions): UseVideoChatReturn {
+  // Stable ref for the onAlert callback so effects/callbacks always see the latest.
+  const onAlertRef = useRef(onAlert);
+  onAlertRef.current = onAlert;
+
+  /** Show an alert via onAlert (InGameAlert) when provided, else native Alert.alert. */
+  const showAlert = useCallback(
+    (
+      title: string,
+      message: string,
+      buttons?: {
+        text: string;
+        style?: 'cancel' | 'default' | 'destructive';
+        onPress?: () => void;
+      }[]
+    ) => {
+      if (onAlertRef.current) {
+        onAlertRef.current({ title, message, buttons });
+      } else {
+        Alert.alert(title, message, buttons);
+      }
+    },
+    []
+  );
+
   const adapterRef = useRef<VideoChatAdapter>(null!);
   // Synchronize the ref during render so render-phase reads/callbacks in the
   // same cycle always see the current adapter. With ??= alone, a change of
@@ -737,35 +777,38 @@ export function useVideoChat({
    *
    * @param permissionType - 'camera' or 'mic'
    */
-  const showPermissionDeniedAlert = useCallback((permissionType: 'camera' | 'mic') => {
-    // Video chat requires native APIs (camera/mic/settings deep-link) that are
-    // unavailable on web. Permission requests are blocked at the request layer
-    // for non-native platforms, so this alert should never fire there — guard
-    // anyway to prevent a misleading "open Settings" message and an unimplemented
-    // Linking.openSettings() call on web.
-    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
-    const isCamera = permissionType === 'camera';
-    Alert.alert(
-      isCamera
-        ? i18n.t('chat.permissionDeniedCameraTitle')
-        : i18n.t('chat.permissionDeniedMicTitle'),
-      isCamera
-        ? i18n.t('chat.permissionDeniedCameraMessage')
-        : i18n.t('chat.permissionDeniedMicMessage'),
-      [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
-        {
-          text: i18n.t('chat.openSettings'),
-          // Attach .catch() to handle the rare case where the Settings app
-          // is unavailable (e.g. deep-link restricted by MDM) without leaving
-          // an unhandled promise rejection.
-          onPress: () => {
-            Linking.openSettings().catch(() => {});
+  const showPermissionDeniedAlert = useCallback(
+    (permissionType: 'camera' | 'mic') => {
+      // Video chat requires native APIs (camera/mic/settings deep-link) that are
+      // unavailable on web. Permission requests are blocked at the request layer
+      // for non-native platforms, so this alert should never fire there — guard
+      // anyway to prevent a misleading "open Settings" message and an unimplemented
+      // Linking.openSettings() call on web.
+      if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
+      const isCamera = permissionType === 'camera';
+      showAlert(
+        isCamera
+          ? i18n.t('chat.permissionDeniedCameraTitle')
+          : i18n.t('chat.permissionDeniedMicTitle'),
+        isCamera
+          ? i18n.t('chat.permissionDeniedCameraMessage')
+          : i18n.t('chat.permissionDeniedMicMessage'),
+        [
+          { text: i18n.t('common.cancel'), style: 'cancel' },
+          {
+            text: i18n.t('chat.openSettings'),
+            // Attach .catch() to handle the rare case where the Settings app
+            // is unavailable (e.g. deep-link restricted by MDM) without leaving
+            // an unhandled promise rejection.
+            onPress: () => {
+              Linking.openSettings().catch(() => {});
+            },
           },
-        },
-      ]
-    );
-  }, []);
+        ]
+      );
+    },
+    [showAlert]
+  );
 
   const toggleVideoChat = useCallback(async (): Promise<void> => {
     // Re-entrant guard: if a previous toggle is still executing (e.g. waiting
@@ -870,7 +913,7 @@ export function useVideoChat({
           setRemoteParticipants([]);
           // Alert the user so the toggle reverting to off is not silent/confusing.
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
-            Alert.alert(i18n.t('chat.connectFailedTitle'), i18n.t('chat.connectFailedMessage'));
+            showAlert(i18n.t('chat.connectFailedTitle'), i18n.t('chat.connectFailedMessage'));
           }
         }
       } else if (!isLocalCameraOn) {
@@ -1061,7 +1104,7 @@ export function useVideoChat({
           setRemoteParticipants([]);
           // Alert the user so the toggle reverting to off is not silent/confusing.
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
-            Alert.alert(
+            showAlert(
               i18n.t('chat.voiceConnectFailedTitle'),
               i18n.t('chat.voiceConnectFailedMessage')
             );

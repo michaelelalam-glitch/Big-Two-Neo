@@ -965,6 +965,7 @@ export function MultiplayerGame() {
     userId: user?.id,
     adapter: videoChatAdapter,
     autoConnect: true,
+    onAlert: showInGameAlert,
   });
 
   // Guard: LiveKit requires native WebRTC modules. Show a clear alert when the
