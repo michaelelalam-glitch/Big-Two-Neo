@@ -6,8 +6,15 @@
  */
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render } from '@testing-library/react-native';
 import { LandscapeOvalTable } from '../LandscapeOvalTable';
+
+/** Flatten RN styles including animated value arrays that StyleSheet.flatten may not fully merge in test mocks. */
+function flattenStyle(style: unknown): Record<string, unknown> {
+  const flat = StyleSheet.flatten(style as any);
+  return Array.isArray(flat) ? Object.assign({}, ...flat) : (flat as Record<string, unknown>);
+}
 import type { Card } from '../../../game/types';
 
 // Mock dependencies
@@ -151,7 +158,7 @@ describe('LandscapeOvalTable - Dimensions', () => {
     const styles = container.props.style;
 
     // Animated.View returns an array of style objects — flatten before asserting
-    const flatStyle = Array.isArray(styles) ? Object.assign({}, ...styles) : styles;
+    const flatStyle = flattenStyle(styles);
 
     // Container should have width: 420, height: 240
     expect(flatStyle).toMatchObject({
@@ -166,7 +173,7 @@ describe('LandscapeOvalTable - Dimensions', () => {
     const container = getByTestId('oval-table-container');
     const styles = container.props.style;
 
-    const flatStyle = Array.isArray(styles) ? Object.assign({}, ...styles) : styles;
+    const flatStyle = flattenStyle(styles);
 
     expect(flatStyle.borderRadius).toBe(120); // Half of height
   });
