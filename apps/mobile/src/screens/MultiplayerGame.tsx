@@ -279,8 +279,21 @@ export function MultiplayerGame() {
                 '📡 [MultiplayerGame] Broadcasted play_again_room:',
                 result.room_code
               );
-              // Keep channel alive for 5 seconds so late joiners can receive it
+              // Re-broadcast every 1s for 5 seconds so late subscribers can receive it
+              // (Supabase broadcasts are not buffered, so one-shot can miss late joiners)
+              const rebroadcastInterval = setInterval(async () => {
+                try {
+                  await broadcastChannel.send({
+                    type: 'broadcast',
+                    event: 'play_again_room',
+                    payload: { room_code: result.room_code },
+                  });
+                } catch {
+                  /* best-effort */
+                }
+              }, 1000);
               setTimeout(() => {
+                clearInterval(rebroadcastInterval);
                 supabase.removeChannel(broadcastChannel);
               }, 5000);
             } else if (

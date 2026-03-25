@@ -172,11 +172,6 @@ export function LandscapeOpponent({
             ) : isCameraOn ? (
               <View style={[styles.videoPlaceholder, { borderRadius: avatarScale.innerRadius }]}>
                 <Text style={[styles.avatarIcon, { fontSize: avatarScale.iconSize }]}>📷</Text>
-                {isMicOn !== undefined && (
-                  <View style={styles.micIndicator}>
-                    <Text style={styles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
-                  </View>
-                )}
               </View>
             ) : (
               <>
