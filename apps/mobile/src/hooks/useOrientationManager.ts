@@ -71,7 +71,10 @@ const ORIENTATION_LOCKS = ScreenOrientation ? {
 export function useOrientationManager(): OrientationManagerState {
   const [currentOrientation, setCurrentOrientation] = useState<OrientationMode>('portrait');
   const [isChanging, setIsChanging] = useState(false);
-  const [isLocked, setIsLocked] = useState(true);
+  // Initialize isLocked based on module availability: false when expo-screen-orientation
+  // is not present (Expo Go / missing module) so callers can reliably distinguish between
+  // "locked via native API" and "UI-only simulated orientation".
+  const [isLocked, setIsLocked] = useState(ScreenOrientation !== null);
 
   // Load saved orientation preference on mount AND unlock on unmount
   useEffect(() => {
@@ -155,6 +158,7 @@ export function useOrientationManager(): OrientationManagerState {
       setIsLocked(true);
       gameLogger.info(`🔒 [Orientation] Locked to ${mode}`);
     } catch (error) {
+      setIsLocked(false);
       gameLogger.error(`❌ [Orientation] Failed to lock to ${mode}:`, error);
       throw error;
     }

@@ -430,10 +430,12 @@ export function LocalAIGame() {
       </GameContextProvider>
       {/* Keep a single InGameAlert instance to avoid remounting (which would null
           the ref mid-render and drop in-flight showInGameAlert calls). Only constrain
-          to game orientation when the native lock is confirmed active (isLocked);
-          simulated orientation (Expo Go / missing module) can diverge from the real
-          interface orientation, causing an iOS Modal crash if the restricted list
-          doesn't include the actual interface orientation. */}
+          to game orientation when the native lock is confirmed active. isLocked is
+          initialised false when expo-screen-orientation is absent (Expo Go / missing
+          module) and is set false again if lockAsync fails, so it reliably reflects
+          actual native lock state. Without the lock, currentOrientation is UI-only
+          and can diverge from the real interface orientation, causing an iOS Modal
+          crash if the restricted list doesn't include the actual orientation. */}
       <InGameAlert
         ref={inGameAlertRef}
         {...(isLocked ? { gameOrientation: currentOrientation } : {})}
