@@ -1,6 +1,6 @@
 /**
  * GameEndModal - Main modal container for Game End feature
- * 
+ *
  * Features:
  * - Semi-transparent backdrop overlay
  * - Gradient background container
@@ -10,7 +10,7 @@
  * - Action buttons (Share, Play Again, Return to Menu)
  * - Responsive sizing and safe area handling
  * - Fireworks celebration animation
- * 
+ *
  * Created as part of Tasks #406-414: Phase 2 Core Components
  * Date: December 16, 2025
  */
@@ -26,15 +26,16 @@ import {
   StyleSheet,
   Platform,
   Share,
-  Alert,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
+import { useGameContext } from '../../contexts/GameContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 import { Fireworks } from './Fireworks';
 
 // ============================================================================
@@ -61,13 +62,15 @@ export const GameEndModal: React.FC = () => {
     onReturnToMenu,
   } = useGameEnd();
 
+  const { showInGameAlert } = useGameContext();
+
   const [activeTab, setActiveTab] = useState<TabType>('score');
   const [showFireworks, setShowFireworks] = useState(false);
-  
+
   // Task #421: Responsive dimensions and orientation detection
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
-  
+
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
@@ -114,13 +117,13 @@ export const GameEndModal: React.FC = () => {
   // Task #419: Tab switch with fade animation
   const switchTab = (tab: TabType) => {
     if (tab === activeTab) return;
-    
+
     // Task #420: Haptic feedback on tab switch — void+catch so the unhandled rejection
     // from the fire-and-forget call is explicitly handled in a non-async function.
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(e =>
       console.warn('[GameEndModal] Haptics not supported:', e)
     );
-    
+
     // Fade out current content
     Animated.timing(tabContentOpacity, {
       toValue: 0,
@@ -129,7 +132,7 @@ export const GameEndModal: React.FC = () => {
     }).start(() => {
       // Switch tab after fade out
       setActiveTab(tab);
-      
+
       // Fade in new content
       Animated.timing(tabContentOpacity, {
         toValue: 1,
@@ -137,7 +140,7 @@ export const GameEndModal: React.FC = () => {
         useNativeDriver: true,
       }).start();
     });
-    
+
     // Animate tab indicator simultaneously
     Animated.timing(tabIndicatorAnim, {
       toValue: tab === 'score' ? 0 : 1,
@@ -156,22 +159,25 @@ export const GameEndModal: React.FC = () => {
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
-    
+
     // Format results text
     const resultsText = formatResultsForShare();
-    
+
     try {
       const result = await Share.share({
         message: resultsText,
         title: SHARE_RESULTS_TITLE,
       });
-      
+
       if (result.action === Share.sharedAction) {
         // Success - no additional action needed. Share API handles the UI feedback.
       }
     } catch (error) {
       console.error('Error sharing results:', error);
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      showInGameAlert({
+        title: i18n.t('gameEnd.shareError'),
+        message: i18n.t('gameEnd.shareErrorMessage'),
+      });
     }
   };
 
@@ -185,9 +191,12 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
     if (result === 'copied') {
-      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
+      showInGameAlert({ message: i18n.t('gameEnd.copyResultsSuccess') });
     } else if (result === 'failed') {
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      showInGameAlert({
+        title: i18n.t('gameEnd.shareError'),
+        message: i18n.t('gameEnd.shareErrorMessage'),
+      });
     }
     // 'shared': Share sheet was presented — no additional alert needed
   };
@@ -195,22 +204,22 @@ export const GameEndModal: React.FC = () => {
   // Format results for sharing
   const formatResultsForShare = (): string => {
     const sortedScores = [...finalScores].sort((a, b) => a.cumulative_score - b.cumulative_score);
-    
+
     let text = '🎮 Big Two Game Results 🎮\n\n';
     text += `🏆 Winner: ${gameWinnerName}\n\n`;
     text += 'Final Standings:\n';
-    
+
     sortedScores.forEach((player, index) => {
       const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '  ';
       text += `${medal} ${player.player_name}: ${player.cumulative_score} pts\n`;
     });
-    
+
     return text;
   };
 
   // Handle modal close
   const handleClose = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch((e) =>
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(e =>
       console.warn('[GameEndModal] Haptics not supported:', e)
     );
     setShowGameEndModal(false);
@@ -225,11 +234,11 @@ export const GameEndModal: React.FC = () => {
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
-    
-    Alert.alert(
-      i18n.t('gameEnd.playAgainTitle'),
-      i18n.t('gameEnd.playAgainMessage'),
-      [
+
+    showInGameAlert({
+      title: i18n.t('gameEnd.playAgainTitle'),
+      message: i18n.t('gameEnd.playAgainMessage'),
+      buttons: [
         {
           text: i18n.t('common.cancel'),
           style: 'cancel',
@@ -240,19 +249,22 @@ export const GameEndModal: React.FC = () => {
             try {
               // Close the modal first
               setShowGameEndModal(false);
-              
+
               // Call the callback provided by GameScreen (if exists)
               if (onPlayAgain) {
                 onPlayAgain();
               }
             } catch (error) {
               console.error('Error restarting game:', error);
-              Alert.alert(i18n.t('gameEnd.restartError'), i18n.t('gameEnd.restartErrorMessage'));
+              showInGameAlert({
+                title: i18n.t('gameEnd.restartError'),
+                message: i18n.t('gameEnd.restartErrorMessage'),
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   // Task #417: Return to Menu logic
@@ -264,11 +276,11 @@ export const GameEndModal: React.FC = () => {
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
-    
-    Alert.alert(
-      i18n.t('gameEnd.returnToMenuTitle'),
-      i18n.t('gameEnd.returnToMenuMessage'),
-      [
+
+    showInGameAlert({
+      title: i18n.t('gameEnd.returnToMenuTitle'),
+      message: i18n.t('gameEnd.returnToMenuMessage'),
+      buttons: [
         {
           text: i18n.t('game.stay'),
           style: 'cancel',
@@ -280,19 +292,22 @@ export const GameEndModal: React.FC = () => {
             try {
               // Close the modal first
               setShowGameEndModal(false);
-              
+
               // Call the callback provided by GameScreen (if exists)
               if (onReturnToMenu) {
                 onReturnToMenu();
               }
             } catch (error) {
               console.error('Error leaving game:', error);
-              Alert.alert(i18n.t('gameEnd.leaveError'), i18n.t('gameEnd.leaveErrorMessage'));
+              showInGameAlert({
+                title: i18n.t('gameEnd.leaveError'),
+                message: i18n.t('gameEnd.leaveErrorMessage'),
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   // CRITICAL FIX: Show loading state while waiting for data
@@ -301,7 +316,7 @@ export const GameEndModal: React.FC = () => {
       hasFinalScores: finalScores.length > 0,
       hasWinnerName: !!gameWinnerName,
     });
-    
+
     return (
       <Modal
         visible={showGameEndModal}
@@ -311,21 +326,27 @@ export const GameEndModal: React.FC = () => {
         statusBarTranslucent={true}
       >
         <View style={[styles.backdrop, { justifyContent: 'center', alignItems: 'center' }]}>
-          <View style={[styles.modalContainer, { justifyContent: 'center', alignItems: 'center', padding: 40 }]}>
+          <View
+            style={[
+              styles.modalContainer,
+              { justifyContent: 'center', alignItems: 'center', padding: 40 },
+            ]}
+          >
             <ActivityIndicator size="large" color="#60a5fa" />
-            <Text style={{ color: '#f3f4f6', marginTop: 16, fontSize: 16 }}>{i18n.t('gameEnd.loadingResults')}</Text>
+            <Text style={{ color: '#f3f4f6', marginTop: 16, fontSize: 16 }}>
+              {i18n.t('gameEnd.loadingResults')}
+            </Text>
           </View>
         </View>
       </Modal>
     );
   }
-  
+
   // CRITICAL FIX: Don't render if modal should not be visible
   if (!showGameEndModal) {
     return null;
   }
-  
-  
+
   return (
     <>
       {/* Modal */}
@@ -336,18 +357,17 @@ export const GameEndModal: React.FC = () => {
         presentationStyle="overFullScreen"
         onRequestClose={handleClose}
         statusBarTranslucent={true}
-        supportedOrientations={['portrait', 'landscape']}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         {/* CRITICAL FIX: Use regular View instead of SafeAreaView to prevent layout collapse */}
         <View style={styles.safeArea}>
           {/* Fireworks background animation - positioned absolutely */}
           <Fireworks active={showFireworks} duration={5000} />
-          
+
           {/* Semi-transparent backdrop */}
           <View style={styles.backdrop}>
-            
             {/* Modal container with gradient - Task #421: Responsive sizing + smooth entrance */}
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.modalContainer,
                 {
@@ -358,10 +378,20 @@ export const GameEndModal: React.FC = () => {
                   maxHeight: isLandscape ? windowHeight * 0.95 : windowHeight * 0.85,
                   opacity: modalSlideAnim,
                   transform: [
-                    { translateY: modalSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) },
-                    { scale: modalSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) },
+                    {
+                      translateY: modalSlideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [60, 0],
+                      }),
+                    },
+                    {
+                      scale: modalSlideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.95, 1],
+                      }),
+                    },
                   ],
-                }
+                },
               ]}
             >
               {/* Gradient background using View - LinearGradient requires native rebuild */}
@@ -394,10 +424,7 @@ export const GameEndModal: React.FC = () => {
                         playerNames={playerNames}
                         headerSlot={
                           <>
-                            <WinnerAnnouncement
-                              winnerName={gameWinnerName}
-                              pulseAnim={pulseAnim}
-                            />
+                            <WinnerAnnouncement winnerName={gameWinnerName} pulseAnim={pulseAnim} />
                             <FinalStandings
                               finalScores={finalScores}
                               winnerIndex={gameWinnerIndex}
@@ -423,10 +450,7 @@ export const GameEndModal: React.FC = () => {
                         playerNames={playerNames}
                         headerSlot={
                           <>
-                            <WinnerAnnouncement
-                              winnerName={gameWinnerName}
-                              pulseAnim={pulseAnim}
-                            />
+                            <WinnerAnnouncement winnerName={gameWinnerName} pulseAnim={pulseAnim} />
                             <FinalStandings
                               finalScores={finalScores}
                               winnerIndex={gameWinnerIndex}
@@ -466,17 +490,12 @@ interface WinnerAnnouncementProps {
   pulseAnim: Animated.Value;
 }
 
-const WinnerAnnouncement: React.FC<WinnerAnnouncementProps> = ({
-  winnerName,
-  pulseAnim,
-}) => {
+const WinnerAnnouncement: React.FC<WinnerAnnouncementProps> = ({ winnerName, pulseAnim }) => {
   return (
     <View style={styles.winnerSection}>
       <Text style={styles.winnerLabel}>{i18n.t('gameEnd.gameWinner')}</Text>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <Text style={styles.winnerName}>
-          🏆 {winnerName} 🏆
-        </Text>
+        <Text style={styles.winnerName}>🏆 {winnerName} 🏆</Text>
       </Animated.View>
     </View>
   );
@@ -496,20 +515,17 @@ interface FinalStandingsProps {
   winnerIndex: number;
 }
 
-const FinalStandings: React.FC<FinalStandingsProps> = ({
-  finalScores,
-  winnerIndex,
-}) => {
+const FinalStandings: React.FC<FinalStandingsProps> = ({ finalScores, winnerIndex }) => {
   // Sort by score (lowest to highest)
   const sortedScores = [...finalScores].sort((a, b) => a.cumulative_score - b.cumulative_score);
-  
+
   const getMedal = (index: number): string => {
     if (index === 0) return '🥇';
     if (index === 1) return '🥈';
     if (index === 2) return '🥉';
     return '';
   };
-  
+
   const getScoreColor = (score: number, isWinner: boolean): string => {
     if (isWinner) return '#4ade80'; // Green for winner
     if (score > 100) return '#f87171'; // Red for busted
@@ -523,18 +539,16 @@ const FinalStandings: React.FC<FinalStandingsProps> = ({
         {sortedScores.map((player, index) => {
           const isWinner = player.player_index === winnerIndex;
           const scoreColor = getScoreColor(player.cumulative_score, isWinner);
-          
+
           return (
             <View key={player.player_index} style={styles.standingsRow}>
               <View style={styles.standingsRank}>
                 <Text style={styles.medalEmoji}>{getMedal(index)}</Text>
                 <Text style={styles.rankNumber}>{index + 1}</Text>
               </View>
-              
-              <Text style={[styles.playerName, { color: scoreColor }]}>
-                {player.player_name}
-              </Text>
-              
+
+              <Text style={[styles.playerName, { color: scoreColor }]}>{player.player_name}</Text>
+
               <Text style={[styles.playerScore, { color: scoreColor }]}>
                 {player.cumulative_score} {i18n.t('gameEnd.points')}
               </Text>
@@ -563,7 +577,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
 }) => {
   // CRITICAL FIX: Use onLayout to get actual container width dynamically
   const [containerWidth, setContainerWidth] = React.useState(0);
-  
+
   const indicatorTranslateX = tabIndicatorAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, containerWidth / 2], // Move by exactly half the container width (one button)
@@ -571,9 +585,9 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
 
   return (
     <View style={styles.tabContainer}>
-      <View 
+      <View
         style={styles.tabButtons}
-        onLayout={(event) => {
+        onLayout={event => {
           const { width } = event.nativeEvent.layout;
           setContainerWidth(width - 8); // Subtract padding (4px each side)
         }}
@@ -587,7 +601,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
             {i18n.t('gameEnd.scoreHistory')}
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'play' && styles.tabButtonActive]}
           onPress={() => onTabChange('play')}
@@ -597,16 +611,16 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
             {i18n.t('gameEnd.playHistory')}
           </Text>
         </TouchableOpacity>
-        
+
         {/* Animated indicator - CRITICAL FIX: Width calculated from actual container */}
         {containerWidth > 0 && (
           <Animated.View
             style={[
               styles.tabIndicator,
-              { 
+              {
                 width: containerWidth / 2 - 4, // Half container minus padding
-                transform: [{ translateX: indicatorTranslateX }] 
-              }
+                transform: [{ translateX: indicatorTranslateX }],
+              },
             ]}
           />
         )}
@@ -648,7 +662,9 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Toggle score match expansion
   const toggleScoreExpansion = (matchNumber: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      /* haptics optional */
+    });
     setExpandedScoreMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -662,7 +678,9 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   // Expand / collapse all
   const toggleAll = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      /* haptics optional */
+    });
     if (expandedScoreMatches.size === scoreHistory.length) {
       // All expanded → collapse all
       setExpandedScoreMatches(new Set());
@@ -677,7 +695,13 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
 
   type ScoreHistoryItem = ScoreHistoryTabProps['scoreHistory'][number];
 
-  const renderScoreItem = ({ item: match, index: matchIndex }: { item: ScoreHistoryItem; index: number }) => {
+  const renderScoreItem = ({
+    item: match,
+    index: matchIndex,
+  }: {
+    item: ScoreHistoryItem;
+    index: number;
+  }) => {
     const hasBustedPlayer = match.scores.some(score => score > 100);
     const isExpanded = expandedScoreMatches.has(match.matchNumber);
     const isLatest = matchIndex === scoreHistoryLastIndex;
@@ -701,9 +725,12 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
               </Text>
               {!isExpanded && (
                 <Text style={styles.scoreHistoryCollapsedSummary}>
-                  {playerNames.map((name, pi) =>
-                    `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
-                  ).join(' · ')}
+                  {playerNames
+                    .map(
+                      (name, pi) =>
+                        `${name}: ${match.pointsAdded[pi] > 0 ? '+' : ''}${match.pointsAdded[pi] || 0}`
+                    )
+                    .join(' · ')}
                 </Text>
               )}
             </View>
@@ -713,9 +740,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
                   <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
                 </View>
               )}
-              <Text style={styles.expandIcon}>
-                {isExpanded ? '▼' : '▶'}
-              </Text>
+              <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
             </View>
           </View>
 
@@ -765,7 +790,7 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
       contentContainerStyle={styles.tabScrollContent}
       showsVerticalScrollIndicator={false}
       data={scoreHistory}
-      keyExtractor={(item) => item.matchNumber.toString()}
+      keyExtractor={item => item.matchNumber.toString()}
       renderItem={renderScoreItem}
       extraData={expandedScoreMatches}
       ListHeaderComponent={
@@ -775,9 +800,15 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
           {scoreHistory.length > 0 ? (
             <View style={styles.scoreHistoryHeaderRow}>
               <Text style={styles.historyTitle}>{i18n.t('gameEnd.matchByMatch')}</Text>
-              <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} style={styles.expandAllButton}>
+              <TouchableOpacity
+                onPress={toggleAll}
+                activeOpacity={0.7}
+                style={styles.expandAllButton}
+              >
                 <Text style={styles.expandAllText}>
-                  {allExpanded ? `▲ ${i18n.t('gameEnd.collapseAll')}` : `▼ ${i18n.t('gameEnd.expandAll')}`}
+                  {allExpanded
+                    ? `▲ ${i18n.t('gameEnd.collapseAll')}`
+                    : `▼ ${i18n.t('gameEnd.expandAll')}`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -796,7 +827,10 @@ const ScoreHistoryTab: React.FC<ScoreHistoryTabProps> = ({
           {scoreHistory.length > 0 && (
             <View style={styles.tabContentFooter}>
               <Text style={styles.tabContentFooterText}>
-                {scoreHistory.length} {scoreHistory.length === 1 ? i18n.t('gameEnd.oneMatch') : i18n.t('gameEnd.matchesPlayed')}
+                {scoreHistory.length}{' '}
+                {scoreHistory.length === 1
+                  ? i18n.t('gameEnd.oneMatch')
+                  : i18n.t('gameEnd.matchesPlayed')}
               </Text>
             </View>
           )}
@@ -872,7 +906,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
     }
     return new Set();
   });
-  
+
   // Auto-expand latest match when new history arrives
   useEffect(() => {
     if (playHistory.length > 0) {
@@ -885,10 +919,12 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       });
     }
   }, [playHistory]);
-  
+
   // Toggle match expansion
   const toggleMatchExpansion = (matchNumber: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* haptics optional */ });
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      /* haptics optional */
+    });
     setExpandedMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
@@ -899,12 +935,12 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       return newSet;
     });
   };
-  
+
   // Flatten all hands for FlatList virtualization (Task #397)
-  const flattenedData = playHistory.flatMap((match) => {
+  const flattenedData = playHistory.flatMap(match => {
     const isExpanded = expandedMatches.has(match.matchNumber);
     const isLatestMatch = match.matchNumber === playHistory[playHistory.length - 1].matchNumber;
-    
+
     // Always include match header
     const items: FlattenedPlayHistoryItem[] = [
       {
@@ -914,10 +950,10 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
           handCount: match.hands.length,
           isExpanded,
           isLatestMatch,
-        }
-      }
+        },
+      },
     ];
-    
+
     // Add hands if expanded
     if (isExpanded) {
       match.hands.forEach((hand, handIndex) => {
@@ -928,11 +964,11 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
             handIndex,
             matchNumber: match.matchNumber,
             isLatestHand: handIndex === match.hands.length - 1 && isLatestMatch,
-          }
+          },
         });
       });
     }
-    
+
     return items;
   });
 
@@ -942,7 +978,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         <TouchableOpacity
           style={[
             styles.playHistoryMatchHeader,
-            item.data.isLatestMatch && styles.playHistoryMatchHeaderLatest
+            item.data.isLatestMatch && styles.playHistoryMatchHeaderLatest,
           ]}
           onPress={() => toggleMatchExpansion(item.data.matchNumber)}
           activeOpacity={0.7}
@@ -952,40 +988,34 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
               {i18n.t('gameEnd.match')} {item.data.matchNumber}
             </Text>
             <Text style={styles.playHistoryHandCount}>
-              {item.data.handCount} {item.data.handCount === 1 ? i18n.t('gameEnd.hand') : i18n.t('gameEnd.hands')}
+              {item.data.handCount}{' '}
+              {item.data.handCount === 1 ? i18n.t('gameEnd.hand') : i18n.t('gameEnd.hands')}
             </Text>
           </View>
-          
+
           <View style={styles.playHistoryMatchHeaderRight}>
             {item.data.isLatestMatch && (
               <View style={styles.latestBadge}>
                 <Text style={styles.latestBadgeText}>{i18n.t('gameEnd.latest')}</Text>
               </View>
             )}
-            <Text style={styles.expandIcon}>
-              {item.data.isExpanded ? '▼' : '▶'}
-            </Text>
+            <Text style={styles.expandIcon}>{item.data.isExpanded ? '▼' : '▶'}</Text>
           </View>
         </TouchableOpacity>
       );
     }
-    
+
     // Render hand (card play)
     const hand = item.data;
     const playerName = playerNames[hand.by] || `Player ${hand.by + 1}`;
-    
+
     return (
-      <View 
-        style={[
-          styles.playHistoryHand,
-          hand.isLatestHand && styles.playHistoryHandLatest
-        ]}
-      >
+      <View style={[styles.playHistoryHand, hand.isLatestHand && styles.playHistoryHandLatest]}>
         <View style={styles.playHistoryHandHeader}>
           <Text style={styles.playHistoryPlayerName}>{playerName}</Text>
           <Text style={styles.playHistoryComboType}>{hand.type}</Text>
         </View>
-        
+
         {/* Card Images (Task #412) */}
         <View style={styles.playHistoryCards}>
           {hand.cards && hand.cards.length > 0 ? (
@@ -1014,7 +1044,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
       contentContainerStyle={styles.tabScrollContent}
       showsVerticalScrollIndicator={false}
       data={flattenedData}
-      keyExtractor={(item) =>
+      keyExtractor={item =>
         item.type === 'header'
           ? `header-${item.data.matchNumber}`
           : `hand-${item.data.matchNumber}-${(item.data as PlayHistoryHandData).handIndex}`
@@ -1039,9 +1069,7 @@ const PlayHistoryTab: React.FC<PlayHistoryTabProps> = ({
         <>
           {flattenedData.length > 0 && (
             <View style={styles.tabContentFooter}>
-              <Text style={styles.tabContentFooterText}>
-                {i18n.t('gameEnd.tapToExpand')}
-              </Text>
+              <Text style={styles.tabContentFooterText}>{i18n.t('gameEnd.tapToExpand')}</Text>
             </View>
           )}
           {actionButtonsSlot}
@@ -1087,7 +1115,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
         </TouchableOpacity>
       </View>
-      
+
       <TouchableOpacity
         style={[styles.actionButton, styles.playAgainButton]}
         onPress={onPlayAgain}
@@ -1095,7 +1123,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       >
         <Text style={styles.actionButtonText}>🔄 {i18n.t('gameEnd.playAgain')}</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[styles.actionButton, styles.menuButton]}
         onPress={onReturnToMenu}
@@ -1149,7 +1177,7 @@ const styles = StyleSheet.create({
   modalSection: {
     padding: 20,
   },
-  
+
   // Winner Announcement (Task #407)
   winnerSection: {
     alignItems: 'center',
@@ -1171,7 +1199,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
   },
-  
+
   // Final Standings (Task #408)
   standingsSection: {
     marginBottom: 24,
@@ -1217,7 +1245,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  
+
   // Tab Interface (Task #409)
   tabContainer: {
     marginBottom: 16,
@@ -1260,7 +1288,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.4)',
   },
-  
+
   // Tab Content (Tasks #410, #411, #412, #397)
   tabContent: {
     flex: 1,
@@ -1276,7 +1304,7 @@ const styles = StyleSheet.create({
     color: '#f3f4f6',
     marginBottom: 12,
   },
-  
+
   // Empty State
   emptyStateContainer: {
     alignItems: 'center',
@@ -1299,7 +1327,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
   },
-  
+
   // Score History Tab (Task #410)
   scoreHistoryHeaderRow: {
     flexDirection: 'row',
@@ -1409,7 +1437,7 @@ const styles = StyleSheet.create({
   scoreHistoryPointsAddedPositive: {
     color: '#fbbf24',
   },
-  
+
   // Play History Tab (Tasks #411, #412)
   playHistoryList: {
     paddingBottom: 8,
@@ -1491,7 +1519,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontStyle: 'italic',
   },
-  
+
   // Tab Footer
   tabContentFooter: {
     paddingTop: 12,
@@ -1503,7 +1531,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontStyle: 'italic',
   },
-  
+
   // Action Buttons (Task #413)
   actionButtons: {
     gap: 12,

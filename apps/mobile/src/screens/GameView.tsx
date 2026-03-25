@@ -8,15 +8,7 @@
  * (MultiplayerGame, LocalAIGame) provide the context via <GameContextProvider>.
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-  Alert,
-} from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import {
   CardHand,
   PlayerInfo,
@@ -135,6 +127,7 @@ function GameViewComponent() {
     sendThrowable,
     isThrowCooldown,
     cooldownRemaining,
+    showInGameAlert,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -161,14 +154,16 @@ function GameViewComponent() {
       if (!opponentId) return;
       const isFriend = friends.some(f => f.friend.id === opponentId && f.status === 'accepted');
       if (isFriend) {
-        Alert.alert(opponentName, i18n.t('friends.alreadyFriends'), [
-          { text: i18n.t('common.ok'), style: 'cancel' },
-        ]);
+        showInGameAlert({
+          title: opponentName,
+          message: i18n.t('friends.alreadyFriends'),
+          buttons: [{ text: i18n.t('common.ok'), style: 'cancel' }],
+        });
       } else {
         setPortraitActionTarget({ id: opponentId, name: opponentName });
       }
     },
-    [remotePlayerIds, layoutPlayersWithScores, friends]
+    [remotePlayerIds, layoutPlayersWithScores, friends, showInGameAlert]
   );
 
   // Drag hint pulse animation — only running when the hint is actually visible
@@ -400,6 +395,40 @@ function GameViewComponent() {
             isThrowCooldown={isThrowCooldown}
             cooldownRemaining={cooldownRemaining}
             throwableActiveEffects={throwableActiveEffects}
+            isLocalMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}
+            onMicToggle={isMultiplayerGame ? toggleMic : undefined}
+            dropZoneState={dropZoneState}
+            onDragZoneChange={setDropZoneState}
+            isCameraOns={
+              isMultiplayerGame && isChatConnected
+                ? [
+                    isLocalCameraOn,
+                    (enrichedRemotePlayers[1] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                    (enrichedRemotePlayers[2] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                    (enrichedRemotePlayers[3] as { isCameraOn?: boolean })?.isCameraOn ?? false,
+                  ]
+                : undefined
+            }
+            isMicOns={
+              isMultiplayerGame && isChatConnected
+                ? [
+                    isLocalMicOn,
+                    (enrichedRemotePlayers[1] as { isMicOn?: boolean })?.isMicOn ?? false,
+                    (enrichedRemotePlayers[2] as { isMicOn?: boolean })?.isMicOn ?? false,
+                    (enrichedRemotePlayers[3] as { isMicOn?: boolean })?.isMicOn ?? false,
+                  ]
+                : undefined
+            }
+            isVideoChatConnectings={
+              isMultiplayerGame ? [isVideoChatConnecting, false, false, false] : undefined
+            }
+            videoStreamSlots={[
+              localVideoSlot,
+              (enrichedRemotePlayers[1] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
+              (enrichedRemotePlayers[2] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
+              (enrichedRemotePlayers[3] as { videoStreamSlot?: React.ReactNode })?.videoStreamSlot,
+            ]}
+            showInGameAlert={showInGameAlert}
           />
         ) : (
           // PORTRAIT MODE (existing layout)
@@ -559,6 +588,7 @@ function GameViewComponent() {
                 onVideoChatToggle={isMultiplayerGame ? toggleVideoChat : undefined}
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
                 videoStreamSlot={localVideoSlot}
+                onMicToggle={isMultiplayerGame ? toggleMic : undefined}
               />
               {/* Throwable effect overlay for local player (display index 0) */}
               {throwableActiveEffects?.[0] != null && (
@@ -679,6 +709,7 @@ function GameViewComponent() {
               onToggleVideoChat={isMultiplayerGame ? toggleVideoChat : undefined}
               onToggleCamera={isMultiplayerGame ? toggleCamera : undefined}
               onToggleMic={isMultiplayerGame ? toggleMic : undefined}
+              showInGameAlert={showInGameAlert}
             />
 
             {/* Task #648: In-game text chat drawer (multiplayer only) */}

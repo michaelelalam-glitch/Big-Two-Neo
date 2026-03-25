@@ -529,24 +529,70 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     }
   }
   
-  // Check if same combo type but stronger exists
-  const sameTypeCombos = generateCombosOfType(notInCurrent, comboType as ComboType);
-  if (sameTypeCombos.length === 0) {
-    return true;
+  // For Straight Flush and Four of a Kind we can efficiently check if any
+  // stronger same-type combo exists without full combinatorial enumeration.
+  // Other types (FH, Flush, Straight) conservatively return false.
+  if (comboType === 'Straight Flush') {
+    return isHighestRemainingStraightFlush(cards, notInCurrent);
   }
-  
-  const sorted = sortHand(cards);
-  const highest = sorted[sorted.length - 1];
-  
-  for (const combo of sameTypeCombos) {
-    const comboSorted = sortHand(combo);
-    const comboHighest = comboSorted[comboSorted.length - 1];
-    
-    if (getCardValue(comboHighest) > getCardValue(highest)) {
-      return false;
+  if (comboType === 'Four of a Kind') {
+    return isHighestRemainingFourOfAKind(cards, notInCurrent);
+  }
+  // Conservative for Full House / Flush / Straight — enumeration is too expensive
+  // in an edge function context. This means auto-pass will NOT trigger for these
+  // combo types (only Straight Flush and Four of a Kind are checked). This is an
+  // intentional trade-off: false negatives are harmless (timer just doesn't fire),
+  // while false positives would incorrectly auto-pass when beatable plays exist.
+  return false;
+}
+
+/** Check if the played SF is the highest remaining Straight Flush. */
+function isHighestRemainingStraightFlush(cards: Card[], notInCurrent: Card[]): boolean {
+  // Compare by (seqIndex, suit) — same ordering as canBeatPlay.
+  // A-2-3-4-5 is seqIndex 0 (lowest), 10-J-Q-K-A is seqIndex 9 (highest).
+  const mySeqIdx = findStraightSequenceIndex(cards.map(c => c.rank));
+  if (mySeqIdx === -1) return false;
+  const myTopRank = VALID_STRAIGHT_SEQUENCES[mySeqIdx][4];
+  const myTopCard = cards.find(c => c.rank === myTopRank);
+  const mySuitValue = myTopCard ? SUIT_VALUE[myTopCard.suit] : 0;
+
+  // Group remaining cards (excluding current play) by suit
+  const bySuit: { [suit: string]: Set<string> } = {};
+  for (const c of notInCurrent) {
+    if (!bySuit[c.suit]) bySuit[c.suit] = new Set();
+    bySuit[c.suit].add(c.rank);
+  }
+
+  for (const suit in bySuit) {
+    const ranks = bySuit[suit];
+    if (ranks.size < 5) continue;
+    for (let seqIdx = 0; seqIdx < VALID_STRAIGHT_SEQUENCES.length; seqIdx++) {
+      const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+      if (seq.every(r => ranks.has(r))) {
+        // Compare by sequence index first, then by suit of the top-rank card
+        if (seqIdx > mySeqIdx) return false;
+        if (seqIdx === mySeqIdx && SUIT_VALUE[suit] > mySuitValue) return false;
+      }
     }
   }
-  
+  return true;
+}
+
+/** Check if the played FoaK is the highest remaining Four of a Kind. */
+function isHighestRemainingFourOfAKind(cards: Card[], notInCurrent: Card[]): boolean {
+  const myQuadRank = getQuadRank(cards);
+  const myQuadValue = RANK_VALUE[myQuadRank];
+
+  if (notInCurrent.length < 5) return true;
+
+  const counts = countByRank(notInCurrent);
+  for (const rank in counts) {
+    if (counts[rank] >= 4 && RANK_VALUE[rank] > myQuadValue) {
+      // Verify at least one non-quad kicker exists to form a valid 5-card combo
+      const hasKicker = notInCurrent.some(c => c.rank !== rank);
+      if (hasKicker) return false;
+    }
+  }
   return true;
 }
 
@@ -578,8 +624,11 @@ function canFormStraightFlush(cards: Card[]): boolean {
   
   for (const suit in bySuit) {
     if (bySuit[suit].length >= 5) {
-      const straightInfo = isStraight(bySuit[suit].slice(0, 5));
-      if (straightInfo.valid) return true;
+      // Check all valid straight sequences within this suit's cards
+      const suitRanks = new Set(bySuit[suit].map(c => c.rank));
+      for (const seq of VALID_STRAIGHT_SEQUENCES) {
+        if (seq.every(r => suitRanks.has(r))) return true;
+      }
     }
   }
   return false;
@@ -614,9 +663,9 @@ function canFormStraight(cards: Card[]): boolean {
   return false;
 }
 
-function generateCombosOfType(cards: Card[], comboType: ComboType): Card[][] {
-  // Simplified implementation - return empty for now
-  // Full implementation would generate all possible combos of that type
+function generateCombosOfType(_cards: Card[], _comboType: ComboType): Card[][] {
+  // Stub — full combinatorial generation is handled client-side.
+  // isHighestRemainingFiveCardCombo uses conservative return false instead.
   return [];
 }
 
@@ -1161,7 +1210,30 @@ Deno.serve(async (req) => {
     // there's no one left to auto-pass. Creating a timer here causes the client-side
     // AutoPassTimer to loop at remaining=0 indefinitely, spamming logs and potentially
     // blocking the start_new_match transition.
-    if (isHighestPlay && !matchEnded) {
+
+    // Also check if all opponents can't respond because they have fewer cards than
+    // the combo size — they physically cannot play a response, so auto-pass should
+    // trigger even if the play isn't strictly the "highest possible".
+    const comboSize = cards.length;
+    const allOpponentsCantRespond = comboSize > 1 && [0, 1, 2, 3]
+      .filter(i => i !== player.player_index)
+      .every(i => {
+        const hand = updatedHands[i];
+        return !hand || (Array.isArray(hand) ? hand.length : 0) < comboSize;
+      });
+
+    if (allOpponentsCantRespond && !isHighestPlay) {
+      console.log('⏰ All opponents have fewer cards than combo size:', {
+        comboSize,
+        opponentHandSizes: [0, 1, 2, 3]
+          .filter(i => i !== player.player_index)
+          .map(i => ({ player: i, cards: Array.isArray(updatedHands[i]) ? updatedHands[i].length : 0 })),
+      });
+    }
+
+    const shouldCreateTimer = (isHighestPlay || allOpponentsCantRespond) && !matchEnded;
+
+    if (shouldCreateTimer) {
       const serverTimeMs = Date.now();
       const durationMs = 10000; // 10 seconds
       const endTimestamp = serverTimeMs + durationMs;
@@ -1186,7 +1258,8 @@ Deno.serve(async (req) => {
         player_index: player.player_index,
       };
 
-      console.log('✅ Auto-pass timer CREATED (highest play detected):', {
+      console.log('✅ Auto-pass timer CREATED:', {
+        reason: isHighestPlay ? 'highest_play' : 'opponents_cant_respond',
         serverTimeMs,
         endTimestamp,
         sequenceId,

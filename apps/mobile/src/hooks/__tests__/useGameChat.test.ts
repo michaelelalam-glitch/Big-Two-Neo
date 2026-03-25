@@ -29,13 +29,13 @@ function createMockChannel() {
     // { data } to match the envelope shape used by useGameChat.sendMessage.
     _emit(event: string, data: unknown) {
       const key = `broadcast:${event}`;
-      (handlers[key] ?? []).forEach((h) => h({ data }));
+      (handlers[key] ?? []).forEach(h => h({ data }));
     },
     // Helper to emit a raw payload object — used to test the fallback
     // `payload.payload.data` shape (Copilot PR-150 r2950068913).
     _emitRaw(event: string, rawPayload: unknown) {
       const key = `broadcast:${event}`;
-      (handlers[key] ?? []).forEach((h) => h(rawPayload));
+      (handlers[key] ?? []).forEach(h => h(rawPayload));
     },
   };
 }
@@ -58,7 +58,9 @@ describe('useGameChat', () => {
   });
 
   const defaultProps = () => ({
-    channel: channelRef.current as unknown as import('@supabase/supabase-js').RealtimeChannel | null,
+    channel: channelRef.current as unknown as
+      | import('@supabase/supabase-js').RealtimeChannel
+      | null,
     userId: 'user-1',
     username: 'Alice',
     isDrawerOpen: true,
@@ -89,7 +91,7 @@ describe('useGameChat', () => {
             message: 'hello',
           }),
         }),
-      }),
+      })
     );
 
     // Optimistic local add
@@ -123,16 +125,16 @@ describe('useGameChat', () => {
     expect(result.current.messages).toHaveLength(2);
   });
 
-  it('filters profanity in outgoing messages', () => {
+  it('sends messages without filtering', () => {
     const { result } = renderHook(() => useGameChat(defaultProps()));
 
-    // Use reversed encoding to avoid plaintext offensive word in test source.
-    const profaneInput = 'kcuf'.split('').reverse().join('');
+    // Profanity filter was removed — messages should pass through unmodified.
+    const rawInput = 'kcuf'.split('').reverse().join('');
     act(() => {
-      result.current.sendMessage(`what the ${profaneInput}`);
+      result.current.sendMessage(`what the ${rawInput}`);
     });
 
-    expect(result.current.messages[0].message).toBe('what the ***');
+    expect(result.current.messages[0].message).toBe(`what the ${rawInput}`);
   });
 
   it('receives messages from other players', () => {
@@ -153,9 +155,7 @@ describe('useGameChat', () => {
   });
 
   it('increments unreadCount when drawer is closed', () => {
-    const { result } = renderHook(() =>
-      useGameChat({ ...defaultProps(), isDrawerOpen: false }),
-    );
+    const { result } = renderHook(() => useGameChat({ ...defaultProps(), isDrawerOpen: false }));
 
     act(() => {
       channelRef.current!._emit('chat_message', {
@@ -171,9 +171,7 @@ describe('useGameChat', () => {
   });
 
   it('does not increment unread for own messages', () => {
-    const { result } = renderHook(() =>
-      useGameChat({ ...defaultProps(), isDrawerOpen: false }),
-    );
+    const { result } = renderHook(() => useGameChat({ ...defaultProps(), isDrawerOpen: false }));
 
     act(() => {
       channelRef.current!._emit('chat_message', {

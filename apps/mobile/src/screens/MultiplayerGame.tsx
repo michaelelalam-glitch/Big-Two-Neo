@@ -5,11 +5,12 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
+import { InGameAlert } from '../components/game/InGameAlert';
+import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/InGameAlert';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
@@ -36,7 +37,6 @@ import { usePlayerDisplayData } from '../hooks/usePlayerDisplayData';
 import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { useRealtime } from '../hooks/useRealtime';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { showError } from '../utils';
 import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
@@ -90,6 +90,12 @@ export function MultiplayerGame() {
   const { roomCode, botDifficulty = 'medium' } = route.params;
   const [showSettings, setShowSettings] = useState(false);
 
+  // In-game alert ref — orientation-aware replacement for Alert.alert
+  const inGameAlertRef = useRef<InGameAlertHandle>(null);
+  const showInGameAlert = useCallback((options: InGameAlertOptions) => {
+    inGameAlertRef.current?.show(options);
+  }, []);
+
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
   const [botReplacedUsername, setBotReplacedUsername] = useState<string | null>(null);
@@ -103,6 +109,9 @@ export function MultiplayerGame() {
   useEffect(() => {
     roomInfoRef.current = roomInfo;
   }, [roomInfo]);
+  // Mirror isHost so the Play Again callback avoids stale closures
+  const isHostRef = useRef(false);
+
   // Track when game transitions to 'playing' to calculate duration
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
 
@@ -131,49 +140,188 @@ export function MultiplayerGame() {
         ranked_mode: info?.ranked_mode,
       });
 
+      if (!user?.id) {
+        showInGameAlert({ message: 'Not logged in. Please sign in and try again.' });
+        return;
+      }
+
       try {
-        // Generate a 6-character room code
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        // 1. Clean up old room membership (scoped to current room) to prevent
+        // "already in room" conflicts. Uses both user_id (direct) and
+        // human_user_id (bot-replacement) cleanup paths.
+        if (info?.id) {
+          const { error: cleanupError } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('room_id', info.id);
+          if (cleanupError) {
+            gameLogger.warn(
+              '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
+              cleanupError.message
+            );
+          }
+        }
+        // Also clean up bot-replacement rows where user was replaced
+        const { error: botCleanupError } = await supabase.rpc(
+          'delete_room_players_by_human_user_id',
+          { human_user_id: user.id }
+        );
+        if (botCleanupError) {
+          gameLogger.warn(
+            '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
+            botCleanupError.message
+          );
         }
 
-        // Create a new room with the same settings as the current game
-        const { data: newRoom, error: createError } = await supabase
-          .from('rooms')
-          .insert({
-            code,
-            host_id: user?.id,
-            status: 'waiting',
-            max_players: 4,
-            is_public: info?.is_public ?? true,
-            ranked_mode: info?.ranked_mode ?? false,
-            is_matchmaking: info?.is_public ?? true,
-          })
-          .select('id, code')
-          .single();
+        if (!info) {
+          gameLogger.error(
+            '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
+          );
+          showInGameAlert({
+            message: 'Unable to create a new game room right now. Please try again.',
+          });
+          return;
+        }
 
-        if (createError || !newRoom) {
+        const username = profile?.username || user?.email?.split('@')[0] || 'Player';
+
+        // 2. Deterministic creator: host creates immediately, non-host listens
+        //    for a broadcast first (up to 5s) before falling back to creating.
+        //    This prevents the race where multiple players press Play Again
+        //    simultaneously, all listen, nobody broadcasts, and everyone
+        //    creates separate rooms.
+        const amHost = isHostRef.current;
+        let receivedRoomCode: string | null = null;
+
+        if (!amHost && info.id) {
+          const playAgainChannel = supabase.channel(`play-again:${info.id}`);
+          receivedRoomCode = await new Promise<string | null>(resolve => {
+            const timeout = setTimeout(() => {
+              supabase.removeChannel(playAgainChannel);
+              resolve(null);
+            }, 5000);
+
+            playAgainChannel
+              .on('broadcast', { event: 'play_again_room' }, payload => {
+                clearTimeout(timeout);
+                const code = payload?.payload?.room_code as string | undefined;
+                if (code) {
+                  gameLogger.info('🔄 [MultiplayerGame] Received play_again_room broadcast:', code);
+                  resolve(code);
+                } else {
+                  resolve(null);
+                }
+                supabase.removeChannel(playAgainChannel);
+              })
+              .subscribe();
+          });
+        }
+
+        if (receivedRoomCode) {
+          // Another player already created a room — join it
+          gameLogger.info(
+            '🔄 [MultiplayerGame] Play Again → Joining existing room:',
+            receivedRoomCode
+          );
+          const { error: joinError } = await supabase.rpc('join_room_atomic', {
+            p_room_code: receivedRoomCode,
+            p_user_id: user.id,
+            p_username: username,
+          });
+
+          if (joinError) {
+            gameLogger.warn(
+              '⚠️ [MultiplayerGame] Failed to join broadcasted room, creating new one:',
+              joinError.message
+            );
+            // Fall through to create own room
+          } else {
+            navigation.reset({
+              index: 1,
+              routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: receivedRoomCode } }],
+            });
+            return;
+          }
+        }
+
+        // 3. Create new room AND join atomically via get_or_create_room RPC.
+        const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
+          p_user_id: user.id,
+          p_username: username,
+          p_is_public: info.is_public,
+          p_is_matchmaking: info.is_matchmaking,
+          p_ranked_mode: info.ranked_mode,
+        });
+
+        const result = roomResult as {
+          success: boolean;
+          room_code: string;
+          room_id: string;
+        } | null;
+
+        if (createError || !result?.success || !result.room_code) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: failed to create room:',
             createError?.message
           );
-          showError('Failed to create new room. Please try again.');
+          showInGameAlert({ message: 'Failed to create new room. Please try again.' });
           return;
         }
 
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', newRoom.code);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', result.room_code);
+
+        // 4. Broadcast the new room code to other players on the old room channel
+        if (info.id) {
+          const broadcastChannel = supabase.channel(`play-again:${info.id}`);
+          broadcastChannel.subscribe(async status => {
+            if (status === 'SUBSCRIBED') {
+              await broadcastChannel.send({
+                type: 'broadcast',
+                event: 'play_again_room',
+                payload: { room_code: result.room_code },
+              });
+              gameLogger.info(
+                '📡 [MultiplayerGame] Broadcasted play_again_room:',
+                result.room_code
+              );
+              // Re-broadcast every 1s for 5 seconds so late subscribers can receive it
+              // (Supabase broadcasts are not buffered, so one-shot can miss late joiners)
+              const rebroadcastInterval = setInterval(async () => {
+                try {
+                  await broadcastChannel.send({
+                    type: 'broadcast',
+                    event: 'play_again_room',
+                    payload: { room_code: result.room_code },
+                  });
+                } catch {
+                  /* best-effort */
+                }
+              }, 1000);
+              setTimeout(() => {
+                clearInterval(rebroadcastInterval);
+                supabase.removeChannel(broadcastChannel);
+              }, 5000);
+            } else if (
+              status === 'CHANNEL_ERROR' ||
+              status === 'TIMED_OUT' ||
+              status === 'CLOSED'
+            ) {
+              gameLogger.warn(`📡 [MultiplayerGame] Broadcast channel ${status} — removing`);
+              supabase.removeChannel(broadcastChannel);
+            }
+          });
+        }
 
         // Navigate to the Lobby with the new room code
         navigation.reset({
           index: 1,
-          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: newRoom.code } }],
+          routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: result.room_code } }],
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         gameLogger.error('❌ [MultiplayerGame] Play Again error:', msg);
-        showError('Failed to create new room. Please try again.');
+        showInGameAlert({ message: 'Failed to create new room. Please try again.' });
       }
     });
 
@@ -184,7 +332,15 @@ export function MultiplayerGame() {
         routes: [{ name: 'Home' }],
       });
     });
-  }, [navigation, setOnPlayAgain, setOnReturnToMenu, user?.id]);
+  }, [
+    navigation,
+    setOnPlayAgain,
+    setOnReturnToMenu,
+    user?.id,
+    profile?.username,
+    user?.email,
+    showInGameAlert,
+  ]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Card selection hook
@@ -208,9 +364,9 @@ export function MultiplayerGame() {
   // Empty game manager ref (multiplayer has no local game engine)
   const emptyGameManagerRef = useRef<GameStateManager | null>(null);
 
-  // Suppresses the onError → showError toast while connectWithRetry is in progress.
+  // Suppresses the onError → showInGameAlert in-game alert/modal while connectWithRetry is in progress.
   // Without this, every failed intermediate attempt (attempt 0, 1) would surface
-  // an error toast to the user even when a later retry succeeds.
+  // an error alert to the user even when a later retry succeeds.
   const suppressConnectErrorsRef = useRef(false);
 
   // Server-side multiplayer game state via Realtime
@@ -255,12 +411,12 @@ export function MultiplayerGame() {
       // Suppress connect errors while connectWithRetry has pending retries.
       // This prevents showing an error toast on attempt 0/1 when attempt 1/2
       // may still succeed. suppressConnectErrorsRef is cleared before the
-      // final-attempt showError call and on effect cleanup.
+      // final-attempt showInGameAlert call and on effect cleanup.
       if (suppressConnectErrorsRef.current) {
         gameLogger.warn('⚠️ [MultiplayerGame] Suppressed connect error during retry');
         return;
       }
-      showError(error.message);
+      showInGameAlert({ message: error.message });
     },
     onDisconnect: () => {
       gameLogger.warn('[MultiplayerGame] Multiplayer disconnected');
@@ -279,6 +435,11 @@ export function MultiplayerGame() {
     // producing different UIs per player.  useMatchEndHandler uses DB-authoritative data
     // so every player — winner and losers — sees the same correct modal.
   });
+
+  // Keep isHostRef in sync so Play Again callback avoids stale closures
+  useEffect(() => {
+    isHostRef.current = isMultiplayerHost;
+  }, [isMultiplayerHost]);
 
   // Track when game starts (for duration calculation)
   // Placed after useRealtime so multiplayerGameState is already declared.
@@ -343,7 +504,7 @@ export function MultiplayerGame() {
           suppressConnectErrorsRef.current = false;
           console.error('[MultiplayerGame] ❌ Failed to connect after 4 attempts:', err);
           gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
-          showError(err?.message || 'Failed to connect to room');
+          showInGameAlert({ message: err?.message || 'Failed to connect to room' });
         }
       }
     };
@@ -766,6 +927,7 @@ export function MultiplayerGame() {
     customCardOrder,
     setCustomCardOrder,
     setSelectedCardIds,
+    onAlert: showInGameAlert,
   });
 
   // Cleanup: navigation cleanup + mount tracking
@@ -957,6 +1119,8 @@ export function MultiplayerGame() {
     roomId: roomInfo?.id,
     userId: user?.id,
     adapter: videoChatAdapter,
+    autoConnect: true,
+    onAlert: showInGameAlert,
   });
 
   // Guard: LiveKit requires native WebRTC modules. Show a clear alert when the
@@ -969,28 +1133,28 @@ export function MultiplayerGame() {
       const devHint = __DEV__
         ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
         : '';
-      Alert.alert(
-        i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint
-      );
+      showInGameAlert({
+        title: i18n.t('chat.devBuildRequiredTitle'),
+        message: i18n.t('chat.devBuildRequiredMessage') + devHint,
+      });
       return;
     }
     await _toggleVideoChat();
-  }, [_toggleVideoChat, isLiveKitUnavailable]);
+  }, [_toggleVideoChat, isLiveKitUnavailable, showInGameAlert]);
 
   const toggleVoiceChat = useCallback(async () => {
     if (isLiveKitUnavailable) {
       const devHint = __DEV__
         ? '\n\n  pnpm expo install expo-dev-client\n  eas build --profile development          # simulator/emulator\n  eas build --profile developmentDevice    # physical device'
         : '';
-      Alert.alert(
-        i18n.t('chat.devBuildRequiredTitle'),
-        i18n.t('chat.devBuildRequiredMessage') + devHint
-      );
+      showInGameAlert({
+        title: i18n.t('chat.devBuildRequiredTitle'),
+        message: i18n.t('chat.devBuildRequiredMessage') + devHint,
+      });
       return;
     }
     await _toggleVoiceChat();
-  }, [_toggleVoiceChat, isLiveKitUnavailable]);
+  }, [_toggleVoiceChat, isLiveKitUnavailable, showInGameAlert]);
 
   // Build a stable Record<userId, cameraState> from the SDK participant list
   // so GameView / PlayerInfo can look up each player's camera state by user_id.
@@ -1165,6 +1329,7 @@ export function MultiplayerGame() {
       sendThrowable,
       isThrowCooldown,
       cooldownRemaining,
+      showInGameAlert,
     }),
     [
       currentOrientation,
@@ -1241,6 +1406,7 @@ export function MultiplayerGame() {
       sendThrowable,
       isThrowCooldown,
       cooldownRemaining,
+      showInGameAlert,
     ]
   );
 
@@ -1249,6 +1415,12 @@ export function MultiplayerGame() {
       <GameContextProvider value={gameContextValue}>
         <GameView />
       </GameContextProvider>
+
+      {/* In-game alert — orientation-aware replacement for native Alert.alert.
+          Uses a Modal with supportedOrientations including both portrait and
+          landscape so popups always render correctly without iOS throwing
+          when the device orientation differs. */}
+      <InGameAlert ref={inGameAlertRef} />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected
           or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".

@@ -16,6 +16,7 @@ import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import type { AutoPassTimerState, ThrowableType } from '../types/multiplayer';
 import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
+import type { InGameAlertOptions } from '../components/game/InGameAlert';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -207,6 +208,10 @@ export interface GameContextType {
   isThrowCooldown: boolean;
   /** Seconds remaining in the cooldown (0 when not in cooldown). */
   cooldownRemaining: number;
+
+  // ── In-game alert (orientation-aware replacement for Alert.alert) ──────
+  /** Show an in-game alert that respects the chosen game orientation. */
+  showInGameAlert: (options: InGameAlertOptions) => void;
 }
 
 // ---------------------------------------------------------------------------

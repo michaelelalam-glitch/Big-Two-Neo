@@ -8,14 +8,21 @@ import {
   ScrollView,
   useWindowDimensions,
   Share,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
-import { COLORS, SPACING, FONT_SIZES, OVERLAYS, MODAL } from '../../constants';
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  OVERLAYS,
+  MODAL,
+  MODAL_SUPPORTED_ORIENTATIONS,
+} from '../../constants';
 import { i18n } from '../../i18n';
 import { soundManager, hapticManager, HapticType } from '../../utils';
 import { useUserPreferencesStore } from '../../store';
+import type { InGameAlertOptions } from './InGameAlert';
 
 interface GameSettingsModalProps {
   visible: boolean;
@@ -42,6 +49,8 @@ interface GameSettingsModalProps {
   onToggleCamera?: () => Promise<void>;
   /** Mute/unmute microphone */
   onToggleMic?: () => Promise<void>;
+  /** Orientation-aware in-game alert */
+  showInGameAlert?: (options: InGameAlertOptions) => void;
 }
 
 // Task #628: React.memo — bail out of re-renders driven by GameContext changes
@@ -60,6 +69,7 @@ function GameSettingsModalComponent({
   onToggleVideoChat,
   onToggleCamera,
   onToggleMic,
+  showInGameAlert,
 }: GameSettingsModalProps) {
   // Detect orientation
   const { width, height } = useWindowDimensions();
@@ -117,12 +127,18 @@ function GameSettingsModalComponent({
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
       if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      Alert.alert(i18n.t('lobby.copiedTitle'), i18n.t('lobby.copiedMessage', { roomCode }));
+      showInGameAlert?.({
+        title: i18n.t('lobby.copiedTitle'),
+        message: i18n.t('lobby.copiedMessage', { roomCode }),
+      });
     } else if (result === 'failed') {
-      Alert.alert(i18n.t('lobby.copyFailedTitle'), i18n.t('lobby.copyFailedMessage', { roomCode }));
+      showInGameAlert?.({
+        title: i18n.t('lobby.copyFailedTitle'),
+        message: i18n.t('lobby.copyFailedMessage', { roomCode }),
+      });
     }
     // 'shared': Share sheet was presented — no additional alert needed
-  }, [roomCode, vibrationEnabled]);
+  }, [roomCode, vibrationEnabled, showInGameAlert]);
 
   const handleShareRoomCode = useCallback(async () => {
     if (!roomCode) return;
@@ -144,7 +160,7 @@ function GameSettingsModalComponent({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      supportedOrientations={['portrait', 'landscape']}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <View

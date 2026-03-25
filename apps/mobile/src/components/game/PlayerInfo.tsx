@@ -46,6 +46,8 @@ interface PlayerInfoProps {
   videoStreamSlot?: React.ReactNode;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
+  /** Called when the local player presses the mic toggle button on the avatar */
+  onMicToggle?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +147,7 @@ function PlayerInfoComponent({
   onVideoChatToggle,
   videoStreamSlot,
   onNameLongPress,
+  onMicToggle,
 }: PlayerInfoProps) {
   // Profile photo size preference
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -229,7 +232,8 @@ function PlayerInfoComponent({
             >
               {renderAvatarVideoContent({
                 isCameraOn: !!isCameraOn,
-                isMicOn,
+                // Hide inner mic indicator when outer toggle overlay is shown
+                isMicOn: isLocalPlayer && onMicToggle ? undefined : isMicOn,
                 isLocalPlayer,
                 isDisconnected,
                 isVideoChatConnecting,
@@ -301,6 +305,33 @@ function PlayerInfoComponent({
         <View style={styles.badgePosition}>
           <CardCountBadge cardCount={cardCount} visible={true} />
         </View>
+        {/* Mic toggle/indicator — top-left of avatar (portrait) */}
+        {isMicOn !== undefined &&
+          (isLocalPlayer && onMicToggle ? (
+            <Pressable
+              style={styles.micTogglePortrait}
+              onPress={onMicToggle}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isMicOn ? i18n.t('chat.muteMicrophone') : i18n.t('chat.unmuteMicrophone')
+              }
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+            </Pressable>
+          ) : (
+            <View
+              style={styles.micTogglePortrait}
+              accessible={true}
+              accessibilityRole="text"
+              accessibilityLabel={
+                isMicOn ? i18n.t('chat.microphoneOn') : i18n.t('chat.microphoneOff')
+              }
+              pointerEvents="none"
+            >
+              <Text style={styles.micToggleIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
+            </View>
+          ))}
         {/* Total score badge positioned on avatar (bottom-left) - Task #590 */}
         {totalScore !== undefined && (
           <View
@@ -420,6 +451,21 @@ const styles = StyleSheet.create({
   },
   nameBadgeDisconnected: {
     opacity: 0.6,
+  },
+  micTogglePortrait: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  micToggleIcon: {
+    fontSize: 11,
   },
 });
 

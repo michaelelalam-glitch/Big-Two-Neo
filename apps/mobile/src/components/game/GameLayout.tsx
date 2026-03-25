@@ -184,6 +184,7 @@ function GameLayoutComponent({
                 width: throwableClipSize,
                 height: throwableClipSize,
                 borderRadius: throwableClipSize / 2,
+                top: LAYOUT.topPlayerSpacing,
               },
             ]}
           >

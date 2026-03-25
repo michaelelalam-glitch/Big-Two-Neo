@@ -69,6 +69,11 @@ export interface Translations {
     tapTurnCameraOn: string;
     tapMute: string;
     tapUnmute: string;
+    // Accessibility labels for mic toggle
+    muteMicrophone: string;
+    unmuteMicrophone: string;
+    microphoneOn: string;
+    microphoneOff: string;
     // Phase 4 — permission UX
     cameraPermissionTitle: string;
     cameraPermissionMessage: string;
@@ -734,6 +739,7 @@ export interface Translations {
     addFriend: string;
     added: string;
     alreadyFriends: string;
+    tapToSendFriendRequest: string;
     requestPending: string;
     requestSent: string;
     cancelRequest: string;
@@ -752,6 +758,9 @@ export interface Translations {
     requestReceived: string;
     inviteFriends: string;
     noFriendsToInvite: string;
+    searchPlaceholder: string;
+    noResults: string;
+    clearSearch: string;
   };
 
   notifications: {
@@ -812,6 +821,10 @@ const en: Translations = {
     tapTurnCameraOn: 'tap to turn camera on',
     tapMute: 'tap to mute',
     tapUnmute: 'tap to unmute',
+    muteMicrophone: 'Mute microphone',
+    unmuteMicrophone: 'Unmute microphone',
+    microphoneOn: 'Microphone on',
+    microphoneOff: 'Microphone off',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Camera Access',
     cameraPermissionMessage: 'Big Two needs camera access to show your video to other players.',
@@ -1435,6 +1448,7 @@ const en: Translations = {
     addFriend: 'Add Friend',
     added: 'Friend request sent!',
     alreadyFriends: 'Friends',
+    tapToSendFriendRequest: 'Tap to send a friend request',
     requestPending: "You're already friends or a request is already pending.",
     requestSent: 'Request Sent',
     cancelRequest: 'Cancel',
@@ -1453,6 +1467,9 @@ const en: Translations = {
     requestReceived: 'Request Received',
     inviteFriends: '👥 Invite Friends',
     noFriendsToInvite: 'All your friends are already in this room.',
+    searchPlaceholder: 'Search players by username...',
+    clearSearch: 'Clear search',
+    noResults: 'No players found',
   },
   notifications: {
     title: '🔔 Notifications',
@@ -1510,6 +1527,10 @@ const ar: Translations = {
     tapTurnCameraOn: 'اضغط لتشغيل الكاميرا',
     tapMute: 'اضغط لكتم الصوت',
     tapUnmute: 'اضغط لإلغاء كتم الصوت',
+    muteMicrophone: 'كتم الميكروفون',
+    unmuteMicrophone: 'إلغاء كتم الميكروفون',
+    microphoneOn: 'الميكروفون مفعّل',
+    microphoneOff: 'الميكروفون مغلق',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'الوصول إلى الكاميرا',
     cameraPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الكاميرا لعرض الفيديو للاعبين الآخرين.',
@@ -2153,6 +2174,7 @@ const ar: Translations = {
     addFriend: 'إضافة صديق',
     added: 'تم إرسال طلب الصداقة!',
     alreadyFriends: 'أصدقاء',
+    tapToSendFriendRequest: 'اضغط لإرسال طلب صداقة',
     requestPending: 'أنتما أصدقاء بالفعل أو الطلب معلق.',
     requestSent: 'تم الإرسال',
     cancelRequest: 'إلغاء',
@@ -2171,6 +2193,9 @@ const ar: Translations = {
     requestReceived: 'طلب مستلم',
     inviteFriends: '👥 دعوة الأصدقاء',
     noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
+    searchPlaceholder: 'ابحث عن لاعبين باسم المستخدم...',
+    clearSearch: 'مسح البحث',
+    noResults: 'لم يتم العثور على لاعبين',
   },
   notifications: {
     title: '🔔 الإشعارات',
@@ -2228,6 +2253,10 @@ const de: Translations = {
     tapTurnCameraOn: 'Zum Einschalten der Kamera tippen',
     tapMute: 'Zum Stummschalten tippen',
     tapUnmute: 'Stummschaltung aufheben',
+    muteMicrophone: 'Mikrofon stummschalten',
+    unmuteMicrophone: 'Mikrofon Stummschaltung aufheben',
+    microphoneOn: 'Mikrofon an',
+    microphoneOff: 'Mikrofon aus',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Kamerazugriff',
     cameraPermissionMessage:
@@ -2897,6 +2926,7 @@ const de: Translations = {
     addFriend: 'Freund hinzufügen',
     added: 'Freundschaftsanfrage gesendet!',
     alreadyFriends: 'Freunde',
+    tapToSendFriendRequest: 'Tippe, um eine Freundschaftsanfrage zu senden',
     requestPending: 'Ihr seid bereits befreundet oder eine Anfrage ist ausstehend.',
     requestSent: 'Gesendet',
     cancelRequest: 'Abbrechen',
@@ -2916,6 +2946,9 @@ const de: Translations = {
     requestReceived: 'Anfrage erhalten',
     inviteFriends: '👥 Freunde einladen',
     noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',
+    searchPlaceholder: 'Spieler nach Benutzernamen suchen...',
+    clearSearch: 'Suche löschen',
+    noResults: 'Keine Spieler gefunden',
   },
   notifications: {
     title: '🔔 Benachrichtigungen',

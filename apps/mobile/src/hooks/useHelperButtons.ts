@@ -2,7 +2,7 @@
  * @module useHelperButtons
  * Provides Sort, Smart Sort, and Hint button handlers for the game screen.
  */
-import { Platform, ToastAndroid, Alert } from 'react-native';
+import { Alert, Platform, ToastAndroid } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
@@ -15,6 +15,8 @@ interface UseHelperButtonsParams {
   customCardOrder: string[];
   setCustomCardOrder: (order: string[]) => void;
   setSelectedCardIds: (ids: Set<string>) => void;
+  /** Optional orientation-aware alert callback (replaces native Alert.alert on iOS) */
+  onAlert?: (options: { message: string }) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function useHelperButtons({
   customCardOrder: _customCardOrder,
   setCustomCardOrder,
   setSelectedCardIds,
+  onAlert,
 }: UseHelperButtonsParams) {
   /**
    * Sort button handler - Arranges cards from lowest to highest
@@ -51,7 +54,7 @@ export function useHelperButtons({
 
     // Sort hand
     const sorted = sortHandLowestToHighest(playerHand);
-    const newOrder = sorted.map((card) => card.id);
+    const newOrder = sorted.map(card => card.id);
     setCustomCardOrder(newOrder);
 
     gameLogger.info('[useHelperButtons] Sorted hand lowest to highest');
@@ -69,14 +72,16 @@ export function useHelperButtons({
 
     // Smart sort hand
     const smartSorted = smartSortHand(playerHand);
-    const newOrder = smartSorted.map((card) => card.id);
+    const newOrder = smartSorted.map(card => card.id);
     setCustomCardOrder(newOrder);
 
     // Toast message
     if (Platform.OS === 'android') {
       ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
-    } else if (Platform.OS === 'ios') {
-      Alert.alert('Hand organized by combos');
+    } else if (onAlert) {
+      onAlert({ message: 'Hand organized by combos' });
+    } else {
+      Alert.alert('', 'Hand organized by combos');
     }
 
     gameLogger.info('[useHelperButtons] Smart sorted hand by combo type');
@@ -97,8 +102,10 @@ export function useHelperButtons({
 
       if (Platform.OS === 'android') {
         ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
-      } else if (Platform.OS === 'ios') {
-        Alert.alert('No valid play - recommend passing');
+      } else if (onAlert) {
+        onAlert({ message: 'No valid play - recommend passing' });
+      } else {
+        Alert.alert('', 'No valid play - recommend passing');
       }
 
       gameLogger.info('[useHelperButtons] Hint: No valid play, recommend pass');
@@ -123,8 +130,10 @@ export function useHelperButtons({
 
       if (Platform.OS === 'android') {
         ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
-      } else if (Platform.OS === 'ios') {
-        Alert.alert(`Recommended: ${comboType}`);
+      } else if (onAlert) {
+        onAlert({ message: `Recommended: ${comboType}` });
+      } else {
+        Alert.alert('', `Recommended: ${comboType}`);
       }
 
       gameLogger.info(`[useHelperButtons] Hint: Recommended ${cardCount} card(s)`);
