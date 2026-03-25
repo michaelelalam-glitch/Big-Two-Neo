@@ -27,6 +27,7 @@ import Animated, {
   withTiming,
   Easing,
   runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { i18n } from '../../i18n';
@@ -103,6 +104,14 @@ function ChatDrawerComponent({
   // panelTop (visible). Re-runs when orientation changes so position stays
   // correct without needing the user to re-open the drawer.
   const translateY = useSharedValue(panelHiddenY);
+
+  // Cancel the slide animation on unmount to prevent the Reanimated shadow tree
+  // cloner from accessing freed shadow node props (EXC_BAD_ACCESS fix).
+  useEffect(() => {
+    return () => {
+      cancelAnimation(translateY);
+    };
+  }, [translateY]);
 
   useEffect(() => {
     translateY.value = withTiming(isOpen ? panelTop : panelHiddenY, {

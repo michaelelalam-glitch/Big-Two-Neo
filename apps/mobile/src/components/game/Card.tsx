@@ -7,6 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import type { Card as CardType } from '../../game/types';
@@ -122,6 +123,19 @@ const Card = React.memo(function Card({
   const cardWidth = size === 'table' ? TABLE_CARD_WIDTH : HAND_CARD_WIDTH;
   const cardHeight = size === 'table' ? TABLE_CARD_HEIGHT : HAND_CARD_HEIGHT;
   const sizeScale = size === 'table' ? 0.78 : 1; // 47/60 ≈ 0.78
+
+  // Cancel all running Reanimated animations on unmount to prevent the Fabric
+  // shadow tree cloner (ShadowTreeCloner.cpp) from accessing freed folly::dynamic
+  // props — the root cause of the EXC_BAD_ACCESS SIGSEGV crash observed when
+  // cards are played/removed while withSpring animations are still in flight.
+  useEffect(() => {
+    return () => {
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
+  }, [translateX, translateY, scale, opacity]);
 
   // FIX: Task #378 - Force opacity and scale reset when selection state changes (Android fix)
   // CRITICAL: Must use withSpring to cancel any pending animations

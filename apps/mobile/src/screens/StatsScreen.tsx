@@ -361,6 +361,16 @@ export default function StatsScreen() {
     };
   }, []);
 
+  // Close the mutual friends modal automatically when the user navigates away
+  // from this screen (e.g., after accepting a room invite). Without this the
+  // modal stays open and reappears during every subsequent screen transition.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      setMutualFriendsModalVisible(false);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const fetchData = useCallback(async () => {
     if (!userId) return;
 
