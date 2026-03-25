@@ -82,21 +82,30 @@ export function FriendsList() {
       }
       setSearching(true);
       const token = ++searchTokenRef.current;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .ilike('username', `%${trimmed}%`)
-        .neq('id', user.id)
-        .limit(10);
-      if (!mountedRef.current) return;
-      // Discard stale responses — only apply if this is still the latest query.
-      if (token !== searchTokenRef.current) return;
-      if (!error && data) {
-        setSearchResults(data as SearchResult[]);
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .ilike('username', `%${trimmed}%`)
+          .neq('id', user.id)
+          .limit(10);
+        if (!mountedRef.current) return;
+        // Discard stale responses — only apply if this is still the latest query.
+        if (token !== searchTokenRef.current) return;
+        if (!error && data) {
+          setSearchResults(data as SearchResult[]);
+        } else {
+          setSearchResults([]);
+        }
+      } catch {
+        if (!mountedRef.current) return;
+        if (token !== searchTokenRef.current) return;
         setSearchResults([]);
+      } finally {
+        if (mountedRef.current && token === searchTokenRef.current) {
+          setSearching(false);
+        }
       }
-      setSearching(false);
     },
     [user?.id]
   );

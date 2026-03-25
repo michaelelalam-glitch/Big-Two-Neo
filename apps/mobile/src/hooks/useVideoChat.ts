@@ -280,6 +280,7 @@ export function useVideoChat({
   const desiredCameraRef = useRef(false);
   const desiredMicRef = useRef(false);
   const hasRestoredPrefsRef = useRef(false);
+  const hasAutoConnectedRef = useRef(false);
 
   /** Persist desired camera/mic state to AsyncStorage. */
   const persistChatPrefs = useCallback(
@@ -320,6 +321,12 @@ export function useVideoChat({
       setIsLocalMicOn(false);
       setRemoteParticipants([]);
     }
+    // Reset one-time guards so auto-restore/autoConnect can re-run with the new adapter.
+    hasRestoredPrefsRef.current = false;
+    hasAutoConnectedRef.current = false;
+    setRestoreFinished(false);
+    desiredCameraRef.current = false;
+    desiredMicRef.current = false;
   }, [adapterProp, isChatConnected]);
 
   // Subscribe to remote participant changes while video chat is active.
@@ -516,7 +523,6 @@ export function useVideoChat({
   // if the local player hasn't opted in to publish their own camera/mic.
   // Skipped when the auto-restore effect above already connected with stored
   // prefs (hasRestoredPrefsRef + isChatConnected guard).
-  const hasAutoConnectedRef = useRef(false);
   useEffect(() => {
     if (!autoConnect || !roomId || !userId || hasAutoConnectedRef.current) return;
     // Wait for restore async IIFE to finish before deciding — prevents duplicate
