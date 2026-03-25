@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { i18n } from '../i18n';
@@ -43,11 +44,12 @@ interface UseGameActionsOptions {
   /** Optional: returns current game state for client-side pre-validation (Task #573) */
   getMultiplayerValidationState?: () => MultiplayerValidationState | null;
   /**
-   * Orientation-aware alert callback (replaces native Alert.alert for invalid-play
-   * errors on iOS). When provided, all in-game error popups go through InGameAlert
-   * which respects the game's orientation lock rather than the physical device rotation.
+   * Orientation-aware alert callback (iOS only — replaces native Alert.alert for
+   * in-game error popups). On iOS, routes through InGameAlert which respects the
+   * game's orientation lock. On Android, callers fall through to showError/Toast.
+   * When provided, pass { title, message } to match showError title parity.
    */
-  onAlert?: (options: { message: string }) => void;
+  onAlert?: (options: { title?: string; message: string }) => void;
 }
 
 export function useGameActions({
@@ -64,6 +66,17 @@ export function useGameActions({
   // Task #568: Separate refs to prevent cross-operation blocking
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
+
+  // Platform-aware error display: InGameAlert modal on iOS (orientation-safe),
+  // Toast/system-Alert via showError on Android.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- alertError is a render-stable helper; onAlert is in handlePlayCards/handlePass dep arrays so those callbacks recreate when onAlert changes, capturing the latest alertError.
+  const alertError = (message: string) => {
+    if (Platform.OS === 'ios' && onAlert) {
+      onAlert({ title: i18n.t('common.error'), message });
+    } else {
+      showError(message);
+    }
+  };
 
   const handlePlayCards = useCallback(
     async (cards: Card[]) => {
@@ -93,7 +106,7 @@ export function useGameActions({
             gameLogger.warn(`❌ [GameScreen] Invalid play: ${result.error}`);
             soundManager.playSound(SoundType.INVALID_MOVE);
             const msg = result.error || 'Invalid play';
-            if (onAlert) onAlert({ message: msg }); else showError(msg);
+            alertError(msg);
             return;
           }
 
@@ -104,7 +117,7 @@ export function useGameActions({
           gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
           soundManager.playSound(SoundType.INVALID_MOVE);
           const errMsg = msg || 'Failed to play cards';
-          if (onAlert) onAlert({ message: errMsg }); else showError(errMsg);
+          alertError(errMsg);
         } finally {
           isPlayingCardsRef.current = false;
         }
@@ -132,7 +145,7 @@ export function useGameActions({
               if (missingCard) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.cardNotInHand');
-                if (onAlert) onAlert({ message: m }); else showError(m);
+                alertError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -142,7 +155,7 @@ export function useGameActions({
               if (combo === 'unknown') {
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.invalidCombo');
-                if (onAlert) onAlert({ message: m }); else showError(m);
+                alertError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -154,7 +167,7 @@ export function useGameActions({
               if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.firstPlayMustInclude3D');
-                if (onAlert) onAlert({ message: m }); else showError(m);
+                alertError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -163,7 +176,7 @@ export function useGameActions({
               if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.cannotBeat');
-                if (onAlert) onAlert({ message: m }); else showError(m);
+                alertError(m);
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -222,7 +235,7 @@ export function useGameActions({
           gameLogger.warn(`❌ [GameScreen] Cannot pass: ${result.error}`);
           soundManager.playSound(SoundType.INVALID_MOVE);
           const m = result.error || 'Cannot pass';
-          if (onAlert) onAlert({ message: m }); else showError(m);
+          alertError(m);
           return;
         }
 
@@ -233,7 +246,7 @@ export function useGameActions({
         gameLogger.error('❌ [GameScreen] Error passing:', msg);
         soundManager.playSound(SoundType.INVALID_MOVE);
         const failMsg = msg || 'Failed to pass';
-        if (onAlert) onAlert({ message: failMsg }); else showError(failMsg);
+        alertError(failMsg);
       } finally {
         isPassingRef.current = false;
       }
@@ -252,7 +265,7 @@ export function useGameActions({
           if (validationState && !validationState.lastPlay) {
             soundManager.playSound(SoundType.INVALID_MOVE);
             const m = i18n.t('game.cannotPassMessage');
-            if (onAlert) onAlert({ message: m }); else showError(m);
+            alertError(m);
             return;
           }
         }
