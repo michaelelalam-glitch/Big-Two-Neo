@@ -100,9 +100,10 @@ export function useOrientationManager(): OrientationManagerState {
     // Ensure orientation is unlocked when leaving GameScreen to restore auto-rotation on other screens
     return () => {
       ScreenOrientation.removeOrientationChangeListener(subscription);
-      // Unlock to allow auto-rotation on other screens
+      // Unlock to allow auto-rotation on other screens.
+      // Note: do NOT set isLocked state here — the component is unmounting and
+      // the async .then() would trigger a state update on an unmounted component.
       ScreenOrientation.unlockAsync().then(() => {
-        setIsLocked(false);
         gameLogger.info('🔓 [Orientation] Unlocked on component unmount');
       }).catch((error: unknown) => {
         gameLogger.error('❌ [Orientation] Failed to unlock:', error);
