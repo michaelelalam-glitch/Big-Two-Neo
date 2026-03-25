@@ -54,8 +54,9 @@ interface GameLayoutProps {
   onOpponentNameLongPress?: (displayIndex: number) => void;
   /**
    * User IDs for remote opponents at display positions [1, 2, 3]. An empty
-   * string or missing entry means the slot is occupied by a bot — long-press
-   * will be disabled for that slot (mirrors LandscapeGameLayout behaviour).
+   * string or missing entry means the slot is occupied by a bot or is an
+   * unused/empty display slot — long-press will be disabled for that slot
+   * (mirrors LandscapeGameLayout behaviour).
    */
   opponentPlayerIds?: readonly string[];
   /** Active throwable effect for each display position (0=bottom/local, 1=top, 2=left, 3=right). */
