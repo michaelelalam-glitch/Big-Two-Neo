@@ -10557,25 +10557,6 @@ exports[`PlayerInfo — visual regression snapshots renders local player with ca
             LIVE
           </Text>
         </View>
-        <View
-          style={
-            {
-              "bottom": 2,
-              "position": "absolute",
-              "right": 2,
-            }
-          }
-        >
-          <Text
-            style={
-              {
-                "fontSize": 10,
-              }
-            }
-          >
-            🎤
-          </Text>
-        </View>
       </View>
     </Pressable>
     <View
