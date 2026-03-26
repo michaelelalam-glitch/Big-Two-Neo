@@ -13,15 +13,10 @@ import {
 
 // ─── Mock @sentry/react-native (routed via jest.config.js moduleNameMapper) ── //
 // The mock is loaded from src/__tests__/__mocks__/sentry-react-native.ts
-
-// We need to import it here to get a reference for assertions
-import * as SentryMock from '@sentry/react-native';
+// Note: import the mock inside jest.isolateModules() for enabled-path tests
+// so each test gets a fresh module registry (and fresh _initialized state).
 
 // ─── Setup ────────────────────────────────────────────────────────────────── //
-
-function setDsn(dsn: string) {
-  process.env.EXPO_PUBLIC_SENTRY_DSN = dsn;
-}
 
 function clearDsn() {
   delete process.env.EXPO_PUBLIC_SENTRY_DSN;

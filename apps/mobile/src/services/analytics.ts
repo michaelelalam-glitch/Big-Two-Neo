@@ -53,7 +53,13 @@ let consentGiven = false;
 
 // ─── Types ────────────────────────────────────────────────────────────────── //
 
-export type AnalyticsEventParams = Record<string, string | number | boolean>;
+/**
+ * Event parameter values must be string or number to comply with GA4
+ * Measurement Protocol requirements — booleans are not a valid param type
+ * and can cause params to be dropped or rejected. Normalise booleans before
+ * calling any trackX helper (e.g. `true/false → 1/0` or `'true'/'false'`).
+ */
+export type AnalyticsEventParams = Record<string, string | number>;
 
 /** Supported analytics event names. Extend as new features are added. */
 export type AnalyticsEventName =
@@ -83,7 +89,8 @@ function generateClientId(): string {
 }
 
 let _clientId: string | null = null;
-let _sessionId: string | null = null;
+/** GA4 session_id must be numeric — use epoch-millisecond timestamp at session start. */
+let _sessionId: number | null = null;
 let _userId: string | null = null;
 
 function getClientId(): string {
@@ -93,9 +100,13 @@ function getClientId(): string {
   return _clientId;
 }
 
-function getSessionId(): string {
+/**
+ * Returns a numeric session id (epoch ms) per GA4 Measurement Protocol requirements.
+ * A UUID string causes events to be mis-attributed or dropped by GA4.
+ */
+function getSessionId(): number {
   if (!_sessionId) {
-    _sessionId = generateClientId();
+    _sessionId = Date.now();
   }
   return _sessionId;
 }
