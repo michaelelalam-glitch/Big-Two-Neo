@@ -378,7 +378,7 @@ jobs:
           #   - Test assertions and screenshot: ~1 min
           #   - Buffer for runner variance: ~5 min
           #   - One retry after simulator warm-up on "App crashed" flakes: ~10 min
-          #   Prior value of 10 min was too short: Maestro was killed mid-startup,
+          #   Shorter timeouts can be too short: Maestro may be killed mid-startup,
           #   producing exit 65 and no results XML.
           #
           # Retry logic: iOS simulator can crash on clearState: true (flaky).

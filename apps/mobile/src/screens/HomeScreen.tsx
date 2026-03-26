@@ -284,7 +284,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowDifficultyModal(false)}
-              accessibilityLabel="Close"
+              accessibilityLabel={i18n.t('common.close')}
               accessibilityRole="button"
             >
               <Text style={styles.modalCloseText}>✕</Text>
@@ -377,7 +377,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowFindGameModal(false)}
-              accessibilityLabel="Close"
+              accessibilityLabel={i18n.t('common.close')}
               accessibilityRole="button"
             >
               <Text style={styles.modalCloseText}>✕</Text>
