@@ -99,6 +99,7 @@ export default function LobbyScreen() {
   const roomIdRef = useRef<string | null>(null); // Stable ref so subscription callbacks don't use stale closure
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadPlayersRef = useRef<() => Promise<void>>(async () => {});
+  const userIdRef = useRef<string | undefined>(undefined);
 
   // Performance optimization: Calculate human player count once using useMemo
   const humanPlayerCount = useMemo(() => players.filter(p => !p.is_bot).length, [players]);
@@ -110,9 +111,10 @@ export default function LobbyScreen() {
     [players]
   );
 
-  // Always keep loadPlayersRef pointing at latest loadPlayers (avoids stale closures in subscriptions)
+  // Always keep loadPlayersRef and userIdRef pointing at latest values (avoids stale closures in subscriptions)
   useEffect(() => {
     loadPlayersRef.current = loadPlayers;
+    userIdRef.current = user?.id;
   });
 
   useEffect(() => {
@@ -181,7 +183,7 @@ export default function LobbyScreen() {
           const o = payload.old as Record<string, unknown>;
           // Track the current user's connection_status so the kicked-player alert
           // can distinguish a disconnect kick from an inactivity kick.
-          if (n.user_id === user?.id && n.connection_status !== undefined) {
+          if (n.user_id === userIdRef.current && n.connection_status !== undefined) {
             lastConnectionStatusRef.current = n.connection_status as string;
           }
           const meaningfulChange =
