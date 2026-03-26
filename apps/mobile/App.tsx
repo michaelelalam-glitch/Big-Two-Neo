@@ -55,7 +55,7 @@ if (
         context: 'GlobalErrorHandler',
         tags: { fatal: 'true' },
       });
-      void Sentry.flush(2000).finally(() => {
+      void Sentry.flush().finally(() => {
         originalHandler?.(error, isFatal);
       });
       return;
