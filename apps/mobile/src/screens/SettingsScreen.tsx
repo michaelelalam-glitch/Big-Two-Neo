@@ -21,6 +21,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
+import type { CardSortOrder, AnimationSpeed } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 
@@ -137,14 +138,14 @@ export default function SettingsScreen() {
   };
 
   // Game settings handlers
-  const handleCardSortOrderChange = (order: 'suit' | 'rank') => {
+  const handleCardSortOrderChange = (order: CardSortOrder) => {
     setCardSortOrder(order);
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
 
-  const handleAnimationSpeedChange = (speed: 'slow' | 'normal' | 'fast') => {
+  const handleAnimationSpeedChange = (speed: AnimationSpeed) => {
     setAnimationSpeed(speed);
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
@@ -376,13 +377,17 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>{t('settings.gameSettings')}</Text>
 
           {/* Card Sort Order */}
-          <View style={styles.settingGroup}>
+          <View style={[styles.settingGroup, { opacity: 0.6 }]}>
             <Text style={styles.settingTitle}>{t('settings.cardSortOrder')}</Text>
             <Text style={styles.settingDescription}>{t('settings.cardSortOrderDescription')}</Text>
+            <View style={[styles.comingSoonBadge, { marginTop: 4 }]}>
+              <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
+            </View>
             <View style={styles.buttonGroup}>
               {(['suit', 'rank'] as const).map(order => (
                 <TouchableOpacity
                   key={order}
+                  disabled
                   style={[
                     styles.optionButton,
                     cardSortOrder === order && styles.optionButtonActive,
@@ -405,13 +410,17 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
 
           {/* Animation Speed */}
-          <View style={styles.settingGroup}>
+          <View style={[styles.settingGroup, { opacity: 0.6 }]}>
             <Text style={styles.settingTitle}>{t('settings.animationSpeed')}</Text>
             <Text style={styles.settingDescription}>{t('settings.animationSpeedDescription')}</Text>
+            <View style={[styles.comingSoonBadge, { marginTop: 4 }]}>
+              <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
+            </View>
             <View style={styles.buttonGroup}>
               {(['slow', 'normal', 'fast'] as const).map(speed => (
                 <TouchableOpacity
                   key={speed}
+                  disabled
                   style={[
                     styles.optionButton,
                     animationSpeed === speed && styles.optionButtonActive,
@@ -434,36 +443,44 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
 
           {/* Confirm Before Play */}
-          <View style={styles.settingRow}>
+          <View style={[styles.settingRow, { opacity: 0.6 }]}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.confirmBeforePlay')}</Text>
               <Text style={styles.settingDescription}>
                 {t('settings.confirmBeforePlayDescription')}
               </Text>
+              <View style={[styles.comingSoonBadge, { marginTop: 4 }]}>
+                <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
+              </View>
             </View>
             <Switch
               value={confirmBeforePlay}
               onValueChange={setConfirmBeforePlay}
-              trackColor={{ false: COLORS.gray.dark, true: COLORS.secondary }}
-              thumbColor={confirmBeforePlay ? COLORS.white : COLORS.gray.medium}
+              disabled
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.gray.medium }}
+              thumbColor={COLORS.gray.medium}
             />
           </View>
 
           <View style={styles.divider} />
 
           {/* Keep Screen Awake */}
-          <View style={styles.settingRow}>
+          <View style={[styles.settingRow, { opacity: 0.6 }]}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>{t('settings.keepScreenAwake')}</Text>
               <Text style={styles.settingDescription}>
                 {t('settings.keepScreenAwakeDescription')}
               </Text>
+              <View style={[styles.comingSoonBadge, { marginTop: 4 }]}>
+                <Text style={styles.comingSoonBadgeText}>{t('common.comingSoon')}</Text>
+              </View>
             </View>
             <Switch
               value={keepScreenAwake}
               onValueChange={setKeepScreenAwake}
-              trackColor={{ false: COLORS.gray.dark, true: COLORS.secondary }}
-              thumbColor={keepScreenAwake ? COLORS.white : COLORS.gray.medium}
+              disabled
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.gray.medium }}
+              thumbColor={COLORS.gray.medium}
             />
           </View>
         </View>

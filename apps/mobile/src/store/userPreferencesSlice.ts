@@ -117,8 +117,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       notifyGameStarted: true,
       notifyFriendRequests: true,
       profilePhotoSize: 'medium' as ProfilePhotoSize,
-      confirmBeforePlay: false,
-      keepScreenAwake: true,
+      confirmBeforePlay: DEFAULT_SETTINGS.confirmBeforePlay,
+      keepScreenAwake: DEFAULT_SETTINGS.keepScreenAwake,
 
       setSoundEnabled: enabled => {
         // Optimistic update: mirrors SoundManager's own in-memory flag mutation
