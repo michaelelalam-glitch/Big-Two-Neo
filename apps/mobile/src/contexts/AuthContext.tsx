@@ -10,6 +10,8 @@ import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
 import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { detectRegion } from '../utils/regionDetector';
+import { trackAuthEvent, setAnalyticsUserId } from '../services/analytics';
+import { setSentryUser } from '../services/sentry';
 
 /**
  * Profile fetch retry configuration
@@ -547,6 +549,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
         setSession(newSession);
         setUser(newSession.user);
+        // Track sign-in for analytics (method resolved later; use 'supabase' as default)
+        trackAuthEvent('user_signed_in', 'supabase');
+        setAnalyticsUserId(newSession.user.id);
+        setSentryUser({ id: newSession.user.id });
         // Don't set isLoading - let the useEffect below handle profile fetch with proper timing
         return; // Exit early - profile fetch will happen in the useEffect watching 'session'
       }
@@ -859,6 +865,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         authLogger.error('Error signing out:', error?.message || String(error));
         throw error;
       }
+
+      // Track sign-out for analytics and clear Sentry user context
+      trackAuthEvent('user_signed_out');
+      setAnalyticsUserId(null);
+      setSentryUser(null);
 
       authLogger.info('✅ [AuthContext] Sign-out successful');
     } catch (error: unknown) {
