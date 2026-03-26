@@ -154,11 +154,6 @@ export interface Translations {
     autoPassTimer: string;
     autoPassTimerDescription: string;
     disabled: string;
-    confirmBeforePlay: string;
-    confirmBeforePlayDescription: string;
-    keepScreenAwake: string;
-    keepScreenAwakeDescription: string;
-
     // Notifications
     pushNotifications: string;
     pushNotificationsDescription: string;
@@ -910,10 +905,6 @@ const en: Translations = {
     autoPassTimer: 'Auto-Pass Timer',
     autoPassTimerDescription: 'Automatically pass after inactivity',
     disabled: 'Disabled',
-    confirmBeforePlay: 'Confirm Before Playing',
-    confirmBeforePlayDescription: 'Show a confirmation before playing cards',
-    keepScreenAwake: 'Keep Screen Awake',
-    keepScreenAwakeDescription: 'Prevent the screen from dimming during a game',
 
     pushNotifications: 'Push Notifications',
     pushNotificationsDescription: 'Receive push notifications for game events',
@@ -1621,10 +1612,6 @@ const ar: Translations = {
     autoPassTimer: 'مؤقت التمرير التلقائي',
     autoPassTimerDescription: 'التمرير تلقائيًا بعد عدم النشاط',
     disabled: 'معطل',
-    confirmBeforePlay: 'تأكيد قبل اللعب',
-    confirmBeforePlayDescription: 'عرض تأكيد قبل لعب البطاقات',
-    keepScreenAwake: 'إبقاء الشاشة نشطة',
-    keepScreenAwakeDescription: 'منع تعتيم الشاشة أثناء اللعبة',
 
     pushNotifications: 'إشعارات الدفع',
     pushNotificationsDescription: 'تلقي إشعارات الدفع لأحداث اللعبة',
@@ -2359,10 +2346,6 @@ const de: Translations = {
     autoPassTimer: 'Auto-Pass-Timer',
     autoPassTimerDescription: 'Automatisch passen nach Inaktivität',
     disabled: 'Deaktiviert',
-    confirmBeforePlay: 'Vor dem Spielen bestätigen',
-    confirmBeforePlayDescription: 'Bestätigung anzeigen, bevor Karten gespielt werden',
-    keepScreenAwake: 'Bildschirm wach halten',
-    keepScreenAwakeDescription: 'Verhindern, dass der Bildschirm während eines Spiels abdunkelt',
 
     pushNotifications: 'Push-Benachrichtigungen',
     pushNotificationsDescription: 'Push-Benachrichtigungen für Spielereignisse erhalten',
