@@ -72,12 +72,21 @@ function generateClientId(): string {
 }
 
 let _clientId: string | null = null;
+let _sessionId: string | null = null;
+let _userId: string | null = null;
 
 function getClientId(): string {
   if (!_clientId) {
     _clientId = generateClientId();
   }
   return _clientId;
+}
+
+function getSessionId(): string {
+  if (!_sessionId) {
+    _sessionId = generateClientId();
+  }
+  return _sessionId;
 }
 
 // ─── Core send function ───────────────────────────────────────────────────── //
@@ -101,19 +110,24 @@ async function sendEvents(
   const endpoint = __DEV__ ? MP_DEBUG_ENDPOINT : MP_ENDPOINT;
   const url = `${endpoint}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
-  const body = {
+  const body: Record<string, unknown> = {
     client_id: getClientId(),
     events: events.map((e) => ({
       name: e.name,
       params: {
         // Standard GA4 params
         engagement_time_msec: '1',
-        session_id: _clientId ?? getClientId(),
+        session_id: getSessionId(),
         // Caller params
         ...e.params,
       },
     })),
   };
+
+  // Associate events with the signed-in user (separate from client_id)
+  if (_userId) {
+    body.user_id = _userId;
+  }
 
   try {
     await fetch(url, {
@@ -129,16 +143,16 @@ async function sendEvents(
 // ─── Public API ───────────────────────────────────────────────────────────── //
 
 /**
- * Set a persistent user ID so events from the same user can be tied together
- * across sessions in Firebase Analytics.
+ * Set the authenticated user ID so events can be tied to a specific user
+ * in Firebase Analytics / BigQuery.
+ *
+ * `client_id` (random UUID, per-install) is kept separate from `user_id`
+ * (Supabase UUID) so GA4 session semantics remain correct.
  *
  * @param userId - Supabase user UUID (do NOT use email or PII directly)
  */
 export function setAnalyticsUserId(userId: string | null): void {
-  // For Measurement Protocol there is no persisted user_id concept.
-  // We embed it as a common event param when a user is signed in so that
-  // BigQuery exports can group by user.
-  _clientId = userId ?? generateClientId();
+  _userId = userId;
 }
 
 /**

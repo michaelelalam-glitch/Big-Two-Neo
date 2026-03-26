@@ -17,7 +17,8 @@ import {
 
 // ─── Mocks ────────────────────────────────────────────────────────────────── //
 
-// Mock global fetch
+// Mock global fetch — save original so it can be restored after all tests
+const originalFetch = global.fetch;
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
@@ -59,6 +60,8 @@ beforeEach(() => {
 
 afterAll(() => {
   clearEnv();
+  // Restore the original global.fetch so this mock does not leak into other test files
+  global.fetch = originalFetch;
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────── //
@@ -70,8 +73,12 @@ describe('isAnalyticsEnabled', () => {
 
   it('returns true when credentials are configured and consent given', () => {
     setEnv('G-TEST123', 'secret123');
-    // Re-import or check directly
-    expect(Boolean(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID && process.env.EXPO_PUBLIC_FIREBASE_API_SECRET)).toBe(true);
+    // MEASUREMENT_ID / API_SECRET are read at module-evaluation time, so we must
+    // reset the module registry and re-import to pick up the new env vars.
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { isAnalyticsEnabled: freshIsAnalyticsEnabled } = require('../../services/analytics') as typeof import('../../services/analytics');
+    expect(freshIsAnalyticsEnabled()).toBe(true);
   });
 
   it('returns false when consent is revoked', () => {
@@ -99,16 +106,24 @@ describe('trackEvent', () => {
 
   it('calls fetch with correct URL when credentials are set', async () => {
     setEnv('G-TESTMEASURE', 'testsecret');
-    // Manually override module-level MEASUREMENT_ID by setting env before import
-    // Since analytics.ts reads env at module load time, we need to use
-    // jest.resetModules() for this. Instead, test the fetch is called.
-    // NOTE: Because env vars are read at module evaluation time (not call time),
-    // we test the no-op path here. Integration testing requires jest.resetModules().
-    trackEvent('game_started', { mode: 'local' });
+    // MEASUREMENT_ID is read at module-evaluation time; use isolateModules so
+    // the analytics module sees the credentials set above.
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedTrack('game_started', { mode: 'local' });
+    });
+
+    // Flush microtask queue so the fire-and-forget sendEvents promise resolves
     await Promise.resolve();
-    // The fetch may or may not be called depending on when module was first evaluated.
-    // The important assertion is that the function signature is correct.
-    expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(0);
+    await Promise.resolve();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    expect(url).toContain('G-TESTMEASURE');
+    expect(options.method).toBe('POST');
+    const body = JSON.parse(options.body) as { events: Array<{ name: string }> };
+    expect(body.events[0].name).toBe('game_started');
   });
 
   it('includes platform and app_version in params', async () => {
