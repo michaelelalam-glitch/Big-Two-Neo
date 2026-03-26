@@ -58,8 +58,8 @@
         {
           "organization": "big2-mobile",
           "project": "big2-mobile-app",
-          "uploadNativeSymbols": false,
-          "autoUploadNativeSymbols": false
+          "uploadNativeSymbols": true,
+          "autoUploadNativeSymbols": true
         }
       ],
       [

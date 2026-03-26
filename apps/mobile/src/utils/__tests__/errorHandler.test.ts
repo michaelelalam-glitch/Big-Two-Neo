@@ -5,7 +5,10 @@
  * branching paths (silent, custom userMessage, default logger, custom logger).
  */
 
-import { extractErrorMessage, handleError } from '../errorHandler';
+// ─── Mocks ─────────────────────────────────────────────────────────────────── //
+// jest.mock() calls are hoisted above all imports by babel-jest/ts-jest, so
+// these factories are applied before any module in this file (including
+// ../errorHandler and its dependencies) is evaluated.
 
 // Mock showError so tests don't need React Native's Alert
 jest.mock('../alerts', () => ({
@@ -32,6 +35,7 @@ jest.mock('../../services/analytics', () => ({
   trackError: jest.fn(),
 }));
 
+import { extractErrorMessage, handleError } from '../errorHandler';
 import { showError } from '../alerts';
 import { gameLogger } from '../logger';
 import { sentryCapture } from '../../services/sentry';

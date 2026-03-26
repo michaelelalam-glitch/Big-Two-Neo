@@ -475,14 +475,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
           // Fetch profile if user exists
           if (initialSession?.user) {
-            const profileData = await fetchProfile(initialSession.user.id);
-            setProfile(profileData);
-
-            // Set analytics user ID and Sentry user context on cold start.
-            // The SIGNED_IN onAuthStateChange handler covers fresh sign-ins;
-            // this covers users who were already logged in when the app launched.
+            // Set analytics user ID and Sentry user context on cold start first.
+            // We do this before fetching the profile so they are captured even
+            // if the profile request fails.
             setAnalyticsUserId(initialSession.user.id);
             setSentryUser({ id: initialSession.user.id });
+
+            const profileData = await fetchProfile(initialSession.user.id);
+            setProfile(profileData);
 
             // CRITICAL FIX: Clean up stale room memberships on login
             // This handles cases where user force-closed app or didn't properly leave
@@ -555,8 +555,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
         setSession(newSession);
         setUser(newSession.user);
-        // Track sign-in for analytics (method resolved later; use 'supabase' as default)
-        trackAuthEvent('user_signed_in', 'supabase');
+        // Derive the auth provider from the session metadata (e.g. 'email', 'google').
+        // Falls back to undefined so analytics segmentation isn't polluted with a
+        // hard-coded default that may be incorrect for OAuth sign-ins.
+        const authProvider = newSession.user.app_metadata?.provider as string | undefined;
+        trackAuthEvent('user_signed_in', authProvider);
         setAnalyticsUserId(newSession.user.id);
         setSentryUser({ id: newSession.user.id });
         // Don't set isLoading - let the useEffect below handle profile fetch with proper timing

@@ -55,9 +55,17 @@ if (
         context: 'GlobalErrorHandler',
         tags: { fatal: 'true' },
       });
-      void Sentry.flush().finally(() => {
-        originalHandler?.(error, isFatal);
-      });
+      void Sentry.flush()
+        .catch(() => {
+          // Swallow flush errors so they never surface as an unhandled
+          // rejection on a fatal crash path.
+          if (__DEV__) {
+            console.warn('[GlobalErrorHandler] Sentry.flush failed after fatal error');
+          }
+        })
+        .finally(() => {
+          originalHandler?.(error, isFatal);
+        });
       return;
     }
     // Forward non-fatal errors to the original handler
