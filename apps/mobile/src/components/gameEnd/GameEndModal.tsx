@@ -227,87 +227,40 @@ export const GameEndModal: React.FC = () => {
 
   // Task #416: Play Again logic
   const handlePlayAgain = async () => {
-    // Task #420: Haptic feedback on play again — await so the try/catch actually
-    // catches any rejection from the async Haptics call.
+    // Task #420: Haptic feedback on play again.
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
 
-    showInGameAlert({
-      title: i18n.t('gameEnd.playAgainTitle'),
-      message: i18n.t('gameEnd.playAgainMessage'),
-      buttons: [
-        {
-          text: i18n.t('common.cancel'),
-          style: 'cancel',
-        },
-        {
-          text: i18n.t('gameEnd.newGame'),
-          onPress: async () => {
-            try {
-              // Close the modal first
-              setShowGameEndModal(false);
-
-              // Call the callback provided by GameScreen (if exists)
-              if (onPlayAgain) {
-                onPlayAgain();
-              }
-            } catch (error) {
-              console.error('Error restarting game:', error);
-              showInGameAlert({
-                title: i18n.t('gameEnd.restartError'),
-                message: i18n.t('gameEnd.restartErrorMessage'),
-              });
-            }
-          },
-        },
-      ],
-    });
+    // NOTE: The intermediate showInGameAlert confirmation was removed because it causes
+    // a Modal-on-Modal stacking issue on iOS (overFullScreen modal cannot present another
+    // modal on top of itself). The button label is already unambiguous — no additional
+    // confirmation is needed.
+    setShowGameEndModal(false);
+    if (onPlayAgain) {
+      onPlayAgain();
+    }
   };
 
   // Task #417: Return to Menu logic
   const handleReturnToMenu = async () => {
-    // Task #420: Haptic feedback on return to menu — await so the try/catch actually
-    // catches any rejection from the async Haptics call.
+    // Task #420: Haptic feedback on return to menu.
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
 
-    showInGameAlert({
-      title: i18n.t('gameEnd.returnToMenuTitle'),
-      message: i18n.t('gameEnd.returnToMenuMessage'),
-      buttons: [
-        {
-          text: i18n.t('game.stay'),
-          style: 'cancel',
-        },
-        {
-          text: i18n.t('gameEnd.leaveGame'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Close the modal first
-              setShowGameEndModal(false);
-
-              // Call the callback provided by GameScreen (if exists)
-              if (onReturnToMenu) {
-                onReturnToMenu();
-              }
-            } catch (error) {
-              console.error('Error leaving game:', error);
-              showInGameAlert({
-                title: i18n.t('gameEnd.leaveError'),
-                message: i18n.t('gameEnd.leaveErrorMessage'),
-              });
-            }
-          },
-        },
-      ],
-    });
+    // NOTE: The intermediate showInGameAlert confirmation was removed because it causes
+    // a Modal-on-Modal stacking issue on iOS (overFullScreen modal cannot present another
+    // modal on top of itself). The button label is already unambiguous — no additional
+    // confirmation is needed.
+    setShowGameEndModal(false);
+    if (onReturnToMenu) {
+      onReturnToMenu();
+    }
   };
 
   // CRITICAL FIX: Show loading state while waiting for data

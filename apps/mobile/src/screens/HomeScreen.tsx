@@ -272,7 +272,13 @@ export default function HomeScreen() {
           <View
             style={[
               styles.modalContainer,
-              { maxHeight: screenHeight * 0.88, width: isLandscape ? screenWidth * 0.9 : '100%' },
+              {
+                maxHeight: screenHeight * 0.88,
+                width: isLandscape ? screenWidth * 0.9 : '100%',
+                // Override the 400px maxWidth from modalContainer so the 3 difficulty
+                // buttons (Easy / Medium / Hard) are never clipped in landscape mode.
+                maxWidth: isLandscape ? screenWidth : 400,
+              },
             ]}
           >
             <TouchableOpacity

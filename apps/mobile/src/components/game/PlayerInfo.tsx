@@ -58,7 +58,7 @@ interface PlayerInfoProps {
  * Renders the inner content of the avatar when video chat state is known.
  * - Camera ON + videoStreamSlot: live video feed fills the avatar
  * - Camera ON + no slot: stub LIVE placeholder (SDK not yet wired)
- * - Camera OFF: profile photo with a small camera-off badge
+ * - Camera OFF: profile photo
  */
 function renderAvatarVideoContent({
   isCameraOn,
@@ -105,7 +105,7 @@ function renderAvatarVideoContent({
     );
   }
 
-  // Camera off — show profile photo and a small camera-off indicator
+  // Camera off — show profile photo
   return (
     <>
       <Text
@@ -117,10 +117,6 @@ function renderAvatarVideoContent({
       >
         👤
       </Text>
-      {/* Camera-off badge so viewers know video is available but currently off */}
-      <View style={avatarStyles.cameraOffBadge} pointerEvents="none">
-        <Text style={avatarStyles.cameraOffIcon}>📵</Text>
-      </View>
       {isMicOn !== undefined && (
         <View style={avatarStyles.micIndicator}>
           <Text style={avatarStyles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
@@ -513,14 +509,6 @@ const avatarStyles = StyleSheet.create({
     right: 2,
   },
   micIndicatorIcon: {
-    fontSize: 10,
-  },
-  cameraOffBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-  },
-  cameraOffIcon: {
     fontSize: 10,
   },
   // Profile photo (camera off) styles — fontSize set dynamically via iconSize
