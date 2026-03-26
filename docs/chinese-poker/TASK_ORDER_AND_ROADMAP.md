@@ -1,7 +1,7 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
 > Generated: March 16, 2026 · Last updated: March 26, 2026  
-> Total tasks reviewed: 44 (12 backlog · 4 todo · 0 in_review · 27 completed)
+> Total tasks reviewed: 43 (12 backlog · 4 todo · 0 in_review · 27 completed)
 
 ---
 
@@ -158,7 +158,7 @@
 
 ## 📋 Current Status Board
 
-### 🟡 TODO — Ready to start (3 tasks)
+### 🟡 TODO — Ready to start (2 tasks)
 - `#650` — Increase card touch targets to iOS HIG 44px minimum
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
 

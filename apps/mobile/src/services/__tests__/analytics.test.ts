@@ -84,8 +84,15 @@ describe('isAnalyticsEnabled', () => {
 
   it('returns false when consent is revoked', () => {
     setEnv('G-TEST123', 'secret123');
-    setAnalyticsConsent(false);
-    expect(isAnalyticsEnabled()).toBe(false);
+    // MEASUREMENT_ID / API_SECRET are read at module-evaluation time, so we must
+    // reset the module registry and re-import to pick up the new env vars.
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } =
+      require('../../services/analytics') as typeof import('../../services/analytics');
+    freshSetConsent(true);  // first enable so we're testing revocation
+    freshSetConsent(false); // then revoke
+    expect(freshEnabled()).toBe(false);
   });
 });
 
