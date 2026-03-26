@@ -39,15 +39,17 @@ export function useGameEndCallbacks({
   clearHistory,
   onAlert,
 }: UseGameEndCallbacksOptions): void {
-  const alertError = (message: string) => {
-    if (Platform.OS === 'ios' && onAlert) {
-      onAlert({ message });
-    } else {
-      showError(message);
-    }
-  };
-
   useEffect(() => {
+    // alertError is defined inside the effect so it always captures the latest
+    // `onAlert` prop — avoids a stale-closure if the callback changes after mount.
+    const alertError = (message: string) => {
+      if (Platform.OS === 'ios' && onAlert) {
+        onAlert({ title: 'Error', message });
+      } else {
+        showError(message);
+      }
+    };
+
     setOnPlayAgain(() => async () => {
       // Access ref lazily so this callback works even when registered before
       // the game manager finishes initializing (avoiding early-return on mount).
@@ -84,6 +86,7 @@ export function useGameEndCallbacks({
     // botDifficulty included so "Play Again" always uses the latest difficulty.
     // setOnPlayAgain / setOnReturnToMenu are stable setters — safe to include.
     // clearHistory is a stable useCallback from ScoreboardContext — safe to include.
+    // onAlert included so alertError always uses the latest iOS alert callback.
   }, [
     currentPlayerName,
     navigation,
@@ -92,5 +95,6 @@ export function useGameEndCallbacks({
     setOnPlayAgain,
     setOnReturnToMenu,
     clearHistory,
+    onAlert,
   ]);
 }
