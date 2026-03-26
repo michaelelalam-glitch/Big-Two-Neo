@@ -10,7 +10,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { soundManager, SoundType, showError } from '../utils';
 import { gameLogger } from '../utils/logger';
-import i18n from '../i18n';
+import { i18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { GameStateManager } from '../game/state';
 
