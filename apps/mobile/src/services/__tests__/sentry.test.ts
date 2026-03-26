@@ -30,8 +30,8 @@ function clearDsn() {
 beforeEach(() => {
   jest.clearAllMocks();
   clearDsn();
-  // Reset module so _initialized flag is cleared between tests
-  jest.resetModules();
+  // Note: top-level imports are stale after jest.resetModules() — tests that
+  // require a fresh module state (e.g. _initialized) must use jest.isolateModules().
 });
 
 afterAll(() => {
@@ -42,12 +42,17 @@ afterAll(() => {
 
 describe('initSentry', () => {
   it('does not call Sentry.init when DSN is empty', () => {
-    // Re-import after module reset to get fresh _initialized state
-    const { initSentry: init } = jest.requireActual('../../services/sentry');
-    clearDsn();
-    init();
-    // Since we use the mocked @sentry/react-native, init should not have been called
-    expect(SentryMock.init).not.toHaveBeenCalled();
+    // Use isolateModules so we get a fresh _initialized=false state AND the
+    // @sentry/react-native mock is loaded into the same isolated registry.
+    jest.isolateModules(() => {
+      clearDsn();
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { initSentry: init } = require('../../services/sentry') as typeof import('../../services/sentry');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+      init();
+      expect(MockSentry.init).not.toHaveBeenCalled();
+    });
   });
 
   it('isSentryEnabled returns false when DSN is not set', () => {
