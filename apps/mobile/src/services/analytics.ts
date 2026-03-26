@@ -34,14 +34,20 @@ const MP_DEBUG_ENDPOINT = 'https://www.google-analytics.com/debug/mp/collect';
 
 const MEASUREMENT_ID =
   process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
+// NOTE: EXPO_PUBLIC_* vars are bundled into the app binary and are technically
+// extractable. The Measurement Protocol API secret is designed for client-side
+// use and can ONLY push events to YOUR GA4 property. It is NOT a server-side
+// credential. GA4's built-in bot/spam filters provide some protection against
+// abuse; for higher assurance, proxy analytics through a server-side endpoint.
 const API_SECRET =
   process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
 /**
  * Tracks whether the user has consented to analytics.
- * Defaults to FALSE (opt-in). Call setAnalyticsConsent(true) after obtaining
- * explicit user consent. For silent no-op without consent, all send calls check
- * this flag before dispatching any events.
+ * Defaults to FALSE. The app MUST call setAnalyticsConsent(true) before any
+ * events are sent. In this app, that call is made in App.tsx at startup once
+ * i18n has initialized (per the app's privacy policy). If GDPR opt-in is
+ * required, gate that call on a persisted user preference.
  */
 let consentGiven = false;
 
