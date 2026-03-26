@@ -21,14 +21,10 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
-import type { AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
-
-// Re-export types from the store slice so external consumers are unaffected.
-export type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -41,12 +37,10 @@ export default function SettingsScreen() {
   const {
     soundEnabled,
     vibrationEnabled,
-    autoPassTimer,
     profileVisibility,
     showOnlineStatus,
     setSoundEnabled,
     setVibrationEnabled,
-    setAutoPassTimer,
     setProfileVisibility,
     setShowOnlineStatus,
     profilePhotoSize,
@@ -127,14 +121,6 @@ export default function SettingsScreen() {
     const newValue = !vibrationEnabled;
     setVibrationEnabled(newValue); // syncs Zustand + fires hapticManager.setHapticsEnabled
     if (newValue) {
-      hapticManager.trigger(HapticType.SELECTION);
-    }
-  };
-
-  // Game settings handlers
-  const handleAutoPassTimerChange = (timer: AutoPassTimer) => {
-    setAutoPassTimer(timer); // Zustand persist replaces AsyncStorage.setItem
-    if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
@@ -355,76 +341,6 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </View>
-          </View>
-        </View>
-
-        {/* Game Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.gameSettings')}</Text>
-
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingTitle}>{t('settings.autoPassTimer')}</Text>
-            <Text style={styles.settingDescription}>{t('settings.autoPassTimerDescription')}</Text>
-            <View style={styles.comingSoonBanner}>
-              <Text style={styles.comingSoonText}>{t('settings.autoPassTimerBanner')}</Text>
-            </View>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  autoPassTimer === 'disabled' && styles.optionButtonActive,
-                ]}
-                onPress={() => handleAutoPassTimerChange('disabled')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === 'disabled' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  {t('settings.disabled')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '30' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('30')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '30' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  30s
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '60' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('60')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '60' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  60s
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '90' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('90')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '90' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  90s
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>

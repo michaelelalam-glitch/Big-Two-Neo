@@ -90,6 +90,7 @@ export default function LobbyScreen() {
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isGameInProgress, setIsGameInProgress] = useState(false); // Room already 'playing' (rejoin)
   const isLeavingRef = useRef(false); // Prevent double navigation
+  const lastConnectionStatusRef = useRef<string | null>(null); // Track for kicked-reason detection
   const isStartingRef = useRef(false); // Prevent duplicate start-game calls
   const isLeaveConfirmOpenRef = useRef(false); // Prevent stacked leave-confirmation dialogs
   const claimHostInFlightRef = useRef(false); // Prevent concurrent lobby_claim_host RPC calls
@@ -133,18 +134,64 @@ export default function LobbyScreen() {
   // Filtering by room_id prevents firing for other rooms' player changes (global subscription bug).
   useEffect(() => {
     if (!roomId) return;
+    // Always reload on INSERT and DELETE events (player joining, being kicked, or leaving).
+    // Also listen for UPDATE events, but only trigger a reload when meaningful fields change
+    // (host/ready/bot status, username).  Pure heartbeat updates
+    // (e.g., last_seen_at only) are ignored to avoid noisy logs and
+    // unnecessary re-renders on every 15-second heartbeat tick.
     const channel = supabase
       .channel(`lobby-players:${roomId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'room_players',
           filter: `room_id=eq.${roomId}`,
         },
         () => {
           loadPlayersRef.current();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'room_players',
+          filter: `room_id=eq.${roomId}`,
+        },
+        () => {
+          loadPlayersRef.current();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'room_players',
+          filter: `room_id=eq.${roomId}`,
+        },
+        payload => {
+          // Only reload for meaningful field changes (ready status, host, bot replacement).
+          // Skip pure heartbeat updates (last_seen_at / last_heartbeat only) to avoid
+          // console spam and unnecessary re-renders on every 15-second heartbeat tick.
+          const n = payload.new as Record<string, unknown>;
+          const o = payload.old as Record<string, unknown>;
+          // Track the current user's connection_status so the kicked-player alert
+          // can distinguish a disconnect kick from an inactivity kick.
+          if (n.user_id === user?.id && n.connection_status !== undefined) {
+            lastConnectionStatusRef.current = n.connection_status as string;
+          }
+          const meaningfulChange =
+            n.is_host !== o.is_host ||
+            n.is_ready !== o.is_ready ||
+            n.is_bot !== o.is_bot ||
+            n.username !== o.username;
+          if (meaningfulChange) {
+            loadPlayersRef.current();
+          }
         }
       )
       .subscribe();
@@ -326,7 +373,7 @@ export default function LobbyScreen() {
         throw error;
       }
 
-      roomLogger.info('[LobbyScreen] Raw query data:', JSON.stringify(data, null, 2));
+      // Raw query data intentionally not logged (high-volume, triggers every reload)
 
       // Transform data to match Player interface (with profiles object for backward compatibility)
       const players = (data || []).map(player => ({
@@ -395,9 +442,7 @@ export default function LobbyScreen() {
         roomLogger.info('[LobbyScreen] ✅ Current user found:', {
           user_id: user?.id,
           is_host: currentUserPlayer.is_host,
-          hostStatus,
           player_index: currentUserPlayer.player_index,
-          raw_player_data: JSON.stringify(currentUserPlayer),
         });
         setIsHost(hostStatus);
       } else {
@@ -418,9 +463,18 @@ export default function LobbyScreen() {
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
           isLeavingRef.current = true;
+          const lastConnectionStatus = lastConnectionStatusRef.current;
+          let kickMessage: string;
+          if (lastConnectionStatus === 'disconnected') {
+            kickMessage = i18n.t('lobby.kickedDisconnectedMessage');
+          } else if (kickerHost) {
+            kickMessage = i18n.t('lobby.kickedByHostMessage', { hostName });
+          } else {
+            kickMessage = i18n.t('lobby.kickedInactivityMessage');
+          }
           Alert.alert(
             i18n.t('lobby.kickedTitle'),
-            i18n.t('lobby.kickedByHostMessage', { hostName }),
+            kickMessage,
             [{ text: i18n.t('common.ok'), onPress: () => navigation.replace('Home') }],
             { cancelable: false }
           );
