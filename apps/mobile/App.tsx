@@ -11,7 +11,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
 import { initSentry, sentryCapture } from './src/services/sentry';
-import { trackEvent } from './src/services/analytics';
+import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
 
 // ── Sentry: initialise before any React tree renders ─────────────────────────
 // Placing init here (module-level) ensures Sentry is ready before the first
@@ -65,7 +65,9 @@ export default function App() {
     // Initialize i18n system on app start
     i18n.initialize().then(() => {
       setI18nInitialized(true);
-      // Track app_open after i18n is ready (first meaningful milestone)
+      // Enable analytics (app's privacy policy covers usage)
+      // and track the first meaningful milestone event.
+      setAnalyticsConsent(true);
       trackEvent('app_open');
     });
   }, []);

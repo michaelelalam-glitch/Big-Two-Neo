@@ -37,8 +37,13 @@ const MEASUREMENT_ID =
 const API_SECRET =
   process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
-/** Tracks whether the user has consented to analytics (opt-in by default). */
-let consentGiven = true;
+/**
+ * Tracks whether the user has consented to analytics.
+ * Defaults to FALSE (opt-in). Call setAnalyticsConsent(true) after obtaining
+ * explicit user consent. For silent no-op without consent, all send calls check
+ * this flag before dispatching any events.
+ */
+let consentGiven = false;
 
 // ─── Types ────────────────────────────────────────────────────────────────── //
 
@@ -116,7 +121,7 @@ async function sendEvents(
       name: e.name,
       params: {
         // Standard GA4 params
-        engagement_time_msec: '1',
+        engagement_time_msec: 1,
         session_id: getSessionId(),
         // Caller params
         ...e.params,
@@ -146,7 +151,7 @@ async function sendEvents(
  * Set the authenticated user ID so events can be tied to a specific user
  * in Firebase Analytics / BigQuery.
  *
- * `client_id` (random UUID, per-install) is kept separate from `user_id`
+ * `client_id` (random UUID, session-scoped) is kept separate from `user_id`
  * (Supabase UUID) so GA4 session semantics remain correct.
  *
  * @param userId - Supabase user UUID (do NOT use email or PII directly)
