@@ -186,12 +186,22 @@ export default function LobbyScreen() {
           if (n.user_id === userIdRef.current && n.connection_status !== undefined) {
             lastConnectionStatusRef.current = n.connection_status as string;
           }
+          // room_players uses REPLICA IDENTITY USING INDEX (room_id, player_index),
+          // so payload.old may only contain the indexed columns. Guard the comparison
+          // to avoid false positives when non-indexed fields are absent in old.
+          const hasRelevantOldFields =
+            Object.prototype.hasOwnProperty.call(o, 'is_host') ||
+            Object.prototype.hasOwnProperty.call(o, 'is_ready') ||
+            Object.prototype.hasOwnProperty.call(o, 'is_bot') ||
+            Object.prototype.hasOwnProperty.call(o, 'player_index') ||
+            Object.prototype.hasOwnProperty.call(o, 'username');
           const meaningfulChange =
-            n.is_host !== o.is_host ||
-            n.is_ready !== o.is_ready ||
-            n.is_bot !== o.is_bot ||
-            n.player_index !== o.player_index ||
-            n.username !== o.username;
+            hasRelevantOldFields &&
+            (n.is_host !== o.is_host ||
+              n.is_ready !== o.is_ready ||
+              n.is_bot !== o.is_bot ||
+              n.player_index !== o.player_index ||
+              n.username !== o.username);
           if (meaningfulChange) {
             loadPlayersRef.current();
           }
