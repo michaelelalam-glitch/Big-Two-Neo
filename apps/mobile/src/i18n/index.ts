@@ -154,6 +154,10 @@ export interface Translations {
     autoPassTimer: string;
     autoPassTimerDescription: string;
     disabled: string;
+    confirmBeforePlay: string;
+    confirmBeforePlayDescription: string;
+    keepScreenAwake: string;
+    keepScreenAwakeDescription: string;
 
     // Notifications
     pushNotifications: string;
@@ -520,6 +524,8 @@ export interface Translations {
     confirmLeaveNo: string;
     kickedTitle: string;
     kickedByHostMessage: string;
+    kickedDisconnectedMessage: string;
+    kickedInactivityMessage: string;
     kickPlayerTitle: string;
     kickPlayerMessage: string;
     kickPlayerConfirm: string;
@@ -904,6 +910,10 @@ const en: Translations = {
     autoPassTimer: 'Auto-Pass Timer',
     autoPassTimerDescription: 'Automatically pass after inactivity',
     disabled: 'Disabled',
+    confirmBeforePlay: 'Confirm Before Playing',
+    confirmBeforePlayDescription: 'Show a confirmation before playing cards',
+    keepScreenAwake: 'Keep Screen Awake',
+    keepScreenAwakeDescription: 'Prevent the screen from dimming during a game',
 
     pushNotifications: 'Push Notifications',
     pushNotificationsDescription: 'Receive push notifications for game events',
@@ -1237,6 +1247,9 @@ const en: Translations = {
     confirmLeaveNo: 'Stay',
     kickedTitle: 'Kicked',
     kickedByHostMessage: 'You were kicked from the room by {{hostName}}',
+    kickedDisconnectedMessage:
+      'You were removed from the lobby due to a disconnection. Please check your internet connection.',
+    kickedInactivityMessage: 'You were removed from the lobby due to inactivity or disconnection.',
     kickPlayerTitle: 'Kick Player',
     kickPlayerMessage: 'Are you sure you want to kick {{name}} from the room?',
     kickPlayerConfirm: 'Kick',
@@ -1608,6 +1621,10 @@ const ar: Translations = {
     autoPassTimer: 'مؤقت التمرير التلقائي',
     autoPassTimerDescription: 'التمرير تلقائيًا بعد عدم النشاط',
     disabled: 'معطل',
+    confirmBeforePlay: 'تأكيد قبل اللعب',
+    confirmBeforePlayDescription: 'عرض تأكيد قبل لعب البطاقات',
+    keepScreenAwake: 'إبقاء الشاشة نشطة',
+    keepScreenAwakeDescription: 'منع تعتيم الشاشة أثناء اللعبة',
 
     pushNotifications: 'إشعارات الدفع',
     pushNotificationsDescription: 'تلقي إشعارات الدفع لأحداث اللعبة',
@@ -1879,6 +1896,9 @@ const ar: Translations = {
     confirmLeaveNo: 'البقاء',
     kickedTitle: 'تمت إزالتك',
     kickedByHostMessage: 'لقد تمت إزالتك من الغرفة بواسطة {{hostName}}',
+    kickedDisconnectedMessage:
+      'تمت إزالتك من الغرفة بسبب انقطاع الاتصال. يرجى التحقق من اتصالك بالإنترنت.',
+    kickedInactivityMessage: 'تمت إزالتك من الغرفة بسبب عدم النشاط أو انقطاع الاتصال.',
     kickPlayerTitle: 'طرد اللاعب',
     kickPlayerMessage: 'هل أنت متأكد أنك تريد طرد {{name}} من الغرفة؟',
     kickPlayerConfirm: 'طرد',
@@ -2339,6 +2359,10 @@ const de: Translations = {
     autoPassTimer: 'Auto-Pass-Timer',
     autoPassTimerDescription: 'Automatisch passen nach Inaktivität',
     disabled: 'Deaktiviert',
+    confirmBeforePlay: 'Vor dem Spielen bestätigen',
+    confirmBeforePlayDescription: 'Bestätigung anzeigen, bevor Karten gespielt werden',
+    keepScreenAwake: 'Bildschirm wach halten',
+    keepScreenAwakeDescription: 'Verhindern, dass der Bildschirm während eines Spiels abdunkelt',
 
     pushNotifications: 'Push-Benachrichtigungen',
     pushNotificationsDescription: 'Push-Benachrichtigungen für Spielereignisse erhalten',
@@ -2618,6 +2642,10 @@ const de: Translations = {
     confirmLeaveNo: 'Bleiben',
     kickedTitle: 'Rausgeworfen',
     kickedByHostMessage: 'Du wurdest von {{hostName}} aus dem Raum geworfen',
+    kickedDisconnectedMessage:
+      'Du wurdest wegen einer Verbindungsunterbrechung aus dem Raum entfernt. Bitte überprüfe deine Internetverbindung.',
+    kickedInactivityMessage:
+      'Du wurdest wegen Inaktivität oder Verbindungsunterbrechung aus dem Raum entfernt.',
     kickPlayerTitle: 'Spieler rauswerfen',
     kickPlayerMessage: 'Möchtest du {{name}} wirklich aus dem Raum werfen?',
     kickPlayerConfirm: 'Rauswerfen',

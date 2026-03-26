@@ -157,10 +157,55 @@ export function MultiplayerGame() {
       }
 
       try {
-        // 1. Clean up old room membership (scoped to current room) to prevent
-        // "already in room" conflicts. Uses both user_id (direct) and
-        // human_user_id (bot-replacement) cleanup paths.
-        if (info?.id) {
+        if (!info) {
+          gameLogger.error(
+            '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
+          );
+          showInGameAlert({
+            message: 'Unable to create a new game room right now. Please try again.',
+          });
+          return;
+        }
+
+        // 0. Capture host status BEFORE any async cleanup so that the
+        //    connection-status-dependent isHostRef is not affected by DB
+        //    changes triggered by the cleanup steps below.
+        const amHost = isHostRef.current;
+        gameLogger.info('🔄 [MultiplayerGame] Play Again: amHost=', amHost);
+
+        // 1a. Non-hosts: start listening for the host's broadcast IMMEDIATELY,
+        //     before cleanup, so we are subscribed and will catch re-broadcasts
+        //     that happen while cleanup is still in flight.
+        let receivePlayAgainPromise: Promise<string | null> | null = null;
+        if (!amHost && info.id) {
+          const listenChannel = supabase.channel(`play-again:${info.id}`);
+          receivePlayAgainPromise = new Promise<string | null>(resolve => {
+            // 8s: 2s for cleanup + 5s rebroadcast window + 1s margin
+            const timeout = setTimeout(() => {
+              supabase.removeChannel(listenChannel);
+              resolve(null);
+            }, 8000);
+
+            listenChannel
+              .on('broadcast', { event: 'play_again_room' }, payload => {
+                clearTimeout(timeout);
+                const code = payload?.payload?.room_code as string | undefined;
+                if (code) {
+                  gameLogger.info('🔄 [MultiplayerGame] Received play_again_room broadcast:', code);
+                  resolve(code);
+                } else {
+                  resolve(null);
+                }
+                supabase.removeChannel(listenChannel);
+              })
+              .subscribe();
+          });
+        }
+
+        // 1b. Clean up old room membership (scoped to current room) to prevent
+        //     "already in room" conflicts. Uses both user_id (direct) and
+        //     human_user_id (bot-replacement) cleanup paths.
+        if (info.id) {
           const { error: cleanupError } = await supabase
             .from('room_players')
             .delete()
@@ -185,48 +230,13 @@ export function MultiplayerGame() {
           );
         }
 
-        if (!info) {
-          gameLogger.error(
-            '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
-          );
-          showInGameAlert({
-            message: 'Unable to create a new game room right now. Please try again.',
-          });
-          return;
-        }
-
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-        // 2. Deterministic creator: host creates immediately, non-host listens
-        //    for a broadcast first (up to 5s) before falling back to creating.
-        //    This prevents the race where multiple players press Play Again
-        //    simultaneously, all listen, nobody broadcasts, and everyone
-        //    creates separate rooms.
-        const amHost = isHostRef.current;
+        // 2. Non-host: wait for the broadcast that was already being listened to
+        //    (started before cleanup, so we can't miss re-broadcasts).
         let receivedRoomCode: string | null = null;
-
-        if (!amHost && info.id) {
-          const playAgainChannel = supabase.channel(`play-again:${info.id}`);
-          receivedRoomCode = await new Promise<string | null>(resolve => {
-            const timeout = setTimeout(() => {
-              supabase.removeChannel(playAgainChannel);
-              resolve(null);
-            }, 5000);
-
-            playAgainChannel
-              .on('broadcast', { event: 'play_again_room' }, payload => {
-                clearTimeout(timeout);
-                const code = payload?.payload?.room_code as string | undefined;
-                if (code) {
-                  gameLogger.info('🔄 [MultiplayerGame] Received play_again_room broadcast:', code);
-                  resolve(code);
-                } else {
-                  resolve(null);
-                }
-                supabase.removeChannel(playAgainChannel);
-              })
-              .subscribe();
-          });
+        if (!amHost && receivePlayAgainPromise) {
+          receivedRoomCode = await receivePlayAgainPromise;
         }
 
         if (receivedRoomCode) {
@@ -282,7 +292,10 @@ export function MultiplayerGame() {
 
         gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', result.room_code);
 
-        // 4. Broadcast the new room code to other players on the old room channel
+        // 4. Broadcast the new room code to other players on the old room channel.
+        //    Non-hosts started their listener BEFORE cleanup (step 1a), so they
+        //    are already subscribed and will receive this broadcast as long as it
+        //    arrives within their 8-second window.
         if (info.id) {
           const broadcastChannel = supabase.channel(`play-again:${info.id}`);
           broadcastChannel.subscribe(async status => {
@@ -296,8 +309,8 @@ export function MultiplayerGame() {
                 '📡 [MultiplayerGame] Broadcasted play_again_room:',
                 result.room_code
               );
-              // Re-broadcast every 1s for 5 seconds so late subscribers can receive it
-              // (Supabase broadcasts are not buffered, so one-shot can miss late joiners)
+              // Re-broadcast every 1s for 8 seconds to match non-host listener window.
+              // Supabase broadcasts are not buffered — late subscribers miss one-shots.
               const rebroadcastInterval = setInterval(async () => {
                 try {
                   await broadcastChannel.send({
@@ -312,7 +325,7 @@ export function MultiplayerGame() {
               setTimeout(() => {
                 clearInterval(rebroadcastInterval);
                 supabase.removeChannel(broadcastChannel);
-              }, 5000);
+              }, 8000);
             } else if (
               status === 'CHANNEL_ERROR' ||
               status === 'TIMED_OUT' ||
