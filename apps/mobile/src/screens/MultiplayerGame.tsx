@@ -40,6 +40,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { sortHandLowestToHighest } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
 import { parseMultiplayerHands } from '../utils/parseMultiplayerHands';
+import { showError } from '../utils/alerts';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 // FinalScore import removed — onGameOver callback replaced by useMatchEndHandler (DB-authoritative path)
@@ -93,7 +94,13 @@ export function MultiplayerGame() {
   // In-game alert ref — orientation-aware replacement for Alert.alert
   const inGameAlertRef = useRef<InGameAlertHandle>(null);
   const showInGameAlert = useCallback((options: InGameAlertOptions) => {
-    inGameAlertRef.current?.show(options);
+    // Fallback to showError when the ref is unmounted/unavailable (e.g. during
+    // screen teardown) so errors are never silently dropped on iOS.
+    if (inGameAlertRef.current) {
+      inGameAlertRef.current.show(options);
+    } else {
+      showError(options.message, options.title);
+    }
   }, []);
 
   // State for bot replacement dialog
