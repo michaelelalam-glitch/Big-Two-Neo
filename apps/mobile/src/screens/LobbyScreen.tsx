@@ -190,6 +190,7 @@ export default function LobbyScreen() {
             n.is_host !== o.is_host ||
             n.is_ready !== o.is_ready ||
             n.is_bot !== o.is_bot ||
+            n.player_index !== o.player_index ||
             n.username !== o.username;
           if (meaningfulChange) {
             loadPlayersRef.current();
