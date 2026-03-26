@@ -215,7 +215,11 @@ export function trackEvent(
   const enrichedParams: AnalyticsEventParams = {
     ...params,
     platform: Platform.OS,
-    app_version: Constants.expoConfig?.version ?? 'unknown',
+    // Prefer the explicit EXPO_PUBLIC_APP_VERSION env var so analytics and
+    // Sentry both report the same version string. Falls back to Expo app
+    // config if the env var is not set.
+    app_version:
+      process.env.EXPO_PUBLIC_APP_VERSION ?? Constants.expoConfig?.version ?? 'unknown',
   };
 
   // Fire-and-forget — don't await in callers (non-blocking)
