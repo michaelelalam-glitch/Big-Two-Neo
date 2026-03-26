@@ -41,6 +41,7 @@ EXPO_PUBLIC_APP_VERSION=1.0.0
 
 1. Open [Sentry](https://sentry.io/) → your project → **Issues** dashboard
 2. Open a second tab to **Performance** → Transactions for trace verification
+   > **Note:** `tracesSampleRate` is `0` in dev builds, so no transactions will appear during local testing. Transactions are only produced in production builds.
 3. Keep **Sentry Project Settings → Environments** visible (filter to `development` when testing locally)
 
 ---
@@ -60,7 +61,7 @@ EXPO_PUBLIC_APP_VERSION=1.0.0
 Event: app_open
 Parameters:
   platform: "ios" or "android"
-  app_version: "1.0.0" (from EXPO_PUBLIC_APP_VERSION)
+  app_version: "1.0.0" (from EXPO_PUBLIC_APP_VERSION, falling back to Expo app config version)
   engagement_time_msec: 1
   session_id: <numeric timestamp>
 ```
@@ -151,13 +152,13 @@ Parameters:
 
 1. With `EXPO_PUBLIC_SENTRY_DSN` set, start the app
 2. In Sentry → **Issues** dashboard, verify the project shows **"Last seen"** updates
-3. In the Metro bundler console, verify `[Sentry] Initializing...` debug output (only in `__DEV__`)
+3. In the Metro bundler console, verify Sentry SDK debug output is shown (for dev builds with `debug: __DEV__`, e.g. lines prefixed with `[Sentry]`)
 
 **Expected:**
-- Sentry **debug mode** active in Metro console (dev builds only)
+- Sentry **debug mode** active in Metro console (dev builds only), with Sentry SDK debug logs visible
 - No crash; Sentry initialised without errors
 
-**Pass criteria:** Metro console shows Sentry init debug messages; Sentry dashboard is reachable.
+**Pass criteria:** Metro console shows Sentry SDK init/debug messages; Sentry dashboard is reachable.
 
 ---
 
@@ -350,5 +351,5 @@ Parameters:
 - Do NOT pass a timeout argument — use `Sentry.flush()` (no args)
 
 ### Coverage thresholds
-- `analytics.ts` and `sentry.ts` are intentionally excluded from `collectCoverageFrom` in `jest.config.js` because they use native modules (Expo Constants, Sentry native bridge) that require device/simulator testing
+- `analytics.ts` and `sentry.ts` are not included in Jest's `collectCoverageFrom` patterns (which cover `src/game/**` and scoreboard paths) because they use native modules (Expo Constants, Sentry native bridge) that require device/simulator testing
 - Unit tests mock both services — see `src/__tests__/__mocks__/sentry-react-native.ts` and `src/__tests__/__mocks__/expo-constants.ts`

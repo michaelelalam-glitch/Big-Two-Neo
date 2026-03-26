@@ -48,8 +48,9 @@ if (
     }
     // Report fatal errors to Sentry, then flush before forwarding to the
     // original handler. On a fatal crash the JS runtime may terminate before
-    // background queues drain, so we flush with a short timeout to maximise
-    // the chance the event is transmitted.
+    // background queues drain, so we flush synchronously (no timeout — the
+    // Sentry SDK flush() API takes no arguments in @sentry/react-native@8.5.0)
+    // to maximise the chance the event is transmitted.
     if (isFatal) {
       sentryCapture.exception(error, {
         context: 'GlobalErrorHandler',
