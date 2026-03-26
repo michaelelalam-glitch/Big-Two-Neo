@@ -136,8 +136,8 @@ export default function LobbyScreen() {
     if (!roomId) return;
     // Always reload on INSERT and DELETE events (player joining, being kicked, or leaving).
     // Also listen for UPDATE events, but only trigger a reload when meaningful fields change
-    // (host/ready/bot status, connection_status, username).  Pure heartbeat updates
-    // (e.g., last_seen_at / last_heartbeat only) are ignored to avoid noisy logs and
+    // (host/ready/bot status, username).  Pure heartbeat updates
+    // (e.g., last_seen_at only) are ignored to avoid noisy logs and
     // unnecessary re-renders on every 15-second heartbeat tick.
     const channel = supabase
       .channel(`lobby-players:${roomId}`)
@@ -188,7 +188,6 @@ export default function LobbyScreen() {
             n.is_host !== o.is_host ||
             n.is_ready !== o.is_ready ||
             n.is_bot !== o.is_bot ||
-            n.connection_status !== o.connection_status ||
             n.username !== o.username;
           if (meaningfulChange) {
             loadPlayersRef.current();
