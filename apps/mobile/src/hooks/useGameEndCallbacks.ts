@@ -4,6 +4,7 @@
  * Extracted from GameScreen.tsx to reduce file size (~35 lines).
  */
 
+import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
@@ -21,6 +22,11 @@ interface UseGameEndCallbacksOptions {
   setOnReturnToMenu: (fn: () => () => void) => void;
   /** Clears all score history and scoreboard state for a fresh game. */
   clearHistory: () => void;
+  /**
+   * Orientation-safe in-game alert (iOS only). When provided, used instead of
+   * `showError`/`Alert.alert` so errors respect the active orientation lock.
+   */
+  onAlert?: (options: { title?: string; message: string }) => void;
 }
 
 export function useGameEndCallbacks({
@@ -31,14 +37,23 @@ export function useGameEndCallbacks({
   setOnPlayAgain,
   setOnReturnToMenu,
   clearHistory,
+  onAlert,
 }: UseGameEndCallbacksOptions): void {
+  const alertError = (message: string) => {
+    if (Platform.OS === 'ios' && onAlert) {
+      onAlert({ message });
+    } else {
+      showError(message);
+    }
+  };
+
   useEffect(() => {
     setOnPlayAgain(() => async () => {
       // Access ref lazily so this callback works even when registered before
       // the game manager finishes initializing (avoiding early-return on mount).
       const manager = gameManagerRef.current;
       if (!manager) {
-        showError('Game not ready. Please try again.');
+        alertError('Game not ready. Please try again.');
         return;
       }
       gameLogger.info('🔄 [GameScreen] Play Again requested - reinitializing game');
@@ -55,7 +70,7 @@ export function useGameEndCallbacks({
         soundManager.playSound(SoundType.GAME_START);
       } catch (error) {
         gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
-        showError('Failed to restart game. Please try again.');
+        alertError('Failed to restart game. Please try again.');
       }
     });
 

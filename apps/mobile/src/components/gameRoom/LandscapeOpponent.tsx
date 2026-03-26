@@ -68,7 +68,11 @@ interface LandscapeOpponentProps {
   isBot?: boolean;
   /** Video chat: camera actively streaming */
   isCameraOn?: boolean;
-  /** Whether this player's mic is on */
+  /**
+   * Whether this player's mic is on.
+   * If `undefined`, the mic state is unknown or not applicable and
+   * no mic indicator is shown.
+   */
   isMicOn?: boolean;
   /** Called when the mic toggle button is pressed */
   onMicToggle?: () => void;

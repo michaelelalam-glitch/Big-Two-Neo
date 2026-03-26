@@ -204,6 +204,7 @@ export function LocalAIGame() {
     setOnPlayAgain,
     setOnReturnToMenu,
     clearHistory,
+    onAlert: showInGameAlert,
   });
 
   // Cleanup: navigation cleanup + mount tracking
