@@ -187,21 +187,26 @@ export default function LobbyScreen() {
             lastConnectionStatusRef.current = n.connection_status as string;
           }
           // room_players uses REPLICA IDENTITY USING INDEX (room_id, player_index),
-          // so payload.old may only contain the indexed columns. Guard the comparison
-          // to avoid false positives when non-indexed fields are absent in old.
-          const hasRelevantOldFields =
-            Object.prototype.hasOwnProperty.call(o, 'is_host') ||
-            Object.prototype.hasOwnProperty.call(o, 'is_ready') ||
-            Object.prototype.hasOwnProperty.call(o, 'is_bot') ||
-            Object.prototype.hasOwnProperty.call(o, 'player_index') ||
-            Object.prototype.hasOwnProperty.call(o, 'username');
+          // so payload.old may only contain the indexed columns. Guard each field
+          // individually: only treat it as changed if the field is actually present
+          // in old, preventing every heartbeat update from triggering a reload.
+          const hasHostChange =
+            Object.prototype.hasOwnProperty.call(o, 'is_host') && n.is_host !== o.is_host;
+          const hasReadyChange =
+            Object.prototype.hasOwnProperty.call(o, 'is_ready') && n.is_ready !== o.is_ready;
+          const hasBotChange =
+            Object.prototype.hasOwnProperty.call(o, 'is_bot') && n.is_bot !== o.is_bot;
+          const hasPlayerIndexChange =
+            Object.prototype.hasOwnProperty.call(o, 'player_index') &&
+            n.player_index !== o.player_index;
+          const hasUsernameChange =
+            Object.prototype.hasOwnProperty.call(o, 'username') && n.username !== o.username;
           const meaningfulChange =
-            hasRelevantOldFields &&
-            (n.is_host !== o.is_host ||
-              n.is_ready !== o.is_ready ||
-              n.is_bot !== o.is_bot ||
-              n.player_index !== o.player_index ||
-              n.username !== o.username);
+            hasHostChange ||
+            hasReadyChange ||
+            hasBotChange ||
+            hasPlayerIndexChange ||
+            hasUsernameChange;
           if (meaningfulChange) {
             loadPlayersRef.current();
           }
