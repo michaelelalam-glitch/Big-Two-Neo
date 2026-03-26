@@ -605,8 +605,14 @@ function isHighestRemainingFiveCardCombo(
 
       // No higher straight possible - check if this is the best of current sequence
       // For same sequence, compare highest suit
-      const highestCard = sorted[sorted.length - 1];
       const currentSeq = VALID_STRAIGHT_SEQUENCES[currentSeqIdx];
+
+      // sortHand uses Big-Two rank values (where 2 is the highest rank), which produces
+      // the wrong card for suit comparison in low straights (A-2-3-4-5 and 2-3-4-5-6)
+      // where 2 is the LOWEST card in the sequence, not the highest.
+      // Use the sequence's defined top rank to find the correct card.
+      const topSeqRank = currentSeq[currentSeq.length - 1];
+      const highestCard = sorted.find(c => c.rank === topSeqRank) ?? sorted[sorted.length - 1];
 
       // Issue 1 optimization: Only the highest-rank card's suit determines which
       // same-sequence straight wins. Instead of generating all 4^5 suit combinations,
@@ -618,8 +624,7 @@ function isHighestRemainingFiveCardCombo(
       }
 
       // Find the highest suit available for the top rank in the sequence
-      const highestRank = currentSeq[currentSeq.length - 1];
-      const cardsAtHighestRank = remaining.filter(c => c.rank === highestRank);
+      const cardsAtHighestRank = remaining.filter(c => c.rank === topSeqRank);
       let bestAvailableSuitValue = -1;
       for (const card of cardsAtHighestRank) {
         const sv = SUIT_VALUE[card.suit];
