@@ -26,13 +26,13 @@ import {
   StyleSheet,
   Platform,
   Share,
+  Alert,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import { useGameEnd } from '../../contexts/GameEndContext';
-import { useGameContext } from '../../contexts/GameContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
@@ -61,8 +61,6 @@ export const GameEndModal: React.FC = () => {
     onPlayAgain,
     onReturnToMenu,
   } = useGameEnd();
-
-  const { showInGameAlert } = useGameContext();
 
   const [activeTab, setActiveTab] = useState<TabType>('score');
   const [showFireworks, setShowFireworks] = useState(false);
@@ -174,10 +172,9 @@ export const GameEndModal: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sharing results:', error);
-      showInGameAlert({
-        title: i18n.t('gameEnd.shareError'),
-        message: i18n.t('gameEnd.shareErrorMessage'),
-      });
+      // GameEndModal is overFullScreen — presenting InGameAlert (another modal) on iOS
+      // would be blocked. Use the system Alert instead, which always works.
+      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
     }
   };
 
@@ -191,12 +188,9 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
     if (result === 'copied') {
-      showInGameAlert({ message: i18n.t('gameEnd.copyResultsSuccess') });
+      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
     } else if (result === 'failed') {
-      showInGameAlert({
-        title: i18n.t('gameEnd.shareError'),
-        message: i18n.t('gameEnd.shareErrorMessage'),
-      });
+      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
     }
     // 'shared': Share sheet was presented — no additional alert needed
   };
