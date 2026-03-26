@@ -10,7 +10,6 @@ import {
   Modal,
   Share,
   Alert,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -27,6 +26,7 @@ import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { roomLogger } from '../utils/logger';
 import { AddFriendButton } from '../components/friends';
 import { useFriendsContext } from '../contexts/FriendsContext';
+import { useUnlockOrientationOnIos } from '../hooks/useUnlockOrientationOnIos';
 
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
@@ -64,27 +64,9 @@ export default function LobbyScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
-  // On iOS, expo-screen-orientation may still hold a portrait lock from the
-  // game screen. Release it here so the lobby can auto-rotate in landscape.
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let cancelled = false;
-    const unlock = async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const ScreenOrientation = require('expo-screen-orientation');
-        if (!cancelled) await ScreenOrientation.unlockAsync();
-      } catch {
-        // expo-screen-orientation not available — safe to ignore
-      }
-    };
-    void unlock();
-    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [navigation]);
+  // On iOS, release any portrait lock held by the game screen so the lobby
+  // can auto-rotate in landscape.
+  useUnlockOrientationOnIos(navigation);
 
   // Invite friends modal state
   const [showInviteModal, setShowInviteModal] = useState(false);

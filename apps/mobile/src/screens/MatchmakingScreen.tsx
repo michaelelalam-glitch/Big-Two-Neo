@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   ScrollView,
   useWindowDimensions,
-  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,6 +17,7 @@ import { useMatchmaking } from '../hooks/useMatchmaking';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { showError } from '../utils';
+import { useUnlockOrientationOnIos } from '../hooks/useUnlockOrientationOnIos';
 
 type MatchmakingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Matchmaking'>;
 type MatchmakingScreenRouteProp = RouteProp<RootStackParamList, 'Matchmaking'>;
@@ -38,29 +38,9 @@ export default function MatchmakingScreen() {
   const route = useRoute<MatchmakingScreenRouteProp>();
   const { user, profile } = useAuth();
 
-  // On iOS, expo-screen-orientation may still hold a portrait lock from the
-  // game screen. Release it here so the matchmaking screen can auto-rotate in
-  // landscape when the device is held sideways. Android handles this natively.
-  // Also re-unlock on focus so navigating back from lobby restores rotation.
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let cancelled = false;
-    const unlock = async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const ScreenOrientation = require('expo-screen-orientation');
-        if (!cancelled) await ScreenOrientation.unlockAsync();
-      } catch {
-        // expo-screen-orientation not available — safe to ignore
-      }
-    };
-    void unlock();
-    const unsubscribe = navigation.addListener('focus', () => { void unlock(); });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [navigation]);
+  // On iOS, release any portrait lock held by the game screen so the
+  // matchmaking screen can auto-rotate in landscape.
+  useUnlockOrientationOnIos(navigation);
 
   // Get match type from route params (default: 'casual')
   const matchType = route.params?.matchType || 'casual';
