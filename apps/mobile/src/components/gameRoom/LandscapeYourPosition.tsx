@@ -98,6 +98,13 @@ export function LandscapeYourPosition({
   const optimisticRollbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
 
+  // Keep a ref to the latest cards prop so the rollback timeout always compares
+  // against the current hand (not the stale closure value from when the timeout was scheduled).
+  const cardsRef = useRef(cards);
+  React.useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+
   // Rollback optimistic removals after a timeout if the parent props haven't confirmed
   const scheduleOptimisticRollback = useCallback(() => {
     if (optimisticRollbackTimerRef.current) clearTimeout(optimisticRollbackTimerRef.current);
@@ -105,19 +112,23 @@ export function LandscapeYourPosition({
       if (optimisticallyRemovedRef.current.size > 0) {
         optimisticallyRemovedRef.current.clear();
         setDisplayCards(prev => {
-          const parentIds = new Set(cards.map(c => c.id));
+          // Use cardsRef.current (not the closure-captured `cards`) so we always
+          // compare against the latest parent hand, even if it changed after the
+          // rollback was scheduled (e.g. new deal, resync, or reorder).
+          const latestCards = cardsRef.current;
+          const parentIds = new Set(latestCards.map(c => c.id));
           const currentIds = new Set(prev.map(c => c.id));
           if (
             parentIds.size !== currentIds.size ||
             ![...parentIds].every(id => currentIds.has(id))
           ) {
-            return cards;
+            return latestCards;
           }
           return prev;
         });
       }
     }, 3000);
-  }, [cards]);
+  }, []);
 
   // Clean up the rollback timer on unmount
   React.useEffect(() => {
@@ -321,7 +332,9 @@ export function LandscapeYourPosition({
         ) {
           const card = orderedCards.find(c => c.id === cardId);
           if (card) {
-            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+              () => {}
+            );
             // Optimistically remove card from display - don't wait for server confirmation
             optimisticallyRemovedRef.current.add(cardId);
             setDisplayCards(prev => prev.filter(c => c.id !== cardId));
