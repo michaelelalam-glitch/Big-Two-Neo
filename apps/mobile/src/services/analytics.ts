@@ -137,11 +137,11 @@ async function sendEvents(
     events: events.map((e) => ({
       name: e.name,
       params: {
-        // Standard GA4 params
+        // Caller params (may not override GA4-reserved fields below)
+        ...(e.params ?? {}),
+        // Standard GA4 params — enforced last
         engagement_time_msec: 1,
         session_id: getSessionId(),
-        // Caller params
-        ...e.params,
       },
     })),
   };
@@ -205,9 +205,9 @@ export function trackEvent(
   params?: AnalyticsEventParams,
 ): void {
   const enrichedParams: AnalyticsEventParams = {
+    ...params,
     platform: Platform.OS,
     app_version: Constants.expoConfig?.version ?? 'unknown',
-    ...params,
   };
 
   // Fire-and-forget — don't await in callers (non-blocking)
