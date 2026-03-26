@@ -3,7 +3,8 @@
  *
  * Source-of-truth for persisted, user-configurable game preference settings
  * (cardSortOrder, animationSpeed, autoPassTimer, profileVisibility,
- * showOnlineStatus) that survive app restarts via Zustand `persist` middleware.
+ * showOnlineStatus, confirmBeforePlay, keepScreenAwake) that survive app
+ * restarts via Zustand `persist` middleware.
  * Replaces the scattered useState + AsyncStorage pattern in SettingsScreen and
  * GameSettingsModal.
  *

@@ -180,7 +180,7 @@ export function MultiplayerGame() {
         if (!amHost && info.id) {
           const listenChannel = supabase.channel(`play-again:${info.id}`);
           receivePlayAgainPromise = new Promise<string | null>(resolve => {
-            // 8s: 2s for cleanup + 5s rebroadcast window + 1s margin
+            // 8s: 2s for cleanup + 5s rebroadcast window + 1s buffer margin
             const timeout = setTimeout(() => {
               supabase.removeChannel(listenChannel);
               resolve(null);
