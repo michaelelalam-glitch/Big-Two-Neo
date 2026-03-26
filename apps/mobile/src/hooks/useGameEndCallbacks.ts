@@ -10,6 +10,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { soundManager, SoundType, showError } from '../utils';
 import { gameLogger } from '../utils/logger';
+import i18n from '../i18n';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { GameStateManager } from '../game/state';
 
@@ -44,7 +45,7 @@ export function useGameEndCallbacks({
     // `onAlert` prop — avoids a stale-closure if the callback changes after mount.
     const alertError = (message: string) => {
       if (Platform.OS === 'ios' && onAlert) {
-        onAlert({ title: 'Error', message });
+        onAlert({ title: i18n.t('common.error'), message });
       } else {
         showError(message);
       }
