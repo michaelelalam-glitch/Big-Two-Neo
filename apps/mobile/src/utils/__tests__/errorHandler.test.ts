@@ -34,9 +34,13 @@ jest.mock('../../services/analytics', () => ({
 
 import { showError } from '../alerts';
 import { gameLogger } from '../logger';
+import { sentryCapture } from '../../services/sentry';
+import { trackError } from '../../services/analytics';
 
 const mockShowError = showError as jest.Mock;
 const mockLoggerError = (gameLogger as { error: jest.Mock }).error;
+const mockSentryException = (sentryCapture as { exception: jest.Mock }).exception;
+const mockTrackError = trackError as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -110,16 +114,28 @@ describe('extractErrorMessage', () => {
 
 describe('handleError', () => {
   it('logs with context prefix and shows alert by default', () => {
-    const result = handleError(new Error('fail'), { context: 'Test' });
+    const error = new Error('fail');
+    const result = handleError(error, { context: 'Test' });
     expect(mockLoggerError).toHaveBeenCalledWith('[Test] fail');
     expect(mockShowError).toHaveBeenCalledWith('fail');
     expect(result).toBe('fail');
+    // Sentry captures with 'error' level for non-silent errors
+    expect(mockSentryException).toHaveBeenCalledWith(error, { context: 'Test', level: 'error' });
+    // Analytics receives fixed constant (not raw error message)
+    expect(mockTrackError).toHaveBeenCalledWith('Test', 'UNEXPECTED_ERROR', false);
   });
 
   it('does NOT show alert when silent: true', () => {
     handleError(new Error('bg error'), { context: 'BgSync', silent: true });
     expect(mockLoggerError).toHaveBeenCalledWith('[BgSync] bg error');
     expect(mockShowError).not.toHaveBeenCalled();
+    // Sentry captures with 'warning' level for silent errors
+    expect(mockSentryException).toHaveBeenCalledWith(
+      expect.any(Error),
+      { context: 'BgSync', level: 'warning' },
+    );
+    // Analytics NOT called for silent errors
+    expect(mockTrackError).not.toHaveBeenCalled();
   });
 
   it('shows custom userMessage instead of raw error', () => {

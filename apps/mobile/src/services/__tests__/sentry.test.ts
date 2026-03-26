@@ -62,6 +62,31 @@ describe('initSentry', () => {
   });
 });
 
+describe('initSentry (enabled path)', () => {
+  it('calls Sentry.init and enables capture helpers when DSN is set', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, isSentryEnabled: isEnabled, sentryCapture: capture } = require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        expect(MockSentry.init).toHaveBeenCalledWith(
+          expect.objectContaining({ dsn: 'https://test@sentry.io/123456' }),
+        );
+        expect(isEnabled()).toBe(true);
+        // captureException should forward to the underlying Sentry mock
+        capture.exception(new Error('sentry test error'), { context: 'TestCtx' });
+        expect(MockSentry.captureException).toHaveBeenCalled();
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+});
+
+
 describe('isSentryEnabled', () => {
   it('returns a boolean', () => {
     expect(typeof isSentryEnabled()).toBe('boolean');

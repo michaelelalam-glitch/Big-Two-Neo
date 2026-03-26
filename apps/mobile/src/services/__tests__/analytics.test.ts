@@ -51,7 +51,7 @@ function clearEnv() {
 
 beforeEach(() => {
   mockFetch.mockResolvedValue({ ok: true });
-  // Reset consent to default (true)
+  // Explicitly enable consent for tests (default is false / opt-in)
   setAnalyticsConsent(true);
   setAnalyticsUserId(null);
   clearEnv();

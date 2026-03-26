@@ -65,8 +65,9 @@ export default function App() {
     // Initialize i18n system on app start
     i18n.initialize().then(() => {
       setI18nInitialized(true);
-      // Enable analytics (app's privacy policy covers usage)
-      // and track the first meaningful milestone event.
+      // Analytics is enabled at startup per the app's privacy policy.
+      // If GDPR/opt-in compliance is required, gate this call on a persisted
+      // user preference loaded from AsyncStorage before enabling consent.
       setAnalyticsConsent(true);
       trackEvent('app_open');
     });
