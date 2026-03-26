@@ -464,12 +464,15 @@ export default function LobbyScreen() {
           const hostName = kickerHost?.profiles?.username || 'Host';
           roomLogger.info('[LobbyScreen] Current user removed from room (kicked) by:', hostName);
           isLeavingRef.current = true;
-          const wasDisconnected = lastConnectionStatusRef.current === 'disconnected';
-          const kickMessage = kickerHost
-            ? i18n.t('lobby.kickedByHostMessage', { hostName })
-            : wasDisconnected
-              ? i18n.t('lobby.kickedDisconnectedMessage')
-              : i18n.t('lobby.kickedInactivityMessage');
+          const lastConnectionStatus = lastConnectionStatusRef.current;
+          let kickMessage: string;
+          if (lastConnectionStatus === 'disconnected') {
+            kickMessage = i18n.t('lobby.kickedDisconnectedMessage');
+          } else if (kickerHost) {
+            kickMessage = i18n.t('lobby.kickedByHostMessage', { hostName });
+          } else {
+            kickMessage = i18n.t('lobby.kickedInactivityMessage');
+          }
           Alert.alert(
             i18n.t('lobby.kickedTitle'),
             kickMessage,
