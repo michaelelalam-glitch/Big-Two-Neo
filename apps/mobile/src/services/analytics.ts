@@ -194,7 +194,8 @@ export function isAnalyticsEnabled(): boolean {
  * Track an analytics event.
  *
  * @param name   - Event name (see {@link AnalyticsEventName})
- * @param params - Optional key/value parameters (strings, numbers, booleans only)
+ * @param params - Optional key/value parameters (strings and numbers only).
+ *                 Normalise booleans before calling (e.g. true/false → 1/0).
  *
  * @example
  * analytics.track('game_started', { mode: 'multiplayer', player_count: 4 });

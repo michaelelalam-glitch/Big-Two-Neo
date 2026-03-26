@@ -98,8 +98,17 @@ describe('isAnalyticsEnabled', () => {
 
 describe('trackEvent', () => {
   it('does not call fetch when credentials are not set', async () => {
-    trackEvent('app_open');
-    // allow microtask queue to flush
+    // Use isolateModules + clearEnv so this test is hermetic even if the
+    // developer has EXPO_PUBLIC_ vars set in their shell environment.
+    // (Module-level constants are captured at import time, so a top-level
+    // import would see whatever env vars were present when the file loaded.)
+    jest.isolateModules(() => {
+      clearEnv();
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedTrack('app_open');
+    });
+    await Promise.resolve();
     await Promise.resolve();
     expect(mockFetch).not.toHaveBeenCalled();
   });
