@@ -240,9 +240,9 @@ export const GameEndModal: React.FC = () => {
     // confirmation is needed.
     setShowGameEndModal(false);
     if (onPlayAgain) {
-      void Promise.resolve(onPlayAgain()).catch(err =>
-        console.warn('[GameEndModal] onPlayAgain error:', err)
-      );
+      void Promise.resolve()
+        .then(() => onPlayAgain())
+        .catch(err => console.warn('[GameEndModal] onPlayAgain error:', err));
     }
   };
 
@@ -261,9 +261,9 @@ export const GameEndModal: React.FC = () => {
     // confirmation is needed.
     setShowGameEndModal(false);
     if (onReturnToMenu) {
-      void Promise.resolve(onReturnToMenu()).catch(err =>
-        console.warn('[GameEndModal] onReturnToMenu error:', err)
-      );
+      void Promise.resolve()
+        .then(() => onReturnToMenu())
+        .catch(err => console.warn('[GameEndModal] onReturnToMenu error:', err));
     }
   };
 
