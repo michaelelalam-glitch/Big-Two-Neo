@@ -68,16 +68,14 @@ interface LandscapeOpponentProps {
   isBot?: boolean;
   /** Video chat: camera actively streaming */
   isCameraOn?: boolean;
-  /** Whether this player's mic is on (undefined = mic state unknown / not applicable) */
+  /** Whether this player's mic is on */
   isMicOn?: boolean;
-  /** Called when the mic toggle button is pressed (local player only) */
+  /** Called when the mic toggle button is pressed */
   onMicToggle?: () => void;
   /** Video chat: connection being established */
   isVideoChatConnecting?: boolean;
-  /** Video chat: injected <LiveKitVideoSlot /> element */
+  /** Video chat: injected live video element */
   videoStreamSlot?: ReactNode;
-  /** Whether this is the local player's own position — suppresses redundant camera-off badge */
-  isLocalPlayer?: boolean;
 }
 
 // ============================================================================
@@ -103,7 +101,6 @@ export function LandscapeOpponent({
   onMicToggle,
   isVideoChatConnecting,
   videoStreamSlot,
-  isLocalPlayer = false,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -180,22 +177,15 @@ export function LandscapeOpponent({
                 <Text style={[styles.avatarIcon, { fontSize: avatarScale.iconSize }]}>📷</Text>
               </View>
             ) : (
-              <>
-                <Text
-                  style={[
-                    styles.avatarIcon,
-                    { fontSize: avatarScale.iconSize },
-                    isDisconnected && styles.avatarIconFaded,
-                  ]}
-                >
-                  👤
-                </Text>
-                {isCameraOn === false && !isBot && !isLocalPlayer && (
-                  <View style={styles.cameraOffBadge} pointerEvents="none">
-                    <Text style={styles.cameraOffIcon}>📵</Text>
-                  </View>
-                )}
-              </>
+              <Text
+                style={[
+                  styles.avatarIcon,
+                  { fontSize: avatarScale.iconSize },
+                  isDisconnected && styles.avatarIconFaded,
+                ]}
+              >
+                👤
+              </Text>
             )}
           </View>
           {/* Countdown ring (yellow = turn, charcoal grey = disconnect) */}
@@ -442,17 +432,6 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   micIndicatorIcon: {
-    fontSize: 10,
-  },
-  cameraOffBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 8,
-    padding: 2,
-  },
-  cameraOffIcon: {
     fontSize: 10,
   },
 });
