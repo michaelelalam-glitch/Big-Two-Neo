@@ -157,11 +157,10 @@ export function handleError(
   // Report to Sentry (non-blocking; no-op if Sentry not initialised)
   sentryCapture.exception(error, { context, level: silent ? 'warning' : 'error' });
 
-  // Track non-fatal error in Firebase Analytics (only for non-silent errors)
-  // Use a sanitized/whitelisted message to avoid leaking sensitive data
+  // Track non-fatal error in Firebase Analytics (only for non-silent errors).
+  // Always send a fixed constant to avoid inadvertently leaking sensitive data.
   if (!silent) {
-    const analyticsMessage = userMessage ?? 'UNEXPECTED_ERROR';
-    trackError(context, analyticsMessage, false);
+    trackError(context, 'UNEXPECTED_ERROR', false);
   }
 
   // Surface to user unless silent
