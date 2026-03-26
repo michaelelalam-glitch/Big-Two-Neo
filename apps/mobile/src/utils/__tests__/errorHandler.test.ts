@@ -19,6 +19,19 @@ jest.mock('../logger', () => ({
   },
 }));
 
+// Mock Sentry and analytics services (added by task #272) — keep existing tests isolated
+jest.mock('../../services/sentry', () => ({
+  sentryCapture: {
+    exception: jest.fn(),
+    message: jest.fn(),
+    breadcrumb: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/analytics', () => ({
+  trackError: jest.fn(),
+}));
+
 import { showError } from '../alerts';
 import { gameLogger } from '../logger';
 

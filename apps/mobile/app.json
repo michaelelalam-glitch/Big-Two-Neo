@@ -54,6 +54,15 @@
     "plugins": [
       "expo-dev-client",
       [
+        "@sentry/react-native/expo",
+        {
+          "organization": "big2-mobile",
+          "project": "big2-mobile-app",
+          "uploadNativeSymbols": false,
+          "autoUploadNativeSymbols": false
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

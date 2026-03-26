@@ -25,6 +25,8 @@
  * ```
  */
 
+import { sentryCapture } from '../services/sentry';
+import { trackError } from '../services/analytics';
 import { showError } from './alerts';
 import { gameLogger } from './logger';
 
@@ -151,6 +153,12 @@ export function handleError(
 
   // Log — include context prefix for easy grep-ability
   logger.error(`[${context}] ${message}`);
+
+  // Report to Sentry (non-blocking; no-op if Sentry not initialised)
+  sentryCapture.exception(error, { context, level: silent ? 'warning' : 'error' });
+
+  // Track non-fatal error in Firebase Analytics
+  trackError(context, message, false);
 
   // Surface to user unless silent
   if (!silent) {

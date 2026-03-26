@@ -10,6 +10,13 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
+import { initSentry, sentryCapture } from './src/services/sentry';
+import { trackEvent } from './src/services/analytics';
+
+// ── Sentry: initialise before any React tree renders ─────────────────────────
+// Placing init here (module-level) ensures Sentry is ready before the first
+// render cycle, so any early errors are captured.
+initSentry();
 
 // ── Global unhandled native error handler ─────────────────────────────────────
 // Catches native bridge errors (e.g. modal orientation mismatches) that error
@@ -39,6 +46,13 @@ if (
       // Swallow — already fixed in AppDelegate; this is a safety net
       return;
     }
+    // Report fatal errors to Sentry before forwarding to the original handler
+    if (isFatal) {
+      sentryCapture.exception(error, {
+        context: 'GlobalErrorHandler',
+        tags: { fatal: 'true' },
+      });
+    }
     // Forward everything else to the original handler
     originalHandler?.(error, isFatal);
   });
@@ -51,6 +65,8 @@ export default function App() {
     // Initialize i18n system on app start
     i18n.initialize().then(() => {
       setI18nInitialized(true);
+      // Track app_open after i18n is ready (first meaningful milestone)
+      trackEvent('app_open');
     });
   }, []);
 
