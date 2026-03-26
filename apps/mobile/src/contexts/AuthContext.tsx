@@ -478,6 +478,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const profileData = await fetchProfile(initialSession.user.id);
             setProfile(profileData);
 
+            // Set analytics user ID and Sentry user context on cold start.
+            // The SIGNED_IN onAuthStateChange handler covers fresh sign-ins;
+            // this covers users who were already logged in when the app launched.
+            setAnalyticsUserId(initialSession.user.id);
+            setSentryUser({ id: initialSession.user.id });
+
             // CRITICAL FIX: Clean up stale room memberships on login
             // This handles cases where user force-closed app or didn't properly leave
             await cleanupStaleRoomMembership(initialSession.user.id);
