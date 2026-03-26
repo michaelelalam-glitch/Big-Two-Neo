@@ -711,15 +711,6 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     textAlign: 'center',
   },
-  modalCancelButton: {
-    padding: SPACING.md,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray.medium,
-    fontWeight: '600',
-  },
   modalCloseButton: {
     position: 'absolute',
     top: SPACING.sm,

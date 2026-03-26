@@ -26,7 +26,6 @@ import {
   StyleSheet,
   Platform,
   Share,
-  Alert,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
@@ -64,6 +63,15 @@ export const GameEndModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('score');
   const [showFireworks, setShowFireworks] = useState(false);
+  // In-modal toast: avoids native alert stacking inside overFullScreen modal on iOS
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Auto-dismiss toast after 2.5 s
+  useEffect(() => {
+    if (!toastMsg) return;
+    const timer = setTimeout(() => setToastMsg(null), 2500);
+    return () => clearTimeout(timer);
+  }, [toastMsg]);
 
   // Task #421: Responsive dimensions and orientation detection
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -172,9 +180,9 @@ export const GameEndModal: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sharing results:', error);
-      // GameEndModal is overFullScreen — presenting InGameAlert (another modal) on iOS
-      // would be blocked. Use the system Alert instead, which always works.
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      // Show feedback inside the modal to respect the orientation lock.
+      // Alert.alert would ignore the game's orientation lock on iOS.
+      setToastMsg(`${i18n.t('gameEnd.shareError')}: ${i18n.t('gameEnd.shareErrorMessage')}`);
     }
   };
 
@@ -188,9 +196,9 @@ export const GameEndModal: React.FC = () => {
     const resultsText = formatResultsForShare();
     const result = await tryCopyTextWithShareFallback(resultsText, SHARE_RESULTS_TITLE);
     if (result === 'copied') {
-      Alert.alert(i18n.t('gameEnd.copyResultsSuccess'));
+      setToastMsg(i18n.t('gameEnd.copyResultsSuccess'));
     } else if (result === 'failed') {
-      Alert.alert(i18n.t('gameEnd.shareError'), i18n.t('gameEnd.shareErrorMessage'));
+      setToastMsg(`${i18n.t('gameEnd.shareError')}: ${i18n.t('gameEnd.shareErrorMessage')}`);
     }
     // 'shared': Share sheet was presented — no additional alert needed
   };
@@ -424,6 +432,12 @@ export const GameEndModal: React.FC = () => {
                   </Animated.View>
                 </View>
               </View>
+              {/* In-modal toast — appears inside the orientation-locked modal */}
+              {toastMsg !== null && (
+                <View style={styles.inModalToast} pointerEvents="none">
+                  <Text style={styles.inModalToastText}>{toastMsg}</Text>
+                </View>
+              )}
             </Animated.View>
           </View>
         </View>
@@ -1522,6 +1536,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#f3f4f6',
+  },
+  inModalToast: {
+    position: 'absolute',
+    bottom: 80,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.78)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    zIndex: 200,
+    maxWidth: '85%',
+  },
+  inModalToastText: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
 
