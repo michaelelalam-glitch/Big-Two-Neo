@@ -46,27 +46,21 @@ if (
       // Swallow — already fixed in AppDelegate; this is a safety net
       return;
     }
-    // Report fatal errors to Sentry, then flush before forwarding to the
-    // original handler. On a fatal crash the JS runtime may terminate before
-    // background queues drain, so we flush synchronously (no timeout — the
-    // Sentry SDK flush() API takes no arguments in @sentry/react-native@8.5.0)
-    // to maximise the chance the event is transmitted.
+    // Report fatal errors to Sentry best-effort, then immediately forward to
+    // the original handler. Fire-and-forget the flush so the crash path is
+    // never blocked on network I/O.
     if (isFatal) {
       sentryCapture.exception(error, {
         context: 'GlobalErrorHandler',
         tags: { fatal: 'true' },
       });
-      void Sentry.flush()
-        .catch(() => {
-          // Swallow flush errors so they never surface as an unhandled
-          // rejection on a fatal crash path.
-          if (__DEV__) {
-            console.warn('[GlobalErrorHandler] Sentry.flush failed after fatal error');
-          }
-        })
-        .finally(() => {
-          originalHandler?.(error, isFatal);
-        });
+      // Best-effort flush — do not await, never delay the crash path.
+      void Sentry.flush().catch(() => {
+        if (__DEV__) {
+          console.warn('[GlobalErrorHandler] Sentry.flush failed after fatal error');
+        }
+      });
+      originalHandler?.(error, isFatal);
       return;
     }
     // Forward non-fatal errors to the original handler
