@@ -53,6 +53,10 @@ export interface UserPreferencesState {
   // Display
   profilePhotoSize: ProfilePhotoSize;
 
+  // Gameplay
+  confirmBeforePlay: boolean;
+  keepScreenAwake: boolean;
+
   // Actions
   setSoundEnabled: (enabled: boolean) => void;
   setVibrationEnabled: (enabled: boolean) => void;
@@ -66,6 +70,8 @@ export interface UserPreferencesState {
   setNotifyYourTurn: (enabled: boolean) => void;
   setNotifyGameStarted: (enabled: boolean) => void;
   setNotifyFriendRequests: (enabled: boolean) => void;
+  setConfirmBeforePlay: (enabled: boolean) => void;
+  setKeepScreenAwake: (enabled: boolean) => void;
   /** Hydrate the store from existing manager/AsyncStorage values on first mount */
   hydrate: (
     partial: Partial<
@@ -83,6 +89,8 @@ export interface UserPreferencesState {
         | 'setNotifyYourTurn'
         | 'setNotifyGameStarted'
         | 'setNotifyFriendRequests'
+        | 'setConfirmBeforePlay'
+        | 'setKeepScreenAwake'
         | 'hydrate'
       >
     >
@@ -109,6 +117,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       notifyGameStarted: true,
       notifyFriendRequests: true,
       profilePhotoSize: 'medium' as ProfilePhotoSize,
+      confirmBeforePlay: false,
+      keepScreenAwake: true,
 
       setSoundEnabled: enabled => {
         // Optimistic update: mirrors SoundManager's own in-memory flag mutation
@@ -137,6 +147,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setNotifyYourTurn: enabled => set({ notifyYourTurn: enabled }),
       setNotifyGameStarted: enabled => set({ notifyGameStarted: enabled }),
       setNotifyFriendRequests: enabled => set({ notifyFriendRequests: enabled }),
+      setConfirmBeforePlay: enabled => set({ confirmBeforePlay: enabled }),
+      setKeepScreenAwake: enabled => set({ keepScreenAwake: enabled }),
 
       hydrate: partial => set(partial),
     }),
@@ -163,6 +175,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         notifyYourTurn: state.notifyYourTurn,
         notifyGameStarted: state.notifyGameStarted,
         notifyFriendRequests: state.notifyFriendRequests,
+        confirmBeforePlay: state.confirmBeforePlay,
+        keepScreenAwake: state.keepScreenAwake,
       }),
     }
   )

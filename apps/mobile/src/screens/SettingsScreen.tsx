@@ -21,14 +21,13 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
-import type { AutoPassTimer } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 // Re-export types from the store slice so external consumers are unaffected.
-export type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../store';
+export type { CardSortOrder, AnimationSpeed } from '../store';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -41,12 +40,18 @@ export default function SettingsScreen() {
   const {
     soundEnabled,
     vibrationEnabled,
-    autoPassTimer,
+    cardSortOrder,
+    setCardSortOrder,
+    animationSpeed,
+    setAnimationSpeed,
+    confirmBeforePlay,
+    setConfirmBeforePlay,
+    keepScreenAwake,
+    setKeepScreenAwake,
     profileVisibility,
     showOnlineStatus,
     setSoundEnabled,
     setVibrationEnabled,
-    setAutoPassTimer,
     setProfileVisibility,
     setShowOnlineStatus,
     profilePhotoSize,
@@ -132,8 +137,15 @@ export default function SettingsScreen() {
   };
 
   // Game settings handlers
-  const handleAutoPassTimerChange = (timer: AutoPassTimer) => {
-    setAutoPassTimer(timer); // Zustand persist replaces AsyncStorage.setItem
+  const handleCardSortOrderChange = (order: 'suit' | 'rank') => {
+    setCardSortOrder(order);
+    if (vibrationEnabled) {
+      hapticManager.trigger(HapticType.SELECTION);
+    }
+  };
+
+  const handleAnimationSpeedChange = (speed: 'slow' | 'normal' | 'fast') => {
+    setAnimationSpeed(speed);
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
@@ -363,69 +375,96 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.gameSettings')}</Text>
 
+          {/* Card Sort Order */}
           <View style={styles.settingGroup}>
-            <Text style={styles.settingTitle}>{t('settings.autoPassTimer')}</Text>
-            <Text style={styles.settingDescription}>{t('settings.autoPassTimerDescription')}</Text>
-            <View style={styles.comingSoonBanner}>
-              <Text style={styles.comingSoonText}>{t('settings.autoPassTimerBanner')}</Text>
-            </View>
+            <Text style={styles.settingTitle}>{t('settings.cardSortOrder')}</Text>
+            <Text style={styles.settingDescription}>{t('settings.cardSortOrderDescription')}</Text>
             <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  autoPassTimer === 'disabled' && styles.optionButtonActive,
-                ]}
-                onPress={() => handleAutoPassTimerChange('disabled')}
-              >
-                <Text
+              {(['suit', 'rank'] as const).map(order => (
+                <TouchableOpacity
+                  key={order}
                   style={[
-                    styles.optionButtonText,
-                    autoPassTimer === 'disabled' && styles.optionButtonTextActive,
+                    styles.optionButton,
+                    cardSortOrder === order && styles.optionButtonActive,
                   ]}
+                  onPress={() => handleCardSortOrderChange(order)}
                 >
-                  {t('settings.disabled')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '30' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('30')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '30' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  30s
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '60' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('60')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '60' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  60s
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, autoPassTimer === '90' && styles.optionButtonActive]}
-                onPress={() => handleAutoPassTimerChange('90')}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    autoPassTimer === '90' && styles.optionButtonTextActive,
-                  ]}
-                >
-                  90s
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.optionButtonText,
+                      cardSortOrder === order && styles.optionButtonTextActive,
+                    ]}
+                  >
+                    {order === 'suit' ? t('settings.sortBySuit') : t('settings.sortByRank')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Animation Speed */}
+          <View style={styles.settingGroup}>
+            <Text style={styles.settingTitle}>{t('settings.animationSpeed')}</Text>
+            <Text style={styles.settingDescription}>{t('settings.animationSpeedDescription')}</Text>
+            <View style={styles.buttonGroup}>
+              {(['slow', 'normal', 'fast'] as const).map(speed => (
+                <TouchableOpacity
+                  key={speed}
+                  style={[
+                    styles.optionButton,
+                    animationSpeed === speed && styles.optionButtonActive,
+                  ]}
+                  onPress={() => handleAnimationSpeedChange(speed)}
+                >
+                  <Text
+                    style={[
+                      styles.optionButtonText,
+                      animationSpeed === speed && styles.optionButtonTextActive,
+                    ]}
+                  >
+                    {t(`settings.${speed}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Confirm Before Play */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>{t('settings.confirmBeforePlay')}</Text>
+              <Text style={styles.settingDescription}>
+                {t('settings.confirmBeforePlayDescription')}
+              </Text>
+            </View>
+            <Switch
+              value={confirmBeforePlay}
+              onValueChange={setConfirmBeforePlay}
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.secondary }}
+              thumbColor={confirmBeforePlay ? COLORS.white : COLORS.gray.medium}
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Keep Screen Awake */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>{t('settings.keepScreenAwake')}</Text>
+              <Text style={styles.settingDescription}>
+                {t('settings.keepScreenAwakeDescription')}
+              </Text>
+            </View>
+            <Switch
+              value={keepScreenAwake}
+              onValueChange={setKeepScreenAwake}
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.secondary }}
+              thumbColor={keepScreenAwake ? COLORS.white : COLORS.gray.medium}
+            />
           </View>
         </View>
 

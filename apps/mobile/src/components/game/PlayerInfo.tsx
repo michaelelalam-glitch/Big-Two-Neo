@@ -96,11 +96,6 @@ function renderAvatarVideoContent({
             <Text style={avatarStyles.liveBadgeText}>LIVE</Text>
           </View>
         )}
-        {isMicOn !== undefined && (
-          <View style={avatarStyles.micIndicator}>
-            <Text style={avatarStyles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
-          </View>
-        )}
       </View>
     );
   }
@@ -117,11 +112,6 @@ function renderAvatarVideoContent({
       >
         👤
       </Text>
-      {isMicOn !== undefined && (
-        <View style={avatarStyles.micIndicator}>
-          <Text style={avatarStyles.micIndicatorIcon}>{isMicOn ? '🎤' : '🔇'}</Text>
-        </View>
-      )}
     </>
   );
 }

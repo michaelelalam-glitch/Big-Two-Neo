@@ -28,8 +28,6 @@ export default function NotificationSettingsScreen() {
   const {
     notifyGameInvites,
     setNotifyGameInvites,
-    notifyYourTurn,
-    setNotifyYourTurn,
     notifyGameStarted,
     setNotifyGameStarted,
     notifyFriendRequests,
@@ -147,19 +145,6 @@ export default function NotificationSettingsScreen() {
                   onValueChange={setNotifyGameInvites}
                   trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
                   thumbColor={notifyGameInvites ? COLORS.white : COLORS.gray.medium}
-                />
-              </View>
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>{t('settings.yourTurn')}</Text>
-                  <Text style={styles.settingDescription}>{t('settings.yourTurnDescription')}</Text>
-                </View>
-                <Switch
-                  value={notifyYourTurn}
-                  onValueChange={setNotifyYourTurn}
-                  trackColor={{ false: COLORS.secondary, true: COLORS.accent }}
-                  thumbColor={notifyYourTurn ? COLORS.white : COLORS.gray.medium}
                 />
               </View>
 

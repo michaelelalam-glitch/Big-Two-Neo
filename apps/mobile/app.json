@@ -9,6 +9,15 @@
     "jsEngine": "hermes",
     "newArchEnabled": true,
     "scheme": "big2mobile",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e9655e19-679f-4683-924a-581c54736a73",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
