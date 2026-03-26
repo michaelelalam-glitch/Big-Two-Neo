@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
 import { InGameAlert } from '../components/game/InGameAlert';
@@ -122,6 +122,9 @@ export function MultiplayerGame() {
     isAvailable: orientationAvailable,
     isLocked,
   } = useOrientationManager();
+  // Guard against stale isLocked after useGameCleanup unlocks orientation in
+  // the beforeRemove handler without updating the isLocked state.
+  const isFocused = useIsFocused();
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -1430,7 +1433,7 @@ export function MultiplayerGame() {
           orientation, causing an iOS Modal crash. */}
       <InGameAlert
         ref={inGameAlertRef}
-        {...(isLocked ? { gameOrientation: currentOrientation } : {})}
+        {...(isLocked && isFocused ? { gameOrientation: currentOrientation } : {})}
       />
 
       {/* Bot Replacement Modal — shown when the server replaces a disconnected

@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
@@ -85,6 +85,9 @@ export function LocalAIGame() {
     isAvailable: orientationAvailable,
     isLocked,
   } = useOrientationManager();
+  // Guard against stale isLocked after useGameCleanup unlocks orientation in
+  // the beforeRemove handler without updating the isLocked state.
+  const isFocused = useIsFocused();
 
   // Bot turn management
   const gameManagerRefPlaceholder = useRef<GameStateManager | null>(null);
@@ -439,7 +442,7 @@ export function LocalAIGame() {
           crash if the restricted list doesn't include the actual orientation. */}
       <InGameAlert
         ref={inGameAlertRef}
-        {...(isLocked ? { gameOrientation: currentOrientation } : {})}
+        {...(isLocked && isFocused ? { gameOrientation: currentOrientation } : {})}
       />
     </>
   );
