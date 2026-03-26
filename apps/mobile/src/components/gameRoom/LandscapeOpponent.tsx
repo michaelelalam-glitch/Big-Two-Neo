@@ -64,7 +64,7 @@ interface LandscapeOpponentProps {
   onAvatarPress?: () => void;
   /** Called when the player name badge is long-pressed (e.g. to add as friend) */
   onNameLongPress?: () => void;
-  /** Whether this opponent is a bot (suppresses camera/mic indicators) */
+  /** Whether this opponent is a bot (suppresses mic indicator) */
   isBot?: boolean;
   /** Video chat: camera actively streaming */
   isCameraOn?: boolean;

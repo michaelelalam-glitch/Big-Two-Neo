@@ -11,6 +11,7 @@
  */
 
 import type { Card, ComboType } from '../types';
+import { gameLogger } from '../../utils/logger';
 import {
   RANKS,
   SUITS,
@@ -683,8 +684,7 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
 
     case 4:
       // Issue 3: Big Two has no 4-card plays — warn instead of silently returning false.
-      // eslint-disable-next-line no-console
-      console.warn(
+      gameLogger.warn(
         '[isHighestPossiblePlay] Received invalid 4-card play — Big Two has no 4-card combos'
       );
       return false;
@@ -701,8 +701,7 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
         'Straight',
       ];
       if (!validFiveCardTypes.includes(type)) {
-        // eslint-disable-next-line no-console
-        console.warn(
+        gameLogger.warn(
           `[isHighestPossiblePlay] classifyCards returned '${type}' for a 5-card play — expected a five-card combo type`
         );
         return false;
@@ -716,8 +715,7 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
     }
 
     default:
-      // eslint-disable-next-line no-console
-      console.warn(`[isHighestPossiblePlay] Received invalid play of ${cards.length} cards`);
+      gameLogger.warn(`[isHighestPossiblePlay] Received invalid play of ${cards.length} cards`);
       return false;
   }
 }
