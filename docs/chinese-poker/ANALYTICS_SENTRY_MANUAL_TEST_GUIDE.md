@@ -33,9 +33,11 @@ EXPO_PUBLIC_APP_VERSION=1.0.0
 3. Keep this tab open — events appear here in real time during testing
 
 **Enable DebugView for your device:**
-- **iOS Simulator:** DebugView activates automatically when `__DEV__ === true` (the app sends to `debug/mp/collect`)
-- **Android Emulator:** Same — `__DEV__` mode auto-routes to the debug endpoint
-- **Physical device:** Must be in dev build (`npx expo start`) for `__DEV__` to be true
+- **iOS Simulator:** When running a dev build (`__DEV__ === true`), the app sends events to the standard `/mp/collect` endpoint with `debug_mode: 1`, which makes them appear in DebugView.
+- **Android Emulator:** Same behavior as iOS — dev builds send to `/mp/collect` with `debug_mode: 1` so events show up in DebugView.
+- **Physical device:** Use a dev build (`npx expo start`) so that events are sent with `debug_mode: 1` and appear in DebugView.
+
+> Note: `/debug/mp/collect` is used only for validating event payloads (e.g., via curl/Postman). Events sent to `/debug/mp/collect` **do not** appear in DebugView.
 
 ### 3. Sentry Console Setup
 

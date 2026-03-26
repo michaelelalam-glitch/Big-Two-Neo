@@ -29,16 +29,6 @@ import Constants from 'expo-constants';
 /** Firebase Measurement Protocol v2 endpoint */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
-/**
- * Measurement Protocol debug endpoint.
- *
- * NOTE: `/debug/mp/collect` is for validation only — it returns validation
- * messages and does NOT cause events to appear in GA4 reports or Firebase
- * DebugView. Use `MP_ENDPOINT` (with `debug_mode: 1` in params) for real
- * event ingestion visible in DebugView; reserve this endpoint for
- * manual/automated payload validation.
- */
-const MP_DEBUG_ENDPOINT = 'https://www.google-analytics.com/debug/mp/collect';
 
 const MEASUREMENT_ID =
   process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
@@ -137,21 +127,28 @@ async function sendEvents(
     return;
   }
 
-  const endpoint = __DEV__ ? MP_DEBUG_ENDPOINT : MP_ENDPOINT;
-  const url = `${endpoint}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
+  // Always post to the standard endpoint. In dev builds, set debug_mode: 1
+  // inside each event's params — this surfaces events in Firebase DebugView
+  // without losing the full ingestion pipeline. /debug/mp/collect is
+  // validation-only and does NOT show events in DebugView.
+  const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
-    events: events.map((e) => ({
-      name: e.name,
-      params: {
+    events: events.map((e) => {
+      const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
         ...(e.params ?? {}),
         // Standard GA4 params — enforced last
         engagement_time_msec: 1,
         session_id: getSessionId(),
-      },
-    })),
+      };
+      if (__DEV__) {
+        // debug_mode: 1 routes events to Firebase DebugView in dev builds
+        params.debug_mode = 1;
+      }
+      return { name: e.name, params };
+    }),
   };
 
   // Associate events with the signed-in user (separate from client_id)
