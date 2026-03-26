@@ -62,43 +62,52 @@ export function initSentry(): void {
     return;
   }
 
-  Sentry.init({
-    dsn: SENTRY_DSN,
+  try {
+    Sentry.init({
+      dsn: SENTRY_DSN,
 
-    // Breadcrumbs and event sampling
-    // In production use a lower rate (0.1–0.2) to control volume/cost.
-    tracesSampleRate: __DEV__ ? 0 : 0.1,
+      // Breadcrumbs and event sampling
+      // In production use a lower rate (0.1–0.2) to control volume/cost.
+      tracesSampleRate: __DEV__ ? 0 : 0.1,
 
-    // Enable debug logging in dev so issues are visible in Metro console
-    debug: __DEV__,
+      // Enable debug logging in dev so issues are visible in Metro console
+      debug: __DEV__,
 
-    // Environment tag shown in Sentry dashboard
-    environment: __DEV__ ? 'development' : 'production',
+      // Environment tag shown in Sentry dashboard
+      environment: __DEV__ ? 'development' : 'production',
 
-    // Attach app version — read from the EXPO_PUBLIC_APP_VERSION env var set
-    // in app.json/EAS secrets. Not sourced from Expo config at runtime here
-    // (that would require importing expo-constants), so ensure the env var is
-    // populated in CI and production builds.
-    release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
+      // Attach app version — read from the EXPO_PUBLIC_APP_VERSION env var set
+      // in app.json/EAS secrets. Not sourced from Expo config at runtime here
+      // (that would require importing expo-constants), so ensure the env var is
+      // populated in CI and production builds.
+      release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
 
-    // Enable performance tracing for React Native (navigation, network, etc.)
-    integrations: [Sentry.reactNativeTracingIntegration()],
+      // Enable performance tracing for React Native (navigation, network, etc.)
+      integrations: [Sentry.reactNativeTracingIntegration()],
 
-    // Don't send events for known non-fatal orientation errors already
-    // swallowed by the global ErrorUtils handler in App.tsx
-    beforeSend(event) {
-      const msg = event.exception?.values?.[0]?.value ?? '';
-      if (
-        msg.includes('supportedInterfaceOrientations') &&
-        msg.includes('UIViewController')
-      ) {
-        return null; // Drop
-      }
-      return event;
-    },
-  });
+      // Don't send events for known non-fatal orientation errors already
+      // swallowed by the global ErrorUtils handler in App.tsx
+      beforeSend(event) {
+        const msg = event.exception?.values?.[0]?.value ?? '';
+        if (
+          msg.includes('supportedInterfaceOrientations') &&
+          msg.includes('UIViewController')
+        ) {
+          return null; // Drop
+        }
+        return event;
+      },
+    });
 
-  _initialized = true;
+    _initialized = true;
+  } catch {
+    // Sentry.init failed (e.g. native module unavailable or misconfigured).
+    // Leave _initialized = false so all capture helpers remain no-ops and the
+    // app continues to function without crash reporting.
+    if (__DEV__) {
+      console.warn('[Sentry] init failed — Sentry disabled for this session');
+    }
+  }
 }
 
 /** Returns whether Sentry has been initialised with a valid DSN. */

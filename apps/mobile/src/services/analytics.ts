@@ -29,7 +29,15 @@ import Constants from 'expo-constants';
 /** Firebase Measurement Protocol v2 endpoint */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
-/** Debug endpoint (logs to DebugView in Firebase Console) */
+/**
+ * Measurement Protocol debug endpoint.
+ *
+ * NOTE: `/debug/mp/collect` is for validation only — it returns validation
+ * messages and does NOT cause events to appear in GA4 reports or Firebase
+ * DebugView. Use `MP_ENDPOINT` (with `debug_mode: 1` in params) for real
+ * event ingestion visible in DebugView; reserve this endpoint for
+ * manual/automated payload validation.
+ */
 const MP_DEBUG_ENDPOINT = 'https://www.google-analytics.com/debug/mp/collect';
 
 const MEASUREMENT_ID =
