@@ -80,7 +80,7 @@ export function initSentry(): void {
     // it here ensures it's present in JS-layer events too.)
     release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
 
-    // Automatically capture unhandled promise rejections
+    // Enable performance tracing for React Native (navigation, network, etc.)
     integrations: [Sentry.reactNativeTracingIntegration()],
 
     // Don't send events for known non-fatal orientation errors already

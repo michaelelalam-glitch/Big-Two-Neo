@@ -77,8 +77,9 @@ describe('isAnalyticsEnabled', () => {
     // reset the module registry and re-import to pick up the new env vars.
     jest.resetModules();
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { isAnalyticsEnabled: freshIsAnalyticsEnabled } = require('../../services/analytics') as typeof import('../../services/analytics');
-    expect(freshIsAnalyticsEnabled()).toBe(true);
+    const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+    freshSetConsent(true); // default is false (opt-in); explicitly enable
+    expect(freshEnabled()).toBe(true);
   });
 
   it('returns false when consent is revoked', () => {
@@ -98,8 +99,16 @@ describe('trackEvent', () => {
 
   it('does not call fetch when consent is revoked', async () => {
     setEnv('G-TEST123', 'secret123');
-    setAnalyticsConsent(false);
-    trackEvent('app_open');
+    // Use isolateModules so the analytics module sees the credentials AND we can
+    // properly test consent gating (credentials are module-level constants).
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);  // enable first so we're testing revocation
+      isolatedSetConsent(false); // now revoke
+      isolatedTrack('app_open');
+    });
+    await Promise.resolve();
     await Promise.resolve();
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -110,7 +119,8 @@ describe('trackEvent', () => {
     // the analytics module sees the credentials set above.
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true); // consent defaults to false (opt-in); enable explicitly
       isolatedTrack('game_started', { mode: 'local' });
     });
 
@@ -128,15 +138,33 @@ describe('trackEvent', () => {
 
   it('includes platform and app_version in params', async () => {
     setEnv('G-TESTMEASURE', 'testsecret');
-    trackEvent('game_started');
+    // Use isolateModules to load analytics with credentials so fetch is actually called.
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack('game_started');
+    });
     await Promise.resolve();
-    // Params enrichment is validated via the body when fetch IS called
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ params: Record<string, unknown> }> };
+    expect(body.events[0].params).toHaveProperty('platform');
+    expect(body.events[0].params).toHaveProperty('app_version');
   });
 
   it('swallows fetch errors silently', async () => {
     setEnv('G-TESTMEASURE', 'testsecret');
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
-    expect(() => trackEvent('error_occurred')).not.toThrow();
+    // Use isolateModules to load analytics with credentials so the error path is exercised.
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      expect(() => isolatedTrack('error_occurred')).not.toThrow();
+    });
+    await Promise.resolve();
     await Promise.resolve();
   });
 });
@@ -148,6 +176,22 @@ describe('trackScreenView', () => {
 
   it('accepts optional screenClass', () => {
     expect(() => trackScreenView('GameScreen', 'GameScreenClass')).not.toThrow();
+  });
+
+  it('calls fetch when credentials and consent are set', async () => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackScreenView: isolatedTrackScreen, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrackScreen('HomeScreen');
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ name: string }> };
+    expect(body.events[0].name).toBe('screen_view');
   });
 });
 
