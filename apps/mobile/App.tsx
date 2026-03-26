@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
-import { initSentry, sentryCapture } from './src/services/sentry';
+import { initSentry, sentryCapture, Sentry } from './src/services/sentry';
 import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
 
 // ── Sentry: initialise before any React tree renders ─────────────────────────
@@ -46,14 +46,21 @@ if (
       // Swallow — already fixed in AppDelegate; this is a safety net
       return;
     }
-    // Report fatal errors to Sentry before forwarding to the original handler
+    // Report fatal errors to Sentry, then flush before forwarding to the
+    // original handler. On a fatal crash the JS runtime may terminate before
+    // background queues drain, so we flush with a short timeout to maximise
+    // the chance the event is transmitted.
     if (isFatal) {
       sentryCapture.exception(error, {
         context: 'GlobalErrorHandler',
         tags: { fatal: 'true' },
       });
+      void Sentry.flush(2000).finally(() => {
+        originalHandler?.(error, isFatal);
+      });
+      return;
     }
-    // Forward everything else to the original handler
+    // Forward non-fatal errors to the original handler
     originalHandler?.(error, isFatal);
   });
 }
