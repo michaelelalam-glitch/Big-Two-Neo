@@ -378,8 +378,6 @@ describe('Default Settings', () => {
     expect(DEFAULT_SETTINGS.audioEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.audioVolume).toBe(0.7);
     expect(DEFAULT_SETTINGS.hapticsEnabled).toBe(true);
-    expect(DEFAULT_SETTINGS.confirmBeforePlay).toBe(false);
-    expect(DEFAULT_SETTINGS.keepScreenAwake).toBe(true);
   });
 });
 

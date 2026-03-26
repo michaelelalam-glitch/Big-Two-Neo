@@ -47,6 +47,4 @@ export const DEFAULT_SETTINGS = {
   audioEnabled: true,
   audioVolume: 0.7,
   hapticsEnabled: true,
-  confirmBeforePlay: false,
-  keepScreenAwake: true,
 } as const;
