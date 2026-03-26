@@ -62,7 +62,7 @@ interface PlayerInfoProps {
  */
 function renderAvatarVideoContent({
   isCameraOn,
-  isMicOn,
+  isMicOn: _isMicOn,
   isLocalPlayer,
   isDisconnected,
   isVideoChatConnecting,

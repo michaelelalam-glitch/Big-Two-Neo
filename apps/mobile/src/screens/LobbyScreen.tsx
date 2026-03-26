@@ -134,11 +134,11 @@ export default function LobbyScreen() {
   // Filtering by room_id prevents firing for other rooms' player changes (global subscription bug).
   useEffect(() => {
     if (!roomId) return;
-    // Only reload on INSERT and DELETE events — UPDATE events are mostly heartbeat
-    // rows (last_seen_at changes every 15 s per player) and would cause a full
-    // re-fetch on every heartbeat tick, producing noisy console logs and
-    // unnecessary re-renders.  INSERT/DELETE cover the semantically meaningful
-    // cases: a player joining, being kicked, or leaving.
+    // Always reload on INSERT and DELETE events (player joining, being kicked, or leaving).
+    // Also listen for UPDATE events, but only trigger a reload when meaningful fields change
+    // (host/ready/bot status, connection_status, username).  Pure heartbeat updates
+    // (e.g., last_seen_at / last_heartbeat only) are ignored to avoid noisy logs and
+    // unnecessary re-renders on every 15-second heartbeat tick.
     const channel = supabase
       .channel(`lobby-players:${roomId}`)
       .on(
