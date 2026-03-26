@@ -27,6 +27,7 @@ import { usePlayerTotalScores } from '../hooks/usePlayerTotalScores';
 import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { gameLogger } from '../utils/logger';
+import { showError } from '../utils/alerts';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
@@ -62,7 +63,13 @@ export function LocalAIGame() {
   // In-game alert ref — orientation-aware replacement for Alert.alert
   const inGameAlertRef = useRef<InGameAlertHandle>(null);
   const showInGameAlert = useCallback((options: InGameAlertOptions) => {
-    inGameAlertRef.current?.show(options);
+    // Fallback to showError when the ref is unmounted/unavailable (e.g. during
+    // screen teardown) so errors are never silently dropped on iOS.
+    if (inGameAlertRef.current) {
+      inGameAlertRef.current.show(options);
+    } else {
+      showError(options.message, options.title);
+    }
   }, []);
 
   const currentPlayerName = profile?.username || user?.email?.split('@')[0] || 'Player';

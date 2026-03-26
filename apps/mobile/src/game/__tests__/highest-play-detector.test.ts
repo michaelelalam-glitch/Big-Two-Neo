@@ -386,4 +386,266 @@ describe('Highest Play Detector', () => {
       expect(isHighestPossiblePlay(heartsRoyal, playedCards)).toBe(true);
     });
   });
+
+  // ============================================
+  // STRAIGHT LOW-SEQUENCE SUIT TIEBREAK
+  // Verifies the fix that uses the sequence's defined top rank (e.g. '5' for
+  // A-2-3-4-5, '6' for 2-3-4-5-6) instead of sortHand's last card (which
+  // puts the 2 last due to Big Two rank values, giving the wrong suit).
+  //
+  // Each test leaves exactly 5 remaining cards — one per sequence rank —
+  // that cannot form any Straight Flush, Flush, Four of a Kind, or Full House.
+  // All other cards are in playedCards so only a plain Straight is possible.
+  // ============================================
+
+  describe('Straight low-sequence suit tiebreak', () => {
+    // ── A-2-3-4-5 scenarios ────────────────────────────────────────────────
+    // hand = [A♦, 2♣, 3♦, 4♦, 5♠]
+    // intended remaining = [A♥, 2♠, 3♥, 4♥, 5♥]
+    //   → 4 hearts max (A♥, 3♥, 4♥, 5♥) — not enough for a flush/SF.
+    //   → only remaining 5 is 5♥ (suit H = 2), below 5♠ (suit S = 3).
+    //   → all higher straight sequences need a 6+ which is not in remaining.
+    // playedCards = full deck − hand − remaining (42 cards)
+    const aceLowHand: Card[] = [
+      { id: 'AD', rank: 'A' as const, suit: 'D' as const },
+      { id: '2C', rank: '2' as const, suit: 'C' as const },
+      { id: '3D', rank: '3' as const, suit: 'D' as const },
+      { id: '4D', rank: '4' as const, suit: 'D' as const },
+      { id: '5S', rank: '5' as const, suit: 'S' as const },
+    ];
+    const aceLowHandLowerSuit: Card[] = [
+      { id: 'AD', rank: 'A' as const, suit: 'D' as const },
+      { id: '2C', rank: '2' as const, suit: 'C' as const },
+      { id: '3D', rank: '3' as const, suit: 'D' as const },
+      { id: '4D', rank: '4' as const, suit: 'D' as const },
+      { id: '5H', rank: '5' as const, suit: 'H' as const },
+    ];
+    // Scenario 1: 5♠ in hand; only 5♥ remains → 5♠ wins tiebreak
+    const aceLowPlayed: Card[] = [
+      { id: 'AS', rank: 'A' as const, suit: 'S' as const },
+      { id: 'AC', rank: 'A' as const, suit: 'C' as const },
+      { id: '2H', rank: '2' as const, suit: 'H' as const },
+      { id: '2D', rank: '2' as const, suit: 'D' as const },
+      { id: '3S', rank: '3' as const, suit: 'S' as const },
+      { id: '3C', rank: '3' as const, suit: 'C' as const },
+      { id: '4S', rank: '4' as const, suit: 'S' as const },
+      { id: '4C', rank: '4' as const, suit: 'C' as const },
+      { id: '5C', rank: '5' as const, suit: 'C' as const },
+      { id: '5D', rank: '5' as const, suit: 'D' as const },
+      { id: '6S', rank: '6' as const, suit: 'S' as const },
+      { id: '6H', rank: '6' as const, suit: 'H' as const },
+      { id: '6C', rank: '6' as const, suit: 'C' as const },
+      { id: '6D', rank: '6' as const, suit: 'D' as const },
+      { id: '7S', rank: '7' as const, suit: 'S' as const },
+      { id: '7H', rank: '7' as const, suit: 'H' as const },
+      { id: '7C', rank: '7' as const, suit: 'C' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
+      { id: '8S', rank: '8' as const, suit: 'S' as const },
+      { id: '8H', rank: '8' as const, suit: 'H' as const },
+      { id: '8C', rank: '8' as const, suit: 'C' as const },
+      { id: '8D', rank: '8' as const, suit: 'D' as const },
+      { id: '9S', rank: '9' as const, suit: 'S' as const },
+      { id: '9H', rank: '9' as const, suit: 'H' as const },
+      { id: '9C', rank: '9' as const, suit: 'C' as const },
+      { id: '9D', rank: '9' as const, suit: 'D' as const },
+      { id: '10S', rank: '10' as const, suit: 'S' as const },
+      { id: '10H', rank: '10' as const, suit: 'H' as const },
+      { id: '10C', rank: '10' as const, suit: 'C' as const },
+      { id: '10D', rank: '10' as const, suit: 'D' as const },
+      { id: 'JS', rank: 'J' as const, suit: 'S' as const },
+      { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+      { id: 'JC', rank: 'J' as const, suit: 'C' as const },
+      { id: 'JD', rank: 'J' as const, suit: 'D' as const },
+      { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+      { id: 'QH', rank: 'Q' as const, suit: 'H' as const },
+      { id: 'QC', rank: 'Q' as const, suit: 'C' as const },
+      { id: 'QD', rank: 'Q' as const, suit: 'D' as const },
+      { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+      { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+      { id: 'KC', rank: 'K' as const, suit: 'C' as const },
+      { id: 'KD', rank: 'K' as const, suit: 'D' as const },
+    ];
+    // Scenario 2: 5♥ in hand; 5♠ remains → 5♠ beats 5♥, so false
+    // playedCards: same as Scenario 1 except swap 5C/5D for 5C/5S...
+    // Actually use a separate array: remaining = [AC, 2S, 3C, 4C, 5S]
+    const aceLowPlayedLowerSuit: Card[] = [
+      { id: 'AS', rank: 'A' as const, suit: 'S' as const },
+      { id: 'AH', rank: 'A' as const, suit: 'H' as const },
+      { id: '2H', rank: '2' as const, suit: 'H' as const },
+      { id: '2D', rank: '2' as const, suit: 'D' as const },
+      { id: '3S', rank: '3' as const, suit: 'S' as const },
+      { id: '3H', rank: '3' as const, suit: 'H' as const },
+      { id: '4S', rank: '4' as const, suit: 'S' as const },
+      { id: '4H', rank: '4' as const, suit: 'H' as const },
+      { id: '5C', rank: '5' as const, suit: 'C' as const },
+      { id: '5D', rank: '5' as const, suit: 'D' as const },
+      { id: '6S', rank: '6' as const, suit: 'S' as const },
+      { id: '6H', rank: '6' as const, suit: 'H' as const },
+      { id: '6C', rank: '6' as const, suit: 'C' as const },
+      { id: '6D', rank: '6' as const, suit: 'D' as const },
+      { id: '7S', rank: '7' as const, suit: 'S' as const },
+      { id: '7H', rank: '7' as const, suit: 'H' as const },
+      { id: '7C', rank: '7' as const, suit: 'C' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
+      { id: '8S', rank: '8' as const, suit: 'S' as const },
+      { id: '8H', rank: '8' as const, suit: 'H' as const },
+      { id: '8C', rank: '8' as const, suit: 'C' as const },
+      { id: '8D', rank: '8' as const, suit: 'D' as const },
+      { id: '9S', rank: '9' as const, suit: 'S' as const },
+      { id: '9H', rank: '9' as const, suit: 'H' as const },
+      { id: '9C', rank: '9' as const, suit: 'C' as const },
+      { id: '9D', rank: '9' as const, suit: 'D' as const },
+      { id: '10S', rank: '10' as const, suit: 'S' as const },
+      { id: '10H', rank: '10' as const, suit: 'H' as const },
+      { id: '10C', rank: '10' as const, suit: 'C' as const },
+      { id: '10D', rank: '10' as const, suit: 'D' as const },
+      { id: 'JS', rank: 'J' as const, suit: 'S' as const },
+      { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+      { id: 'JC', rank: 'J' as const, suit: 'C' as const },
+      { id: 'JD', rank: 'J' as const, suit: 'D' as const },
+      { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+      { id: 'QH', rank: 'Q' as const, suit: 'H' as const },
+      { id: 'QC', rank: 'Q' as const, suit: 'C' as const },
+      { id: 'QD', rank: 'Q' as const, suit: 'D' as const },
+      { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+      { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+      { id: 'KC', rank: 'K' as const, suit: 'C' as const },
+      { id: 'KD', rank: 'K' as const, suit: 'D' as const },
+    ];
+
+    it('A-2-3-4-5 with 5♠ (highest suit) is the highest remaining 5-high straight', () => {
+      // Remaining after removing hand+playedCards: {AH, 2S, 3H, 4H, 5H}.
+      // The only remaining 5 is 5♥ (suit value 2). Our 5♠ (suit value 3) wins.
+      expect(isHighestPossiblePlay(aceLowHand, aceLowPlayed)).toBe(true);
+    });
+
+    it('A-2-3-4-5 with 5♥ is NOT the highest 5-high straight when 5♠ is still unplayed', () => {
+      // Remaining: {AC, 2S, 3C, 4C, 5S}. The remaining 5 is 5♠ (suit value 3).
+      // Our 5♥ (suit value 2) loses the tiebreak → not highest.
+      expect(isHighestPossiblePlay(aceLowHandLowerSuit, aceLowPlayedLowerSuit)).toBe(false);
+    });
+
+    // ── 2-3-4-5-6 scenarios ────────────────────────────────────────────────
+    // hand = [2♦, 3♦, 4♦, 5♦, 6♠]
+    // intended remaining = [2♥, 3♥, 4♠, 5♥, 6♥]
+    //   → only remaining 6 is 6♥ (suit H = 2), below 6♠ (suit S = 3).
+    //   → all higher sequences need a 7+ which is not in remaining.
+    const twoLowHand: Card[] = [
+      { id: '2D', rank: '2' as const, suit: 'D' as const },
+      { id: '3D', rank: '3' as const, suit: 'D' as const },
+      { id: '4D', rank: '4' as const, suit: 'D' as const },
+      { id: '5D', rank: '5' as const, suit: 'D' as const },
+      { id: '6S', rank: '6' as const, suit: 'S' as const },
+    ];
+    const twoLowHandLowerSuit: Card[] = [
+      { id: '2C', rank: '2' as const, suit: 'C' as const },
+      { id: '3C', rank: '3' as const, suit: 'C' as const },
+      { id: '4C', rank: '4' as const, suit: 'C' as const },
+      { id: '5C', rank: '5' as const, suit: 'C' as const },
+      { id: '6D', rank: '6' as const, suit: 'D' as const },
+    ];
+    // Scenario 3: 6♠ in hand; remaining 6 is 6♥ → 6♠ wins
+    const twoLowPlayed: Card[] = [
+      { id: 'AS', rank: 'A' as const, suit: 'S' as const },
+      { id: 'AH', rank: 'A' as const, suit: 'H' as const },
+      { id: 'AC', rank: 'A' as const, suit: 'C' as const },
+      { id: 'AD', rank: 'A' as const, suit: 'D' as const },
+      { id: '2S', rank: '2' as const, suit: 'S' as const },
+      { id: '2C', rank: '2' as const, suit: 'C' as const },
+      { id: '3S', rank: '3' as const, suit: 'S' as const },
+      { id: '3C', rank: '3' as const, suit: 'C' as const },
+      { id: '4H', rank: '4' as const, suit: 'H' as const },
+      { id: '4C', rank: '4' as const, suit: 'C' as const },
+      { id: '5S', rank: '5' as const, suit: 'S' as const },
+      { id: '5C', rank: '5' as const, suit: 'C' as const },
+      { id: '6C', rank: '6' as const, suit: 'C' as const },
+      { id: '6D', rank: '6' as const, suit: 'D' as const },
+      { id: '7S', rank: '7' as const, suit: 'S' as const },
+      { id: '7H', rank: '7' as const, suit: 'H' as const },
+      { id: '7C', rank: '7' as const, suit: 'C' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
+      { id: '8S', rank: '8' as const, suit: 'S' as const },
+      { id: '8H', rank: '8' as const, suit: 'H' as const },
+      { id: '8C', rank: '8' as const, suit: 'C' as const },
+      { id: '8D', rank: '8' as const, suit: 'D' as const },
+      { id: '9S', rank: '9' as const, suit: 'S' as const },
+      { id: '9H', rank: '9' as const, suit: 'H' as const },
+      { id: '9C', rank: '9' as const, suit: 'C' as const },
+      { id: '9D', rank: '9' as const, suit: 'D' as const },
+      { id: '10S', rank: '10' as const, suit: 'S' as const },
+      { id: '10H', rank: '10' as const, suit: 'H' as const },
+      { id: '10C', rank: '10' as const, suit: 'C' as const },
+      { id: '10D', rank: '10' as const, suit: 'D' as const },
+      { id: 'JS', rank: 'J' as const, suit: 'S' as const },
+      { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+      { id: 'JC', rank: 'J' as const, suit: 'C' as const },
+      { id: 'JD', rank: 'J' as const, suit: 'D' as const },
+      { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+      { id: 'QH', rank: 'Q' as const, suit: 'H' as const },
+      { id: 'QC', rank: 'Q' as const, suit: 'C' as const },
+      { id: 'QD', rank: 'Q' as const, suit: 'D' as const },
+      { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+      { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+      { id: 'KC', rank: 'K' as const, suit: 'C' as const },
+      { id: 'KD', rank: 'K' as const, suit: 'D' as const },
+    ];
+    // Scenario 4: 6♦ in hand; 6♠ remains → 6♠ beats 6♦, so false
+    // hand = [2C, 3C, 4C, 5C, 6D]; remaining = [2H, 3H, 4S, 5H, 6S]
+    const twoLowPlayedLowerSuit: Card[] = [
+      { id: 'AS', rank: 'A' as const, suit: 'S' as const },
+      { id: 'AH', rank: 'A' as const, suit: 'H' as const },
+      { id: 'AC', rank: 'A' as const, suit: 'C' as const },
+      { id: 'AD', rank: 'A' as const, suit: 'D' as const },
+      { id: '2S', rank: '2' as const, suit: 'S' as const },
+      { id: '2D', rank: '2' as const, suit: 'D' as const },
+      { id: '3S', rank: '3' as const, suit: 'S' as const },
+      { id: '3D', rank: '3' as const, suit: 'D' as const },
+      { id: '4H', rank: '4' as const, suit: 'H' as const },
+      { id: '4D', rank: '4' as const, suit: 'D' as const },
+      { id: '5S', rank: '5' as const, suit: 'S' as const },
+      { id: '5D', rank: '5' as const, suit: 'D' as const },
+      { id: '6C', rank: '6' as const, suit: 'C' as const },
+      { id: '6H', rank: '6' as const, suit: 'H' as const },
+      { id: '7S', rank: '7' as const, suit: 'S' as const },
+      { id: '7H', rank: '7' as const, suit: 'H' as const },
+      { id: '7C', rank: '7' as const, suit: 'C' as const },
+      { id: '7D', rank: '7' as const, suit: 'D' as const },
+      { id: '8S', rank: '8' as const, suit: 'S' as const },
+      { id: '8H', rank: '8' as const, suit: 'H' as const },
+      { id: '8C', rank: '8' as const, suit: 'C' as const },
+      { id: '8D', rank: '8' as const, suit: 'D' as const },
+      { id: '9S', rank: '9' as const, suit: 'S' as const },
+      { id: '9H', rank: '9' as const, suit: 'H' as const },
+      { id: '9C', rank: '9' as const, suit: 'C' as const },
+      { id: '9D', rank: '9' as const, suit: 'D' as const },
+      { id: '10S', rank: '10' as const, suit: 'S' as const },
+      { id: '10H', rank: '10' as const, suit: 'H' as const },
+      { id: '10C', rank: '10' as const, suit: 'C' as const },
+      { id: '10D', rank: '10' as const, suit: 'D' as const },
+      { id: 'JS', rank: 'J' as const, suit: 'S' as const },
+      { id: 'JH', rank: 'J' as const, suit: 'H' as const },
+      { id: 'JC', rank: 'J' as const, suit: 'C' as const },
+      { id: 'JD', rank: 'J' as const, suit: 'D' as const },
+      { id: 'QS', rank: 'Q' as const, suit: 'S' as const },
+      { id: 'QH', rank: 'Q' as const, suit: 'H' as const },
+      { id: 'QC', rank: 'Q' as const, suit: 'C' as const },
+      { id: 'QD', rank: 'Q' as const, suit: 'D' as const },
+      { id: 'KS', rank: 'K' as const, suit: 'S' as const },
+      { id: 'KH', rank: 'K' as const, suit: 'H' as const },
+      { id: 'KC', rank: 'K' as const, suit: 'C' as const },
+      { id: 'KD', rank: 'K' as const, suit: 'D' as const },
+    ];
+
+    it('2-3-4-5-6 with 6♠ (highest suit) is the highest remaining 6-high straight', () => {
+      // Remaining after removing hand+playedCards: {2H, 3H, 4S, 5H, 6H}.
+      // Only remaining 6 is 6♥ (suit value 2). Our 6♠ (suit value 3) wins.
+      expect(isHighestPossiblePlay(twoLowHand, twoLowPlayed)).toBe(true);
+    });
+
+    it('2-3-4-5-6 with 6♦ is NOT the highest 6-high straight when 6♠ is still unplayed', () => {
+      // Remaining: {2H, 3H, 4S, 5H, 6S}. The remaining 6 is 6♠ (suit value 3).
+      // Our 6♦ (suit value 0) loses the tiebreak → not highest.
+      expect(isHighestPossiblePlay(twoLowHandLowerSuit, twoLowPlayedLowerSuit)).toBe(false);
+    });
+  });
 });
