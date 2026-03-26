@@ -75,9 +75,10 @@ export function initSentry(): void {
     // Environment tag shown in Sentry dashboard
     environment: __DEV__ ? 'development' : 'production',
 
-    // Attach app version from Expo config
-    // (Sentry picks this up automatically from the native layer, but setting
-    // it here ensures it's present in JS-layer events too.)
+    // Attach app version — read from the EXPO_PUBLIC_APP_VERSION env var set
+    // in app.json/EAS secrets. Not sourced from Expo config at runtime here
+    // (that would require importing expo-constants), so ensure the env var is
+    // populated in CI and production builds.
     release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
 
     // Enable performance tracing for React Native (navigation, network, etc.)
