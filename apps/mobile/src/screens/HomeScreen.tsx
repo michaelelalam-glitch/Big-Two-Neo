@@ -9,7 +9,6 @@ import {
   Modal,
   Alert,
   useWindowDimensions,
-  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useActiveGameBanner } from '../hooks/useActiveGameBanner';
 import { useMatchmakingFlow } from '../hooks/useMatchmakingFlow';
+import { useUnlockOrientationOnIos } from '../hooks/useUnlockOrientationOnIos';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -35,30 +35,9 @@ export default function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isLandscape = screenWidth > screenHeight;
 
-  // On iOS, expo-screen-orientation may still hold a portrait lock from the
-  // game screen. Release it here so the home screen modals can appear in
-  // the correct orientation when the device is held in landscape.
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let cancelled = false;
-    const unlock = async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const ScreenOrientation = require('expo-screen-orientation');
-        if (!cancelled) await ScreenOrientation.unlockAsync();
-      } catch {
-        // expo-screen-orientation not available — safe to ignore
-      }
-    };
-    void unlock();
-    const unsubscribe = navigation.addListener('focus', () => {
-      void unlock();
-    });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [navigation]);
+  // On iOS, release any portrait lock held by the game screen so home-screen
+  // modals appear in the correct orientation when the device is in landscape.
+  useUnlockOrientationOnIos(navigation);
 
   const {
     currentRoom,
