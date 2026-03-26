@@ -5,6 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Alert } from 'react-native';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -63,10 +64,13 @@ export function LocalAIGame() {
   // In-game alert ref — orientation-aware replacement for Alert.alert
   const inGameAlertRef = useRef<InGameAlertHandle>(null);
   const showInGameAlert = useCallback((options: InGameAlertOptions) => {
-    // Fallback to showError when the ref is unmounted/unavailable (e.g. during
-    // screen teardown) so errors are never silently dropped on iOS.
+    // Fallback when the ref is unmounted/unavailable (e.g. during screen teardown).
+    // Use Alert.alert when buttons are present to preserve custom actions;
+    // otherwise fall back to showError for simple message-only errors.
     if (inGameAlertRef.current) {
       inGameAlertRef.current.show(options);
+    } else if (options.buttons?.length) {
+      Alert.alert(options.title ?? '', options.message, options.buttons);
     } else {
       showError(options.message, options.title);
     }

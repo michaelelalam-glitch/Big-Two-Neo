@@ -244,7 +244,10 @@ export const GameEndModal: React.FC = () => {
     if (onPlayAgain) {
       void Promise.resolve()
         .then(() => onPlayAgain())
-        .catch(err => console.warn('[GameEndModal] onPlayAgain error:', err));
+        .catch(err => {
+          console.warn('[GameEndModal] onPlayAgain error:', err);
+          setToastMsg(i18n.t('common.error'));
+        });
     }
   };
 
@@ -265,7 +268,10 @@ export const GameEndModal: React.FC = () => {
     if (onReturnToMenu) {
       void Promise.resolve()
         .then(() => onReturnToMenu())
-        .catch(err => console.warn('[GameEndModal] onReturnToMenu error:', err));
+        .catch(err => {
+          console.warn('[GameEndModal] onReturnToMenu error:', err);
+          setToastMsg(i18n.t('common.error'));
+        });
     }
   };
 
