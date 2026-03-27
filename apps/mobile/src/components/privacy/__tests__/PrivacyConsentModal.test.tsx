@@ -27,7 +27,7 @@ describe('PrivacyConsentModal', () => {
     );
 
     expect(getByText('We Value Your Privacy')).toBeTruthy();
-    expect(getByText(/anonymous analytics/i)).toBeTruthy();
+    expect(getByText(/crash reporting/i)).toBeTruthy();
     expect(getByText(/crash reporting/i)).toBeTruthy();
   });
 

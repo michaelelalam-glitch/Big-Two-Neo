@@ -64,7 +64,7 @@ Event: app_open
 Parameters:
   platform: "ios" or "android"
   app_version: "1.0.0" (from EXPO_PUBLIC_APP_VERSION, falling back to Expo app config version)
-  engagement_time_msec: 1
+  engagement_time_msec: 100
   session_id: <numeric timestamp>
 ```
 
@@ -88,7 +88,7 @@ Event: user_signed_in
 Parameters:
   platform: "ios" or "android"
   app_version: "1.0.0"
-  engagement_time_msec: 1
+  engagement_time_msec: 100
   session_id: <numeric timestamp>
 ```
 
@@ -304,7 +304,7 @@ Parameters:
          "params": {
            "platform": "ios",
            "app_version": "1.0.0",
-           "engagement_time_msec": 1,
+           "engagement_time_msec": 100,
            "session_id": 1743000000000
          }
        }]

@@ -16,11 +16,6 @@ import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
 import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
 import { SETTINGS_KEYS } from './src/utils/settings';
 
-// ── Sentry: initialise before any React tree renders ─────────────────────────
-// Placing init here (module-level) ensures Sentry is ready before the first
-// render cycle, so any early errors are captured.
-initSentry();
-
 // ── Global unhandled native error handler ─────────────────────────────────────
 // Catches native bridge errors (e.g. modal orientation mismatches) that error
 // boundaries cannot intercept. Logs and swallows them to prevent hard crashes.
@@ -86,28 +81,53 @@ export default function App() {
       setI18nInitialized(true);
 
       if (consentRaw === null) {
-        // First launch — show consent modal (do NOT enable analytics yet)
+        // First launch — show consent modal (do NOT enable analytics or Sentry yet)
         setConsentDecision(null);
       } else {
         const consented = consentRaw === 'true';
         setConsentDecision(consented);
         setAnalyticsConsent(consented);
         if (consented) {
+          initSentry();
           trackEvent('app_open');
         }
       }
+    }).catch((error) => {
+      // If init fails (e.g. AsyncStorage corrupted), fall back to showing the
+      // consent modal with analytics disabled so the app stays usable.
+      if (__DEV__) {
+        console.warn('[App] init Promise.all failed:', error);
+      }
+      setI18nInitialized(true);
+      setConsentDecision(null);
+      setAnalyticsConsent(false);
     });
   }, []);
 
   const handleConsentAccept = useCallback(() => {
-    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'true').catch(() => {});
+    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'true').catch((error) => {
+      if (__DEV__) {
+        console.warn('[App] Failed to persist analytics consent (accept):', error);
+      }
+      try {
+        sentryCapture.exception(error, { context: 'ConsentAccept' });
+      } catch {
+        // Swallow secondary errors from reporting
+      }
+    });
     setConsentDecision(true);
     setAnalyticsConsent(true);
+    initSentry();
     trackEvent('app_open');
   }, []);
 
   const handleConsentDecline = useCallback(() => {
-    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'false').catch(() => {});
+    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'false').catch((error) => {
+      if (__DEV__) {
+        console.warn('[App] Failed to persist analytics consent (decline):', error);
+      }
+      // Sentry not initialized on decline path — error is dev-logged only
+    });
     setConsentDecision(false);
     setAnalyticsConsent(false);
   }, []);

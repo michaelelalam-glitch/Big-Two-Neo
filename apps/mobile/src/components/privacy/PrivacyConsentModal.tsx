@@ -1,14 +1,13 @@
 /**
  * PrivacyConsentModal — Task #272 (GDPR / analytics consent)
  *
- * Shown once on first app launch (before any analytics events are sent).
- * Persists the user's choice to AsyncStorage under `@big2_analytics_consent`.
+ * Modal asking the user to opt in or out of anonymous analytics and crash
+ * reporting. This is a presentational component: it renders the UI and
+ * surfaces the user's choice via `onAccept` and `onDecline` callbacks.
  *
- * Accepting:  enables Firebase Analytics + Sentry (setAnalyticsConsent(true))
- * Declining:  disables both services for this session and future launches
- *             (setAnalyticsConsent(false))
- *
- * The decision can be revisited from Settings → Privacy at any time.
+ * Any persistence of the choice (e.g. to AsyncStorage) and enabling/disabling
+ * of analytics or error-reporting services (e.g. Firebase Analytics, Sentry)
+ * must be implemented by the caller of this component.
  */
 
 import React from 'react';
@@ -61,15 +60,13 @@ export default function PrivacyConsentModal({
 
           {/* Body copy */}
           <Text style={styles.body}>
-            Big&nbsp;2 uses <Text style={styles.bodyBold}>anonymous analytics</Text> to improve the
-            game experience and <Text style={styles.bodyBold}>crash reporting</Text> to fix bugs
-            faster. No personal details are shared with third parties.
+            Big&nbsp;2 uses <Text style={styles.bodyBold}>analytics</Text> to improve the game
+            experience and <Text style={styles.bodyBold}>crash reporting</Text> to fix bugs faster.
+            We use trusted third-party services (such as Firebase and Sentry) and share a
+            pseudonymous ID with them, but not your name, email, or contact details.
           </Text>
 
-          <Text style={styles.body}>
-            You can change this at any time in{' '}
-            <Text style={styles.bodyBold}>Settings → Privacy</Text>.
-          </Text>
+          <Text style={styles.body}>Your choice is saved for future app launches.</Text>
 
           {/* Accept */}
           <TouchableOpacity
