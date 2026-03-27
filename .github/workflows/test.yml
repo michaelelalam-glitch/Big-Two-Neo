@@ -330,6 +330,13 @@ jobs:
           # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
           # Source maps / native symbols are not needed for E2E test builds.
           SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+          # pnpm does not hoist @sentry/cli to node_modules/@sentry/cli, so the
+          # first require.resolve() call in sentry-xcode-debug-files.sh exits 1
+          # (with set -e active) BEFORE the SENTRY_DISABLE_AUTO_UPLOAD guard is
+          # reached.  Providing any non-empty value skips that node resolution
+          # entirely; the value is never invoked because SENTRY_DISABLE_AUTO_UPLOAD
+          # prevents all upload code paths from executing.
+          SENTRY_CLI_EXECUTABLE: 'disabled-in-ci'
 
       - name: 💾 Save DerivedData cache (only on success)
         # Save only on success so that failed builds do not overwrite the cache
