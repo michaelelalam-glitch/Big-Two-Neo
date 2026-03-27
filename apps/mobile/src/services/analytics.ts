@@ -262,7 +262,7 @@ export function trackGameEvent(
 }
 
 /** Named export object for convenience (e.g. analytics.track). */
-export const xanalytics = {
+export const analytics = {
   track: trackEvent,
   screenView: trackScreenView,
   error: trackError,
