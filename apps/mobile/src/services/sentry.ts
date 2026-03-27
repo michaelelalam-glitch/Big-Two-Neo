@@ -63,6 +63,9 @@ export function initSentry(): void {
   }
 
   try {
+    if (__DEV__) {
+      console.log('[Sentry] Initializing with DSN:', SENTRY_DSN.slice(0, 30) + '...');
+    }
     Sentry.init({
       dsn: SENTRY_DSN,
 
@@ -89,10 +92,7 @@ export function initSentry(): void {
       // swallowed by the global ErrorUtils handler in App.tsx
       beforeSend(event) {
         const msg = event.exception?.values?.[0]?.value ?? '';
-        if (
-          msg.includes('supportedInterfaceOrientations') &&
-          msg.includes('UIViewController')
-        ) {
+        if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
         return event;
@@ -100,7 +100,13 @@ export function initSentry(): void {
     });
 
     _initialized = true;
-  } catch {
+    if (__DEV__) {
+      console.log('[Sentry] Initialized successfully');
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[Sentry] init error:', err);
+    }
     // Sentry.init failed (e.g. native module unavailable or misconfigured).
     // Leave _initialized = false so all capture helpers remain no-ops and the
     // app continues to function without crash reporting.
@@ -165,7 +171,7 @@ function captureException(error: unknown, opts: CaptureOptions = {}): void {
  */
 function captureMessage(
   message: string,
-  opts: CaptureOptions & { level?: Sentry.SeverityLevel } = {},
+  opts: CaptureOptions & { level?: Sentry.SeverityLevel } = {}
 ): void {
   if (!_initialized) return;
   const scope = buildScope(opts);
@@ -179,7 +185,7 @@ function captureMessage(
 function captureBreadcrumb(
   message: string,
   data?: Record<string, unknown>,
-  category = 'app',
+  category = 'app'
 ): void {
   if (!_initialized) return;
   Sentry.addBreadcrumb({

@@ -103,7 +103,7 @@
 | 19 | `#314` | Physical device testing: push notifications on real devices | 1–2 days | 🔴 High |
 | 20 | `#279` | Configure Apple Sign-In OAuth provider | 0.5 day | 🟢 Low |
 | 21 | `#255` | Set up backend infrastructure for production (Supabase scale, TURN) | 3–4 days | 🔴 High |
-| 22 | `#272` | ✅ Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase MP v2; auth tracking; 35 new tests ✅) | 0 days | ✅ Completed |
+| 22 | `#272` | ✅ Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 28, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase MP v2; auth tracking; GDPR consent UI; 42 new tests ✅) | 0 days | ✅ Completed |
 
 ---
 
@@ -163,7 +163,7 @@
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
 
 ### ✅ RECENTLY COMPLETED (Mar 26, 2026)
-- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase Measurement Protocol v2; auth + error tracking; 35 new tests ✅)
+- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 28, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase Measurement Protocol v2; auth + error tracking; GDPR privacy consent modal; 42 new tests ✅)
 
 ### ✅ PREVIOUSLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
 - `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshots ✅)

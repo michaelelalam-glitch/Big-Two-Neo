@@ -56,8 +56,8 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "big2-mobile",
-          "project": "big2-mobile-app",
+          "organization": "bigtwoapp",
+          "project": "big2-mobile",
           "uploadNativeSymbols": true,
           "autoUploadNativeSymbols": true
         }

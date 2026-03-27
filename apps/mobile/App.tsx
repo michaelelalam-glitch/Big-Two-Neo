@@ -4,14 +4,17 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Explicit import removed - Babel plugin handles initialization in v4.1.6+
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
 import { initSentry, sentryCapture, Sentry } from './src/services/sentry';
 import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
+import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
+import { SETTINGS_KEYS } from './src/utils/settings';
 
 // ── Sentry: initialise before any React tree renders ─────────────────────────
 // Placing init here (module-level) ensures Sentry is ready before the first
@@ -70,21 +73,47 @@ if (
 
 export default function App() {
   const [i18nInitialized, setI18nInitialized] = useState(false);
+  // null = not yet decided (show modal); true/false = persisted choice
+  const [consentDecision, setConsentDecision] = useState<boolean | null | 'loading'>('loading');
 
   useEffect(() => {
-    // Initialize i18n system on app start
-    i18n.initialize().then(() => {
+    // Read consent decision and initialise i18n in parallel.
+    // Both must complete before rendering the main app or showing the modal.
+    void Promise.all([
+      i18n.initialize(),
+      AsyncStorage.getItem(SETTINGS_KEYS.ANALYTICS_CONSENT),
+    ]).then(([, consentRaw]) => {
       setI18nInitialized(true);
-      // Analytics is enabled at startup per the app's privacy policy.
-      // If GDPR/opt-in compliance is required, gate this call on a persisted
-      // user preference loaded from AsyncStorage before enabling consent.
-      setAnalyticsConsent(true);
-      trackEvent('app_open');
+
+      if (consentRaw === null) {
+        // First launch — show consent modal (do NOT enable analytics yet)
+        setConsentDecision(null);
+      } else {
+        const consented = consentRaw === 'true';
+        setConsentDecision(consented);
+        setAnalyticsConsent(consented);
+        if (consented) {
+          trackEvent('app_open');
+        }
+      }
     });
   }, []);
 
-  if (!i18nInitialized) {
-    // Show loading screen while i18n initializes
+  const handleConsentAccept = useCallback(() => {
+    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'true').catch(() => {});
+    setConsentDecision(true);
+    setAnalyticsConsent(true);
+    trackEvent('app_open');
+  }, []);
+
+  const handleConsentDecline = useCallback(() => {
+    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'false').catch(() => {});
+    setConsentDecision(false);
+    setAnalyticsConsent(false);
+  }, []);
+
+  if (!i18nInitialized || consentDecision === 'loading') {
+    // Show loading screen while i18n and AsyncStorage initialise
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#25292e' }}>
         <ActivityIndicator size="large" color="#4A90E2" />
@@ -97,6 +126,12 @@ export default function App() {
       <AuthProvider>
         <StatusBar style="light" />
         <AppNavigator />
+        {/* Consent modal is shown above everything else on first launch */}
+        <PrivacyConsentModal
+          visible={consentDecision === null}
+          onAccept={handleConsentAccept}
+          onDecline={handleConsentDecline}
+        />
       </AuthProvider>
     </GestureHandlerRootView>
   );

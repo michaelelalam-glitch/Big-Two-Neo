@@ -29,16 +29,13 @@ import Constants from 'expo-constants';
 /** Firebase Measurement Protocol v2 endpoint */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
-
-const MEASUREMENT_ID =
-  process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
+const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 // NOTE: EXPO_PUBLIC_* vars are bundled into the app binary and are technically
 // extractable. The Measurement Protocol API secret is designed for client-side
 // use and can ONLY push events to YOUR GA4 property. It is NOT a server-side
 // credential. GA4's built-in bot/spam filters provide some protection against
 // abuse; for higher assurance, proxy analytics through a server-side endpoint.
-const API_SECRET =
-  process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
+const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
 /**
  * Tracks whether the user has consented to analytics.
@@ -79,7 +76,7 @@ export type AnalyticsEventName =
  * For a persistent client_id, save this to AsyncStorage on first launch.
  */
 function generateClientId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -116,7 +113,7 @@ function getSessionId(): number {
  * Silently swallows network errors to avoid impacting app UX.
  */
 async function sendEvents(
-  events: { name: string; params?: AnalyticsEventParams }[],
+  events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
   if (!MEASUREMENT_ID || !API_SECRET) {
     // Credentials not configured — no-op silently
@@ -135,12 +132,13 @@ async function sendEvents(
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
-    events: events.map((e) => {
+    events: events.map(e => {
       const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
         ...(e.params ?? {}),
         // Standard GA4 params — enforced last
-        engagement_time_msec: 1,
+        // Minimum recommended engagement time for GA4 session attribution
+        engagement_time_msec: 100,
         session_id: getSessionId(),
       };
       if (__DEV__) {
@@ -157,12 +155,21 @@ async function sendEvents(
   }
 
   try {
-    await fetch(url, {
+    if (__DEV__) {
+      console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
+    }
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-  } catch {
+    if (__DEV__) {
+      console.log('[Analytics] Response status:', response.status);
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[Analytics] Network error:', err);
+    }
     // Network error — swallow silently (analytics must never crash the app)
   }
 }
@@ -205,18 +212,14 @@ export function isAnalyticsEnabled(): boolean {
  * @example
  * analytics.track('game_started', { mode: 'multiplayer', player_count: 4 });
  */
-export function trackEvent(
-  name: AnalyticsEventName,
-  params?: AnalyticsEventParams,
-): void {
+export function trackEvent(name: AnalyticsEventName, params?: AnalyticsEventParams): void {
   const enrichedParams: AnalyticsEventParams = {
     ...params,
     platform: Platform.OS,
     // Prefer the explicit EXPO_PUBLIC_APP_VERSION env var so analytics and
     // Sentry both report the same version string. Falls back to Expo app
     // config if the env var is not set.
-    app_version:
-      process.env.EXPO_PUBLIC_APP_VERSION ?? Constants.expoConfig?.version ?? 'unknown',
+    app_version: process.env.EXPO_PUBLIC_APP_VERSION ?? Constants.expoConfig?.version ?? 'unknown',
   };
 
   // Fire-and-forget — don't await in callers (non-blocking)
@@ -229,10 +232,7 @@ export function trackEvent(
  * @param screenName  - e.g. 'HomeScreen', 'GameScreen'
  * @param screenClass - Optional class name (defaults to screenName)
  */
-export function trackScreenView(
-  screenName: string,
-  screenClass?: string,
-): void {
+export function trackScreenView(screenName: string, screenClass?: string): void {
   trackEvent('screen_view', {
     firebase_screen: screenName,
     firebase_screen_class: screenClass ?? screenName,
@@ -240,11 +240,7 @@ export function trackScreenView(
 }
 
 /** Convenience: track an error event (non-fatal, for analytics dashboards). */
-export function trackError(
-  context: string,
-  message: string,
-  fatal = false,
-): void {
+export function trackError(context: string, message: string, fatal = false): void {
   trackEvent('error_occurred', {
     error_context: context,
     error_message: message.slice(0, 100), // GA4 param max 100 chars
@@ -253,23 +249,20 @@ export function trackError(
 }
 
 /** Convenience: track auth events. */
-export function trackAuthEvent(
-  event: 'user_signed_in' | 'user_signed_out',
-  method?: string,
-): void {
+export function trackAuthEvent(event: 'user_signed_in' | 'user_signed_out', method?: string): void {
   trackEvent(event, method ? { method } : undefined);
 }
 
 /** Convenience: track game lifecycle events. */
 export function trackGameEvent(
   event: 'game_started' | 'game_completed' | 'game_abandoned',
-  params?: AnalyticsEventParams,
+  params?: AnalyticsEventParams
 ): void {
   trackEvent(event, params);
 }
 
 /** Named export object for convenience (e.g. analytics.track). */
-export const analytics = {
+export const xanalytics = {
   track: trackEvent,
   screenView: trackScreenView,
   error: trackError,

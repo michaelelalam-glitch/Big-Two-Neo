@@ -34,6 +34,10 @@ export const SETTINGS_KEYS = {
    *  `big2-audio-settings` persist blob, which may be created early by other
    *  screens via Zustand's persist middleware. */
   AUDIO_SETTINGS_MIGRATION_COMPLETE: '@big2_audio_settings_migrated',
+  /** User's analytics + crash-reporting consent (Task #272 GDPR compliance).
+   *  Stored as the string `"true"` or `"false"`. A missing key means the user
+   *  has not yet been shown the consent modal. */
+  ANALYTICS_CONSENT: '@big2_analytics_consent',
 } as const;
 
 // Default settings values
