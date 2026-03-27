@@ -656,9 +656,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
           }
         } else {
-          authLogger.info('🚪 [AuthContext] No session - clearing profile');
+          authLogger.info('🚪 [AuthContext] No session - clearing profile and user context');
           setProfile(null);
           setIsLoading(false);
+          // Clear analytics + Sentry user context on any sign-out path (explicit signOut(),
+          // session expiry, token revocation, etc.) so subsequent events/errors are never
+          // misattributed to the previous user.
+          setAnalyticsUserId(null);
+          setSentryUser(null);
         }
 
         authLogger.info('📊 [AuthContext] Final state:', {
