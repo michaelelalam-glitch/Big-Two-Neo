@@ -326,6 +326,10 @@ jobs:
             exit $EXIT_CODE
           fi
         timeout-minutes: 45
+        env:
+          # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
+          # Source maps / native symbols are not needed for E2E test builds.
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
 
       - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
         # Saving with if: always() ensures the cache is preserved even when the
@@ -506,6 +510,9 @@ jobs:
         env:
           JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true"
+          # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
+          # Source maps / native symbols are not needed for E2E test builds.
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
 
       - name: 📱 Boot Android Emulator and run Maestro tests
         uses: reactivecircus/android-emulator-runner@v2
