@@ -28,7 +28,7 @@ describe('PrivacyConsentModal', () => {
 
     expect(getByText('We Value Your Privacy')).toBeTruthy();
     expect(getByText(/crash reporting/i)).toBeTruthy();
-    expect(getByText(/crash reporting/i)).toBeTruthy();
+    expect(getByText(/pseudonymous/i)).toBeTruthy();
   });
 
   it('renders with visible=false without crashing', () => {

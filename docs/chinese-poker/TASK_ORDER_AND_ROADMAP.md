@@ -163,7 +163,7 @@
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
 
 ### ✅ RECENTLY COMPLETED (Mar 26, 2026)
-- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 28, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase Measurement Protocol v2; auth + error tracking; GDPR privacy consent modal; 42 new tests ✅)
+- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase Measurement Protocol v2; auth + error tracking; GDPR privacy consent modal; 42 new tests ✅)
 
 ### ✅ PREVIOUSLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
 - `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshots ✅)

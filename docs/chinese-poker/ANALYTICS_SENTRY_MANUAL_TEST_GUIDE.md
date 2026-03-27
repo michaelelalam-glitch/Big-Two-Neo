@@ -50,13 +50,16 @@ EXPO_PUBLIC_APP_VERSION=1.0.0
 
 ## Test Scenario 1: App Open Event (Firebase)
 
-**What it tests:** `trackEvent('app_open')` called in `App.tsx` after i18n initialises.
+**What it tests:** `trackEvent('app_open')` called in `App.tsx` after i18n initialises **and analytics consent is granted (persisted as `true`)**.
 
 **Steps:**
 
-1. Start the app: `cd apps/mobile && npx expo start --clear`
-2. Open the app on simulator/device
-3. In Firebase Console → **DebugView**, watch for the `app_open` event
+1. Ensure analytics consent has already been accepted on this device/profile (i.e., consent is persisted as `true`).  
+   - If this is the first launch and a consent prompt appears, **accept** analytics consent before continuing.  
+   - If consent is declined or still undecided, `app_open` will **not** be sent and this scenario should **not** be treated as a failure.
+2. Start the app: `cd apps/mobile && npx expo start --clear`
+3. Open the app on simulator/device
+4. In Firebase Console → **DebugView**, watch for the `app_open` event
 
 **Expected in DebugView:**
 ```

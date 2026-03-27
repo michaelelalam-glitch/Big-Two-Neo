@@ -39,6 +39,9 @@ export default function PrivacyConsentModal({
       statusBarTranslucent
       // Prevents assistive technology from interacting with background content
       accessibilityViewIsModal
+      // Handle Android hardware back button — treat as decline to prevent dismissal
+      // without an explicit choice
+      onRequestClose={onDecline}
     >
       <View style={styles.overlay}>
         <View

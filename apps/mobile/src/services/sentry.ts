@@ -30,6 +30,9 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 /** Has Sentry been successfully initialised? */
 let _initialized = false;
 
+/** Pending user context to apply once Sentry is initialized. */
+let _pendingUser: SentryUser | null | undefined = undefined;
+
 // ─── Types ─────────────────────────────────────────────────────────────────── //
 
 export interface SentryUser {
@@ -100,6 +103,11 @@ export function initSentry(): void {
     });
 
     _initialized = true;
+    // Apply any pending user context that was set before init
+    if (_pendingUser !== undefined) {
+      Sentry.setUser(_pendingUser);
+      _pendingUser = undefined;
+    }
     if (__DEV__) {
       console.log('[Sentry] Initialized successfully');
     }
@@ -128,7 +136,11 @@ export function isSentryEnabled(): boolean {
  * @param user - Pass null to clear the user (on sign-out).
  */
 export function setSentryUser(user: SentryUser | null): void {
-  if (!_initialized) return;
+  if (!_initialized) {
+    // Cache the user so it can be applied once Sentry initializes after consent
+    _pendingUser = user;
+    return;
+  }
   Sentry.setUser(user);
 }
 

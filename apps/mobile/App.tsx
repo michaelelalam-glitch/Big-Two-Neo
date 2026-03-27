@@ -83,7 +83,7 @@ export default function App() {
       if (consentRaw === null) {
         // First launch — show consent modal (do NOT enable analytics or Sentry yet)
         setConsentDecision(null);
-      } else {
+      } else if (consentRaw === 'true' || consentRaw === 'false') {
         const consented = consentRaw === 'true';
         setConsentDecision(consented);
         setAnalyticsConsent(consented);
@@ -91,6 +91,13 @@ export default function App() {
           initSentry();
           trackEvent('app_open');
         }
+      } else {
+        // Corrupted/unexpected value — wipe it and re-prompt rather than silently assuming decline
+        if (__DEV__) {
+          console.warn('[App] Unexpected consent storage value:', consentRaw, '— re-prompting');
+        }
+        void AsyncStorage.removeItem(SETTINGS_KEYS.ANALYTICS_CONSENT).catch(() => {});
+        setConsentDecision(null);
       }
     }).catch((error) => {
       // If init fails (e.g. AsyncStorage corrupted), fall back to showing the
