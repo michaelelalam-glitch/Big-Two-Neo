@@ -495,7 +495,7 @@ export default function SettingsScreen() {
               const handleSubmit = (description: string) => {
                 if (!description.trim()) return;
                 if (!isSentryEnabled()) {
-                  showError('Bug reporting requires analytics consent to be enabled.');
+                  showError('Bug reporting is currently unavailable.');
                   return;
                 }
                 submitBugReport(

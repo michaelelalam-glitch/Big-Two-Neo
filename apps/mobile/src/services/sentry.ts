@@ -252,7 +252,7 @@ export { Sentry };
 
 /**
  * Submit a user bug report via Sentry user feedback.
- * This attaches the report to the most recent Sentry event (or creates one).
+ * This creates a new Sentry "Bug Report" event and attaches the feedback to it.
  *
  * @param description - User-provided description of the bug
  * @param email - Optional email for follow-up

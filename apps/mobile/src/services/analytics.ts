@@ -313,7 +313,7 @@ export function trackGameplayAction(
 
 /** Track feature usage events (chat, camera, hints, throwables, etc.). */
 export function trackFeatureUsage(feature: string, params?: AnalyticsEventParams): void {
-  trackEvent('feature_used', { feature_name: feature, ...params });
+  trackEvent('feature_used', { ...params, feature_name: feature });
 }
 
 /** Track connection state changes. */

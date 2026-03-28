@@ -14,7 +14,8 @@ const Scope = class {
 const mockSentry = {
   init: jest.fn(),
   captureException: jest.fn(),
-  captureMessage: jest.fn(),
+  captureMessage: jest.fn().mockReturnValue('mock-event-id'),
+  captureFeedback: jest.fn(),
   addBreadcrumb: jest.fn(),
   setUser: jest.fn(),
   flush: jest.fn(() => Promise.resolve(true)),
