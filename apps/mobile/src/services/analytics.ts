@@ -327,7 +327,12 @@ export function trackAuthEvent(event: 'user_signed_in' | 'user_signed_out', meth
 
 /** Convenience: track game lifecycle events. */
 export function trackGameEvent(
-  event: 'game_started' | 'game_completed' | 'game_abandoned' | 'game_voided',
+  event:
+    | 'game_started'
+    | 'game_completed'
+    | 'game_abandoned'
+    | 'game_voided'
+    | 'game_not_completed',
   params?: AnalyticsEventParams
 ): void {
   trackEvent(event, params);
@@ -335,7 +340,13 @@ export function trackGameEvent(
 
 /** Track a card play or combo event during gameplay. */
 export function trackGameplayAction(
-  action: 'card_play' | 'card_pass' | 'combo_played' | 'play_error',
+  action:
+    | 'card_play'
+    | 'card_pass'
+    | 'combo_played'
+    | 'play_error'
+    | 'play_validation_error'
+    | 'play_method_used',
   params?: AnalyticsEventParams
 ): void {
   trackEvent(action, params);
