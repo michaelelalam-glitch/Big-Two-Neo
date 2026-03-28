@@ -99,8 +99,11 @@ export function initSentry(): void {
         if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
-        // Tag translation-related errors so they can be filtered in Sentry dashboard.
-        if (msg.includes('Translation not found') || msg.includes('i18n')) {
+        // Tag only missing-translation warnings so they can be filtered in Sentry dashboard.
+        if (
+          msg.includes('[i18n] Translation not found:') ||
+          msg.includes('Translation not found')
+        ) {
           event.tags = { ...event.tags, category: 'translation' };
           event.level = 'warning';
         }

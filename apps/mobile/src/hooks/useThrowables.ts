@@ -295,7 +295,10 @@ export function useThrowables({
         typeof thrower_id !== 'string' ||
         typeof thrower_name !== 'string' ||
         typeof target_player_index !== 'number' ||
-        (throwable !== 'egg' && throwable !== 'smoke' && throwable !== 'confetti')
+        (throwable !== 'egg' &&
+          throwable !== 'smoke' &&
+          throwable !== 'confetti' &&
+          throwable !== 'cake')
       ) {
         return;
       }

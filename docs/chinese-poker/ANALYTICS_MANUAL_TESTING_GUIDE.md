@@ -3,7 +3,7 @@
 **Branch:** `feat/comprehensive-analytics-tracking`  
 **Prerequisites:**
 - Development build (not Expo Go) for camera/mic/orientation features
-- Firebase Analytics debug view enabled (`-FIRDebugEnabled` launch arg)
+- Firebase Analytics debug view enabled (`-FIRAnalyticsDebugEnabled` launch arg)
 - Sentry dashboard access
 - Supabase dashboard access (project: `dppybucldqufbqhwnkxu`)
 
@@ -23,12 +23,12 @@
 
 | Step | Action | Expected Analytics Event |
 |---|---|---|
-| 1 | Open app → land on Home screen | `screen_time` start for "Home" |
-| 2 | Navigate to Settings | `screen_time` end for "Home" (check `duration_seconds`), start for "Settings" |
-| 3 | Return to Home | `screen_time` end for "Settings", start for "Home" |
-| 4 | Enter a multiplayer game | `screen_time` end for "Home", start for "Game" |
+| 1 | Open app → land on Home screen | `screen_view` for "Home" |
+| 2 | Navigate to Settings | `screen_time` for "Home" (check `duration_seconds`), `screen_view` for "Settings" |
+| 3 | Return to Home | `screen_time` for "Settings", `screen_view` for "Home" |
+| 4 | Enter a multiplayer game | `screen_time` for "Home", `screen_view` for "Game" |
 
-**Verify:** Each `screen_time` event has `screen_name` and `duration_seconds` > 0.
+**Verify:** Each `screen_time` event has `firebase_screen` and `duration_seconds` > 0.
 
 ---
 

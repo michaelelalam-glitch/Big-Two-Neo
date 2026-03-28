@@ -270,7 +270,7 @@ export function useGameStatsUploader({
             }
           }
           for (const [idx, { sum, count }] of totals) {
-            avgCardsLeftByPlayer.set(idx, count > 0 ? Math.round((sum / count) * 100) / 100 : 0);
+            avgCardsLeftByPlayer.set(idx, count > 0 ? Math.round(sum / count) : 0);
           }
         }
 

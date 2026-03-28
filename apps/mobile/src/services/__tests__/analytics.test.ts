@@ -17,6 +17,14 @@ import {
   setAnalyticsUserId,
   isAnalyticsEnabled,
   analytics,
+  screenTimeStart,
+  screenTimeEnd,
+  setLastHintCards,
+  checkHintFollowed,
+  turnTimeStart,
+  turnTimeEnd,
+  featureDurationStart,
+  featureDurationEnd,
 } from '../../services/analytics';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────── //
@@ -414,5 +422,147 @@ describe('trackSocial', () => {
 
   it('does not throw for matchmaking_started', () => {
     expect(() => trackSocial('matchmaking_started')).not.toThrow();
+  });
+});
+
+// ─── Screen Time Tracking ─────────────────────────────────────────────────── //
+
+describe('screenTimeStart / screenTimeEnd', () => {
+  it('emits screen_time with duration when a screen ends', async () => {
+    jest.isolateModules(() => {
+      setEnv('G-TEST123', 'test-secret');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        screenTimeStart: start,
+        screenTimeEnd: end,
+        setAnalyticsConsent: consent,
+      } = require('../../services/analytics') as typeof import('../../services/analytics');
+      consent(true);
+
+      // Simulate screen start and immediate end (duration rounds to 0 → suppressed)
+      start('Home');
+      end('Home');
+    });
+    // zero-duration events should be suppressed
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when ending a screen that was never started', () => {
+    expect(() => screenTimeEnd('NonExistent')).not.toThrow();
+  });
+
+  it('does not throw for start/end calls', () => {
+    expect(() => {
+      screenTimeStart('Test');
+      screenTimeEnd('Test');
+    }).not.toThrow();
+  });
+});
+
+// ─── Hint Tracking ────────────────────────────────────────────────────────── //
+
+describe('setLastHintCards / checkHintFollowed', () => {
+  it('emits hint_result_played when played cards match hint', async () => {
+    jest.isolateModules(() => {
+      setEnv('G-TEST123', 'test-secret');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        setLastHintCards: setHint,
+        checkHintFollowed: check,
+        setAnalyticsConsent: consent,
+      } = require('../../services/analytics') as typeof import('../../services/analytics');
+      consent(true);
+      setHint(['card_1', 'card_2']);
+      check(['card_1', 'card_2']);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ name: string }> };
+    expect(body.events[0].name).toBe('hint_result_played');
+  });
+
+  it('emits hint_result_ignored when played cards differ from hint', async () => {
+    jest.isolateModules(() => {
+      setEnv('G-TEST123', 'test-secret');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        setLastHintCards: setHint,
+        checkHintFollowed: check,
+        setAnalyticsConsent: consent,
+      } = require('../../services/analytics') as typeof import('../../services/analytics');
+      consent(true);
+      setHint(['card_1', 'card_2']);
+      check(['card_3', 'card_4']);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ name: string }> };
+    expect(body.events[0].name).toBe('hint_result_ignored');
+  });
+
+  it('does not emit when no hint was set', () => {
+    checkHintFollowed(['card_1']);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('clears hint state after checking', () => {
+    setLastHintCards(['card_1']);
+    checkHintFollowed(['card_1']);
+    // Second call should be a no-op (hint cleared)
+    mockFetch.mockClear();
+    checkHintFollowed(['card_1']);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Turn Time Tracking ───────────────────────────────────────────────────── //
+
+describe('turnTimeStart / turnTimeEnd', () => {
+  it('does not throw for start/end cycle', () => {
+    expect(() => {
+      turnTimeStart();
+      turnTimeEnd('play');
+    }).not.toThrow();
+  });
+
+  it('does not throw for timeout action', () => {
+    expect(() => {
+      turnTimeStart();
+      turnTimeEnd('timeout');
+    }).not.toThrow();
+  });
+
+  it('does not emit when end is called without start', () => {
+    turnTimeEnd('pass');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Feature Duration Helpers ─────────────────────────────────────────────── //
+
+describe('featureDurationStart / featureDurationEnd', () => {
+  it('does not throw for start/end cycle', () => {
+    expect(() => {
+      featureDurationStart('camera');
+      featureDurationEnd('camera', 'camera_session_duration');
+    }).not.toThrow();
+  });
+
+  it('does not emit when end is called without start', () => {
+    featureDurationEnd('nonexistent_feature', 'test_duration');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('clears state after ending', () => {
+    featureDurationStart('mic');
+    featureDurationEnd('mic', 'mic_session_duration');
+    // Second end should not emit
+    mockFetch.mockClear();
+    featureDurationEnd('mic', 'mic_session_duration');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
