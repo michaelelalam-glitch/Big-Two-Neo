@@ -218,6 +218,16 @@ export interface Translations {
     dataPrivacy: string;
     analyticsTracking: string;
     analyticsTrackingDescription: string;
+
+    // Bug Report
+    bugReport: string;
+    reportABug: string;
+    bugReportPromptTitle: string;
+    bugReportPromptMessage: string;
+    bugReportUnavailable: string;
+    bugReportSubmitted: string;
+    bugReportAndroidTitle: string;
+    bugReportAndroidMessage: string;
   };
 
   // Home Screen
@@ -972,6 +982,16 @@ const en: Translations = {
     dataPrivacy: 'Data & Privacy',
     analyticsTracking: 'Analytics & Crash Reporting',
     analyticsTrackingDescription: 'Help improve the app by sharing anonymous usage data',
+
+    bugReport: 'Bug Report',
+    reportABug: 'Report a Bug',
+    bugReportPromptTitle: 'Report a Bug',
+    bugReportPromptMessage: 'Describe the issue you encountered:',
+    bugReportUnavailable: 'Bug reporting is currently unavailable.',
+    bugReportSubmitted: 'Bug report submitted. Thank you!',
+    bugReportAndroidTitle: 'Report a Bug',
+    bugReportAndroidMessage:
+      'To report a bug, please email support@big2mobile.com with a description of the issue.',
   },
   home: {
     title: 'Big2 Mobile',
@@ -1682,6 +1702,16 @@ const ar: Translations = {
     dataPrivacy: 'البيانات والخصوصية',
     analyticsTracking: 'التحليلات وتقارير الأعطال',
     analyticsTrackingDescription: 'ساعد في تحسين التطبيق من خلال مشاركة بيانات الاستخدام المجهولة',
+
+    bugReport: 'تقرير خطأ',
+    reportABug: 'الإبلاغ عن خطأ',
+    bugReportPromptTitle: 'الإبلاغ عن خطأ',
+    bugReportPromptMessage: 'صف المشكلة التي واجهتها:',
+    bugReportUnavailable: 'الإبلاغ عن الأخطاء غير متاح حاليًا.',
+    bugReportSubmitted: 'تم إرسال تقرير الخطأ. شكرًا لك!',
+    bugReportAndroidTitle: 'الإبلاغ عن خطأ',
+    bugReportAndroidMessage:
+      'للإبلاغ عن خطأ، يرجى إرسال بريد إلكتروني إلى support@big2mobile.com مع وصف المشكلة.',
   },
   home: {
     title: 'Big2 Mobile',
@@ -2424,6 +2454,16 @@ const de: Translations = {
     dataPrivacy: 'Daten & Datenschutz',
     analyticsTracking: 'Analyse & Absturzberichte',
     analyticsTrackingDescription: 'Helfen Sie, die App durch anonyme Nutzungsdaten zu verbessern',
+
+    bugReport: 'Fehlerbericht',
+    reportABug: 'Einen Fehler melden',
+    bugReportPromptTitle: 'Einen Fehler melden',
+    bugReportPromptMessage: 'Beschreiben Sie das aufgetretene Problem:',
+    bugReportUnavailable: 'Fehlerberichterstattung ist derzeit nicht verfügbar.',
+    bugReportSubmitted: 'Fehlerbericht eingereicht. Vielen Dank!',
+    bugReportAndroidTitle: 'Einen Fehler melden',
+    bugReportAndroidMessage:
+      'Um einen Fehler zu melden, senden Sie bitte eine E-Mail an support@big2mobile.com mit einer Beschreibung des Problems.',
   },
   home: {
     title: 'Big2 Mobile',
