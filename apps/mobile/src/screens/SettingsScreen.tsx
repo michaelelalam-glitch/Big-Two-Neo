@@ -488,14 +488,14 @@ export default function SettingsScreen() {
 
         {/* Bug Report */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bug Report</Text>
+          <Text style={styles.sectionTitle}>{t('settings.bugReport')}</Text>
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => {
               const handleSubmit = (description: string) => {
                 if (!description.trim()) return;
                 if (!isSentryEnabled()) {
-                  showError('Bug reporting is currently unavailable.');
+                  showError(t('settings.bugReportUnavailable'));
                   return;
                 }
                 submitBugReport(
@@ -506,13 +506,13 @@ export default function SettingsScreen() {
                 trackEvent('bug_report_submitted', {
                   description_length: description.trim().length,
                 });
-                showSuccess('Bug report submitted. Thank you!');
+                showSuccess(t('settings.bugReportSubmitted'));
               };
 
               if (Platform.OS === 'ios') {
                 Alert.prompt(
-                  'Report a Bug',
-                  'Describe what happened and any steps to reproduce:',
+                  t('settings.bugReportPromptTitle'),
+                  t('settings.bugReportPromptMessage'),
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -527,14 +527,14 @@ export default function SettingsScreen() {
               } else {
                 // Android fallback: Alert.prompt is iOS-only
                 Alert.alert(
-                  'Report a Bug',
-                  'To report a bug, please email us at support@big2.app with a description of the issue.',
+                  t('settings.bugReportAndroidTitle'),
+                  t('settings.bugReportAndroidMessage'),
                   [{ text: 'OK' }]
                 );
               }
             }}
           >
-            <Text style={styles.linkText}>Report a Bug</Text>
+            <Text style={styles.linkText}>{t('settings.reportABug')}</Text>
             <Text style={styles.arrowText}>→</Text>
           </TouchableOpacity>
         </View>
