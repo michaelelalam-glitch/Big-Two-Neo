@@ -18,7 +18,12 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
-import { trackGameplayAction, trackGameEvent } from '../services/analytics';
+import {
+  trackGameplayAction,
+  trackGameEvent,
+  checkHintFollowed,
+  turnTimeEnd,
+} from '../services/analytics';
 import { sentryCapture } from '../services/sentry';
 import type { Card } from '../game/types';
 import { classifyCards, canBeatPlay } from '../game';
@@ -116,7 +121,13 @@ export function useGameActions({
 
           setSelectedCardIds(new Set());
           soundManager.playSound(SoundType.CARD_PLAY);
-          trackGameplayAction('card_play', { mode: 'local_ai', card_count: cards.length });
+          trackGameplayAction('card_play', {
+            mode: 'local_ai',
+            card_count: cards.length,
+            play_method: 'button',
+          });
+          turnTimeEnd('play');
+          checkHintFollowed(cards.map(c => c.id));
           sentryCapture.breadcrumb('Card play (local AI)', { card_count: cards.length }, 'game');
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
@@ -125,6 +136,10 @@ export function useGameActions({
           trackGameplayAction('play_error', {
             mode: 'local_ai',
             error: (msg || 'unknown').slice(0, 100),
+          });
+          trackGameplayAction('play_validation_error', {
+            mode: 'local_ai',
+            error_type: (msg || 'unknown').slice(0, 100),
           });
           const errMsg = msg || 'Failed to play cards';
           alertError(errMsg);
@@ -156,6 +171,10 @@ export function useGameActions({
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.cardNotInHand');
                 alertError(m);
+                trackGameplayAction('play_validation_error', {
+                  mode: 'multiplayer',
+                  error_type: 'card_not_in_hand',
+                });
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -166,6 +185,10 @@ export function useGameActions({
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.invalidCombo');
                 alertError(m);
+                trackGameplayAction('play_validation_error', {
+                  mode: 'multiplayer',
+                  error_type: 'invalid_combo',
+                });
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -178,6 +201,10 @@ export function useGameActions({
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.firstPlayMustInclude3D');
                 alertError(m);
+                trackGameplayAction('play_validation_error', {
+                  mode: 'multiplayer',
+                  error_type: 'must_play_3d_first',
+                });
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -187,6 +214,10 @@ export function useGameActions({
                 soundManager.playSound(SoundType.INVALID_MOVE);
                 const m = i18n.t('game.cannotBeat');
                 alertError(m);
+                trackGameplayAction('play_validation_error', {
+                  mode: 'multiplayer',
+                  error_type: 'cannot_beat_combo',
+                });
                 isPlayingCardsRef.current = false;
                 return;
               }
@@ -202,7 +233,13 @@ export function useGameActions({
           await multiplayerPlayCards(sortedCards as Card[]);
           setSelectedCardIds(new Set());
           soundManager.playSound(SoundType.CARD_PLAY);
-          trackGameplayAction('card_play', { mode: 'multiplayer', card_count: sortedCards.length });
+          trackGameplayAction('card_play', {
+            mode: 'multiplayer',
+            card_count: sortedCards.length,
+            play_method: 'button',
+          });
+          turnTimeEnd('play');
+          checkHintFollowed(sortedCards.map(c => c.id));
           sentryCapture.breadcrumb(
             'Card play (multiplayer)',
             { card_count: sortedCards.length },
@@ -262,6 +299,7 @@ export function useGameActions({
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
         trackGameplayAction('card_pass', { mode: 'local_ai' });
+        turnTimeEnd('pass');
         sentryCapture.breadcrumb('Pass (local AI)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -288,6 +326,10 @@ export function useGameActions({
             soundManager.playSound(SoundType.INVALID_MOVE);
             const m = i18n.t('game.cannotPassMessage');
             alertError(m);
+            trackGameplayAction('play_validation_error', {
+              mode: 'multiplayer',
+              error_type: 'cannot_pass_when_leading',
+            });
             return;
           }
         }
@@ -298,6 +340,7 @@ export function useGameActions({
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
         trackGameplayAction('card_pass', { mode: 'multiplayer' });
+        turnTimeEnd('pass');
         sentryCapture.breadcrumb('Pass (multiplayer)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -345,6 +388,7 @@ export function useGameActions({
   };
 
   const handleCardHandPlayCards = (cards: Card[]) => {
+    trackGameplayAction('play_method_used', { method: 'drag' });
     if (onPlayCardsRef.current) {
       onPlayCardsRef.current(cards);
     }
@@ -370,6 +414,7 @@ export function useGameActions({
       destructive: true,
       onConfirm: () => {
         trackGameEvent('game_abandoned', { source: 'leave_button' });
+        trackGameEvent('game_not_completed', { reason: 'player_left' });
         sentryCapture.breadcrumb('Game abandoned', { source: 'leave_button' }, 'game');
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       },

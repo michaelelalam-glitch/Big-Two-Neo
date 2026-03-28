@@ -254,23 +254,38 @@ export function useGameStatsUploader({
           (new Date(finishedAt).getTime() - new Date(startedAt).getTime()) / 1000
         );
 
+        // ─── Compute average cards_left across ALL matches (not just final) ──────
+        // scores_history has per-match cardsRemaining for each player. Averaging
+        // across all matches gives the true per-game avg_cards_left stat.
+        const avgCardsLeftByPlayer = new Map<number, number>();
+        const scoresHistory = multiplayerGameState.scores_history ?? [];
+        if (scoresHistory.length > 0) {
+          const totals = new Map<number, { sum: number; count: number }>();
+          for (const entry of scoresHistory) {
+            for (const s of entry.scores ?? []) {
+              const prev = totals.get(s.player_index) ?? { sum: 0, count: 0 };
+              prev.sum += s.cardsRemaining ?? 0;
+              prev.count += 1;
+              totals.set(s.player_index, prev);
+            }
+          }
+          for (const [idx, { sum, count }] of totals) {
+            avgCardsLeftByPlayer.set(idx, count > 0 ? Math.round((sum / count) * 100) / 100 : 0);
+          }
+        }
+
         const players = multiplayerPlayers.map(player => {
           // finishPositionMap should always contain this player_index (both passes
           // above guarantee coverage); the safeGapPosition fallback is a last-resort
           // guard to prevent duplicate positions if data is unexpectedly malformed.
           const finishPosition = finishPositionMap.get(player.player_index) ?? safeGapPosition++;
 
-          // cards_left: number of cards the player has at game end.
-          // NOTE: There is a known edge case where the server-side hands object may
-          // not yet reflect the final state when game_phase transitions to 'finished'
-          // (the winning play and the phase update are two separate DB writes). In
-          // practice the winner's hand will already be 0, but a losing player's
-          // remaining cards could occasionally read 0 instead of the true count if
-          // the state snapshot arrived mid-write. This is acceptable as-is; a retry
-          // mechanism would add complexity for a minor cosmetic inaccuracy.
+          // cards_left: average cards remaining across ALL matches in the game.
+          // Falls back to the final match hand size if scores_history is unavailable.
           const playerHandKey = String(player.player_index);
           const playerHand = hands?.[playerHandKey];
-          const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
+          const finalMatchCardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
+          const cardsLeft = avgCardsLeftByPlayer.get(player.player_index) ?? finalMatchCardsLeft;
 
           // user_id: use actual user_id from room_players; bots have is_bot=true.
           // Non-bot players must have a user_id; null indicates inconsistent room_players data.

@@ -3131,6 +3131,16 @@ class I18nManager {
         value = (value as Record<string, unknown>)[key];
       } else {
         console.warn(`[i18n] Translation not found: ${path}`);
+        // Report to Sentry as a silent breadcrumb (lazy import to avoid circular deps).
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { reportMissingTranslation } = require('../services/sentry') as {
+            reportMissingTranslation: (key: string, lang: string) => void;
+          };
+          reportMissingTranslation(path, currentLanguage);
+        } catch {
+          /* Sentry not available */
+        }
         return path;
       }
     }
