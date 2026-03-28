@@ -514,9 +514,9 @@ export default function SettingsScreen() {
                   t('settings.bugReportPromptTitle'),
                   t('settings.bugReportPromptMessage'),
                   [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                      text: 'Submit',
+                      text: t('common.submit'),
                       onPress: (text?: string) => {
                         if (text) handleSubmit(text);
                       },
@@ -529,7 +529,7 @@ export default function SettingsScreen() {
                 Alert.alert(
                   t('settings.bugReportAndroidTitle'),
                   t('settings.bugReportAndroidMessage'),
-                  [{ text: 'OK' }]
+                  [{ text: t('common.ok') }]
                 );
               }
             }}
