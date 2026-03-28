@@ -18,6 +18,8 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
+import { trackGameplayAction, trackGameEvent } from '../services/analytics';
+import { sentryCapture } from '../services/sentry';
 import type { Card } from '../game/types';
 import { classifyCards, canBeatPlay } from '../game';
 import type { LastPlay } from '../game';
@@ -114,10 +116,16 @@ export function useGameActions({
 
           setSelectedCardIds(new Set());
           soundManager.playSound(SoundType.CARD_PLAY);
+          trackGameplayAction('card_play', { mode: 'local_ai', card_count: cards.length });
+          sentryCapture.breadcrumb('Card play (local AI)', { card_count: cards.length }, 'game');
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
           gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
           soundManager.playSound(SoundType.INVALID_MOVE);
+          trackGameplayAction('play_error', {
+            mode: 'local_ai',
+            error: (msg || 'unknown').slice(0, 100),
+          });
           const errMsg = msg || 'Failed to play cards';
           alertError(errMsg);
         } finally {
@@ -194,9 +202,19 @@ export function useGameActions({
           await multiplayerPlayCards(sortedCards as Card[]);
           setSelectedCardIds(new Set());
           soundManager.playSound(SoundType.CARD_PLAY);
+          trackGameplayAction('card_play', { mode: 'multiplayer', card_count: sortedCards.length });
+          sentryCapture.breadcrumb(
+            'Card play (multiplayer)',
+            { card_count: sortedCards.length },
+            'game'
+          );
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
           gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
+          trackGameplayAction('play_error', {
+            mode: 'multiplayer',
+            error: (msg || 'unknown').slice(0, 100),
+          });
           throw error; // Re-throw so GameControls can handle
         } finally {
           isPlayingCardsRef.current = false;
@@ -243,6 +261,8 @@ export function useGameActions({
 
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
+        trackGameplayAction('card_pass', { mode: 'local_ai' });
+        sentryCapture.breadcrumb('Pass (local AI)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         gameLogger.error('❌ [GameScreen] Error passing:', msg);
@@ -277,6 +297,8 @@ export function useGameActions({
         await multiplayerPass();
         setSelectedCardIds(new Set());
         soundManager.playSound(SoundType.PASS);
+        trackGameplayAction('card_pass', { mode: 'multiplayer' });
+        sentryCapture.breadcrumb('Pass (multiplayer)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes('Not your turn')) {
@@ -347,6 +369,8 @@ export function useGameActions({
       cancelText: i18n.t('game.stay'),
       destructive: true,
       onConfirm: () => {
+        trackGameEvent('game_abandoned', { source: 'leave_button' });
+        sentryCapture.breadcrumb('Game abandoned', { source: 'leave_button' }, 'game');
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       },
     });

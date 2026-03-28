@@ -62,15 +62,53 @@ export type AnalyticsEventParams = Record<string, string | number>;
 
 /** Supported analytics event names. Extend as new features are added. */
 export type AnalyticsEventName =
+  // ── Core lifecycle ──
   | 'app_open'
   | 'user_signed_in'
   | 'user_signed_out'
+  | 'screen_view'
+  | 'error_occurred'
+  | 'feature_used'
+  // ── Game lifecycle ──
   | 'game_started'
   | 'game_completed'
   | 'game_abandoned'
-  | 'error_occurred'
-  | 'screen_view'
-  | 'feature_used';
+  | 'game_voided'
+  // ── Gameplay actions ──
+  | 'card_play'
+  | 'card_pass'
+  | 'combo_played'
+  | 'turn_started'
+  | 'turn_completed'
+  | 'play_error'
+  // ── Game features ──
+  | 'chat_opened'
+  | 'chat_message_sent'
+  | 'chat_closed'
+  | 'camera_toggled'
+  | 'microphone_toggled'
+  | 'throwable_sent'
+  | 'hint_used'
+  | 'sort_used'
+  | 'orientation_changed'
+  | 'play_method_used'
+  // ── Social ──
+  | 'friend_added'
+  | 'friend_removed'
+  | 'room_created'
+  | 'room_joined'
+  | 'matchmaking_started'
+  | 'matchmaking_cancelled'
+  | 'matchmaking_found'
+  // ── Connection ──
+  | 'disconnect'
+  | 'reconnect'
+  // ── Navigation / session ──
+  | 'session_start'
+  | 'session_end'
+  // ── Settings ──
+  | 'setting_changed'
+  | 'bug_report_submitted';
 
 // ─── Client ID (session-scoped) ────────────────────────────────────────────── //
 
@@ -259,7 +297,43 @@ export function trackAuthEvent(event: 'user_signed_in' | 'user_signed_out', meth
 
 /** Convenience: track game lifecycle events. */
 export function trackGameEvent(
-  event: 'game_started' | 'game_completed' | 'game_abandoned',
+  event: 'game_started' | 'game_completed' | 'game_abandoned' | 'game_voided',
+  params?: AnalyticsEventParams
+): void {
+  trackEvent(event, params);
+}
+
+/** Track a card play or combo event during gameplay. */
+export function trackGameplayAction(
+  action: 'card_play' | 'card_pass' | 'combo_played' | 'play_error',
+  params?: AnalyticsEventParams
+): void {
+  trackEvent(action, params);
+}
+
+/** Track feature usage events (chat, camera, hints, throwables, etc.). */
+export function trackFeatureUsage(feature: string, params?: AnalyticsEventParams): void {
+  trackEvent('feature_used', { feature_name: feature, ...params });
+}
+
+/** Track connection state changes. */
+export function trackConnection(
+  event: 'disconnect' | 'reconnect',
+  params?: AnalyticsEventParams
+): void {
+  trackEvent(event, params);
+}
+
+/** Track social events (friends, rooms). */
+export function trackSocial(
+  event:
+    | 'friend_added'
+    | 'friend_removed'
+    | 'room_created'
+    | 'room_joined'
+    | 'matchmaking_started'
+    | 'matchmaking_cancelled'
+    | 'matchmaking_found',
   params?: AnalyticsEventParams
 ): void {
   trackEvent(event, params);
@@ -273,4 +347,10 @@ export const analytics = {
   setUserId: setAnalyticsUserId,
   setConsent: setAnalyticsConsent,
   isEnabled: isAnalyticsEnabled,
+  gameplay: trackGameplayAction,
+  feature: trackFeatureUsage,
+  connection: trackConnection,
+  social: trackSocial,
+  game: trackGameEvent,
+  auth: trackAuthEvent,
 };
