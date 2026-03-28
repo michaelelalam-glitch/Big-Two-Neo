@@ -145,6 +145,7 @@ export function useGameActions({
           const errMsg = msg || 'Failed to play cards';
           alertError(errMsg);
         } finally {
+          playMethodRef.current = 'button';
           isPlayingCardsRef.current = false;
         }
       } else {
@@ -256,6 +257,7 @@ export function useGameActions({
           });
           throw error; // Re-throw so GameControls can handle
         } finally {
+          playMethodRef.current = 'button';
           isPlayingCardsRef.current = false;
         }
       }
@@ -396,7 +398,9 @@ export function useGameActions({
     trackGameplayAction('play_method_used', { method: 'drag' });
     playMethodRef.current = 'drag';
     if (onPlayCardsRef.current) {
-      onPlayCardsRef.current(cards);
+      void onPlayCardsRef.current(cards).catch((err: unknown) => {
+        gameLogger.error('❌ [GameActions] Drag-to-play error:', err);
+      });
     }
   };
 
