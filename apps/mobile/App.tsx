@@ -111,8 +111,10 @@ export default function App() {
     });
   }, []);
 
-  const handleConsentAccept = useCallback(() => {
-    void AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'true').catch((error) => {
+  const handleConsentAccept = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, 'true');
+    } catch (error) {
       if (__DEV__) {
         console.warn('[App] Failed to persist analytics consent (accept):', error);
       }
@@ -121,7 +123,7 @@ export default function App() {
       } catch {
         // Swallow secondary errors from reporting
       }
-    });
+    }
     setConsentDecision(true);
     setAnalyticsConsent(true);
     initSentry();

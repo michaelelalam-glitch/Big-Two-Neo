@@ -139,6 +139,7 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, String(newValue));
     } catch (storageError) {
       console.warn('[Settings] Failed to save analytics consent:', storageError);
+      return; // Don't change state if persistence failed
     }
     setAnalyticsConsentState(newValue);
     setAnalyticsConsent(newValue);

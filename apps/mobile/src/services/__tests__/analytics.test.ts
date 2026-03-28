@@ -56,9 +56,14 @@ beforeEach(() => {
   setAnalyticsUserId(null);
   clearEnv();
   jest.clearAllMocks();
-  // Reset the module registry so that tests which use jest.isolateModules() or
-  // jest.resetModules() + require() always get a fresh analytics module instance
-  // regardless of env vars captured at file load time.
+  // Clear the module registry so that any subsequent require() calls (e.g. inside
+  // jest.isolateModules) always load a fresh analytics module instance.
+  // NOTE: this does NOT rebind the top-level ES-import bindings declared at the
+  // top of this file. Those imports are intentionally kept top-level ONLY for
+  // structural / "does not throw" tests whose assertions are env-var-agnostic.
+  // Every test that depends on module-level constants (MEASUREMENT_ID, API_SECRET)
+  // uses jest.isolateModules() or an explicit jest.resetModules() + require() to
+  // obtain a hermetically-isolated module instance.
   jest.resetModules();
 });
 

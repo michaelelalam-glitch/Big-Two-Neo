@@ -137,7 +137,11 @@ export function isSentryEnabled(): boolean {
  */
 export function disableSentry(): void {
   _initialized = false;
-  void Sentry.close();
+  void Sentry.close().catch(e => {
+    if (__DEV__) {
+      console.warn('[Sentry] close error:', e);
+    }
+  });
 }
 
 // ─── User context ─────────────────────────────────────────────────────────── //
