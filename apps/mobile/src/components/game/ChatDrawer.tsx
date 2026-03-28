@@ -119,12 +119,20 @@ function ChatDrawerComponent({
       duration: ANIMATION_DURATION,
       easing: Easing.out(Easing.cubic),
     });
-    if (isOpen) {
-      trackEvent('chat_opened');
-    } else {
-      trackEvent('chat_closed');
-    }
   }, [isOpen, panelTop, panelHiddenY, translateY]);
+
+  // Track chat open/close only on actual isOpen transitions (not layout/mount)
+  const prevIsOpenRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevIsOpenRef.current === null) {
+      prevIsOpenRef.current = isOpen;
+      return;
+    }
+    if (prevIsOpenRef.current !== isOpen) {
+      trackEvent(isOpen ? 'chat_opened' : 'chat_closed');
+      prevIsOpenRef.current = isOpen;
+    }
+  }, [isOpen]);
 
   // Auto-focus the text input once the open animation completes (Copilot
   // PR-150 r2950333902 — use inputRef intentionally).
