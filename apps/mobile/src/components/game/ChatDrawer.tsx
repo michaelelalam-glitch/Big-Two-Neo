@@ -237,6 +237,7 @@ function ChatDrawerComponent({
         isSendingRef.current = false;
         return;
       }
+      trackEvent('chat_message_sent', { method: 'keyboard_submit', message_length: text.length });
       setInputKey(k => k + 1);
       setInputText('');
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
