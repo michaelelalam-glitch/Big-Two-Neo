@@ -197,7 +197,11 @@ export default function AppNavigator() {
         ref={navigationRef}
         linking={isLoggedIn ? linking : loggedOutLinking}
         onReady={() => {
-          routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+          const initialRoute = navigationRef.current?.getCurrentRoute()?.name;
+          routeNameRef.current = initialRoute;
+          if (initialRoute) {
+            trackScreenView(initialRoute);
+          }
         }}
         onStateChange={() => {
           const previousRouteName = routeNameRef.current;

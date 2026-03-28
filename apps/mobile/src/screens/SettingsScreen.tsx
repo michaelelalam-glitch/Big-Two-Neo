@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -24,7 +25,7 @@ import { useUserPreferencesStore } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 import { setAnalyticsConsent, trackEvent } from '../services/analytics';
-import { initSentry, disableSentry, submitBugReport } from '../services/sentry';
+import { initSentry, disableSentry, submitBugReport, isSentryEnabled } from '../services/sentry';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -491,30 +492,46 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => {
-              Alert.prompt(
-                'Report a Bug',
-                'Describe what happened and any steps to reproduce:',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Submit',
-                    onPress: (description?: string) => {
-                      if (description && description.trim()) {
-                        submitBugReport(
-                          description.trim(),
-                          user?.email ?? undefined,
-                          user?.user_metadata?.username ?? undefined
-                        );
-                        trackEvent('bug_report_submitted', {
-                          description_length: description.trim().length,
-                        });
-                        showSuccess('Bug report submitted. Thank you!');
-                      }
+              const handleSubmit = (description: string) => {
+                if (!description.trim()) return;
+                if (!isSentryEnabled()) {
+                  showError('Bug reporting requires analytics consent to be enabled.');
+                  return;
+                }
+                submitBugReport(
+                  description.trim(),
+                  user?.email ?? undefined,
+                  user?.user_metadata?.username ?? undefined
+                );
+                trackEvent('bug_report_submitted', {
+                  description_length: description.trim().length,
+                });
+                showSuccess('Bug report submitted. Thank you!');
+              };
+
+              if (Platform.OS === 'ios') {
+                Alert.prompt(
+                  'Report a Bug',
+                  'Describe what happened and any steps to reproduce:',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Submit',
+                      onPress: (text?: string) => {
+                        if (text) handleSubmit(text);
+                      },
                     },
-                  },
-                ],
-                'plain-text'
-              );
+                  ],
+                  'plain-text'
+                );
+              } else {
+                // Android fallback: Alert.prompt is iOS-only
+                Alert.alert(
+                  'Report a Bug',
+                  'To report a bug, please email us at support@big2.app with a description of the issue.',
+                  [{ text: 'OK' }]
+                );
+              }
             }}
           >
             <Text style={styles.linkText}>Report a Bug</Text>
