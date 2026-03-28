@@ -68,7 +68,7 @@ export function initSentry(): void {
 
   try {
     if (__DEV__) {
-      console.log('[Sentry] Initializing with DSN:', SENTRY_DSN.slice(0, 30) + '...');
+      console.log('[Sentry] Initializing');
     }
     Sentry.init({
       dsn: SENTRY_DSN,

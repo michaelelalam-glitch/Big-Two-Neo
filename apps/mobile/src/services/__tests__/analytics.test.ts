@@ -51,8 +51,12 @@ function clearEnv() {
 
 beforeEach(() => {
   mockFetch.mockResolvedValue({ ok: true });
-  // Explicitly enable consent for tests (default is false / opt-in)
-  setAnalyticsConsent(true);
+  // Keep consent DISABLED on the top-level module instance so "does not throw"
+  // tests cannot schedule background fetch() calls even if a developer has
+  // EXPO_PUBLIC_FIREBASE_* env vars set in their shell.
+  // Tests that need consent + credentials use jest.isolateModules() and call
+  // isolatedSetConsent(true) on their own isolated module instance.
+  setAnalyticsConsent(false);
   setAnalyticsUserId(null);
   clearEnv();
   jest.clearAllMocks();
