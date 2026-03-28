@@ -1,6 +1,6 @@
 /**
  * Tests for AutoPassTimer Component
- * 
+ *
  * Tests the countdown timer display UI component that shows when
  * the highest possible card/combo is played.
  */
@@ -40,16 +40,14 @@ describe('AutoPassTimer Component', () => {
       );
 
       expect(getByText('10')).toBeTruthy(); // 10 seconds
-      expect(getByText('sec')).toBeTruthy();
-      expect(getByText('Highest Play: Single')).toBeTruthy();
+      // New horizontal design: combined inline message (no separate 'sec' label)
+      expect(getByText('Highest Play: Single · auto pass in 10s')).toBeTruthy();
     });
 
     it('should not render when timer is null', () => {
-      const { queryByText } = render(
-        <AutoPassTimer timerState={null} currentPlayerIndex={0} />
-      );
+      const { queryByText } = render(<AutoPassTimer timerState={null} currentPlayerIndex={0} />);
 
-      expect(queryByText('sec')).toBeNull();
+      expect(queryByText(/auto pass/i)).toBeNull();
     });
 
     it('should not render when timer is inactive', () => {
@@ -58,7 +56,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(queryByText('sec')).toBeNull();
+      expect(queryByText(/auto pass/i)).toBeNull();
     });
 
     it('should not render when remaining time is 0', () => {
@@ -67,7 +65,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(queryByText('sec')).toBeNull();
+      expect(queryByText(/auto pass/i)).toBeNull();
     });
   });
 
@@ -122,7 +120,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('Highest Play: Single')).toBeTruthy();
+      expect(getByText('Highest Play: Single · auto pass in 10s')).toBeTruthy();
     });
 
     it('should display Pair combo type', () => {
@@ -140,7 +138,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('Highest Play: Pair')).toBeTruthy();
+      expect(getByText('Highest Play: Pair · auto pass in 10s')).toBeTruthy();
     });
 
     it('should display Straight Flush combo type', () => {
@@ -161,7 +159,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('Highest Play: Straight Flush')).toBeTruthy();
+      expect(getByText('Highest Play: Straight Flush · auto pass in 10s')).toBeTruthy();
     });
   });
 
@@ -172,7 +170,7 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('No one can beat this play - 7s to pass')).toBeTruthy();
+      expect(getByText('Highest Play: Single · auto pass in 7s')).toBeTruthy();
     });
 
     it('should update message when time changes', () => {
@@ -185,13 +183,13 @@ describe('AutoPassTimer Component', () => {
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
       );
 
-      expect(getByText('No one can beat this play - 3s to pass')).toBeTruthy();
+      expect(getByText('Highest Play: Single · auto pass in 3s')).toBeTruthy();
 
       // Simulate time passing
       const updatedTimerState = createTimerState({ remaining_ms: 2000 });
       rerender(<AutoPassTimer timerState={updatedTimerState} currentPlayerIndex={0} />);
 
-      expect(getByText('No one can beat this play - 2s to pass')).toBeTruthy();
+      expect(getByText('Highest Play: Single · auto pass in 2s')).toBeTruthy();
 
       jest.useRealTimers();
     });
@@ -214,13 +212,13 @@ describe('AutoPassTimer Component', () => {
       );
 
       expect(getByText('1')).toBeTruthy();
-      expect(getByText('No one can beat this play - 1s to pass')).toBeTruthy();
+      expect(getByText('Highest Play: Single · auto pass in 1s')).toBeTruthy();
     });
 
     it('should handle full duration (10 seconds)', () => {
-      const timerState = createTimerState({ 
-        duration_ms: 10000, 
-        remaining_ms: 10000 
+      const timerState = createTimerState({
+        duration_ms: 10000,
+        remaining_ms: 10000,
       });
       const { getByText } = render(
         <AutoPassTimer timerState={timerState} currentPlayerIndex={0} />
@@ -241,12 +239,10 @@ describe('AutoPassTimer Component', () => {
     });
 
     it('should handle null timerState gracefully', () => {
-      const { queryByText } = render(
-        <AutoPassTimer timerState={null} currentPlayerIndex={0} />
-      );
+      const { queryByText } = render(<AutoPassTimer timerState={null} currentPlayerIndex={0} />);
 
       // Should not render anything when timer is null
-      expect(queryByText('sec')).toBeNull();
+      expect(queryByText(/auto pass/i)).toBeNull();
     });
   });
 });
