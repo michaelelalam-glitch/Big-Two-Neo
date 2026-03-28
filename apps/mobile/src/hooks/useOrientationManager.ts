@@ -17,7 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gameLogger } from '../utils/logger';
-import { trackEvent } from '../services/analytics';
+import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 
 // Lazy import to handle missing native module gracefully
 let ScreenOrientation: typeof import('expo-screen-orientation') | null = null;
@@ -211,7 +211,13 @@ export function useOrientationManager(): OrientationManagerState {
         // Save preference
         await saveOrientationPreference(mode);
 
-        trackEvent('orientation_changed', { orientation: mode });
+        trackEvent('orientation_changed', {
+          orientation: mode,
+          previous_orientation: currentOrientation,
+        });
+        // Track orientation session duration (time spent in previous orientation).
+        featureDurationEnd(`orientation_${currentOrientation}`, 'orientation_session_duration');
+        featureDurationStart(`orientation_${mode}`);
         gameLogger.info(`✅ [Orientation] Successfully changed to ${mode}`);
       } catch (error) {
         gameLogger.error(`❌ [Orientation] Failed to change to ${mode}:`, error);

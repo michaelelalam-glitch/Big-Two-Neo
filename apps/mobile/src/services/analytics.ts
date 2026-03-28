@@ -67,6 +67,7 @@ export type AnalyticsEventName =
   | 'user_signed_in'
   | 'user_signed_out'
   | 'screen_view'
+  | 'screen_time'
   | 'error_occurred'
   | 'feature_used'
   // ── Game lifecycle ──
@@ -74,6 +75,7 @@ export type AnalyticsEventName =
   | 'game_completed'
   | 'game_abandoned'
   | 'game_voided'
+  | 'game_not_completed'
   // ── Gameplay actions ──
   | 'card_play'
   | 'card_pass'
@@ -81,16 +83,31 @@ export type AnalyticsEventName =
   | 'turn_started'
   | 'turn_completed'
   | 'play_error'
+  | 'play_validation_error'
+  | 'turn_duration'
   // ── Game features ──
   | 'chat_opened'
   | 'chat_message_sent'
   | 'chat_closed'
+  | 'chat_session_duration'
   | 'camera_toggled'
+  | 'camera_session_duration'
   | 'microphone_toggled'
+  | 'microphone_session_duration'
+  | 'video_chat_connected'
+  | 'video_chat_disconnected'
+  | 'video_chat_session_duration'
+  | 'video_chat_permission_denied'
   | 'throwable_sent'
+  | 'throwable_received'
   | 'hint_used'
+  | 'hint_result_played'
+  | 'hint_result_ignored'
+  | 'hint_no_valid_play'
   | 'sort_used'
+  | 'smart_sort_used'
   | 'orientation_changed'
+  | 'orientation_session_duration'
   | 'play_method_used'
   // ── Social ──
   | 'friend_added'
@@ -103,12 +120,25 @@ export type AnalyticsEventName =
   // ── Connection ──
   | 'disconnect'
   | 'reconnect'
+  | 'reconnect_attempted'
+  | 'reconnect_succeeded'
+  | 'reconnect_failed'
+  | 'connection_status_changed'
+  | 'player_replaced_by_bot'
+  | 'heartbeat_backoff'
+  | 'app_state_changed'
+  | 'room_closed_while_away'
   // ── Navigation / session ──
   | 'session_start'
   | 'session_end'
+  | 'deep_link_received'
   // ── Settings ──
   | 'setting_changed'
-  | 'bug_report_submitted';
+  | 'language_changed'
+  | 'cache_cleared'
+  | 'delete_account_initiated'
+  | 'bug_report_submitted'
+  | 'bug_report_opened';
 
 // ─── Client ID (session-scoped) ────────────────────────────────────────────── //
 
@@ -354,3 +384,106 @@ export const analytics = {
   game: trackGameEvent,
   auth: trackAuthEvent,
 };
+
+// ─── Screen time tracking ─────────────────────────────────────────────────── //
+
+/**
+ * Tracks time spent on each screen. Call `screenTimeStart` when entering a screen
+ * and `screenTimeEnd` when leaving. Emits a `screen_time` event with duration.
+ */
+const _screenTimeStarts = new Map<string, number>();
+
+export function screenTimeStart(screenName: string): void {
+  _screenTimeStarts.set(screenName, Date.now());
+}
+
+export function screenTimeEnd(screenName: string): void {
+  const startTime = _screenTimeStarts.get(screenName);
+  if (startTime) {
+    const durationMs = Date.now() - startTime;
+    const durationSec = Math.round(durationMs / 1000);
+    _screenTimeStarts.delete(screenName);
+    if (durationSec > 0) {
+      trackEvent('screen_time', {
+        firebase_screen: screenName,
+        duration_seconds: durationSec,
+        duration_ms: durationMs,
+      });
+    }
+  }
+}
+
+// ─── Hint tracking (hint → play vs hint → different play) ─────────────────── //
+
+let _lastHintCardIds: string[] | null = null;
+
+/** Record which cards the hint suggested. Call from useHelperButtons. */
+export function setLastHintCards(cardIds: string[] | null): void {
+  _lastHintCardIds = cardIds;
+}
+
+/** After a play, check if it matched the hint. Call from useGameActions on play. */
+export function checkHintFollowed(playedCardIds: string[]): void {
+  if (!_lastHintCardIds) return;
+  const hintSet = new Set(_lastHintCardIds);
+  const matched =
+    playedCardIds.length === _lastHintCardIds.length && playedCardIds.every(id => hintSet.has(id));
+  if (matched) {
+    trackEvent('hint_result_played', { cards_count: playedCardIds.length });
+  } else {
+    trackEvent('hint_result_ignored', {
+      hint_cards: _lastHintCardIds.length,
+      played_cards: playedCardIds.length,
+      hint_was: _lastHintCardIds.join(',').slice(0, 100),
+      played_was: playedCardIds.join(',').slice(0, 100),
+    });
+  }
+  _lastHintCardIds = null;
+}
+
+// ─── Turn time tracking ──────────────────────────────────────────────────── //
+
+let _turnStartTime: number | null = null;
+
+export function turnTimeStart(): void {
+  _turnStartTime = Date.now();
+}
+
+export function turnTimeEnd(action: 'play' | 'pass'): void {
+  if (_turnStartTime) {
+    const durationMs = Date.now() - _turnStartTime;
+    const durationSec = Math.round(durationMs / 1000);
+    _turnStartTime = null;
+    trackEvent('turn_duration', {
+      action,
+      duration_seconds: durationSec,
+      duration_ms: durationMs,
+    });
+  }
+}
+
+// ─── Feature duration helpers ──────────────────────────────────────────────── //
+
+const _featureStarts = new Map<string, number>();
+
+/** Start tracking duration for a toggled-on feature (camera, mic, chat, etc.) */
+export function featureDurationStart(feature: string): void {
+  _featureStarts.set(feature, Date.now());
+}
+
+/** End tracking duration and emit an analytics event with the session duration. */
+export function featureDurationEnd(feature: string, eventName: AnalyticsEventName): void {
+  const startTime = _featureStarts.get(feature);
+  if (startTime) {
+    const durationMs = Date.now() - startTime;
+    const durationSec = Math.round(durationMs / 1000);
+    _featureStarts.delete(feature);
+    if (durationSec > 0) {
+      trackEvent(eventName, {
+        feature_name: feature,
+        duration_seconds: durationSec,
+        duration_ms: durationMs,
+      });
+    }
+  }
+}

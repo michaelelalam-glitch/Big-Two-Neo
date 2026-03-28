@@ -121,6 +121,7 @@ export default function SettingsScreen() {
   const handleToggleSound = () => {
     const newValue = !soundEnabled;
     setSoundEnabled(newValue); // syncs Zustand + fires soundManager.setAudioEnabled
+    trackEvent('setting_changed', { setting: 'sound', enabled: newValue ? 1 : 0 });
     if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
@@ -129,6 +130,7 @@ export default function SettingsScreen() {
   const handleToggleVibration = () => {
     const newValue = !vibrationEnabled;
     setVibrationEnabled(newValue); // syncs Zustand + fires hapticManager.setHapticsEnabled
+    trackEvent('setting_changed', { setting: 'vibration', enabled: newValue ? 1 : 0 });
     if (newValue) {
       hapticManager.trigger(HapticType.SELECTION);
     }
@@ -178,6 +180,7 @@ export default function SettingsScreen() {
       onConfirm: async () => {
         const requiresRestart = await i18n.setLanguage(language);
         setCurrentLanguage(language);
+        trackEvent('language_changed', { language, previous_language: currentLanguage });
 
         if (requiresRestart) {
           // For Arabic (RTL), app must restart
@@ -229,6 +232,7 @@ export default function SettingsScreen() {
 
           await AsyncStorage.multiRemove(keysToRemove);
 
+          trackEvent('cache_cleared', { keys_removed: keysToRemove.length });
           showSuccess(t('settings.clearCacheSuccess'));
 
           if (vibrationEnabled) {
@@ -257,6 +261,7 @@ export default function SettingsScreen() {
 
           // Call Edge Function to delete user data
           // This should trigger database cascades to remove all user-related data
+          trackEvent('delete_account_initiated');
           const { data, error } = await supabase.functions.invoke('delete-account', {
             body: {},
           });
