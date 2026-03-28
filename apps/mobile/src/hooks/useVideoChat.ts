@@ -961,6 +961,7 @@ export function useVideoChat({
           await adapterRef.current.enableCamera();
           setIsLocalCameraOn(true);
           desiredCameraRef.current = true;
+          featureDurationStart('camera');
 
           // Also enable mic if not already on (covers listener→video upgrade).
           if (!isLocalMicOn) {
@@ -973,6 +974,7 @@ export function useVideoChat({
                 await adapterRef.current.enableMicrophone();
                 setIsLocalMicOn(true);
                 desiredMicRef.current = true;
+                featureDurationStart('mic');
               } catch (micErr) {
                 gameLogger.warn(
                   '[VideoChat] Mic enable failed during upgrade (non-fatal):',
