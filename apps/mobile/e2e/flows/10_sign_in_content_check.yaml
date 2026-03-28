@@ -16,6 +16,15 @@ tags:
 - launchApp:
     clearState: true
 
+# Step 1b: Dismiss privacy consent modal (clearState: true wipes AsyncStorage so
+# the modal always appears on a fresh launch — decline to unblock the sign-in screen)
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
 # Step 2: Wait for sign-in screen
 - extendedWaitUntil:
     visible:
