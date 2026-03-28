@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet, Linking } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { LinkingOptions } from '@react-navigation/native';
 import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { FriendsProvider } from '../contexts/FriendsContext';
+import { trackScreenView } from '../services/analytics';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
 import GameScreen from '../screens/GameScreen';
 import GameSelectionScreen from '../screens/GameSelectionScreen';
@@ -119,6 +120,8 @@ export default function AppNavigator() {
   const pendingLinkRef = React.useRef<string | null>(null);
   // Guard so the cold-start capture fires exactly once (after auth resolves).
   const coldStartCapturedRef = React.useRef(false);
+  const navigationRef = React.useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const routeNameRef = React.useRef<string | undefined>(undefined);
 
   // Log navigation state for debugging
   React.useEffect(() => {
@@ -190,7 +193,21 @@ export default function AppNavigator() {
 
   return (
     <GlobalErrorBoundary>
-      <NavigationContainer linking={isLoggedIn ? linking : loggedOutLinking}>
+      <NavigationContainer
+        ref={navigationRef}
+        linking={isLoggedIn ? linking : loggedOutLinking}
+        onReady={() => {
+          routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+        }}
+        onStateChange={() => {
+          const previousRouteName = routeNameRef.current;
+          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+          if (currentRouteName && previousRouteName !== currentRouteName) {
+            trackScreenView(currentRouteName);
+          }
+          routeNameRef.current = currentRouteName;
+        }}
+      >
         <FriendsProvider>
           <NotificationProvider>
             <Stack.Navigator

@@ -35,6 +35,7 @@ import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { gameLogger } from '../utils/logger';
+import { trackEvent } from '../services/analytics';
 import { i18n } from '../i18n';
 
 // ---------------------------------------------------------------------------
@@ -1024,6 +1025,7 @@ export function useVideoChat({
       setIsLocalMicOn(false);
       desiredMicRef.current = false;
       persistChatPrefs(desiredCameraRef.current, false);
+      trackEvent('microphone_toggled', { enabled: 0 });
       gameLogger.info('[VideoChat] Microphone muted.');
     } else {
       // Re-request on 'denied' so users who previously denied can retry in-game.
@@ -1042,6 +1044,7 @@ export function useVideoChat({
         setIsLocalMicOn(true);
         desiredMicRef.current = true;
         persistChatPrefs(desiredCameraRef.current, true);
+        trackEvent('microphone_toggled', { enabled: 1 });
         gameLogger.info('[VideoChat] Microphone unmuted.');
       } catch (err) {
         gameLogger.warn(
@@ -1214,6 +1217,7 @@ export function useVideoChat({
         setIsLocalCameraOn(false);
         desiredCameraRef.current = false;
         persistChatPrefs(false, desiredMicRef.current);
+        trackEvent('camera_toggled', { enabled: 0 });
         gameLogger.info('[VideoChat] Camera disabled (session remains active).');
       } else {
         let camPermission = cameraPermissionStatus;
@@ -1229,6 +1233,7 @@ export function useVideoChat({
         setIsLocalCameraOn(true);
         desiredCameraRef.current = true;
         persistChatPrefs(true, desiredMicRef.current);
+        trackEvent('camera_toggled', { enabled: 1 });
         gameLogger.info('[VideoChat] Camera enabled (session already active).');
       }
     } catch (err) {

@@ -247,3 +247,29 @@ export const withSentryBoundary = Sentry.withErrorBoundary;
  * (e.g. tracing, profiling, custom integrations).
  */
 export { Sentry };
+
+// ─── In-app bug reporting ─────────────────────────────────────────────────── //
+
+/**
+ * Submit a user bug report via Sentry user feedback.
+ * This attaches the report to the most recent Sentry event (or creates one).
+ *
+ * @param description - User-provided description of the bug
+ * @param email - Optional email for follow-up
+ * @param name - Optional display name
+ */
+export function submitBugReport(description: string, email?: string, name?: string): void {
+  if (!_initialized) return;
+
+  // Create a Sentry event to attach feedback to
+  const eventId = Sentry.captureMessage('Bug Report', {
+    level: 'info' as Sentry.SeverityLevel,
+  });
+
+  Sentry.captureFeedback({
+    message: description,
+    email,
+    name,
+    associatedEventId: eventId,
+  });
+}
