@@ -51,6 +51,7 @@ import type {
 } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
 import { RejoinModal } from '../components/game/RejoinModal';
+import { TurnAutoPlayModal } from '../components/game/TurnAutoPlayModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
@@ -110,6 +111,11 @@ export function MultiplayerGame() {
   // State for bot replacement dialog
   const [showBotReplacedModal, setShowBotReplacedModal] = useState(false);
   const [botReplacedUsername, setBotReplacedUsername] = useState<string | null>(null);
+
+  // State for turn auto-play "I'm Still Here?" modal
+  const [showTurnAutoPlayModal, setShowTurnAutoPlayModal] = useState(false);
+  const [autoPlayedCards, setAutoPlayedCards] = useState<Card[] | null>(null);
+  const [autoPlayAction, setAutoPlayAction] = useState<'play' | 'pass'>('pass');
 
   // State for multiplayer room data
   const [multiplayerPlayers, setMultiplayerPlayers] = useState<MultiplayerPlayer[]>([]);
@@ -574,6 +580,7 @@ export function MultiplayerGame() {
     isReconnecting,
     rejoinStatus,
     forceSweep,
+    disconnect: connectionDisconnect,
   } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
@@ -1021,17 +1028,25 @@ export function MultiplayerGame() {
     getCorrectedNow: () => Date.now(), // Use clock-sync if available
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
-      // Auto-play always triggers bot replacement (65s spec).
-      // The server will broadcast replaced_by_bot via Realtime; RejoinModal handles
-      // the reclaim flow. No "I'm Still Here?" modal needed.
       gameLogger.info(
         '[MultiplayerGame] Turn auto-played:',
         action,
         cards?.length ?? 0,
-        'cards — bot replacement in progress'
+        'cards — showing "I\'m Still Here?" modal'
       );
+      setAutoPlayedCards(cards);
+      setAutoPlayAction(action);
+      setShowTurnAutoPlayModal(true);
     },
   });
+
+  // Auto-dismiss "I'm Still Here" modal when the turn moves on
+  // (i.e. the local player's turn ended while the modal was still visible).
+  useEffect(() => {
+    if (!_isTurnInactivityMyTurn && showTurnAutoPlayModal) {
+      setShowTurnAutoPlayModal(false);
+    }
+  }, [_isTurnInactivityMyTurn, showTurnAutoPlayModal]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Computed values
@@ -1464,6 +1479,24 @@ export function MultiplayerGame() {
           or AFK player with a bot. Offers "Reclaim My Seat" or "Leave Room".
           Triggered by Realtime connection_status='replaced_by_bot' for both
           disconnected players and connected-but-AFK players (65s spec). */}
+      {/* Turn Auto-Play Modal — shown after 60s turn inactivity auto-plays.
+          Player has 30s to tap "I'm Still Here" or heartbeats stop → bot replacement. */}
+      <TurnAutoPlayModal
+        visible={showTurnAutoPlayModal}
+        action={autoPlayAction}
+        cards={autoPlayedCards}
+        onConfirm={() => {
+          setShowTurnAutoPlayModal(false);
+        }}
+        onTimeout={() => {
+          setShowTurnAutoPlayModal(false);
+          gameLogger.warn(
+            '[MultiplayerGame] TurnAutoPlayModal timeout — disconnecting to trigger bot replacement'
+          );
+          connectionDisconnect();
+        }}
+      />
+
       <RejoinModal
         visible={showBotReplacedModal}
         botUsername={botReplacedUsername}

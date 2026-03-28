@@ -32,6 +32,7 @@ const THROWABLE_EMOJI: Record<ThrowableType, string> = {
   egg: '🥚',
   smoke: '💨',
   confetti: '🎊',
+  cake: '🎂',
 };
 
 const POSITION_LABEL: Record<number, string> = {
