@@ -263,8 +263,10 @@ export function useGameStatsUploader({
           const totals = new Map<number, { sum: number; count: number }>();
           for (const entry of scoresHistory) {
             for (const s of entry.scores ?? []) {
+              const cr = s.cardsRemaining;
+              if (typeof cr !== 'number' || !Number.isFinite(cr)) continue;
               const prev = totals.get(s.player_index) ?? { sum: 0, count: 0 };
-              prev.sum += s.cardsRemaining ?? 0;
+              prev.sum += cr;
               prev.count += 1;
               totals.set(s.player_index, prev);
             }
