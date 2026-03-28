@@ -103,10 +103,11 @@ export function initSentry(): void {
     });
 
     _initialized = true;
-    // Apply any pending user context that was set before init
+    // Apply any pending user context that was set before init.
+    // Keep _pendingUser set so it can be re-applied on subsequent init calls
+    // (e.g. after disableSentry() + initSentry() in the same session).
     if (_pendingUser !== undefined) {
       Sentry.setUser(_pendingUser);
-      _pendingUser = undefined;
     }
     if (__DEV__) {
       console.log('[Sentry] Initialized successfully');

@@ -1,6 +1,6 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
-> Generated: March 16, 2026 · Last updated: March 26, 2026  
+> Generated: March 16, 2026 · Last updated: March 28, 2026  
 > Total tasks reviewed: 43 (12 backlog · 4 todo · 0 in_review · 27 completed)
 
 ---
@@ -103,7 +103,7 @@
 | 19 | `#314` | Physical device testing: push notifications on real devices | 1–2 days | 🔴 High |
 | 20 | `#279` | Configure Apple Sign-In OAuth provider | 0.5 day | 🟢 Low |
 | 21 | `#255` | Set up backend infrastructure for production (Supabase scale, TURN) | 3–4 days | 🔴 High |
-| 22 | `#272` | ✅ Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 28, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase MP v2; auth tracking; GDPR consent UI; 42 new tests ✅) | 0 days | ✅ Completed |
+| 22 | `#272` | ✅ Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase MP v2; auth tracking; GDPR consent UI; 42 new tests ✅) | 0 days | ✅ Completed |
 
 ---
 

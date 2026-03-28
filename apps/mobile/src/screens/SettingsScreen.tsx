@@ -54,7 +54,7 @@ export default function SettingsScreen() {
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
   // Analytics consent is persisted in AsyncStorage (separate from Zustand store)
-  const [analyticsConsent, setAnalyticsConsentState] = useState<boolean>(true);
+  const [analyticsConsent, setAnalyticsConsentState] = useState<boolean>(false);
 
   // On first mount: sync sound/haptic state and run one-time migration.
   // Fast path: read enabled flags directly from AsyncStorage so toggles hydrate

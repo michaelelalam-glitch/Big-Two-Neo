@@ -44,13 +44,7 @@ export default function PrivacyConsentModal({
       onRequestClose={onDecline}
     >
       <View style={styles.overlay}>
-        <View
-          style={styles.card}
-          accessibilityLiveRegion="polite"
-          // Expose the card as a named region so screen readers announce it
-          accessible
-          accessibilityLabel="Privacy settings dialog"
-        >
+        <View style={styles.card} accessibilityLiveRegion="polite" accessibilityRole="none">
           {/* Icon */}
           <Text style={styles.icon} accessibilityElementsHidden>
             🔒

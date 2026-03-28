@@ -56,6 +56,10 @@ beforeEach(() => {
   setAnalyticsUserId(null);
   clearEnv();
   jest.clearAllMocks();
+  // Reset the module registry so that tests which use jest.isolateModules() or
+  // jest.resetModules() + require() always get a fresh analytics module instance
+  // regardless of env vars captured at file load time.
+  jest.resetModules();
 });
 
 afterAll(() => {
@@ -68,7 +72,16 @@ afterAll(() => {
 
 describe('isAnalyticsEnabled', () => {
   it('returns false when credentials are not configured', () => {
-    expect(isAnalyticsEnabled()).toBe(false);
+    // Use isolateModules so MEASUREMENT_ID / API_SECRET are captured fresh
+    // without any env vars, even if the developer has them set in their shell.
+    jest.isolateModules(() => {
+      clearEnv();
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      freshSetConsent(true); // consent defaults to false; explicitly enable
+      expect(freshEnabled()).toBe(false);
+    });
   });
 
   it('returns true when credentials are configured and consent given', () => {
@@ -77,7 +90,8 @@ describe('isAnalyticsEnabled', () => {
     // reset the module registry and re-import to pick up the new env vars.
     jest.resetModules();
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+    const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } =
+      require('../../services/analytics') as typeof import('../../services/analytics');
     freshSetConsent(true); // default is false (opt-in); explicitly enable
     expect(freshEnabled()).toBe(true);
   });
@@ -90,7 +104,7 @@ describe('isAnalyticsEnabled', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { isAnalyticsEnabled: freshEnabled, setAnalyticsConsent: freshSetConsent } =
       require('../../services/analytics') as typeof import('../../services/analytics');
-    freshSetConsent(true);  // first enable so we're testing revocation
+    freshSetConsent(true); // first enable so we're testing revocation
     freshSetConsent(false); // then revoke
     expect(freshEnabled()).toBe(false);
   });
@@ -105,7 +119,8 @@ describe('trackEvent', () => {
     jest.isolateModules(() => {
       clearEnv();
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackEvent: isolatedTrack } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
       isolatedTrack('app_open');
     });
     await Promise.resolve();
@@ -119,8 +134,9 @@ describe('trackEvent', () => {
     // properly test consent gating (credentials are module-level constants).
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);  // enable first so we're testing revocation
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true); // enable first so we're testing revocation
       isolatedSetConsent(false); // now revoke
       isolatedTrack('app_open');
     });
@@ -135,7 +151,8 @@ describe('trackEvent', () => {
     // the analytics module sees the credentials set above.
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
       isolatedSetConsent(true); // consent defaults to false (opt-in); enable explicitly
       isolatedTrack('game_started', { mode: 'local' });
     });
@@ -157,7 +174,8 @@ describe('trackEvent', () => {
     // Use isolateModules to load analytics with credentials so fetch is actually called.
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
       isolatedSetConsent(true);
       isolatedTrack('game_started');
     });
@@ -176,7 +194,8 @@ describe('trackEvent', () => {
     // Use isolateModules to load analytics with credentials so the error path is exercised.
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
       isolatedSetConsent(true);
       expect(() => isolatedTrack('error_occurred')).not.toThrow();
     });
@@ -198,7 +217,8 @@ describe('trackScreenView', () => {
     setEnv('G-TESTMEASURE', 'testsecret');
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackScreenView: isolatedTrackScreen, setAnalyticsConsent: isolatedSetConsent } = require('../../services/analytics') as typeof import('../../services/analytics');
+      const { trackScreenView: isolatedTrackScreen, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
       isolatedSetConsent(true);
       isolatedTrackScreen('HomeScreen');
     });
@@ -233,7 +253,9 @@ describe('trackAuthEvent', () => {
 
 describe('trackGameEvent', () => {
   it('tracks game_started', () => {
-    expect(() => trackGameEvent('game_started', { mode: 'multiplayer', player_count: 4 })).not.toThrow();
+    expect(() =>
+      trackGameEvent('game_started', { mode: 'multiplayer', player_count: 4 })
+    ).not.toThrow();
   });
 
   it('tracks game_completed', () => {
