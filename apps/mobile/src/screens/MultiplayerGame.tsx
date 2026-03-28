@@ -574,6 +574,7 @@ export function MultiplayerGame() {
     isReconnecting,
     rejoinStatus,
     forceSweep,
+    stopHeartbeats,
   } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
@@ -1021,15 +1022,18 @@ export function MultiplayerGame() {
     getCorrectedNow: () => Date.now(), // Use clock-sync if available
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
-      // Auto-play always triggers bot replacement (65s spec).
-      // The server will broadcast replaced_by_bot via Realtime; RejoinModal handles
-      // the reclaim flow. No "I'm Still Here?" modal needed.
+      // auto-play-turn edge function replaces the player with a bot immediately
+      // (65s spec). Stop heartbeats (without calling mark-disconnected) so they
+      // don't overwrite the server-set connection_status='replaced_by_bot'.
+      // The Realtime subscription in useConnectionManager will surface the
+      // RejoinModal automatically.
       gameLogger.info(
         '[MultiplayerGame] Turn auto-played:',
         action,
         cards?.length ?? 0,
-        'cards — bot replacement in progress'
+        'cards — stopping heartbeats for bot replacement flow'
       );
+      stopHeartbeats();
     },
   });
   // ─────────────────────────────────────────────────────────────────────────────

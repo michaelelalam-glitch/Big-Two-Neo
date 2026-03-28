@@ -191,10 +191,10 @@ export type BroadcastEvent =
   | 'auto_pass_executed' // New: Auto-pass executed after timer expired
   | 'turn_auto_played' // New: Turn inactivity auto-play executed
   | 'chat_message' // Task #648: In-game text chat message
-  | 'throwable_sent'; // Throwables: player threw egg/smoke/confetti at another player
+  | 'throwable_sent'; // Throwables: player threw egg/smoke/confetti/cake at another player
 
-/** The three throwable item types (GG Poker–style fun interactions). */
-export type ThrowableType = 'egg' | 'smoke' | 'confetti';
+/** The four throwable item types (GG Poker–style fun interactions). */
+export type ThrowableType = 'egg' | 'smoke' | 'confetti' | 'cake';
 
 /**
  * Score detail for a single player in a multiplayer match.

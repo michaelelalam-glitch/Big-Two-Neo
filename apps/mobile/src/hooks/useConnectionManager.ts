@@ -84,6 +84,13 @@ interface UseConnectionManagerReturn {
    * scheduled piggyback sweep.
    */
   forceSweep: () => void;
+  /**
+   * Stop the periodic heartbeat without calling mark-disconnected.
+   * Use this when the server has already replaced the player with a bot
+   * (e.g. after auto-play-turn) to prevent heartbeats from overwriting
+   * connection_status='replaced_by_bot'.
+   */
+  stopHeartbeats: () => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -472,5 +479,6 @@ export function useConnectionManager({
     reconnect,
     disconnect,
     forceSweep,
+    stopHeartbeats: stopHeartbeat,
   };
 }

@@ -132,10 +132,23 @@ export default function LobbyScreen() {
     }
   }, [roomCode]);
 
+  // Cache of meaningful fields per player_index so the UPDATE handler can detect
+  // real changes without relying on payload.old (which only contains REPLICA
+  // IDENTITY columns: room_id + player_index). Without this cache, every
+  // heartbeat-only update would either be missed (old approach) or force a
+  // redundant reload.
+  const playerFieldCacheRef = useRef<
+    Map<number, { is_ready: unknown; is_host: unknown; is_bot: unknown; username: unknown }>
+  >(new Map());
+
   // Set up filtered room_players subscription only once roomId is known.
   // Filtering by room_id prevents firing for other rooms' player changes (global subscription bug).
   useEffect(() => {
     if (!roomId) return;
+    // Clear the field cache when roomId changes so stale data from the previous
+    // room doesn't suppress legitimate reloads.
+    playerFieldCacheRef.current.clear();
+
     // Always reload on INSERT and DELETE events (player joining, being kicked, or leaving).
     // Also listen for UPDATE events, but only trigger a reload when meaningful fields change
     // (host/ready/bot status, username).  Pure heartbeat updates
@@ -180,33 +193,30 @@ export default function LobbyScreen() {
           // Skip pure heartbeat updates (last_seen_at / last_heartbeat only) to avoid
           // console spam and unnecessary re-renders on every 15-second heartbeat tick.
           const n = payload.new as Record<string, unknown>;
-          const o = payload.old as Record<string, unknown>;
           // Track the current user's connection_status so the kicked-player alert
           // can distinguish a disconnect kick from an inactivity kick.
           if (n.user_id === userIdRef.current && n.connection_status !== undefined) {
             lastConnectionStatusRef.current = n.connection_status as string;
           }
           // room_players uses REPLICA IDENTITY USING INDEX (room_id, player_index),
-          // so payload.old may only contain the indexed columns. Guard each field
-          // individually: only treat it as changed if the field is actually present
-          // in old, preventing every heartbeat update from triggering a reload.
-          const hasHostChange =
-            Object.prototype.hasOwnProperty.call(o, 'is_host') && n.is_host !== o.is_host;
-          const hasReadyChange =
-            Object.prototype.hasOwnProperty.call(o, 'is_ready') && n.is_ready !== o.is_ready;
-          const hasBotChange =
-            Object.prototype.hasOwnProperty.call(o, 'is_bot') && n.is_bot !== o.is_bot;
-          const hasPlayerIndexChange =
-            Object.prototype.hasOwnProperty.call(o, 'player_index') &&
-            n.player_index !== o.player_index;
-          const hasUsernameChange =
-            Object.prototype.hasOwnProperty.call(o, 'username') && n.username !== o.username;
+          // so payload.old only contains the indexed columns — never is_ready,
+          // is_host, is_bot, or username. Compare payload.new against a local
+          // cache of meaningful fields instead of relying on payload.old.
+          const playerIdx = n.player_index as number;
+          const incoming = {
+            is_ready: n.is_ready,
+            is_host: n.is_host,
+            is_bot: n.is_bot,
+            username: n.username,
+          };
+          const cached = playerFieldCacheRef.current.get(playerIdx);
           const meaningfulChange =
-            hasHostChange ||
-            hasReadyChange ||
-            hasBotChange ||
-            hasPlayerIndexChange ||
-            hasUsernameChange;
+            !cached ||
+            cached.is_ready !== incoming.is_ready ||
+            cached.is_host !== incoming.is_host ||
+            cached.is_bot !== incoming.is_bot ||
+            cached.username !== incoming.username;
+          playerFieldCacheRef.current.set(playerIdx, incoming);
           if (meaningfulChange) {
             loadPlayersRef.current();
           }
@@ -452,6 +462,17 @@ export default function LobbyScreen() {
       }
 
       setPlayers(players);
+
+      // Seed the field cache from the loaded players so the first Realtime
+      // UPDATE for each player_index doesn't trigger a redundant reload.
+      for (const p of players) {
+        playerFieldCacheRef.current.set(p.player_index, {
+          is_ready: p.is_ready,
+          is_host: p.is_host,
+          is_bot: p.is_bot,
+          username: p.username ?? (p.profiles?.username || null),
+        });
+      }
 
       // Check if current user is the host - MUST happen after data is fetched
       const currentUserPlayer = players.find(p => p.user_id === user?.id);

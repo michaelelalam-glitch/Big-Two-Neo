@@ -26,6 +26,7 @@ const SPLAT_EMOJIS: Record<ThrowableType, string> = {
   egg: '🍳',
   smoke: '🌫️',
   confetti: '✨',
+  cake: '🍰',
 };
 
 // ─── per-type particle builders ────────────────────────────────────────────
@@ -108,6 +109,32 @@ function buildConfettiParticles(size: number): ParticleSpec[] {
   });
 }
 
+function buildCakeParticles(size: number): ParticleSpec[] {
+  // 12 pink frosting splatter droplets (similar to egg but pink/white palette)
+  const colors = ['#EC4899', '#F9A8D4', '#FBCFE8', '#FFFFFF', '#EC4899', '#F472B6'];
+  const r = size * 0.65;
+  return Array.from({ length: 12 }, (_, i) => {
+    // Biased downward like egg (frosting drip) with a couple of sideways pieces
+    const baseAngle =
+      i < 10
+        ? Math.PI * 0.15 + (i / 9) * (Math.PI * 0.7)
+        : i === 10
+          ? -Math.PI * 0.3
+          : -Math.PI * 0.7;
+    const dist = r * (0.55 + (i % 3) * 0.2);
+    return {
+      id: i,
+      angle: baseAngle,
+      dist,
+      color: colors[i % colors.length] ?? '#EC4899',
+      isRect: false,
+      w: 10 + (i % 3) * 3,
+      h: 10 + (i % 3) * 3,
+      endOpacity: 0,
+    };
+  });
+}
+
 // ─── single animated particle ──────────────────────────────────────────────
 
 function AnimatedParticle({ spec, burstAnim }: { spec: ParticleSpec; burstAnim: Animated.Value }) {
@@ -162,7 +189,8 @@ export function ThrowablePlayerEffect({ throwable }: ThrowablePlayerEffectProps)
 
   // Different timing per throwable type
   const burstDuration = throwable === 'smoke' ? 600 : throwable === 'confetti' ? 520 : 400;
-  const splatDelay = throwable === 'egg' ? 60 : throwable === 'smoke' ? 200 : 80;
+  const splatDelay =
+    throwable === 'egg' || throwable === 'cake' ? 60 : throwable === 'smoke' ? 200 : 80;
 
   useEffect(() => {
     burstAnim.setValue(0);
@@ -196,7 +224,9 @@ export function ThrowablePlayerEffect({ throwable }: ThrowablePlayerEffectProps)
       ? buildEggParticles(containerSize)
       : throwable === 'smoke'
         ? buildSmokeParticles(containerSize)
-        : buildConfettiParticles(containerSize);
+        : throwable === 'cake'
+          ? buildCakeParticles(containerSize)
+          : buildConfettiParticles(containerSize);
 
   const splatSize = Math.max(24, containerSize * 0.55);
 
