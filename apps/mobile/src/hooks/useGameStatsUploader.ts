@@ -282,12 +282,10 @@ export function useGameStatsUploader({
           // guard to prevent duplicate positions if data is unexpectedly malformed.
           const finishPosition = finishPositionMap.get(player.player_index) ?? safeGapPosition++;
 
-          // cards_left: average cards remaining across ALL matches in the game.
-          // Falls back to the final match hand size if scores_history is unavailable.
+          // cards_left: final match hand size (what the edge function/game_history schema expects).
           const playerHandKey = String(player.player_index);
           const playerHand = hands?.[playerHandKey];
-          const finalMatchCardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
-          const cardsLeft = avgCardsLeftByPlayer.get(player.player_index) ?? finalMatchCardsLeft;
+          const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
 
           // user_id: use actual user_id from room_players; bots have is_bot=true.
           // Non-bot players must have a user_id; null indicates inconsistent room_players data.

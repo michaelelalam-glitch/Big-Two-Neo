@@ -125,10 +125,12 @@ function ChatDrawerComponent({
   const prevIsOpenRef = useRef<boolean | null>(null);
   useEffect(() => {
     if (prevIsOpenRef.current === null) {
+      // First render: start duration timer if already open on mount
       prevIsOpenRef.current = isOpen;
-      return;
-    }
-    if (prevIsOpenRef.current !== isOpen) {
+      if (isOpen) {
+        featureDurationStart('chat');
+      }
+    } else if (prevIsOpenRef.current !== isOpen) {
       trackEvent(isOpen ? 'chat_opened' : 'chat_closed');
       if (isOpen) {
         featureDurationStart('chat');
