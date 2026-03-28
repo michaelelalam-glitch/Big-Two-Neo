@@ -263,7 +263,7 @@ export function submitBugReport(description: string, email?: string, name?: stri
 
   // Create a Sentry event to attach feedback to
   const eventId = Sentry.captureMessage('Bug Report', {
-    level: 'info' as Sentry.SeverityLevel,
+    level: 'info',
   });
 
   Sentry.captureFeedback({
