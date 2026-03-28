@@ -9,6 +9,7 @@ import {
   setSentryUser,
   sentryCapture,
   withSentryBoundary,
+  submitBugReport,
 } from '../../services/sentry';
 
 // ─── Mock @sentry/react-native (routed via jest.config.js moduleNameMapper) ── //
@@ -42,7 +43,8 @@ describe('initSentry', () => {
     jest.isolateModules(() => {
       clearDsn();
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { initSentry: init } = require('../../services/sentry') as typeof import('../../services/sentry');
+      const { initSentry: init } =
+        require('../../services/sentry') as typeof import('../../services/sentry');
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
       init();
@@ -63,12 +65,16 @@ describe('initSentry (enabled path)', () => {
       process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { initSentry: init, isSentryEnabled: isEnabled, sentryCapture: capture } = require('../../services/sentry') as typeof import('../../services/sentry');
+        const {
+          initSentry: init,
+          isSentryEnabled: isEnabled,
+          sentryCapture: capture,
+        } = require('../../services/sentry') as typeof import('../../services/sentry');
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
         init();
         expect(MockSentry.init).toHaveBeenCalledWith(
-          expect.objectContaining({ dsn: 'https://test@sentry.io/123456' }),
+          expect.objectContaining({ dsn: 'https://test@sentry.io/123456' })
         );
         expect(isEnabled()).toBe(true);
         // captureException should forward to the underlying Sentry mock
@@ -80,7 +86,6 @@ describe('initSentry (enabled path)', () => {
     });
   });
 });
-
 
 describe('isSentryEnabled', () => {
   it('returns a boolean', () => {
@@ -129,9 +134,7 @@ describe('sentryCapture.message', () => {
   });
 
   it('accepts level option', () => {
-    expect(() =>
-      sentryCapture.message('Warning msg', { level: 'warning' })
-    ).not.toThrow();
+    expect(() => sentryCapture.message('Warning msg', { level: 'warning' })).not.toThrow();
   });
 });
 
@@ -157,5 +160,74 @@ describe('withSentryBoundary', () => {
     const Wrapped = withSentryBoundary(FakeComponent as any, {});
     // The mock passthrough returns the same component
     expect(Wrapped).toBeDefined();
+  });
+});
+
+describe('submitBugReport', () => {
+  it('does not throw when Sentry is not initialized', () => {
+    expect(() => submitBugReport('Test bug')).not.toThrow();
+  });
+
+  it('does not call captureFeedback when Sentry is not initialized', () => {
+    jest.isolateModules(() => {
+      clearDsn();
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { submitBugReport: isolatedSubmit } =
+        require('../../services/sentry') as typeof import('../../services/sentry');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+      isolatedSubmit('Bug description');
+      expect((MockSentry as any).captureFeedback).not.toHaveBeenCalled();
+    });
+  });
+
+  it('calls captureMessage and captureFeedback when Sentry is initialized', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, submitBugReport: isolatedSubmit } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        isolatedSubmit('Something broke', 'user@test.com', 'TestUser');
+        expect(MockSentry.captureMessage).toHaveBeenCalledWith(
+          'Bug Report',
+          expect.objectContaining({ level: 'info' })
+        );
+        expect((MockSentry as any).captureFeedback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Something broke',
+            email: 'user@test.com',
+            name: 'TestUser',
+          })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+
+  it('works with only description (no email or name)', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, submitBugReport: isolatedSubmit } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        isolatedSubmit('Minimal bug report');
+        expect((MockSentry as any).captureFeedback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Minimal bug report',
+          })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
   });
 });

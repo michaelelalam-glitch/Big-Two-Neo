@@ -9,6 +9,10 @@ import {
   trackError,
   trackAuthEvent,
   trackGameEvent,
+  trackGameplayAction,
+  trackFeatureUsage,
+  trackConnection,
+  trackSocial,
   setAnalyticsConsent,
   setAnalyticsUserId,
   isAnalyticsEnabled,
@@ -303,5 +307,112 @@ describe('analytics convenience object', () => {
     expect(typeof analytics.setUserId).toBe('function');
     expect(typeof analytics.setConsent).toBe('function');
     expect(typeof analytics.isEnabled).toBe('function');
+  });
+
+  it('exposes gameplay, feature, connection, social, game, auth helpers', () => {
+    expect(typeof analytics.gameplay).toBe('function');
+    expect(typeof analytics.feature).toBe('function');
+    expect(typeof analytics.connection).toBe('function');
+    expect(typeof analytics.social).toBe('function');
+    expect(typeof analytics.game).toBe('function');
+    expect(typeof analytics.auth).toBe('function');
+  });
+});
+
+describe('trackGameplayAction', () => {
+  it('does not throw for card_play', () => {
+    expect(() => trackGameplayAction('card_play', { combo: 'pair' })).not.toThrow();
+  });
+
+  it('does not throw for card_pass', () => {
+    expect(() => trackGameplayAction('card_pass')).not.toThrow();
+  });
+
+  it('does not throw for play_error', () => {
+    expect(() => trackGameplayAction('play_error', { reason: 'invalid' })).not.toThrow();
+  });
+
+  it('calls fetch when credentials and consent are set', async () => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackGameplayAction: isolatedAction, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedAction('card_play', { combo: 'straight' });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ name: string }> };
+    expect(body.events[0].name).toBe('card_play');
+  });
+});
+
+describe('trackFeatureUsage', () => {
+  it('does not throw', () => {
+    expect(() => trackFeatureUsage('chat', { source: 'game' })).not.toThrow();
+  });
+
+  it('calls fetch with feature_name param when enabled', async () => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackFeatureUsage: isolatedFeature, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedFeature('camera');
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe('feature_used');
+    expect(body.events[0].params.feature_name).toBe('camera');
+  });
+
+  it('feature_name cannot be overridden by caller params', async () => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackFeatureUsage: isolatedFeature, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedFeature('camera', { feature_name: 'hacked' });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as { events: Array<{ params: Record<string, unknown> }> };
+    expect(body.events[0].params.feature_name).toBe('camera');
+  });
+});
+
+describe('trackConnection', () => {
+  it('does not throw for disconnect', () => {
+    expect(() => trackConnection('disconnect')).not.toThrow();
+  });
+
+  it('does not throw for reconnect', () => {
+    expect(() => trackConnection('reconnect', { duration_ms: 500 })).not.toThrow();
+  });
+});
+
+describe('trackSocial', () => {
+  it('does not throw for friend_added', () => {
+    expect(() => trackSocial('friend_added')).not.toThrow();
+  });
+
+  it('does not throw for room_created', () => {
+    expect(() => trackSocial('room_created', { room_type: 'private' })).not.toThrow();
+  });
+
+  it('does not throw for matchmaking_started', () => {
+    expect(() => trackSocial('matchmaking_started')).not.toThrow();
   });
 });
