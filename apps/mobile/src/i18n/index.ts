@@ -402,6 +402,7 @@ export interface Translations {
     secondsRemaining: string;
     autoPassHighestPlay: string;
     autoPassNoOneCanBeat: string;
+    autoPassIn: string;
     cannotPassTitle: string;
     cannotPassMessage: string;
     settings: string;
@@ -1140,6 +1141,7 @@ const en: Translations = {
     secondsRemaining: 'seconds if no manual pass',
     autoPassHighestPlay: 'Highest Play:',
     autoPassNoOneCanBeat: 'No one can beat this play - {seconds}s to pass',
+    autoPassIn: 'auto pass in {seconds}s',
     cannotPassTitle: 'Cannot Pass',
     cannotPassMessage: 'Cannot pass when leading',
     settings: 'Settings',
@@ -1800,6 +1802,7 @@ const ar: Translations = {
     secondsRemaining: 'ثانية إذا لم يتم التمرير يدويًا',
     autoPassHighestPlay: 'أعلى لعبة:',
     autoPassNoOneCanBeat: 'لا أحد يستطيع التغلب على هذه اللعبة - {seconds} ثانية للمرور',
+    autoPassIn: 'تمرير تلقائي في {seconds} ثانية',
     cannotPassTitle: 'لا يمكن المرور',
     cannotPassMessage: 'لا يمكن المرور عند القيادة',
     settings: 'الإعدادات',
@@ -2554,6 +2557,7 @@ const de: Translations = {
     secondsRemaining: 'Sekunden, wenn kein manuelles Passen',
     autoPassHighestPlay: 'Höchstes Spiel:',
     autoPassNoOneCanBeat: 'Niemand kann dieses Spiel schlagen - {seconds}s zum Passen',
+    autoPassIn: 'auto-pass in {seconds}s',
     cannotPassTitle: 'Kann nicht passen',
     cannotPassMessage: 'Kann beim Führen nicht passen',
     settings: 'Einstellungen',

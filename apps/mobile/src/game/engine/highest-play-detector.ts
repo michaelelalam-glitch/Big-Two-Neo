@@ -238,8 +238,11 @@ function isHighestRemainingTriple(triple: Card[], playedCards: Card[]): boolean 
 
   const highestOtherTriple = sortedTriples[sortedTriples.length - 1];
 
-  // Compare ranks
-  return RANK_VALUE[triple[0].rank] >= RANK_VALUE[highestOtherTriple[0].rank];
+  // In Big Two each rank has exactly 4 cards; a triple uses 3, leaving at most 1 of
+  // that rank in remaining, which is insufficient for another triple of the same rank.
+  // Therefore highestOtherTriple[0].rank can never equal triple[0].rank in a valid
+  // game, and a strict > is both correct and clearer.
+  return RANK_VALUE[triple[0].rank] > RANK_VALUE[highestOtherTriple[0].rank];
 }
 
 // ============================================
@@ -309,32 +312,34 @@ function canFormAnyFourOfAKind(remaining: Card[]): boolean {
 /**
  * Check if any full house can be formed
  * Requires a triple of one rank and a pair of a DIFFERENT rank.
+ *
+ * Iterates RANKS in high-to-low order (2, A, K, …) so that the function
+ * always commits quickly when a valid triple+pair combination exists at high
+ * ranks, and never returns a false negative due to Map insertion-order
+ * variance (which depends on the order remaining cards are filtered in).
  */
 function canFormAnyFullHouse(remaining: Card[]): boolean {
   if (remaining.length < 5) return false;
 
-  const rankCounts = new Map<string, number>();
-
+  const rankCounts: Record<string, number> = {};
   for (const card of remaining) {
-    rankCounts.set(card.rank, (rankCounts.get(card.rank) || 0) + 1);
+    rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
   }
 
-  // Find a rank with at least 3 cards (triple)
-  let tripleRank: string | null = null;
-  for (const [rank, count] of rankCounts.entries()) {
-    if (count >= 3) {
-      tripleRank = rank;
-      break;
-    }
-  }
+  // Iterate ranks highest-first for deterministic, consistent behaviour
+  const ranksHighToLow = [...RANKS].reverse();
 
-  if (!tripleRank) return false;
+  for (const tripleRank of ranksHighToLow) {
+    if ((rankCounts[tripleRank] || 0) < 3) continue;
 
-  // Require a pair of a DIFFERENT rank (same-rank triple does not also count as the pair)
-  for (const [rank, count] of rankCounts.entries()) {
-    if (rank !== tripleRank && count >= 2) {
-      return true;
+    // Found a valid triple — look for any pair of a DIFFERENT rank
+    for (const pairRank of ranksHighToLow) {
+      if (pairRank !== tripleRank && (rankCounts[pairRank] || 0) >= 2) {
+        return true;
+      }
     }
+    // If this triple has no accompanying pair, continue searching for another triple
+    // that might have a valid pair partner (e.g. two triples of different ranks).
   }
 
   return false;
@@ -534,10 +539,10 @@ function isHighestRemainingFiveCardCombo(
         playedCounts[card.rank] = (playedCounts[card.rank] || 0) + 1;
       }
 
+      // Iterate in descending rank order for deterministic triple-rank detection
       let playedTripleRank: string | null = null;
-
-      for (const rank in playedCounts) {
-        if (playedCounts[rank] === 3) {
+      for (const rank of [...RANKS].reverse()) {
+        if ((playedCounts[rank] || 0) === 3) {
           playedTripleRank = rank;
           break;
         }
