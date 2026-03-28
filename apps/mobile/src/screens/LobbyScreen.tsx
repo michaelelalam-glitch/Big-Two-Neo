@@ -463,6 +463,17 @@ export default function LobbyScreen() {
 
       setPlayers(players);
 
+      // Seed the field cache from the loaded players so the first Realtime
+      // UPDATE for each player_index doesn't trigger a redundant reload.
+      for (const p of players) {
+        playerFieldCacheRef.current.set(p.player_index, {
+          is_ready: p.is_ready,
+          is_host: p.is_host,
+          is_bot: p.is_bot,
+          username: p.username ?? (p.profiles?.username || null),
+        });
+      }
+
       // Check if current user is the host - MUST happen after data is fetched
       const currentUserPlayer = players.find(p => p.user_id === user?.id);
       if (currentUserPlayer) {
