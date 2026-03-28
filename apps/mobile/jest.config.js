@@ -54,7 +54,7 @@ module.exports = {
     },
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-screen-orientation|@expo|@react-navigation)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-screen-orientation|@expo|@react-navigation|@sentry)/)',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
@@ -69,6 +69,10 @@ module.exports = {
     '^expo-clipboard$': '<rootDir>/src/__tests__/__mocks__/expo-clipboard.ts',
     '^expo-camera$': '<rootDir>/src/__tests__/__mocks__/expo-camera.ts',
     '^@livekit/react-native-webrtc$': '<rootDir>/src/__tests__/__mocks__/livekit-react-native-webrtc.ts',
+    // @sentry/react-native uses native modules — mock entirely in tests
+    '^@sentry/react-native$': '<rootDir>/src/__tests__/__mocks__/sentry-react-native.ts',
+    // expo-constants accesses native config — use lightweight mock
+    '^expo-constants$': '<rootDir>/src/__tests__/__mocks__/expo-constants.ts',
     // expo-file-system uses ESM `export *` syntax which breaks Jest's CJS require().
     // The logger.ts try/catch gracefully degrades when it's absent; this mock
     // prevents Jest from attempting to load the real module in CI (pnpm hoists it

@@ -19,6 +19,15 @@ tags:
 - launchApp:
     clearState: true
 
+# Step 1b: Dismiss privacy consent modal (clearState: true wipes AsyncStorage so
+# the modal always appears on a fresh launch — accept to unblock the sign-in screen)
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
 # Step 2: Wait for sign-in screen to load (testID on SafeAreaView container)
 # Timeout is 120s to account for: JS bundle parse time on cold Release build +
 # AuthProvider isLoading state (Supabase session check network round-trip in CI).

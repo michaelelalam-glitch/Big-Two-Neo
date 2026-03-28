@@ -1,7 +1,7 @@
 # Big2 Mobile App — Task Audit & Completion Roadmap
 
-> Generated: March 16, 2026 · Last updated: March 22, 2026  
-> Total tasks reviewed: 44 (13 backlog · 5 todo · 0 in_review · 26 completed)
+> Generated: March 16, 2026 · Last updated: March 28, 2026  
+> Total tasks reviewed: 43 (12 backlog · 4 todo · 0 in_review · 27 completed)
 
 ---
 
@@ -103,7 +103,7 @@
 | 19 | `#314` | Physical device testing: push notifications on real devices | 1–2 days | 🔴 High |
 | 20 | `#279` | Configure Apple Sign-In OAuth provider | 0.5 day | 🟢 Low |
 | 21 | `#255` | Set up backend infrastructure for production (Supabase scale, TURN) | 3–4 days | 🔴 High |
-| 22 | `#272` | Set up error tracking & analytics (Sentry + Firebase Analytics) | 2–3 days | 🟡 Medium |
+| 22 | `#272` | ✅ Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase MP v2; auth tracking; GDPR consent UI; 42 new tests ✅) | 0 days | ✅ Completed |
 
 ---
 
@@ -158,12 +158,14 @@
 
 ## 📋 Current Status Board
 
-### 🟡 TODO — Ready to start (3 tasks)
+### 🟡 TODO — Ready to start (2 tasks)
 - `#650` — Increase card touch targets to iOS HIG 44px minimum
 - `#315` — Firebase (Android) / APNs (iOS) production credentials
-- `#272` — Set up production performance monitoring dashboards
 
-### ✅ RECENTLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
+### ✅ RECENTLY COMPLETED (Mar 26, 2026)
+- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187; @sentry/react-native 8.5.0; Firebase Measurement Protocol v2; auth + error tracking; GDPR privacy consent modal; 42 new tests ✅)
+
+### ✅ PREVIOUSLY COMPLETED (Mar 22, 2026 — PR #167, #168, #169)
 - `#327` — Add visual regression snapshot tests for card UI — Completed Mar 22, 2026 (PR #167; 21 snapshots ✅)
 - `#273` — Write comprehensive game-engine unit tests — Completed Mar 22, 2026 (PR #167; 79/79 suites, 1338 tests ✅)
 - `#325` — Add E2E tests (Maestro) — Completed Mar 22, 2026 (PR #167; flows 10 + 11, Android EAS ✅)
@@ -191,13 +193,14 @@ All remaining tasks in tiers 7–10.
 ## 🗃️ Full ID Reference
 
 ### Todo (next up)
-`#650` `#315` `#272`
+`#650` `#315`
 
 ### Backlog (ordered)
 `#314` `#279` `#255` `#252` `#254` `#274` `#275` `#251` `#256` `#249` `#250` `#253`
 
 
-### ✅ COMPLETED (26 tasks)
+### ✅ COMPLETED (27 tasks)
+- `#272` — Set up error tracking & analytics (Sentry + Firebase Analytics) — Completed Mar 26, 2026 (PR #187)
 - `#522` — Phase 3.6J: Rejoin testing (banner + state continuity) — Completed Mar 18, 2026 (PR #151)
 - `#648` — In-game text chat (Supabase Realtime) — Completed Mar 18, 2026 (PR #150)
 - `#628` — Fix GameScreen slow renders — Completed Mar 19, 2026 (PR #156)

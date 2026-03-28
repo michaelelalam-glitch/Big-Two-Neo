@@ -10,6 +10,8 @@ import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
 import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { detectRegion } from '../utils/regionDetector';
+import { trackAuthEvent, setAnalyticsUserId } from '../services/analytics';
+import { setSentryUser } from '../services/sentry';
 
 /**
  * Profile fetch retry configuration
@@ -473,6 +475,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
           // Fetch profile if user exists
           if (initialSession?.user) {
+            // Set analytics user ID and Sentry user context on cold start first.
+            // We do this before fetching the profile so they are captured even
+            // if the profile request fails.
+            setAnalyticsUserId(initialSession.user.id);
+            setSentryUser({ id: initialSession.user.id });
+
             const profileData = await fetchProfile(initialSession.user.id);
             setProfile(profileData);
 
@@ -547,6 +555,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
         setSession(newSession);
         setUser(newSession.user);
+        // Derive the auth provider from the session metadata (e.g. 'email', 'google').
+        // Falls back to undefined so analytics segmentation isn't polluted with a
+        // hard-coded default that may be incorrect for OAuth sign-ins.
+        const authProvider = newSession.user.app_metadata?.provider as string | undefined;
+        trackAuthEvent('user_signed_in', authProvider);
+        setAnalyticsUserId(newSession.user.id);
+        setSentryUser({ id: newSession.user.id });
         // Don't set isLoading - let the useEffect below handle profile fetch with proper timing
         return; // Exit early - profile fetch will happen in the useEffect watching 'session'
       }
@@ -641,9 +656,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
           }
         } else {
-          authLogger.info('🚪 [AuthContext] No session - clearing profile');
+          authLogger.info('🚪 [AuthContext] No session - clearing profile and user context');
           setProfile(null);
           setIsLoading(false);
+          // Clear analytics + Sentry user context on any sign-out path (explicit signOut(),
+          // session expiry, token revocation, etc.) so subsequent events/errors are never
+          // misattributed to the previous user.
+          setAnalyticsUserId(null);
+          setSentryUser(null);
         }
 
         authLogger.info('📊 [AuthContext] Final state:', {
@@ -859,6 +879,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         authLogger.error('Error signing out:', error?.message || String(error));
         throw error;
       }
+
+      // Track sign-out for analytics and clear Sentry user context
+      trackAuthEvent('user_signed_out');
+      setAnalyticsUserId(null);
+      setSentryUser(null);
 
       authLogger.info('✅ [AuthContext] Sign-out successful');
     } catch (error: unknown) {

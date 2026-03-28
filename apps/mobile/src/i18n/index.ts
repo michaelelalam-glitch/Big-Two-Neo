@@ -213,6 +213,11 @@ export interface Translations {
     termsOfService: string;
     privacyPolicy: string;
     support: string;
+
+    // Data & Privacy
+    dataPrivacy: string;
+    analyticsTracking: string;
+    analyticsTrackingDescription: string;
   };
 
   // Home Screen
@@ -963,6 +968,10 @@ const en: Translations = {
     termsOfService: 'Terms of Service',
     privacyPolicy: 'Privacy Policy',
     support: 'Support',
+
+    dataPrivacy: 'Data & Privacy',
+    analyticsTracking: 'Analytics & Crash Reporting',
+    analyticsTrackingDescription: 'Help improve the app by sharing anonymous usage data',
   },
   home: {
     title: 'Big2 Mobile',
@@ -1669,6 +1678,10 @@ const ar: Translations = {
     termsOfService: 'شروط الخدمة',
     privacyPolicy: 'سياسة الخصوصية',
     support: 'الدعم',
+
+    dataPrivacy: 'البيانات والخصوصية',
+    analyticsTracking: 'التحليلات وتقارير الأعطال',
+    analyticsTrackingDescription: 'ساعد في تحسين التطبيق من خلال مشاركة بيانات الاستخدام المجهولة',
   },
   home: {
     title: 'Big2 Mobile',
@@ -2407,6 +2420,10 @@ const de: Translations = {
     termsOfService: 'Nutzungsbedingungen',
     privacyPolicy: 'Datenschutzerklärung',
     support: 'Support',
+
+    dataPrivacy: 'Daten & Datenschutz',
+    analyticsTracking: 'Analyse & Absturzberichte',
+    analyticsTrackingDescription: 'Helfen Sie, die App durch anonyme Nutzungsdaten zu verbessern',
   },
   home: {
     title: 'Big2 Mobile',

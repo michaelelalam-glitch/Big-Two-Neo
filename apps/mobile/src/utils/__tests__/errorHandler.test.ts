@@ -5,7 +5,10 @@
  * branching paths (silent, custom userMessage, default logger, custom logger).
  */
 
-import { extractErrorMessage, handleError } from '../errorHandler';
+// ─── Mocks ─────────────────────────────────────────────────────────────────── //
+// jest.mock() calls are hoisted above all imports by babel-jest/ts-jest, so
+// these factories are applied before any module in this file (including
+// ../errorHandler and its dependencies) is evaluated.
 
 // Mock showError so tests don't need React Native's Alert
 jest.mock('../alerts', () => ({
@@ -19,11 +22,29 @@ jest.mock('../logger', () => ({
   },
 }));
 
+// Mock Sentry and analytics services (added by task #272) — keep existing tests isolated
+jest.mock('../../services/sentry', () => ({
+  sentryCapture: {
+    exception: jest.fn(),
+    message: jest.fn(),
+    breadcrumb: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/analytics', () => ({
+  trackError: jest.fn(),
+}));
+
+import { extractErrorMessage, handleError } from '../errorHandler';
 import { showError } from '../alerts';
 import { gameLogger } from '../logger';
+import { sentryCapture } from '../../services/sentry';
+import { trackError } from '../../services/analytics';
 
 const mockShowError = showError as jest.Mock;
 const mockLoggerError = (gameLogger as { error: jest.Mock }).error;
+const mockSentryException = (sentryCapture as { exception: jest.Mock }).exception;
+const mockTrackError = trackError as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -97,16 +118,25 @@ describe('extractErrorMessage', () => {
 
 describe('handleError', () => {
   it('logs with context prefix and shows alert by default', () => {
-    const result = handleError(new Error('fail'), { context: 'Test' });
+    const error = new Error('fail');
+    const result = handleError(error, { context: 'Test' });
     expect(mockLoggerError).toHaveBeenCalledWith('[Test] fail');
     expect(mockShowError).toHaveBeenCalledWith('fail');
     expect(result).toBe('fail');
+    // Sentry captures for non-silent errors (no explicit level — defaults to 'error')
+    expect(mockSentryException).toHaveBeenCalledWith(error, { context: 'Test' });
+    // Analytics receives fixed constant (not raw error message)
+    expect(mockTrackError).toHaveBeenCalledWith('Test', 'UNEXPECTED_ERROR', false);
   });
 
   it('does NOT show alert when silent: true', () => {
     handleError(new Error('bg error'), { context: 'BgSync', silent: true });
     expect(mockLoggerError).toHaveBeenCalledWith('[BgSync] bg error');
     expect(mockShowError).not.toHaveBeenCalled();
+    // Silent errors are log-only — Sentry must NOT be called
+    expect(mockSentryException).not.toHaveBeenCalled();
+    // Analytics NOT called for silent errors
+    expect(mockTrackError).not.toHaveBeenCalled();
   });
 
   it('shows custom userMessage instead of raw error', () => {

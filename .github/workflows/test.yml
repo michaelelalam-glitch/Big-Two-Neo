@@ -271,13 +271,13 @@ jobs:
           # On cache hits xcodebuild performs an incremental compile (~2-5 min)
           # instead of a full rebuild (~15-20 min).
           path: ~/DerivedData/Big2Mobile
-          # v2: force cache miss to avoid restoring partial DerivedData from
-          # the failed build (expo-camera CameraViewLegacy.swift errors). Once
-          # the first successful build populates the cache, subsequent runs will
-          # hit this key and get incremental builds again.
-          key: ${{ runner.os }}-deriveddata-v2-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          # v3: force cache miss to clear partial DerivedData accumulated from
+          # multiple prior failed builds (incremental-build corruption cycle).
+          # Once the first successful build populates the cache, subsequent runs
+          # will hit this key and get incremental builds again.
+          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
-            ${{ runner.os }}-deriveddata-v2-
+            ${{ runner.os }}-deriveddata-v3-
 
       - name: 📦 Install dependencies
         run: |
@@ -326,17 +326,27 @@ jobs:
             exit $EXIT_CODE
           fi
         timeout-minutes: 45
+        env:
+          # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
+          # Source maps / native symbols are not needed for E2E test builds.
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+          # pnpm does not hoist @sentry/cli to node_modules/@sentry/cli, so the
+          # first require.resolve() call in sentry-xcode-debug-files.sh exits 1
+          # (with set -e active) BEFORE the SENTRY_DISABLE_AUTO_UPLOAD guard is
+          # reached.  Providing any non-empty value skips that node resolution
+          # entirely; the value is never invoked because SENTRY_DISABLE_AUTO_UPLOAD
+          # prevents all upload code paths from executing.
+          SENTRY_CLI_EXECUTABLE: 'disabled-in-ci'
 
-      - name: 💾 Save DerivedData cache (always, even on build failure/timeout)
-        # Saving with if: always() ensures the cache is preserved even when the
-        # build times out — breaking the infinite cache-miss loop where every run
-        # does a full 20-30 min rebuild. actions/cache/restore@v4 above handles
-        # the restore; this dedicated save step handles the write-back.
-        if: always()
+      - name: 💾 Save DerivedData cache (only on success)
+        # Save only on success so that failed builds do not overwrite the cache
+        # with partial/corrupted DerivedData. A successful build populates the
+        # cache once; subsequent runs get fast incremental builds from it.
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: ~/DerivedData/Big2Mobile
-          key: ${{ runner.os }}-deriveddata-v2-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
@@ -506,6 +516,9 @@ jobs:
         env:
           JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true"
+          # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
+          # Source maps / native symbols are not needed for E2E test builds.
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
 
       - name: 📱 Boot Android Emulator and run Maestro tests
         uses: reactivecircus/android-emulator-runner@v2

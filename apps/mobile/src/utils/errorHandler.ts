@@ -25,6 +25,8 @@
  * ```
  */
 
+import { sentryCapture } from '../services/sentry';
+import { trackError } from '../services/analytics';
 import { showError } from './alerts';
 import { gameLogger } from './logger';
 
@@ -136,21 +138,26 @@ export function extractErrorMessage(error: unknown): string {
  * });
  * ```
  */
-export function handleError(
-  error: unknown,
-  options: HandleErrorOptions = {},
-): string {
-  const {
-    context = 'Unknown',
-    logger = gameLogger,
-    silent = false,
-    userMessage,
-  } = options;
+export function handleError(error: unknown, options: HandleErrorOptions = {}): string {
+  const { context = 'Unknown', logger = gameLogger, silent = false, userMessage } = options;
 
   const message = extractErrorMessage(error);
 
   // Log — include context prefix for easy grep-ability
   logger.error(`[${context}] ${message}`);
+
+  // Report to Sentry (non-blocking; no-op if Sentry not initialised).
+  // Silent errors are log-only and must NOT be sent to Sentry so that
+  // "silent" truly means "log only, no third-party reporting".
+  if (!silent) {
+    sentryCapture.exception(error, { context });
+  }
+
+  // Track non-fatal error in Firebase Analytics (only for non-silent errors).
+  // Always send a fixed constant to avoid inadvertently leaking sensitive data.
+  if (!silent) {
+    trackError(context, 'UNEXPECTED_ERROR', false);
+  }
 
   // Surface to user unless silent
   if (!silent) {
