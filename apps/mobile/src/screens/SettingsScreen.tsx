@@ -23,8 +23,8 @@ import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '
 import { useUserPreferencesStore } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
-import { setAnalyticsConsent } from '../services/analytics';
-import { initSentry, disableSentry } from '../services/sentry';
+import { setAnalyticsConsent, trackEvent } from '../services/analytics';
+import { initSentry, disableSentry, submitBugReport } from '../services/sentry';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -482,6 +482,43 @@ export default function SettingsScreen() {
                 {t('settings.deleteAccountDescription')}
               </Text>
             </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bug Report */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bug Report</Text>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => {
+              Alert.prompt(
+                'Report a Bug',
+                'Describe what happened and any steps to reproduce:',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Submit',
+                    onPress: (description?: string) => {
+                      if (description && description.trim()) {
+                        submitBugReport(
+                          description.trim(),
+                          user?.email ?? undefined,
+                          user?.user_metadata?.username ?? undefined
+                        );
+                        trackEvent('bug_report_submitted', {
+                          description_length: description.trim().length,
+                        });
+                        showSuccess('Bug report submitted. Thank you!');
+                      }
+                    },
+                  },
+                ],
+                'plain-text'
+              );
+            }}
+          >
+            <Text style={styles.linkText}>Report a Bug</Text>
+            <Text style={styles.arrowText}>→</Text>
           </TouchableOpacity>
         </View>
 

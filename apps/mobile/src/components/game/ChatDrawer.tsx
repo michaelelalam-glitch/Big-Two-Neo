@@ -31,6 +31,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { i18n } from '../../i18n';
+import { trackEvent } from '../../services/analytics';
 import type { ChatMessage } from '../../types/chat';
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,11 @@ function ChatDrawerComponent({
       duration: ANIMATION_DURATION,
       easing: Easing.out(Easing.cubic),
     });
+    if (isOpen) {
+      trackEvent('chat_opened');
+    } else {
+      trackEvent('chat_closed');
+    }
   }, [isOpen, panelTop, panelHiddenY, translateY]);
 
   // Auto-focus the text input once the open animation completes (Copilot
@@ -177,10 +183,10 @@ function ChatDrawerComponent({
     () =>
       Gesture.Pan()
         .activeOffsetY([-8, 8])
-        .onEnd((e) => {
+        .onEnd(e => {
           if (e.translationY < -30) runOnJS(onToggle)();
         }),
-    [onToggle],
+    [onToggle]
   );
 
   const handleSend = useCallback(() => {
@@ -197,13 +203,16 @@ function ChatDrawerComponent({
       isSendingRef.current = false;
       return;
     }
-    setInputKey((k) => k + 1);
+    trackEvent('chat_message_sent', { message_length: text.length });
+    setInputKey(k => k + 1);
     setInputText('');
     // Clear the guard after the autocorrect commit window.
     // Clearing any in-flight timer first prevents multiple rapid sends from
     // resetting the flag too early (Copilot PR-151 r2951116762).
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
-    sendTimerRef.current = setTimeout(() => { isSendingRef.current = false; }, 300);
+    sendTimerRef.current = setTimeout(() => {
+      isSendingRef.current = false;
+    }, 300);
   }, [inputText, sendMessage]);
 
   // Android fires onChangeText with the autocorrected word BEFORE
@@ -220,12 +229,14 @@ function ChatDrawerComponent({
         isSendingRef.current = false;
         return;
       }
-      setInputKey((k) => k + 1);
+      setInputKey(k => k + 1);
       setInputText('');
       if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
-      sendTimerRef.current = setTimeout(() => { isSendingRef.current = false; }, 300);
+      sendTimerRef.current = setTimeout(() => {
+        isSendingRef.current = false;
+      }, 300);
     },
-    [sendMessage],
+    [sendMessage]
   );
 
   // Only propagate native text changes when we are NOT in a send cycle.
@@ -244,12 +255,15 @@ function ChatDrawerComponent({
           {!isOwn && <Text style={styles.bubbleUsername}>{item.username}</Text>}
           <Text style={styles.bubbleText}>{item.message}</Text>
           <Text style={styles.bubbleTime}>
-            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(item.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </Text>
         </View>
       );
     },
-    [localUserId],
+    [localUserId]
   );
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
@@ -259,10 +273,7 @@ function ChatDrawerComponent({
   return (
     // Keep the node mounted to preserve scroll position; hide via translateY
     // and block touches when closed.
-    <Animated.View
-      style={[styles.panel, animatedStyle]}
-      pointerEvents={isOpen ? 'auto' : 'none'}
-    >
+    <Animated.View style={[styles.panel, animatedStyle]} pointerEvents={isOpen ? 'auto' : 'none'}>
       {/* Header — GestureDetector wraps ONLY this bar to avoid stealing
           scroll events from the FlatList below. */}
       <GestureDetector gesture={headerPanGesture}>
@@ -318,7 +329,10 @@ function ChatDrawerComponent({
             blurOnSubmit={false}
           />
           <Pressable
-            style={[styles.sendButton, (isCooldown || !inputText.trim()) && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton,
+              (isCooldown || !inputText.trim()) && styles.sendButtonDisabled,
+            ]}
             onPress={handleSend}
             disabled={isCooldown || !inputText.trim()}
             accessibilityRole="button"
