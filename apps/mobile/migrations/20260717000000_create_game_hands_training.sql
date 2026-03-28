@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_game_hands_training_outcome ON public.game_hands_
 CREATE INDEX IF NOT EXISTS idx_game_hands_training_created ON public.game_hands_training USING btree (created_at);
 CREATE INDEX IF NOT EXISTS idx_game_hands_training_player_hash ON public.game_hands_training USING btree (player_hash);
 
--- Enable RLS (disabled by default for insert-only edge function access)
+-- RLS is disabled by default; enable it and add service_role policies for edge function access
 ALTER TABLE public.game_hands_training ENABLE ROW LEVEL SECURITY;
 
 -- Allow service_role to insert (edge functions use service_role key)
