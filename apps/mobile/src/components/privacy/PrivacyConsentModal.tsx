@@ -63,7 +63,7 @@ export default function PrivacyConsentModal({
             pseudonymous ID with them, but not your name, email, or contact details.
           </Text>
 
-          <Text style={styles.body}>Your choice is saved for future app launches.</Text>
+          <Text style={styles.body}>We’ll do our best to remember your choice on this device.</Text>
 
           {/* Accept */}
           <TouchableOpacity

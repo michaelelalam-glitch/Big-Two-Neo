@@ -152,9 +152,11 @@ export function disableSentry(): void {
  * @param user - Pass null to clear the user (on sign-out).
  */
 export function setSentryUser(user: SentryUser | null): void {
+  // Always cache the latest user so it can be reapplied after re-initialization
+  _pendingUser = user;
+
   if (!_initialized) {
-    // Cache the user so it can be applied once Sentry initializes after consent
-    _pendingUser = user;
+    // Will be applied once Sentry initializes after consent
     return;
   }
   Sentry.setUser(user);

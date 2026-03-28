@@ -85,6 +85,7 @@ export default function App() {
       if (consentRaw === null) {
         // First launch — show consent modal (do NOT enable analytics or Sentry yet)
         setConsentDecision(null);
+        setAnalyticsConsent(false);
       } else if (consentRaw === 'true' || consentRaw === 'false') {
         const consented = consentRaw === 'true';
         setConsentDecision(consented);
@@ -100,6 +101,7 @@ export default function App() {
         }
         void AsyncStorage.removeItem(SETTINGS_KEYS.ANALYTICS_CONSENT).catch(() => {});
         setConsentDecision(null);
+        setAnalyticsConsent(false);
       }
     }).catch((error) => {
       // If init fails (e.g. AsyncStorage corrupted), fall back to showing the
