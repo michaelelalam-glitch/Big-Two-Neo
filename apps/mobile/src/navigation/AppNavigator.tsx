@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet, Linking } from 'react-native';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import type { LinkingOptions } from '@react-navigation/native';
+import type { LinkingOptions, NavigationContainerRef } from '@react-navigation/native';
 import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
