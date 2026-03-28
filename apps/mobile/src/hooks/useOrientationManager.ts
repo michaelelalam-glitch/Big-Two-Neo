@@ -141,7 +141,7 @@ export function useOrientationManager(): OrientationManagerState {
       currentOrientationRef.current = mode;
       await applyOrientation(mode);
       // Start tracking time spent in the initial orientation.
-      featureDurationStart(`orientation_${mode}`, 'orientation_session_duration');
+      featureDurationStart(`orientation_${mode}`);
       if (saved) {
         gameLogger.info(`📱 [Orientation] Restored preference: ${mode}`);
       } else {
@@ -222,7 +222,7 @@ export function useOrientationManager(): OrientationManagerState {
         });
         // Track orientation session duration (time spent in previous orientation).
         featureDurationEnd(`orientation_${prevOrientation}`, 'orientation_session_duration');
-        featureDurationStart(`orientation_${mode}`, 'orientation_session_duration');
+        featureDurationStart(`orientation_${mode}`);
         currentOrientationRef.current = mode;
         gameLogger.info(`✅ [Orientation] Successfully changed to ${mode}`);
       } catch (error) {
