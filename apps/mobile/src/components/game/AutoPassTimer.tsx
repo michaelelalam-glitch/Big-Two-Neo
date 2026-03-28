@@ -39,7 +39,7 @@ interface AutoPassTimerProps {
 function computeRemainingMs(
   timerState: AutoPassTimerState,
   isSynced: boolean,
-  getCorrectedNow: () => number,
+  getCorrectedNow: () => number
 ): number {
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
@@ -87,7 +87,12 @@ function AutoPassTimerComponent({
       progress: remaining / durationMs,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
+  }, [
+    timerState?.active,
+    timerState?.end_timestamp,
+    timerState?.started_at,
+    timerState?.duration_ms,
+  ]);
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──
   const progressAnim = useSharedValue(initialSnapshot.progress);
@@ -110,15 +115,23 @@ function AutoPassTimerComponent({
     const remaining = computeRemainingMs(
       timerState,
       isSyncedRef.current,
-      getCorrectedNowRef.current,
+      getCorrectedNowRef.current
     );
     const durationMs = timerState.duration_ms || 10000;
     const initial = remaining / durationMs;
     progressAnim.value = initial;
     progressAnim.value = withTiming(0, { duration: remaining, easing: Easing.linear });
-    return () => { cancelAnimation(progressAnim); };
+    return () => {
+      cancelAnimation(progressAnim);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms, isSynced]);
+  }, [
+    timerState?.active,
+    timerState?.end_timestamp,
+    timerState?.started_at,
+    timerState?.duration_ms,
+    isSynced,
+  ]);
 
   // ── Throttled text/color state — updates once per second max (≤11 re-renders/timer) ──
   const [displaySeconds, setDisplaySeconds] = useState(initialSnapshot.seconds);
@@ -138,12 +151,17 @@ function AutoPassTimerComponent({
     const snap = initialSnapshot;
     setDisplaySeconds(snap.seconds);
     setTimerColorState(
-      snap.seconds <= 3 ? COLORS.error : snap.seconds <= 5 ? COLORS.warning : COLORS.secondary,
+      snap.seconds <= 3 ? COLORS.error : snap.seconds <= 5 ? COLORS.warning : COLORS.secondary
     );
     prevSecsRef.current = snap.seconds;
     lastLoggedSecondRef.current = -1;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
+  }, [
+    timerState?.active,
+    timerState?.end_timestamp,
+    timerState?.started_at,
+    timerState?.duration_ms,
+  ]);
 
   useEffect(() => {
     if (!timerState?.active) return;
@@ -152,7 +170,7 @@ function AutoPassTimerComponent({
       const remaining = computeRemainingMs(
         timerState,
         isSyncedRef.current,
-        getCorrectedNowRef.current,
+        getCorrectedNowRef.current
       );
       const secs = Math.ceil(remaining / 1000);
 
@@ -166,7 +184,9 @@ function AutoPassTimerComponent({
       if (secs !== prevSecsRef.current) {
         prevSecsRef.current = secs;
         setDisplaySeconds(secs);
-        setTimerColorState(secs <= 3 ? COLORS.error : secs <= 5 ? COLORS.warning : COLORS.secondary);
+        setTimerColorState(
+          secs <= 3 ? COLORS.error : secs <= 5 ? COLORS.warning : COLORS.secondary
+        );
       }
     };
 
@@ -174,7 +194,12 @@ function AutoPassTimerComponent({
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.active, timerState?.end_timestamp, timerState?.started_at, timerState?.duration_ms]);
+  }, [
+    timerState?.active,
+    timerState?.end_timestamp,
+    timerState?.started_at,
+    timerState?.duration_ms,
+  ]);
 
   // Compute directly (cheap) — avoids stale value when isSynced or getCorrectedNow
   // change after the initial render (useMemo deps were incomplete).
@@ -240,56 +265,51 @@ function AutoPassTimerComponent({
 
   // Static styles — computed once per re-render (max ~11 per 10s timer with the new architecture)
   const animatedContainerStyle = { transform: [{ scale: pulseAnim }] };
-  const progressBackgroundStyle = { borderColor: COLORS.gray.medium };
   const timerNumberStyle = { color: timerColorState };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        animatedContainerStyle,
-      ]}
-    >
-      {/* Circular progress ring */}
+    <Animated.View style={[styles.container, animatedContainerStyle]}>
+      {/* Compact countdown ring on the left */}
       <View style={styles.timerCircle}>
-        {/* Background circle */}
-        <View style={[styles.progressBackground, progressBackgroundStyle]} />
-
+        {/* Background ring */}
+        <View style={[styles.progressBackground, { borderColor: COLORS.gray.medium }]} />
         {/* Progress ring — rotation driven by Reanimated UI thread (0 JS re-renders) */}
-        <ReanimatedLib.View style={[styles.progressRing, { borderColor: timerColorState }, animatedRingStyle]} />
-
-        {/* Center content */}
+        <ReanimatedLib.View
+          style={[styles.progressRing, { borderColor: timerColorState }, animatedRingStyle]}
+        />
+        {/* Countdown number */}
         <View style={styles.timerContent}>
-          <Text style={[styles.timerNumber, timerNumberStyle]}>
-            {displaySeconds}
-          </Text>
-          <Text style={styles.timerLabel}>sec</Text>
+          <Text style={[styles.timerNumber, timerNumberStyle]}>{displaySeconds}</Text>
         </View>
       </View>
 
-      {/* Message text */}
-      <View style={styles.messageContainer}>
-        <Text style={styles.messageTitle}>
-          {i18n.t('game.autoPassHighestPlay')} {comboText}
-        </Text>
-        <Text style={styles.messageText}>
-          {i18n.t('game.autoPassNoOneCanBeat').replace('{seconds}', displaySeconds.toString())}
-        </Text>
-      </View>
+      {/* Inline message to the right of the ring */}
+      <Text style={styles.inlineMessage} numberOfLines={1}>
+        {i18n.t('game.autoPassHighestPlay')} {comboText} ·{' '}
+        {i18n.t('game.autoPassIn').replace('{seconds}', displaySeconds.toString())}
+      </Text>
     </Animated.View>
   );
 }
 
 export default React.memo(AutoPassTimerComponent);
 
-const TIMER_SIZE = 80;
-const RING_WIDTH = 6;
+const TIMER_SIZE = 36;
+const RING_WIDTH = 3;
 
 const styles = StyleSheet.create({
+  // Horizontal strip — sits flush under the "last played" text without
+  // pushing cards upward or overlapping player avatars.
   container: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
+    marginTop: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderRadius: 20,
+    alignSelf: 'center',
+    maxWidth: 260,
   },
   timerCircle: {
     width: TIMER_SIZE,
@@ -297,7 +317,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: SPACING.sm,
+    marginRight: SPACING.xs,
+    flexShrink: 0,
   },
   progressBackground: {
     position: 'absolute',
@@ -305,7 +326,6 @@ const styles = StyleSheet.create({
     height: TIMER_SIZE,
     borderRadius: TIMER_SIZE / 2,
     borderWidth: RING_WIDTH,
-    borderColor: COLORS.gray.medium,
   },
   progressRing: {
     position: 'absolute',
@@ -323,33 +343,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   timerNumber: {
-    fontSize: FONT_SIZES.xxl,
+    fontSize: FONT_SIZES.md,
     fontWeight: 'bold',
     color: COLORS.secondary,
   },
-  timerLabel: {
+  inlineMessage: {
+    flex: 1,
+    color: COLORS.white,
     fontSize: FONT_SIZES.xs,
-    color: COLORS.white,
-    marginTop: -4,
-  },
-  messageContainer: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
-    maxWidth: 280,
-  },
-  messageTitle: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
-    marginBottom: SPACING.xs / 2,
-    textAlign: 'center',
-  },
-  messageText: {
-    color: COLORS.gray.light,
-    fontSize: FONT_SIZES.sm,
-    textAlign: 'center',
+    fontWeight: '600',
   },
 });
