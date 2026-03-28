@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
-import { initSentry, sentryCapture, Sentry } from './src/services/sentry';
+import { initSentry, isSentryEnabled, sentryCapture, Sentry } from './src/services/sentry';
 import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
 import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
 import { SETTINGS_KEYS } from './src/utils/settings';
@@ -52,12 +52,14 @@ if (
         context: 'GlobalErrorHandler',
         tags: { fatal: 'true' },
       });
-      // Best-effort flush — do not await, never delay the crash path.
-      void Sentry.flush().catch(() => {
-        if (__DEV__) {
-          console.warn('[GlobalErrorHandler] Sentry.flush failed after fatal error');
-        }
-      });
+      // Best-effort flush — only if Sentry is initialized; do not await, never delay the crash path.
+      if (isSentryEnabled()) {
+        void Sentry.flush().catch(() => {
+          if (__DEV__) {
+            console.warn('[GlobalErrorHandler] Sentry.flush failed after fatal error');
+          }
+        });
+      }
       originalHandler?.(error, isFatal);
       return;
     }
