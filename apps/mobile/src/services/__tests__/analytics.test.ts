@@ -428,7 +428,7 @@ describe('trackSocial', () => {
 // ─── Screen Time Tracking ─────────────────────────────────────────────────── //
 
 describe('screenTimeStart / screenTimeEnd', () => {
-  it('emits screen_time with duration when a screen ends', async () => {
+  it('suppresses zero-duration screen_time events', async () => {
     jest.isolateModules(() => {
       setEnv('G-TEST123', 'test-secret');
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -445,6 +445,35 @@ describe('screenTimeStart / screenTimeEnd', () => {
     });
     // zero-duration events should be suppressed
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('emits screen_time with duration when time is positive', async () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    nowSpy.mockReturnValueOnce(1000); // start time
+    nowSpy.mockReturnValueOnce(5000); // end time (4s)
+    jest.isolateModules(() => {
+      setEnv('G-TEST123', 'test-secret');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        screenTimeStart: start,
+        screenTimeEnd: end,
+        setAnalyticsConsent: consent,
+      } = require('../../services/analytics') as typeof import('../../services/analytics');
+      consent(true);
+      start('Game');
+      end('Game');
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe('screen_time');
+    expect(body.events[0].params.firebase_screen).toBe('Game');
+    expect(body.events[0].params.duration_seconds).toBe(4);
+    nowSpy.mockRestore();
   });
 
   it('does not throw when ending a screen that was never started', () => {
@@ -553,16 +582,45 @@ describe('featureDurationStart / featureDurationEnd', () => {
   });
 
   it('does not emit when end is called without start', () => {
-    featureDurationEnd('nonexistent_feature', 'test_duration');
+    featureDurationEnd('nonexistent_feature', 'camera_session_duration');
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('clears state after ending', () => {
     featureDurationStart('mic');
-    featureDurationEnd('mic', 'mic_session_duration');
+    featureDurationEnd('mic', 'microphone_session_duration');
     // Second end should not emit
     mockFetch.mockClear();
-    featureDurationEnd('mic', 'mic_session_duration');
+    featureDurationEnd('mic', 'microphone_session_duration');
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('emits correct event and params when duration is positive', async () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    nowSpy.mockReturnValueOnce(1000); // start time
+    nowSpy.mockReturnValueOnce(4000); // end time (3s)
+    jest.isolateModules(() => {
+      setEnv('G-TEST123', 'test-secret');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        featureDurationStart: start,
+        featureDurationEnd: end,
+        setAnalyticsConsent: consent,
+      } = require('../../services/analytics') as typeof import('../../services/analytics');
+      consent(true);
+      start('mic');
+      end('mic', 'microphone_session_duration');
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe('microphone_session_duration');
+    expect(body.events[0].params.feature_name).toBe('mic');
+    expect(body.events[0].params.duration_ms).toBe(3000);
+    nowSpy.mockRestore();
   });
 });
