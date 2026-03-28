@@ -1,7 +1,7 @@
 /**
  * ThrowablePicker — compact bottom-sheet overlay for selecting a throwable type.
  *
- * Shows three options: Egg 🥚, Smoke 💨, Confetti 🎊.
+ * Shows four options: Egg 🥚, Smoke 💨, Confetti 🎊, Cake 🎂.
  * Tapping one calls onSelect and closes the sheet.
  * Tapping outside (backdrop) calls onClose.
  */
@@ -29,6 +29,7 @@ const OPTIONS: { type: ThrowableType; emoji: string; label: string; color: strin
   { type: 'egg', emoji: '🥚', label: 'Egg', color: '#FBBF24' },
   { type: 'smoke', emoji: '💨', label: 'Smoke', color: '#6B7280' },
   { type: 'confetti', emoji: '🎊', label: 'Confetti', color: '#7C3AED' },
+  { type: 'cake', emoji: '🎂', label: 'Cake', color: '#EC4899' },
 ];
 
 export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerProps) {

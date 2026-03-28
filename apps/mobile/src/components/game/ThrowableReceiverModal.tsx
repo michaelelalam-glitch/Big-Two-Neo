@@ -33,24 +33,28 @@ const BIG_EMOJI: Record<ThrowableType, string> = {
   egg: '🥚',
   smoke: '💨',
   confetti: '🎊',
+  cake: '🎂',
 };
 
 const SPLAT_EMOJI: Record<ThrowableType, string> = {
   egg: '🍳',
   smoke: '🌫️',
   confetti: '✨',
+  cake: '🍰',
 };
 
 const LABEL: Record<ThrowableType, string> = {
   egg: 'Splat!',
   smoke: 'Poof!',
   confetti: 'Surprise!',
+  cake: 'Splat!',
 };
 
 const BG_COLOR: Record<ThrowableType, string> = {
   egg: 'rgba(251,191,36,0.92)',
   smoke: 'rgba(107,114,128,0.90)',
   confetti: 'rgba(124,58,237,0.88)',
+  cake: 'rgba(236,72,153,0.90)',
 };
 
 /** Confetti piece colored randomly for the confetti theme. */
