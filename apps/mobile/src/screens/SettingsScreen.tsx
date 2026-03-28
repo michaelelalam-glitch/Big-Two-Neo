@@ -23,6 +23,8 @@ import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '
 import { useUserPreferencesStore } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
+import { setAnalyticsConsent } from '../services/analytics';
+import { initSentry, disableSentry } from '../services/sentry';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -51,6 +53,9 @@ export default function SettingsScreen() {
   // Language is not in the persist store (i18n handles its own persistence)
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
+  // Analytics consent is persisted in AsyncStorage (separate from Zustand store)
+  const [analyticsConsent, setAnalyticsConsentState] = useState<boolean>(true);
+
   // On first mount: sync sound/haptic state and run one-time migration.
   // Fast path: read enabled flags directly from AsyncStorage so toggles hydrate
   // immediately without waiting for audio-mode setup or sound preloads that may
@@ -76,6 +81,7 @@ export default function SettingsScreen() {
           const entries = await AsyncStorage.multiGet([
             SETTINGS_KEYS.AUDIO_ENABLED,
             SETTINGS_KEYS.HAPTICS_ENABLED,
+            SETTINGS_KEYS.ANALYTICS_CONSENT,
           ]);
           const storageMap = Object.fromEntries(entries) as Record<string, string | null>;
           // Only hydrate flags that are actually present in storage; skipping
@@ -87,6 +93,8 @@ export default function SettingsScreen() {
           if (storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] != null)
             partial.vibrationEnabled = storageMap[SETTINGS_KEYS.HAPTICS_ENABLED] === 'true';
           if (Object.keys(partial).length > 0) hydrate(partial);
+          if (storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] != null)
+            setAnalyticsConsentState(storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] === 'true');
         } catch (storageError) {
           console.warn(
             '[Settings] Failed to load audio/vibration flags from AsyncStorage:',
@@ -121,6 +129,26 @@ export default function SettingsScreen() {
     const newValue = !vibrationEnabled;
     setVibrationEnabled(newValue); // syncs Zustand + fires hapticManager.setHapticsEnabled
     if (newValue) {
+      hapticManager.trigger(HapticType.SELECTION);
+    }
+  };
+
+  // Analytics consent handler
+  const handleToggleAnalytics = async () => {
+    const newValue = !analyticsConsent;
+    try {
+      await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, String(newValue));
+    } catch (storageError) {
+      console.warn('[Settings] Failed to save analytics consent:', storageError);
+    }
+    setAnalyticsConsentState(newValue);
+    setAnalyticsConsent(newValue);
+    if (newValue) {
+      initSentry();
+    } else {
+      disableSentry();
+    }
+    if (vibrationEnabled) {
       hapticManager.trigger(HapticType.SELECTION);
     }
   };
@@ -191,6 +219,7 @@ export default function SettingsScreen() {
             SETTINGS_KEYS.LANGUAGE,
             SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST, // Zustand persist key (Task #647)
             SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, // migration marker
+            SETTINGS_KEYS.ANALYTICS_CONSENT, // Keep user's analytics/privacy preference
             'supabase.auth.token', // Keep auth tokens
           ];
 
@@ -342,6 +371,26 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
+          </View>
+        </View>
+
+        {/* Data & Privacy */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.dataPrivacy')}</Text>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>{t('settings.analyticsTracking')}</Text>
+              <Text style={styles.settingDescription}>
+                {t('settings.analyticsTrackingDescription')}
+              </Text>
+            </View>
+            <Switch
+              value={analyticsConsent}
+              onValueChange={handleToggleAnalytics}
+              trackColor={{ false: COLORS.gray.dark, true: COLORS.accent }}
+              thumbColor={analyticsConsent ? COLORS.white : COLORS.gray.medium}
+            />
           </View>
         </View>
 

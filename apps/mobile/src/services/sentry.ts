@@ -129,6 +129,16 @@ export function isSentryEnabled(): boolean {
   return _initialized;
 }
 
+/**
+ * Disable Sentry in response to user revoking analytics consent.
+ * Marks Sentry as uninitialised so all subsequent capture calls become no-ops,
+ * and closes the underlying client asynchronously.
+ */
+export function disableSentry(): void {
+  _initialized = false;
+  void Sentry.close();
+}
+
 // ─── User context ─────────────────────────────────────────────────────────── //
 
 /**
