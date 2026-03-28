@@ -124,8 +124,9 @@ export function useGameActions({
           trackGameplayAction('card_play', {
             mode: 'local_ai',
             card_count: cards.length,
-            play_method: 'button',
+            play_method: playMethodRef.current,
           });
+          playMethodRef.current = 'button';
           turnTimeEnd('play');
           checkHintFollowed(cards.map(c => c.id));
           sentryCapture.breadcrumb('Card play (local AI)', { card_count: cards.length }, 'game');
@@ -236,8 +237,9 @@ export function useGameActions({
           trackGameplayAction('card_play', {
             mode: 'multiplayer',
             card_count: sortedCards.length,
-            play_method: 'button',
+            play_method: playMethodRef.current,
           });
+          playMethodRef.current = 'button';
           turnTimeEnd('play');
           checkHintFollowed(sortedCards.map(c => c.id));
           sentryCapture.breadcrumb(
@@ -366,6 +368,9 @@ export function useGameActions({
     alertError,
   ]);
 
+  // Ref to track play method (button vs drag) — set before calling handlePlayCards
+  const playMethodRef = useRef<'button' | 'drag'>('button');
+
   // Refs to access play/pass handlers for drag-to-play from CardHand
   const onPlayCardsRef = useRef<((cards: Card[]) => Promise<void>) | null>(null);
   const onPassRef = useRef<(() => Promise<void>) | null>(null);
@@ -389,6 +394,7 @@ export function useGameActions({
 
   const handleCardHandPlayCards = (cards: Card[]) => {
     trackGameplayAction('play_method_used', { method: 'drag' });
+    playMethodRef.current = 'drag';
     if (onPlayCardsRef.current) {
       onPlayCardsRef.current(cards);
     }

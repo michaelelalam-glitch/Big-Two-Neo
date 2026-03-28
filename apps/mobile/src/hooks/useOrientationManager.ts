@@ -13,7 +13,7 @@
  * Date: December 18, 2025
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gameLogger } from '../utils/logger';
@@ -79,6 +79,7 @@ const ORIENTATION_LOCKS = ScreenOrientation
 
 export function useOrientationManager(): OrientationManagerState {
   const [currentOrientation, setCurrentOrientation] = useState<OrientationMode>('portrait');
+  const currentOrientationRef = useRef<OrientationMode>('portrait');
   const [isChanging, setIsChanging] = useState(false);
   // Initialize isLocked to false. It is set true only after lockAsync succeeds
   // (in applyOrientation) and false again when the lock fails or is released.
@@ -137,7 +138,10 @@ export function useOrientationManager(): OrientationManagerState {
       // the game screen never auto-rotates (user-request: rotation only via button).
       const mode = (saved as OrientationMode | null) ?? 'portrait';
       setCurrentOrientation(mode);
+      currentOrientationRef.current = mode;
       await applyOrientation(mode);
+      // Start tracking time spent in the initial orientation.
+      featureDurationStart(`orientation_${mode}`, 'orientation_session_duration');
       if (saved) {
         gameLogger.info(`📱 [Orientation] Restored preference: ${mode}`);
       } else {
@@ -211,13 +215,15 @@ export function useOrientationManager(): OrientationManagerState {
         // Save preference
         await saveOrientationPreference(mode);
 
+        const prevOrientation = currentOrientationRef.current;
         trackEvent('orientation_changed', {
           orientation: mode,
-          previous_orientation: currentOrientation,
+          previous_orientation: prevOrientation,
         });
         // Track orientation session duration (time spent in previous orientation).
-        featureDurationEnd(`orientation_${currentOrientation}`, 'orientation_session_duration');
-        featureDurationStart(`orientation_${mode}`);
+        featureDurationEnd(`orientation_${prevOrientation}`, 'orientation_session_duration');
+        featureDurationStart(`orientation_${mode}`, 'orientation_session_duration');
+        currentOrientationRef.current = mode;
         gameLogger.info(`✅ [Orientation] Successfully changed to ${mode}`);
       } catch (error) {
         gameLogger.error(`❌ [Orientation] Failed to change to ${mode}:`, error);
@@ -225,7 +231,7 @@ export function useOrientationManager(): OrientationManagerState {
         setIsChanging(false);
       }
     },
-    [isChanging] // eslint-disable-line react-hooks/exhaustive-deps -- currentOrientation intentionally read as "previous" value before update
+    [isChanging] // eslint-disable-line react-hooks/exhaustive-deps -- currentOrientationRef used instead of state to avoid stale closures
   );
 
   /**
