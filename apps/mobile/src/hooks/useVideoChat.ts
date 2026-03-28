@@ -35,7 +35,7 @@ import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { gameLogger } from '../utils/logger';
-import { trackEvent } from '../services/analytics';
+import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 import { i18n } from '../i18n';
 
 // ---------------------------------------------------------------------------
@@ -394,6 +394,10 @@ export function useVideoChat({
       // UI reflects the true "disconnected" state even without an explicit
       // toggleVideoChat() call.
       if (err instanceof UnexpectedDisconnectError) {
+        // End any active duration tracking before resetting state.
+        featureDurationEnd('camera', 'camera_session_duration');
+        featureDurationEnd('mic', 'microphone_session_duration');
+        featureDurationEnd('video_chat', 'video_chat_session_duration');
         // Best-effort adapter teardown so hardware capture stops even if the
         // adapter itself hasn't fully cleaned up after the unexpected drop.
         adapterRef.current.disableMicrophone().catch(() => {});
@@ -900,6 +904,10 @@ export function useVideoChat({
           desiredCameraRef.current = true;
           desiredMicRef.current = micEnabled;
           persistChatPrefs(true, micEnabled);
+          // Start duration tracking for camera, mic (if enabled), and session.
+          featureDurationStart('video_chat');
+          featureDurationStart('camera');
+          if (micEnabled) featureDurationStart('mic');
           // Log reflects what was actually enabled — permission 'granted' does not
           // guarantee enableMicrophone() succeeded (may have thrown).
           gameLogger.info(
@@ -980,6 +988,8 @@ export function useVideoChat({
         }
       } else {
         // ── Opt-out path — camera is on, disable local tracks ────────────────
+        featureDurationEnd('camera', 'camera_session_duration');
+        featureDurationEnd('mic', 'microphone_session_duration');
         await adapterRef.current.disableMicrophone().catch(() => {});
         await adapterRef.current.disableCamera().catch(() => {});
         setIsLocalCameraOn(false);
@@ -992,6 +1002,7 @@ export function useVideoChat({
           gameLogger.info('[VideoChat] Local tracks disabled — staying connected as listener.');
         } else {
           await adapterRef.current.disconnect().catch(() => {});
+          featureDurationEnd('video_chat', 'video_chat_session_duration');
           setIsChatConnected(false);
           setRemoteParticipants([]);
           gameLogger.info('[VideoChat] Local camera + mic disabled — disconnected.');
@@ -1021,6 +1032,7 @@ export function useVideoChat({
   const toggleMic = useCallback(async (): Promise<void> => {
     if (!isChatConnected) return;
     if (isLocalMicOn) {
+      featureDurationEnd('mic', 'microphone_session_duration');
       await adapterRef.current.disableMicrophone().catch(() => {});
       setIsLocalMicOn(false);
       desiredMicRef.current = false;
@@ -1044,6 +1056,7 @@ export function useVideoChat({
         setIsLocalMicOn(true);
         desiredMicRef.current = true;
         persistChatPrefs(desiredCameraRef.current, true);
+        featureDurationStart('mic');
         trackEvent('microphone_toggled', { enabled: 1 });
         gameLogger.info('[VideoChat] Microphone unmuted.');
       } catch (err) {
@@ -1105,6 +1118,8 @@ export function useVideoChat({
           setIsLocalMicOn(true);
           desiredMicRef.current = true;
           persistChatPrefs(false, true);
+          featureDurationStart('video_chat');
+          featureDurationStart('mic');
           gameLogger.info('[VoiceChat] Mic enabled (audio-only mode).');
         } catch (err) {
           gameLogger.warn(
@@ -1149,6 +1164,7 @@ export function useVideoChat({
         }
       } else {
         // ── Opt-out (voice was on, camera was off) ─────────────────────────
+        featureDurationEnd('mic', 'microphone_session_duration');
         await adapterRef.current.disableMicrophone().catch(() => {});
         setIsLocalMicOn(false);
         desiredCameraRef.current = false;
@@ -1159,6 +1175,7 @@ export function useVideoChat({
           gameLogger.info('[VoiceChat] Mic disabled — staying connected as listener.');
         } else {
           await adapterRef.current.disconnect().catch(() => {});
+          featureDurationEnd('video_chat', 'video_chat_session_duration');
           setIsChatConnected(false);
           setRemoteParticipants([]);
           gameLogger.info('[VoiceChat] Voice chat disconnected.');
@@ -1213,6 +1230,7 @@ export function useVideoChat({
     if (!isChatConnected) return;
     try {
       if (isLocalCameraOn) {
+        featureDurationEnd('camera', 'camera_session_duration');
         await adapterRef.current.disableCamera();
         setIsLocalCameraOn(false);
         desiredCameraRef.current = false;
@@ -1233,6 +1251,7 @@ export function useVideoChat({
         setIsLocalCameraOn(true);
         desiredCameraRef.current = true;
         persistChatPrefs(true, desiredMicRef.current);
+        featureDurationStart('camera');
         trackEvent('camera_toggled', { enabled: 1 });
         gameLogger.info('[VideoChat] Camera enabled (session already active).');
       }

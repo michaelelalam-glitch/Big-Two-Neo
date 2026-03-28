@@ -6,6 +6,8 @@ import { Alert, Platform, ToastAndroid } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
+import { trackEvent, setLastHintCards } from '../services/analytics';
+import { sentryCapture } from '../services/sentry';
 import type { Card, LastPlay } from '../game/types';
 
 interface UseHelperButtonsParams {
@@ -57,6 +59,8 @@ export function useHelperButtons({
     const newOrder = sorted.map(card => card.id);
     setCustomCardOrder(newOrder);
 
+    trackEvent('sort_used', { hand_size: playerHand.length });
+    sentryCapture.breadcrumb('Sort button used', { hand_size: playerHand.length }, 'game.action');
     gameLogger.info('[useHelperButtons] Sorted hand lowest to highest');
   };
 
@@ -84,6 +88,12 @@ export function useHelperButtons({
       Alert.alert('', 'Hand organized by combos');
     }
 
+    trackEvent('smart_sort_used', { hand_size: playerHand.length });
+    sentryCapture.breadcrumb(
+      'Smart sort button used',
+      { hand_size: playerHand.length },
+      'game.action'
+    );
     gameLogger.info('[useHelperButtons] Smart sorted hand by combo type');
   };
 
@@ -108,6 +118,17 @@ export function useHelperButtons({
         Alert.alert('', 'No valid play - recommend passing');
       }
 
+      trackEvent('hint_no_valid_play', {
+        hand_size: playerHand.length,
+        has_last_play: lastPlay ? 1 : 0,
+        is_first_play: isFirstPlay ? 1 : 0,
+      });
+      setLastHintCards(null);
+      sentryCapture.breadcrumb(
+        'Hint: no valid play',
+        { hand_size: playerHand.length },
+        'game.action'
+      );
       gameLogger.info('[useHelperButtons] Hint: No valid play, recommend pass');
     } else {
       // Valid play found - auto-select cards
@@ -136,6 +157,19 @@ export function useHelperButtons({
         Alert.alert('', `Recommended: ${comboType}`);
       }
 
+      trackEvent('hint_used', {
+        hand_size: playerHand.length,
+        hint_cards: cardCount,
+        combo_type: comboType,
+        has_last_play: lastPlay ? 1 : 0,
+        is_first_play: isFirstPlay ? 1 : 0,
+      });
+      setLastHintCards(Array.from(recommended));
+      sentryCapture.breadcrumb(
+        'Hint used',
+        { hint_cards: cardCount, combo_type: comboType },
+        'game.action'
+      );
       gameLogger.info(`[useHelperButtons] Hint: Recommended ${cardCount} card(s)`);
     }
   };

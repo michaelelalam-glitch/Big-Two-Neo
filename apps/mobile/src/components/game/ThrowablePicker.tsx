@@ -17,6 +17,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
+import { trackEvent } from '../../services/analytics';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 
 interface ThrowablePickerProps {
@@ -79,7 +80,10 @@ export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerP
                 styles.optionButton,
                 { backgroundColor: opt.color, opacity: pressed ? 0.75 : 1 },
               ]}
-              onPress={() => onSelect(opt.type)}
+              onPress={() => {
+                trackEvent('throwable_sent', { throwable_type: opt.type });
+                onSelect(opt.type);
+              }}
               accessibilityRole="button"
               accessibilityLabel={`Throw ${opt.label}`}
             >

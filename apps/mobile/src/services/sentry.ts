@@ -99,6 +99,11 @@ export function initSentry(): void {
         if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
+        // Tag translation-related errors so they can be filtered in Sentry dashboard.
+        if (msg.includes('Translation not found') || msg.includes('i18n')) {
+          event.tags = { ...event.tags, category: 'translation' };
+          event.level = 'warning';
+        }
         return event;
       },
     });
@@ -247,6 +252,22 @@ export const withSentryBoundary = Sentry.withErrorBoundary;
  * (e.g. tracing, profiling, custom integrations).
  */
 export { Sentry };
+
+// ─── Missing translation reporting ────────────────────────────────────────── //
+
+/**
+ * Report a missing i18n translation key as a silent Sentry breadcrumb.
+ * Called from the i18n manager when a key lookup fails — never throws.
+ */
+export function reportMissingTranslation(key: string, language: string): void {
+  if (!_initialized) return;
+  Sentry.addBreadcrumb({
+    category: 'i18n',
+    message: `Missing translation: ${key}`,
+    level: 'warning',
+    data: { key, language },
+  });
+}
 
 // ─── In-app bug reporting ─────────────────────────────────────────────────── //
 

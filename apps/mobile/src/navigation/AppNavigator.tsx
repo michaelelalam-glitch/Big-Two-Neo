@@ -7,7 +7,7 @@ import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { FriendsProvider } from '../contexts/FriendsContext';
-import { trackScreenView } from '../services/analytics';
+import { trackScreenView, screenTimeStart, screenTimeEnd } from '../services/analytics';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
 import GameScreen from '../screens/GameScreen';
 import GameSelectionScreen from '../screens/GameSelectionScreen';
@@ -201,13 +201,18 @@ export default function AppNavigator() {
           routeNameRef.current = initialRoute;
           if (initialRoute) {
             trackScreenView(initialRoute);
+            screenTimeStart(initialRoute);
           }
         }}
         onStateChange={() => {
           const previousRouteName = routeNameRef.current;
           const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
           if (currentRouteName && previousRouteName !== currentRouteName) {
+            if (previousRouteName) {
+              screenTimeEnd(previousRouteName);
+            }
             trackScreenView(currentRouteName);
+            screenTimeStart(currentRouteName);
           }
           routeNameRef.current = currentRouteName;
         }}

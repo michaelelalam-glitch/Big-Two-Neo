@@ -31,7 +31,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { i18n } from '../../i18n';
-import { trackEvent } from '../../services/analytics';
+import { trackEvent, featureDurationStart, featureDurationEnd } from '../../services/analytics';
 import type { ChatMessage } from '../../types/chat';
 
 // ---------------------------------------------------------------------------
@@ -130,6 +130,11 @@ function ChatDrawerComponent({
     }
     if (prevIsOpenRef.current !== isOpen) {
       trackEvent(isOpen ? 'chat_opened' : 'chat_closed');
+      if (isOpen) {
+        featureDurationStart('chat');
+      } else {
+        featureDurationEnd('chat', 'chat_session_duration');
+      }
       prevIsOpenRef.current = isOpen;
     }
   }, [isOpen]);

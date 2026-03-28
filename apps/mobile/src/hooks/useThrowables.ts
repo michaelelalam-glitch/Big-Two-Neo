@@ -18,6 +18,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ThrowableType } from '../types/multiplayer';
+import { trackEvent } from '../services/analytics';
 
 /** Single active throwable effect rendered on a player's avatar tile. */
 export interface ActiveThrowableEffect {
@@ -310,6 +311,7 @@ export function useThrowables({
 
       // Show full-screen popup ONLY if we are the target.
       if (target_player_index === myPlayerIndexRef.current) {
+        trackEvent('throwable_received', { throwable_type: throwable, from_name: thrower_name });
         if (incomingTimerRef.current) clearTimeout(incomingTimerRef.current);
         setIncomingThrowable({ throwable, from_name: thrower_name });
         incomingTimerRef.current = setTimeout(() => {

@@ -37,6 +37,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
 import { networkLogger } from '../utils/logger';
+import { trackConnection, trackEvent } from '../services/analytics';
+import { sentryCapture } from '../services/sentry';
 import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -183,6 +185,8 @@ export function useConnectionManager({
           // Mark connection as degraded so the UI shows the reconnecting indicator.
           setConnectionStatus('reconnecting');
           heartbeatBackedOffRef.current = true;
+          trackEvent('heartbeat_backoff', { consecutive_failures: failures });
+          sentryCapture.breadcrumb('Heartbeat backoff', { failures }, 'connection');
         }
         return;
       }
@@ -202,6 +206,8 @@ export function useConnectionManager({
       if (data?.replaced_by_bot) {
         setConnectionStatus('disconnected');
         stopHeartbeat();
+        trackEvent('player_replaced_by_bot', { room_id: roomId });
+        sentryCapture.breadcrumb('Replaced by bot', { room_id: roomId }, 'connection');
         onBotReplacedRef.current?.();
         return;
       }
@@ -307,9 +313,13 @@ export function useConnectionManager({
       setConnectionStatus('connected');
       setRejoinStatus(null);
       startHeartbeat();
+      trackEvent('reconnect_succeeded', { room_id: roomId });
+      sentryCapture.breadcrumb('Reconnect succeeded', { room_id: roomId }, 'connection');
     } catch (err) {
       networkLogger.error('[useConnectionManager] reconnect exception:', err);
       setConnectionStatus('disconnected');
+      trackEvent('reconnect_failed', { room_id: roomId });
+      sentryCapture.breadcrumb('Reconnect failed', { room_id: roomId }, 'connection');
     } finally {
       setIsReconnecting(false);
     }
@@ -326,6 +336,8 @@ export function useConnectionManager({
         body: { room_id: roomId, player_id: playerId },
       });
       setConnectionStatus('disconnected');
+      trackConnection('disconnect', { room_id: roomId, reason: 'intentional_leave' });
+      sentryCapture.breadcrumb('Intentional disconnect', { room_id: roomId }, 'connection');
     } catch (err) {
       networkLogger.error('[useConnectionManager] disconnect error:', err);
     }
@@ -341,6 +353,7 @@ export function useConnectionManager({
       if (!enabled || !roomId || !playerId) return;
 
       if (nextAppState === 'active' && prev !== 'active') {
+        trackEvent('app_state_changed', { from: prev, to: 'active' });
         // App came to foreground — check server state before deciding what to do.
         // Do NOT call mark-disconnected or assume anything.
         const status = await checkRejoinStatusRef.current();
@@ -381,6 +394,7 @@ export function useConnectionManager({
             startHeartbeatRef.current();
         }
       } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+        trackEvent('app_state_changed', { from: prev, to: nextAppState });
         // App went to background.
         // Pause the heartbeat so we stop updating last_seen_at.
         // The server will detect the silence and eventually mark us disconnected.
@@ -431,11 +445,14 @@ export function useConnectionManager({
           if (rec.connection_status === 'replaced_by_bot') {
             setConnectionStatus('disconnected');
             stopHeartbeatRef.current();
+            trackEvent('player_replaced_by_bot', { room_id: roomId, source: 'realtime' });
             onBotReplacedRef.current?.();
           } else if (rec.connection_status === 'disconnected') {
             setConnectionStatus('disconnected');
+            trackConnection('disconnect', { room_id: roomId, source: 'realtime' });
           } else if (rec.connection_status === 'connected') {
             setConnectionStatus('connected');
+            trackConnection('reconnect', { room_id: roomId, source: 'realtime' });
           }
         }
       )

@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { GameState, Player, BroadcastEvent, BroadcastData, Card } from '../types/multiplayer';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
+import { turnTimeStart } from '../services/analytics';
 
 export interface UseTurnInactivityTimerOptions {
   /** Current game state (turn_started_at, current_turn) */
@@ -271,6 +272,8 @@ export function useTurnInactivityTimer({
         activeTurnSequenceRef.current = seqId;
         hasExpiredRef.current = false;
         lastAutoPlayAttemptRef.current = 0;
+        // Start tracking how long the player takes for this turn.
+        turnTimeStart();
 
         // CLOCK SKEW FIX: If server timestamp is in the future relative to client,
         // use client-local time as the start instead. This prevents the timer from
