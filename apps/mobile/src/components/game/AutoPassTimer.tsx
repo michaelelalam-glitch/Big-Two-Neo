@@ -285,8 +285,7 @@ function AutoPassTimerComponent({
 
       {/* Inline message to the right of the ring */}
       <Text style={styles.inlineMessage} numberOfLines={1}>
-        {i18n.t('game.autoPassHighestPlay')} {comboText} ·{' '}
-        {i18n.t('game.autoPassIn').replace('{seconds}', displaySeconds.toString())}
+        {i18n.t('game.autoPassInlineMessage', { combo: comboText, seconds: displaySeconds })}
       </Text>
     </Animated.View>
   );
