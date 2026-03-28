@@ -225,7 +225,7 @@ export function useOrientationManager(): OrientationManagerState {
         setIsChanging(false);
       }
     },
-    [isChanging]
+    [isChanging] // eslint-disable-line react-hooks/exhaustive-deps -- currentOrientation intentionally read as "previous" value before update
   );
 
   /**
