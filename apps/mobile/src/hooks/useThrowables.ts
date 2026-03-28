@@ -314,7 +314,7 @@ export function useThrowables({
 
       // Show full-screen popup ONLY if we are the target.
       if (target_player_index === myPlayerIndexRef.current) {
-        trackEvent('throwable_received', { throwable_type: throwable, from_name: thrower_name });
+        trackEvent('throwable_received', { throwable_type: throwable });
         if (incomingTimerRef.current) clearTimeout(incomingTimerRef.current);
         setIncomingThrowable({ throwable, from_name: thrower_name });
         incomingTimerRef.current = setTimeout(() => {
