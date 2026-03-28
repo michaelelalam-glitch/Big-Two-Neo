@@ -460,7 +460,7 @@ export function turnTimeStart(): void {
   _turnStartTime = Date.now();
 }
 
-export function turnTimeEnd(action: 'play' | 'pass'): void {
+export function turnTimeEnd(action: 'play' | 'pass' | 'timeout'): void {
   if (_turnStartTime) {
     const durationMs = Date.now() - _turnStartTime;
     const durationSec = Math.round(durationMs / 1000);

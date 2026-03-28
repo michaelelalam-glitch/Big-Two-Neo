@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ActivityIndicator, StyleSheet, Linking } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet, Linking, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { LinkingOptions, NavigationContainerRef } from '@react-navigation/native';
@@ -185,6 +185,20 @@ export default function AppNavigator() {
     }, 300);
     return () => clearTimeout(timerId);
   }, [isLoggedIn]);
+
+  // Flush screen time when app goes to background; resume on foreground.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      const currentScreen = routeNameRef.current;
+      if (!currentScreen) return;
+      if (nextState === 'background' || nextState === 'inactive') {
+        screenTimeEnd(currentScreen);
+      } else if (nextState === 'active') {
+        screenTimeStart(currentScreen);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   if (isLoading) {
     authLogger.info('⏳ [AppNavigator] Loading...');

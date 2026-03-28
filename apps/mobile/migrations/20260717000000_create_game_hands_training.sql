@@ -3,7 +3,7 @@
 -- with the same columns, indexes, and constraints.
 
 CREATE TABLE IF NOT EXISTS public.game_hands_training (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   room_id uuid,
   room_code character varying,
   game_session_id uuid NOT NULL,

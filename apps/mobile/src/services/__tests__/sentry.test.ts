@@ -10,6 +10,7 @@ import {
   sentryCapture,
   withSentryBoundary,
   submitBugReport,
+  reportMissingTranslation,
 } from '../../services/sentry';
 
 // ─── Mock @sentry/react-native (routed via jest.config.js moduleNameMapper) ── //
@@ -225,6 +226,101 @@ describe('submitBugReport', () => {
             message: 'Minimal bug report',
           })
         );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+});
+
+// ─── reportMissingTranslation ─────────────────────────────────────────────── //
+
+describe('reportMissingTranslation', () => {
+  it('does not throw when Sentry is not initialized', () => {
+    expect(() => reportMissingTranslation('some.key', 'en')).not.toThrow();
+  });
+
+  it('adds a breadcrumb when Sentry is initialized', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, reportMissingTranslation: report } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        report('game.title', 'fr');
+        expect(MockSentry.addBreadcrumb).toHaveBeenCalledWith(
+          expect.objectContaining({
+            category: 'i18n',
+            message: 'Missing translation: game.title',
+            level: 'warning',
+            data: { key: 'game.title', language: 'fr' },
+          })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+});
+
+// ─── beforeSend translation tagging ───────────────────────────────────────── //
+
+describe('beforeSend translation tagging', () => {
+  it('tags events with "Translation not found" as translation category', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        const initCall = (MockSentry.init as jest.Mock).mock.calls[0][0] as {
+          beforeSend: (event: any) => any;
+        };
+        const beforeSend = initCall.beforeSend;
+
+        const event = {
+          exception: { values: [{ value: '[i18n] Translation not found: game.title' }] },
+          tags: {},
+        };
+        const result = beforeSend(event);
+        expect(result).not.toBeNull();
+        expect(result.tags.category).toBe('translation');
+        expect(result.level).toBe('warning');
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+
+  it('does not tag unrelated errors containing "i18n" in path', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        const initCall = (MockSentry.init as jest.Mock).mock.calls[0][0] as {
+          beforeSend: (event: any) => any;
+        };
+        const beforeSend = initCall.beforeSend;
+
+        const event = {
+          exception: { values: [{ value: 'Module not found: /src/i18n/config.ts' }] },
+          tags: {},
+        };
+        const result = beforeSend(event);
+        expect(result).not.toBeNull();
+        expect(result.tags.category).toBeUndefined();
+        expect(result.level).toBeUndefined();
       } finally {
         delete process.env.EXPO_PUBLIC_SENTRY_DSN;
       }

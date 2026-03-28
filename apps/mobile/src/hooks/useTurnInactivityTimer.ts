@@ -18,7 +18,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { GameState, Player, BroadcastEvent, BroadcastData, Card } from '../types/multiplayer';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
-import { turnTimeStart } from '../services/analytics';
+import { turnTimeStart, turnTimeEnd } from '../services/analytics';
 
 export interface UseTurnInactivityTimerOptions {
   /** Current game state (turn_started_at, current_turn) */
@@ -142,6 +142,8 @@ export function useTurnInactivityTimer({
     isAutoPlayInProgressRef.current = true;
 
     try {
+      // End turn timer — player timed out (auto-play triggered).
+      turnTimeEnd('timeout');
       networkLogger.info('⏰ [TurnTimer] Calling auto-play-turn edge function');
 
       const { data: result, error } = await invokeWithRetry<{

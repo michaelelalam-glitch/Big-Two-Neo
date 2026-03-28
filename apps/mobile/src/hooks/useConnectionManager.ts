@@ -225,6 +225,8 @@ export function useConnectionManager({
         }
         setConnectionStatus('reconnecting');
         heartbeatBackedOffRef.current = true;
+        trackEvent('heartbeat_backoff', { consecutive_failures: failures });
+        sentryCapture.breadcrumb('Heartbeat backoff (exception)', { failures }, 'connection');
       }
     }
   }, [enabled, roomId, playerId, stopHeartbeat]);
