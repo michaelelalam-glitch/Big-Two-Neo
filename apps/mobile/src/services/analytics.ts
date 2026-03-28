@@ -35,6 +35,10 @@ const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 // use and can ONLY push events to YOUR GA4 property. It is NOT a server-side
 // credential. GA4's built-in bot/spam filters provide some protection against
 // abuse; for higher assurance, proxy analytics through a server-side endpoint.
+// TODO(security): move analytics ingestion behind a Supabase Edge Function so
+// the API secret is never shipped in the client bundle. Until that migration,
+// the risk is scoped to a malicious actor spamming YOUR property's event stream;
+// it does not expose end-user data. Tracked in task backlog.
 const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
 /**

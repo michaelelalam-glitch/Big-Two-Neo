@@ -18,6 +18,7 @@ const mockSentry = {
   addBreadcrumb: jest.fn(),
   setUser: jest.fn(),
   flush: jest.fn(() => Promise.resolve(true)),
+  close: jest.fn(() => Promise.resolve(true)),
   withErrorBoundary: (component: unknown) => component,
   reactNativeTracingIntegration: jest.fn(() => ({})),
   Scope,

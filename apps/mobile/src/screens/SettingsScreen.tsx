@@ -134,8 +134,7 @@ export default function SettingsScreen() {
   };
 
   // Analytics consent handler
-  const handleToggleAnalytics = async () => {
-    const newValue = !analyticsConsent;
+  const handleToggleAnalytics = async (newValue: boolean) => {
     try {
       await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, String(newValue));
     } catch (storageError) {
