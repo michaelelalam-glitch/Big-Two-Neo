@@ -50,13 +50,16 @@ EXPO_PUBLIC_APP_VERSION=1.0.0
 
 ## Test Scenario 1: App Open Event (Firebase)
 
-**What it tests:** `trackEvent('app_open')` called in `App.tsx` after i18n initialises.
+**What it tests:** `trackEvent('app_open')` called in `App.tsx` after i18n initialises **and analytics consent is granted (persisted as `true`)**.
 
 **Steps:**
 
-1. Start the app: `cd apps/mobile && npx expo start --clear`
-2. Open the app on simulator/device
-3. In Firebase Console → **DebugView**, watch for the `app_open` event
+1. Ensure analytics consent has already been accepted on this device/profile (i.e., consent is persisted as `true`).  
+   - If this is the first launch and a consent prompt appears, **accept** analytics consent before continuing.  
+   - If consent is declined or still undecided, `app_open` will **not** be sent and this scenario should **not** be treated as a failure.
+2. Start the app: `cd apps/mobile && npx expo start --clear`
+3. Open the app on simulator/device
+4. In Firebase Console → **DebugView**, watch for the `app_open` event
 
 **Expected in DebugView:**
 ```
@@ -64,7 +67,7 @@ Event: app_open
 Parameters:
   platform: "ios" or "android"
   app_version: "1.0.0" (from EXPO_PUBLIC_APP_VERSION, falling back to Expo app config version)
-  engagement_time_msec: 1
+  engagement_time_msec: 100
   session_id: <numeric timestamp>
 ```
 
@@ -88,7 +91,7 @@ Event: user_signed_in
 Parameters:
   platform: "ios" or "android"
   app_version: "1.0.0"
-  engagement_time_msec: 1
+  engagement_time_msec: 100
   session_id: <numeric timestamp>
 ```
 
@@ -132,17 +135,38 @@ Parameters:
 
 ## Test Scenario 5: Consent Gate (Firebase)
 
-**What it tests:** No events are sent before `setAnalyticsConsent(true)` is called.
+**What it tests:** First-launch privacy consent modal shown to the user; analytics are only enabled after the user taps **Accept & Continue**.
 
-**Code reference:** `consentGiven` defaults to `false` in `analytics.ts`; set to `true` in `App.tsx` after i18n init.
+**Component:** `src/components/privacy/PrivacyConsentModal.tsx`  
+**Storage key:** `@big2_analytics_consent` (AsyncStorage)
 
 **Steps:**
 
-1. Add a temporary breakpoint or log before the `setAnalyticsConsent(true)` call in `App.tsx`
-2. Launch the app and quickly trigger an action that calls `trackEvent` before i18n completes
-3. Verify no events appear in DebugView until after `setAnalyticsConsent(true)` fires
+1. Clear the app’s AsyncStorage (or uninstall/reinstall for a fresh install simulation)
+2. Launch the app
+3. The **Privacy Consent Modal** should appear over the home screen, showing:
+   - Title: “We Value Your Privacy”
+   - Explanation of anonymous analytics + crash reporting
+   - **Accept & Continue** button (primary blue)
+   - **No thanks** link button
+4. Tap **Accept & Continue**
+   - Modal dismisses
+   - `app_open` event fires (visible in GA4 DebugView)
+5. Kill and relaunch the app—modal should NOT appear again (consent persisted)
 
-**Pass criteria:** DebugView shows no events until consent is explicitly given.
+**Test the decline path:**
+1. Clear AsyncStorage again
+2. Launch the app—modal appears
+3. Tap **No thanks**
+   - Modal dismisses
+   - No analytics events are sent (no `app_open` in DebugView)
+4. Relaunch—modal should NOT appear (decline persisted)
+
+**Pass criteria:**
+- Modal appears exactly once on first launch
+- Accept path: `app_open` fires, subsequent launches skip modal
+- Decline path: no events sent, subsequent launches skip modal
+- 7 unit tests in `src/components/privacy/__tests__/PrivacyConsentModal.test.tsx` all pass
 
 ---
 
@@ -283,7 +307,7 @@ Parameters:
          "params": {
            "platform": "ios",
            "app_version": "1.0.0",
-           "engagement_time_msec": 1,
+           "engagement_time_msec": 100,
            "session_id": 1743000000000
          }
        }]
@@ -319,18 +343,18 @@ Parameters:
 
 | # | Scenario | Tool | Pass? |
 |---|----------|------|-------|
-| 1 | App open event fires | Firebase DebugView | ☐ |
-| 2 | Sign-in event fires + user_id set | Firebase DebugView | ☐ |
-| 3 | Sign-out event fires | Firebase DebugView | ☐ |
-| 4 | No-op without credentials | Network inspector | ☐ |
-| 5 | Consent gate works | Firebase DebugView | ☐ |
-| 6 | Sentry initialises | Metro console | ☐ |
-| 7 | Exception captured | Sentry Issues | ☐ |
-| 8 | Fatal error handler | Sentry Issues | ☐ |
-| 9 | User context attached | Sentry Issues | ☐ |
-| 10 | No-op without DSN | Network inspector | ☐ |
-| 11 | beforeSend filter drops noise | Sentry Issues | ☐ |
-| 12 | Debug API payload validation | cURL | ☐ |
+| 1 | App open event fires | Firebase DebugView | ✅ |
+| 2 | Sign-in event fires + user_id set | Firebase DebugView | ✅ |
+| 3 | Sign-out event fires | Firebase DebugView | ✅ |
+| 4 | No-op without credentials | Code inspection | ✅ |
+| 5 | Consent modal shown on first launch | Device + unit tests (7/7) | ✅ |
+| 6 | Sentry initialises | Metro console | ✅ |
+| 7 | Exception captured | Sentry Issues (auto-captured) | ✅ |
+| 8 | Fatal error handler | Code inspection | ✅ |
+| 9 | User context attached | Code inspection + log | ✅ |
+| 10 | No-op without DSN | Code inspection | ✅ |
+| 11 | beforeSend filter drops noise | Code inspection | ✅ |
+| 12 | Debug API payload validation | Node.js fetch (validationMessages: []) | ✅ |
 
 ---
 

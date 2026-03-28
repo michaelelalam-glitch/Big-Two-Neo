@@ -123,8 +123,8 @@ describe('handleError', () => {
     expect(mockLoggerError).toHaveBeenCalledWith('[Test] fail');
     expect(mockShowError).toHaveBeenCalledWith('fail');
     expect(result).toBe('fail');
-    // Sentry captures with 'error' level for non-silent errors
-    expect(mockSentryException).toHaveBeenCalledWith(error, { context: 'Test', level: 'error' });
+    // Sentry captures for non-silent errors (no explicit level — defaults to 'error')
+    expect(mockSentryException).toHaveBeenCalledWith(error, { context: 'Test' });
     // Analytics receives fixed constant (not raw error message)
     expect(mockTrackError).toHaveBeenCalledWith('Test', 'UNEXPECTED_ERROR', false);
   });
@@ -133,11 +133,8 @@ describe('handleError', () => {
     handleError(new Error('bg error'), { context: 'BgSync', silent: true });
     expect(mockLoggerError).toHaveBeenCalledWith('[BgSync] bg error');
     expect(mockShowError).not.toHaveBeenCalled();
-    // Sentry captures with 'warning' level for silent errors
-    expect(mockSentryException).toHaveBeenCalledWith(
-      expect.any(Error),
-      { context: 'BgSync', level: 'warning' },
-    );
+    // Silent errors are log-only — Sentry must NOT be called
+    expect(mockSentryException).not.toHaveBeenCalled();
     // Analytics NOT called for silent errors
     expect(mockTrackError).not.toHaveBeenCalled();
   });

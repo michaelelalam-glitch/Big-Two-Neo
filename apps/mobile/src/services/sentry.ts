@@ -30,6 +30,9 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 /** Has Sentry been successfully initialised? */
 let _initialized = false;
 
+/** Pending user context to apply once Sentry is initialized. */
+let _pendingUser: SentryUser | null | undefined = undefined;
+
 // ─── Types ─────────────────────────────────────────────────────────────────── //
 
 export interface SentryUser {
@@ -63,6 +66,9 @@ export function initSentry(): void {
   }
 
   try {
+    if (__DEV__) {
+      console.log('[Sentry] Initializing with DSN:', SENTRY_DSN.slice(0, 30) + '...');
+    }
     Sentry.init({
       dsn: SENTRY_DSN,
 
@@ -89,10 +95,7 @@ export function initSentry(): void {
       // swallowed by the global ErrorUtils handler in App.tsx
       beforeSend(event) {
         const msg = event.exception?.values?.[0]?.value ?? '';
-        if (
-          msg.includes('supportedInterfaceOrientations') &&
-          msg.includes('UIViewController')
-        ) {
+        if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
         return event;
@@ -100,7 +103,19 @@ export function initSentry(): void {
     });
 
     _initialized = true;
-  } catch {
+    // Apply any pending user context that was set before init.
+    // Keep _pendingUser set so it can be re-applied on subsequent init calls
+    // (e.g. after disableSentry() + initSentry() in the same session).
+    if (_pendingUser !== undefined) {
+      Sentry.setUser(_pendingUser);
+    }
+    if (__DEV__) {
+      console.log('[Sentry] Initialized successfully');
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[Sentry] init error:', err);
+    }
     // Sentry.init failed (e.g. native module unavailable or misconfigured).
     // Leave _initialized = false so all capture helpers remain no-ops and the
     // app continues to function without crash reporting.
@@ -115,6 +130,20 @@ export function isSentryEnabled(): boolean {
   return _initialized;
 }
 
+/**
+ * Disable Sentry in response to user revoking analytics consent.
+ * Marks Sentry as uninitialised so all subsequent capture calls become no-ops,
+ * and closes the underlying client asynchronously.
+ */
+export function disableSentry(): void {
+  _initialized = false;
+  void Sentry.close().catch(e => {
+    if (__DEV__) {
+      console.warn('[Sentry] close error:', e);
+    }
+  });
+}
+
 // ─── User context ─────────────────────────────────────────────────────────── //
 
 /**
@@ -122,7 +151,11 @@ export function isSentryEnabled(): boolean {
  * @param user - Pass null to clear the user (on sign-out).
  */
 export function setSentryUser(user: SentryUser | null): void {
-  if (!_initialized) return;
+  if (!_initialized) {
+    // Cache the user so it can be applied once Sentry initializes after consent
+    _pendingUser = user;
+    return;
+  }
   Sentry.setUser(user);
 }
 
@@ -165,7 +198,7 @@ function captureException(error: unknown, opts: CaptureOptions = {}): void {
  */
 function captureMessage(
   message: string,
-  opts: CaptureOptions & { level?: Sentry.SeverityLevel } = {},
+  opts: CaptureOptions & { level?: Sentry.SeverityLevel } = {}
 ): void {
   if (!_initialized) return;
   const scope = buildScope(opts);
@@ -179,7 +212,7 @@ function captureMessage(
 function captureBreadcrumb(
   message: string,
   data?: Record<string, unknown>,
-  category = 'app',
+  category = 'app'
 ): void {
   if (!_initialized) return;
   Sentry.addBreadcrumb({
