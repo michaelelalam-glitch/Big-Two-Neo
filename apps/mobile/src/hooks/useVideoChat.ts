@@ -466,6 +466,10 @@ export function useVideoChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     return () => {
+      // End any active feature duration timers before teardown
+      featureDurationEnd('video_chat', 'video_chat_session_duration');
+      featureDurationEnd('camera', 'camera_session_duration');
+      featureDurationEnd('mic', 'microphone_session_duration');
       adapterRef.current.disableMicrophone().catch(() => {});
       adapterRef.current.disableCamera().catch(() => {});
       adapterRef.current.disconnect().catch(() => {});
