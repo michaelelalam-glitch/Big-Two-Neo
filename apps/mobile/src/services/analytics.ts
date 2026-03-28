@@ -410,7 +410,7 @@ export function screenTimeStart(screenName: string): void {
 
 export function screenTimeEnd(screenName: string): void {
   const startTime = _screenTimeStarts.get(screenName);
-  if (startTime) {
+  if (startTime !== undefined) {
     const durationMs = Date.now() - startTime;
     const durationSec = Math.round(durationMs / 1000);
     _screenTimeStarts.delete(screenName);
@@ -461,7 +461,7 @@ export function turnTimeStart(): void {
 }
 
 export function turnTimeEnd(action: 'play' | 'pass' | 'timeout'): void {
-  if (_turnStartTime) {
+  if (_turnStartTime !== null) {
     const durationMs = Date.now() - _turnStartTime;
     const durationSec = Math.round(durationMs / 1000);
     _turnStartTime = null;
@@ -485,10 +485,10 @@ export function featureDurationStart(feature: string): void {
 /** End tracking duration and emit an analytics event with the session duration. */
 export function featureDurationEnd(feature: string, eventName: AnalyticsEventName): void {
   const startTime = _featureStarts.get(feature);
-  if (startTime) {
+  _featureStarts.delete(feature);
+  if (startTime !== undefined) {
     const durationMs = Date.now() - startTime;
     const durationSec = Math.round(durationMs / 1000);
-    _featureStarts.delete(feature);
     if (durationSec > 0) {
       trackEvent(eventName, {
         feature_name: feature,

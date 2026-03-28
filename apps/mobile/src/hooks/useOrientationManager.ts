@@ -117,6 +117,11 @@ export function useOrientationManager(): OrientationManagerState {
       // Unlock to allow auto-rotation on other screens.
       // Note: do NOT set isLocked state here — the component is unmounting and
       // the async .then() would trigger a state update on an unmounted component.
+      // End orientation duration tracking before unmount
+      featureDurationEnd(
+        `orientation_${currentOrientationRef.current}`,
+        'orientation_session_duration'
+      );
       ScreenOrientation.unlockAsync()
         .then(() => {
           gameLogger.info('🔓 [Orientation] Unlocked on component unmount');

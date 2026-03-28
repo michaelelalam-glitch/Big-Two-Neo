@@ -137,6 +137,12 @@ function ChatDrawerComponent({
       }
       prevIsOpenRef.current = isOpen;
     }
+    return () => {
+      // Flush chat duration if component unmounts while chat is open
+      if (prevIsOpenRef.current) {
+        featureDurationEnd('chat', 'chat_session_duration');
+      }
+    };
   }, [isOpen]);
 
   // Auto-focus the text input once the open animation completes (Copilot
