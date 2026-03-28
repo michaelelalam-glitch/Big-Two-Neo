@@ -172,13 +172,16 @@ Parameters:
 
 ## Test Scenario 6: Sentry Initialisation
 
-**What it tests:** `initSentry()` runs at app startup and registers with Sentry.
+**What it tests:** `initSentry()` runs when the app starts **after analytics consent has been accepted (or the analytics toggle is enabled)** and registers with Sentry.
+
+**Pre-requisite:** The user must have already granted analytics consent (i.e. `ANALYTICS_CONSENT` key is `'true'` in AsyncStorage, or the Analytics toggle in Settings is enabled).
 
 **Steps:**
 
-1. With `EXPO_PUBLIC_SENTRY_DSN` set, start the app
-2. In Sentry → **Issues** dashboard, verify the project shows **"Last seen"** updates
-3. In the Metro bundler console, verify Sentry SDK debug output is shown (for dev builds with `debug: __DEV__`, e.g. lines prefixed with `[Sentry]`)
+1. Ensure analytics consent has been granted (accept the Privacy Consent Modal on first launch, or enable the Analytics toggle in Settings)
+2. With `EXPO_PUBLIC_SENTRY_DSN` set, start the app
+3. In Sentry → **Issues** dashboard, verify the project shows **"Last seen"** updates
+4. In the Metro bundler console, verify Sentry SDK debug output is shown (for dev builds with `debug: __DEV__`, e.g. lines prefixed with `[Sentry]`)
 
 **Expected:**
 - Sentry **debug mode** active in Metro console (dev builds only), with Sentry SDK debug logs visible

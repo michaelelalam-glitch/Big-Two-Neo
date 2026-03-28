@@ -11,8 +11,9 @@
  *
  * Usage:
  *   import { initSentry, sentryCapture, SentryUser } from './sentry';
- *   // Initialize at app startup (before rendering any components):
+ *   // Initialize ONLY after the user has granted analytics consent:
  *   initSentry();
+ *   // Call disableSentry() if the user later revokes consent.
  *
  *   // Capture a caught exception:
  *   sentryCapture.exception(error, { context: 'PlayCards' });

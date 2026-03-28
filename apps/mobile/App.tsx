@@ -120,11 +120,8 @@ export default function App() {
       if (__DEV__) {
         console.warn('[App] Failed to persist analytics consent (accept):', error);
       }
-      try {
-        sentryCapture.exception(error, { context: 'ConsentAccept' });
-      } catch {
-        // Swallow secondary errors from reporting
-      }
+      // Sentry is not yet initialized at this point (consent just being granted);
+      // rely on dev logging only — sentryCapture.exception() would be a no-op here.
     }
     setConsentDecision(true);
     setAnalyticsConsent(true);
