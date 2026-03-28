@@ -405,15 +405,17 @@ export const analytics = {
 const _screenTimeStarts = new Map<string, number>();
 
 export function screenTimeStart(screenName: string): void {
+  if (!isAnalyticsEnabled()) return;
   _screenTimeStarts.set(screenName, Date.now());
 }
 
 export function screenTimeEnd(screenName: string): void {
   const startTime = _screenTimeStarts.get(screenName);
+  _screenTimeStarts.delete(screenName);
+  if (!isAnalyticsEnabled()) return;
   if (startTime !== undefined) {
     const durationMs = Date.now() - startTime;
     const durationSec = Math.round(durationMs / 1000);
-    _screenTimeStarts.delete(screenName);
     if (durationSec > 0) {
       trackEvent('screen_time', {
         firebase_screen: screenName,
@@ -457,6 +459,7 @@ export function checkHintFollowed(playedCardIds: string[]): void {
 let _turnStartTime: number | null = null;
 
 export function turnTimeStart(): void {
+  if (!isAnalyticsEnabled()) return;
   _turnStartTime = Date.now();
 }
 
@@ -465,11 +468,14 @@ export function turnTimeEnd(action: 'play' | 'pass' | 'timeout'): void {
     const durationMs = Date.now() - _turnStartTime;
     const durationSec = Math.round(durationMs / 1000);
     _turnStartTime = null;
-    trackEvent('turn_duration', {
-      action,
-      duration_seconds: durationSec,
-      duration_ms: durationMs,
-    });
+    if (!isAnalyticsEnabled()) return;
+    if (durationSec > 0) {
+      trackEvent('turn_duration', {
+        action,
+        duration_seconds: durationSec,
+        duration_ms: durationMs,
+      });
+    }
   }
 }
 
@@ -479,6 +485,7 @@ const _featureStarts = new Map<string, number>();
 
 /** Start tracking duration for a toggled-on feature (camera, mic, chat, etc.) */
 export function featureDurationStart(feature: string): void {
+  if (!isAnalyticsEnabled()) return;
   _featureStarts.set(feature, Date.now());
 }
 
@@ -486,6 +493,7 @@ export function featureDurationStart(feature: string): void {
 export function featureDurationEnd(feature: string, eventName: AnalyticsEventName): void {
   const startTime = _featureStarts.get(feature);
   _featureStarts.delete(feature);
+  if (!isAnalyticsEnabled()) return;
   if (startTime !== undefined) {
     const durationMs = Date.now() - startTime;
     const durationSec = Math.round(durationMs / 1000);
