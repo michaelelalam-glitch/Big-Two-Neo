@@ -22,6 +22,10 @@ import {
 } from './constants';
 import { sortHand, classifyCards, isStraight } from './game-logic';
 
+// Precomputed descending-rank array used throughout this module.
+// Avoids repeated allocations of `[...RANKS].reverse()` in hot paths.
+const RANKS_HIGH_TO_LOW: readonly string[] = [...RANKS].reverse();
+
 /**
  * Generate full 52-card deck for comparison
  */
@@ -327,13 +331,11 @@ function canFormAnyFullHouse(remaining: Card[]): boolean {
   }
 
   // Iterate ranks highest-first for deterministic, consistent behaviour
-  const ranksHighToLow = [...RANKS].reverse();
-
-  for (const tripleRank of ranksHighToLow) {
+  for (const tripleRank of RANKS_HIGH_TO_LOW) {
     if ((rankCounts[tripleRank] || 0) < 3) continue;
 
     // Found a valid triple — look for any pair of a DIFFERENT rank
-    for (const pairRank of ranksHighToLow) {
+    for (const pairRank of RANKS_HIGH_TO_LOW) {
       if (pairRank !== tripleRank && (rankCounts[pairRank] || 0) >= 2) {
         return true;
       }
@@ -477,7 +479,7 @@ function isHighestRemainingFiveCardCombo(
       // Use rank-value comparison (not equality) — the current cards are excluded from
       // remaining, so the highest remaining quad may be a LOWER rank than the played quad.
       let highestQuadRank: string | null = null;
-      for (const rank of [...RANKS].reverse()) {
+      for (const rank of RANKS_HIGH_TO_LOW) {
         if (remaining.filter(c => c.rank === rank).length >= 4) {
           highestQuadRank = rank;
           break;
@@ -489,7 +491,7 @@ function isHighestRemainingFiveCardCombo(
 
       // Find the rank being played as the quad
       const playedQuadRank =
-        [...RANKS].reverse().find(rank => sorted.filter(c => c.rank === rank).length >= 4) ?? null;
+        RANKS_HIGH_TO_LOW.find(rank => sorted.filter(c => c.rank === rank).length >= 4) ?? null;
       if (!playedQuadRank) return false;
 
       // Current quad must be >= the highest remaining quad (rank-value comparison)
@@ -505,7 +507,7 @@ function isHighestRemainingFiveCardCombo(
 
       // Iterate ranks in descending order to find highest possible triple
       let highestTripleRank: string | null = null;
-      for (const rank of [...RANKS].reverse()) {
+      for (const rank of RANKS_HIGH_TO_LOW) {
         if (rankCounts[rank] && rankCounts[rank] >= 3) {
           highestTripleRank = rank;
           break;
@@ -519,7 +521,7 @@ function isHighestRemainingFiveCardCombo(
 
       // Find highest possible pair for this triple
       let highestPairRank: string | null = null;
-      for (const rank of [...RANKS].reverse()) {
+      for (const rank of RANKS_HIGH_TO_LOW) {
         if (rank !== highestTripleRank && rankCounts[rank] && rankCounts[rank] >= 2) {
           highestPairRank = rank;
           break;
@@ -541,7 +543,7 @@ function isHighestRemainingFiveCardCombo(
 
       // Iterate in descending rank order for deterministic triple-rank detection
       let playedTripleRank: string | null = null;
-      for (const rank of [...RANKS].reverse()) {
+      for (const rank of RANKS_HIGH_TO_LOW) {
         if ((playedCounts[rank] || 0) === 3) {
           playedTripleRank = rank;
           break;
