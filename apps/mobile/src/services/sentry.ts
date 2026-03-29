@@ -303,10 +303,19 @@ function _setupConsoleCapture(): void {
   if (_consolePatchApplied) return;
   _consolePatchApplied = true;
 
+  const safeStringify = (a: unknown): string => {
+    if (typeof a === 'string') return a;
+    try {
+      return JSON.stringify(a);
+    } catch {
+      return String(a);
+    }
+  };
+
   console.error = (...args: unknown[]) => {
     _originalConsoleError(...args);
     if (!_initialized) return;
-    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    const message = args.map(safeStringify).join(' ');
     // Skip React/RN internal "Warning:" noise — those are not real errors.
     if (message.startsWith('Warning:')) return;
     Sentry.captureMessage(`[console.error] ${message}`, {
@@ -318,7 +327,7 @@ function _setupConsoleCapture(): void {
   console.warn = (...args: unknown[]) => {
     _originalConsoleWarn(...args);
     if (!_initialized) return;
-    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    const message = args.map(safeStringify).join(' ');
     // Skip noisy RN / Expo warnings that aren't application bugs.
     if (
       message.startsWith('Warning:') ||
@@ -338,7 +347,7 @@ function _setupConsoleCapture(): void {
 
 /**
  * Report a missing i18n translation key to Sentry.
- * Adds a breadcrumb (always) and captures a message at warning level when Sentry is ready.
+ * Adds a breadcrumb when Sentry is initialized — never throws.
  */
 export function reportMissingTranslation(key: string, language: string): void {
   if (!_initialized) return;

@@ -141,6 +141,7 @@ export type AnalyticsEventName =
   | 'language_changed'
   | 'cache_cleared'
   | 'delete_account_initiated'
+  | 'delete_account_confirmed'
   | 'bug_report_submitted'
   | 'bug_report_opened';
 
@@ -460,20 +461,22 @@ export function checkHintFollowed(playedCardIds: string[]): void {
   const matched =
     playedCardIds.length === _lastHintCardIds.length && playedCardIds.every(id => hintSet.has(id));
   if (matched) {
-    trackEvent('hint_result_played', {
+    const params: AnalyticsEventParams = {
       cards_count: playedCardIds.length,
-      player_hand: (_lastHintPlayerHand ?? '').slice(0, 200),
-      last_play: (_lastHintLastPlayCards ?? '').slice(0, 100),
-    });
+    };
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
+    trackEvent('hint_result_played', params);
   } else {
-    trackEvent('hint_result_ignored', {
+    const params: AnalyticsEventParams = {
       hint_cards: _lastHintCardIds.length,
       played_cards: playedCardIds.length,
       hint_was: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
-      player_hand: (_lastHintPlayerHand ?? '').slice(0, 200),
-      last_play: (_lastHintLastPlayCards ?? '').slice(0, 100),
-    });
+    };
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
+    trackEvent('hint_result_ignored', params);
   }
   _lastHintCardIds = null;
   _lastHintPlayerHand = null;

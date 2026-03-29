@@ -178,10 +178,10 @@ export default function SettingsScreen() {
       message: t('settings.restartRequired'),
       confirmText: t('common.confirm'),
       onConfirm: async () => {
+        const previousLanguage = currentLanguage;
         const requiresRestart = await i18n.setLanguage(language);
-        trackEvent('language_changed', { language, previous_language: currentLanguage });
         setCurrentLanguage(language);
-        trackEvent('language_changed', { language, previous_language: currentLanguage });
+        trackEvent('language_changed', { language, previous_language: previousLanguage });
 
         if (requiresRestart) {
           // For Arabic (RTL), app must restart
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
 
           // Call Edge Function to delete user data
           // This should trigger database cascades to remove all user-related data
-          trackEvent('delete_account_initiated');
+          trackEvent('delete_account_confirmed');
           const { data, error } = await supabase.functions.invoke('delete-account', {
             body: {},
           });
