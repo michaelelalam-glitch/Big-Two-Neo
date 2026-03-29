@@ -344,14 +344,11 @@ function GameViewComponent() {
             selectedCardIds={selectedCardIds}
             onSelectionChange={setSelectedCardIds}
             onCardsReorder={handleCardsReorder}
-            // Drag-to-play callback
-            onPlayCards={async (cards: Card[]) => {
+            // Drag-to-play callback — uses handleCardHandPlayCards (not handlePlayCards directly)
+            // so play_method is correctly set to 'drag' in analytics before the play is processed.
+            onPlayCards={(cards: Card[]) => {
               gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
-              try {
-                await handlePlayCards(cards);
-              } catch (error) {
-                gameLogger.error('❌ [Landscape] Drag-to-play failed', error);
-              }
+              handleCardHandPlayCards(cards);
             }}
             // Control callbacks
             onOrientationToggle={toggleOrientation}

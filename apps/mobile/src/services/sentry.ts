@@ -259,8 +259,6 @@ export const withSentryBoundary = Sentry.withErrorBoundary;
  */
 export { Sentry };
 
-// (Translation reporting implemented later in this file.)
-
 // ─── In-app bug reporting ─────────────────────────────────────────────────── //
 
 /**
