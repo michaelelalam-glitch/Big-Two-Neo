@@ -39,6 +39,7 @@
     "date-fns": "^4.1.0",
     "expo": "~54.0.29",
     "expo-application": "^7.0.8",
+    "expo-audio": "^55.0.9",
     "expo-av": "~16.0.8",
     "expo-barcode-scanner": "14.0.1",
     "expo-build-properties": "^1.0.10",

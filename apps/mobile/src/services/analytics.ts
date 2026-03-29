@@ -243,7 +243,15 @@ async function sendEvents(
       body: JSON.stringify(body),
     });
     if (__DEV__) {
-      console.log('[Analytics] Response status:', response.status);
+      console.log(
+        '[Analytics] Response status:',
+        response.status,
+        '— events sent to Firebase DebugView (debug_mode=1)'
+      );
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        console.warn('[Analytics] Non-OK response body:', text.slice(0, 300));
+      }
     }
   } catch (err) {
     if (__DEV__) {

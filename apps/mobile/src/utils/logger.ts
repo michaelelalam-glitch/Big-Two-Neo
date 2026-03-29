@@ -1,19 +1,20 @@
 import { logger, consoleTransport, fileAsyncTransport } from 'react-native-logs';
+import { Platform } from 'react-native';
 
 /**
  * Production-ready logger configuration
- * 
+ *
  * Features:
  * - Development: Colored console output with all levels
  * - Production: File logging with warn+ levels (errors AND warnings)
  * - Supports namespaces for different modules
  * - Async for better performance
- * 
+ *
  * Security Notes:
  * - File logs use date-based rotation (one file per day) to prevent unbounded growth
  * - Production logs capture warn/error levels only to minimize sensitive data exposure
  * - Always sanitize error objects before logging (use error.message, not full error object)
- * 
+ *
  * Note: expo-file-system is optional - if not available, falls back to console in production
  */
 
@@ -42,18 +43,25 @@ const levels = {
 } as const;
 
 // Separate configurations for dev and production
+// Colors are disabled on native (iOS/Android) because ANSI escape codes
+// emitted by react-native-logs are captured as raw strings by the native
+// Sentry iOS SDK breadcrumb handler which then fails to serialise them to
+// JSON (the ESC character 0x1b is not valid JSON). Colors still work on web.
 const devConfig = {
   levels,
   severity: 'debug' as const,
   transport: consoleTransport,
-  transportOptions: {
-    colors: {
-      debug: 'blueBright' as const,
-      info: 'greenBright' as const,
-      warn: 'yellowBright' as const,
-      error: 'redBright' as const,
-    },
-  },
+  transportOptions:
+    Platform.OS === 'web'
+      ? {
+          colors: {
+            debug: 'blueBright' as const,
+            info: 'greenBright' as const,
+            warn: 'yellowBright' as const,
+            error: 'redBright' as const,
+          },
+        }
+      : {},
   async: true,
   dateFormat: 'time' as const,
   printLevel: true,
@@ -65,10 +73,12 @@ const prodConfig = {
   levels,
   severity: 'warn' as const, // Capture warn + error in production (important events)
   transport: FileSystem ? fileAsyncTransport : consoleTransport,
-  transportOptions: FileSystem ? {
-    FS: FileSystem,
-    fileName: 'app_logs_{date-today}.log', // Date-based rotation (react-native-logs built-in placeholder syntax)
-  } : {},
+  transportOptions: FileSystem
+    ? {
+        FS: FileSystem,
+        fileName: 'app_logs_{date-today}.log', // Date-based rotation (react-native-logs built-in placeholder syntax)
+      }
+    : {},
   async: true,
   dateFormat: 'time' as const,
   printLevel: true,

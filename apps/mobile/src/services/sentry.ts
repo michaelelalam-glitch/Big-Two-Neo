@@ -109,6 +109,20 @@ export function initSentry(): void {
         }
         return event;
       },
+
+      // Strip ANSI escape codes from console breadcrumbs to prevent the iOS
+      // native Sentry SDK from failing to serialize them as JSON breadcrumbs.
+      // react-native-logs emits ANSI color sequences (ESC + '[92m' etc.) that
+      // contain the ESC character (0x1b) which is not valid in JSON strings,
+      // causing SentryCrashScopeObserver "Invalid character" serialisation
+      // failures on every log line.
+      beforeBreadcrumb(breadcrumb) {
+        if (breadcrumb.category === 'console' && typeof breadcrumb.message === 'string') {
+          // eslint-disable-next-line no-control-regex
+          breadcrumb.message = breadcrumb.message.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+        }
+        return breadcrumb;
+      },
     });
 
     _initialized = true;
@@ -323,6 +337,9 @@ function _setupConsoleCapture(): void {
     const message = args.map(safeStringify).join(' ').slice(0, MAX_SENTRY_MSG_LEN);
     // Skip React/RN internal "Warning:" noise — those are not real errors.
     if (message.startsWith('Warning:')) return;
+    // Skip Sentry's own internal debug/error messages to prevent feedback loops
+    // where Sentry's logger output gets re-captured and sent as Sentry events.
+    if (message.includes('[Native] [Sentry') || message.includes('Sentry Logger')) return;
     Sentry.captureMessage(`[console.error] ${message}`, {
       level: 'error',
       tags: { source: 'console' },
@@ -337,7 +354,10 @@ function _setupConsoleCapture(): void {
     if (
       message.startsWith('Warning:') ||
       message.includes('VirtualizedLists') ||
-      message.includes('RNSentry')
+      message.includes('RNSentry') ||
+      // Skip Sentry's own internal warning messages to prevent feedback loops.
+      message.includes('[Native] [Sentry') ||
+      message.includes('Sentry Logger')
     )
       return;
     Sentry.addBreadcrumb({
