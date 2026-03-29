@@ -139,20 +139,22 @@ class SoundManager {
         return;
       }
 
-      // Limit concurrent sounds to prevent memory pressure from rapid plays
-      if (this.activePlayers.size >= this.MAX_CONCURRENT_SOUNDS) {
-        uiLogger.warn(
-          `[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`
-        );
-        return;
-      }
-
       // Use a preloaded player if one is cached — avoids allocating a new instance
+      // Preloaded players do not count toward activePlayers, so the concurrency
+      // limit should not block them.
       const preloaded = this.sounds.get(type);
       if (preloaded) {
         preloaded.volume = this.volume;
         preloaded.play();
         uiLogger.debug(`[SoundManager] Played preloaded sound: ${type}`);
+        return;
+      }
+
+      // Limit concurrent transient sounds to prevent memory pressure from rapid plays
+      if (this.activePlayers.size >= this.MAX_CONCURRENT_SOUNDS) {
+        uiLogger.warn(
+          `[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`
+        );
         return;
       }
 
