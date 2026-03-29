@@ -62,4 +62,4 @@ CREATE POLICY "service_role_insert" ON public.game_hands_training
 CREATE POLICY "service_role_select" ON public.game_hands_training
   FOR SELECT TO service_role USING (true);
 
-COMMENT ON TABLE public.game_hands_training IS 'Per-hand play data collected from multiplayer games for bot training. Each row represents one play action (cards played or pass) with full game context.';
+COMMENT ON TABLE public.game_hands_training IS 'Per-hand play data collected from multiplayer games for bot training. Each row represents one card-play action with full game context.';

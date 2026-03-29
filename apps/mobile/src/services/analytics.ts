@@ -464,19 +464,19 @@ export function checkHintFollowed(playedCardIds: string[]): void {
     playedCardIds.length === _lastHintCardIds.length && playedCardIds.every(id => hintSet.has(id));
   if (matched) {
     const params: AnalyticsEventParams = {
-      cards_count: playedCardIds.length,
-      hint_cards: _lastHintCardIds.length, // consistent count (same type as ignored branch)
-      hint_card_ids: _lastHintCardIds.join(',').slice(0, 100), // which cards the hint suggested
-      played_was: playedCardIds.join(',').slice(0, 100), // which cards user actually played
+      played_cards: playedCardIds.length,
+      hint_cards: _lastHintCardIds.length,
+      hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
+      played_was: playedCardIds.join(',').slice(0, 100),
     };
     if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
     if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
     trackEvent('hint_result_played', params);
   } else {
     const params: AnalyticsEventParams = {
-      hint_cards: _lastHintCardIds.length,
       played_cards: playedCardIds.length,
-      hint_was: _lastHintCardIds.join(',').slice(0, 100),
+      hint_cards: _lastHintCardIds.length,
+      hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
     };
     if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
