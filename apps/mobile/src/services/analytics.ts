@@ -109,6 +109,10 @@ export type AnalyticsEventName =
   | 'orientation_changed'
   | 'orientation_session_duration'
   | 'play_method_used'
+  | 'card_rearranged'
+  | 'room_join_method'
+  | 'play_history_viewed'
+  | 'scoreboard_expanded'
   // ── Social ──
   | 'friend_added'
   | 'friend_removed'
@@ -405,7 +409,9 @@ export const analytics = {
 const _screenTimeStarts = new Map<string, number>();
 
 export function screenTimeStart(screenName: string): void {
-  if (!isAnalyticsEnabled()) return;
+  // Always record the start time regardless of consent state so that if consent
+  // loads from AsyncStorage after navigation fires (async gap at app startup),
+  // the duration is still measured correctly when screenTimeEnd is called.
   _screenTimeStarts.set(screenName, Date.now());
 }
 
@@ -430,9 +436,21 @@ export function screenTimeEnd(screenName: string): void {
 
 let _lastHintCardIds: string[] | null = null;
 
-/** Record which cards the hint suggested. Call from useHelperButtons. */
-export function setLastHintCards(cardIds: string[] | null): void {
+let _lastHintPlayerHand: string | null = null; // serialized card IDs of full hand at hint time
+let _lastHintLastPlayCards: string | null = null; // serialized last-play cards at hint time
+
+/**
+ * Record which cards the hint suggested, plus full hand and last-play context.
+ * Call from useHelperButtons.
+ */
+export function setLastHintCards(
+  cardIds: string[] | null,
+  playerHandIds?: string[] | null,
+  lastPlayCardIds?: string[] | null
+): void {
   _lastHintCardIds = cardIds;
+  _lastHintPlayerHand = playerHandIds ? playerHandIds.join(',') : null;
+  _lastHintLastPlayCards = lastPlayCardIds ? lastPlayCardIds.join(',') : null;
 }
 
 /** After a play, check if it matched the hint. Call from useGameActions on play. */
@@ -442,16 +460,24 @@ export function checkHintFollowed(playedCardIds: string[]): void {
   const matched =
     playedCardIds.length === _lastHintCardIds.length && playedCardIds.every(id => hintSet.has(id));
   if (matched) {
-    trackEvent('hint_result_played', { cards_count: playedCardIds.length });
+    trackEvent('hint_result_played', {
+      cards_count: playedCardIds.length,
+      player_hand: (_lastHintPlayerHand ?? '').slice(0, 200),
+      last_play: (_lastHintLastPlayCards ?? '').slice(0, 100),
+    });
   } else {
     trackEvent('hint_result_ignored', {
       hint_cards: _lastHintCardIds.length,
       played_cards: playedCardIds.length,
       hint_was: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
+      player_hand: (_lastHintPlayerHand ?? '').slice(0, 200),
+      last_play: (_lastHintLastPlayCards ?? '').slice(0, 100),
     });
   }
   _lastHintCardIds = null;
+  _lastHintPlayerHand = null;
+  _lastHintLastPlayCards = null;
 }
 
 // ─── Turn time tracking ──────────────────────────────────────────────────── //

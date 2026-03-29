@@ -181,7 +181,11 @@ function GameLayoutComponent({
           isMicOn={players[1].isMicOn}
           isVideoChatConnecting={players[1].isVideoChatConnecting}
           videoStreamSlot={players[1].videoStreamSlot}
-          onNameLongPress={onOpponentNameLongPress && opponentPlayerIds?.[0] ? () => onOpponentNameLongPress(1) : undefined}
+          onNameLongPress={
+            onOpponentNameLongPress && opponentPlayerIds?.[0]
+              ? () => onOpponentNameLongPress(1)
+              : undefined
+          }
         />
         {throwableActiveEffects?.[1] != null && (
           <View
@@ -234,7 +238,9 @@ function GameLayoutComponent({
               isVideoChatConnecting={players[2].isVideoChatConnecting}
               videoStreamSlot={players[2].videoStreamSlot}
               onNameLongPress={
-                onOpponentNameLongPress && opponentPlayerIds?.[1] ? () => onOpponentNameLongPress(2) : undefined
+                onOpponentNameLongPress && opponentPlayerIds?.[1]
+                  ? () => onOpponentNameLongPress(2)
+                  : undefined
               }
             />
             {throwableActiveEffects?.[2] != null && (
@@ -266,14 +272,6 @@ function GameLayoutComponent({
               comboDisplayText={lastPlayCombo || undefined}
               dropZoneText={dropZoneText}
             />
-
-            {/* Auto-Pass Timer Display */}
-            {autoPassTimerState && (
-              <AutoPassTimer
-                timerState={autoPassTimerState}
-                currentPlayerIndex={0} // Player is always at index 0 in local game
-              />
-            )}
           </View>
 
           {/* Right player (position 3) */}
@@ -292,7 +290,9 @@ function GameLayoutComponent({
               isVideoChatConnecting={players[3].isVideoChatConnecting}
               videoStreamSlot={players[3].videoStreamSlot}
               onNameLongPress={
-                onOpponentNameLongPress && opponentPlayerIds?.[2] ? () => onOpponentNameLongPress(3) : undefined
+                onOpponentNameLongPress && opponentPlayerIds?.[2]
+                  ? () => onOpponentNameLongPress(3)
+                  : undefined
               }
             />
             {throwableActiveEffects?.[3] != null && (
@@ -315,6 +315,15 @@ function GameLayoutComponent({
             )}
           </View>
         </View>
+
+        {/* Auto-Pass Timer — absolutely positioned at the bottom-centre of the table.
+            Rendered outside the middleRow flex flow so it never pushes cards up/down.
+            Uses pointerEvents="none" so touches pass through to cards below. */}
+        {autoPassTimerState && (
+          <View style={styles.autoPassTimerContainer} pointerEvents="none">
+            <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
+          </View>
+        )}
       </Animated.View>
     </>
   );
@@ -361,6 +370,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.md,
+  },
+  autoPassTimerContainer: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
   },
   rightPlayerContainer: {
     alignItems: 'center',

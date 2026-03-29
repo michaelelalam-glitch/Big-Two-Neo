@@ -17,6 +17,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../../constants';
+import { i18n } from '../../i18n';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -106,16 +107,15 @@ export function RejoinModal({
           <Text style={styles.icon}>🤖</Text>
 
           {/* Title */}
-          <Text style={styles.title}>A bot replaced you!</Text>
+          <Text style={styles.title}>{i18n.t('game.botReplacedYouTitle')}</Text>
 
           {/* Body */}
           <Text style={styles.body}>
             {botUsername
-              ? `${botUsername} (bot) is playing in your seat.`
-              : 'A bot is playing in your seat.'}
+              ? i18n.t('game.botReplacedYouBodyWithBot', { botName: botUsername })
+              : i18n.t('game.botReplacedYouBody')}
             {'\n\n'}
-            Tap <Text style={styles.bold}>Reclaim My Seat</Text> to jump back in — the game keeps
-            going for everyone else.
+            {i18n.t('game.botReplacedYouInstruction')}
           </Text>
 
           {/* Error */}
@@ -128,7 +128,7 @@ export function RejoinModal({
           {/* Success state */}
           {reclaimed ? (
             <View style={styles.successBox}>
-              <Text style={styles.successText}>✅ Seat reclaimed! Rejoining…</Text>
+              <Text style={styles.successText}>{i18n.t('game.seatReclaimed')}</Text>
             </View>
           ) : (
             <>
@@ -138,12 +138,12 @@ export function RejoinModal({
                 onPress={handleReclaim}
                 disabled={isReclaiming}
                 accessibilityRole="button"
-                accessibilityLabel="Reclaim my seat"
+                accessibilityLabel={i18n.t('game.reclaimMySeat')}
               >
                 {isReclaiming ? (
                   <ActivityIndicator color={COLORS.white} size="small" />
                 ) : (
-                  <Text style={styles.reclaimButtonText}>Reclaim My Seat</Text>
+                  <Text style={styles.reclaimButtonText}>{i18n.t('game.reclaimMySeat')}</Text>
                 )}
               </TouchableOpacity>
 
@@ -154,9 +154,9 @@ export function RejoinModal({
                   onPress={onDismiss}
                   disabled={isReclaiming}
                   accessibilityRole="button"
-                  accessibilityLabel="Watch as spectator"
+                  accessibilityLabel={i18n.t('game.watchGame')}
                 >
-                  <Text style={styles.dismissButtonText}>Watch Game</Text>
+                  <Text style={styles.dismissButtonText}>{i18n.t('game.watchGame')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -167,9 +167,9 @@ export function RejoinModal({
                   onPress={onLeaveRoom}
                   disabled={isReclaiming}
                   accessibilityRole="button"
-                  accessibilityLabel="Leave room"
+                  accessibilityLabel={i18n.t('game.leaveRoom')}
                 >
-                  <Text style={styles.leaveButtonText}>Leave Room</Text>
+                  <Text style={styles.leaveButtonText}>{i18n.t('game.leaveRoom')}</Text>
                 </TouchableOpacity>
               )}
             </>

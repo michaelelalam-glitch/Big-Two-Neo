@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../../constants';
+import { i18n } from '../../i18n';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ export function TurnAutoPlayModal({
     const cardText = cards.map(c => `${c.rank}${c.suit}`).join(', ');
     return (
       <View style={styles.cardsBox}>
-        <Text style={styles.cardsLabel}>Auto-played:</Text>
+        <Text style={styles.cardsLabel}>{i18n.t('game.autoPlayedLabel')}</Text>
         <Text style={styles.cardsText}>{cardText}</Text>
       </View>
     );
@@ -117,18 +118,24 @@ export function TurnAutoPlayModal({
           <Text style={styles.icon}>⏰</Text>
 
           {/* Title */}
-          <Text style={styles.title}>We played for you!</Text>
+          <Text style={styles.title}>{i18n.t('game.autoPlayedForYouTitle')}</Text>
 
           {/* Body */}
           <Text style={styles.body}>
             {action === 'play'
-              ? `You didn't play within 60 seconds, so we auto-played your ${cards?.length || 0} highest valid ${cards?.length === 1 ? 'card' : 'cards'}.`
-              : "You didn't play within 60 seconds, so we passed for you (no valid play available)."}
+              ? i18n.t('game.autoPlayedPlay', {
+                  count: cards?.length || 0,
+                  card:
+                    (cards?.length || 0) === 1
+                      ? i18n.t('game.cardSingular')
+                      : i18n.t('game.cardPlural'),
+                })
+              : i18n.t('game.autoPlayedPass')}
             {'\n\n'}
-            <Text style={styles.bold}>Are you still here?</Text>
+            <Text style={styles.bold}>{i18n.t('game.areYouStillHere')}</Text>
             {'\n'}
             <Text style={styles.small}>
-              Tap below within {secondsLeft}s or you&apos;ll be disconnected and replaced by a bot.
+              {i18n.t('game.tapBelowOrDisconnect', { seconds: secondsLeft })}
             </Text>
           </Text>
 
@@ -140,13 +147,15 @@ export function TurnAutoPlayModal({
             style={styles.confirmButton}
             onPress={onConfirm}
             accessibilityRole="button"
-            accessibilityLabel="I'm still here"
+            accessibilityLabel={i18n.t('game.imStillHere')}
           >
-            <Text style={styles.confirmButtonText}>I&apos;m Still Here ✋</Text>
+            <Text style={styles.confirmButtonText}>{i18n.t('game.imStillHere')}</Text>
           </TouchableOpacity>
 
           {/* Timer warning */}
-          <Text style={styles.timerText}>{secondsLeft}s remaining</Text>
+          <Text style={styles.timerText}>
+            {i18n.t('game.secondsRemainingTimer', { seconds: secondsLeft })}
+          </Text>
         </View>
       </View>
     </Modal>

@@ -428,6 +428,26 @@ export interface Translations {
     dragToPlayHint: string;
     dropZoneRelease: string;
     dropZoneDrop: string;
+    // RejoinModal
+    botReplacedYouTitle: string;
+    botReplacedYouBody: string;
+    botReplacedYouBodyWithBot: string;
+    botReplacedYouInstruction: string;
+    reclaimMySeat: string;
+    watchGame: string;
+    seatReclaimed: string;
+    leaveRoom: string;
+    // TurnAutoPlayModal
+    autoPlayedForYouTitle: string;
+    autoPlayedPlay: string;
+    autoPlayedPass: string;
+    areYouStillHere: string;
+    tapBelowOrDisconnect: string;
+    imStillHere: string;
+    secondsRemainingTimer: string;
+    autoPlayedLabel: string;
+    cardSingular: string;
+    cardPlural: string;
   };
 
   // Game End Modal
@@ -1167,6 +1187,30 @@ const en: Translations = {
     dragToPlayHint: '↑ Drag up to play',
     dropZoneRelease: 'Release to play',
     dropZoneDrop: 'Drop to play',
+    // RejoinModal
+    botReplacedYouTitle: 'A bot replaced you!',
+    botReplacedYouBody: 'A bot is playing in your seat.',
+    botReplacedYouBodyWithBot: '{{botName}} (bot) is playing in your seat.',
+    botReplacedYouInstruction:
+      'Tap Reclaim My Seat to jump back in — the game keeps going for everyone else.',
+    reclaimMySeat: 'Reclaim My Seat',
+    watchGame: 'Watch Game',
+    seatReclaimed: '✅ Seat reclaimed! Rejoining…',
+    leaveRoom: 'Leave Room',
+    // TurnAutoPlayModal
+    autoPlayedForYouTitle: 'We played for you!',
+    autoPlayedPlay:
+      "You didn't play within 60 seconds, so we auto-played your {{count}} highest valid {{card}}.",
+    autoPlayedPass:
+      "You didn't play within 60 seconds, so we passed for you (no valid play available).",
+    areYouStillHere: 'Are you still here?',
+    tapBelowOrDisconnect:
+      "Tap below within {{seconds}}s or you'll be disconnected and replaced by a bot.",
+    imStillHere: "I'm Still Here ✋",
+    secondsRemainingTimer: '{{seconds}}s remaining',
+    autoPlayedLabel: 'Auto-played:',
+    cardSingular: 'card',
+    cardPlural: 'cards',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1828,6 +1872,26 @@ const ar: Translations = {
     dragToPlayHint: '↑ اسحب للأعلى للعب',
     dropZoneRelease: 'الإفلات للعب',
     dropZoneDrop: 'وضع هنا للعب',
+    // RejoinModal
+    botReplacedYouTitle: 'حل بوت محلك!',
+    botReplacedYouBody: 'بوت يلعب في مقعدك.',
+    botReplacedYouBodyWithBot: '{{botName}} (بوت) يلعب في مقعدك.',
+    botReplacedYouInstruction: 'اضغط على "استعد مقعدي" للعودة — تستمر اللعبة للجميع.',
+    reclaimMySeat: 'استعد مقعدي',
+    watchGame: 'مشاهدة اللعبة',
+    seatReclaimed: '✅ تم استعادة المقعد! إعادة الانضمام...',
+    leaveRoom: 'غادر الغرفة',
+    // TurnAutoPlayModal
+    autoPlayedForYouTitle: 'لعبنا نيابة عنك!',
+    autoPlayedPlay: 'لم تلعب خلال 60 ثانية، لذلك لعبنا أعلى {{count}} {{card}} صالحة تلقائياً.',
+    autoPlayedPass: 'لم تلعب خلال 60 ثانية، لذلك مررنا نيابة عنك (لا توجد لعبة صالحة).',
+    areYouStillHere: 'هل لا تزال هنا؟',
+    tapBelowOrDisconnect: 'اضغط في الأسفل خلال {{seconds}} ثانية أو ستُفصل ويحل بوت محلك.',
+    imStillHere: 'أنا هنا ✋',
+    secondsRemainingTimer: 'تبقى {{seconds}} ثانية',
+    autoPlayedLabel: 'لُعب تلقائياً:',
+    cardSingular: 'بطاقة',
+    cardPlural: 'بطاقات',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2584,6 +2648,30 @@ const de: Translations = {
     dragToPlayHint: '↑ Nach oben ziehen zum Spielen',
     dropZoneRelease: 'Loslassen zum Spielen',
     dropZoneDrop: 'Hier ablegen zum Spielen',
+    // RejoinModal
+    botReplacedYouTitle: 'Ein Bot hat dich ersetzt!',
+    botReplacedYouBody: 'Ein Bot spielt auf deinem Platz.',
+    botReplacedYouBodyWithBot: '{{botName}} (Bot) spielt auf deinem Platz.',
+    botReplacedYouInstruction:
+      'Tippe auf "Platz zurückfordern" um zurückzukehren — das Spiel geht für alle weiter.',
+    reclaimMySeat: 'Platz zurückfordern',
+    watchGame: 'Spiel ansehen',
+    seatReclaimed: '✅ Platz zurückgefordert! Wiederverbinden…',
+    leaveRoom: 'Raum verlassen',
+    // TurnAutoPlayModal
+    autoPlayedForYouTitle: 'Wir haben für dich gespielt!',
+    autoPlayedPlay:
+      'Du hast nicht innerhalb von 60 Sekunden gespielt, also haben wir deine {{count}} höchste(n) gültige(n) {{card}} automatisch gespielt.',
+    autoPlayedPass:
+      'Du hast nicht innerhalb von 60 Sekunden gespielt, also haben wir für dich gepasst (kein gültiger Zug verfügbar).',
+    areYouStillHere: 'Bist du noch da?',
+    tapBelowOrDisconnect:
+      'Tippe unten innerhalb von {{seconds}}s oder du wirst getrennt und durch einen Bot ersetzt.',
+    imStillHere: 'Ich bin noch hier ✋',
+    secondsRemainingTimer: 'Noch {{seconds}}s',
+    autoPlayedLabel: 'Automatisch gespielt:',
+    cardSingular: 'Karte',
+    cardPlural: 'Karten',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',

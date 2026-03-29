@@ -164,7 +164,11 @@ export function useHelperButtons({
         has_last_play: lastPlay ? 1 : 0,
         is_first_play: isFirstPlay ? 1 : 0,
       });
-      setLastHintCards(Array.from(recommended));
+      setLastHintCards(
+        Array.from(recommended),
+        playerHand.map(c => c.id),
+        lastPlay ? lastPlay.cards.map(c => c.id) : null
+      );
       sentryCapture.breadcrumb(
         'Hint used',
         { hint_cards: cardCount, combo_type: comboType },
