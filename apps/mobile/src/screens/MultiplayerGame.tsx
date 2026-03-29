@@ -86,6 +86,8 @@ export function MultiplayerGame() {
     restoreScoreHistory,
     scoreHistory,
     playHistoryByMatch,
+    isPlayHistoryOpen,
+    isScoreboardExpanded,
     setIsPlayHistoryOpen,
     setIsScoreboardExpanded,
   } = scoreboardContext;
@@ -1093,34 +1095,28 @@ export function MultiplayerGame() {
 
   // Stable callbacks for GameView — wrapped with useCallback so React.memo on GameView
   // can bail out when these props haven't semantically changed (H2 audit fix).
-  const togglePlayHistory = useCallback(
-    () =>
-      setIsPlayHistoryOpen((prev: boolean) => {
-        const opening = !prev;
-        if (opening) {
-          featureDurationStart('play_history');
-          trackEvent('play_history_viewed', { action: 'open' });
-        } else {
-          featureDurationEnd('play_history', 'play_history_session_duration');
-        }
-        return opening;
-      }),
-    [setIsPlayHistoryOpen]
-  );
-  const toggleScoreboardExpanded = useCallback(
-    () =>
-      setIsScoreboardExpanded((prev: boolean) => {
-        const opening = !prev;
-        if (opening) {
-          featureDurationStart('scoreboard');
-          trackEvent('scoreboard_expanded', { action: 'open' });
-        } else {
-          featureDurationEnd('scoreboard', 'scoreboard_session_duration');
-        }
-        return opening;
-      }),
-    [setIsScoreboardExpanded]
-  );
+  // Side effects are intentionally outside the state-updater function so React's
+  // concurrent-mode double-invocation of updaters does not double-fire analytics.
+  const togglePlayHistory = useCallback(() => {
+    const opening = !isPlayHistoryOpen;
+    if (opening) {
+      featureDurationStart('play_history');
+      trackEvent('play_history_viewed', { action: 'open' });
+    } else {
+      featureDurationEnd('play_history', 'play_history_session_duration');
+    }
+    setIsPlayHistoryOpen(opening);
+  }, [isPlayHistoryOpen, setIsPlayHistoryOpen]);
+  const toggleScoreboardExpanded = useCallback(() => {
+    const opening = !isScoreboardExpanded;
+    if (opening) {
+      featureDurationStart('scoreboard');
+      trackEvent('scoreboard_expanded', { action: 'open' });
+    } else {
+      featureDurationEnd('scoreboard', 'scoreboard_session_duration');
+    }
+    setIsScoreboardExpanded(opening);
+  }, [isScoreboardExpanded, setIsScoreboardExpanded]);
 
   // Player is ready when it's their turn and multiplayer game state exists.
   // Memoized so a layoutPlayers array reference swap that doesn't change

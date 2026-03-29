@@ -295,8 +295,10 @@ const _originalConsoleWarn = console.warn;
 
 /**
  * Intercept console.error and console.warn to forward them to Sentry.
- * This is a pure-JS fallback that works even when the native Sentry module is
- * unavailable (e.g. Expo Go or an outdated dev build).
+ * This uses a pure-JS patch that does not depend on the native Sentry module
+ * (e.g. it is safe in Expo Go or outdated dev builds), but actual forwarding
+ * to Sentry only occurs after initSentry() has successfully initialized
+ * Sentry (i.e. when `_initialized` is true).
  * Called automatically by initSentry() after successful initialization.
  */
 function _setupConsoleCapture(): void {
