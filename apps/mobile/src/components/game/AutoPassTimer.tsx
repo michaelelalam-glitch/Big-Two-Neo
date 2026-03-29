@@ -255,12 +255,18 @@ function AutoPassTimerComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displaySeconds, timerState?.active, remainingMs, pulseAnim]);
 
+  // Cancel the Reanimated progress animation when the timer becomes inactive or expires,
+  // so the shared value is not updated after the animated view is unmounted — prevents
+  // the cloneShadowTreeWithNewPropsRecursive SIGSEGV crash seen in Reanimated 3.x.
+  // Placed in a useEffect rather than the render path to keep rendering pure.
+  useEffect(() => {
+    if (!timerState || !timerState.active || remainingMs <= 0) {
+      cancelAnimation(progressAnim);
+    }
+  }, [timerState?.active, remainingMs, progressAnim]);
+
   // Don't render if timer is not active or has expired.
-  // Cancel the Reanimated animation BEFORE returning null so the shared value
-  // is not updated after the animated view gets unmounted — prevents the
-  // cloneShadowTreeWithNewPropsRecursive SIGSEGV crash seen in Reanimated 3.x.
   if (!timerState || !timerState.active || remainingMs <= 0) {
-    cancelAnimation(progressAnim);
     return null;
   }
 
