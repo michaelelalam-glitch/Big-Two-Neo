@@ -85,7 +85,7 @@
         }
       ],
       "expo-web-browser",
-      "expo-av",
+      ["expo-audio", { "microphonePermission": false }],
       "expo-camera",
       "expo-screen-orientation",
       "./plugins/withAndroidSupportExclude",
