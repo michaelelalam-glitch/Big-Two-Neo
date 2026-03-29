@@ -1,29 +1,29 @@
 /**
  * Sound Manager
- * 
+ *
  * Manages all audio playback in the Big Two mobile game.
  * Handles loading, playing, and managing sound effects with settings integration.
- * 
- * TODO (SDK 55): Migrate from expo-av (deprecated) to expo-audio
+ *
+ * Migrated from expo-av (deprecated) to expo-audio in SDK 54.
  * Reference: https://docs.expo.dev/versions/latest/sdk/audio/
- * expo-av will be removed in Expo SDK 55 (expected March 2026)
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import { uiLogger } from './logger';
 
 // Sound types
 export enum SoundType {
-  GAME_START = 'game_start',           // fi_mat3am_hawn - plays when game initializes
-  HIGHEST_CARD = 'highest_card',       // Yeyyeeyy - plays when highest card/combo is played
-  CARD_PLAY = 'card_play',             // Generic card play sound
-  PASS = 'pass',                       // Pass turn sound
-  WIN = 'win',                         // Match/game win sound
-  LOSE = 'lose',                       // Match/game lose sound
+  GAME_START = 'game_start', // fi_mat3am_hawn - plays when game initializes
+  HIGHEST_CARD = 'highest_card', // Yeyyeeyy - plays when highest card/combo is played
+  CARD_PLAY = 'card_play', // Generic card play sound
+  PASS = 'pass', // Pass turn sound
+  WIN = 'win', // Match/game win sound
+  LOSE = 'lose', // Match/game lose sound
   TURN_NOTIFICATION = 'turn_notification', // Your turn indicator
-  INVALID_MOVE = 'invalid_move',       // Invalid move attempt
-  CHAT_MESSAGE = 'chat_message',       // Incoming chat message from another player
+  INVALID_MOVE = 'invalid_move', // Invalid move attempt
+  CHAT_MESSAGE = 'chat_message', // Incoming chat message from another player
 }
 
 // Sound file paths
@@ -45,11 +45,11 @@ const AUDIO_ENABLED_KEY = '@big2_audio_enabled';
 const AUDIO_VOLUME_KEY = '@big2_audio_volume';
 
 class SoundManager {
-  private sounds: Map<SoundType, Audio.Sound> = new Map();
+  private sounds: Map<SoundType, AudioPlayer> = new Map();
   private audioEnabled: boolean = true;
   private volume: number = 0.7; // Default 70% volume
   private initialized: boolean = false;
-  private activeSounds: Set<Audio.Sound> = new Set(); // Track active sound instances
+  private activePlayers: Set<AudioPlayer> = new Set(); // Track active player instances
   private readonly MAX_CONCURRENT_SOUNDS = 5; // Limit concurrent sounds to prevent memory pressure
 
   /**
@@ -60,12 +60,11 @@ class SoundManager {
     if (this.initialized) return;
 
     try {
-      // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
+      // Configure audio mode (expo-audio API)
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        interruptionMode: 'duckOthers',
       });
 
       // Load user preferences
@@ -113,12 +112,9 @@ class SoundManager {
     if (!soundFile) return;
 
     try {
-      const { sound } = await Audio.Sound.createAsync(soundFile, {
-        shouldPlay: false,
-        volume: this.volume,
-      });
-
-      this.sounds.set(type, sound);
+      const player = createAudioPlayer(soundFile);
+      player.volume = this.volume;
+      this.sounds.set(type, player);
       uiLogger.debug(`[SoundManager] Preloaded sound: ${type}`);
     } catch (error) {
       uiLogger.error(`[SoundManager] Failed to preload sound ${type}:`, error);
@@ -142,33 +138,33 @@ class SoundManager {
       }
 
       // Limit concurrent sounds to prevent memory pressure from rapid plays
-      if (this.activeSounds.size >= this.MAX_CONCURRENT_SOUNDS) {
-        uiLogger.warn(`[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`);
+      if (this.activePlayers.size >= this.MAX_CONCURRENT_SOUNDS) {
+        uiLogger.warn(
+          `[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`
+        );
         return;
       }
 
-      // Create a new sound instance for concurrent playback
+      // Create a new player instance for concurrent playback
       // This allows multiple sounds of the same type to overlap (e.g., rapid card plays)
-      const { sound } = await Audio.Sound.createAsync(soundFile, {
-        shouldPlay: false,
-        volume: this.volume,
-      });
+      const player = createAudioPlayer(soundFile);
+      player.volume = this.volume;
 
-      // Track this active sound
-      this.activeSounds.add(sound);
+      // Track this active player
+      this.activePlayers.add(player);
 
       // Play the sound
-      await sound.playAsync();
-      uiLogger.debug(`[SoundManager] Played sound: ${type} (${this.activeSounds.size}/${this.MAX_CONCURRENT_SOUNDS} active)`);
+      player.play();
+      uiLogger.debug(
+        `[SoundManager] Played sound: ${type} (${this.activePlayers.size}/${this.MAX_CONCURRENT_SOUNDS} active)`
+      );
 
-      // Unload the sound after playback finishes to prevent memory leaks
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          // Remove from active tracking
-          this.activeSounds.delete(sound);
-          sound.unloadAsync().catch(err => 
-            uiLogger.warn(`[SoundManager] Failed to unload sound ${type}:`, err)
-          );
+      // Unload the player after playback finishes to prevent memory leaks
+      const subscription = player.addListener('playbackStatusUpdate', status => {
+        if (status.didJustFinish) {
+          subscription.remove();
+          this.activePlayers.delete(player);
+          player.remove();
         }
       });
     } catch (error) {
@@ -199,10 +195,10 @@ class SoundManager {
     this.volume = Math.max(0, Math.min(1, volume));
     await AsyncStorage.setItem(AUDIO_VOLUME_KEY, this.volume.toString());
 
-    // Update all loaded sounds
-    for (const [, sound] of this.sounds) {
+    // Update all loaded players
+    for (const [, player] of this.sounds) {
       try {
-        await sound.setVolumeAsync(this.volume);
+        player.volume = this.volume;
       } catch (error) {
         uiLogger.error('[SoundManager] Failed to update volume:', error);
       }
@@ -227,12 +223,12 @@ class SoundManager {
   async cleanup(): Promise<void> {
     uiLogger.info('[SoundManager] Cleaning up sounds...');
 
-    for (const [type, sound] of this.sounds) {
+    for (const [type, player] of this.sounds) {
       try {
-        await sound.unloadAsync();
-        uiLogger.debug(`[SoundManager] Unloaded sound: ${type}`);
+        player.remove();
+        uiLogger.debug(`[SoundManager] Removed player: ${type}`);
       } catch (error) {
-        uiLogger.error(`[SoundManager] Failed to unload sound ${type}:`, error);
+        uiLogger.error(`[SoundManager] Failed to remove player ${type}:`, error);
       }
     }
 

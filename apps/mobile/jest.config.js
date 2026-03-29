@@ -54,7 +54,7 @@ module.exports = {
     },
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-screen-orientation|@expo|@react-navigation|@sentry)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-audio|expo-screen-orientation|@expo|@react-navigation|@sentry)/)',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
@@ -65,6 +65,7 @@ module.exports = {
     '^react-native-svg$': '<rootDir>/src/__tests__/__mocks__/react-native-svg.ts',
     '^expo-haptics$': '<rootDir>/src/game/__tests__/__mocks__/expo-haptics.ts',
     '^expo-av$': '<rootDir>/src/__tests__/__mocks__/expo-av.ts',
+    '^expo-audio$': '<rootDir>/src/__tests__/__mocks__/expo-audio.ts',
     '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',
     '^expo-clipboard$': '<rootDir>/src/__tests__/__mocks__/expo-clipboard.ts',
     '^expo-camera$': '<rootDir>/src/__tests__/__mocks__/expo-camera.ts',
