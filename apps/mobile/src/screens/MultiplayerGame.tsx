@@ -1101,7 +1101,7 @@ export function MultiplayerGame() {
           featureDurationStart('play_history');
           trackEvent('play_history_viewed', { action: 'open' });
         } else {
-          featureDurationEnd('play_history', 'play_history_viewed');
+          featureDurationEnd('play_history', 'play_history_session_duration');
         }
         return opening;
       }),
@@ -1115,7 +1115,7 @@ export function MultiplayerGame() {
           featureDurationStart('scoreboard');
           trackEvent('scoreboard_expanded', { action: 'open' });
         } else {
-          featureDurationEnd('scoreboard', 'scoreboard_expanded');
+          featureDurationEnd('scoreboard', 'scoreboard_session_duration');
         }
         return opening;
       }),
