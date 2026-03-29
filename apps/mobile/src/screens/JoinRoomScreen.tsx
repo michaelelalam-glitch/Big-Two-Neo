@@ -21,6 +21,7 @@ import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { showError, showConfirm } from '../utils';
 import { roomLogger } from '../utils/logger';
+import { trackEvent } from '../services/analytics';
 
 type JoinRoomNavigationProp = StackNavigationProp<RootStackParamList, 'JoinRoom'>;
 
@@ -185,6 +186,8 @@ export default function JoinRoomScreen() {
       }
 
       roomLogger.info('🎉 Successfully joined room (atomic):', joinResult);
+
+      trackEvent('room_join_method', { method: 'join_code' });
 
       // Notify other players in the room (roomData already fetched above)
       if (roomData?.id) {

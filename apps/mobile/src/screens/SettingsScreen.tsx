@@ -179,6 +179,7 @@ export default function SettingsScreen() {
       confirmText: t('common.confirm'),
       onConfirm: async () => {
         const requiresRestart = await i18n.setLanguage(language);
+        trackEvent('language_changed', { language, previous_language: currentLanguage });
         setCurrentLanguage(language);
         trackEvent('language_changed', { language, previous_language: currentLanguage });
 
@@ -247,6 +248,7 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = async () => {
+    trackEvent('delete_account_initiated', {});
     showConfirm({
       title: t('settings.deleteAccount'),
       message: t('settings.deleteAccountWarning') + '\n\n' + t('settings.deleteAccountConfirm'),
