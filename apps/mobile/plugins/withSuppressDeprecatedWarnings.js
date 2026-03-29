@@ -22,8 +22,19 @@ ${MARKER} — suppress -Wdeprecated-declarations in all pod targets.
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS'] = 'NO'
-      existing = config.build_settings['OTHER_CFLAGS'] || '$(inherited)'
-      config.build_settings['OTHER_CFLAGS'] = existing + ' -Wno-deprecated-declarations'
+      existing = config.build_settings['OTHER_CFLAGS']
+      normalized =
+        case existing
+        when Array
+          existing.join(' ')
+        else
+          (existing || '$(inherited)').to_s
+        end
+      flag = '-Wno-deprecated-declarations'
+      unless normalized.include?(flag)
+        normalized = "#{normalized} #{flag}"
+      end
+      config.build_settings['OTHER_CFLAGS'] = normalized
     end
   end
 `;
