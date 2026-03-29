@@ -145,15 +145,27 @@ class SoundManager {
         return;
       }
 
-      // Create a new player instance for concurrent playback
-      // This allows multiple sounds of the same type to overlap (e.g., rapid card plays)
+      // Use a preloaded player if one is cached — avoids allocating a new instance
+      const preloaded = this.sounds.get(type);
+      if (preloaded) {
+        preloaded.volume = this.volume;
+        preloaded.play();
+        uiLogger.debug(`[SoundManager] Played preloaded sound: ${type}`);
+        return;
+      }
+
+      // No preloaded player — create a new transient instance
+      if (this.activePlayers.size >= this.MAX_CONCURRENT_SOUNDS) {
+        uiLogger.warn(
+          `[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`
+        );
+        return;
+      }
+
       const player = createAudioPlayer(soundFile);
       player.volume = this.volume;
-
-      // Track this active player
       this.activePlayers.add(player);
 
-      // Play the sound
       player.play();
       uiLogger.debug(
         `[SoundManager] Played sound: ${type} (${this.activePlayers.size}/${this.MAX_CONCURRENT_SOUNDS} active)`
@@ -223,6 +235,17 @@ class SoundManager {
   async cleanup(): Promise<void> {
     uiLogger.info('[SoundManager] Cleaning up sounds...');
 
+    // Stop and remove all active transient players first
+    for (const player of this.activePlayers) {
+      try {
+        player.remove();
+      } catch (error) {
+        uiLogger.error('[SoundManager] Failed to remove active player during cleanup:', error);
+      }
+    }
+    this.activePlayers.clear();
+
+    // Remove preloaded players
     for (const [type, player] of this.sounds) {
       try {
         player.remove();

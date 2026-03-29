@@ -1,8 +1,12 @@
 /**
  * Mock for expo-audio module (replacement for expo-av Audio)
+ *
+ * Each createAudioPlayer() call returns a fresh object with independent jest.fn()
+ * instances so that call counts / state cannot bleed between different players
+ * in the same test run.
  */
 
-const mockPlayer = {
+const createMockPlayer = () => ({
   volume: 1.0,
   playing: false,
   paused: true,
@@ -18,17 +22,17 @@ const mockPlayer = {
   seekTo: jest.fn(() => Promise.resolve()),
   addListener: jest.fn(() => ({ remove: jest.fn() })),
   removeAllListeners: jest.fn(),
-};
+});
 
-export const createAudioPlayer = jest.fn(() => ({ ...mockPlayer }));
+export const createAudioPlayer = jest.fn(() => createMockPlayer());
 
 export const setAudioModeAsync = jest.fn(() => Promise.resolve());
 
 export const setIsAudioActiveAsync = jest.fn(() => Promise.resolve());
 
-export const useAudioPlayer = jest.fn(() => ({ ...mockPlayer }));
+export const useAudioPlayer = jest.fn(() => createMockPlayer());
 
-export const AudioPlayer = jest.fn(() => ({ ...mockPlayer }));
+export const AudioPlayer = jest.fn(() => createMockPlayer());
 
 export default {
   createAudioPlayer,
