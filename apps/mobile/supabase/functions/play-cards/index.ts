@@ -1383,7 +1383,7 @@ Deno.serve(async (req) => {
         // Anonymise the identifier with a simple hash for privacy
         const encoder = new TextEncoder();
         const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
-        const playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+        const playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
         const opponentHandSizes: Record<string, number> = {};
         for (const idx of [0, 1, 2, 3]) {
