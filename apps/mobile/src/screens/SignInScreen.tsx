@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, StatusBar, Platform } from 'react-native';
 import AppleSignInButton from '../components/auth/AppleSignInButton';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
