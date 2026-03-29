@@ -309,16 +309,18 @@ function _setupConsoleCapture(): void {
     if (typeof a === 'string') return a;
     if (a instanceof Error) return `${a.message}${a.stack ? `\n${a.stack}` : ''}`;
     try {
-      return JSON.stringify(a);
+      // JSON.stringify returns undefined for functions/symbols/void — fall back to String().
+      return JSON.stringify(a) ?? String(a);
     } catch {
       return String(a);
     }
   };
+  const MAX_SENTRY_MSG_LEN = 1000;
 
   console.error = (...args: unknown[]) => {
     _originalConsoleError(...args);
     if (!_initialized) return;
-    const message = args.map(safeStringify).join(' ');
+    const message = args.map(safeStringify).join(' ').slice(0, MAX_SENTRY_MSG_LEN);
     // Skip React/RN internal "Warning:" noise — those are not real errors.
     if (message.startsWith('Warning:')) return;
     Sentry.captureMessage(`[console.error] ${message}`, {
@@ -330,7 +332,7 @@ function _setupConsoleCapture(): void {
   console.warn = (...args: unknown[]) => {
     _originalConsoleWarn(...args);
     if (!_initialized) return;
-    const message = args.map(safeStringify).join(' ');
+    const message = args.map(safeStringify).join(' ').slice(0, MAX_SENTRY_MSG_LEN);
     // Skip noisy RN / Expo warnings that aren't application bugs.
     if (
       message.startsWith('Warning:') ||
