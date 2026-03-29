@@ -1414,9 +1414,13 @@ Deno.serve(async (req) => {
         const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
           .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
-        // play_sequence is 1-based count of plays so far in this round (play_history
-        // reflects state BEFORE this update, so +1 includes the current play).
-        const playSequence = Array.isArray(gameState.play_history) ? gameState.play_history.length + 1 : 1;
+        // play_sequence is 1-based count of plays in THIS round/match. play_history is
+        // cumulative across all rounds, so filter to the current match_number.
+        const currentMatchNumber = gameState.match_number || 1;
+        const playSequence = Array.isArray(gameState.play_history)
+          ? (gameState.play_history as Array<{ match_number?: number }>)
+              .filter(p => (p.match_number ?? 1) === currentMatchNumber).length + 1
+          : 1;
 
         // is_first_play_of_round: no last_play (trick was just won or game start).
         // 4-player game: all 3 opponents passing means passes === 3.
