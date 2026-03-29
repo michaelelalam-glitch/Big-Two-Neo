@@ -341,12 +341,11 @@ function _setupConsoleCapture(): void {
  * Adds a breadcrumb (always) and captures a message at warning level when Sentry is ready.
  */
 export function reportMissingTranslation(key: string, language: string): void {
-  const msg = `Missing translation: "${key}" for language "${language}"`;
-  if (_initialized) {
-    Sentry.addBreadcrumb({ message: msg, level: 'warning', category: 'translation' });
-    Sentry.captureMessage(msg, {
-      level: 'warning',
-      tags: { category: 'translation', language },
-    } as Parameters<typeof Sentry.captureMessage>[1]);
-  }
+  if (!_initialized) return;
+  Sentry.addBreadcrumb({
+    category: 'i18n',
+    message: `Missing translation: ${key}`,
+    level: 'warning',
+    data: { key, language },
+  });
 }
