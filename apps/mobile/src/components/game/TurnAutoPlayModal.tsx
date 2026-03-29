@@ -147,7 +147,10 @@ export function TurnAutoPlayModal({
             style={styles.confirmButton}
             onPress={onConfirm}
             accessibilityRole="button"
-            accessibilityLabel={i18n.t('game.imStillHere')}
+            accessibilityLabel={i18n
+              .t('game.imStillHere')
+              .replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27FF}]/gu, '')
+              .trim()}
           >
             <Text style={styles.confirmButtonText}>{i18n.t('game.imStillHere')}</Text>
           </TouchableOpacity>

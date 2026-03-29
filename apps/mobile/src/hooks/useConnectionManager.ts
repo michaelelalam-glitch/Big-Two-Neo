@@ -309,6 +309,11 @@ export function useConnectionManager({
         }
         networkLogger.error('[useConnectionManager] reconnect failed:', error || data?.error);
         setConnectionStatus('disconnected');
+        trackEvent('reconnect_failed', { room_id: roomId });
+        sentryCapture.message(`Reconnect failed: ${String(error || data?.error || 'unknown')}`, {
+          context: 'Reconnect',
+          level: 'warning',
+        });
         return;
       }
 
@@ -321,7 +326,9 @@ export function useConnectionManager({
       networkLogger.error('[useConnectionManager] reconnect exception:', err);
       setConnectionStatus('disconnected');
       trackEvent('reconnect_failed', { room_id: roomId });
-      sentryCapture.breadcrumb('Reconnect failed', { room_id: roomId }, 'connection');
+      sentryCapture.exception(err instanceof Error ? err : new Error(String(err)), {
+        context: 'Reconnect',
+      });
     } finally {
       setIsReconnecting(false);
     }
