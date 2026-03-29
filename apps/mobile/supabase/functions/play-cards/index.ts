@@ -1368,75 +1368,83 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 14b. Fire-and-forget: insert training row into game_hands_training
+    // 14b. Fire-and-forget: insert training row into game_hands_training.
     // Non-blocking — runs in background via EdgeRuntime.waitUntil so it never
     // delays the response to the client. Failures are logged but not fatal.
-    if (gameState.game_session_id) {
-      const trainingInsert = (async () => {
-        try {
-          // Prefer real user_id; fall back to stable player.id for bots/service roles.
-          const stableId = (player.user_id ?? player.id)?.toString();
-          if (!stableId) throw new Error('Missing stable identifier for player');
+    // game_state does not have a game_session_id column; use room.id (a stable
+    // UUID) as the session identifier — combined with round_number it uniquely
+    // identifies each match played in a room.
+    const trainingInsert = (async () => {
+      try {
+        // Prefer real user_id; fall back to stable player.id for bots/service roles.
+        const stableId = (player.user_id ?? player.id)?.toString();
+        if (!stableId) throw new Error('Missing stable identifier for player');
 
-          // Anonymise the identifier with a simple hash for privacy
-          const encoder = new TextEncoder();
-          const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
-          const playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+        // Anonymise the identifier with a simple hash for privacy
+        const encoder = new TextEncoder();
+        const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
+        const playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
 
-          const opponentHandSizes: Record<string, number> = {};
-          for (const idx of [0, 1, 2, 3]) {
-            if (idx !== player.player_index) {
-              const h = updatedHands[idx];
-              opponentHandSizes[String(idx)] = Array.isArray(h) ? h.length : 0;
-            }
+        const opponentHandSizes: Record<string, number> = {};
+        for (const idx of [0, 1, 2, 3]) {
+          if (idx !== player.player_index) {
+            const h = updatedHands[idx];
+            opponentHandSizes[String(idx)] = Array.isArray(h) ? h.length : 0;
           }
-          const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
-            .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
-
-          const trainingRow = {
-            room_id: room.id,
-            room_code: room_code,
-            game_session_id: gameState.game_session_id,
-            round_number: gameState.match_number || 1,
-            play_sequence: Array.isArray(gameState.play_history) ? gameState.play_history.length : 0,
-            player_index: player.player_index,
-            is_bot: player.is_bot ?? false,
-            player_hash: playerHash,
-            hand_before_play: playerHand,
-            hand_size_before: playerHand.length,
-            cards_played: cards,
-            combo_type: comboType,
-            combo_key: null, // could add numeric sort key later
-            last_play_before: gameState.last_play ?? null,
-            last_play_combo_type: (gameState.last_play as any)?.combo_type ?? null,
-            is_first_play_of_round: !gameState.last_play || gameState.passes === gameState.player_count - 1,
-            is_first_play_of_game: (gameState.match_number || 1) === 1 && !gameState.last_play,
-            passes_before_this_play: gameState.passes || 0,
-            opponent_hand_sizes: opponentHandSizes,
-            total_cards_remaining: totalCardsRemaining,
-            won_trick: isHighestPlay || allOpponentsCantRespond,
-            won_round: matchEnded,
-            won_game: gameOver && finalWinnerIndex === player.player_index,
-            cards_remaining_after_play: updatedHand.length,
-            was_highest_possible: isHighestPlay,
-            alternative_plays_available: null, // expensive to compute; leave for later
-            risk_score: null,
-            game_ended_at: (gameOver && updateData.game_ended_at) ? updateData.game_ended_at : null,
-          };
-
-          const { error: tErr } = await supabaseClient
-            .from('game_hands_training')
-            .insert(trainingRow);
-          if (tErr) console.warn('[play-cards] Training insert warning:', tErr.message);
-        } catch (trainingErr) {
-          console.warn('[play-cards] Training data prep failed (non-critical):', trainingErr);
         }
-      })();
+        const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
+          .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
-      try { (globalThis as any).EdgeRuntime?.waitUntil(trainingInsert); } catch (_) { /* non-critical */ }
-    } else {
-      console.warn('[play-cards] Skipping training insert: missing game_session_id');
-    }
+        // play_sequence is 1-based count of plays so far in this round (play_history
+        // reflects state BEFORE this update, so +1 includes the current play).
+        const playSequence = Array.isArray(gameState.play_history) ? gameState.play_history.length + 1 : 1;
+
+        // is_first_play_of_round: no last_play (trick was just won or game start).
+        // 4-player game: all 3 opponents passing means passes === 3.
+        const PLAYER_COUNT = 4;
+        const isFirstPlayOfRound = !gameState.last_play || (gameState.passes ?? 0) >= PLAYER_COUNT - 1;
+
+        const trainingRow = {
+          room_id: room.id,
+          room_code: room_code,
+          game_session_id: room.id, // room.id is the stable session UUID
+          round_number: gameState.match_number || 1,
+          play_sequence: playSequence,
+          player_index: player.player_index,
+          is_bot: player.is_bot ?? false,
+          player_hash: playerHash,
+          hand_before_play: playerHand,
+          hand_size_before: playerHand.length,
+          cards_played: cards,
+          combo_type: comboType,
+          combo_key: null, // could add numeric sort key later
+          last_play_before: gameState.last_play ?? null,
+          last_play_combo_type: (gameState.last_play as any)?.combo_type ?? null,
+          is_first_play_of_round: isFirstPlayOfRound,
+          is_first_play_of_game: (gameState.match_number || 1) === 1 && !gameState.last_play,
+          passes_before_this_play: gameState.passes || 0,
+          opponent_hand_sizes: opponentHandSizes,
+          total_cards_remaining: totalCardsRemaining,
+          won_trick: isHighestPlay || allOpponentsCantRespond,
+          won_round: matchEnded,
+          won_game: gameOver && finalWinnerIndex === player.player_index,
+          cards_remaining_after_play: updatedHand.length,
+          was_highest_possible: isHighestPlay,
+          alternative_plays_available: null, // expensive to compute; leave for later
+          risk_score: null,
+          game_ended_at: (gameOver && updateData.game_ended_at) ? updateData.game_ended_at : null,
+        };
+
+        const { error: tErr } = await supabaseClient
+          .from('game_hands_training')
+          .insert(trainingRow);
+        if (tErr) console.warn('[play-cards] Training insert warning:', tErr.message);
+      } catch (trainingErr) {
+        console.warn('[play-cards] Training data prep failed (non-critical):', trainingErr);
+      }
+    })();
+
+    try { (globalThis as any).EdgeRuntime?.waitUntil(trainingInsert); } catch (_) { /* non-critical */ }
 
     // 15. Trigger bot-coordinator if next player is a bot (Task #551)
     // Only suppress the trigger when this call came from the coordinator itself.
