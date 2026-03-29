@@ -9,9 +9,27 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import { uiLogger } from './logger';
+
+// Lazy-load expo-audio so a missing native module (e.g. old dev build) only
+// disables audio rather than crashing the entire runtime.
+// Metro transforms dynamic import() to synchronous require(), so we must use
+// require() + try/catch — the only pattern that catches a missing native module
+// before it propagates to the JS runtime and prevents the app from booting.
+let _createAudioPlayer: typeof import('expo-audio').createAudioPlayer | null = null;
+let _setAudioModeAsync: typeof import('expo-audio').setAudioModeAsync | null = null;
+let _nativeModuleAvailable = false;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const expoAudio = require('expo-audio') as typeof import('expo-audio');
+  _createAudioPlayer = expoAudio.createAudioPlayer;
+  _setAudioModeAsync = expoAudio.setAudioModeAsync;
+  _nativeModuleAvailable = true;
+} catch {
+  uiLogger.warn('[SoundManager] expo-audio native module not available — audio disabled');
+}
 
 // Sound types
 export enum SoundType {
@@ -59,9 +77,15 @@ class SoundManager {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
+    if (!_nativeModuleAvailable) {
+      uiLogger.warn('[SoundManager] Skipping init — native module unavailable');
+      this.initialized = true;
+      return;
+    }
+
     try {
       // Configure audio mode (expo-audio API)
-      await setAudioModeAsync({
+      await _setAudioModeAsync!({
         playsInSilentMode: true,
         shouldPlayInBackground: false,
         interruptionMode: 'duckOthers',
@@ -108,11 +132,12 @@ class SoundManager {
    * Preload a sound file
    */
   private async preloadSound(type: SoundType): Promise<void> {
+    if (!_createAudioPlayer) return;
     const soundFile = SOUND_FILES[type];
     if (!soundFile) return;
 
     try {
-      const player = createAudioPlayer(soundFile);
+      const player = _createAudioPlayer(soundFile);
       player.volume = this.volume;
       this.sounds.set(type, player);
       uiLogger.debug(`[SoundManager] Preloaded sound: ${type}`);
@@ -159,7 +184,8 @@ class SoundManager {
       }
 
       // No preloaded player — create a new transient instance
-      const player = createAudioPlayer(soundFile);
+      if (!_createAudioPlayer) return;
+      const player = _createAudioPlayer(soundFile);
       player.volume = this.volume;
       this.activePlayers.add(player);
 
