@@ -118,8 +118,8 @@ export function initSentry(): void {
     if (_pendingUser !== undefined) {
       Sentry.setUser(_pendingUser);
     }
-    // Patch console.error / console.warn so errors logged via console are
-    // forwarded to Sentry even when the native SDK is unavailable (e.g. Expo Go).
+    // Patch console.error / console.warn so that errors logged via console
+    // are forwarded to Sentry whenever Sentry is active in this session.
     _setupConsoleCapture();
     if (__DEV__) {
       console.log('[Sentry] Initialized successfully');
@@ -305,6 +305,7 @@ function _setupConsoleCapture(): void {
 
   const safeStringify = (a: unknown): string => {
     if (typeof a === 'string') return a;
+    if (a instanceof Error) return `${a.message}${a.stack ? `\n${a.stack}` : ''}`;
     try {
       return JSON.stringify(a);
     } catch {
