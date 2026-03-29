@@ -91,7 +91,8 @@
       "./plugins/withAndroidSupportExclude",
       "./plugins/withBarcodeCompatStubs",
       "./plugins/withIOSBarcodeCompatStubs",
-      "./plugins/withExpoCameraSwiftFix"
+      "./plugins/withExpoCameraSwiftFix",
+      "./plugins/withSuppressDeprecatedWarnings"
     ],
     "extra": {
       "eas": {
