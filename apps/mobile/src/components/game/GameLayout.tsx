@@ -272,6 +272,13 @@ function GameLayoutComponent({
               comboDisplayText={lastPlayCombo || undefined}
               dropZoneText={dropZoneText}
             />
+            {/* Auto-Pass Timer — rendered directly under the "last played" text so it
+                sits visually between the table content and the helper buttons below. */}
+            {autoPassTimerState && (
+              <View pointerEvents="none">
+                <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
+              </View>
+            )}
           </View>
 
           {/* Right player (position 3) */}
@@ -315,15 +322,6 @@ function GameLayoutComponent({
             )}
           </View>
         </View>
-
-        {/* Auto-Pass Timer — absolutely positioned at the bottom-centre of the table.
-            Rendered outside the middleRow flex flow so it never pushes cards up/down.
-            Uses pointerEvents="none" so touches pass through to cards below. */}
-        {autoPassTimerState && (
-          <View style={styles.autoPassTimerContainer} pointerEvents="none">
-            <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
-          </View>
-        )}
       </Animated.View>
     </>
   );
@@ -371,14 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: SPACING.md,
   },
-  autoPassTimerContainer: {
-    position: 'absolute',
-    bottom: SPACING.md,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 20,
-  },
+
   rightPlayerContainer: {
     alignItems: 'center',
     position: 'absolute',

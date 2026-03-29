@@ -21,6 +21,7 @@ import { gameLogger } from '../utils/logger';
 import {
   trackGameplayAction,
   trackGameEvent,
+  trackError,
   checkHintFollowed,
   turnTimeEnd,
 } from '../services/analytics';
@@ -255,6 +256,19 @@ export function useGameActions({
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),
           });
+          // 'Not your turn' is an expected race condition (bot played first) — log as
+          // warning only. All other play errors are unexpected and get full tracking.
+          if (msg.includes('Not your turn')) {
+            sentryCapture.message(`Play rejected: ${msg}`, {
+              context: 'MultiplayerPlayCards',
+              level: 'warning',
+            });
+          } else {
+            sentryCapture.exception(error instanceof Error ? error : new Error(msg), {
+              context: 'MultiplayerPlayCards',
+            });
+            trackError('play_cards', msg);
+          }
           throw error; // Re-throw so GameControls can handle
         } finally {
           playMethodRef.current = 'button';
