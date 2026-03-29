@@ -13,6 +13,8 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { trackError } from '../services/analytics';
+import { sentryCapture } from '../services/sentry';
 
 // ── Theme colors ──────────────────────────────────────────────────────────────
 const ERROR_COLOR = '#ff6b6b';
@@ -46,8 +48,15 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       console.error('[GlobalErrorBoundary] Uncaught app error:', error);
       console.error('[GlobalErrorBoundary] Component stack:', errorInfo.componentStack);
     }
-    // In production, forward to an error-reporting service (e.g. Sentry):
-    // logErrorToService(error, errorInfo);
+    // Forward to Sentry for crash reporting
+    sentryCapture.exception(error, {
+      context: 'GlobalErrorBoundary',
+      extra: {
+        componentStack: errorInfo.componentStack?.slice(0, 500) ?? 'unknown',
+      },
+    });
+    // Also log to Firebase Analytics as a fatal error event
+    trackError('GlobalErrorBoundary', error.message, true);
   }
 
   handleReset = (): void => {

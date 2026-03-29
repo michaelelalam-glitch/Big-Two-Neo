@@ -57,6 +57,7 @@ import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
 import { useThrowables } from '../hooks/useThrowables';
 import { i18n } from '../i18n';
+import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -1093,11 +1094,31 @@ export function MultiplayerGame() {
   // Stable callbacks for GameView — wrapped with useCallback so React.memo on GameView
   // can bail out when these props haven't semantically changed (H2 audit fix).
   const togglePlayHistory = useCallback(
-    () => setIsPlayHistoryOpen((prev: boolean) => !prev),
+    () =>
+      setIsPlayHistoryOpen((prev: boolean) => {
+        const opening = !prev;
+        if (opening) {
+          featureDurationStart('play_history');
+          trackEvent('play_history_viewed', { action: 'open' });
+        } else {
+          featureDurationEnd('play_history', 'play_history_viewed');
+        }
+        return opening;
+      }),
     [setIsPlayHistoryOpen]
   );
   const toggleScoreboardExpanded = useCallback(
-    () => setIsScoreboardExpanded((prev: boolean) => !prev),
+    () =>
+      setIsScoreboardExpanded((prev: boolean) => {
+        const opening = !prev;
+        if (opening) {
+          featureDurationStart('scoreboard');
+          trackEvent('scoreboard_expanded', { action: 'open' });
+        } else {
+          featureDurationEnd('scoreboard', 'scoreboard_expanded');
+        }
+        return opening;
+      }),
     [setIsScoreboardExpanded]
   );
 
