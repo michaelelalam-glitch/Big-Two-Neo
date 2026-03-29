@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -11,7 +11,7 @@ type MatchTypeSelectionNavigationProp = StackNavigationProp<RootStackParamList, 
 
 /**
  * Match Type Selection Screen
- * 
+ *
  * Allows users to choose between Casual and Ranked matchmaking
  * - Casual: Play for fun, no ELO changes
  * - Ranked: Competitive play with ELO rating changes
@@ -29,10 +29,7 @@ export default function MatchTypeSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
 
@@ -43,19 +40,14 @@ export default function MatchTypeSelectionScreen() {
         <View style={styles.optionsContainer}>
           {/* Casual */}
           <TouchableOpacity
-            style={[
-              styles.optionCard,
-              selectedType === 'casual' && styles.optionCardSelected
-            ]}
+            style={[styles.optionCard, selectedType === 'casual' && styles.optionCardSelected]}
             onPress={() => setSelectedType('casual')}
           >
             <View style={styles.optionHeader}>
               <Text style={styles.optionIcon}>😊</Text>
               <Text style={styles.optionTitle}>{i18n.t('matchmaking.casual')}</Text>
             </View>
-            <Text style={styles.optionDescription}>
-              {i18n.t('matchmaking.casualDesc')}
-            </Text>
+            <Text style={styles.optionDescription}>{i18n.t('matchmaking.casualDesc')}</Text>
             {selectedType === 'casual' && (
               <View style={styles.checkmark}>
                 <Text style={styles.checkmarkText}>✓</Text>
@@ -65,19 +57,14 @@ export default function MatchTypeSelectionScreen() {
 
           {/* Ranked */}
           <TouchableOpacity
-            style={[
-              styles.optionCard,
-              selectedType === 'ranked' && styles.optionCardSelected
-            ]}
+            style={[styles.optionCard, selectedType === 'ranked' && styles.optionCardSelected]}
             onPress={() => setSelectedType('ranked')}
           >
             <View style={styles.optionHeader}>
               <Text style={styles.optionIcon}>🏆</Text>
               <Text style={styles.optionTitle}>{i18n.t('matchmaking.ranked')}</Text>
             </View>
-            <Text style={styles.optionDescription}>
-              {i18n.t('matchmaking.rankedDesc')}
-            </Text>
+            <Text style={styles.optionDescription}>{i18n.t('matchmaking.rankedDesc')}</Text>
             {selectedType === 'ranked' && (
               <View style={styles.checkmark}>
                 <Text style={styles.checkmarkText}>✓</Text>
@@ -87,13 +74,8 @@ export default function MatchTypeSelectionScreen() {
         </View>
 
         {/* Continue Button */}
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={handleContinue}
-        >
-          <Text style={styles.continueButtonText}>
-            {i18n.t('common.continue')} →
-          </Text>
+        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+          <Text style={styles.continueButtonText}>{i18n.t('common.continue')} →</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

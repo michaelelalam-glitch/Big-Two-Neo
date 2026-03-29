@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -68,12 +75,12 @@ const MATCH_TYPE_EMOJI: Record<MatchHistoryEntry['game_type'], string> = {
 export default function MatchHistoryScreen() {
   const navigation = useNavigation<MatchHistoryNavigationProp>();
   const { user } = useAuth();
-  
+
   const [matches, setMatches] = useState<MatchHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  
+
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -83,15 +90,16 @@ export default function MatchHistoryScreen() {
 
   const loadMatches = async (pageNum: number = 0) => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       // game_history stores player slots (player_1_id … player_4_id).
       // We find all games the current user participated in using an OR filter.
       const { data, error } = await supabase
         .from('game_history')
-        .select(`
+        .select(
+          `
           id,
           room_code,
           game_type,
@@ -108,7 +116,8 @@ export default function MatchHistoryScreen() {
           voided_user_id,
           finished_at,
           created_at
-        `)
+        `
+        )
         // Performance: migration 20260314000001 adds B-tree partial indexes on each
         // participant column (player_1_id…player_4_id, voided_user_id). Postgres can
         // then satisfy this OR filter with a bitmap union of index scans instead of a
@@ -187,7 +196,7 @@ export default function MatchHistoryScreen() {
       } else {
         setMatches(prev => [...prev, ...formattedMatches]);
       }
-      
+
       setHasMore(formattedMatches.length === PAGE_SIZE);
       setPage(pageNum);
     } catch (error: unknown) {
@@ -210,10 +219,7 @@ export default function MatchHistoryScreen() {
 
   // Memoize the NumberFormat instance to avoid per-row allocations inside FlatList.
   // Recreated only when the active language changes (rare — typically never mid-session).
-  const numberFormatter = React.useMemo(
-    () => new Intl.NumberFormat(currentLang),
-    [currentLang]
-  );
+  const numberFormatter = React.useMemo(() => new Intl.NumberFormat(currentLang), [currentLang]);
 
   const getPositionOrdinal = (position: number): string => {
     if (position === 0) return '—'; // voided/abandoned
@@ -229,32 +235,48 @@ export default function MatchHistoryScreen() {
     const rem100 = position % 100;
     if (rem100 >= 11 && rem100 <= 13) return `${position}th`;
     switch (position % 10) {
-      case 1: return `${position}st`;
-      case 2: return `${position}nd`;
-      case 3: return `${position}rd`;
-      default: return `${position}th`;
+      case 1:
+        return `${position}st`;
+      case 2:
+        return `${position}nd`;
+      case 3:
+        return `${position}rd`;
+      default:
+        return `${position}th`;
     }
   };
 
   const getPositionEmoji = (position: number) => {
     switch (position) {
-      case 0: return '🚪'; // voided/abandoned
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      case 4: return '4️⃣';
-      default: return '';
+      case 0:
+        return '🚪'; // voided/abandoned
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      case 4:
+        return '4️⃣';
+      default:
+        return '';
     }
   };
 
   const getPositionColor = (position: number) => {
     switch (position) {
-      case 0: return '#555555'; // voided/abandoned
-      case 1: return '#FFD700'; // Gold
-      case 2: return '#C0C0C0'; // Silver
-      case 3: return '#CD7F32'; // Bronze
-      case 4: return '#8B8B8B'; // Gray
-      default: return COLORS.white;
+      case 0:
+        return '#555555'; // voided/abandoned
+      case 1:
+        return '#FFD700'; // Gold
+      case 2:
+        return '#C0C0C0'; // Silver
+      case 3:
+        return '#CD7F32'; // Bronze
+      case 4:
+        return '#8B8B8B'; // Gray
+      default:
+        return COLORS.white;
     }
   };
 
@@ -270,11 +292,11 @@ export default function MatchHistoryScreen() {
     if (diffMins < 60) return i18n.t('matchHistory.minutesAgo', { count: diffMins });
     if (diffHours < 24) return i18n.t('matchHistory.hoursAgo', { count: diffHours });
     if (diffDays < 7) return i18n.t('matchHistory.daysAgo', { count: diffDays });
-    
-    return date.toLocaleDateString(currentLang, { 
-      month: 'short', 
+
+    return date.toLocaleDateString(currentLang, {
+      month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     });
   };
 
@@ -289,7 +311,7 @@ export default function MatchHistoryScreen() {
       local: i18n.t('matchHistory.local'),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentLang],
+    [currentLang]
   );
 
   const renderMatchCard = ({ item }: { item: MatchHistoryEntry }) => {
@@ -300,10 +322,7 @@ export default function MatchHistoryScreen() {
         <View style={styles.matchHeader}>
           <View style={styles.matchHeaderLeft}>
             <Text style={styles.roomCode}>#{item.room_code}</Text>
-            <View style={[
-              styles.matchTypeBadge,
-              isRanked && styles.matchTypeBadgeRanked
-            ]}>
+            <View style={[styles.matchTypeBadge, isRanked && styles.matchTypeBadgeRanked]}>
               <Text style={styles.matchTypeBadgeText}>
                 {MATCH_TYPE_EMOJI[item.game_type]} {matchTypeLabel[item.game_type]}
               </Text>
@@ -315,10 +334,7 @@ export default function MatchHistoryScreen() {
         <View style={styles.matchBody}>
           <View style={styles.positionContainer}>
             <Text style={styles.positionEmoji}>{getPositionEmoji(item.final_position)}</Text>
-            <Text style={[
-              styles.positionText,
-              { color: getPositionColor(item.final_position) }
-            ]}>
+            <Text style={[styles.positionText, { color: getPositionColor(item.final_position) }]}>
               {item.final_position === 0
                 ? i18n.t('matchHistory.abandoned')
                 : i18n.t('matchHistory.position', {
@@ -327,8 +343,6 @@ export default function MatchHistoryScreen() {
                   })}
             </Text>
           </View>
-
-
         </View>
       </View>
     );
@@ -354,10 +368,7 @@ export default function MatchHistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{i18n.t('matchHistory.title')}</Text>
@@ -373,14 +384,14 @@ export default function MatchHistoryScreen() {
         <FlatList
           data={matches}
           renderItem={renderMatchCard}
-          keyExtractor={(item) => item.game_id}
+          keyExtractor={item => item.game_id}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           contentContainerStyle={[
             styles.listContent,
-            matches.length === 0 && styles.listContentEmpty
+            matches.length === 0 && styles.listContentEmpty,
           ]}
           showsVerticalScrollIndicator={true}
         />
