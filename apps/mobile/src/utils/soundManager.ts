@@ -232,7 +232,7 @@ class SoundManager {
   async cleanup(): Promise<void> {
     uiLogger.info('[SoundManager] Cleaning up sounds...');
 
-    // Stop and remove all active transient players first
+    // Remove all active transient players first (player.remove() stops playback and deallocates)
     for (const player of this.activePlayers) {
       try {
         player.remove();
