@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, LAYOUT } from '../../constants';
 import type { Card as CardType } from '../../game/types';
+import { trackEvent } from '../../services/analytics';
 import Card from './Card';
 
 // PORTRAIT vs LANDSCAPE CARD SPACING (separate constants for each orientation)
@@ -485,6 +486,7 @@ function CardHandComponent({
             setDisplayCards(newCards);
 
             if (onCardsReorder && newCards.length > 0) {
+              trackEvent('card_rearranged', { hand_size: newCards.length });
               onCardsReorder(newCards);
             }
           }
