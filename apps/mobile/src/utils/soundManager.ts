@@ -122,8 +122,10 @@ class SoundManager {
   }
 
   /**
-   * Play a sound effect
-   * Creates new sound instances for concurrent playback (e.g., multiple card plays)
+   * Play a sound effect.
+   * Uses the preloaded player from initialize() when available.
+   * Falls back to creating a transient AudioPlayer instance for non-preloaded sounds,
+   * capped by MAX_CONCURRENT_SOUNDS to prevent memory pressure from rapid plays.
    */
   async playSound(type: SoundType): Promise<void> {
     if (!this.audioEnabled) {
@@ -155,13 +157,6 @@ class SoundManager {
       }
 
       // No preloaded player — create a new transient instance
-      if (this.activePlayers.size >= this.MAX_CONCURRENT_SOUNDS) {
-        uiLogger.warn(
-          `[SoundManager] Max concurrent sounds (${this.MAX_CONCURRENT_SOUNDS}) reached, skipping: ${type}`
-        );
-        return;
-      }
-
       const player = createAudioPlayer(soundFile);
       player.volume = this.volume;
       this.activePlayers.add(player);
