@@ -282,7 +282,9 @@ export function useGameStatsUploader({
           // guard to prevent duplicate positions if data is unexpectedly malformed.
           const finishPosition = finishPositionMap.get(player.player_index) ?? safeGapPosition++;
 
-          // cards_left: final match hand size (what the edge function/game_history schema expects).
+          // cards_left: average across all completed matches (scores_history), falling back
+          // to final hand size if history is unavailable. This ensures the stat reflects
+          // true per-match average, not just the last hand.
           const playerHandKey = String(player.player_index);
           const playerHand = hands?.[playerHandKey];
           const cardsLeft = Array.isArray(playerHand) ? playerHand.length : 0;
@@ -306,7 +308,7 @@ export function useGameStatsUploader({
             username: player.username,
             score: resolvedFinalScores![String(player.player_index)] ?? 0,
             finish_position: finishPosition,
-            cards_left: cardsLeft,
+            cards_left: avgCardsLeftByPlayer.get(player.player_index) ?? cardsLeft,
             was_bot: player.is_bot,
             // A player is considered disconnected if their connection_status is
             // 'disconnected' at the time the game ends (not yet bot-replaced).
