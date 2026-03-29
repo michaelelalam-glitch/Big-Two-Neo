@@ -62,10 +62,10 @@ module.exports = function withSuppressDeprecatedWarnings(config) {
           // Insert immediately before react_native_post_install.
           contents = contents.replace(rnPostInstallCall, HOOK + '\n' + rnPostInstallCall);
         } else {
-          // No react_native_post_install found; insert at start of post_install block.
+          // Insert at start of post_install block (CRLF-safe: match anchor without newline).
           contents = contents.replace(
-            postInstallAnchor + '\n',
-            postInstallAnchor + '\n' + HOOK + '\n'
+            postInstallAnchor,
+            postInstallAnchor + '\n' + HOOK
           );
         }
       } else {

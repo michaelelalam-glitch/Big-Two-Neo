@@ -692,7 +692,17 @@ function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boolean {
 // Module-level cache: stableId → playerHash (SHA-256 hex).
 // Computed once per Edge Function instance so repeated plays from the same
 // player don't re-hash on every hot path invocation.
+// Bounded to prevent unbounded growth in long-lived instances with many players.
+const PLAYER_HASH_CACHE_MAX = 1000;
 const _playerHashCache = new Map<string, string>();
+function _cachedPlayerHash(hash: string, id: string): void {
+  if (_playerHashCache.size >= PLAYER_HASH_CACHE_MAX) {
+    // Evict the oldest entry (insertion-order first key)
+    const firstKey = _playerHashCache.keys().next().value;
+    if (firstKey !== undefined) _playerHashCache.delete(firstKey);
+  }
+  _playerHashCache.set(id, hash);
+}
 
 // ==================== MAIN HANDLER ====================
 
@@ -1391,7 +1401,7 @@ Deno.serve(async (req) => {
           const encoder = new TextEncoder();
           const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
           playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-          _playerHashCache.set(stableId, playerHash);
+          _cachedPlayerHash(playerHash, stableId);
         }
 
         const opponentHandSizes: Record<string, number> = {};

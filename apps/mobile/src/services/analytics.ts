@@ -517,9 +517,10 @@ export function turnTimeEnd(action: 'play' | 'pass' | 'timeout'): void {
 
 const _featureStarts = new Map<string, number>();
 
-/** Start tracking duration for a toggled-on feature (camera, mic, chat, etc.) */
+/** Start tracking duration for a toggled-on feature (camera, mic, chat, etc.)
+ * Records the start time unconditionally so duration is captured even if analytics
+ * consent/credentials load asynchronously after the feature is opened. */
 export function featureDurationStart(feature: string): void {
-  if (!isAnalyticsEnabled()) return;
   _featureStarts.set(feature, Date.now());
 }
 
