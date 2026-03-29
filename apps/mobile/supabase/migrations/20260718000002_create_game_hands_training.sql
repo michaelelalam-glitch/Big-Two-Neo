@@ -1,13 +1,15 @@
 -- NOTE: This migration is the authoritative definition for production applies.
--- It intentionally matches the original table from the old Supabase project
+-- It is based on the original table from the old Supabase project
 -- (bjxdmhybbpbmgdabqswi) and the legacy migration at
 -- apps/mobile/migrations/20260717000000_create_game_hands_training.sql, but that
 -- older file is retained only for historical/reference purposes and should not be
--- applied in production workflows.
+-- applied in production workflows. This migration also introduces an additional
+-- unique index (idx_game_hands_training_unique_play) not present in the legacy
+-- migration to prevent duplicate training rows from retried edge function calls.
 --
 -- Create game_hands_training table for collecting per-hand play data to train bots.
--- Schema matches the original table from the old Supabase project (bjxdmhybbpbmgdabqswi)
--- with the same columns, indexes, and constraints.
+-- Schema is based on the original table from the old Supabase project (bjxdmhybbpbmgdabqswi)
+-- with the same columns and non-unique indexes, plus the additional unique index above.
 
 CREATE TABLE IF NOT EXISTS public.game_hands_training (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
