@@ -1,14 +1,8 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-} from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, StatusBar, Platform } from 'react-native';
 import AppleSignInButton from '../components/auth/AppleSignInButton';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
+import {} from '@react-navigation/native';
 
 const SignInScreen = () => {
   return (
@@ -16,7 +10,9 @@ const SignInScreen = () => {
       <StatusBar barStyle="light-content" />
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title} testID="sign-in-title">Welcome to Big2</Text>
+          <Text style={styles.title} testID="sign-in-title">
+            Welcome to Big2
+          </Text>
           <Text style={styles.subtitle} testID="sign-in-subtitle">
             Sign in to play with friends and track your progress
           </Text>

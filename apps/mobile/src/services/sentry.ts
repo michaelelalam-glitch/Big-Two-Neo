@@ -77,8 +77,11 @@ export function initSentry(): void {
       // In production use a lower rate (0.1–0.2) to control volume/cost.
       tracesSampleRate: __DEV__ ? 0 : 0.1,
 
-      // Enable debug logging in dev so issues are visible in Metro console
-      debug: __DEV__,
+      // Keep native SDK debug logging OFF even in dev — it floods the Metro
+      // console with breadcrumb/watchdog/network-tracker noise on every frame.
+      // JS-level Sentry logs ([Sentry] Initialized, etc.) are still emitted
+      // via console.log below and are sufficient for dev diagnostics.
+      debug: false,
 
       // Environment tag shown in Sentry dashboard
       environment: __DEV__ ? 'development' : 'production',
@@ -91,6 +94,15 @@ export function initSentry(): void {
 
       // Enable performance tracing for React Native (navigation, network, etc.)
       integrations: [Sentry.reactNativeTracingIntegration()],
+
+      // Session Replay: allow it to run in simulator/emulator environments.
+      // Without this, Sentry disables it with "Detected environment potentially
+      // causing PII leaks" on every dev launch, generating a red console error.
+      _experiments: {
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: __DEV__ ? 0 : 1.0,
+        profilesSampleRate: 0,
+      },
 
       // Don't send events for known non-fatal orientation errors already
       // swallowed by the global ErrorUtils handler in App.tsx
