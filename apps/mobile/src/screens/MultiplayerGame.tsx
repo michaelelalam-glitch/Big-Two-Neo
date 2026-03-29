@@ -1099,6 +1099,9 @@ export function MultiplayerGame() {
   // avoiding stale-closure issues on rapid taps and concurrent-mode double-invocation.
   const hasMountedPlayHistoryRef = useRef(false);
   const hasMountedScoreboardRef = useRef(false);
+  // Refs mirror current open state for the unmount cleanup (closure capture workaround).
+  const isPlayHistoryOpenRef = useRef(isPlayHistoryOpen);
+  const isScoreboardExpandedRef = useRef(isScoreboardExpanded);
 
   const togglePlayHistory = useCallback(() => {
     setIsPlayHistoryOpen(prev => !prev);
@@ -1108,6 +1111,7 @@ export function MultiplayerGame() {
   }, [setIsScoreboardExpanded]);
 
   useEffect(() => {
+    isPlayHistoryOpenRef.current = isPlayHistoryOpen;
     if (!hasMountedPlayHistoryRef.current) {
       hasMountedPlayHistoryRef.current = true;
       return;
@@ -1121,6 +1125,7 @@ export function MultiplayerGame() {
   }, [isPlayHistoryOpen]);
 
   useEffect(() => {
+    isScoreboardExpandedRef.current = isScoreboardExpanded;
     if (!hasMountedScoreboardRef.current) {
       hasMountedScoreboardRef.current = true;
       return;
@@ -1132,6 +1137,18 @@ export function MultiplayerGame() {
       featureDurationEnd('scoreboard', 'scoreboard_session_duration');
     }
   }, [isScoreboardExpanded]);
+
+  // Emit duration events for any open panels when the screen unmounts so no session is lost.
+  useEffect(() => {
+    return () => {
+      if (isPlayHistoryOpenRef.current) {
+        featureDurationEnd('play_history', 'play_history_session_duration');
+      }
+      if (isScoreboardExpandedRef.current) {
+        featureDurationEnd('scoreboard', 'scoreboard_session_duration');
+      }
+    };
+  }, []);
 
   // Player is ready when it's their turn and multiplayer game state exists.
   // Memoized so a layoutPlayers array reference swap that doesn't change
