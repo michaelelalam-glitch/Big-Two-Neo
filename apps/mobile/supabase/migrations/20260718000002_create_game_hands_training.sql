@@ -55,10 +55,12 @@ CREATE INDEX IF NOT EXISTS idx_game_hands_training_player_hash ON public.game_ha
 ALTER TABLE public.game_hands_training ENABLE ROW LEVEL SECURITY;
 
 -- Allow service_role to insert (edge functions use service_role key)
+DROP POLICY IF EXISTS "service_role_insert" ON public.game_hands_training;
 CREATE POLICY "service_role_insert" ON public.game_hands_training
   FOR INSERT TO service_role WITH CHECK (true);
 
 -- Allow service_role to select (for training data export)
+DROP POLICY IF EXISTS "service_role_select" ON public.game_hands_training;
 CREATE POLICY "service_role_select" ON public.game_hands_training
   FOR SELECT TO service_role USING (true);
 
