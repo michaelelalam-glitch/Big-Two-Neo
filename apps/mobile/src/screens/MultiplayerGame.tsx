@@ -1095,28 +1095,43 @@ export function MultiplayerGame() {
 
   // Stable callbacks for GameView — wrapped with useCallback so React.memo on GameView
   // can bail out when these props haven't semantically changed (H2 audit fix).
-  // Side effects are intentionally outside the state-updater function so React's
-  // concurrent-mode double-invocation of updaters does not double-fire analytics.
+  // Side effects are in useEffects below that observe committed state transitions,
+  // avoiding stale-closure issues on rapid taps and concurrent-mode double-invocation.
+  const hasMountedPlayHistoryRef = useRef(false);
+  const hasMountedScoreboardRef = useRef(false);
+
   const togglePlayHistory = useCallback(() => {
-    const opening = !isPlayHistoryOpen;
-    if (opening) {
+    setIsPlayHistoryOpen(prev => !prev);
+  }, [setIsPlayHistoryOpen]);
+  const toggleScoreboardExpanded = useCallback(() => {
+    setIsScoreboardExpanded(prev => !prev);
+  }, [setIsScoreboardExpanded]);
+
+  useEffect(() => {
+    if (!hasMountedPlayHistoryRef.current) {
+      hasMountedPlayHistoryRef.current = true;
+      return;
+    }
+    if (isPlayHistoryOpen) {
       featureDurationStart('play_history');
       trackEvent('play_history_viewed', { action: 'open' });
     } else {
       featureDurationEnd('play_history', 'play_history_session_duration');
     }
-    setIsPlayHistoryOpen(opening);
-  }, [isPlayHistoryOpen, setIsPlayHistoryOpen]);
-  const toggleScoreboardExpanded = useCallback(() => {
-    const opening = !isScoreboardExpanded;
-    if (opening) {
+  }, [isPlayHistoryOpen]);
+
+  useEffect(() => {
+    if (!hasMountedScoreboardRef.current) {
+      hasMountedScoreboardRef.current = true;
+      return;
+    }
+    if (isScoreboardExpanded) {
       featureDurationStart('scoreboard');
       trackEvent('scoreboard_expanded', { action: 'open' });
     } else {
       featureDurationEnd('scoreboard', 'scoreboard_session_duration');
     }
-    setIsScoreboardExpanded(opening);
-  }, [isScoreboardExpanded, setIsScoreboardExpanded]);
+  }, [isScoreboardExpanded]);
 
   // Player is ready when it's their turn and multiplayer game state exists.
   // Memoized so a layoutPlayers array reference swap that doesn't change
