@@ -243,12 +243,18 @@ async function sendEvents(
       body: JSON.stringify(body),
     });
     if (__DEV__) {
-      console.log(
-        '[Analytics] Response status:',
-        response.status,
-        '— events sent to Firebase DebugView (debug_mode=1)'
-      );
-      if (!response.ok) {
+      if (response.ok) {
+        console.log(
+          '[Analytics] Response status:',
+          response.status,
+          '— events sent to Firebase DebugView (debug_mode=1)'
+        );
+      } else {
+        console.warn(
+          '[Analytics] Response status:',
+          response.status,
+          '— failed to send events to Firebase (non-OK response)'
+        );
         const text = await response.text().catch(() => '');
         console.warn('[Analytics] Non-OK response body:', text.slice(0, 300));
       }
