@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS public.game_hands_training (
   CONSTRAINT game_hands_training_pkey PRIMARY KEY (id)
 );
 
+-- Unique constraint to prevent duplicate training rows from retried edge function calls
+CREATE UNIQUE INDEX IF NOT EXISTS idx_game_hands_training_unique_play
+  ON public.game_hands_training (game_session_id, round_number, play_sequence, player_index);
+
 -- Indexes for efficient querying during bot training
 CREATE INDEX IF NOT EXISTS idx_game_hands_training_session ON public.game_hands_training USING btree (game_session_id);
 CREATE INDEX IF NOT EXISTS idx_game_hands_training_combo ON public.game_hands_training USING btree (combo_type);

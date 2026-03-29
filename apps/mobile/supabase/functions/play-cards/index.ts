@@ -689,6 +689,11 @@ function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boolean {
   }
 }
 
+// Module-level cache: stableId → playerHash (SHA-256 hex).
+// Computed once per Edge Function instance so repeated plays from the same
+// player don't re-hash on every hot path invocation.
+const _playerHashCache = new Map<string, string>();
+
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
@@ -1380,10 +1385,14 @@ Deno.serve(async (req) => {
         const stableId = (player.user_id ?? player.id)?.toString();
         if (!stableId) throw new Error('Missing stable identifier for player');
 
-        // Anonymise the identifier with a simple hash for privacy
-        const encoder = new TextEncoder();
-        const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
-        const playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        // Anonymise the identifier with a stable hash for privacy (cached per EF instance)
+        let playerHash = _playerHashCache.get(stableId);
+        if (!playerHash) {
+          const encoder = new TextEncoder();
+          const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
+          playerHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+          _playerHashCache.set(stableId, playerHash);
+        }
 
         const opponentHandSizes: Record<string, number> = {};
         for (const idx of [0, 1, 2, 3]) {
@@ -1437,7 +1446,7 @@ Deno.serve(async (req) => {
 
         const { error: tErr } = await supabaseClient
           .from('game_hands_training')
-          .insert(trainingRow);
+          .upsert(trainingRow, { onConflict: 'game_session_id,round_number,play_sequence,player_index', ignoreDuplicates: true });
         if (tErr) console.warn('[play-cards] Training insert warning:', tErr.message);
       } catch (trainingErr) {
         console.warn('[play-cards] Training data prep failed (non-critical):', trainingErr);
