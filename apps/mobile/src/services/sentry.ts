@@ -118,6 +118,9 @@ export function initSentry(): void {
     if (_pendingUser !== undefined) {
       Sentry.setUser(_pendingUser);
     }
+    // Patch console.error / console.warn so errors logged via console are
+    // forwarded to Sentry even when the native SDK is unavailable (e.g. Expo Go).
+    _setupConsoleCapture();
     if (__DEV__) {
       console.log('[Sentry] Initialized successfully');
     }
@@ -256,21 +259,7 @@ export const withSentryBoundary = Sentry.withErrorBoundary;
  */
 export { Sentry };
 
-// ─── Missing translation reporting ────────────────────────────────────────── //
-
-/**
- * Report a missing i18n translation key as a silent Sentry breadcrumb.
- * Called from the i18n manager when a key lookup fails — never throws.
- */
-export function reportMissingTranslation(key: string, language: string): void {
-  if (!_initialized) return;
-  Sentry.addBreadcrumb({
-    category: 'i18n',
-    message: `Missing translation: ${key}`,
-    level: 'warning',
-    data: { key, language },
-  });
-}
+// (Translation reporting implemented later in this file.)
 
 // ─── In-app bug reporting ─────────────────────────────────────────────────── //
 
@@ -296,4 +285,70 @@ export function submitBugReport(description: string, email?: string, name?: stri
     name,
     associatedEventId: eventId,
   });
+}
+
+// ─── Console capture ──────────────────────────────────────────────────────── //
+
+// Track whether the console patch has been applied to avoid double-patching.
+let _consolePatchApplied = false;
+
+const _originalConsoleError = console.error;
+const _originalConsoleWarn = console.warn;
+
+/**
+ * Intercept console.error and console.warn to forward them to Sentry.
+ * This is a pure-JS fallback that works even when the native Sentry module is
+ * unavailable (e.g. Expo Go or an outdated dev build).
+ * Called automatically by initSentry() after successful initialization.
+ */
+function _setupConsoleCapture(): void {
+  if (_consolePatchApplied) return;
+  _consolePatchApplied = true;
+
+  console.error = (...args: unknown[]) => {
+    _originalConsoleError(...args);
+    if (!_initialized) return;
+    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    // Skip React/RN internal "Warning:" noise — those are not real errors.
+    if (message.startsWith('Warning:')) return;
+    Sentry.captureMessage(`[console.error] ${message}`, {
+      level: 'error',
+      tags: { source: 'console' },
+    } as Parameters<typeof Sentry.captureMessage>[1]);
+  };
+
+  console.warn = (...args: unknown[]) => {
+    _originalConsoleWarn(...args);
+    if (!_initialized) return;
+    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    // Skip noisy RN / Expo warnings that aren't application bugs.
+    if (
+      message.startsWith('Warning:') ||
+      message.includes('VirtualizedLists') ||
+      message.includes('RNSentry')
+    )
+      return;
+    Sentry.addBreadcrumb({
+      message: `[console.warn] ${message}`,
+      level: 'warning',
+      category: 'console',
+    });
+  };
+}
+
+// ─── Translation error reporting ──────────────────────────────────────────── //
+
+/**
+ * Report a missing i18n translation key to Sentry.
+ * Adds a breadcrumb (always) and captures a message at warning level when Sentry is ready.
+ */
+export function reportMissingTranslation(key: string, language: string): void {
+  const msg = `Missing translation: "${key}" for language "${language}"`;
+  if (_initialized) {
+    Sentry.addBreadcrumb({ message: msg, level: 'warning', category: 'translation' });
+    Sentry.captureMessage(msg, {
+      level: 'warning',
+      tags: { category: 'translation', language },
+    } as Parameters<typeof Sentry.captureMessage>[1]);
+  }
 }

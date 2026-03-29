@@ -12,6 +12,7 @@ import { RoomPlayerWithRoom } from '../types';
 import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { roomLogger } from '../utils/logger';
 import { isRateLimitError } from '../utils/rateLimitUtils';
+import { trackEvent } from '../services/analytics';
 
 type CreateRoomNavigationProp = StackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -199,6 +200,8 @@ export default function CreateRoomScreen() {
       }
 
       roomLogger.info('✅ Room created and joined successfully:', result.room_code);
+
+      trackEvent('room_join_method', { method: 'create_private' });
 
       // Navigate to lobby
       navigation.replace('Lobby', { roomCode: result.room_code });
