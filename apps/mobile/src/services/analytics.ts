@@ -465,7 +465,8 @@ export function checkHintFollowed(playedCardIds: string[]): void {
   if (matched) {
     const params: AnalyticsEventParams = {
       cards_count: playedCardIds.length,
-      hint_cards: _lastHintCardIds.join(',').slice(0, 100), // which cards the hint suggested
+      hint_cards: _lastHintCardIds.length, // consistent count (same type as ignored branch)
+      hint_card_ids: _lastHintCardIds.join(',').slice(0, 100), // which cards the hint suggested
       played_was: playedCardIds.join(',').slice(0, 100), // which cards user actually played
     };
     if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
