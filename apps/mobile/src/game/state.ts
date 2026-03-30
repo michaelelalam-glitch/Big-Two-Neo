@@ -407,6 +407,10 @@ export class GameStateManager {
     this.notifyListeners();
     // C2 fix: start the auto-pass timer only after the game state is ready.
     this.startTimerCountdown();
+    // Play match start sound for the first match (subsequent matches are
+    // handled by startNewMatch() below).
+    soundManager.playSound(SoundType.GAME_START);
+    gameLogger.info('🎵 [Audio] Match start sound triggered - game initialized (match 1)');
 
     return this.state;
   }

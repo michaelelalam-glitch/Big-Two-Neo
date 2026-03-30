@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { ActiveGameBanner } from '../components/home/ActiveGameBanner';
+import BugReportModal from '../components/BugReportModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useActiveGameBanner } from '../hooks/useActiveGameBanner';
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const { unreadCount } = useNotifications();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isLandscape = screenWidth > screenHeight;
+  const [bugReportVisible, setBugReportVisible] = useState(false);
 
   // On iOS, release any portrait lock held by the game screen so home-screen
   // modals appear in the correct orientation when the device is in landscape.
@@ -119,6 +121,15 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bugReportButton}
+              onPress={() => setBugReportVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Report a bug"
+              testID="bug-report-button"
+            >
+              <Text style={styles.bugReportButtonText}>🐛</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
@@ -238,6 +249,14 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Bug Report Modal */}
+      <BugReportModal
+        visible={bugReportVisible}
+        onClose={() => setBugReportVisible(false)}
+        userEmail={user?.email ?? undefined}
+        userName={profile?.username ?? user?.user_metadata?.username ?? undefined}
+      />
 
       {/* Bot Difficulty Picker Modal */}
       <Modal
@@ -457,6 +476,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   leaderboardButtonText: {
+    fontSize: FONT_SIZES.lg,
+  },
+  bugReportButton: {
+    backgroundColor: COLORS.gray.dark,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  bugReportButtonText: {
     fontSize: FONT_SIZES.lg,
   },
   settingsButton: {
