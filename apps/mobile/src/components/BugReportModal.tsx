@@ -275,6 +275,9 @@ export default function BugReportModal({
               style={styles.toggleRow}
               onPress={() => setIncludeLog(v => !v)}
               activeOpacity={0.7}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: includeLog }}
+              accessibilityLabel={t('bugReportModal.includeLogLabel')}
             >
               <View style={styles.toggleInfo}>
                 <Text style={styles.sectionLabel}>{t('bugReportModal.includeLogLabel')}</Text>
