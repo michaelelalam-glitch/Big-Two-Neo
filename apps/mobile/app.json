@@ -87,6 +87,12 @@
       "expo-web-browser",
       ["expo-audio", { "microphonePermission": false }],
       "expo-camera",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Big2 to attach screenshots to bug reports."
+        }
+      ],
       "expo-screen-orientation",
       "./plugins/withAndroidSupportExclude",
       "./plugins/withBarcodeCompatStubs",
