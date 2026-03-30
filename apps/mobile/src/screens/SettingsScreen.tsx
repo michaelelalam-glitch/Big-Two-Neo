@@ -8,7 +8,6 @@ import {
   Switch,
   Alert,
   Linking,
-  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +24,7 @@ import { useUserPreferencesStore } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 import { setAnalyticsConsent, trackEvent } from '../services/analytics';
-import { initSentry, disableSentry, isSentryEnabled } from '../services/sentry';
+import { initSentry, disableSentry } from '../services/sentry';
 import BugReportModal from '../components/BugReportModal';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
