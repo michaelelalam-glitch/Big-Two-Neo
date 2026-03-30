@@ -24,6 +24,8 @@ export const StyleSheet = {
 
 export const View = 'View';
 export const Text = 'Text';
+export const TextInput = 'TextInput';
+export const Image = 'Image';
 export const Pressable = 'Pressable';
 
 export const PermissionsAndroid = {
@@ -57,7 +59,9 @@ export const Linking = {
 
 const createMockAnimation = () => {
   const anim: any = {
-    start: jest.fn((cb?: any) => { if (cb) cb({ finished: true }); }),
+    start: jest.fn((cb?: any) => {
+      if (cb) cb({ finished: true });
+    }),
     stop: jest.fn(),
     reset: jest.fn(),
   };
@@ -120,8 +124,8 @@ export const FlatList = ({
     ListHeaderComponent == null
       ? null
       : typeof ListHeaderComponent === 'function'
-      ? React.createElement(ListHeaderComponent)
-      : React.createElement('View', { testID: 'flatlist-header' }, ListHeaderComponent);
+        ? React.createElement(ListHeaderComponent)
+        : React.createElement('View', { testID: 'flatlist-header' }, ListHeaderComponent);
 
   const resolvedData = data ?? [];
 
@@ -130,25 +134,27 @@ export const FlatList = ({
       ? ListEmptyComponent == null
         ? null
         : typeof ListEmptyComponent === 'function'
-        ? React.createElement(ListEmptyComponent)
-        : React.createElement('View', { testID: 'flatlist-empty' }, ListEmptyComponent)
+          ? React.createElement(ListEmptyComponent)
+          : React.createElement('View', { testID: 'flatlist-empty' }, ListEmptyComponent)
       : resolvedData.map((item: any, index: number) => {
           const key = keyExtractor ? keyExtractor(item, index) : String(index);
-          return renderItem ? React.createElement('View', { key }, renderItem({ item, index })) : null;
+          return renderItem
+            ? React.createElement('View', { key }, renderItem({ item, index }))
+            : null;
         });
 
   const footer =
     ListFooterComponent == null
       ? null
       : typeof ListFooterComponent === 'function'
-      ? React.createElement(ListFooterComponent)
-      : React.createElement('View', { testID: 'flatlist-footer' }, ListFooterComponent);
+        ? React.createElement(ListFooterComponent)
+        : React.createElement('View', { testID: 'flatlist-footer' }, ListFooterComponent);
 
   return React.createElement(
     'View',
     { style: [style, contentContainerStyle], ...rest },
     header,
     ...(Array.isArray(content) ? content : [content]),
-    footer,
+    footer
   );
 };
