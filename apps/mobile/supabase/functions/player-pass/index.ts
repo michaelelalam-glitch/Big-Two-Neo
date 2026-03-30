@@ -71,11 +71,14 @@ async function fireTrainingPassInsert(
         .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
       const currentMatchNumber = (gameState.match_number as number) || 1;
-      // play_sequence: derived from total_training_actions, a monotonically
-      // increasing counter persisted in game_state that increments on every
-      // play AND pass (never resets between tricks). Fixes the collision when
-      // gameState.passes (a consecutive-pass counter that resets to 0 after
-      // each play) was used as a uniqueness offset.
+      // play_sequence: derived from total_training_actions, a session-global
+      // monotonically increasing counter persisted in game_state.total_training_actions
+      // (added in migration 20260718000003). It increments on every play (play-cards)
+      // and every pass (here). It NEVER resets between rounds/tricks, so play_sequence
+      // values accumulate across rounds within a session. This is intentional: the
+      // unique index on (game_session_id, round_number, play_sequence, player_index)
+      // is still satisfied because the counter grows strictly — no two actions share
+      // the same value within a session.
       const playSequence = (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
         ? gameState.total_training_actions : 0) + 1;
 

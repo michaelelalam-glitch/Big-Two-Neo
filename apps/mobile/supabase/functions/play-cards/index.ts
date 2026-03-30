@@ -1422,11 +1422,14 @@ Deno.serve(async (req) => {
         const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
           .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
-        // play_sequence: derived from total_training_actions, a monotonically
-        // increasing counter persisted in game_state that increments on every
-        // play AND pass (never resets between tricks). This avoids the collision
-        // that occurred when using gameState.passes (a consecutive-pass counter
-        // that resets to 0 after each play) as a uniqueness offset.
+        // play_sequence: derived from total_training_actions, a session-global
+        // monotonically increasing counter persisted in game_state.total_training_actions
+        // (added in migration 20260718000003). It increments on every play (here)
+        // and every pass (player-pass). It NEVER resets between rounds/tricks, so
+        // play_sequence values accumulate across rounds within a session. This is
+        // intentional: the unique index on (game_session_id, round_number,
+        // play_sequence, player_index) is still satisfied because the counter
+        // grows strictly — no two actions in the same session share the same value.
         const playSequence = (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
           ? gameState.total_training_actions : 0) + 1;
 
