@@ -11,7 +11,14 @@ export const documentDirectory = null;
 export const cacheDirectory = null;
 export const bundleDirectory = null;
 
-export const getInfoAsync = jest.fn().mockResolvedValue({ exists: false, isDirectory: false, size: 0, modificationTime: 0, uri: '' });
+export const EncodingType = {
+  UTF8: 'utf8',
+  Base64: 'base64',
+} as const;
+
+export const getInfoAsync = jest
+  .fn()
+  .mockResolvedValue({ exists: false, isDirectory: false, size: 0, modificationTime: 0, uri: '' });
 export const readAsStringAsync = jest.fn().mockResolvedValue('');
 export const writeAsStringAsync = jest.fn().mockResolvedValue(undefined);
 export const deleteAsync = jest.fn().mockResolvedValue(undefined);
@@ -19,7 +26,9 @@ export const makeDirectoryAsync = jest.fn().mockResolvedValue(undefined);
 export const copyAsync = jest.fn().mockResolvedValue(undefined);
 export const moveAsync = jest.fn().mockResolvedValue(undefined);
 export const readDirectoryAsync = jest.fn().mockResolvedValue([]);
-export const downloadAsync = jest.fn().mockResolvedValue({ uri: '', status: 200, headers: {}, md5: undefined });
+export const downloadAsync = jest
+  .fn()
+  .mockResolvedValue({ uri: '', status: 200, headers: {}, md5: undefined });
 
 export default {
   documentDirectory,
