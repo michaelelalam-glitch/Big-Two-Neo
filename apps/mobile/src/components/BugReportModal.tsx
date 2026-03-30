@@ -8,7 +8,7 @@
  *  - Optional console log attachment (reads today's log file via expo-file-system)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -76,11 +76,31 @@ export default function BugReportModal({
   const [includeLog, setIncludeLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Track time spent on bug report screen for analytics
+  const openedAtRef = useRef<number>(0);
+  useEffect(() => {
+    if (visible) {
+      openedAtRef.current = Date.now();
+    } else if (openedAtRef.current > 0) {
+      trackEvent('screen_time', {
+        screen: 'bug_report',
+        duration_ms: Date.now() - openedAtRef.current,
+      });
+      openedAtRef.current = 0;
+    }
+  }, [visible]);
+
   // ── Helpers ──────────────────────────────────────────────────────────────── //
 
   const handlePickScreenshot = async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ImagePicker = require('expo-image-picker') as typeof import('expo-image-picker');
+    let ImagePicker: typeof import('expo-image-picker') | null = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      ImagePicker = require('expo-image-picker') as typeof import('expo-image-picker');
+    } catch {
+      showError(t('bugReportModal.screenshotUnavailable'));
+      return;
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       showError(t('bugReportModal.photoPermissionDenied'));

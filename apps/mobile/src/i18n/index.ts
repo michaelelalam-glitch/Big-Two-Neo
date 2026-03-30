@@ -247,6 +247,7 @@ export interface Translations {
     attachScreenshot: string;
     removeScreenshot: string;
     photoPermissionDenied: string;
+    screenshotUnavailable: string;
     includeLogLabel: string;
     includeLogDescription: string;
   };
@@ -1051,6 +1052,8 @@ const en: Translations = {
     attachScreenshot: '📎 Attach Screenshot',
     removeScreenshot: 'Remove',
     photoPermissionDenied: 'Photo library access is required to attach a screenshot.',
+    screenshotUnavailable:
+      'Screenshot attachment is not available in this build. Please rebuild the app to enable it.',
     includeLogLabel: 'Include Console Log',
     includeLogDescription: "Attach today's app log to help diagnose the issue.",
   },
@@ -1815,6 +1818,8 @@ const ar: Translations = {
     attachScreenshot: '📎 إرفاق لقطة شاشة',
     removeScreenshot: 'إزالة',
     photoPermissionDenied: 'يلزم الوصول إلى مكتبة الصور لإرفاق لقطة شاشة.',
+    screenshotUnavailable:
+      'إرفاق لقطة الشاشة غير متاح في هذا الإصدار. يرجى إعادة بناء التطبيق لتفعيله.',
     includeLogLabel: 'تضمين سجل التطبيق',
     includeLogDescription: 'أرفق سجل التطبيق لهذا اليوم لمساعدتنا في التشخيص.',
   },
@@ -2608,6 +2613,8 @@ const de: Translations = {
     removeScreenshot: 'Entfernen',
     photoPermissionDenied:
       'Für das Anhängen eines Screenshots ist Zugriff auf die Fotobibliothek erforderlich.',
+    screenshotUnavailable:
+      'Screenshot-Anhänge sind in diesem Build nicht verfügbar. Bitte bauen Sie die App neu, um diese Funktion zu aktivieren.',
     includeLogLabel: 'Protokoll einschließen',
     includeLogDescription: 'Das heutige App-Protokoll anhängen, um die Diagnose zu erleichtern.',
   },
