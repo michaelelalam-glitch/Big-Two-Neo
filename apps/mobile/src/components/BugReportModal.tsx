@@ -21,7 +21,9 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+// expo-image-picker is loaded lazily inside handlePickScreenshot to avoid
+// requireNativeModule('ExponentImagePicker') running at bundle-evaluation time,
+// which crashes the app when the native module hasn't been linked yet.
 // expo-file-system/legacy is used intentionally: the named exports
 // (documentDirectory, getInfoAsync, readAsStringAsync, EncodingType) exist
 // only in the legacy API. The non-legacy path exposes a class-based API
@@ -77,6 +79,8 @@ export default function BugReportModal({
   // ── Helpers ──────────────────────────────────────────────────────────────── //
 
   const handlePickScreenshot = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ImagePicker = require('expo-image-picker') as typeof import('expo-image-picker');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       showError(t('bugReportModal.photoPermissionDenied'));
