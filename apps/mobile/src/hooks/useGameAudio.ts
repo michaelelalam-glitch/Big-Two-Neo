@@ -101,7 +101,7 @@ export function useGameAudio({
       lastPlayedTimerStartedAtRef.current = timerState.started_at;
       soundManager.playSound(SoundType.HIGHEST_CARD);
       gameLogger.info(
-        `🎵 [Audio] Yeyyeeyy triggered - auto-pass timer active (started_at=${timerState.started_at})`
+        `🎵 [Audio] Highest card sound triggered (sound=${SoundType.HIGHEST_CARD}) - auto-pass timer active (started_at=${timerState.started_at})`
       );
     }
 
