@@ -28,7 +28,7 @@
 | 3 | Return to Home | `screen_time` for "Settings", `screen_view` for "Home" |
 | 4 | Enter a multiplayer game | `screen_time` for "Home", `screen_view` for "Game" |
 
-**Verify:** Each `screen_time` event has `firebase_screen` and `duration_seconds` > 0.
+**Verify:** Each `screen_time` event has `screen_name` and `duration_seconds` > 0.
 
 ---
 

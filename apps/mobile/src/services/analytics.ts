@@ -180,14 +180,20 @@ function getClientId(): string {
     // Return the in-memory fallback synchronously for the current send call;
     // the async load below will populate it for all subsequent calls.
     _clientId = generateClientId();
-    void AsyncStorage.getItem(CLIENT_ID_KEY).then(stored => {
-      if (stored) {
-        _clientId = stored;
-      } else {
-        // First launch — persist the freshly-generated id.
-        void AsyncStorage.setItem(CLIENT_ID_KEY, _clientId!);
-      }
-    });
+    void AsyncStorage.getItem(CLIENT_ID_KEY)
+      .then(stored => {
+        if (stored) {
+          _clientId = stored;
+        } else {
+          // First launch — persist the freshly-generated id.
+          void AsyncStorage.setItem(CLIENT_ID_KEY, _clientId!).catch(() => {
+            /* non-critical — fallback id already in memory */
+          });
+        }
+      })
+      .catch(() => {
+        /* AsyncStorage unavailable — in-memory fallback id is used */
+      });
   }
   return _clientId;
 }
