@@ -28,9 +28,12 @@ export function useGameAudio({
   multiplayerGameState,
 }: UseGameAudioOptions): void {
   // Track which timer we last played the sound for (by started_at timestamp).
-  // Using started_at instead of remaining_ms because remaining_ms is a static
-  // deprecated field (always 10000) that never changes mid-timer, so its value
-  // can be identical across consecutive timers and the effect might not re-run.
+  // Using started_at instead of remaining_ms because, for multiplayer/server-
+  // sourced timers, remaining_ms is a deprecated field (often a static 10000)
+  // that does not tick down mid-timer, so its value can be identical across
+  // consecutive timers and the effect would not re-run. Local AI mode does
+  // update remaining_ms on an interval, but we still key on started_at for
+  // consistency across both modes.
   const lastPlayedTimerStartedAtRef = useRef<string | null>(null);
 
   // Match start sound tracking refs — one per game mode to avoid cross-mode bleed.

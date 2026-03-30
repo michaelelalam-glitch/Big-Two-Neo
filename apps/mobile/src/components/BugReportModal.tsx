@@ -135,13 +135,26 @@ export default function BugReportModal({
       const logPath = `${documentDirectory}${getTodayLogFileName()}`;
       const info = await getInfoAsync(logPath);
       if (!info.exists) return null;
-      // Read the full file then slice to keep at most the last 50 KB.
-      // The position/length options in readAsStringAsync are not part of the
-      // typed surface for expo-file-system/legacy — using a type cast to bypass
-      // that guard is fragile and may silently fall back to a full read anyway.
+      // Avoid loading the entire file when it is large: check the size first
+      // and use position/length for the tail read. These options are supported
+      // at runtime by the expo-file-system legacy API but not in the TypeScript
+      // typings, so we cast to `any` instead of using a fragile
+      // Parameters<typeof readAsStringAsync>[1] cast.
       const maxBytes = 51200;
-      const raw = await readAsStringAsync(logPath, { encoding: EncodingType.UTF8 });
-      return raw.length > maxBytes ? raw.slice(raw.length - maxBytes) : raw;
+      const fileSize =
+        typeof (info as { size?: number }).size === 'number'
+          ? (info as { size?: number }).size!
+          : undefined;
+      if (!fileSize || fileSize <= maxBytes) {
+        return await readAsStringAsync(logPath, { encoding: EncodingType.UTF8 });
+      }
+      const start = fileSize - maxBytes;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await readAsStringAsync(logPath, {
+        position: start,
+        length: maxBytes,
+        encoding: EncodingType.UTF8,
+      } as any);
     } catch {
       return null;
     }
