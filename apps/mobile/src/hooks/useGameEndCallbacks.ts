@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
-import { soundManager, SoundType, showError } from '../utils';
+import { showError } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { i18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -70,7 +70,8 @@ export function useGameEndCallbacks({
           botDifficulty,
         });
         gameLogger.info('✅ [GameScreen] Game restarted successfully');
-        soundManager.playSound(SoundType.GAME_START);
+        // GAME_START sound is driven by useGameAudio (tracks currentMatch);
+        // calling it here too would double-play the sound on Play Again.
       } catch (error) {
         gameLogger.error('❌ [GameScreen] Failed to restart game:', error);
         alertError('Failed to restart game. Please try again.');
