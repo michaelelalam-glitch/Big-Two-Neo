@@ -1315,6 +1315,11 @@ Deno.serve(async (req) => {
       played_cards: updatedPlayedCards,
       auto_pass_timer: autoPassTimerState,
       play_history: updatedPlayHistory,
+      // Monotonic action counter — never resets. Used by game_hands_training to
+      // produce a unique play_sequence per action without relying on the
+      // consecutive-pass counter (gameState.passes) which resets after each trick.
+      total_training_actions: (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+        ? gameState.total_training_actions : 0) + 1,
       updated_at: new Date().toISOString(),
     };
 
@@ -1417,17 +1422,13 @@ Deno.serve(async (req) => {
         const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
           .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
-        // play_sequence: 1-based count of ALL actions (plays + passes) in this
-        // match. play_history only tracks actual plays; passes are NOT in it.
-        // Add passesBeforeThisPlay (= gameState.passes, which is reset to 0
-        // after every play) to produce a unique sequence number that accounts
-        // for passes that occurred since the last trick-clearing play.
-        const currentMatchNumber = gameState.match_number || 1;
-        const passesBeforeThisPlay = typeof gameState.passes === 'number' ? gameState.passes : 0;
-        const playSequence = Array.isArray(gameState.play_history)
-          ? (gameState.play_history as Array<{ match_number?: number }>)
-              .filter(p => (p.match_number ?? 1) === currentMatchNumber).length + passesBeforeThisPlay + 1
-          : 1;
+        // play_sequence: derived from total_training_actions, a monotonically
+        // increasing counter persisted in game_state that increments on every
+        // play AND pass (never resets between tricks). This avoids the collision
+        // that occurred when using gameState.passes (a consecutive-pass counter
+        // that resets to 0 after each play) as a uniqueness offset.
+        const playSequence = (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+          ? gameState.total_training_actions : 0) + 1;
 
         // is_first_play_of_round: no last_play (trick was just won or game start).
         // 4-player game: all 3 opponents passing means passes === 3.

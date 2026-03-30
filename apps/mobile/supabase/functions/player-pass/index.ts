@@ -71,17 +71,13 @@ async function fireTrainingPassInsert(
         .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
       const currentMatchNumber = (gameState.match_number as number) || 1;
-      const playHistory = Array.isArray(gameState.play_history) ? gameState.play_history : [];
-      // play_sequence: 1-based count of ALL actions (plays + passes) in this
-      // match. play_history only tracks actual plays, so passes are NOT in it.
-      // Add passesBeforeThis (= gameState.passes, the consecutive-pass counter
-      // before this pass fires) to produce a unique, monotonically-increasing
-      // sequence number for every decision made within the round.
-      const passesBeforeThis = (gameState.passes as number) || 0;
-      const playSequence =
-        (playHistory as Array<{ match_number?: number }>).filter(
-          p => (p.match_number ?? 1) === currentMatchNumber
-        ).length + passesBeforeThis + 1;
+      // play_sequence: derived from total_training_actions, a monotonically
+      // increasing counter persisted in game_state that increments on every
+      // play AND pass (never resets between tricks). Fixes the collision when
+      // gameState.passes (a consecutive-pass counter that resets to 0 after
+      // each play) was used as a uniqueness offset.
+      const playSequence = (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+        ? gameState.total_training_actions : 0) + 1;
 
       const trainingRow = {
         room_id: room.id,
@@ -552,6 +548,10 @@ Deno.serve(async (req) => {
     const turnOrder = [1, 2, 3, 0]; // Next player index for current indices [0, 1, 2, 3]
     const nextTurn = turnOrder[player.player_index];
     
+    // Monotonic action counter for training data play_sequence (never resets between tricks).
+    const totalTrainingActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+      ? gameState.total_training_actions : 0;
+
     // Validate passes with type checking
     const rawPasses = gameState?.passes;
     // Use Number.isFinite in addition to typeof === 'number' to reject NaN, Infinity, and -Infinity,
@@ -605,6 +605,7 @@ Deno.serve(async (req) => {
           passes: 0,
           last_play: null,
           auto_pass_timer: null, // Clear timer after trick completes
+          total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
         .eq('id', gameState.id);
@@ -701,6 +702,7 @@ Deno.serve(async (req) => {
           passes: 0,
           last_play: null,
           auto_pass_timer: null, // Clear timer — trick complete
+          total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
         .eq('id', gameState.id);
@@ -742,6 +744,7 @@ Deno.serve(async (req) => {
         current_turn: nextTurn,
         passes: newPasses,
         // DO NOT touch auto_pass_timer - preserve existing value!
+        total_training_actions: totalTrainingActions + 1,
         updated_at: new Date().toISOString(),
       })
       .eq('id', gameState.id);
