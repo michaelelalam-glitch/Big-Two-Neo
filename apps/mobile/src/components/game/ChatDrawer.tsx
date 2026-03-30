@@ -139,13 +139,17 @@ function ChatDrawerComponent({
       }
       prevIsOpenRef.current = isOpen;
     }
+  }, [isOpen]);
+
+  // Separate empty-dep effect so the unmount flush runs exactly once and
+  // never fires on isOpen changes (avoids duplicate featureDurationEnd on close).
+  useEffect(() => {
     return () => {
-      // Flush chat duration if component unmounts while chat is open
       if (prevIsOpenRef.current) {
         featureDurationEnd('chat', 'chat_session_duration');
       }
     };
-  }, [isOpen]);
+  }, []);
 
   // Auto-focus the text input once the open animation completes (Copilot
   // PR-150 r2950333902 — use inputRef intentionally).
