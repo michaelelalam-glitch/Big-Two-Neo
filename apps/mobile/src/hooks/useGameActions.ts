@@ -41,6 +41,9 @@ interface MultiplayerValidationState {
   playerHand: Card[];
 }
 
+/** Differentiates game modes for analytics events. */
+export type GameMode = 'offline' | 'online_ranked' | 'online_casual' | 'online_private';
+
 interface UseGameActionsOptions {
   isLocalAIGame: boolean;
   gameManagerRef: React.RefObject<GameManagerLike | null>;
@@ -58,6 +61,12 @@ interface UseGameActionsOptions {
    * When provided, pass { title, message } to match showError title parity.
    */
   onAlert?: (options: { title?: string; message: string }) => void;
+  /**
+   * Game mode for analytics differentiation.
+   * 'offline' for local AI games; 'online_ranked'|'online_casual'|'online_private' for multiplayer.
+   * Defaults to 'offline' when not provided.
+   */
+  gameMode?: GameMode;
 }
 
 export function useGameActions({
@@ -70,7 +79,9 @@ export function useGameActions({
   isMountedRef,
   getMultiplayerValidationState,
   onAlert,
+  gameMode,
 }: UseGameActionsOptions) {
+  const resolvedGameMode: GameMode = gameMode ?? (isLocalAIGame ? 'offline' : 'online_casual');
   // Task #568: Separate refs to prevent cross-operation blocking
   const isPlayingCardsRef = useRef(false);
   const isPassingRef = useRef(false);
@@ -437,9 +448,16 @@ export function useGameActions({
       cancelText: i18n.t('game.stay'),
       destructive: true,
       onConfirm: () => {
-        trackGameEvent('game_abandoned', { source: 'leave_button' });
-        trackGameEvent('game_not_completed', { reason: 'player_left' });
-        sentryCapture.breadcrumb('Game abandoned', { source: 'leave_button' }, 'game');
+        trackGameEvent('game_abandoned', { source: 'leave_button', game_mode: resolvedGameMode });
+        trackGameEvent('game_not_completed', {
+          reason: 'player_left',
+          game_mode: resolvedGameMode,
+        });
+        sentryCapture.breadcrumb(
+          'Game abandoned',
+          { source: 'leave_button', game_mode: resolvedGameMode },
+          'game'
+        );
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       },
     });

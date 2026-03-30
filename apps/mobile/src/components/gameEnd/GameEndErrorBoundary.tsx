@@ -1,18 +1,19 @@
 /**
  * GameEndErrorBoundary - Error boundary for Game End Modal
  * CRITICAL FIX: Prevents entire game crash if modal encounters an error
- * 
+ *
  * Features:
  * - Catches React errors in Game End components
  * - Shows user-friendly error message
  * - Allows user to retry or dismiss
  * - Logs errors for debugging
- * 
+ *
  * Created: December 16, 2025
  */
 
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { sentryCapture } from '../../services/sentry';
 
 interface Props {
   children: ReactNode;
@@ -48,14 +49,20 @@ export class GameEndErrorBoundary extends Component<Props, State> {
     // Log error to console for debugging
     console.error('❌ [GameEndErrorBoundary] Caught error:', error);
     console.error('📍 [GameEndErrorBoundary] Component stack:', errorInfo.componentStack);
-    
+
     // Update state with error info
     this.setState({
       error,
       errorInfo,
     });
-    
-    // TODO: Send error to logging service (e.g., Sentry)
+
+    // Report to Sentry so crashes in the game-end modal are visible in the dashboard.
+    sentryCapture.exception(error, {
+      context: 'GameEndErrorBoundary',
+      extra: {
+        componentStack: errorInfo.componentStack ?? '',
+      },
+    });
   }
 
   handleReset = () => {
@@ -64,7 +71,7 @@ export class GameEndErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
     });
-    
+
     // Call parent reset callback if provided
     if (this.props.onReset) {
       this.props.onReset();
@@ -81,7 +88,7 @@ export class GameEndErrorBoundary extends Component<Props, State> {
             <Text style={styles.errorMessage}>
               Something went wrong while displaying the game results.
             </Text>
-            
+
             {__DEV__ && this.state.error && (
               <View style={styles.debugInfo}>
                 <Text style={styles.debugTitle}>Debug Info:</Text>
@@ -93,7 +100,7 @@ export class GameEndErrorBoundary extends Component<Props, State> {
                 )}
               </View>
             )}
-            
+
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.retryButton]}
@@ -102,7 +109,7 @@ export class GameEndErrorBoundary extends Component<Props, State> {
               >
                 <Text style={styles.buttonText}>Try Again</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.button, styles.dismissButton]}
                 onPress={() => {

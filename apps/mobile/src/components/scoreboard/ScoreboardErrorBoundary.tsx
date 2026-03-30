@@ -1,20 +1,21 @@
 /**
  * ScoreboardErrorBoundary Component
- * 
+ *
  * Error boundary for scoreboard components with fallback UI
  * Catches rendering errors and prevents scoreboard crashes from affecting the game
- * 
+ *
  * Features:
  * - Graceful error handling with fallback UI
  * - Error logging for debugging
  * - Reset functionality to retry rendering
- * 
+ *
  * Created as part of Task #364: Error handling
  * Date: December 13, 2025
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { sentryCapture } from '../../services/sentry';
 
 // Theme colors for error UI
 const ERROR_COLOR = '#ff6b6b';
@@ -63,8 +64,10 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
-    // In production, you would log to an error reporting service here
-    // Example: logErrorToService(error, errorInfo);
+    sentryCapture.exception(error, {
+      context: 'ScoreboardErrorBoundary',
+      extra: { componentStack: errorInfo.componentStack ?? '' },
+    });
   }
 
   handleReset = (): void => {
@@ -83,7 +86,7 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
 
       // Default fallback UI
       return (
-        <View 
+        <View
           style={styles.errorContainer}
           accessibilityLiveRegion="polite"
           accessibilityRole="alert"
@@ -91,13 +94,9 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
           <View style={styles.errorCard}>
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorTitle}>Scoreboard Error</Text>
-            <Text style={styles.errorMessage}>
-              Unable to display scoreboard data
-            </Text>
+            <Text style={styles.errorMessage}>Unable to display scoreboard data</Text>
             {__DEV__ && this.state.error && (
-              <Text style={styles.errorDetails}>
-                {this.state.error.message}
-              </Text>
+              <Text style={styles.errorDetails}>{this.state.error.message}</Text>
             )}
             <TouchableOpacity
               style={styles.retryButton}

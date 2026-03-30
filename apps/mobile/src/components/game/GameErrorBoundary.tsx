@@ -15,6 +15,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { sentryCapture } from '../../services/sentry';
 
 // ── Theme colors ──────────────────────────────────────────────────────────────
 const ERROR_COLOR = '#ff6b6b';
@@ -52,6 +53,10 @@ class GameErrorBoundaryBase extends Component<BaseProps, State> {
       console.error('[GameErrorBoundary] Error caught:', error);
       console.error('[GameErrorBoundary] Component stack:', errorInfo.componentStack);
     }
+    sentryCapture.exception(error, {
+      context: 'GameErrorBoundary',
+      extra: { componentStack: errorInfo.componentStack ?? '' },
+    });
     this.props.onError?.(error, errorInfo);
   }
 

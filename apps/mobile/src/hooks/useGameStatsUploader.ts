@@ -14,6 +14,7 @@ import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { statsLogger } from '../utils/logger';
 import { sentryCapture } from '../services/sentry';
+import { trackGameEvent } from '../services/analytics';
 import type {
   GameState as MultiplayerGameState,
   Player as MultiplayerPlayer,
@@ -167,6 +168,15 @@ export function useGameStatsUploader({
         statsLogger.info(
           `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
         );
+
+        // Fire Firebase Analytics game_completed event so the dashboard can
+        // break down completions by game mode (online_ranked / online_casual / online_private).
+        const analyticsGameMode = `online_${gameType}` as const;
+        trackGameEvent('game_completed', {
+          game_mode: analyticsGameMode,
+          player_count: multiplayerPlayers.length,
+          bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
+        });
 
         // Get final scores sorted by cumulative score (ascending = best)
         const finalScoresEntries = Object.entries(resolvedFinalScores!)
