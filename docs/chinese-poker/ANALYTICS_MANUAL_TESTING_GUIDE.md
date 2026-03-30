@@ -191,7 +191,7 @@
 | 3 | Check 6 indexes exist | session, combo, bot, outcome, created, player_hash |
 | 4 | Verify RLS is enabled | Only service_role can insert/select |
 
-**Note:** Data population requires a separate edge function update (not included in this PR). The table is ready to receive data.
+**Note:** Data population is included in this PR — the `play-cards` and `player-pass` edge functions now insert a row into `game_hands_training` after each play/pass action. New rows should appear within seconds of completing a multiplayer game action.
 
 ---
 

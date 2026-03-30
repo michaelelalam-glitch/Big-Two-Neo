@@ -554,7 +554,8 @@ export function checkHintFollowed(playedCardIds: string[]): void {
 let _turnStartTime: number | null = null;
 
 export function turnTimeStart(): void {
-  if (!isAnalyticsEnabled()) return;
+  // Always record start time regardless of consent, mirroring screenTimeStart /
+  // featureDurationStart. The consent gate in turnTimeEnd prevents emission.
   _turnStartTime = Date.now();
 }
 
