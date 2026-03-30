@@ -37,7 +37,7 @@ import {
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { submitBugReportWithOptions, isSentryEnabled } from '../services/sentry';
 import type { BugReportCategory } from '../services/sentry';
-import { trackEvent } from '../services/analytics';
+import { trackEvent, trackScreenView } from '../services/analytics';
 import { showSuccess, showError } from '../utils';
 import { getTodayLogFileName } from '../utils/logger';
 import { i18n } from '../i18n';
@@ -81,9 +81,10 @@ export default function BugReportModal({
   useEffect(() => {
     if (visible) {
       openedAtRef.current = Date.now();
+      trackScreenView('BugReportModal');
     } else if (openedAtRef.current > 0) {
       trackEvent('screen_time', {
-        screen: 'bug_report',
+        screen: 'bug_report_modal',
         duration_ms: Date.now() - openedAtRef.current,
       });
       openedAtRef.current = 0;

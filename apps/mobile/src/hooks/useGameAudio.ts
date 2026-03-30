@@ -33,22 +33,41 @@ export function useGameAudio({
   // can be identical across consecutive timers and the effect might not re-run.
   const lastPlayedTimerStartedAtRef = useRef<string | null>(null);
 
-  // Multiplayer match start sound tracking
+  // Match start sound tracking refs — one per game mode to avoid cross-mode bleed.
+  const previousLocalMatchNumberRef = useRef<number | null>(null);
   const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
 
-  // Match start sound: plays on every match_number change for multiplayer.
-  // Fires on 'first_play' phase (cards dealt, ready to lead) OR 'playing'
-  // so the sound plays at the true start of the match, not after the first card.
+  // ── Local AI: match start sound ─────────────────────────────────────────── //
+  // Fires whenever the local game's currentMatch increments (match 1, 2, 3…).
+  // Uses explicit primitive dep (currentMatch) rather than the full gameState
+  // object so React always re-runs the effect when the match number changes.
+  useEffect(() => {
+    if (!isLocalAIGame || !gameState) return;
+
+    const currentMatch = gameState.currentMatch ?? null;
+    if (currentMatch === null) return;
+
+    if (currentMatch !== previousLocalMatchNumberRef.current) {
+      previousLocalMatchNumberRef.current = currentMatch;
+      soundManager.playSound(SoundType.GAME_START);
+      gameLogger.info(`🎵 [Audio] Match start sound triggered - local AI match ${currentMatch}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit primitive dep
+  }, [isLocalAIGame, gameState?.currentMatch]);
+
+  // ── Multiplayer: match start sound ──────────────────────────────────────── //
+  // Uses explicit primitive deps (match_number + game_phase) so React reliably
+  // re-runs the effect on each Supabase update, even if the object reference
+  // is sometimes reused. Fires for first_play, playing, and dealing phases to
+  // ensure the sound lands when new cards are dealt.
   useEffect(() => {
     if (!isMultiplayerGame || !multiplayerGameState) return;
 
-    const currentMatchNumber = multiplayerGameState?.match_number ?? null;
-    const gamePhase = multiplayerGameState?.game_phase;
+    const currentMatchNumber = multiplayerGameState.match_number ?? null;
+    const gamePhase = multiplayerGameState.game_phase;
 
-    // Allow first_play (very start of each match) in addition to playing.
-    // This ensures the sound fires when cards are dealt rather than waiting
-    // for the first card to be played (which transitions to 'playing').
-    if (gamePhase !== 'playing' && gamePhase !== 'first_play') return;
+    // first_play = cards just dealt, playing = first card played, dealing = dealing
+    if (gamePhase !== 'playing' && gamePhase !== 'first_play' && gamePhase !== 'dealing') return;
 
     if (
       currentMatchNumber !== null &&
@@ -60,9 +79,10 @@ export function useGameAudio({
         `🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber} (phase=${gamePhase})`
       );
     }
-  }, [isMultiplayerGame, multiplayerGameState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit primitive deps
+  }, [isMultiplayerGame, multiplayerGameState?.match_number, multiplayerGameState?.game_phase]);
 
-  // Auto-pass timer: highest card sound + progressive countdown haptics
+  // ── Auto-pass timer: highest card sound + progressive countdown haptics ─── //
   useEffect(() => {
     const effectiveGameState = isLocalAIGame ? gameState : multiplayerGameState;
     const timerState = effectiveGameState?.auto_pass_timer;
