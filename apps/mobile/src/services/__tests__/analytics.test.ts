@@ -471,7 +471,7 @@ describe('screenTimeStart / screenTimeEnd', () => {
       events: Array<{ name: string; params: Record<string, unknown> }>;
     };
     expect(body.events[0].name).toBe('screen_time');
-    expect(body.events[0].params.firebase_screen).toBe('Game');
+    expect(body.events[0].params.screen_name).toBe('Game');
     expect(body.events[0].params.duration_seconds).toBe(4);
     nowSpy.mockRestore();
   });
