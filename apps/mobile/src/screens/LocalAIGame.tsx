@@ -175,7 +175,7 @@ export function LocalAIGame() {
     const currentGameOver = gameState.gameOver;
     prevGameOverRef.current = currentGameOver;
 
-    // Detect "Play Again": gameOver transitioned from true → false with players populated.
+    // Detect "Play Again": gameOver transitioned from true → false.
     // Reset tracking refs so the new game records its own events.
     if (prevGameOver === true && !currentGameOver) {
       hasTrackedOfflineStartRef.current = false;

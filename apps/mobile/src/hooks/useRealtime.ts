@@ -95,8 +95,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // game_state still reports game_phase = 'game_over'. Without this exemption,
   // isDataReady would flip back to false, isInitializing becomes true, and the
   // GameEndModal (mounted under {!isInitializing}) is unmounted before it can show.
-  const isGameTerminal =
-    gameState?.game_phase === 'game_over' || gameState?.game_phase === 'finished';
+  const isGameTerminal = gameState?.game_phase === 'game_over';
   const isDataReady =
     !loading &&
     !!gameState &&

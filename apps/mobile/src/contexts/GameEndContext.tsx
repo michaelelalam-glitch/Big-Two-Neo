@@ -19,7 +19,7 @@ import type {
   PlayHistoryMatch as ScoreboardPlayHistory,
 } from '../types/scoreboard';
 import { gameLogger } from '../utils/logger';
-import { trackEvent } from '../services/analytics';
+import { trackScreenView } from '../services/analytics';
 
 // ============================================================================
 // CONTEXT STATE INTERFACE
@@ -212,7 +212,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
       setShowGameEndModal(true);
 
       // Track that the game end screen was shown so we can correlate completions with modal views.
-      trackEvent('screen_view', { screen_name: 'GameEndModal', screen_class: 'GameEndModal' });
+      trackScreenView('GameEndModal');
 
       gameLogger.info('✅ [GameEndContext] State updated, modal opening with valid data');
     },
