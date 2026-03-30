@@ -509,8 +509,7 @@ export function MultiplayerGame() {
         hasTrackedGameStartRef.current = false;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiplayerGameState?.game_phase]);
+  }, [multiplayerGameState?.game_phase, roomInfo, multiplayerPlayers]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
@@ -1034,11 +1033,13 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
-    gameMode: roomInfo?.ranked_mode
-      ? 'online_ranked'
-      : roomInfo?.is_public
-        ? 'online_casual'
-        : 'online_private',
+    gameMode: roomInfo
+      ? roomInfo.ranked_mode
+        ? 'online_ranked'
+        : roomInfo.is_public
+          ? 'online_casual'
+          : 'online_private'
+      : undefined,
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────

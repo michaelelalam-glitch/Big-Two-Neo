@@ -165,11 +165,24 @@ export function LocalAIGame() {
   // ── Offline game analytics ───────────────────────────────────────────────
   // Track game_started once when the local AI game begins (phase != 'waiting'),
   // and game_completed once when gameState.gameOver becomes true.
+  // Refs are reset when a new game starts (Play Again: gameOver goes false with players populated).
   const hasTrackedOfflineStartRef = useRef(false);
   const hasTrackedOfflineCompleteRef = useRef(false);
+  const prevGameOverRef = useRef<boolean | undefined>(undefined);
   useEffect(() => {
     if (!gameState) return;
-    if (!hasTrackedOfflineStartRef.current && !gameState.gameOver) {
+    const prevGameOver = prevGameOverRef.current;
+    const currentGameOver = gameState.gameOver;
+    prevGameOverRef.current = currentGameOver;
+
+    // Detect "Play Again": gameOver transitioned from true → false with players populated.
+    // Reset tracking refs so the new game records its own events.
+    if (prevGameOver === true && !currentGameOver) {
+      hasTrackedOfflineStartRef.current = false;
+      hasTrackedOfflineCompleteRef.current = false;
+    }
+
+    if (!hasTrackedOfflineStartRef.current && !currentGameOver) {
       // gameState.players being populated means the game has been dealt
       const playerCount = Object.keys(gameState.players ?? {}).length;
       if (playerCount > 0) {
@@ -181,7 +194,7 @@ export function LocalAIGame() {
         });
       }
     }
-    if (!hasTrackedOfflineCompleteRef.current && gameState.gameOver) {
+    if (!hasTrackedOfflineCompleteRef.current && currentGameOver) {
       hasTrackedOfflineCompleteRef.current = true;
       trackGameEvent('game_completed', {
         game_mode: 'offline',

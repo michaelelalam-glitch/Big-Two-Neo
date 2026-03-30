@@ -64,7 +64,7 @@ interface UseGameActionsOptions {
   /**
    * Game mode for analytics differentiation.
    * 'offline' for local AI games; 'online_ranked'|'online_casual'|'online_private' for multiplayer.
-   * Defaults to 'offline' when not provided.
+   * If omitted, local AI games default to 'offline' and multiplayer games default to 'online_casual'.
    */
   gameMode?: GameMode;
 }
