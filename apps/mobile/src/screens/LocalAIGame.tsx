@@ -163,9 +163,9 @@ export function LocalAIGame() {
   });
 
   // ── Offline game analytics ───────────────────────────────────────────────
-  // Track game_started once when the local AI game begins (phase != 'waiting'),
-  // and game_completed once when gameState.gameOver becomes true.
-  // Refs are reset when a new game starts (Play Again: gameOver goes false with players populated).
+  // Track game_started once when playerCount > 0 and the game hasn't ended.
+  // Track game_completed once when gameState.gameOver becomes true.
+  // Refs are reset when gameOver transitions from true → false (Play Again).
   const hasTrackedOfflineStartRef = useRef(false);
   const hasTrackedOfflineCompleteRef = useRef(false);
   const prevGameOverRef = useRef<boolean | undefined>(undefined);

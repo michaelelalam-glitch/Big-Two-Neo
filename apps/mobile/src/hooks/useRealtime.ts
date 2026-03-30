@@ -90,7 +90,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
   // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data.
   // NOTE: We intentionally do NOT require roomPlayers.length > 0 once the game has
-  // reached a terminal phase ('game_over' / 'finished'). When complete-game runs it
+  // reached the terminal phase ('game_over'). When complete-game runs it
   // deletes room_players as part of cleanup; that Realtime event arrives while
   // game_state still reports game_phase = 'game_over'. Without this exemption,
   // isDataReady would flip back to false, isInitializing becomes true, and the
