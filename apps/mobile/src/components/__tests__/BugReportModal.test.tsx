@@ -20,6 +20,7 @@ jest.mock('../../services/sentry', () => ({
 
 jest.mock('../../services/analytics', () => ({
   trackEvent: jest.fn(),
+  trackScreenView: jest.fn(),
 }));
 
 jest.mock('../../utils', () => ({
