@@ -10,6 +10,7 @@ import {
   sentryCapture,
   withSentryBoundary,
   submitBugReport,
+  submitBugReportWithOptions,
   reportMissingTranslation,
 } from '../../services/sentry';
 
@@ -225,6 +226,117 @@ describe('submitBugReport', () => {
           expect.objectContaining({
             message: 'Minimal bug report',
           })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+});
+
+// ─── submitBugReportWithOptions ────────────────────────────────────────────── //
+
+describe('submitBugReportWithOptions', () => {
+  it('does nothing when Sentry is not initialized', () => {
+    jest.isolateModules(() => {
+      clearDsn();
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { submitBugReportWithOptions: submit } =
+        require('../../services/sentry') as typeof import('../../services/sentry');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+      submit({ description: 'test', category: 'Bug' });
+      expect(MockSentry.withScope).not.toHaveBeenCalled();
+    });
+  });
+
+  it('calls withScope, captureMessage, and captureFeedback when initialized', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, submitBugReportWithOptions: submit } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        submit({
+          description: 'App crashes on startup',
+          category: 'Bug',
+          email: 'user@test.com',
+          name: 'TestUser',
+        });
+        expect(MockSentry.withScope).toHaveBeenCalled();
+        expect(MockSentry.captureMessage).toHaveBeenCalledWith(
+          '[Bug] Bug Report',
+          expect.objectContaining({ level: 'info' })
+        );
+        expect((MockSentry as any).captureFeedback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining('App crashes on startup'),
+            email: 'user@test.com',
+            name: 'TestUser',
+          })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+
+  it('attaches screenshot with correct filename/contentType for JPEG', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, submitBugReportWithOptions: submit } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        const Scope = (MockSentry as any).Scope;
+        const scopeInstance = new Scope();
+        (MockSentry.withScope as jest.Mock).mockImplementationOnce(
+          (cb: (s: typeof scopeInstance) => void) => cb(scopeInstance)
+        );
+        submit({
+          description: 'Screenshot test',
+          category: 'Bug',
+          screenshotBase64: 'base64data',
+          screenshotMimeType: 'image/jpeg',
+        });
+        expect(scopeInstance.addAttachment).toHaveBeenCalledWith(
+          expect.objectContaining({ filename: 'screenshot.jpg', contentType: 'image/jpeg' })
+        );
+      } finally {
+        delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+      }
+    });
+  });
+
+  it('attaches screenshot with PNG filename/contentType for image/png', () => {
+    jest.isolateModules(() => {
+      process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { initSentry: init, submitBugReportWithOptions: submit } =
+          require('../../services/sentry') as typeof import('../../services/sentry');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const MockSentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+        init();
+        const Scope = (MockSentry as any).Scope;
+        const scopeInstance = new Scope();
+        (MockSentry.withScope as jest.Mock).mockImplementationOnce(
+          (cb: (s: typeof scopeInstance) => void) => cb(scopeInstance)
+        );
+        submit({
+          description: 'PNG screenshot test',
+          category: 'Bug',
+          screenshotBase64: 'base64data',
+          screenshotMimeType: 'image/png',
+        });
+        expect(scopeInstance.addAttachment).toHaveBeenCalledWith(
+          expect.objectContaining({ filename: 'screenshot.png', contentType: 'image/png' })
         );
       } finally {
         delete process.env.EXPO_PUBLIC_SENTRY_DSN;
