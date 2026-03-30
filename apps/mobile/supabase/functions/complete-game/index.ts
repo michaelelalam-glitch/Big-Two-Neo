@@ -569,11 +569,14 @@ Deno.serve(async (req) => {
             combinedErrorText.includes('unique constraint') ||
             combinedErrorText.includes('already exists')));
       // Match when: (a) Postgres code '23505' + constraint text confirms room_id,
-      // OR (b) no errorCode (proxy/HTTP-level wrapping, Deno edge runtime) but
+      // OR (b) HTTP/proxy-level conflict code '409' + constraint text confirms
+      // room_id (PostgREST proxies sometimes surface uniqueness as 409),
+      // OR (c) no errorCode (proxy/HTTP-level wrapping, Deno edge runtime) but
       // constraint text still unambiguously identifies the game_history room_id
       // uniqueness violation — so the race-condition fallback still fires.
       const isDuplicateKeyError =
-        isGameHistoryRoomIdConstraint && (errorCode === '23505' || errorCode == null);
+        isGameHistoryRoomIdConstraint &&
+        (errorCode === '23505' || errorCode === '409' || errorCode == null);
       if (isDuplicateKeyError) {
         // Race-condition duplicate: another caller's INSERT committed between our
         // SELECT check and this INSERT. The winning caller may not have applied
