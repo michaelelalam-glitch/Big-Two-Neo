@@ -1404,22 +1404,29 @@ Deno.serve(async (req) => {
           _cachedPlayerHash(playerHash, stableId);
         }
 
-        const opponentHandSizes: Record<string, number> = {};
+        // opponent_hand_sizes: 4-element array indexed by player seat.
+        // Own seat is null (not an opponent); the three opponent slots hold
+        // the number of cards each opponent has after this play.
+        const opponentHandSizes: (number | null)[] = [null, null, null, null];
         for (const idx of [0, 1, 2, 3]) {
           if (idx !== player.player_index) {
             const h = updatedHands[idx];
-            opponentHandSizes[String(idx)] = Array.isArray(h) ? h.length : 0;
+            opponentHandSizes[idx] = Array.isArray(h) ? h.length : 0;
           }
         }
         const totalCardsRemaining = Object.values(updatedHands as Record<string, unknown[]>)
           .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
 
-        // play_sequence is 1-based count of plays in THIS round/match. play_history is
-        // cumulative across all rounds, so filter to the current match_number.
+        // play_sequence: 1-based count of ALL actions (plays + passes) in this
+        // match. play_history only tracks actual plays; passes are NOT in it.
+        // Add passesBeforeThisPlay (= gameState.passes, which is reset to 0
+        // after every play) to produce a unique sequence number that accounts
+        // for passes that occurred since the last trick-clearing play.
         const currentMatchNumber = gameState.match_number || 1;
+        const passesBeforeThisPlay = typeof gameState.passes === 'number' ? gameState.passes : 0;
         const playSequence = Array.isArray(gameState.play_history)
           ? (gameState.play_history as Array<{ match_number?: number }>)
-              .filter(p => (p.match_number ?? 1) === currentMatchNumber).length + 1
+              .filter(p => (p.match_number ?? 1) === currentMatchNumber).length + passesBeforeThisPlay + 1
           : 1;
 
         // is_first_play_of_round: no last_play (trick was just won or game start).

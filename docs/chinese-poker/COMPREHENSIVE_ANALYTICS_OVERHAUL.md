@@ -135,7 +135,8 @@
 ## 4. Supabase: game_hands_training Table
 
 **Project:** `dppybucldqufbqhwnkxu` (big2-mobile-backend)  
-**Migration:** [`migrations/20260717000000_create_game_hands_training.sql`](apps/mobile/migrations/20260717000000_create_game_hands_training.sql)
+**Migration (authoritative):** [`supabase/migrations/20260718000002_create_game_hands_training.sql`](apps/mobile/supabase/migrations/20260718000002_create_game_hands_training.sql)  
+_(Legacy path `apps/mobile/migrations/20260717000000_create_game_hands_training.sql` is historical only — use the Supabase migrations path above for all deployments.)_
 
 ### Schema (30 columns)
 

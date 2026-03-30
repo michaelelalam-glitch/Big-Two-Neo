@@ -49,11 +49,14 @@ async function fireTrainingPassInsert(
       const playerHandRaw = currentHands[player.player_index] || [];
       const playerHand = Array.isArray(playerHandRaw) ? (playerHandRaw as unknown[]) : [];
 
-      const opponentHandSizes: Record<string, number> = {};
+      // opponent_hand_sizes: 4-element array indexed by player seat.
+      // Own seat is null (not an opponent); the three opponent slots hold
+      // the number of cards each opponent currently holds.
+      const opponentHandSizes: (number | null)[] = [null, null, null, null];
       for (const idx of [0, 1, 2, 3]) {
         if (idx !== player.player_index) {
           const h = currentHands[idx];
-          opponentHandSizes[String(idx)] = Array.isArray(h) ? (h as unknown[]).length : 0;
+          opponentHandSizes[idx] = Array.isArray(h) ? (h as unknown[]).length : 0;
         }
       }
       const totalCardsRemaining = Object.values(currentHands as Record<string, unknown[]>)
@@ -61,10 +64,16 @@ async function fireTrainingPassInsert(
 
       const currentMatchNumber = (gameState.match_number as number) || 1;
       const playHistory = Array.isArray(gameState.play_history) ? gameState.play_history : [];
+      // play_sequence: 1-based count of ALL actions (plays + passes) in this
+      // match. play_history only tracks actual plays, so passes are NOT in it.
+      // Add passesBeforeThis (= gameState.passes, the consecutive-pass counter
+      // before this pass fires) to produce a unique, monotonically-increasing
+      // sequence number for every decision made within the round.
+      const passesBeforeThis = (gameState.passes as number) || 0;
       const playSequence =
         (playHistory as Array<{ match_number?: number }>).filter(
           p => (p.match_number ?? 1) === currentMatchNumber
-        ).length + 1;
+        ).length + passesBeforeThis + 1;
 
       const trainingRow = {
         room_id: room.id,

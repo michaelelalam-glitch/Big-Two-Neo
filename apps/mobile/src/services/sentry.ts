@@ -95,9 +95,9 @@ export function initSentry(): void {
       // Enable performance tracing for React Native (navigation, network, etc.)
       integrations: [Sentry.reactNativeTracingIntegration()],
 
-      // Session Replay: allow it to run in simulator/emulator environments.
-      // Without this, Sentry disables it with "Detected environment potentially
-      // causing PII leaks" on every dev launch, generating a red console error.
+      // Session Replay: disabled in dev (both rates = 0) to prevent the
+      // "Detected environment potentially causing PII leaks" red console error
+      // on every dev/simulator launch. Enabled on error only in production.
       _experiments: {
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: __DEV__ ? 0 : 1.0,

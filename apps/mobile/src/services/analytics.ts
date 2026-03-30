@@ -49,7 +49,7 @@ const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
  * i18n has initialized (per the app's privacy policy). If GDPR opt-in is
  * required, gate that call on a persisted user preference.
  */
-let consentGiven = true;
+let consentGiven = false;
 
 // ─── Types ────────────────────────────────────────────────────────────────── //
 
