@@ -478,6 +478,19 @@ export function MultiplayerGame() {
     isHostRef.current = isMultiplayerHost;
   }, [isMultiplayerHost]);
 
+  // Derive game mode once so it is consistent across analytics events and useGameActions.
+  const gameMode = useMemo<GameMode | undefined>(
+    () =>
+      roomInfo
+        ? roomInfo.ranked_mode
+          ? 'online_ranked'
+          : roomInfo.is_public
+            ? 'online_casual'
+            : 'online_private'
+        : undefined,
+    [roomInfo]
+  );
+
   // Track when game starts (for duration calculation) and fire Firebase game_started event.
   // Placed after useRealtime so multiplayerGameState is already declared.
   const hasTrackedGameStartRef = useRef(false);
@@ -490,15 +503,10 @@ export function MultiplayerGame() {
         setGameStartedAt(new Date().toISOString());
       }
       // Fire Firebase game_started once per game session.
-      if (!hasTrackedGameStartRef.current && roomInfo) {
+      if (!hasTrackedGameStartRef.current && gameMode) {
         hasTrackedGameStartRef.current = true;
-        const gm: GameMode = roomInfo.ranked_mode
-          ? 'online_ranked'
-          : roomInfo.is_public
-            ? 'online_casual'
-            : 'online_private';
         trackGameEvent('game_started', {
-          game_mode: gm,
+          game_mode: gameMode,
           player_count: multiplayerPlayers.length,
           bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
         });
@@ -509,7 +517,7 @@ export function MultiplayerGame() {
         hasTrackedGameStartRef.current = false;
       }
     }
-  }, [multiplayerGameState?.game_phase, roomInfo, multiplayerPlayers]);
+  }, [multiplayerGameState?.game_phase, gameMode, multiplayerPlayers]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
@@ -1033,13 +1041,7 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
-    gameMode: roomInfo
-      ? roomInfo.ranked_mode
-        ? 'online_ranked'
-        : roomInfo.is_public
-          ? 'online_casual'
-          : 'online_private'
-      : undefined,
+    gameMode,
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
