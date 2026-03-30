@@ -399,8 +399,10 @@ export function useGameStatsUploader({
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
+        // Wrap non-Error throws so Sentry records a useful stack trace.
+        const errorForSentry = err instanceof Error ? err : new Error(String(err));
         statsLogger.error('❌ [GameStats] Exception uploading stats:', msg);
-        sentryCapture.exception(err, {
+        sentryCapture.exception(errorForSentry, {
           context: 'GameStatsUploader',
           extra: { msg },
         });

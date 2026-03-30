@@ -558,11 +558,17 @@ Deno.serve(async (req) => {
       // level 409 from some proxy configurations, or the code may arrive as an
       // integer rather than string in rare Deno edge-runtime builds).
       const errorCode = historyError.code != null ? String(historyError.code) : undefined;
-      const isDuplicateKeyError =
-        errorCode === '23505' ||
-        historyError.message?.includes('duplicate key') ||
-        historyError.message?.includes('unique constraint') ||
-        historyError.details?.includes('already exists');
+      // Only treat unique violations on the game_history.room_id constraint as
+      // race-condition duplicates. This avoids masking other uniqueness bugs.
+      const combinedErrorText = `${historyError.message ?? ''} ${historyError.details ?? ''}`.toLowerCase();
+      const isGameHistoryRoomIdConstraint =
+        combinedErrorText.includes('game_history_room_id_key') ||
+        (combinedErrorText.includes('game_history') && combinedErrorText.includes('(room_id)')) ||
+        (combinedErrorText.includes('room_id') &&
+          (combinedErrorText.includes('duplicate key') ||
+            combinedErrorText.includes('unique constraint') ||
+            combinedErrorText.includes('already exists')));
+      const isDuplicateKeyError = errorCode === '23505' && isGameHistoryRoomIdConstraint;
       if (isDuplicateKeyError) {
         // Race-condition duplicate: another caller's INSERT committed between our
         // SELECT check and this INSERT. The winning caller may not have applied

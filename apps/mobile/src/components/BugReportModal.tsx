@@ -22,6 +22,10 @@ import {
   Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+// expo-file-system/legacy is used intentionally: the named exports
+// (documentDirectory, getInfoAsync, readAsStringAsync, EncodingType) exist
+// only in the legacy API. The non-legacy path exposes a class-based API
+// (Paths.document, File) that would require a separate, larger refactor.
 import {
   documentDirectory,
   getInfoAsync,
@@ -29,16 +33,18 @@ import {
   EncodingType,
 } from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import { submitBugReportWithOptions, isSentryEnabled } from '../services/sentry';
+import { submitBugReportWithOptions, isSentryEnabled, BugReportCategory } from '../services/sentry';
 import { trackEvent } from '../services/analytics';
 import { showSuccess, showError } from '../utils';
+import { getTodayLogFileName } from '../utils/logger';
 import { i18n } from '../i18n';
 
 const t = (key: string) => i18n.t(key);
 
 // ─── Constants ────────────────────────────────────────────────────────────── //
 
-export type BugCategory = 'Bug' | 'Suggestion' | 'Performance' | 'Crash' | 'Other';
+/** Alias for the canonical BugReportCategory type defined in sentry.ts. */
+export type BugCategory = BugReportCategory;
 
 const CATEGORIES: BugCategory[] = ['Bug', 'Suggestion', 'Performance', 'Crash', 'Other'];
 
@@ -98,9 +104,9 @@ export default function BugReportModal({
   const readTodayLog = async (): Promise<string | null> => {
     try {
       if (!documentDirectory) return null;
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const logPath = `${documentDirectory}app_logs_${dateStr}.log`;
+      // Use the centralised helper so the filename format stays in sync with
+      // the production logger transport (react-native-logs {date-today}).
+      const logPath = `${documentDirectory}${getTodayLogFileName()}`;
       const info = await getInfoAsync(logPath);
       if (!info.exists) return null;
       // Read last 50 KB without loading the entire file into memory
