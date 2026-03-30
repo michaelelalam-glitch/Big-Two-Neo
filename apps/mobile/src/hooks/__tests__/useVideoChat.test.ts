@@ -1324,17 +1324,17 @@ describe('useVideoChat — toggleVideoChat voice-only → video upgrade', () => 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 4 — iOS permission UX (Camera.requestCameraPermissionsAsync + Audio.requestPermissionsAsync)
+// Phase 4 — iOS permission UX (Camera.requestCameraPermissionsAsync + expo-audio permission APIs)
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — Phase 4 iOS permission UX', () => {
   // Lazily import the mocks so Jest resolves them through moduleNameMapper
   // (expo-camera → src/__tests__/__mocks__/expo-camera.ts,
-  //  expo-av     → src/__tests__/__mocks__/expo-av.ts).
+  //  expo-audio  → src/__tests__/__mocks__/expo-audio.ts).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Camera } = require('expo-camera') as typeof import('expo-camera');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Audio } = require('expo-av') as typeof import('expo-av');
+  const expoAudio = require('expo-audio') as typeof import('expo-audio');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Alert } = require('react-native') as typeof import('react-native');
 
@@ -1425,7 +1425,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
   // -- requestMicPermission on iOS --
 
   it('returns "granted" directly when mic permission is already granted (iOS)', async () => {
-    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'granted',
       canAskAgain: true,
       expires: 'never',
@@ -1440,18 +1440,18 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     });
 
     expect(status).toBe('granted');
-    expect(Audio.getPermissionsAsync).toHaveBeenCalledTimes(1);
-    expect(Audio.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(expoAudio.getRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(expoAudio.requestRecordingPermissionsAsync).not.toHaveBeenCalled();
   });
 
   it('calls requestPermissionsAsync when mic is undetermined (iOS)', async () => {
-    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'undetermined',
       canAskAgain: true,
       expires: 'never',
       granted: false,
     });
-    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'granted',
       canAskAgain: true,
       expires: 'never',
@@ -1466,18 +1466,18 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     });
 
     expect(status).toBe('granted');
-    expect(Audio.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(expoAudio.requestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(result.current.micPermissionStatus).toBe('granted');
   });
 
   it('maps "restricted" when canAskAgain is false from requestPermissionsAsync (iOS)', async () => {
-    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'undetermined',
       canAskAgain: true,
       expires: 'never',
       granted: false,
     });
-    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'denied',
       canAskAgain: false,
       expires: 'never',
@@ -1515,7 +1515,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     });
     // Mic should not be called
     jest
-      .spyOn(Audio, 'getPermissionsAsync')
+      .spyOn(expoAudio, 'getRecordingPermissionsAsync')
       .mockResolvedValue({ status: 'granted', canAskAgain: true, expires: 'never', granted: true });
 
     const connectSpy = jest.fn().mockResolvedValue(undefined);
@@ -1548,13 +1548,13 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       granted: true,
     });
     // Mic: denied
-    jest.spyOn(Audio, 'getPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'undetermined',
       canAskAgain: true,
       expires: 'never',
       granted: false,
     });
-    jest.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValueOnce({
+    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
       status: 'denied',
       canAskAgain: false,
       expires: 'never',

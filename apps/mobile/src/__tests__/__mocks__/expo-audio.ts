@@ -34,10 +34,20 @@ export const useAudioPlayer = jest.fn(() => createMockPlayer());
 
 export const AudioPlayer = jest.fn(() => createMockPlayer());
 
+// Permission APIs (replacement for expo-av Audio.getPermissionsAsync / Audio.requestPermissionsAsync)
+export const getRecordingPermissionsAsync = jest.fn(() =>
+  Promise.resolve({ status: 'granted', canAskAgain: true, expires: 'never', granted: true })
+);
+export const requestRecordingPermissionsAsync = jest.fn(() =>
+  Promise.resolve({ status: 'granted', canAskAgain: true, expires: 'never', granted: true })
+);
+
 export default {
   createAudioPlayer,
   setAudioModeAsync,
   setIsAudioActiveAsync,
   useAudioPlayer,
   AudioPlayer,
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
 };
