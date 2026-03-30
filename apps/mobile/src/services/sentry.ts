@@ -313,9 +313,17 @@ export function submitBugReport(description: string, email?: string, name?: stri
 
 // ─── Enhanced bug report ───────────────────────────────────────────────────── //
 
+/**
+ * Union of the supported bug-report categories.
+ * Shared between BugReportModal and submitBugReportWithOptions so the
+ * type is the single source of truth and cannot drift between producer
+ * and consumer.
+ */
+export type BugReportCategory = 'Bug' | 'Suggestion' | 'Performance' | 'Crash' | 'Other';
+
 export interface BugReportOptions {
   description: string;
-  category: string;
+  category: BugReportCategory;
   email?: string;
   name?: string;
   /** Base64-encoded screenshot image data (JPEG or PNG). */
