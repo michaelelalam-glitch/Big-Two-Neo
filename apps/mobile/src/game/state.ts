@@ -981,13 +981,17 @@ export class GameStateManager {
         triggering_play: this.state!.lastPlay,
         player_id: player.id, // Track who triggered the timer
       };
-      // Play highest card sound immediately — useGameAudio also fires via
-      // auto_pass_timer.active, but for match-winning plays the timer may be
-      // cleared before the next render, so we play the sound here directly.
-      soundManager.playSound(SoundType.HIGHEST_CARD);
-      gameLogger.info(
-        '🎵 [Audio] Highest card sound triggered from local state (highest play detected)'
-      );
+      // Only fire here for match-winning plays (player used last card): handleMatchEnd
+      // will clear auto_pass_timer synchronously before React renders, so useGameAudio
+      // never observes the active state and the sound would be missed without this call.
+      // For non-terminal highest plays, useGameAudio fires via auto_pass_timer.active,
+      // so we skip here to avoid double-playing.
+      if (player.hand.length === 0) {
+        soundManager.playSound(SoundType.HIGHEST_CARD);
+        gameLogger.info(
+          '🎵 [Audio] Highest card sound triggered from local state (match-winning play)'
+        );
+      }
     } else {
       // Clear timer if it was active
       // Note: If highest play was made, no one can beat it, so this should never trigger

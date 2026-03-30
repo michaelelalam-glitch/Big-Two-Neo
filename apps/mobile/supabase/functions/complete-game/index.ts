@@ -557,8 +557,9 @@ Deno.serve(async (req) => {
       // PostgREST occasionally wraps the Postgres error differently (e.g. HTTP-
       // level 409 from some proxy configurations, or the code may arrive as an
       // integer rather than string in rare Deno edge-runtime builds).
+      const errorCode = historyError.code != null ? String(historyError.code) : undefined;
       const isDuplicateKeyError =
-        historyError.code === '23505' ||
+        errorCode === '23505' ||
         historyError.message?.includes('duplicate key') ||
         historyError.message?.includes('unique constraint') ||
         historyError.details?.includes('already exists');

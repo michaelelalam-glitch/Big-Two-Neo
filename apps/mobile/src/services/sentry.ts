@@ -318,8 +318,14 @@ export interface BugReportOptions {
   category: string;
   email?: string;
   name?: string;
-  /** Base64-encoded JPEG/PNG screenshot image data. */
+  /** Base64-encoded screenshot image data (JPEG or PNG). */
   screenshotBase64?: string;
+  /**
+   * MIME type of the screenshot (e.g. 'image/jpeg', 'image/png').
+   * Used to set the correct filename and contentType on the Sentry attachment.
+   * Defaults to 'image/jpeg' when absent.
+   */
+  screenshotMimeType?: string;
   /** Tail of the on-device console log file to include as an attachment. */
   consoleLog?: string;
 }
@@ -341,10 +347,12 @@ export function submitBugReportWithOptions(opts: BugReportOptions): void {
     scope.setTag('bug_category', opts.category);
 
     if (opts.screenshotBase64) {
+      const mime = opts.screenshotMimeType ?? 'image/jpeg';
+      const ext = mime === 'image/png' ? 'png' : 'jpg';
       scope.addAttachment({
-        filename: 'screenshot.jpg',
+        filename: `screenshot.${ext}`,
         data: opts.screenshotBase64,
-        contentType: 'image/jpeg',
+        contentType: mime,
       });
     }
 

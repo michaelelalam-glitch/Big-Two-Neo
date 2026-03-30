@@ -63,6 +63,7 @@ export default function BugReportModal({
   const [description, setDescription] = useState('');
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [screenshotMimeType, setScreenshotMimeType] = useState<string | null>(null);
   const [includeLog, setIncludeLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -84,12 +85,14 @@ export default function BugReportModal({
       const asset = result.assets[0];
       setScreenshotUri(asset.uri);
       setScreenshotBase64(asset.base64 ?? null);
+      setScreenshotMimeType(asset.mimeType ?? null);
     }
   };
 
   const handleRemoveScreenshot = () => {
     setScreenshotUri(null);
     setScreenshotBase64(null);
+    setScreenshotMimeType(null);
   };
 
   const readTodayLog = async (): Promise<string | null> => {
@@ -100,9 +103,21 @@ export default function BugReportModal({
       const logPath = `${documentDirectory}app_logs_${dateStr}.log`;
       const info = await getInfoAsync(logPath);
       if (!info.exists) return null;
-      // Read last 50 KB to stay within reason
-      const content = await readAsStringAsync(logPath, { encoding: EncodingType.UTF8 });
-      return content.length > 51200 ? content.slice(-51200) : content;
+      // Read last 50 KB without loading the entire file into memory
+      const maxBytes = 51200;
+      const fileSize =
+        typeof (info as { size?: number }).size === 'number'
+          ? (info as { size?: number }).size!
+          : undefined;
+      if (fileSize && fileSize > maxBytes) {
+        const start = fileSize - maxBytes;
+        return await readAsStringAsync(logPath, {
+          position: start,
+          length: maxBytes,
+          encoding: EncodingType.UTF8,
+        } as Parameters<typeof readAsStringAsync>[1]);
+      }
+      return await readAsStringAsync(logPath, { encoding: EncodingType.UTF8 });
     } catch {
       return null;
     }
@@ -131,6 +146,7 @@ export default function BugReportModal({
         email: userEmail,
         name: userName,
         screenshotBase64: screenshotBase64 ?? undefined,
+        screenshotMimeType: screenshotMimeType ?? undefined,
         consoleLog,
       });
 
@@ -153,6 +169,7 @@ export default function BugReportModal({
     setDescription('');
     setScreenshotUri(null);
     setScreenshotBase64(null);
+    setScreenshotMimeType(null);
     setIncludeLog(false);
     onClose();
   };
