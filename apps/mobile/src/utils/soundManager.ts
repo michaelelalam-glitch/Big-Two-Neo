@@ -170,6 +170,9 @@ class SoundManager {
       const preloaded = this.sounds.get(type);
       if (preloaded) {
         preloaded.volume = this.volume;
+        // Seek back to the start so the sound replays from the beginning,
+        // not from where it last stopped (which would be silent at EOF).
+        preloaded.seekTo(0);
         preloaded.play();
         uiLogger.debug(`[SoundManager] Played preloaded sound: ${type}`);
         return;

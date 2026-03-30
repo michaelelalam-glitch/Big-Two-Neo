@@ -407,10 +407,8 @@ export class GameStateManager {
     this.notifyListeners();
     // C2 fix: start the auto-pass timer only after the game state is ready.
     this.startTimerCountdown();
-    // Play match start sound for the first match (subsequent matches are
-    // handled by startNewMatch() below).
-    soundManager.playSound(SoundType.GAME_START);
-    gameLogger.info('🎵 [Audio] Match start sound triggered - game initialized (match 1)');
+    // Match-start sound is handled by useGameAudio (tracks currentMatch) to
+    // avoid double-playing. Do NOT call soundManager here.
 
     return this.state;
   }
@@ -1618,10 +1616,8 @@ export class GameStateManager {
     gameLogger.info(
       `✅ [New Match] Match ${this.state.currentMatch} started, ${this.state.players[startingPlayerIndex].name} leads`
     );
-
-    // Play match start sound ("here we go again")
-    soundManager.playSound(SoundType.GAME_START);
-    gameLogger.info('🎵 [Audio] Match start sound triggered');
+    // Match-start sound is handled by useGameAudio (tracks currentMatch) to
+    // avoid double-playing. Do NOT call soundManager here.
 
     return { success: true };
   }
@@ -1699,6 +1695,12 @@ export class GameStateManager {
           ...s,
           matchScores: [...s.matchScores],
         })),
+        // Deep-copy auto_pass_timer so React sees a new object reference
+        // on every state update. Without this, the shallow spread shares the
+        // same timer object across all stateCopies; in-place mutations of
+        // remaining_ms then look identical on both prev/next state, preventing
+        // the haptic-countdown effect from re-running.
+        auto_pass_timer: this.state.auto_pass_timer ? { ...this.state.auto_pass_timer } : null,
       };
 
       for (const listener of this.listeners) {
