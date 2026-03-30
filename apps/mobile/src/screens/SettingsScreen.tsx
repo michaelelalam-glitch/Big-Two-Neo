@@ -25,7 +25,8 @@ import { useUserPreferencesStore } from '../store';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 import { setAnalyticsConsent, trackEvent } from '../services/analytics';
-import { initSentry, disableSentry, submitBugReport, isSentryEnabled } from '../services/sentry';
+import { initSentry, disableSentry, isSentryEnabled } from '../services/sentry';
+import BugReportModal from '../components/BugReportModal';
 
 type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -56,6 +57,9 @@ export default function SettingsScreen() {
 
   // Analytics consent is persisted in AsyncStorage (separate from Zustand store)
   const [analyticsConsent, setAnalyticsConsentState] = useState<boolean>(false);
+
+  // Bug report modal visibility
+  const [bugReportVisible, setBugReportVisible] = useState(false);
 
   // On first mount: sync sound/haptic state and run one-time migration.
   // Fast path: read enabled flags directly from AsyncStorage so toggles hydrate
@@ -496,55 +500,18 @@ export default function SettingsScreen() {
         {/* Bug Report */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.bugReport')}</Text>
-          <TouchableOpacity
-            style={styles.linkRow}
-            onPress={() => {
-              const handleSubmit = (description: string) => {
-                if (!description.trim()) return;
-                if (!isSentryEnabled()) {
-                  showError(t('settings.bugReportUnavailable'));
-                  return;
-                }
-                submitBugReport(
-                  description.trim(),
-                  user?.email ?? undefined,
-                  user?.user_metadata?.username ?? undefined
-                );
-                trackEvent('bug_report_submitted', {
-                  description_length: description.trim().length,
-                });
-                showSuccess(t('settings.bugReportSubmitted'));
-              };
-
-              if (Platform.OS === 'ios') {
-                Alert.prompt(
-                  t('settings.bugReportPromptTitle'),
-                  t('settings.bugReportPromptMessage'),
-                  [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    {
-                      text: t('common.submit'),
-                      onPress: (text?: string) => {
-                        if (text) handleSubmit(text);
-                      },
-                    },
-                  ],
-                  'plain-text'
-                );
-              } else {
-                // Android fallback: Alert.prompt is iOS-only
-                Alert.alert(
-                  t('settings.bugReportAndroidTitle'),
-                  t('settings.bugReportAndroidMessage'),
-                  [{ text: t('common.ok') }]
-                );
-              }
-            }}
-          >
+          <TouchableOpacity style={styles.linkRow} onPress={() => setBugReportVisible(true)}>
             <Text style={styles.linkText}>{t('settings.reportABug')}</Text>
             <Text style={styles.arrowText}>→</Text>
           </TouchableOpacity>
         </View>
+
+        <BugReportModal
+          visible={bugReportVisible}
+          onClose={() => setBugReportVisible(false)}
+          userEmail={user?.email ?? undefined}
+          userName={user?.user_metadata?.username ?? undefined}
+        />
 
         {/* About */}
         <View style={styles.section}>

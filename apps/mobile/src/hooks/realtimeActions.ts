@@ -26,6 +26,7 @@ import {
   extractEdgeFunctionErrorAsync,
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
+import { soundManager, SoundType } from '../utils';
 
 // Alias for internal use
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
@@ -204,6 +205,17 @@ export async function executePlayCards({
     autoPassTriggered,
     timerState: autoPassTimerState,
   });
+
+  // Play HIGHEST_CARD sound immediately for match/game-winning plays where the
+  // auto_pass_timer is null (last card played — no opponents left to time out).
+  // For non-terminal highest plays, useGameAudio handles the sound via the
+  // auto_pass_timer.active flag so we only trigger here when timer is absent.
+  if (isHighestPlay && !autoPassTriggered) {
+    soundManager.playSound(SoundType.HIGHEST_CARD);
+    gameLogger.info(
+      '🎵 [Audio] Highest card sound triggered from realtimeActions (no timer — match/game winning play)'
+    );
+  }
 
   // --- Broadcasting ---
   // Skip cards_played broadcast on an already_finished retry — the original play was

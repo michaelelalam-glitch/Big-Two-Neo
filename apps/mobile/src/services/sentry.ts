@@ -311,6 +311,62 @@ export function submitBugReport(description: string, email?: string, name?: stri
   });
 }
 
+// ─── Enhanced bug report ───────────────────────────────────────────────────── //
+
+export interface BugReportOptions {
+  description: string;
+  category: string;
+  email?: string;
+  name?: string;
+  /** Base64-encoded JPEG/PNG screenshot image data. */
+  screenshotBase64?: string;
+  /** Tail of the on-device console log file to include as an attachment. */
+  consoleLog?: string;
+}
+
+/**
+ * Submit an enhanced user bug report with category, optional screenshot,
+ * and optional console log attachment.
+ *
+ * Unlike `submitBugReport`, this accepts structured options and supports
+ * Sentry scope attachments for binary / text files.
+ */
+export function submitBugReportWithOptions(opts: BugReportOptions): void {
+  if (!_initialized) return;
+
+  const title = `[${opts.category}] Bug Report`;
+  const fullMessage = `Category: ${opts.category}\n\n${opts.description}`;
+
+  Sentry.withScope(scope => {
+    scope.setTag('bug_category', opts.category);
+
+    if (opts.screenshotBase64) {
+      scope.addAttachment({
+        filename: 'screenshot.jpg',
+        data: opts.screenshotBase64,
+        contentType: 'image/jpeg',
+      });
+    }
+
+    if (opts.consoleLog) {
+      scope.addAttachment({
+        filename: 'console.log',
+        data: opts.consoleLog,
+        contentType: 'text/plain',
+      });
+    }
+
+    const eventId = Sentry.captureMessage(title, { level: 'info' });
+
+    Sentry.captureFeedback({
+      message: fullMessage,
+      email: opts.email,
+      name: opts.name,
+      associatedEventId: eventId,
+    });
+  });
+}
+
 // ─── Console capture ──────────────────────────────────────────────────────── //
 
 // Track whether the console patch has been applied to avoid double-patching.
