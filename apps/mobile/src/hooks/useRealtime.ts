@@ -88,13 +88,21 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // ⏰ Clock sync for accurate timer calculations (matches AutoPassTimer component)
   const { getCorrectedNow } = useClockSync(gameState?.auto_pass_timer || null);
 
-  // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data
+  // BULLETPROOF: Data ready check - ensures game state is fully loaded with valid data.
+  // NOTE: We intentionally do NOT require roomPlayers.length > 0 once the game has
+  // reached a terminal phase ('game_over' / 'finished'). When complete-game runs it
+  // deletes room_players as part of cleanup; that Realtime event arrives while
+  // game_state still reports game_phase = 'game_over'. Without this exemption,
+  // isDataReady would flip back to false, isInitializing becomes true, and the
+  // GameEndModal (mounted under {!isInitializing}) is unmounted before it can show.
+  const isGameTerminal =
+    gameState?.game_phase === 'game_over' || gameState?.game_phase === 'finished';
   const isDataReady =
     !loading &&
     !!gameState &&
     !!gameState.hands &&
     Object.keys(gameState.hands).length > 0 &&
-    roomPlayers.length > 0;
+    (roomPlayers.length > 0 || isGameTerminal);
 
   /**
    * Broadcast message to all room players

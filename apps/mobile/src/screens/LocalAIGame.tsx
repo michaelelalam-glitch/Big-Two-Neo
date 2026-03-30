@@ -30,6 +30,7 @@ import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { gameLogger } from '../utils/logger';
 import { showError } from '../utils/alerts';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { trackGameEvent } from '../services/analytics';
 import type { Card } from '../game/types';
 import type { GameStateManager } from '../game/state';
 import type { FinalScore } from '../types/gameEnd';
@@ -160,6 +161,35 @@ export function LocalAIGame() {
     multiplayerPlayers: [],
     roomCode,
   });
+
+  // ── Offline game analytics ───────────────────────────────────────────────
+  // Track game_started once when the local AI game begins (phase != 'waiting'),
+  // and game_completed once when gameState.gameOver becomes true.
+  const hasTrackedOfflineStartRef = useRef(false);
+  const hasTrackedOfflineCompleteRef = useRef(false);
+  useEffect(() => {
+    if (!gameState) return;
+    if (!hasTrackedOfflineStartRef.current && !gameState.gameOver) {
+      // gameState.players being populated means the game has been dealt
+      const playerCount = Object.keys(gameState.players ?? {}).length;
+      if (playerCount > 0) {
+        hasTrackedOfflineStartRef.current = true;
+        trackGameEvent('game_started', {
+          game_mode: 'offline',
+          player_count: playerCount,
+          bots_present: 1,
+        });
+      }
+    }
+    if (!hasTrackedOfflineCompleteRef.current && gameState.gameOver) {
+      hasTrackedOfflineCompleteRef.current = true;
+      trackGameEvent('game_completed', {
+        game_mode: 'offline',
+        player_count: Object.keys(gameState.players ?? {}).length,
+        bots_present: 1,
+      });
+    }
+  }, [gameState?.gameOver, gameState?.players]);
 
   // Effective player hand (apply custom card order)
   const effectivePlayerHand: Card[] = React.useMemo(() => {

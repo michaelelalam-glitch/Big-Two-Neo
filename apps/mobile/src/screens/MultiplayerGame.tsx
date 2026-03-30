@@ -57,7 +57,13 @@ import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
 import { useThrowables } from '../hooks/useThrowables';
 import { i18n } from '../i18n';
-import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
+import {
+  trackEvent,
+  trackGameEvent,
+  featureDurationStart,
+  featureDurationEnd,
+} from '../services/analytics';
+import type { GameMode } from '../hooks/useGameActions';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -472,8 +478,9 @@ export function MultiplayerGame() {
     isHostRef.current = isMultiplayerHost;
   }, [isMultiplayerHost]);
 
-  // Track when game starts (for duration calculation)
+  // Track when game starts (for duration calculation) and fire Firebase game_started event.
   // Placed after useRealtime so multiplayerGameState is already declared.
+  const hasTrackedGameStartRef = useRef(false);
   useEffect(() => {
     if (
       multiplayerGameState?.game_phase === 'first_play' ||
@@ -481,6 +488,25 @@ export function MultiplayerGame() {
     ) {
       if (!gameStartedAt) {
         setGameStartedAt(new Date().toISOString());
+      }
+      // Fire Firebase game_started once per game session.
+      if (!hasTrackedGameStartRef.current && roomInfo) {
+        hasTrackedGameStartRef.current = true;
+        const gm: GameMode = roomInfo.ranked_mode
+          ? 'online_ranked'
+          : roomInfo.is_public
+            ? 'online_casual'
+            : 'online_private';
+        trackGameEvent('game_started', {
+          game_mode: gm,
+          player_count: multiplayerPlayers.length,
+          bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
+        });
+      }
+    } else {
+      // Reset for new game when phase returns to 'dealing'
+      if (multiplayerGameState?.game_phase === 'dealing') {
+        hasTrackedGameStartRef.current = false;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1008,6 +1034,11 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
+    gameMode: roomInfo?.ranked_mode
+      ? 'online_ranked'
+      : roomInfo?.is_public
+        ? 'online_casual'
+        : 'online_private',
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
