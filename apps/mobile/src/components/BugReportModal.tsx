@@ -33,7 +33,8 @@ import {
   EncodingType,
 } from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import { submitBugReportWithOptions, isSentryEnabled, BugReportCategory } from '../services/sentry';
+import { submitBugReportWithOptions, isSentryEnabled } from '../services/sentry';
+import type { BugReportCategory } from '../services/sentry';
 import { trackEvent } from '../services/analytics';
 import { showSuccess, showError } from '../utils';
 import { getTodayLogFileName } from '../utils/logger';
