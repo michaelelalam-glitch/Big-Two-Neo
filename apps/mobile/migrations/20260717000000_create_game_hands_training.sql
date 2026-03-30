@@ -1,3 +1,11 @@
+-- ============================================================
+-- LEGACY REFERENCE ONLY — DO NOT APPLY
+-- The authoritative, idempotent migration is:
+--   apps/mobile/supabase/migrations/20260718000002_create_game_hands_training.sql
+-- This file is kept for historical context only. Applying it to any database
+-- is NOT supported and may conflict with the canonical migration.
+-- ============================================================
+
 -- Create game_hands_training table for collecting per-hand play data to train bots.
 -- Schema matches the original table from the old Supabase project (bjxdmhybbpbmgdabqswi)
 -- with the same columns, indexes, and constraints.
@@ -48,10 +56,12 @@ CREATE INDEX IF NOT EXISTS idx_game_hands_training_player_hash ON public.game_ha
 ALTER TABLE public.game_hands_training ENABLE ROW LEVEL SECURITY;
 
 -- Allow service_role to insert (edge functions use service_role key)
+DROP POLICY IF EXISTS "service_role_insert" ON public.game_hands_training;
 CREATE POLICY "service_role_insert" ON public.game_hands_training
   FOR INSERT TO service_role WITH CHECK (true);
 
 -- Allow service_role to select (for training data export)
+DROP POLICY IF EXISTS "service_role_select" ON public.game_hands_training;
 CREATE POLICY "service_role_select" ON public.game_hands_training
   FOR SELECT TO service_role USING (true);
 
