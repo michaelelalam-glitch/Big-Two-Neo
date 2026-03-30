@@ -14,6 +14,106 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ==================== TRAINING DATA HELPER ====================
+/**
+ * Fire-and-forget insert of a pass action into game_hands_training.
+ * Mirrors the training insert in play-cards so the ML dataset contains both
+ * play and pass actions (one row per decision). Non-blocking — uses
+ * EdgeRuntime.waitUntil so it never delays the response.
+ */
+const _playerPassHashCache = new Map<string, string>();
+
+async function fireTrainingPassInsert(
+  supabaseClient: any,
+  room: { id: string },
+  room_code: string,
+  gameState: any,
+  player: any,
+): Promise<void> {
+  const insertPromise = (async () => {
+    try {
+      const stableId = (player.user_id ?? player.id)?.toString();
+      if (!stableId) return;
+
+      let playerHash = _playerPassHashCache.get(stableId);
+      if (!playerHash) {
+        const encoder = new TextEncoder();
+        const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(stableId));
+        playerHash = Array.from(new Uint8Array(hashBuf))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+        _playerPassHashCache.set(stableId, playerHash);
+      }
+
+      const currentHands = (gameState.hands as Record<string, unknown>) || {};
+      const playerHandRaw = currentHands[player.player_index] || [];
+      const playerHand = Array.isArray(playerHandRaw) ? (playerHandRaw as unknown[]) : [];
+
+      const opponentHandSizes: Record<string, number> = {};
+      for (const idx of [0, 1, 2, 3]) {
+        if (idx !== player.player_index) {
+          const h = currentHands[idx];
+          opponentHandSizes[String(idx)] = Array.isArray(h) ? (h as unknown[]).length : 0;
+        }
+      }
+      const totalCardsRemaining = Object.values(currentHands as Record<string, unknown[]>)
+        .reduce((sum, h) => sum + (Array.isArray(h) ? h.length : 0), 0);
+
+      const currentMatchNumber = (gameState.match_number as number) || 1;
+      const playHistory = Array.isArray(gameState.play_history) ? gameState.play_history : [];
+      const playSequence =
+        (playHistory as Array<{ match_number?: number }>).filter(
+          p => (p.match_number ?? 1) === currentMatchNumber
+        ).length + 1;
+
+      const trainingRow = {
+        room_id: room.id,
+        room_code,
+        game_session_id: room.id,
+        round_number: currentMatchNumber,
+        play_sequence: playSequence,
+        player_index: player.player_index,
+        is_bot: player.is_bot ?? false,
+        player_hash: playerHash,
+        hand_before_play: playerHand,
+        hand_size_before: playerHand.length,
+        cards_played: [],
+        combo_type: 'pass',
+        combo_key: null,
+        last_play_before: gameState.last_play ?? null,
+        last_play_combo_type: (gameState.last_play as any)?.combo_type ?? null,
+        is_first_play_of_round: false, // passing requires a last_play; leader cannot pass
+        is_first_play_of_game: false,
+        passes_before_this_play: (gameState.passes as number) || 0,
+        opponent_hand_sizes: opponentHandSizes,
+        total_cards_remaining: totalCardsRemaining,
+        won_trick: false,
+        won_round: false,
+        won_game: false,
+        cards_remaining_after_play: playerHand.length, // hand unchanged after pass
+        was_highest_possible: false,
+        alternative_plays_available: null,
+        risk_score: null,
+        game_ended_at: null,
+      };
+
+      const { error } = await supabaseClient
+        .from('game_hands_training')
+        .upsert(trainingRow, {
+          onConflict: 'game_session_id,round_number,play_sequence,player_index',
+          ignoreDuplicates: true,
+        });
+      if (error) console.warn('[player-pass] Training insert warning:', error.message);
+    } catch (err) {
+      console.warn('[player-pass] Training data prep failed (non-critical):', err);
+    }
+  })();
+
+  try {
+    (globalThis as any).EdgeRuntime?.waitUntil(insertPromise);
+  } catch (_) { /* non-critical */ }
+}
+
 // ==================== BOT-COORDINATOR HELPER ====================
 /**
  * Fire-and-forget bot-coordinator trigger.
@@ -502,6 +602,9 @@ Deno.serve(async (req) => {
 
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
 
+      // Log pass action to training dataset (fire-and-forget)
+      fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
+
       // Trigger bot-coordinator if next player is a bot (Task #551)
       void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
 
@@ -595,6 +698,9 @@ Deno.serve(async (req) => {
 
       console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
 
+      // Log pass action to training dataset (fire-and-forget)
+      fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
+
       // Trigger bot-coordinator if the exempt player is a bot
       void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
 
@@ -632,6 +738,9 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ [player-pass] Pass processed successfully');
+
+    // Log pass action to training dataset (fire-and-forget)
+    fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
     void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');

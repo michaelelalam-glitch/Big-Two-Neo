@@ -33,7 +33,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { gameLogger } from '../utils/logger';
 import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 import { i18n } from '../i18n';
@@ -760,7 +760,7 @@ export function useVideoChat({
 
     if (Platform.OS === 'ios') {
       try {
-        const existing = await Audio.getPermissionsAsync();
+        const existing = await getRecordingPermissionsAsync();
         if (existing.status === 'granted') {
           setMicPermissionStatus('granted');
           return 'granted';
@@ -775,7 +775,7 @@ export function useVideoChat({
         // API. On iOS this triggers the OS dialog if the user hasn't been asked
         // yet; if they've already responded, the OS returns the stored status
         // immediately without re-prompting.
-        const result = await Audio.requestPermissionsAsync();
+        const result = await requestRecordingPermissionsAsync();
         const mapped: MediaPermissionStatus =
           result.status === 'granted' ? 'granted' : !result.canAskAgain ? 'restricted' : 'denied';
         setMicPermissionStatus(mapped);
