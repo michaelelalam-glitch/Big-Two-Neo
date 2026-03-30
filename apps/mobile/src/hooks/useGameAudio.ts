@@ -27,8 +27,11 @@ export function useGameAudio({
   gameState,
   multiplayerGameState,
 }: UseGameAudioOptions): void {
-  // Auto-pass timer audio tracking
-  const hasPlayedHighestCardSoundRef = useRef(false);
+  // Track which timer we last played the sound for (by started_at timestamp).
+  // Using started_at instead of remaining_ms because remaining_ms is a static
+  // deprecated field (always 10000) that never changes mid-timer, so its value
+  // can be identical across consecutive timers and the effect might not re-run.
+  const lastPlayedTimerStartedAtRef = useRef<string | null>(null);
 
   // Multiplayer match start sound tracking
   const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
@@ -65,15 +68,21 @@ export function useGameAudio({
     const timerState = effectiveGameState?.auto_pass_timer;
 
     if (!timerState || !timerState.active) {
-      hasPlayedHighestCardSoundRef.current = false;
+      // Timer cleared — reset so the next activation fires the sound again
+      lastPlayedTimerStartedAtRef.current = null;
       return;
     }
 
-    // Play highest card sound once per timer activation
-    if (!hasPlayedHighestCardSoundRef.current) {
+    // Play highest card sound once per unique timer activation (keyed by started_at).
+    // Avoids the stale-dep problem: remaining_ms is a deprecated static field (always
+    // 10000) so two consecutive timers have the same remaining_ms value and React
+    // may not re-run the effect if the null intermediate state is batched away.
+    if (timerState.started_at !== lastPlayedTimerStartedAtRef.current) {
+      lastPlayedTimerStartedAtRef.current = timerState.started_at;
       soundManager.playSound(SoundType.HIGHEST_CARD);
-      gameLogger.info('🎵 [Audio] Highest card sound triggered - auto-pass timer active');
-      hasPlayedHighestCardSoundRef.current = true;
+      gameLogger.info(
+        `🎵 [Audio] Yeyyeeyy triggered - auto-pass timer active (started_at=${timerState.started_at})`
+      );
     }
 
     // Progressive intensity vibration from 5 seconds down to 1
@@ -91,7 +100,9 @@ export function useGameAudio({
   }, [
     isMultiplayerGame,
     isLocalAIGame,
+    gameState?.auto_pass_timer?.started_at,
     gameState?.auto_pass_timer?.remaining_ms,
+    multiplayerGameState?.auto_pass_timer?.started_at,
     multiplayerGameState?.auto_pass_timer?.remaining_ms,
   ]);
 }
