@@ -231,6 +231,26 @@ export interface Translations {
     bugReportAndroidMessage: string;
   };
 
+  // Bug Report Modal
+  bugReportModal: {
+    title: string;
+    categoryLabel: string;
+    categoryBug: string;
+    categorySuggestion: string;
+    categoryPerformance: string;
+    categoryCrash: string;
+    categoryOther: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    descriptionRequired: string;
+    screenshotLabel: string;
+    attachScreenshot: string;
+    removeScreenshot: string;
+    photoPermissionDenied: string;
+    includeLogLabel: string;
+    includeLogDescription: string;
+  };
+
   // Home Screen
   home: {
     title: string;
@@ -1016,6 +1036,24 @@ const en: Translations = {
     bugReportAndroidMessage:
       'To report a bug, please email support@big2mobile.com with a description of the issue.',
   },
+  bugReportModal: {
+    title: 'Report a Bug',
+    categoryLabel: 'Category',
+    categoryBug: 'Bug',
+    categorySuggestion: 'Suggestion',
+    categoryPerformance: 'Performance',
+    categoryCrash: 'Crash',
+    categoryOther: 'Other',
+    descriptionLabel: 'Description',
+    descriptionPlaceholder: 'Describe the issue or suggestion in detail…',
+    descriptionRequired: 'Please enter a description.',
+    screenshotLabel: 'Screenshot (optional)',
+    attachScreenshot: '📎 Attach Screenshot',
+    removeScreenshot: 'Remove',
+    photoPermissionDenied: 'Photo library access is required to attach a screenshot.',
+    includeLogLabel: 'Include Console Log',
+    includeLogDescription: "Attach today's app log to help diagnose the issue.",
+  },
   home: {
     title: 'Big2 Mobile',
     welcome: 'Welcome',
@@ -1761,6 +1799,24 @@ const ar: Translations = {
     bugReportAndroidTitle: 'الإبلاغ عن خطأ',
     bugReportAndroidMessage:
       'للإبلاغ عن خطأ، يرجى إرسال بريد إلكتروني إلى support@big2mobile.com مع وصف المشكلة.',
+  },
+  bugReportModal: {
+    title: 'الإبلاغ عن مشكلة',
+    categoryLabel: 'الفئة',
+    categoryBug: 'خطأ',
+    categorySuggestion: 'اقتراح',
+    categoryPerformance: 'الأداء',
+    categoryCrash: 'توقف مفاجئ',
+    categoryOther: 'أخرى',
+    descriptionLabel: 'الوصف',
+    descriptionPlaceholder: 'صف المشكلة أو الاقتراح بالتفصيل…',
+    descriptionRequired: 'يرجى إدخال وصف.',
+    screenshotLabel: 'لقطة شاشة (اختياري)',
+    attachScreenshot: '📎 إرفاق لقطة شاشة',
+    removeScreenshot: 'إزالة',
+    photoPermissionDenied: 'يلزم الوصول إلى مكتبة الصور لإرفاق لقطة شاشة.',
+    includeLogLabel: 'تضمين سجل التطبيق',
+    includeLogDescription: 'أرفق سجل التطبيق لهذا اليوم لمساعدتنا في التشخيص.',
   },
   home: {
     title: 'Big2 Mobile',
@@ -2535,6 +2591,25 @@ const de: Translations = {
     bugReportAndroidTitle: 'Einen Fehler melden',
     bugReportAndroidMessage:
       'Um einen Fehler zu melden, senden Sie bitte eine E-Mail an support@big2mobile.com mit einer Beschreibung des Problems.',
+  },
+  bugReportModal: {
+    title: 'Problem melden',
+    categoryLabel: 'Kategorie',
+    categoryBug: 'Fehler',
+    categorySuggestion: 'Vorschlag',
+    categoryPerformance: 'Leistung',
+    categoryCrash: 'Absturz',
+    categoryOther: 'Sonstiges',
+    descriptionLabel: 'Beschreibung',
+    descriptionPlaceholder: 'Beschreiben Sie das Problem oder den Vorschlag im Detail…',
+    descriptionRequired: 'Bitte geben Sie eine Beschreibung ein.',
+    screenshotLabel: 'Screenshot (optional)',
+    attachScreenshot: '📎 Screenshot anhängen',
+    removeScreenshot: 'Entfernen',
+    photoPermissionDenied:
+      'Für das Anhängen eines Screenshots ist Zugriff auf die Fotobibliothek erforderlich.',
+    includeLogLabel: 'Protokoll einschließen',
+    includeLogDescription: 'Das heutige App-Protokoll anhängen, um die Diagnose zu erleichtern.',
   },
   home: {
     title: 'Big2 Mobile',

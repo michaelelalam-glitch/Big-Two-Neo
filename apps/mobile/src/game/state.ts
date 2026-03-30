@@ -981,6 +981,13 @@ export class GameStateManager {
         triggering_play: this.state!.lastPlay,
         player_id: player.id, // Track who triggered the timer
       };
+      // Play highest card sound immediately — useGameAudio also fires via
+      // auto_pass_timer.active, but for match-winning plays the timer may be
+      // cleared before the next render, so we play the sound here directly.
+      soundManager.playSound(SoundType.HIGHEST_CARD);
+      gameLogger.info(
+        '🎵 [Audio] Highest card sound triggered from local state (highest play detected)'
+      );
     } else {
       // Clear timer if it was active
       // Note: If highest play was made, no one can beat it, so this should never trigger

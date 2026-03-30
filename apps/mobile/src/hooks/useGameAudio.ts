@@ -33,19 +33,29 @@ export function useGameAudio({
   // Multiplayer match start sound tracking
   const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
 
-  // Match start sound: plays on every match_number change for multiplayer
+  // Match start sound: plays on every match_number change for multiplayer.
+  // Fires on 'first_play' phase (cards dealt, ready to lead) OR 'playing'
+  // so the sound plays at the true start of the match, not after the first card.
   useEffect(() => {
     if (!isMultiplayerGame || !multiplayerGameState) return;
 
     const currentMatchNumber = multiplayerGameState?.match_number ?? null;
     const gamePhase = multiplayerGameState?.game_phase;
 
-    if (gamePhase !== 'playing') return;
+    // Allow first_play (very start of each match) in addition to playing.
+    // This ensures the sound fires when cards are dealt rather than waiting
+    // for the first card to be played (which transitions to 'playing').
+    if (gamePhase !== 'playing' && gamePhase !== 'first_play') return;
 
-    if (currentMatchNumber !== null && currentMatchNumber !== previousMultiplayerMatchNumberRef.current) {
+    if (
+      currentMatchNumber !== null &&
+      currentMatchNumber !== previousMultiplayerMatchNumberRef.current
+    ) {
       previousMultiplayerMatchNumberRef.current = currentMatchNumber;
       soundManager.playSound(SoundType.GAME_START);
-      gameLogger.info(`🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber}`);
+      gameLogger.info(
+        `🎵 [Audio] Match start sound triggered - multiplayer match ${currentMatchNumber} (phase=${gamePhase})`
+      );
     }
   }, [isMultiplayerGame, multiplayerGameState]);
 
@@ -71,10 +81,17 @@ export function useGameAudio({
     const displaySeconds = Math.ceil(remaining_ms / 1000);
 
     if (displaySeconds <= 5 && displaySeconds >= 1) {
-      gameLogger.warn(`🚨 [VIBRATION] Triggering urgent countdown at ${displaySeconds}s (remaining_ms=${remaining_ms})`);
+      gameLogger.warn(
+        `🚨 [VIBRATION] Triggering urgent countdown at ${displaySeconds}s (remaining_ms=${remaining_ms})`
+      );
       hapticManager.urgentCountdown(displaySeconds);
       gameLogger.info(`📳 [Haptic] Progressive vibration triggered: ${displaySeconds}s`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only remaining_ms drives haptic intensity
-  }, [isMultiplayerGame, isLocalAIGame, gameState?.auto_pass_timer?.remaining_ms, multiplayerGameState?.auto_pass_timer?.remaining_ms]);
+  }, [
+    isMultiplayerGame,
+    isLocalAIGame,
+    gameState?.auto_pass_timer?.remaining_ms,
+    multiplayerGameState?.auto_pass_timer?.remaining_ms,
+  ]);
 }

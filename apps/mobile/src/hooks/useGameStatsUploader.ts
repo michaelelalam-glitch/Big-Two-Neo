@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { API } from '../constants';
 import { statsLogger } from '../utils/logger';
+import { sentryCapture } from '../services/sentry';
 import type {
   GameState as MultiplayerGameState,
   Player as MultiplayerPlayer,
@@ -388,14 +389,21 @@ export function useGameStatsUploader({
           const errorData = await response
             .json()
             .catch(() => ({ error: `HTTP ${response.status}` }));
-          statsLogger.error(
-            '❌ [GameStats] Edge function returned error:',
-            errorData?.error || `HTTP ${response.status}`
-          );
+          const errorMsg = errorData?.error || `HTTP ${response.status}`;
+          statsLogger.error('❌ [GameStats] Edge function returned error:', errorMsg);
+          sentryCapture.message(`[GameStats] Edge function error: ${errorMsg}`, {
+            level: 'error',
+            context: 'GameStatsUploader',
+            extra: { statusCode: response.status, details: errorData?.details },
+          });
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         statsLogger.error('❌ [GameStats] Exception uploading stats:', msg);
+        sentryCapture.exception(err, {
+          context: 'GameStatsUploader',
+          extra: { msg },
+        });
       } finally {
         uploadingRef.current = false;
       }

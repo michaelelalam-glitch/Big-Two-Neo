@@ -552,7 +552,17 @@ Deno.serve(async (req) => {
       // Unique constraint violation on room_id = race-condition duplicate.
       // Another client's INSERT landed between our SELECT check and this INSERT.
       // Treat it the same as the dedup guard above: return 200, skip stats.
-      if (historyError.code === '23505') {
+      //
+      // Check both the error code AND message text as a fallback, because
+      // PostgREST occasionally wraps the Postgres error differently (e.g. HTTP-
+      // level 409 from some proxy configurations, or the code may arrive as an
+      // integer rather than string in rare Deno edge-runtime builds).
+      const isDuplicateKeyError =
+        historyError.code === '23505' ||
+        historyError.message?.includes('duplicate key') ||
+        historyError.message?.includes('unique constraint') ||
+        historyError.details?.includes('already exists');
+      if (isDuplicateKeyError) {
         // Race-condition duplicate: another caller's INSERT committed between our
         // SELECT check and this INSERT. The winning caller may not have applied
         // stats yet (stats_applied_at IS NULL). We cannot re-apply stats here
@@ -584,7 +594,12 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.error('[Complete Game] Failed to record game history:', historyError);
+      console.error('[Complete Game] Failed to record game history:', JSON.stringify({
+        code: historyError.code,
+        message: historyError.message,
+        details: historyError.details,
+        hint: historyError.hint,
+      }));
       return new Response(
         JSON.stringify({ error: 'Failed to record game history', details: historyError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
