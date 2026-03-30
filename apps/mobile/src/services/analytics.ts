@@ -368,8 +368,8 @@ export function trackEvent(name: AnalyticsEventName, params?: AnalyticsEventPara
  */
 export function trackScreenView(screenName: string, screenClass?: string): void {
   trackEvent('screen_view', {
-    firebase_screen: screenName,
-    firebase_screen_class: screenClass ?? screenName,
+    screen_name: screenName,
+    screen_class: screenClass ?? screenName,
   });
 }
 
@@ -482,7 +482,7 @@ export function screenTimeEnd(screenName: string): void {
     const durationSec = Math.round(durationMs / 1000);
     if (durationSec > 0) {
       trackEvent('screen_time', {
-        firebase_screen: screenName,
+        screen_name: screenName,
         duration_seconds: durationSec,
         duration_ms: durationMs,
       });
