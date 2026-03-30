@@ -104,3 +104,17 @@ export const roomLogger = log.extend('ROOM');
 
 // Export the base logger as default
 export default log;
+
+/**
+ * Returns the filename used by the production file transport for today's log.
+ * Centralised here so the filename format stays in sync between the writer
+ * (the transport's `{date-today}` placeholder, which react-native-logs
+ * resolves to YYYY-MM-DD) and any reader (e.g. BugReportModal).
+ */
+export function getTodayLogFileName(): string {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `app_logs_${yyyy}-${mm}-${dd}.log`;
+}
