@@ -21,6 +21,7 @@
  * on user preferences stored in AsyncStorage / your consent mechanism.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -147,12 +148,12 @@ export type AnalyticsEventName =
   | 'bug_report_submitted'
   | 'bug_report_opened';
 
-// ─── Client ID (session-scoped) ────────────────────────────────────────────── //
+// ─── Client ID (device-persistent) ─────────────────────────────────────────── //
+
+const CLIENT_ID_KEY = '@analytics/client_id';
 
 /**
  * Generate a random UUID v4.
- * Used as client_id — scoped to the app session (not persisted across restarts).
- * For a persistent client_id, save this to AsyncStorage on first launch.
  */
 function generateClientId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -167,11 +168,51 @@ let _clientId: string | null = null;
 let _sessionId: number | null = null;
 let _userId: string | null = null;
 
+/**
+ * Returns the persistent client_id for this device, loading from AsyncStorage
+ * on first call and creating a new UUID if none exists.
+ * Persistence is critical for Firebase DebugView: each new random UUID creates
+ * a brand-new "device" entry in DebugView, so without persistence the user
+ * sees a different device every app restart (burying screen_view/screen_time).
+ */
 function getClientId(): string {
   if (!_clientId) {
+    // Return the in-memory fallback synchronously for the current send call;
+    // the async load below will populate it for all subsequent calls.
     _clientId = generateClientId();
+    void AsyncStorage.getItem(CLIENT_ID_KEY).then(stored => {
+      if (stored) {
+        _clientId = stored;
+      } else {
+        // First launch — persist the freshly-generated id.
+        void AsyncStorage.setItem(CLIENT_ID_KEY, _clientId!);
+      }
+    });
   }
   return _clientId;
+}
+
+/**
+ * Must be called once at app startup (before any trackEvent calls).
+ * Eagerly loads the persisted client_id so that all events in the session,
+ * including the very first ones, carry the stable device identifier.
+ */
+export async function initClientId(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(CLIENT_ID_KEY);
+    if (stored) {
+      _clientId = stored;
+    } else {
+      const fresh = generateClientId();
+      _clientId = fresh;
+      await AsyncStorage.setItem(CLIENT_ID_KEY, fresh);
+    }
+  } catch {
+    // AsyncStorage unavailable — fall back to session-scoped id (non-fatal)
+    if (!_clientId) {
+      _clientId = generateClientId();
+    }
+  }
 }
 
 /**

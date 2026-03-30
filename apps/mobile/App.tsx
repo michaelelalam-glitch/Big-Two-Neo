@@ -12,7 +12,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
 import { initSentry, isSentryEnabled, sentryCapture, Sentry } from './src/services/sentry';
-import { trackEvent, setAnalyticsConsent } from './src/services/analytics';
+import { trackEvent, setAnalyticsConsent, initClientId } from './src/services/analytics';
 import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
 import { SETTINGS_KEYS } from './src/utils/settings';
 
@@ -79,6 +79,7 @@ export default function App() {
     void Promise.all([
       i18n.initialize(),
       AsyncStorage.getItem(SETTINGS_KEYS.ANALYTICS_CONSENT),
+      initClientId(), // Eagerly load persisted client_id so all events carry the stable device ID
     ]).then(([, consentRaw]) => {
       setI18nInitialized(true);
 
