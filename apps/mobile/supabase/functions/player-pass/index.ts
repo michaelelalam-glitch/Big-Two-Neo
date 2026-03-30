@@ -21,7 +21,15 @@ const corsHeaders = {
  * play and pass actions (one row per decision). Non-blocking — uses
  * EdgeRuntime.waitUntil so it never delays the response.
  */
+const PLAYER_PASS_HASH_CACHE_MAX = 1000;
 const _playerPassHashCache = new Map<string, string>();
+function _cachedPlayerPassHash(hash: string, id: string): void {
+  if (_playerPassHashCache.size >= PLAYER_PASS_HASH_CACHE_MAX) {
+    const firstKey = _playerPassHashCache.keys().next().value;
+    if (firstKey !== undefined) _playerPassHashCache.delete(firstKey);
+  }
+  _playerPassHashCache.set(id, hash);
+}
 
 async function fireTrainingPassInsert(
   supabaseClient: any,
@@ -42,7 +50,7 @@ async function fireTrainingPassInsert(
         playerHash = Array.from(new Uint8Array(hashBuf))
           .map(b => b.toString(16).padStart(2, '0'))
           .join('');
-        _playerPassHashCache.set(stableId, playerHash);
+        _cachedPlayerPassHash(playerHash, stableId);
       }
 
       const currentHands = (gameState.hands as Record<string, unknown>) || {};
