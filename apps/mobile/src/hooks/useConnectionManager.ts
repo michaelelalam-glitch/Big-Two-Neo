@@ -121,6 +121,11 @@ export function useConnectionManager({
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [rejoinStatus, setRejoinStatus] = useState<RejoinStatusPayload | null>(null);
 
+  // Track the previous DB-reported connection_status so we only fire
+  // the analytics 'reconnect' event on an actual transition (e.g. disconnected →
+  // connected), not on every routine heartbeat UPDATE that keeps writing 'connected'.
+  const prevDbConnectionStatusRef = useRef<string>('connected');
+
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatCountRef = useRef<number>(0);
   const consecutiveFailuresRef = useRef<number>(0);
@@ -452,16 +457,26 @@ export function useConnectionManager({
           };
 
           if (rec.connection_status === 'replaced_by_bot') {
+            prevDbConnectionStatusRef.current = 'replaced_by_bot';
             setConnectionStatus('disconnected');
             stopHeartbeatRef.current();
             trackEvent('player_replaced_by_bot', { room_id: roomId, source: 'realtime' });
             onBotReplacedRef.current?.();
           } else if (rec.connection_status === 'disconnected') {
+            prevDbConnectionStatusRef.current = 'disconnected';
             setConnectionStatus('disconnected');
             trackConnection('disconnect', { room_id: roomId, source: 'realtime' });
           } else if (rec.connection_status === 'connected') {
+            // Only fire 'reconnect' when there was an actual transition FROM a
+            // non-connected state. Every heartbeat writes 'connected' to DB, which
+            // triggers this Realtime listener — without this guard, 'reconnect' would
+            // fire every 5 s and flood Firebase Analytics / DebugView.
+            const wasDisconnected = prevDbConnectionStatusRef.current !== 'connected';
+            prevDbConnectionStatusRef.current = 'connected';
             setConnectionStatus('connected');
-            trackConnection('reconnect', { room_id: roomId, source: 'realtime' });
+            if (wasDisconnected) {
+              trackConnection('reconnect', { room_id: roomId, source: 'realtime' });
+            }
           }
         }
       )
