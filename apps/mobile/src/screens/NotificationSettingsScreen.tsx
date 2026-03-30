@@ -18,7 +18,6 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 import { showError, showSuccess, showConfirm, showInfo } from '../utils';
 import { notificationLogger } from '../utils/logger';
-import {} from '@react-navigation/native';
 
 export default function NotificationSettingsScreen() {
   const t = (key: string) => i18n.t(key);

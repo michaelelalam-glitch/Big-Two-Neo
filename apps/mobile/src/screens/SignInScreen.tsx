@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppleSignInButton from '../components/auth/AppleSignInButton';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
-import {} from '@react-navigation/native';
 
 const SignInScreen = () => {
   return (
