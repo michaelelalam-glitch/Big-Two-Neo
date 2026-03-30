@@ -9,6 +9,7 @@ const Scope = class {
   setTag = jest.fn().mockReturnThis();
   setExtra = jest.fn().mockReturnThis();
   setLevel = jest.fn().mockReturnThis();
+  addAttachment = jest.fn().mockReturnThis();
 };
 
 const mockSentry = {
@@ -20,6 +21,7 @@ const mockSentry = {
   setUser: jest.fn(),
   flush: jest.fn(() => Promise.resolve(true)),
   close: jest.fn(() => Promise.resolve(true)),
+  withScope: jest.fn((cb: (scope: InstanceType<typeof Scope>) => void) => cb(new Scope())),
   withErrorBoundary: (component: unknown) => component,
   reactNativeTracingIntegration: jest.fn(() => ({})),
   Scope,
