@@ -226,6 +226,7 @@ export default function BugReportModal({
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={submitting}
+            testID="bug-report-submit"
           >
             {submitting ? (
               <ActivityIndicator size="small" color={COLORS.white} />

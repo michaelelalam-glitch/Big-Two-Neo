@@ -126,7 +126,7 @@ export default function HomeScreen() {
               style={styles.bugReportButton}
               onPress={() => setBugReportVisible(true)}
               accessibilityRole="button"
-              accessibilityLabel="Report a bug"
+              accessibilityLabel={i18n.t('home.reportBug')}
               testID="bug-report-button"
             >
               <Text style={styles.bugReportButtonText}>🐛</Text>
