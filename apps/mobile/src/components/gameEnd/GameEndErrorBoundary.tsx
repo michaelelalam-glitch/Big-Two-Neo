@@ -46,9 +46,13 @@ export class GameEndErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console for debugging
-    console.error('❌ [GameEndErrorBoundary] Caught error:', error);
-    console.error('📍 [GameEndErrorBoundary] Component stack:', errorInfo.componentStack);
+    // Log error to console in development only; console.error is patched in prod
+    // to forward to Sentry, which would create duplicate events alongside the
+    // explicit sentryCapture.exception() call below.
+    if (__DEV__) {
+      console.error('❌ [GameEndErrorBoundary] Caught error:', error);
+      console.error('📍 [GameEndErrorBoundary] Component stack:', errorInfo.componentStack);
+    }
 
     // Update state with error info
     this.setState({
