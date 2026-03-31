@@ -67,6 +67,12 @@ interface UseGameActionsOptions {
    * If omitted, local AI games default to 'offline' and multiplayer games default to 'online_casual'.
    */
   gameMode?: GameMode;
+  /** Number of human players in the room (for game_not_completed analytics). */
+  humanCount?: number;
+  /** Number of bot players in the room (for game_not_completed analytics). */
+  botCount?: number;
+  /** Bot difficulty selected for the room (for game_not_completed analytics). */
+  botDifficultyLevel?: string;
 }
 
 export function useGameActions({
@@ -80,6 +86,9 @@ export function useGameActions({
   getMultiplayerValidationState,
   onAlert,
   gameMode,
+  humanCount,
+  botCount,
+  botDifficultyLevel,
 }: UseGameActionsOptions) {
   const resolvedGameMode: GameMode = gameMode ?? (isLocalAIGame ? 'offline' : 'online_casual');
   // Task #568: Separate refs to prevent cross-operation blocking
@@ -452,6 +461,9 @@ export function useGameActions({
         trackGameEvent('game_not_completed', {
           reason: 'player_left',
           game_mode: resolvedGameMode,
+          ...(humanCount !== undefined && { human_count: humanCount }),
+          ...(botCount !== undefined && { bot_count: botCount }),
+          ...(botDifficultyLevel !== undefined && { bot_difficulty: botDifficultyLevel }),
         });
         sentryCapture.breadcrumb(
           'Game abandoned',

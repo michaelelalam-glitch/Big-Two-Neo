@@ -304,6 +304,10 @@ export function LocalAIGame() {
     navigation,
     isMountedRef,
     onAlert: showInGameAlert,
+    // Local AI: 1 human + 3 bots
+    humanCount: 1,
+    botCount: 3,
+    botDifficultyLevel: botDifficulty,
   });
 
   // Computed values
