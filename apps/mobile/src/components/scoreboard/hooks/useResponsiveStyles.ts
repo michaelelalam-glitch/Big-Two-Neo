@@ -122,6 +122,24 @@ export const useScoreboardContainerStyles = () => {
       // Task #380: pointerEvents is a View prop, not a style property.
       // Apply as <View pointerEvents={containerPointerEvents} style={styles.container}>
       containerPointerEvents: 'box-none' as const,
+
+      // Modal overlay — same structure as usePlayHistoryModalStyles so the expanded
+      // scoreboard floats above all UI (including player avatar) and is centred.
+      modalOverlay: {
+        flex: 1,
+        backgroundColor: ScoreboardColors.background.overlay,
+        justifyContent: dims.isLandscape ? ('flex-start' as const) : ('center' as const),
+        alignItems: dims.isLandscape ? ('flex-start' as const) : ('center' as const),
+        padding: dims.isLandscape ? 0 : dims.moderateScale(20),
+      },
+
+      modalBackdrop: {
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      },
     }),
     [dims]
   );
@@ -252,26 +270,31 @@ export const useExpandedScoreboardStyles = () => {
   return useMemo(
     () => ({
       expandedContainer: {
+        // Dimensions exactly match PlayHistoryModal's modalContainer.
+        // Now rendered inside a Modal (not inline), so these values are correct without
+        // any top-offset compensation — the modal overlay centres it on screen.
         backgroundColor: ScoreboardColors.background.expanded,
         borderRadius: dims.moderateScale(12),
         padding: dims.moderateScale(8),
-        width: dims.isLandscape
-          ? dims.screenWidth * 0.65 // Match play history width
-          : dims.screenWidth * 0.9, // Match play history portrait width
-        minWidth: dims.isLandscape
-          ? dims.screenWidth * 0.65 // Match play history width
-          : undefined,
-        maxWidth: dims.isLandscape
-          ? dims.screenWidth * 0.65 // Match play history width
-          : dims.screenWidth * 0.9,
-        maxHeight: dims.isLandscape
-          ? dims.screenHeight * 0.92 // Match play history height
-          : dims.screenHeight * 0.75, // Match play history portrait height — prevents overlap with player avatar
-        // LANDSCAPE FIX: Position at top-left (same as play history modal)
+        width: dims.isLandscape ? dims.screenWidth * 0.65 : dims.screenWidth * 0.9,
+        height: dims.isLandscape ? dims.screenHeight * 0.92 : dims.screenHeight * 0.75,
+        maxWidth: dims.isLandscape ? dims.screenWidth * 0.65 : dims.screenWidth * 0.9,
+        // LANDSCAPE: Position at top-left (same as play history modal)
         ...(dims.isLandscape && {
           position: 'absolute' as const,
-          top: dims.moderateScale(20), // Match play history top position
-          left: dims.moderateScale(20), // Match play history left position
+          top: dims.moderateScale(20),
+          left: dims.moderateScale(20),
+        }),
+        ...Platform.select({
+          ios: {
+            shadowColor: ScoreboardColors.shadow.heavy,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.6,
+            shadowRadius: 8,
+          },
+          android: {
+            elevation: 12,
+          },
         }),
       },
       // Task #380: pointerEvents is a View prop, not a style property.
