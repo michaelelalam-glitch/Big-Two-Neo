@@ -1051,11 +1051,14 @@ export function MultiplayerGame() {
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
     gameMode,
-    humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length || undefined,
-    botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length || undefined,
+    humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
+    botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
     botDifficultyLevel:
-      effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ??
-      (botDifficulty || undefined),
+      effectiveMultiplayerPlayers.filter(p => p.is_bot).length === 0
+        ? 'none'
+        : (effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ??
+          botDifficulty ??
+          'unknown'),
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
