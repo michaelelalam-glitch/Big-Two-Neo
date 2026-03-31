@@ -33,7 +33,7 @@ function _cachedPlayerPassHash(hash: string, id: string): void {
 
 async function fireTrainingPassInsert(
   supabaseClient: any,
-  room: { id: string },
+  room: { id: string; ranked_mode?: boolean | null; is_public?: boolean | null },
   room_code: string,
   gameState: any,
   player: any,
