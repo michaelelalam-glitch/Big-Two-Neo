@@ -74,6 +74,7 @@ const ScoreboardContainerComponent: React.FC<ScoreboardProps> = ({
         transparent
         animationType="fade"
         supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+        statusBarTranslucent={true}
         onRequestClose={handleToggleExpand}
       >
         <View style={styles.modalOverlay}>
