@@ -675,10 +675,10 @@ function GameViewComponent() {
               />
             </View>
 
-            {/* Scoreboard Container — rendered LAST in the portrait block so it appears
-                above all other absolutely-positioned elements (PlayerInfo profile photos,
-                GameLayout overlays). React Native renders later children on top of earlier
-                ones within the same stacking context. */}
+            {/* Scoreboard Container — kept at the end of the portrait block for layout
+                clarity and to group scoreboard-related UI in one place. The expanded
+                scoreboard is rendered inside a React Native Modal by ScoreboardContainer,
+                so its z-order is managed by the modal layer rather than local render order. */}
             <ScoreboardContainer
               playerNames={memoizedPlayerNames}
               currentScores={memoizedCurrentScores}

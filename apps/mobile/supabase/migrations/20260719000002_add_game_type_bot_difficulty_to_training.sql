@@ -23,3 +23,18 @@ CREATE INDEX IF NOT EXISTS idx_game_hands_training_game_type
 
 CREATE INDEX IF NOT EXISTS idx_game_hands_training_bot_difficulty
   ON public.game_hands_training (bot_difficulty);
+
+-- Normalize game_type definition so environments where it was previously
+-- created (e.g., as varchar and nullable) converge to the same schema as
+-- fresh installs (text NOT NULL DEFAULT 'casual').
+ALTER TABLE public.game_hands_training
+  ALTER COLUMN game_type TYPE text USING game_type::text,
+  ALTER COLUMN game_type SET DEFAULT 'casual';
+
+-- Backfill any existing NULL values before enforcing NOT NULL
+UPDATE public.game_hands_training
+SET game_type = 'casual'
+WHERE game_type IS NULL;
+
+ALTER TABLE public.game_hands_training
+  ALTER COLUMN game_type SET NOT NULL;
