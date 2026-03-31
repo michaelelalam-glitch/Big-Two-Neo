@@ -54,12 +54,19 @@ export function useHelperButtons({
     // Haptic feedback - light for utility action
     hapticManager.trigger(HapticType.LIGHT);
 
+    // Capture order before sort
+    const handBefore = playerHand.map(card => card.id);
+
     // Sort hand
     const sorted = sortHandLowestToHighest(playerHand);
     const newOrder = sorted.map(card => card.id);
     setCustomCardOrder(newOrder);
 
-    trackEvent('sort_used', { hand_size: playerHand.length });
+    trackEvent('sort_used', {
+      hand_size: playerHand.length,
+      hand_before: JSON.stringify(handBefore),
+      hand_after: JSON.stringify(newOrder),
+    });
     sentryCapture.breadcrumb('Sort button used', { hand_size: playerHand.length }, 'game.action');
     gameLogger.info('[useHelperButtons] Sorted hand lowest to highest');
   };
@@ -73,6 +80,9 @@ export function useHelperButtons({
 
     // Haptic feedback - medium for complex operation
     hapticManager.trigger(HapticType.MEDIUM);
+
+    // Capture order before smart sort
+    const handBefore = playerHand.map(card => card.id);
 
     // Smart sort hand
     const smartSorted = smartSortHand(playerHand);
@@ -88,7 +98,11 @@ export function useHelperButtons({
       Alert.alert('', 'Hand organized by combos');
     }
 
-    trackEvent('smart_sort_used', { hand_size: playerHand.length });
+    trackEvent('smart_sort_used', {
+      hand_size: playerHand.length,
+      hand_before: JSON.stringify(handBefore),
+      hand_after: JSON.stringify(newOrder),
+    });
     sentryCapture.breadcrumb(
       'Smart sort button used',
       { hand_size: playerHand.length },
