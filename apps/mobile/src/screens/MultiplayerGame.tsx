@@ -518,7 +518,7 @@ export function MultiplayerGame() {
         hasTrackedGameStartRef.current = false;
       }
     }
-  }, [multiplayerGameState?.game_phase, gameMode, multiplayerPlayers]);
+  }, [multiplayerGameState?.game_phase, gameMode, multiplayerPlayers, gameStartedAt]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:

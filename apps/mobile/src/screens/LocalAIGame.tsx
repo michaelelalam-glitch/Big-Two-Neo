@@ -202,7 +202,7 @@ export function LocalAIGame() {
         bots_present: 1,
       });
     }
-  }, [gameState?.gameOver, gameState?.players]);
+  }, [gameState]);
 
   // Effective player hand (apply custom card order)
   const effectivePlayerHand: Card[] = React.useMemo(() => {
