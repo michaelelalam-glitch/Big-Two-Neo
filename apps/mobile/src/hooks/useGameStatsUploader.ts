@@ -73,6 +73,33 @@ export function useGameStatsUploader({
       return;
     }
     if (!roomInfo?.id) return;
+
+    // Fire Firebase analytics independently of the upload one-shot guard so the
+    // event isn't permanently dropped when multiplayerPlayers is still empty on
+    // the first game_over fire (hasUploadedRef would block re-entry on the next
+    // render, but hasTrackedCompletionRef lets analytics retry until players load).
+    if (!hasTrackedCompletionRef.current && multiplayerPlayers.length > 0) {
+      hasTrackedCompletionRef.current = true;
+      const analyticsGameMode = roomInfo.ranked_mode
+        ? 'online_ranked'
+        : roomInfo.is_public
+          ? 'online_casual'
+          : ('online_private' as const);
+      const hasBots = multiplayerPlayers.some(p => p.is_bot);
+      const dbBotDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty;
+      const resolvedBotDifficulty = hasBots
+        ? (dbBotDifficulty ?? botDifficultyFallback ?? 'unknown')
+        : 'none';
+      trackGameEvent('game_completed', {
+        game_mode: analyticsGameMode,
+        player_count: multiplayerPlayers.length,
+        bots_present: hasBots ? 1 : 0,
+        human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
+        bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
+        bot_difficulty: resolvedBotDifficulty,
+      });
+    }
+
     if (hasUploadedRef.current) return;
     if (uploadingRef.current) return;
 
@@ -105,32 +132,6 @@ export function useGameStatsUploader({
         }
         statsLogger.info('[GameStats] Derived final_scores from scores_history fallback');
       }
-    }
-
-    // Fire Firebase analytics as soon as game_phase === 'game_over' and roomInfo
-    // is available. This must run BEFORE the winner/final_scores null-guard so
-    // that game_completed is never dropped when those values are temporarily
-    // missing — analytics does not depend on winner or final_scores.
-    if (!hasTrackedCompletionRef.current && multiplayerPlayers.length > 0) {
-      hasTrackedCompletionRef.current = true;
-      const analyticsGameMode = roomInfo.ranked_mode
-        ? 'online_ranked'
-        : roomInfo.is_public
-          ? 'online_casual'
-          : ('online_private' as const);
-      const hasBots = multiplayerPlayers.some(p => p.is_bot);
-      const dbBotDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty;
-      const resolvedBotDifficulty = hasBots
-        ? (dbBotDifficulty ?? botDifficultyFallback ?? 'unknown')
-        : 'none';
-      trackGameEvent('game_completed', {
-        game_mode: analyticsGameMode,
-        player_count: multiplayerPlayers.length,
-        bots_present: hasBots ? 1 : 0,
-        human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
-        bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
-        bot_difficulty: resolvedBotDifficulty,
-      });
     }
 
     if (resolvedWinner == null || !resolvedFinalScores) {
@@ -192,8 +193,8 @@ export function useGameStatsUploader({
           `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
         );
 
-        // Note: game_completed analytics are now fired above (outside auth guard);
-        // this duplicate call is removed.
+        // Note: game_completed analytics are fired above the upload guard so they
+        // aren't permanently blocked if players load after the first game_over fire.
 
         // Get final scores sorted by cumulative score (ascending = best)
         const finalScoresEntries = Object.entries(resolvedFinalScores!)
