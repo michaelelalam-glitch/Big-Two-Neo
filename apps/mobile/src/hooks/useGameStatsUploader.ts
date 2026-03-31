@@ -47,6 +47,8 @@ export function useGameStatsUploader({
   // Prevent duplicate uploads if state updates multiple times while 'finished'
   const hasUploadedRef = useRef(false);
   const uploadingRef = useRef(false);
+  // Analytics does not require auth; track with its own one-shot guard.
+  const hasTrackedCompletionRef = useRef(false);
 
   useEffect(() => {
     if (!isMultiplayerGame) return;
@@ -116,12 +118,22 @@ export function useGameStatsUploader({
     }
 
     uploadingRef.current = true;
-    // NOTE: hasUploadedRef.current is set to true above (line ~70) BEFORE the
-    // auth checks inside uploadStats(). Auth failures reset it to false (lines ~109
-    // and ~118) so retries remain possible after transient auth errors. The second
-    // assignment inside uploadStats() at auth-confirm time is now redundant — the
-    // flag is already true. The null-guard path (missing winner/scores) does NOT
-    // reset the flag, so missing-data exits are intentionally non-retryable.
+
+    // Fire Firebase analytics outside the auth-gated uploadStats() path so the
+    // event is captured even if the Supabase session is unavailable.
+    if (!hasTrackedCompletionRef.current) {
+      hasTrackedCompletionRef.current = true;
+      const analyticsGameMode = roomInfo.ranked_mode
+        ? 'online_ranked'
+        : roomInfo.is_public
+          ? 'online_casual'
+          : ('online_private' as const);
+      trackGameEvent('game_completed', {
+        game_mode: analyticsGameMode,
+        player_count: multiplayerPlayers.length,
+        bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
+      });
+    }
 
     const uploadStats = async () => {
       try {
@@ -169,14 +181,8 @@ export function useGameStatsUploader({
           `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
         );
 
-        // Fire Firebase Analytics game_completed event so the dashboard can
-        // break down completions by game mode (online_ranked / online_casual / online_private).
-        const analyticsGameMode = `online_${gameType}` as const;
-        trackGameEvent('game_completed', {
-          game_mode: analyticsGameMode,
-          player_count: multiplayerPlayers.length,
-          bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
-        });
+        // Note: game_completed analytics are now fired above (outside auth guard);
+        // this duplicate call is removed.
 
         // Get final scores sorted by cumulative score (ascending = best)
         const finalScoresEntries = Object.entries(resolvedFinalScores!)
