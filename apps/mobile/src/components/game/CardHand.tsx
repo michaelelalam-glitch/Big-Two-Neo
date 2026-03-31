@@ -486,7 +486,11 @@ function CardHandComponent({
             setDisplayCards(newCards);
 
             if (onCardsReorder && newCards.length > 0) {
-              trackEvent('card_rearranged', { hand_size: newCards.length });
+              trackEvent('card_rearranged', {
+                hand_size: newCards.length,
+                hand_before: orderedCards.map(c => c.id).join(','),
+                hand_after: newCards.map(c => c.id).join(','),
+              });
               onCardsReorder(newCards);
             }
           }

@@ -163,13 +163,13 @@ function GameSettingsModalComponent({
       supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View
+        <Pressable
           style={[
             styles.modalContainer,
             isLandscape && styles.modalContainerLandscape,
             { maxHeight: height * 0.88 },
           ]}
-          onStartShouldSetResponder={() => true}
+          onPress={e => e.stopPropagation()}
         >
           <View style={[styles.header, isLandscape && styles.headerLandscape]}>
             <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>
@@ -392,6 +392,7 @@ function GameSettingsModalComponent({
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
               bounces={false}
+              scrollEventThrottle={16}
             >
               {/* Sound Settings */}
               <Pressable
@@ -617,7 +618,7 @@ function GameSettingsModalComponent({
               </Pressable>
             </ScrollView>
           )}
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );

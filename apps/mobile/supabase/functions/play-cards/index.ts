@@ -802,7 +802,7 @@ Deno.serve(async (req) => {
     // 1. Get room ID
     const { data: room, error: roomError } = await supabaseClient
       .from('rooms')
-      .select('id')
+      .select('id, ranked_mode, is_public')
       .eq('code', room_code)
       .single();
 
@@ -1467,6 +1467,8 @@ Deno.serve(async (req) => {
           alternative_plays_available: null, // expensive to compute; leave for later
           risk_score: null,
           game_ended_at: (gameOver && updateData.game_ended_at) ? updateData.game_ended_at : null,
+          game_type: room.ranked_mode ? 'ranked' : room.is_public ? 'casual' : 'private',
+          bot_difficulty: player.is_bot ? (player.bot_difficulty ?? null) : null,
         };
 
         const { error: tErr } = await supabaseClient

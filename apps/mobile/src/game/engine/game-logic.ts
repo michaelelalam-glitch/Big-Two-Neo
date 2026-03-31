@@ -442,6 +442,19 @@ export function findRecommendedPlay(
       }
     }
 
+    // Find 5-card combos: flushes (5 cards of same suit — shed most cards possible)
+    const bySuit: Record<string, Card[]> = {};
+    for (const card of sorted) {
+      if (!bySuit[card.suit]) bySuit[card.suit] = [];
+      bySuit[card.suit].push(card);
+    }
+    for (const suitCards of Object.values(bySuit)) {
+      if (suitCards.length >= 5) {
+        fiveCards.push(suitCards.slice(0, 5)); // lowest 5 cards of the suit
+        break;
+      }
+    }
+
     // Find 5-card combos: straights
     for (const seq of VALID_STRAIGHT_SEQUENCES) {
       const straightCards: Card[] = [];

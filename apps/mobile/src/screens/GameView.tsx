@@ -46,6 +46,7 @@ function GameViewComponent() {
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
     const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
+
     return Math.round(LAYOUT.avatarSize * (scaleMap[profilePhotoSize] ?? 1.0));
   }, [profilePhotoSize]);
 
@@ -59,6 +60,7 @@ function GameViewComponent() {
     setShowSettings,
     roomCode,
     effectivePlayerHand,
+
     selectedCardIds,
     setSelectedCardIds,
     handleCardsReorder,
@@ -170,6 +172,15 @@ function GameViewComponent() {
   // (avoids keeping an Animated.loop alive for the entire game view lifetime).
   const hintPulse = useRef(new Animated.Value(0.4)).current;
   const isHintVisible = dropZoneState === 'idle' && selectedCardIds.size > 0 && isPlayerReady;
+
+  // Track if the game has EVER been initialized (isInitializing flipped false at least once).
+  // This keeps GameEndModal mounted even when complete-game deletes room_players and
+  // causes isInitializing to flip back to true, which would otherwise unmount the modal.
+  const hasGameEverInitializedRef = useRef(false);
+  if (!isInitializing) {
+    hasGameEverInitializedRef.current = true;
+  }
+  const hasGameEverInitialized = hasGameEverInitializedRef.current;
   useEffect(() => {
     if (!isHintVisible) {
       return;
@@ -506,19 +517,6 @@ function GameViewComponent() {
               </TouchableOpacity>
             </View>
 
-            {/* Scoreboard Container */}
-            <ScoreboardContainer
-              playerNames={memoizedPlayerNames}
-              currentScores={memoizedCurrentScores}
-              cardCounts={memoizedCardCounts}
-              currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
-              matchNumber={matchNumber}
-              isGameFinished={isGameFinished}
-              scoreHistory={displayOrderScoreHistory}
-              playHistory={playHistoryByMatch}
-              originalPlayerNames={memoizedOriginalPlayerNames}
-            />
-
             {/* Hamburger menu (top-right) */}
             <Pressable
               style={styles.menuContainer}
@@ -675,23 +673,42 @@ function GameViewComponent() {
                 onDragZoneChange={setDropZoneState}
               />
             </View>
+
+            {/* Scoreboard Container — rendered LAST in the portrait block so it appears
+                above all other absolutely-positioned elements (PlayerInfo profile photos,
+                GameLayout overlays). React Native renders later children on top of earlier
+                ones within the same stacking context. */}
+            <ScoreboardContainer
+              playerNames={memoizedPlayerNames}
+              currentScores={memoizedCurrentScores}
+              cardCounts={memoizedCardCounts}
+              currentPlayerIndex={effectiveScoreboardCurrentPlayerIndex}
+              matchNumber={matchNumber}
+              isGameFinished={isGameFinished}
+              scoreHistory={displayOrderScoreHistory}
+              playHistory={playHistoryByMatch}
+              originalPlayerNames={memoizedOriginalPlayerNames}
+            />
           </>
+        )}
+
+        {/* Game End Modal: mounted once the game has initialized and stays mounted
+            even if isInitializing flips back to true when complete-game deletes
+            room_players. GameEndModal manages its own visibility via showGameEndModal. */}
+        {hasGameEverInitialized && (
+          <GameEndErrorBoundary onReset={() => {}}>
+            <GameEndModal />
+          </GameEndErrorBoundary>
         )}
 
         {/* Game End Modal, Settings Modal, Chat Drawer — deferred until game
             data is ready (isInitializing=false).  Mounting these heavy
-            components (GameEndModal: 1 549 lines / 4 Animated.Values;
-            GameSettingsModal: 736 lines; ChatDrawer: 454 lines) during the
+            components (GameSettingsModal: 736 lines; ChatDrawer: 454 lines) during the
             loading phase added ~4-5 ms to the initial mount render, pushing it
             over the 16ms budget.  None of these are needed while the spinner
             is shown, so deferring is safe and has no UX impact. */}
         {!isInitializing && (
           <>
-            {/* Game End Modal (Task #415) - Rendered OUTSIDE orientation conditional */}
-            <GameEndErrorBoundary onReset={() => {}}>
-              <GameEndModal />
-            </GameEndErrorBoundary>
-
             {/* Game Settings Modal */}
             <GameSettingsModal
               visible={showSettings}
