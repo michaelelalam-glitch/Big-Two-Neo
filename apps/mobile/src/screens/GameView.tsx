@@ -176,13 +176,12 @@ function GameViewComponent() {
   // Track if the game has EVER been initialized (isInitializing flipped false at least once).
   // This keeps GameEndModal mounted even when complete-game deletes room_players and
   // causes isInitializing to flip back to true, which would otherwise unmount the modal.
-  const hasGameEverInitializedRef = useRef(false);
+  const [hasGameEverInitialized, setHasGameEverInitialized] = useState(false);
   useEffect(() => {
     if (!isInitializing) {
-      hasGameEverInitializedRef.current = true;
+      setHasGameEverInitialized(true);
     }
   }, [isInitializing]);
-  const hasGameEverInitialized = hasGameEverInitializedRef.current;
   useEffect(() => {
     if (!isHintVisible) {
       return;
