@@ -40,6 +40,32 @@ export function useGameAudio({
   const previousLocalMatchNumberRef = useRef<number | null>(null);
   const previousMultiplayerMatchNumberRef = useRef<number | null>(null);
 
+  // ── Reset match-start refs on new game session ────────────────────────── //
+  // When Play Again starts a new game the match number resets to 1, but the
+  // refs still hold 1 from the previous game — preventing the GAME_START sound
+  // from firing. Resetting on gameState object-identity change (local) or
+  // multiplayerGameState identity change (multiplayer) ensures the next match-1
+  // always triggers the sound.
+  useEffect(() => {
+    if (!isLocalAIGame) {
+      previousLocalMatchNumberRef.current = null;
+      return;
+    }
+    if (gameState) {
+      previousLocalMatchNumberRef.current = null;
+    }
+  }, [isLocalAIGame, gameState]);
+
+  useEffect(() => {
+    if (!isMultiplayerGame) {
+      previousMultiplayerMatchNumberRef.current = null;
+      return;
+    }
+    if (multiplayerGameState) {
+      previousMultiplayerMatchNumberRef.current = null;
+    }
+  }, [isMultiplayerGame, multiplayerGameState]);
+
   // ── Local AI: match start sound ─────────────────────────────────────────── //
   // Fires whenever the local game's currentMatch increments (match 1, 2, 3…).
   // Uses explicit primitive dep (currentMatch) rather than the full gameState
