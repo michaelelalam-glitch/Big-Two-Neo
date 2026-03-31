@@ -111,7 +111,7 @@ export function useGameStatsUploader({
     // is available. This must run BEFORE the winner/final_scores null-guard so
     // that game_completed is never dropped when those values are temporarily
     // missing — analytics does not depend on winner or final_scores.
-    if (!hasTrackedCompletionRef.current) {
+    if (!hasTrackedCompletionRef.current && multiplayerPlayers.length > 0) {
       hasTrackedCompletionRef.current = true;
       const analyticsGameMode = roomInfo.ranked_mode
         ? 'online_ranked'
