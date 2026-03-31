@@ -119,10 +119,6 @@ export const useScoreboardContainerStyles = () => {
           },
         }),
       },
-      // Task #380: pointerEvents is a View prop, not a style property.
-      // Apply as <View pointerEvents={containerPointerEvents} style={styles.container}>
-      containerPointerEvents: 'box-none' as const,
-
       // Modal overlay — same structure as usePlayHistoryModalStyles so the expanded
       // scoreboard floats above all UI (including player avatar) and is centred.
       modalOverlay: {
