@@ -1,22 +1,24 @@
--- Add game_type and bot_difficulty columns to game_hands_training.
+-- NO-OP MIGRATION: game_type and bot_difficulty on game_hands_training
 --
--- game_type: distinguishes ranked / casual / private games for bot training analysis.
--- bot_difficulty: records the difficulty level of the bot in the session so training
---   data can be segmented by opponent strength.
+-- This migration file originally attempted to add the following to public.game_hands_training:
+--   - Columns: game_type, bot_difficulty
+--   - Indexes: idx_game_hands_training_game_type, idx_game_hands_training_bot_difficulty
 --
--- Both columns default to NULL so existing rows are unaffected. New inserts from
--- the updated play-cards and player-pass edge functions will populate these fields.
+-- However, these columns and indexes are already defined in:
+--   20260331060000_add_game_type_bot_difficulty_to_game_hands_training.sql
+--
+-- That earlier migration is the authoritative source of truth for:
+--   - The column definitions (including defaults: game_type defaults to 'casual')
+--   - The related indexes
+--
+-- To avoid duplicate schema changes and conflicting documentation, this migration
+-- has been intentionally converted into a no-op that preserves the migration
+-- sequence without altering the database schema.
 
-ALTER TABLE public.game_hands_training
-  ADD COLUMN IF NOT EXISTS game_type character varying,
-  ADD COLUMN IF NOT EXISTS bot_difficulty character varying;
-
-COMMENT ON COLUMN public.game_hands_training.game_type IS 'Game type: ranked, casual, or private';
-COMMENT ON COLUMN public.game_hands_training.bot_difficulty IS 'Bot difficulty level for the session: easy, medium, hard, or null for human-only games';
-
--- Index for efficient filtering by game_type and bot_difficulty during training data export
-CREATE INDEX IF NOT EXISTS idx_game_hands_training_game_type
-  ON public.game_hands_training USING btree (game_type);
-
-CREATE INDEX IF NOT EXISTS idx_game_hands_training_bot_difficulty
-  ON public.game_hands_training USING btree (bot_difficulty);
+DO $$
+BEGIN
+  -- intentional no-op: all relevant changes were applied in
+  -- 20260331060000_add_game_type_bot_difficulty_to_game_hands_training.sql
+  NULL;
+END;
+$$;

@@ -216,7 +216,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
 
       gameLogger.info('✅ [GameEndContext] State updated, modal opening with valid data');
     },
-    []
+    [trackScreenView, gameLogger]
   );
 
   // -------------------------------------------------------------------------
