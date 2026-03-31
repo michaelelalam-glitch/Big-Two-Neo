@@ -362,21 +362,6 @@ function GameSettingsModalComponent({
                 </>
               )}
 
-              {/* Room Code in landscape — tap to copy */}
-              {roomCode ? (
-                <Pressable
-                  style={styles.menuItemLandscape}
-                  onPress={handleCopyRoomCode}
-                  onLongPress={handleShareRoomCode}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Room code ${roomCode}, tap to copy`}
-                >
-                  <Text style={styles.menuItemTextLandscape}>🏠</Text>
-                  <Text style={styles.menuItemLabelLandscape}>{i18n.t('lobby.roomCode')}</Text>
-                  <Text style={styles.menuItemValueLandscape}>{roomCode}</Text>
-                </Pressable>
-              ) : null}
-
               <Pressable
                 style={[styles.menuItemLandscape, styles.leaveGameItemLandscape]}
                 onPress={handleLeaveGame}
@@ -432,39 +417,6 @@ function GameSettingsModalComponent({
                   {vibrationEnabled ? i18n.t('common.on') : i18n.t('common.off')}
                 </Text>
               </Pressable>
-
-              {/* Room Code — Multiplayer only.
-                  The divider above is also gated on roomCode so single-player games
-                  don't get two consecutive dividers with nothing between them. */}
-              {roomCode ? (
-                <>
-                  <View style={styles.divider} />
-                  <View style={styles.roomCodeContainer}>
-                    <View style={styles.roomCodeLabelRow}>
-                      <Text style={styles.roomCodeLabel}>🏠 {i18n.t('lobby.roomCode')}</Text>
-                    </View>
-                    <Text style={styles.roomCodeValue}>{roomCode}</Text>
-                    <View style={styles.roomCodeButtonsRow}>
-                      <Pressable
-                        style={styles.roomCodeAction}
-                        onPress={handleCopyRoomCode}
-                        accessibilityRole="button"
-                        accessibilityLabel="Copy room code"
-                      >
-                        <Text style={styles.roomCodeActionText}>{i18n.t('lobby.copy')}</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.roomCodeAction}
-                        onPress={handleShareRoomCode}
-                        accessibilityRole="button"
-                        accessibilityLabel="Share room code"
-                      >
-                        <Text style={styles.roomCodeActionText}>{i18n.t('lobby.share')}</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </>
-              ) : null}
 
               <View style={styles.divider} />
 
