@@ -521,12 +521,22 @@ export function MultiplayerGame() {
         });
       }
     } else {
-      // Reset for new game when phase returns to 'dealing'
-      if (multiplayerGameState?.game_phase === 'dealing') {
+      // Reset only when a truly new game session starts: 'dealing' at match 1
+      // (not between matches, which also transitions through 'dealing').
+      if (
+        multiplayerGameState?.game_phase === 'dealing' &&
+        (multiplayerGameState?.match_number ?? 1) === 1
+      ) {
         hasTrackedGameStartRef.current = false;
       }
     }
-  }, [multiplayerGameState?.game_phase, gameMode, multiplayerPlayers, gameStartedAt]);
+  }, [
+    multiplayerGameState?.game_phase,
+    multiplayerGameState?.match_number,
+    gameMode,
+    multiplayerPlayers,
+    gameStartedAt,
+  ]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
