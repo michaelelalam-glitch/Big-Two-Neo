@@ -107,21 +107,10 @@ export function useGameStatsUploader({
       }
     }
 
-    if (resolvedWinner == null || !resolvedFinalScores) {
-      statsLogger.warn('[GameStats] Missing winner or final_scores, skipping upload', {
-        winner: resolvedWinner,
-        hasFinalScores: !!resolvedFinalScores,
-        hasScoresHistory:
-          Array.isArray(multiplayerGameState.scores_history) &&
-          multiplayerGameState.scores_history.length > 0,
-      });
-      return;
-    }
-
-    uploadingRef.current = true;
-
-    // Fire Firebase analytics outside the auth-gated uploadStats() path so the
-    // event is captured even if the Supabase session is unavailable.
+    // Fire Firebase analytics as soon as game_phase === 'game_over' and roomInfo
+    // is available. This must run BEFORE the winner/final_scores null-guard so
+    // that game_completed is never dropped when those values are temporarily
+    // missing — analytics does not depend on winner or final_scores.
     if (!hasTrackedCompletionRef.current) {
       hasTrackedCompletionRef.current = true;
       const analyticsGameMode = roomInfo.ranked_mode
@@ -138,6 +127,19 @@ export function useGameStatsUploader({
         bot_difficulty: multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? 'none',
       });
     }
+
+    if (resolvedWinner == null || !resolvedFinalScores) {
+      statsLogger.warn('[GameStats] Missing winner or final_scores, skipping upload', {
+        winner: resolvedWinner,
+        hasFinalScores: !!resolvedFinalScores,
+        hasScoresHistory:
+          Array.isArray(multiplayerGameState.scores_history) &&
+          multiplayerGameState.scores_history.length > 0,
+      });
+      return;
+    }
+
+    uploadingRef.current = true;
 
     const uploadStats = async () => {
       try {
