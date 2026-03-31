@@ -191,6 +191,9 @@ export function LocalAIGame() {
           game_mode: 'offline',
           player_count: playerCount,
           bots_present: 1,
+          human_count: 1,
+          bot_count: playerCount - 1,
+          bot_difficulty: botDifficulty,
         });
       }
     }
@@ -200,6 +203,9 @@ export function LocalAIGame() {
         game_mode: 'offline',
         player_count: Object.keys(gameState.players ?? {}).length,
         bots_present: 1,
+        human_count: 1,
+        bot_count: Object.keys(gameState.players ?? {}).length - 1,
+        bot_difficulty: botDifficulty,
       });
     }
   }, [gameState]);

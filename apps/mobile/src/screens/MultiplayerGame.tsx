@@ -510,6 +510,9 @@ export function MultiplayerGame() {
           game_mode: gameMode,
           player_count: multiplayerPlayers.length,
           bots_present: multiplayerPlayers.some(p => p.is_bot) ? 1 : 0,
+          human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
+          bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
+          bot_difficulty: multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? 'none',
         });
       }
     } else {

@@ -111,6 +111,8 @@ async function fireTrainingPassInsert(
         alternative_plays_available: null,
         risk_score: null,
         game_ended_at: null,
+        game_type: room.ranked_mode ? 'ranked' : room.is_public ? 'casual' : 'private',
+        bot_difficulty: player.is_bot ? (player.bot_difficulty ?? null) : null,
       };
 
       const { error } = await supabaseClient
@@ -299,7 +301,7 @@ Deno.serve(async (req) => {
     // 1. Get room
     const { data: room, error: roomError } = await supabaseClient
       .from('rooms')
-      .select('id, code, status')
+      .select('id, code, status, ranked_mode, is_public')
       .eq('code', room_code)
       .single();
 
