@@ -68,6 +68,7 @@ export function useGameStatsUploader({
       if (multiplayerGameState.game_phase === 'dealing') {
         hasUploadedRef.current = false;
         uploadingRef.current = false;
+        hasTrackedCompletionRef.current = false;
       }
       return;
     }
