@@ -93,8 +93,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // reached the terminal phase ('game_over'). When complete-game runs it
   // deletes room_players as part of cleanup; that Realtime event arrives while
   // game_state still reports game_phase = 'game_over'. Without this exemption,
-  // isDataReady would flip back to false, isInitializing becomes true, and the
-  // GameEndModal (mounted under {!isInitializing}) is unmounted before it can show.
+  // isDataReady would flip back to false, isInitializing becomes true, and
+  // GameView's hasGameEverInitialized-gated GameEndModal would lose its stable
+  // terminal-phase view. The 'finished' phase is a between-match transition and
+  // is NOT considered terminal here — only 'game_over' signals the actual end.
   const isGameTerminal = gameState?.game_phase === 'game_over';
   const isDataReady =
     !loading &&

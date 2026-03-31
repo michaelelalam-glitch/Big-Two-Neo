@@ -1,8 +1,12 @@
--- Migration: add_unique_index_game_hands_training
--- Adds the unique index on (game_session_id, round_number, play_sequence, player_index)
--- that is required for the upsert ON CONFLICT clause in play-cards and player-pass
--- edge functions. Without this index, every training data insert silently fails with
--- "there is no unique or exclusion constraint matching the ON CONFLICT specification".
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_game_hands_training_unique_play
-  ON public.game_hands_training (game_session_id, round_number, play_sequence, player_index);
+-- Migration: add_unique_index_game_hands_training (NO-OP)
+--
+-- NOTE: This migration is intentionally a no-op.
+-- The unique index idx_game_hands_training_unique_play on
+-- (game_session_id, round_number, play_sequence, player_index)
+-- is already created by 20260718000002_create_game_hands_training.sql.
+-- This file is kept to preserve migration history continuity for any
+-- deployments that applied the table creation migration without the index.
+-- The IF NOT EXISTS guard in the original CREATE UNIQUE INDEX statement
+-- means applying this to a fresh database is safe but redundant.
+--
+-- No SQL changes are applied by this migration.
