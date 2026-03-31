@@ -111,7 +111,11 @@ async function fireTrainingPassInsert(
         alternative_plays_available: null,
         risk_score: null,
         game_ended_at: null,
-        game_type: room.ranked_mode ? 'ranked' : room.is_public ? 'casual' : 'private',
+        game_type: room.ranked_mode === true
+          ? 'ranked'
+          : (room.is_public ?? true) === true
+            ? 'casual'
+            : 'private',
         bot_difficulty: player.is_bot ? (player.bot_difficulty ?? null) : null,
       };
 
