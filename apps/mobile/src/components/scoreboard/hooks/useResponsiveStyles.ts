@@ -1,9 +1,9 @@
 /**
  * useResponsiveStyles Hook
- * 
+ *
  * Dynamically calculates responsive styles based on current window dimensions
  * Automatically updates when device orientation changes
- * 
+ *
  * Created as part of Task #359: Mobile screen size adaptations
  * Date: December 13, 2025
  */
@@ -19,13 +19,13 @@ const MIN_TOUCH_TARGET = 44;
  * Calculate responsive scale factor based on current screen width
  * Base: 375 (iPhone 6/7/8 standard width)
  */
-const getScale = (width: number) => (width / 375);
+const getScale = (width: number) => width / 375;
 
 /**
  * Calculate responsive vertical scale factor based on current screen height
  * Base: 812 (iPhone X standard height)
  */
-const getVerticalScale = (height: number) => (height / 812);
+const getVerticalScale = (height: number) => height / 812;
 
 /**
  * Moderate scaling - less aggressive than linear scaling
@@ -47,9 +47,9 @@ export interface ResponsiveDimensions {
   screenWidth: number;
   screenHeight: number;
   minTouchTarget: number;
-  isSmallDevice: boolean;  // iPhone SE, etc.
+  isSmallDevice: boolean; // iPhone SE, etc.
   isMediumDevice: boolean; // Standard phones
-  isLargeDevice: boolean;  // Tablets
+  isLargeDevice: boolean; // Tablets
 }
 
 /**
@@ -62,11 +62,11 @@ export const useResponsiveDimensions = (): ResponsiveDimensions => {
   return useMemo(() => {
     const isPortrait = height > width;
     const isLandscape = width > height;
-    
+
     // Device size categories based on width
-    const isSmallDevice = width < 375;   // iPhone SE (320-374)
+    const isSmallDevice = width < 375; // iPhone SE (320-374)
     const isMediumDevice = width >= 375 && width < 768; // Standard phones (375-767)
-    const isLargeDevice = width >= 768;  // Tablets (768+)
+    const isLargeDevice = width >= 768; // Tablets (768+)
 
     return {
       scale: (size: number) => getScale(width) * size,
@@ -90,38 +90,41 @@ export const useResponsiveDimensions = (): ResponsiveDimensions => {
 export const useScoreboardContainerStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
-    container: {
-      position: 'absolute' as const,
-      top: dims.isPortrait ? 90 : 60,
-      left: 0,
-      right: 0,
-      alignItems: 'center' as const,
-      maxWidth: dims.isPortrait 
-        ? undefined 
-        : dims.isLargeDevice 
-          ? dims.moderateScale(500) 
-          : dims.moderateScale(400),
-      zIndex: 200, // Intentionally above match badge + action buttons (z-index 150) so the
-                   // expanded scoreboard overlays everything when open. When collapsed,
-                   // ScoreboardContainer renders no scoreboard content (only an empty container),
-                   // so no layering conflict occurs.
-      ...Platform.select({
-        ios: {
-          shadowColor: ScoreboardColors.shadow.heavy,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.5,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 8,
-        },
-      }),
-    },
-    // Task #380: pointerEvents is a View prop, not a style property.
-    // Apply as <View pointerEvents={containerPointerEvents} style={styles.container}>
-    containerPointerEvents: 'box-none' as const,
-  }), [dims]);
+  return useMemo(
+    () => ({
+      container: {
+        position: 'absolute' as const,
+        top: dims.isPortrait ? 90 : 60,
+        left: 0,
+        right: 0,
+        alignItems: 'center' as const,
+        maxWidth: dims.isPortrait
+          ? undefined
+          : dims.isLargeDevice
+            ? dims.moderateScale(500)
+            : dims.moderateScale(400),
+        zIndex: 200, // Intentionally above match badge + action buttons (z-index 150) so the
+        // expanded scoreboard overlays everything when open. When collapsed,
+        // ScoreboardContainer renders no scoreboard content (only an empty container),
+        // so no layering conflict occurs.
+        ...Platform.select({
+          ios: {
+            shadowColor: ScoreboardColors.shadow.heavy,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.5,
+            shadowRadius: 4,
+          },
+          android: {
+            elevation: 8,
+          },
+        }),
+      },
+      // Task #380: pointerEvents is a View prop, not a style property.
+      // Apply as <View pointerEvents={containerPointerEvents} style={styles.container}>
+      containerPointerEvents: 'box-none' as const,
+    }),
+    [dims]
+  );
 };
 
 /**
@@ -130,111 +133,114 @@ export const useScoreboardContainerStyles = () => {
 export const useCompactScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
-    compactContainer: {
-      backgroundColor: ScoreboardColors.background.compact,
-      borderRadius: dims.moderateScale(8),
-      padding: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
-      minWidth: dims.isSmallDevice ? dims.moderateScale(180) : dims.moderateScale(200),
-      maxWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
-    },
-    // Task #380: pointerEvents is a View prop, not a style property.
-    // Apply as <View pointerEvents={compactContainerPointerEvents} style={styles.compactContainer}>
-    compactContainerPointerEvents: 'auto' as const,
+  return useMemo(
+    () => ({
+      compactContainer: {
+        backgroundColor: ScoreboardColors.background.compact,
+        borderRadius: dims.moderateScale(8),
+        padding: dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
+        minWidth: dims.isSmallDevice ? dims.moderateScale(180) : dims.moderateScale(200),
+        maxWidth: dims.isSmallDevice ? dims.moderateScale(280) : dims.moderateScale(320),
+      },
+      // Task #380: pointerEvents is a View prop, not a style property.
+      // Apply as <View pointerEvents={compactContainerPointerEvents} style={styles.compactContainer}>
+      compactContainerPointerEvents: 'auto' as const,
 
-    compactHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: dims.moderateScale(8),
-      paddingBottom: dims.moderateScale(8),
-      borderBottomWidth: 1,
-      borderBottomColor: ScoreboardColors.border.primary,
-    },
+      compactHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        marginBottom: dims.moderateScale(8),
+        paddingBottom: dims.moderateScale(8),
+        borderBottomWidth: 1,
+        borderBottomColor: ScoreboardColors.border.primary,
+      },
 
-    matchTitle: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(12) : dims.moderateScale(14),
-      fontWeight: '700' as const,
-      color: ScoreboardColors.text.highlight,
-      letterSpacing: 0.5,
-    },
+      matchTitle: {
+        fontSize: dims.isSmallDevice ? dims.moderateScale(12) : dims.moderateScale(14),
+        fontWeight: '700' as const,
+        color: ScoreboardColors.text.highlight,
+        letterSpacing: 0.5,
+      },
 
-    headerButtons: {
-      flexDirection: 'row' as const,
-      gap: dims.moderateScale(8),
-    },
+      headerButtons: {
+        flexDirection: 'row' as const,
+        gap: dims.moderateScale(8),
+      },
 
-    iconButton: {
-      minWidth: dims.minTouchTarget,
-      minHeight: dims.minTouchTarget,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      backgroundColor: ScoreboardColors.button.background,
-      borderRadius: dims.moderateScale(6),
-      paddingHorizontal: dims.moderateScale(8),
-    },
+      iconButton: {
+        minWidth: dims.minTouchTarget,
+        minHeight: dims.minTouchTarget,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        backgroundColor: ScoreboardColors.button.background,
+        borderRadius: dims.moderateScale(6),
+        paddingHorizontal: dims.moderateScale(8),
+      },
 
-    iconButtonActive: {
-      backgroundColor: ScoreboardColors.button.backgroundActive,
-    },
+      iconButtonActive: {
+        backgroundColor: ScoreboardColors.button.backgroundActive,
+      },
 
-    iconButtonText: {
-      fontSize: dims.moderateScale(12),
-      color: ScoreboardColors.button.text,
-      fontWeight: '600' as const,
-    },
+      iconButtonText: {
+        fontSize: dims.moderateScale(12),
+        color: ScoreboardColors.button.text,
+        fontWeight: '600' as const,
+      },
 
-    playerList: {
-      gap: dims.moderateScale(6),
-    },
+      playerList: {
+        gap: dims.moderateScale(6),
+      },
 
-    playerRow: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingVertical: dims.moderateScale(6),
-      paddingHorizontal: dims.moderateScale(8),
-      borderRadius: dims.moderateScale(4),
-      backgroundColor: 'transparent',
-    },
+      playerRow: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        paddingVertical: dims.moderateScale(6),
+        paddingHorizontal: dims.moderateScale(8),
+        borderRadius: dims.moderateScale(4),
+        backgroundColor: 'transparent',
+      },
 
-    playerRowCurrent: {
-      backgroundColor: ScoreboardColors.background.currentMatch,
-      borderLeftWidth: 3,
-      borderLeftColor: ScoreboardColors.border.highlight,
-    },
+      playerRowCurrent: {
+        backgroundColor: ScoreboardColors.background.currentMatch,
+        borderLeftWidth: 3,
+        borderLeftColor: ScoreboardColors.border.highlight,
+      },
 
-    playerName: {
-      fontSize: dims.isSmallDevice ? dims.moderateScale(11) : dims.moderateScale(13),
-      fontWeight: '500' as const,
-      color: ScoreboardColors.text.primary,
-      flex: 1,
-    },
+      playerName: {
+        fontSize: dims.isSmallDevice ? dims.moderateScale(11) : dims.moderateScale(13),
+        fontWeight: '500' as const,
+        color: ScoreboardColors.text.primary,
+        flex: 1,
+      },
 
-    playerNameCurrent: {
-      color: ScoreboardColors.text.currentPlayer,
-      fontWeight: '700' as const,
-    },
+      playerNameCurrent: {
+        color: ScoreboardColors.text.currentPlayer,
+        fontWeight: '700' as const,
+      },
 
-    playerStats: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: dims.moderateScale(12),
-    },
+      playerStats: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: dims.moderateScale(12),
+      },
 
-    cardCount: {
-      fontSize: dims.moderateScale(12),
-      color: ScoreboardColors.text.secondary,
-      fontWeight: '500' as const,
-    },
+      cardCount: {
+        fontSize: dims.moderateScale(12),
+        color: ScoreboardColors.text.secondary,
+        fontWeight: '500' as const,
+      },
 
-    playerScore: {
-      fontSize: dims.moderateScale(14),
-      fontWeight: '700' as const,
-      minWidth: dims.moderateScale(40),
-      textAlign: 'right' as const,
-    },
-  }), [dims]);
+      playerScore: {
+        fontSize: dims.moderateScale(14),
+        fontWeight: '700' as const,
+        minWidth: dims.moderateScale(40),
+        textAlign: 'right' as const,
+      },
+    }),
+    [dims]
+  );
 };
 
 /**
@@ -243,210 +249,221 @@ export const useCompactScoreboardStyles = () => {
 export const useExpandedScoreboardStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
-    expandedContainer: {
-      backgroundColor: ScoreboardColors.background.expanded,
-      borderRadius: dims.moderateScale(12),
-      padding: dims.moderateScale(8),
-      width: dims.isLandscape
-        ? dims.screenWidth * 0.65  // Match play history width
-        : dims.screenWidth * 0.9,  // Match play history portrait width
-      minWidth: dims.isLandscape
-        ? dims.screenWidth * 0.65  // Match play history width
-        : undefined,
-      maxWidth: dims.isLandscape
-        ? dims.screenWidth * 0.65  // Match play history width
-        : dims.screenWidth * 0.9,
-      maxHeight: dims.isLandscape 
-        ? dims.screenHeight * 0.92  // Match play history height
-        : dims.screenHeight * 0.85,
-      // LANDSCAPE FIX: Position at top-left (same as play history modal)
-      ...(dims.isLandscape && {
-        position: 'absolute' as const,
-        top: dims.moderateScale(20),  // Match play history top position
-        left: dims.moderateScale(20),  // Match play history left position
-      }),
-    },
-    // Task #380: pointerEvents is a View prop, not a style property.
-    // Apply as <View pointerEvents={expandedContainerPointerEvents} style={styles.expandedContainer}>
-    expandedContainerPointerEvents: 'auto' as const,
+  return useMemo(
+    () => ({
+      expandedContainer: {
+        backgroundColor: ScoreboardColors.background.expanded,
+        borderRadius: dims.moderateScale(12),
+        padding: dims.moderateScale(8),
+        width: dims.isLandscape
+          ? dims.screenWidth * 0.65 // Match play history width
+          : dims.screenWidth * 0.9, // Match play history portrait width
+        minWidth: dims.isLandscape
+          ? dims.screenWidth * 0.65 // Match play history width
+          : undefined,
+        maxWidth: dims.isLandscape
+          ? dims.screenWidth * 0.65 // Match play history width
+          : dims.screenWidth * 0.9,
+        maxHeight: dims.isLandscape
+          ? dims.screenHeight * 0.92 // Match play history height
+          : dims.screenHeight * 0.75, // Match play history portrait height — prevents overlap with player avatar
+        // LANDSCAPE FIX: Position at top-left (same as play history modal)
+        ...(dims.isLandscape && {
+          position: 'absolute' as const,
+          top: dims.moderateScale(20), // Match play history top position
+          left: dims.moderateScale(20), // Match play history left position
+        }),
+      },
+      // Task #380: pointerEvents is a View prop, not a style property.
+      // Apply as <View pointerEvents={expandedContainerPointerEvents} style={styles.expandedContainer}>
+      expandedContainerPointerEvents: 'auto' as const,
 
-    expandedHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: dims.moderateScale(12), // SAME in both orientations
-      paddingBottom: dims.moderateScale(12), // SAME in both orientations
-      borderBottomWidth: 1,
-      borderBottomColor: ScoreboardColors.border.primary,
-    },
+      expandedHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        marginBottom: dims.moderateScale(12), // SAME in both orientations
+        paddingBottom: dims.moderateScale(12), // SAME in both orientations
+        borderBottomWidth: 1,
+        borderBottomColor: ScoreboardColors.border.primary,
+      },
 
-    expandedTitle: {
-      fontSize: dims.isLandscape 
-        ? dims.moderateScale(13)  // Landscape: slightly smaller
-        : dims.isSmallDevice ? dims.moderateScale(14) : dims.moderateScale(16),
-      fontWeight: '700' as const,
-      color: ScoreboardColors.text.highlight,
-    },
+      expandedTitle: {
+        fontSize: dims.isLandscape
+          ? dims.moderateScale(13) // Landscape: slightly smaller
+          : dims.isSmallDevice
+            ? dims.moderateScale(14)
+            : dims.moderateScale(16),
+        fontWeight: '700' as const,
+        color: ScoreboardColors.text.highlight,
+      },
 
-    headerButtons: {
-      flexDirection: 'row' as const,
-      gap: dims.moderateScale(8),
-    },
+      headerButtons: {
+        flexDirection: 'row' as const,
+        gap: dims.moderateScale(8),
+      },
 
-    iconButton: {
-      minWidth: dims.minTouchTarget,
-      minHeight: dims.minTouchTarget,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      backgroundColor: ScoreboardColors.button.background,
-      borderRadius: dims.moderateScale(6),
-      paddingHorizontal: dims.moderateScale(8),
-    },
+      iconButton: {
+        minWidth: dims.minTouchTarget,
+        minHeight: dims.minTouchTarget,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        backgroundColor: ScoreboardColors.button.background,
+        borderRadius: dims.moderateScale(6),
+        paddingHorizontal: dims.moderateScale(8),
+      },
 
-    iconButtonText: {
-      fontSize: dims.moderateScale(12),
-      color: ScoreboardColors.button.text,
-      fontWeight: '600' as const,
-    },
+      iconButtonText: {
+        fontSize: dims.moderateScale(12),
+        color: ScoreboardColors.button.text,
+        fontWeight: '600' as const,
+      },
 
-    closeButton: {
-      minWidth: dims.minTouchTarget,
-      minHeight: dims.minTouchTarget,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      backgroundColor: ScoreboardColors.button.background,
-      borderRadius: dims.moderateScale(6),
-      paddingHorizontal: dims.moderateScale(12),
-    },
+      closeButton: {
+        minWidth: dims.minTouchTarget,
+        minHeight: dims.minTouchTarget,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        backgroundColor: ScoreboardColors.button.background,
+        borderRadius: dims.moderateScale(6),
+        paddingHorizontal: dims.moderateScale(12),
+      },
 
-    closeButtonText: {
-      fontSize: dims.moderateScale(14),
-      color: ScoreboardColors.button.text,
-      fontWeight: '600' as const,
-    },
+      closeButtonText: {
+        fontSize: dims.moderateScale(14),
+        color: ScoreboardColors.button.text,
+        fontWeight: '600' as const,
+      },
 
-    tableContainer: {
-      borderWidth: 1,
-      borderColor: ScoreboardColors.border.table,
-      borderRadius: dims.moderateScale(6),
-      overflow: 'hidden' as const,
-    },
+      tableContainer: {
+        borderWidth: 1,
+        borderColor: ScoreboardColors.border.table,
+        borderRadius: dims.moderateScale(6),
+        overflow: 'hidden' as const,
+      },
 
-    tableScrollView: {
-      maxHeight: dims.screenHeight * 0.7, // SAME in both orientations
-    },
+      tableScrollView: {
+        // Portrait: cap below expanded header (~80px) so content stays inside the 0.75 container.
+        // Landscape: leave generous room within the 0.92 container.
+        maxHeight: dims.isLandscape ? dims.screenHeight * 0.78 : dims.screenHeight * 0.6,
+      },
 
-    tableHeaderRow: {
-      flexDirection: 'row' as const,
-      backgroundColor: ScoreboardColors.background.tableHeader,
-      borderBottomWidth: 2,
-      borderBottomColor: ScoreboardColors.border.table,
-    },
+      tableHeaderRow: {
+        flexDirection: 'row' as const,
+        backgroundColor: ScoreboardColors.background.tableHeader,
+        borderBottomWidth: 2,
+        borderBottomColor: ScoreboardColors.border.table,
+      },
 
-    tableHeaderCell: {
-      flex: 1,
-      paddingVertical: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(10),
-      paddingHorizontal: dims.moderateScale(4),
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
-    },
+      tableHeaderCell: {
+        flex: 1,
+        paddingVertical: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(10),
+        paddingHorizontal: dims.moderateScale(4),
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
+      },
 
-    tableHeaderCellFirst: {
-      width: dims.isLandscape ? dims.screenWidth * 0.10 : dims.screenWidth * 0.15,
-      alignItems: 'flex-start' as const,
-    },
+      tableHeaderCellFirst: {
+        width: dims.isLandscape ? dims.screenWidth * 0.1 : dims.screenWidth * 0.15,
+        alignItems: 'flex-start' as const,
+      },
 
-    tableHeaderText: {
-      fontSize: dims.isLandscape 
-        ? dims.moderateScale(11)  // Landscape: larger, readable text
-        : dims.isSmallDevice ? dims.moderateScale(10) : dims.moderateScale(12),
-      fontWeight: '700' as const,
-      color: ScoreboardColors.text.primary,
-      textAlign: 'center' as const,
-    },
+      tableHeaderText: {
+        fontSize: dims.isLandscape
+          ? dims.moderateScale(11) // Landscape: larger, readable text
+          : dims.isSmallDevice
+            ? dims.moderateScale(10)
+            : dims.moderateScale(12),
+        fontWeight: '700' as const,
+        color: ScoreboardColors.text.primary,
+        textAlign: 'center' as const,
+      },
 
-    tableHeaderTextCurrent: {
-      color: ScoreboardColors.text.currentPlayer,
-    },
+      tableHeaderTextCurrent: {
+        color: ScoreboardColors.text.currentPlayer,
+      },
 
-    tableRow: {
-      flexDirection: 'row' as const,
-      backgroundColor: ScoreboardColors.background.tableRow,
-      borderBottomWidth: 1,
-      borderBottomColor: ScoreboardColors.border.table,
-    },
+      tableRow: {
+        flexDirection: 'row' as const,
+        backgroundColor: ScoreboardColors.background.tableRow,
+        borderBottomWidth: 1,
+        borderBottomColor: ScoreboardColors.border.table,
+      },
 
-    tableRowAlt: {
-      backgroundColor: ScoreboardColors.background.tableRowAlt,
-    },
+      tableRowAlt: {
+        backgroundColor: ScoreboardColors.background.tableRowAlt,
+      },
 
-    tableRowCurrent: {
-      backgroundColor: ScoreboardColors.background.currentMatch,
-    },
+      tableRowCurrent: {
+        backgroundColor: ScoreboardColors.background.currentMatch,
+      },
 
-    tableCell: {
-      flex: 1,
-      paddingVertical: dims.isLandscape ? dims.moderateScale(5) : dims.moderateScale(8),
-      paddingHorizontal: dims.moderateScale(4),
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
-    },
+      tableCell: {
+        flex: 1,
+        paddingVertical: dims.isLandscape ? dims.moderateScale(5) : dims.moderateScale(8),
+        paddingHorizontal: dims.moderateScale(4),
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        width: dims.isLandscape ? dims.screenWidth * 0.13 : dims.screenWidth * 0.18,
+      },
 
-    tableCellFirst: {
-      width: dims.isLandscape ? dims.screenWidth * 0.10 : dims.screenWidth * 0.15,
-      alignItems: 'flex-start' as const,
-    },
+      tableCellFirst: {
+        width: dims.isLandscape ? dims.screenWidth * 0.1 : dims.screenWidth * 0.15,
+        alignItems: 'flex-start' as const,
+      },
 
-    tableCellText: {
-      fontSize: dims.isLandscape 
-        ? dims.moderateScale(12)  // Landscape: larger, readable text
-        : dims.isSmallDevice ? dims.moderateScale(11) : dims.moderateScale(13),
-      color: ScoreboardColors.text.primary,
-      textAlign: 'center' as const,
-    },
+      tableCellText: {
+        fontSize: dims.isLandscape
+          ? dims.moderateScale(12) // Landscape: larger, readable text
+          : dims.isSmallDevice
+            ? dims.moderateScale(11)
+            : dims.moderateScale(13),
+        color: ScoreboardColors.text.primary,
+        textAlign: 'center' as const,
+      },
 
-    tableCellLabel: {
-      fontSize: dims.isLandscape ? dims.moderateScale(10) : dims.moderateScale(11),
-      color: ScoreboardColors.text.secondary,
-      fontWeight: '600' as const,
-    },
+      tableCellLabel: {
+        fontSize: dims.isLandscape ? dims.moderateScale(10) : dims.moderateScale(11),
+        color: ScoreboardColors.text.secondary,
+        fontWeight: '600' as const,
+      },
 
-    totalRow: {
-      backgroundColor: ScoreboardColors.background.tableHeader,
-      borderTopWidth: 2,
-      borderTopColor: ScoreboardColors.border.highlight,
-    },
+      totalRow: {
+        backgroundColor: ScoreboardColors.background.tableHeader,
+        borderTopWidth: 2,
+        borderTopColor: ScoreboardColors.border.highlight,
+      },
 
-    totalCell: {
-      paddingVertical: dims.moderateScale(10),
-    },
+      totalCell: {
+        paddingVertical: dims.moderateScale(10),
+      },
 
-    totalCellText: {
-      fontSize: dims.moderateScale(14),
-      fontWeight: '700' as const,
-    },
+      totalCellText: {
+        fontSize: dims.moderateScale(14),
+        fontWeight: '700' as const,
+      },
 
-    divider: {
-      height: 1,
-      backgroundColor: ScoreboardColors.border.primary,
-      marginVertical: dims.moderateScale(8),
-    },
+      divider: {
+        height: 1,
+        backgroundColor: ScoreboardColors.border.primary,
+        marginVertical: dims.moderateScale(8),
+      },
 
-    emptyState: {
-      padding: dims.moderateScale(32),
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
+      emptyState: {
+        padding: dims.moderateScale(32),
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+      },
 
-    emptyStateText: {
-      fontSize: dims.moderateScale(14),
-      color: ScoreboardColors.text.muted,
-      textAlign: 'center' as const,
-    },
-  }), [dims]);
+      emptyStateText: {
+        fontSize: dims.moderateScale(14),
+        color: ScoreboardColors.text.muted,
+        textAlign: 'center' as const,
+      },
+    }),
+    [dims]
+  );
 };
 
 /**
@@ -455,263 +472,268 @@ export const useExpandedScoreboardStyles = () => {
 export const usePlayHistoryModalStyles = () => {
   const dims = useResponsiveDimensions();
 
-  return useMemo(() => ({
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: ScoreboardColors.background.overlay,
-      // LANDSCAPE FIX: Position at top-left, not centered
-      justifyContent: dims.isLandscape ? 'flex-start' as const : 'center' as const,
-      alignItems: dims.isLandscape ? 'flex-start' as const : 'center' as const,
-      padding: dims.isLandscape ? 0 : dims.moderateScale(20), // No padding in landscape
-    },
+  return useMemo(
+    () => ({
+      modalOverlay: {
+        flex: 1,
+        backgroundColor: ScoreboardColors.background.overlay,
+        // LANDSCAPE FIX: Position at top-left, not centered
+        justifyContent: dims.isLandscape ? ('flex-start' as const) : ('center' as const),
+        alignItems: dims.isLandscape ? ('flex-start' as const) : ('center' as const),
+        padding: dims.isLandscape ? 0 : dims.moderateScale(20), // No padding in landscape
+      },
 
-    modalBackdrop: {
-      position: 'absolute' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    },
-
-    modalContainer: {
-      backgroundColor: ScoreboardColors.background.modal,
-      borderRadius: dims.moderateScale(12),
-      // LANDSCAPE FIX: Match expanded scoreboard width (65% of screen width)
-      width: dims.isLandscape 
-        ? dims.screenWidth * 0.65  // Match expanded scoreboard width
-        : dims.screenWidth * 0.9,
-      // LANDSCAPE FIX: Fill full screen height (92% to match expanded scoreboard)
-      height: dims.isLandscape 
-        ? dims.screenHeight * 0.92  // Full height like expanded scoreboard
-        : dims.screenHeight * 0.75,
-      // LANDSCAPE FIX: Position at top-left corner (absolute positioning)
-      ...(dims.isLandscape && {
+      modalBackdrop: {
         position: 'absolute' as const,
-        top: dims.moderateScale(20),  // Match expanded scoreboard top position
-        left: dims.moderateScale(20),  // Match expanded scoreboard left position
-      }),
-      ...Platform.select({
-        ios: {
-          shadowColor: ScoreboardColors.shadow.heavy,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.6,
-          shadowRadius: 8,
-        },
-        android: {
-          elevation: 12,
-        },
-      }),
-    },
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      },
 
-    modalHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      padding: dims.moderateScale(16),
-      borderBottomWidth: 1,
-      borderBottomColor: ScoreboardColors.border.modal,
-    },
+      modalContainer: {
+        backgroundColor: ScoreboardColors.background.modal,
+        borderRadius: dims.moderateScale(12),
+        // LANDSCAPE FIX: Match expanded scoreboard width (65% of screen width)
+        width: dims.isLandscape
+          ? dims.screenWidth * 0.65 // Match expanded scoreboard width
+          : dims.screenWidth * 0.9,
+        // LANDSCAPE FIX: Fill full screen height (92% to match expanded scoreboard)
+        height: dims.isLandscape
+          ? dims.screenHeight * 0.92 // Full height like expanded scoreboard
+          : dims.screenHeight * 0.75,
+        // LANDSCAPE FIX: Position at top-left corner (absolute positioning)
+        ...(dims.isLandscape && {
+          position: 'absolute' as const,
+          top: dims.moderateScale(20), // Match expanded scoreboard top position
+          left: dims.moderateScale(20), // Match expanded scoreboard left position
+        }),
+        ...Platform.select({
+          ios: {
+            shadowColor: ScoreboardColors.shadow.heavy,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.6,
+            shadowRadius: 8,
+          },
+          android: {
+            elevation: 12,
+          },
+        }),
+      },
 
-    modalTitle: {
-      fontSize: dims.isLandscape 
-        ? dims.moderateScale(14)  // Landscape: smaller title
-        : dims.isSmallDevice ? dims.moderateScale(16) : dims.moderateScale(18),
-      fontWeight: '700' as const,
-      color: ScoreboardColors.text.highlight,
-    },
+      modalHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        padding: dims.moderateScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: ScoreboardColors.border.modal,
+      },
 
-    modalCloseButton: {
-      minWidth: dims.minTouchTarget,
-      minHeight: dims.minTouchTarget,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      backgroundColor: ScoreboardColors.button.background,
-      borderRadius: dims.moderateScale(8),
-      paddingHorizontal: dims.moderateScale(16),
-    },
+      modalTitle: {
+        fontSize: dims.isLandscape
+          ? dims.moderateScale(14) // Landscape: smaller title
+          : dims.isSmallDevice
+            ? dims.moderateScale(16)
+            : dims.moderateScale(18),
+        fontWeight: '700' as const,
+        color: ScoreboardColors.text.highlight,
+      },
 
-    modalCloseButtonText: {
-      fontSize: dims.moderateScale(14),
-      color: ScoreboardColors.button.text,
-      fontWeight: '600' as const,
-    },
+      modalCloseButton: {
+        minWidth: dims.minTouchTarget,
+        minHeight: dims.minTouchTarget,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        backgroundColor: ScoreboardColors.button.background,
+        borderRadius: dims.moderateScale(8),
+        paddingHorizontal: dims.moderateScale(16),
+      },
 
-    modalContent: {
-      flex: 1,
-      padding: dims.moderateScale(16),
-    },
+      modalCloseButtonText: {
+        fontSize: dims.moderateScale(14),
+        color: ScoreboardColors.button.text,
+        fontWeight: '600' as const,
+      },
 
-    modalScrollView: {
-      flex: 1,
-    },
+      modalContent: {
+        flex: 1,
+        padding: dims.moderateScale(16),
+      },
 
-    matchCard: {
-      backgroundColor: ScoreboardColors.matchCard.background,
-      borderRadius: dims.moderateScale(8),
-      marginBottom: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(12),  // Landscape: tighter spacing
-      borderWidth: 1,
-      borderColor: ScoreboardColors.matchCard.border,
-      overflow: 'hidden' as const,
-    },
+      modalScrollView: {
+        flex: 1,
+      },
 
-    matchCardCurrent: {
-      backgroundColor: ScoreboardColors.matchCard.backgroundCurrent,
-      borderColor: ScoreboardColors.border.highlight,
-      borderWidth: 2,
-    },
+      matchCard: {
+        backgroundColor: ScoreboardColors.matchCard.background,
+        borderRadius: dims.moderateScale(8),
+        marginBottom: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(12), // Landscape: tighter spacing
+        borderWidth: 1,
+        borderColor: ScoreboardColors.matchCard.border,
+        overflow: 'hidden' as const,
+      },
 
-    matchCardHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12),  // Landscape: more compact
-      backgroundColor: ScoreboardColors.matchCard.headerBg,
-      minHeight: dims.minTouchTarget,
-    },
+      matchCardCurrent: {
+        backgroundColor: ScoreboardColors.matchCard.backgroundCurrent,
+        borderColor: ScoreboardColors.border.highlight,
+        borderWidth: 2,
+      },
 
-    matchCardHeaderTouchable: {
-      flex: 1,
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-    },
+      matchCardHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12), // Landscape: more compact
+        backgroundColor: ScoreboardColors.matchCard.headerBg,
+        minHeight: dims.minTouchTarget,
+      },
 
-    matchCardTitle: {
-      fontSize: dims.isLandscape ? dims.moderateScale(12) : dims.moderateScale(14),  // Landscape: smaller text
-      fontWeight: '700' as const,
-      color: ScoreboardColors.matchCard.headerText,
-    },
+      matchCardHeaderTouchable: {
+        flex: 1,
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+      },
 
-    matchCardIcon: {
-      fontSize: dims.moderateScale(16),
-      color: ScoreboardColors.button.icon,
-    },
+      matchCardTitle: {
+        fontSize: dims.isLandscape ? dims.moderateScale(12) : dims.moderateScale(14), // Landscape: smaller text
+        fontWeight: '700' as const,
+        color: ScoreboardColors.matchCard.headerText,
+      },
 
-    matchCardContent: {
-      padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12),  // Landscape: more compact
-      gap: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(8),  // Landscape: tighter spacing
-    },
+      matchCardIcon: {
+        fontSize: dims.moderateScale(16),
+        color: ScoreboardColors.button.icon,
+      },
 
-    handCard: {
-      backgroundColor: ScoreboardColors.handCard.background,
-      borderRadius: dims.moderateScale(6),
-      padding: dims.moderateScale(10), // SAME in both orientations
-      borderWidth: 1,
-      borderColor: ScoreboardColors.handCard.border,
-      marginBottom: dims.moderateScale(8), // SAME in both orientations
-    },
+      matchCardContent: {
+        padding: dims.isLandscape ? dims.moderateScale(8) : dims.moderateScale(12), // Landscape: more compact
+        gap: dims.isLandscape ? dims.moderateScale(6) : dims.moderateScale(8), // Landscape: tighter spacing
+      },
 
-    handCardLatest: {
-      backgroundColor: ScoreboardColors.handCard.backgroundLatest,
-      borderColor: ScoreboardColors.handCard.borderLatest,
-      borderWidth: 2,
-    },
+      handCard: {
+        backgroundColor: ScoreboardColors.handCard.background,
+        borderRadius: dims.moderateScale(6),
+        padding: dims.moderateScale(10), // SAME in both orientations
+        borderWidth: 1,
+        borderColor: ScoreboardColors.handCard.border,
+        marginBottom: dims.moderateScale(8), // SAME in both orientations
+      },
 
-    handCardHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: dims.moderateScale(8), // SAME in both orientations
-    },
+      handCardLatest: {
+        backgroundColor: ScoreboardColors.handCard.backgroundLatest,
+        borderColor: ScoreboardColors.handCard.borderLatest,
+        borderWidth: 2,
+      },
 
-    handPlayerName: {
-      fontSize: dims.moderateScale(13), // SAME in both orientations
-      fontWeight: '600' as const,
-      color: ScoreboardColors.handCard.playerName,
-    },
+      handCardHeader: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        marginBottom: dims.moderateScale(8), // SAME in both orientations
+      },
 
-    handComboType: {
-      fontSize: dims.moderateScale(11), // SAME in both orientations
-      color: ScoreboardColors.handCard.comboType,
-      fontStyle: 'italic' as const,
-    },
+      handPlayerName: {
+        fontSize: dims.moderateScale(13), // SAME in both orientations
+        fontWeight: '600' as const,
+        color: ScoreboardColors.handCard.playerName,
+      },
 
-    handCardsContainer: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: dims.moderateScale(6),
-      alignItems: 'center' as const,
-    },
+      handComboType: {
+        fontSize: dims.moderateScale(11), // SAME in both orientations
+        color: ScoreboardColors.handCard.comboType,
+        fontStyle: 'italic' as const,
+      },
 
-    cardImage: {
-      borderRadius: dims.moderateScale(4),
-      borderWidth: 1,
-      borderColor: ScoreboardColors.border.card,
-      ...Platform.select({
-        ios: {
-          shadowColor: ScoreboardColors.shadow.card,
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.4,
-          shadowRadius: 2,
-        },
-        android: {
-          elevation: 2,
-        },
-      }),
-    },
+      handCardsContainer: {
+        flexDirection: 'row' as const,
+        flexWrap: 'wrap' as const,
+        gap: dims.moderateScale(6),
+        alignItems: 'center' as const,
+      },
 
-    cardImageSmall: {
-      width: dims.moderateScale(35),
-      height: dims.moderateScale(51),
-    },
+      cardImage: {
+        borderRadius: dims.moderateScale(4),
+        borderWidth: 1,
+        borderColor: ScoreboardColors.border.card,
+        ...Platform.select({
+          ios: {
+            shadowColor: ScoreboardColors.shadow.card,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.4,
+            shadowRadius: 2,
+          },
+          android: {
+            elevation: 2,
+          },
+        }),
+      },
 
-    cardImageMedium: {
-      width: dims.moderateScale(50),
-      height: dims.moderateScale(73),
-    },
+      cardImageSmall: {
+        width: dims.moderateScale(35),
+        height: dims.moderateScale(51),
+      },
 
-    badge: {
-      backgroundColor: ScoreboardColors.status.playing,
-      borderRadius: dims.moderateScale(12),
-      paddingHorizontal: dims.moderateScale(8),
-      paddingVertical: dims.moderateScale(4),
-      minWidth: dims.moderateScale(24),
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
+      cardImageMedium: {
+        width: dims.moderateScale(50),
+        height: dims.moderateScale(73),
+      },
 
-    badgeText: {
-      fontSize: dims.moderateScale(10),
-      color: '#FFFFFF',
-      fontWeight: '700' as const,
-    },
+      badge: {
+        backgroundColor: ScoreboardColors.status.playing,
+        borderRadius: dims.moderateScale(12),
+        paddingHorizontal: dims.moderateScale(8),
+        paddingVertical: dims.moderateScale(4),
+        minWidth: dims.moderateScale(24),
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+      },
 
-    emptyState: {
-      padding: dims.moderateScale(32),
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
+      badgeText: {
+        fontSize: dims.moderateScale(10),
+        color: '#FFFFFF',
+        fontWeight: '700' as const,
+      },
 
-    emptyStateText: {
-      fontSize: dims.moderateScale(14),
-      color: ScoreboardColors.text.muted,
-      textAlign: 'center' as const,
-    },
+      emptyState: {
+        padding: dims.moderateScale(32),
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+      },
 
-    emptyStateTextSmall: {
-      fontSize: dims.moderateScale(12),
-      color: ScoreboardColors.text.muted,
-      textAlign: 'center' as const,
-      marginTop: dims.moderateScale(4),
-    },
+      emptyStateText: {
+        fontSize: dims.moderateScale(14),
+        color: ScoreboardColors.text.muted,
+        textAlign: 'center' as const,
+      },
 
-    divider: {
-      height: 1,
-      backgroundColor: ScoreboardColors.border.primary,
-      marginVertical: dims.moderateScale(8),
-    },
+      emptyStateTextSmall: {
+        fontSize: dims.moderateScale(12),
+        color: ScoreboardColors.text.muted,
+        textAlign: 'center' as const,
+        marginTop: dims.moderateScale(4),
+      },
 
-    tableCellLabel: {
-      fontSize: dims.moderateScale(11),
-      color: ScoreboardColors.text.secondary,
-      fontWeight: '600' as const,
-    },
+      divider: {
+        height: 1,
+        backgroundColor: ScoreboardColors.border.primary,
+        marginVertical: dims.moderateScale(8),
+      },
 
-    pastMatchesHeaderText: {
-      fontSize: dims.moderateScale(11),
-      color: ScoreboardColors.text.secondary,
-      fontWeight: '600' as const,
-      marginBottom: dims.moderateScale(8),
-    },
-  }), [dims]);
+      tableCellLabel: {
+        fontSize: dims.moderateScale(11),
+        color: ScoreboardColors.text.secondary,
+        fontWeight: '600' as const,
+      },
+
+      pastMatchesHeaderText: {
+        fontSize: dims.moderateScale(11),
+        color: ScoreboardColors.text.secondary,
+        fontWeight: '600' as const,
+        marginBottom: dims.moderateScale(8),
+      },
+    }),
+    [dims]
+  );
 };
