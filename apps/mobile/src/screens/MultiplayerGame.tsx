@@ -502,8 +502,9 @@ export function MultiplayerGame() {
       if (!gameStartedAt) {
         setGameStartedAt(new Date().toISOString());
       }
-      // Fire Firebase game_started once per game session.
-      if (!hasTrackedGameStartRef.current && gameMode) {
+      // Fire Firebase game_started once per game session, but only after the
+      // player list is populated (it loads async in useMultiplayerRoomLoader).
+      if (!hasTrackedGameStartRef.current && gameMode && multiplayerPlayers.length > 0) {
         hasTrackedGameStartRef.current = true;
         trackGameEvent('game_started', {
           game_mode: gameMode,
