@@ -103,21 +103,9 @@ export const useScoreboardContainerStyles = () => {
           : dims.isLargeDevice
             ? dims.moderateScale(500)
             : dims.moderateScale(400),
-        zIndex: 200, // Intentionally above match badge + action buttons (z-index 150) so the
-        // expanded scoreboard overlays everything when open. When collapsed,
-        // ScoreboardContainer renders no scoreboard content (only an empty container),
-        // so no layering conflict occurs.
-        ...Platform.select({
-          ios: {
-            shadowColor: ScoreboardColors.shadow.heavy,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.5,
-            shadowRadius: 4,
-          },
-          android: {
-            elevation: 8,
-          },
-        }),
+        // Note: z-order and overlay behavior for the expanded scoreboard are now
+        // controlled by the React Native Modal in ScoreboardContainer. This container
+        // remains an always-mounted, visually neutral positioning wrapper.
       },
       // Modal overlay — same structure as usePlayHistoryModalStyles so the expanded
       // scoreboard floats above all UI (including player avatar) and is centred.
