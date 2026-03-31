@@ -15,7 +15,7 @@
 import React from 'react';
 import { View, Modal, TouchableOpacity } from 'react-native';
 import { useScoreboard } from '../../contexts/ScoreboardContext';
-import { ScoreboardProps } from '../../types/scoreboard';
+import type { ScoreboardProps } from '../../types/scoreboard';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
 import ExpandedScoreboard from './ExpandedScoreboard';
 import { useScoreboardContainerStyles } from './hooks/useResponsiveStyles';

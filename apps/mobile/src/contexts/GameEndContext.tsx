@@ -13,7 +13,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { FinalScore, ScoreHistory, PlayHistoryMatch } from '../types/gameEnd';
+import type { FinalScore, ScoreHistory, PlayHistoryMatch } from '../types/gameEnd';
 import type {
   ScoreHistory as ScoreboardScoreHistory,
   PlayHistoryMatch as ScoreboardPlayHistory,
