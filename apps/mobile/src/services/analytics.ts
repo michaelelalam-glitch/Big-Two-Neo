@@ -303,7 +303,12 @@ async function sendEvents(
 
   if (__DEV__) {
     console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
-    // Hit the validation endpoint and log any issues GA4 reports
+  }
+
+  if (__DEV__ && !process.env.JEST_WORKER_ID) {
+    // Hit the validation endpoint and log any issues GA4 reports.
+    // Skipped in Jest (JEST_WORKER_ID is set) to avoid a second fetch call
+    // that would break toHaveBeenCalledTimes(1) assertions.
     fetch(validationUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
