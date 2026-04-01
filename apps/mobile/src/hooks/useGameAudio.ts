@@ -43,18 +43,21 @@ export function useGameAudio({
   // ── Reset match-start refs on new game session ────────────────────────── //
   // When Play Again starts a new game the match number resets to 1, but the
   // refs still hold 1 from the previous game — preventing the GAME_START sound
-  // from firing. Resetting on gameState object-identity change (local) or
-  // multiplayerGameState identity change (multiplayer) ensures the next match-1
-  // always triggers the sound.
+  // from firing. For local AI: key on ‘startedAt’ (set once per game session in
+  // initializeGame) so the reset fires exactly when a new game session begins,
+  // even if currentMatch is also 1 in the new game. The match-start effect below
+  // also includes startedAt in its dep array so it re-runs on new session.
+  // For multiplayer: key on multiplayerGameState identity — a new game/room
+  // creates a new state object.
   useEffect(() => {
     if (!isLocalAIGame) {
       previousLocalMatchNumberRef.current = null;
       return;
     }
-    if (gameState) {
+    if (gameState?.startedAt) {
       previousLocalMatchNumberRef.current = null;
     }
-  }, [isLocalAIGame, gameState]);
+  }, [isLocalAIGame, gameState?.startedAt]);
 
   useEffect(() => {
     if (!isMultiplayerGame) {
@@ -68,8 +71,9 @@ export function useGameAudio({
 
   // ── Local AI: match start sound ─────────────────────────────────────────── //
   // Fires whenever the local game's currentMatch increments (match 1, 2, 3…).
-  // Uses explicit primitive dep (currentMatch) rather than the full gameState
-  // object so React always re-runs the effect when the match number changes.
+  // Also depends on startedAt so the effect re-runs at the start of a new game
+  // session even when currentMatch is again 1 (reset effect above clears the ref
+  // first, making the currentMatch comparison fire correctly).
   useEffect(() => {
     if (!isLocalAIGame || !gameState) return;
 
@@ -81,8 +85,8 @@ export function useGameAudio({
       soundManager.playSound(SoundType.GAME_START);
       gameLogger.info(`🎵 [Audio] Match start sound triggered - local AI match ${currentMatch}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit primitive dep
-  }, [isLocalAIGame, gameState?.currentMatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit primitive deps
+  }, [isLocalAIGame, gameState?.currentMatch, gameState?.startedAt]);
 
   // ── Multiplayer: match start sound ──────────────────────────────────────── //
   // Uses explicit primitive deps (match_number + game_phase) so React reliably
