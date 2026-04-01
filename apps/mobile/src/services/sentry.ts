@@ -91,18 +91,11 @@ export function initSentry(): void {
       // populated in CI and production builds.
       release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
 
-      // Enable performance tracing for React Native.
-      // Explicit options (all default true) so intent is clear:
-      //   enableAppStartTracking   — cold/warm launch spans
-      //   enableNativeFramesTracking — slow (>16ms) / frozen (>700ms) frame counts on transactions
-      //   enableStallTracking      — JS thread stall spans (thread blocked > 100ms)
-      integrations: [
-        Sentry.reactNativeTracingIntegration({
-          enableAppStartTracking: true,
-          enableNativeFramesTracking: true,
-          enableStallTracking: true,
-        }),
-      ],
+      // Enable performance tracing for React Native (navigation, network, etc.).
+      // App start tracking, native frames tracking, and stall tracking are
+      // auto-enabled by the SDK as separate integrations in @sentry/react-native v8.
+      // They are NOT Sentry dashboard toggles — they are SDK-level features.
+      integrations: [Sentry.reactNativeTracingIntegration()],
 
       // Session Replay: disabled in dev (both rates = 0) to prevent the
       // "Detected environment potentially causing PII leaks" red console error
