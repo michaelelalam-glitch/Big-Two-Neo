@@ -5,17 +5,18 @@
  * This is a pure-JS implementation that requires no native SDK, works on both
  * iOS and Android, and gracefully no-ops when credentials are not configured.
  *
- * Configuration (add to .env / EAS secrets):
+ * Configuration (add to .env.local / EAS secrets):
  *   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
  *   EXPO_PUBLIC_FIREBASE_API_SECRET=your_api_secret
- *   EXPO_PUBLIC_FIREBASE_APP_ID=1:PROJECT_NUMBER:platform:APP_HASH
+ *   EXPO_PUBLIC_FIREBASE_APP_ID_ANDROID=1:PROJECT_NUMBER:android:APP_HASH
+ *   EXPO_PUBLIC_FIREBASE_APP_ID_IOS=1:PROJECT_NUMBER:ios:APP_HASH
  *
  * MEASUREMENT_ID and API_SECRET are found in Firebase Console → Analytics
  * → Data Streams → Web Stream details → Measurement Protocol API secrets.
- * FIREBASE_APP_ID is found in Firebase Console → Project Settings → Your Apps
- * (separate values for iOS and Android — set the correct one per EAS build profile).
- * Including firebase_app_id in each MP request is required for events to appear
- * in the BigQuery raw export tables (it links the event to a specific app stream).
+ * The platform-specific App IDs are used to link MP events to the correct
+ * app stream so they appear in BigQuery raw export tables:
+ *   Android: from apps/mobile/google-services.json (mobilesdk_app_id)
+ *   iOS:     Firebase Console → Project Settings → Your Apps → iOS app → App ID
  *
  * Usage:
  *   import { analytics } from './analytics';
@@ -47,10 +48,14 @@ const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 // it does not expose end-user data. Tracked in task backlog.
 const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
-// Required for BigQuery raw export linkage. Set per platform in EAS secrets:
-//   Android: 1:809777985378:android:f993b547fda6d24e85de3b
-//   iOS:     1:809777985378:ios:<hash from Firebase Console → Project Settings>
-const FIREBASE_APP_ID = process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '';
+// Platform-aware Firebase App ID — links each MP event to the correct app stream
+// for BigQuery export. Two vars so EAS can set each platform independently.
+//   Android: from google-services.json mobilesdk_app_id
+//   iOS:     Firebase Console → Project Settings → Your Apps → iOS → App ID
+const FIREBASE_APP_ID =
+  Platform.OS === 'ios'
+    ? (process.env.EXPO_PUBLIC_FIREBASE_APP_ID_IOS ?? '')
+    : (process.env.EXPO_PUBLIC_FIREBASE_APP_ID_ANDROID ?? '');
 
 /**
  * Tracks whether the user has consented to analytics.
@@ -87,6 +92,7 @@ export type AnalyticsEventName =
   | 'game_abandoned'
   | 'game_voided'
   | 'game_not_completed'
+  | 'game_session_summary'
   // ── Gameplay actions ──
   | 'card_play'
   | 'card_pass'
@@ -411,6 +417,7 @@ export function trackGameEvent(
   event:
     | 'game_started'
     | 'game_completed'
+    | 'game_session_summary'
     | 'game_abandoned'
     | 'game_voided'
     | 'game_not_completed',
