@@ -286,10 +286,6 @@ async function sendEvents(
         engagement_time_msec: 100,
         session_id: getSessionId(),
       };
-      if (__DEV__) {
-        // debug_mode: 1 routes events to Firebase DebugView in dev builds
-        params.debug_mode = 1;
-      }
       return { name: e.name, params };
     }),
   };
@@ -313,7 +309,7 @@ async function sendEvents(
         console.log(
           '[Analytics] Response status:',
           response.status,
-          '— events sent to Firebase DebugView (debug_mode=1)'
+          '— events sent to GA4 (check Realtime Reports)'
         );
       } else {
         console.warn(
