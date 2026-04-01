@@ -73,9 +73,8 @@ export function initSentry(): void {
     Sentry.init({
       dsn: SENTRY_DSN,
 
-      // Breadcrumbs and event sampling
-      // In production use a lower rate (0.1–0.2) to control volume/cost.
-      tracesSampleRate: __DEV__ ? 0 : 0.1,
+      // Performance tracing: 20% of production sessions. Zero in dev to avoid quota.
+      tracesSampleRate: __DEV__ ? 0 : 0.2,
 
       // Keep native SDK debug logging OFF even in dev — it floods the Metro
       // console with breadcrumb/watchdog/network-tracker noise on every frame.
@@ -98,16 +97,45 @@ export function initSentry(): void {
       // Session Replay: disabled in dev (both rates = 0) to prevent the
       // "Detected environment potentially causing PII leaks" red console error
       // on every dev/simulator launch. Enabled on error only in production.
+      // Profiling: 10% of production sessions captures JS + native CPU profiles
+      // tied to performance traces (requires tracesSampleRate > 0).
       _experiments: {
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: __DEV__ ? 0 : 1.0,
-        profilesSampleRate: 0,
+        profilesSampleRate: __DEV__ ? 0 : 0.1,
       },
 
-      // Don't send events for known non-fatal orientation errors already
-      // swallowed by the global ErrorUtils handler in App.tsx
+      // Filter hook: runs before every event is transmitted to Sentry.
+      // Return null to drop the event. Return the (optionally mutated) event to send.
       beforeSend(event) {
+        // Drop ALL events from development environment. Dev sessions run on the
+        // simulator with your own account — they generate noise (App Hang, network
+        // errors, ImagePicker, audio-session hang) that pollutes the issue list.
+        // Using event.environment (set from the `environment` init option) so that
+        // production builds always pass through regardless of __DEV__ flag.
+        // A matching server-side inbound filter (environment:development) is
+        // configured via the Sentry project API as a secondary safeguard.
+        if (event.environment === 'development') {
+          return null;
+        }
+
         const msg = event.exception?.values?.[0]?.value ?? '';
+        const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
+        const hasSwiftValueFrame = frames.some(f => (f.function ?? '').includes('SwiftValue'));
+
+        // NSInvalidArgumentException + SwiftValue bridge crash — third-party
+        // iOS SDK (LiveKit/CallKit) touching bridged Swift types. No first-party
+        // fix is possible. Group all occurrences under a single stable fingerprint
+        // so a resolved issue doesn't re-open on each occurrence.
+        if (
+          msg.includes('NSInvalidArgumentException') ||
+          event.exception?.values?.[0]?.type === 'NSInvalidArgumentException' ||
+          hasSwiftValueFrame
+        ) {
+          event.fingerprint = ['third-party-swift-bridge'];
+        }
+
+        // Drop non-fatal orientation errors already swallowed by ErrorUtils in App.tsx
         if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
@@ -360,6 +388,11 @@ export function submitBugReportWithOptions(opts: BugReportOptions): void {
 
   Sentry.withScope(scope => {
     scope.setTag('bug_category', opts.category);
+
+    // Group ALL bug report submissions under one stable fingerprint so
+    // repeated submissions don't re-open a previously resolved Sentry issue
+    // and don't create the confusing 'Sentry.withScope$argument_0' title.
+    scope.setFingerprint(['bug-report-submission']);
 
     if (opts.screenshotBase64) {
       const mime = opts.screenshotMimeType ?? 'image/jpeg';
