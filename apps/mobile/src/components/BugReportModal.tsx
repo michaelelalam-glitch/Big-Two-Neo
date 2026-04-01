@@ -95,26 +95,34 @@ export default function BugReportModal({
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       ImagePicker = require('expo-image-picker') as typeof import('expo-image-picker');
+      // Guard: native module may load but expose undefined methods when not linked
+      if (typeof ImagePicker?.requestMediaLibraryPermissionsAsync !== 'function') {
+        throw new Error('ExponentImagePicker native module not linked');
+      }
     } catch {
       showError(t('bugReportModal.screenshotUnavailable'));
       return;
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showError(t('bugReportModal.photoPermissionDenied'));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-      base64: true,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      setScreenshotUri(asset.uri);
-      setScreenshotBase64(asset.base64 ?? null);
-      setScreenshotMimeType(asset.mimeType ?? null);
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError(t('bugReportModal.photoPermissionDenied'));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        base64: true,
+        allowsEditing: false,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setScreenshotUri(asset.uri);
+        setScreenshotBase64(asset.base64 ?? null);
+        setScreenshotMimeType(asset.mimeType ?? null);
+      }
+    } catch {
+      showError(t('bugReportModal.screenshotUnavailable'));
     }
   };
 
