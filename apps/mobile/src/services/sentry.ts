@@ -116,8 +116,8 @@ export function initSentry(): void {
         // errors, ImagePicker, audio-session hang) that pollutes the issue list.
         // Using event.environment (set from the `environment` init option) so that
         // production builds always pass through regardless of __DEV__ flag.
-        // A matching server-side inbound filter (environment:development) is
-        // configured via the Sentry project API as a secondary safeguard.
+        // This client-side filter is the primary safeguard; any server-side filters
+        // must be configured separately and are not assumed by this code.
         if (event.environment === 'development') {
           return null;
         }

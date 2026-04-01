@@ -279,15 +279,18 @@ export function useGameActions({
           // 'Not your turn' is an expected race condition: invokeWithRetry fired a retry
           // after a transient FunctionsFetchError, but the bot/other player took the turn
           // during the 500ms backoff window. The Realtime subscription will sync game state
-          // automatically. Suppressed from UI — consistent with how the pass handler handles
-          // the same race (see below). Never show a popup for this case.
+          // automatically. Suppressed from UI (GameControls catches and swallows this same
+          // string in its own catch block — no popup is shown).
+          // Must RE-THROW so GameControls does NOT execute post-await success effects
+          // (play sound, clear card order, onPlaySuccess). Suppressing by returning here
+          // would resolve the promise and trigger those side effects erroneously.
           if (msg.includes('Not your turn')) {
             sentryCapture.breadcrumb(
               `Play rejected (retry race): ${msg}`,
               { context: 'MultiplayerPlayCards' },
               'game'
             );
-            return; // Do not re-throw — GameControls must not show an error popup
+            throw error; // Re-throw — GameControls suppresses popup for this string
           } else if (
             msg.includes('Must play highest') ||
             msg.includes('Must beat') ||

@@ -697,7 +697,7 @@ export function MultiplayerGame() {
     const info = roomInfoRef.current;
     const gameModeForAnalytics = info?.ranked_mode
       ? 'online_ranked'
-      : info?.is_public
+      : info?.is_matchmaking
         ? 'online_casual'
         : 'online_private';
     trackGameEvent('game_abandoned', {
@@ -1076,11 +1076,13 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
-    gameMode: roomInfo?.ranked_mode
-      ? 'online_ranked'
-      : roomInfo?.is_matchmaking
-        ? 'online_casual'
-        : 'online_private',
+    gameMode: roomInfo
+      ? roomInfo.ranked_mode
+        ? 'online_ranked'
+        : roomInfo.is_matchmaking
+          ? 'online_casual'
+          : 'online_private'
+      : undefined,
     humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
     botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
     botDifficultyLevel:

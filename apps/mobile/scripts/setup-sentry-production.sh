@@ -38,9 +38,9 @@ curl -s -X PUT "${BASE}/projects/${ORG}/${PROJECT}/filters/browser-extensions/" 
   -H "${AUTH}" -H "Content-Type: application/json" \
   -d '{"active": true}' > /dev/null
 
-# Discard all events tagged environment:development (SDK beforeSend is primary,
-# this is the server-side backup so future builds without the beforeSend fix
-# are still covered).
+# Note: environment-based filtering (e.g. dropping environment:development)
+# is handled in the SDK via beforeSend; no server-side environment discard
+# rule is configured here.
 curl -s -X PUT "${BASE}/projects/${ORG}/${PROJECT}/filters/error-messages/" \
   -H "${AUTH}" -H "Content-Type: application/json" \
   -d '{"active": true, "subfilters": []}' > /dev/null
