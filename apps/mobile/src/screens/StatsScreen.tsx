@@ -1199,6 +1199,11 @@ export default function StatsScreen() {
                     : undefined
                   : stats.rank_points_history || undefined
               }
+              totalGamesPlayed={
+                activeTab === 'ranked'
+                  ? (stats.ranked_games_played ?? undefined)
+                  : (stats.games_played ?? undefined)
+              }
             />
           </View>
         )}
