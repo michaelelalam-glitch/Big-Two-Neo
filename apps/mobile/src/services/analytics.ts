@@ -280,9 +280,9 @@ async function sendEvents(
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
-    // firebase_app_id links events to a specific app stream for BigQuery export.
-    // Without it, events appear in GA4 UI but are absent from raw BigQuery tables.
-    ...(FIREBASE_APP_ID && { firebase_app_id: FIREBASE_APP_ID }),
+    // NOTE: firebase_app_id is NOT valid for web streams (G- measurement IDs).
+    // Sending it causes GA4 to reject the entire payload with VALUE_INVALID, so
+    // events never appear in Realtime reports. Field omitted intentionally.
     events: events.map(e => {
       const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
