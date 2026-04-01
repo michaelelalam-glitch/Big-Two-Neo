@@ -517,8 +517,11 @@ export function useGameStatsUploader({
             // Per-player breakdown (compact JSON for BigQuery JSON_VALUE / UNNEST)
             combos_by_player: JSON.stringify(combosPerPlayer).slice(0, 490),
           });
-        } catch {
+        } catch (analyticsError) {
           // Analytics must never block or crash the upload path
+          if (__DEV__) {
+            console.warn('[GameStats] game_session_summary failed:', analyticsError);
+          }
         }
         // ─────────────────────────────────────────────────────────────────────────
 
