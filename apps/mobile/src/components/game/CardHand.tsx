@@ -488,8 +488,8 @@ function CardHandComponent({
             if (onCardsReorder && newCards.length > 0) {
               trackEvent('card_rearranged', {
                 hand_size: newCards.length,
-                hand_before: JSON.stringify(orderedCards.map(c => c.id)),
-                hand_after: JSON.stringify(newCards.map(c => c.id)),
+                hand_before: JSON.stringify(orderedCards.map(c => c.id)).slice(0, 200),
+                hand_after: JSON.stringify(newCards.map(c => c.id)).slice(0, 200),
               });
               onCardsReorder(newCards);
             }

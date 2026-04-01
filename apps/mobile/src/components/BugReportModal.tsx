@@ -84,8 +84,8 @@ export default function BugReportModal({
       trackScreenView('BugReportModal');
     } else if (openedAtRef.current > 0) {
       trackEvent('screen_time', {
-        screen: 'bug_report_modal',
-        duration_ms: Date.now() - openedAtRef.current,
+        screen_name: 'bug_report_modal',
+        duration_seconds: (Date.now() - openedAtRef.current) / 1000,
       });
       openedAtRef.current = 0;
     }
