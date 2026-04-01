@@ -57,7 +57,12 @@ import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
 import { useThrowables } from '../hooks/useThrowables';
 import { i18n } from '../i18n';
-import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
+import {
+  trackEvent,
+  trackGameEvent,
+  featureDurationStart,
+  featureDurationEnd,
+} from '../services/analytics';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -128,6 +133,8 @@ export function MultiplayerGame() {
 
   // Track when game transitions to 'playing' to calculate duration
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
+  // Prevent duplicate game_started events across re-renders
+  const hasTrackedGameStartRef = useRef(false);
 
   // Orientation manager (Task #450)
   const {
@@ -491,7 +498,7 @@ export function MultiplayerGame() {
     isHostRef.current = isMultiplayerHost;
   }, [isMultiplayerHost]);
 
-  // Track when game starts (for duration calculation)
+  // Track when game starts (for duration calculation and analytics)
   // Placed after useRealtime so multiplayerGameState is already declared.
   useEffect(() => {
     if (
@@ -501,9 +508,41 @@ export function MultiplayerGame() {
       if (!gameStartedAt) {
         setGameStartedAt(new Date().toISOString());
       }
+      if (!hasTrackedGameStartRef.current && roomInfo && multiplayerPlayers.length > 0) {
+        hasTrackedGameStartRef.current = true;
+        const botsPresent = multiplayerPlayers.some(p => p.is_bot);
+        const dbBotDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty;
+        const analyticsBotDifficulty = botsPresent
+          ? (dbBotDifficulty ?? botDifficulty ?? 'unknown')
+          : 'none';
+        const analyticsGameMode = roomInfo.ranked_mode
+          ? 'online_ranked'
+          : roomInfo.is_matchmaking
+            ? 'online_casual'
+            : 'online_private';
+        trackGameEvent('game_started', {
+          game_mode: analyticsGameMode,
+          player_count: multiplayerPlayers.length,
+          bots_present: botsPresent ? 1 : 0,
+          human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
+          bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
+          bot_difficulty: analyticsBotDifficulty,
+        });
+      }
+    } else if (
+      multiplayerGameState?.game_phase === 'dealing' &&
+      (multiplayerGameState?.match_number ?? 1) === 1
+    ) {
+      hasTrackedGameStartRef.current = false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiplayerGameState?.game_phase, gameStartedAt]);
+  }, [
+    multiplayerGameState?.game_phase,
+    multiplayerGameState?.match_number,
+    roomInfo,
+    multiplayerPlayers,
+    gameStartedAt,
+    botDifficulty,
+  ]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
@@ -1027,6 +1066,15 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
+    gameMode: roomInfo?.ranked_mode
+      ? 'online_ranked'
+      : roomInfo?.is_matchmaking
+        ? 'online_casual'
+        : 'online_private',
+    humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
+    botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
+    botDifficultyLevel:
+      effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? botDifficulty,
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
