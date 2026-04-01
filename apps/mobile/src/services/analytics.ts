@@ -48,15 +48,6 @@ const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 // it does not expose end-user data. Tracked in task backlog.
 const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
 
-// Platform-aware Firebase App ID — links each MP event to the correct app stream
-// for BigQuery export. Two vars so EAS can set each platform independently.
-//   Android: from google-services.json mobilesdk_app_id
-//   iOS:     Firebase Console → Project Settings → Your Apps → iOS → App ID
-const FIREBASE_APP_ID =
-  Platform.OS === 'ios'
-    ? (process.env.EXPO_PUBLIC_FIREBASE_APP_ID_IOS ?? '')
-    : (process.env.EXPO_PUBLIC_FIREBASE_APP_ID_ANDROID ?? '');
-
 /**
  * Tracks whether the user has consented to analytics.
  * Defaults to FALSE. The app MUST call setAnalyticsConsent(true) before any

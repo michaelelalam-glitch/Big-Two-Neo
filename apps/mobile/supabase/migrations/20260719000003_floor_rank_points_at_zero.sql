@@ -310,31 +310,32 @@ BEGIN
 
   -- ── Append to rank_points_history (cap at last 100 entries) ─────────────
   v_history_entry := jsonb_build_object(
-    'rp',        v_new_casual_rp,
-    'delta',     CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE p_ranked_elo_change END,
-    'won',       p_won,
-    'pos',       p_finish_position,
+    'points',    CASE WHEN p_game_type = 'ranked' THEN v_new_ranked_rp ELSE v_new_casual_rp END,
+    'is_win',    p_won,
     'game_type', p_game_type,
-    'ts',        extract(epoch from now())::bigint
+    'timestamp', NOW()
   );
 
   UPDATE player_stats SET
     rank_points_history = (
       SELECT jsonb_agg(entry)
       FROM (
-        SELECT entry FROM jsonb_array_elements(
-          COALESCE(rank_points_history, '[]'::jsonb)
-        ) AS entry
-        UNION ALL
-        SELECT v_history_entry
-        ORDER BY (entry->>'ts')::bigint DESC
+        SELECT entry
+        FROM (
+          SELECT entry FROM jsonb_array_elements(
+            COALESCE(rank_points_history, '[]'::jsonb)
+          ) AS entry
+          UNION ALL
+          SELECT v_history_entry
+        ) combined
+        ORDER BY (entry->>'timestamp')::text DESC
         LIMIT 100
       ) sub
     )
   WHERE user_id = p_user_id;
 
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 REVOKE EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN, DECIMAL, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION update_player_stats_after_game(UUID, BOOLEAN, INTEGER, INTEGER, JSONB, TEXT, BOOLEAN, INTEGER, BOOLEAN, DECIMAL, INTEGER) TO service_role;

@@ -1,8 +1,9 @@
 -- Migration: fix invalid ORDER BY expression inside UNION ALL in update_player_stats_after_game
--- Root cause: PostgreSQL rejects ORDER BY with expressions (like (entry->>'ts')::bigint)
--- inside a UNION/INTERSECT/EXCEPT. The fix wraps the UNION ALL in an inner subquery and
--- places the ORDER BY in the outer query where expressions are valid.
--- This was silently causing "Partial failure updating stats" on every game completion.
+-- Root cause: PostgreSQL rejects ORDER BY with expressions inside a UNION/INTERSECT/EXCEPT.
+-- The fix wraps the UNION ALL in an inner subquery and places the ORDER BY in the outer
+-- query where expressions are valid. Also aligns rank_points_history entry schema to
+-- {points, is_win, game_type, timestamp} (matching StatsScreen type guard) and adds
+-- SET search_path = public to prevent search_path hijacking on this SECURITY DEFINER function.
 
 CREATE OR REPLACE FUNCTION public.update_player_stats_after_game(
   p_user_id             uuid,
@@ -20,6 +21,7 @@ CREATE OR REPLACE FUNCTION public.update_player_stats_after_game(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $function$
 DECLARE
   v_stats                RECORD;
@@ -271,12 +273,10 @@ BEGIN
   END IF;
 
   v_history_entry := jsonb_build_object(
-    'rp',        v_new_casual_rp,
-    'delta',     CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE p_ranked_elo_change END,
-    'won',       p_won,
-    'pos',       p_finish_position,
+    'points',    CASE WHEN p_game_type = 'ranked' THEN v_new_ranked_rp ELSE v_new_casual_rp END,
+    'is_win',    p_won,
     'game_type', p_game_type,
-    'ts',        extract(epoch from now())::bigint
+    'timestamp', NOW()
   );
 
   -- FIX: previously ORDER BY used an expression inside a UNION ALL, which is
@@ -296,7 +296,7 @@ BEGIN
           UNION ALL
           SELECT v_history_entry
         ) combined
-        ORDER BY (entry->>'ts')::bigint DESC
+        ORDER BY (entry->>'timestamp')::text DESC
         LIMIT 100
       ) sub
     )

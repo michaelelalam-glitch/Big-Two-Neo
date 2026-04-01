@@ -106,7 +106,7 @@ export function useGameStatsUploader({
         human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
         bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
         bot_difficulty: resolvedBotDifficulty,
-        ...(winnerPosition !== null && { winner_position: winnerPosition }),
+        ...(winnerPosition !== null && { winner_player_index: winnerPosition }),
         ...(durationSeconds !== undefined && { duration_seconds: durationSeconds }),
         ...(roundsPlayed !== undefined && { rounds_played: roundsPlayed }),
         ...(matchNumber !== undefined && { match_number: matchNumber }),
@@ -493,7 +493,7 @@ export function useGameStatsUploader({
           trackGameEvent('game_session_summary', {
             // Outcome metadata (mirrors game_completed — keeps queries self-contained)
             game_mode: summaryGameMode,
-            winner_position: resolvedWinner ?? -1,
+            winner_player_index: resolvedWinner ?? -1,
             duration_seconds: Math.max(0, durationSeconds),
             rounds_played: scoresHistory.length,
             match_number: multiplayerGameState.match_number ?? 0,

@@ -89,21 +89,26 @@ BEGIN
 
 END $$;
 
--- Players with games_played=0 had orphaned game_history entries (stats function
--- was never called for them) — keep them at base 1000 regardless of history
-UPDATE player_stats ps
-SET casual_rank_points = 1000, rank_points = 1000, rank_points_history = '[]'::jsonb, updated_at = NOW()
-WHERE ps.casual_rank_points != 1000
-AND NOT EXISTS (
-  SELECT 1 FROM game_history g
-  CROSS JOIN LATERAL (VALUES
-    (g.player_1_id), (g.player_2_id), (g.player_3_id), (g.player_4_id)
-  ) AS sl(player_id)
-  WHERE sl.player_id = ps.user_id
-  AND g.game_mode NOT IN ('ranked')
-  AND g.created_at >= '2026-03-23 08:53:51+00'
-  AND g.stats_applied_at IS NOT NULL
-);
+DO $$
+DECLARE
+  v_reset_date TIMESTAMPTZ := '2026-03-23 08:53:51+00'::TIMESTAMPTZ;
+BEGIN
+  -- Players with games_played=0 had orphaned game_history entries (stats function
+  -- was never called for them) — keep them at base 1000 regardless of history
+  UPDATE player_stats ps
+  SET casual_rank_points = 1000, rank_points = 1000, rank_points_history = '[]'::jsonb, updated_at = NOW()
+  WHERE ps.casual_rank_points != 1000
+  AND NOT EXISTS (
+    SELECT 1 FROM game_history g
+    CROSS JOIN LATERAL (VALUES
+      (g.player_1_id), (g.player_2_id), (g.player_3_id), (g.player_4_id)
+    ) AS sl(player_id)
+    WHERE sl.player_id = ps.user_id
+    AND g.game_mode NOT IN ('ranked')
+    AND g.created_at >= v_reset_date
+    AND g.stats_applied_at IS NOT NULL
+  );
+END $$;
 
 -- Refresh all leaderboard materialized views
 SELECT refresh_leaderboard();
