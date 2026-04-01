@@ -8,15 +8,11 @@
  * Configuration (add to .env.local / EAS secrets):
  *   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
  *   EXPO_PUBLIC_FIREBASE_API_SECRET=your_api_secret
- *   EXPO_PUBLIC_FIREBASE_APP_ID_ANDROID=1:PROJECT_NUMBER:android:APP_HASH
- *   EXPO_PUBLIC_FIREBASE_APP_ID_IOS=1:PROJECT_NUMBER:ios:APP_HASH
  *
  * MEASUREMENT_ID and API_SECRET are found in Firebase Console → Analytics
  * → Data Streams → Web Stream details → Measurement Protocol API secrets.
- * The platform-specific App IDs are used to link MP events to the correct
- * app stream so they appear in BigQuery raw export tables:
- *   Android: from apps/mobile/google-services.json (mobilesdk_app_id)
- *   iOS:     Firebase Console → Project Settings → Your Apps → iOS app → App ID
+ * Note: firebase_app_id is intentionally omitted from payloads to avoid
+ * VALUE_INVALID errors when using a web-stream measurement ID.
  *
  * Usage:
  *   import { analytics } from './analytics';

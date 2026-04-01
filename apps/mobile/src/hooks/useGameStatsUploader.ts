@@ -438,7 +438,7 @@ export function useGameStatsUploader({
               pi: e.player_index,
               s: e.cumulative_score,
             }))
-          ).slice(0, 490);
+          ).slice(0, 100);
 
           // Compact match scores: per-round score, cumulative total, cards left.
           // Mirrors the expanded scoreboard match-by-match rows.
@@ -452,7 +452,7 @@ export function useGameStatsUploader({
                 cr: sc.cardsRemaining,
               })),
             }))
-          ).slice(0, 490);
+          ).slice(0, 100);
 
           // Aggregate combo counts across ALL players (numeric params → no BigQuery length limit).
           const totalCombos = { ...zeroCombos };
@@ -515,7 +515,7 @@ export function useGameStatsUploader({
             combo_four_of_a_kinds: totalCombos.four_of_a_kinds,
             combo_straight_flushes: totalCombos.straight_flushes,
             // Per-player breakdown (compact JSON for BigQuery JSON_VALUE / UNNEST)
-            combos_by_player: JSON.stringify(combosPerPlayer).slice(0, 490),
+            combos_by_player: JSON.stringify(combosPerPlayer).slice(0, 100),
           });
         } catch (analyticsError) {
           // Analytics must never block or crash the upload path
