@@ -8,7 +8,7 @@
  *  - Optional console log attachment (reads today's log file via expo-file-system)
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -37,7 +37,7 @@ import {
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { submitBugReportWithOptions, isSentryEnabled } from '../services/sentry';
 import type { BugReportCategory } from '../services/sentry';
-import { trackEvent, trackScreenView } from '../services/analytics';
+import { trackEvent, trackScreenView, screenTimeStart, screenTimeEnd } from '../services/analytics';
 import { showSuccess, showError } from '../utils';
 import { getTodayLogFileName } from '../utils/logger';
 import { i18n } from '../i18n';
@@ -77,17 +77,12 @@ export default function BugReportModal({
   const [submitting, setSubmitting] = useState(false);
 
   // Track time spent on bug report screen for analytics
-  const openedAtRef = useRef<number>(0);
   useEffect(() => {
     if (visible) {
-      openedAtRef.current = Date.now();
       trackScreenView('BugReportModal');
-    } else if (openedAtRef.current > 0) {
-      trackEvent('screen_time', {
-        screen_name: 'bug_report_modal',
-        duration_seconds: (Date.now() - openedAtRef.current) / 1000,
-      });
-      openedAtRef.current = 0;
+      screenTimeStart('BugReportModal');
+    } else {
+      screenTimeEnd('BugReportModal');
     }
   }, [visible]);
 

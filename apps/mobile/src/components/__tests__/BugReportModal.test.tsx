@@ -21,6 +21,8 @@ jest.mock('../../services/sentry', () => ({
 jest.mock('../../services/analytics', () => ({
   trackEvent: jest.fn(),
   trackScreenView: jest.fn(),
+  screenTimeStart: jest.fn(),
+  screenTimeEnd: jest.fn(),
 }));
 
 jest.mock('../../utils', () => ({
