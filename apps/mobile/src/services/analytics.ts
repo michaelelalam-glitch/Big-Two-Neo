@@ -285,6 +285,10 @@ async function sendEvents(
         // Minimum recommended engagement time for GA4 session attribution
         engagement_time_msec: 100,
         session_id: getSessionId(),
+        // In dev builds, set debug_mode so events appear in Firebase DebugView.
+        // Note: debug events do NOT appear in standard GA4 reports — they only
+        // show in DebugView. Remove this flag to test production report flow.
+        ...(__DEV__ && { debug_mode: 1 }),
       };
       return { name: e.name, params };
     }),
@@ -309,7 +313,9 @@ async function sendEvents(
         console.log(
           '[Analytics] Response status:',
           response.status,
-          '— events sent to GA4 (check Realtime Reports)'
+          __DEV__
+            ? '— events sent to Firebase DebugView (open GA4 → DebugView)'
+            : '— events sent to GA4 (check Realtime Reports)'
         );
       } else {
         console.warn(
