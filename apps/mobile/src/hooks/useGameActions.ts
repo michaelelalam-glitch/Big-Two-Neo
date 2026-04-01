@@ -276,9 +276,21 @@ export function useGameActions({
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),
           });
-          // 'Not your turn' is an expected race condition (bot played first) — log as
-          // warning only. All other play errors are unexpected and get full tracking.
+          // 'Not your turn' is an expected race condition (bot played first) — add breadcrumb only.
+          // 'Must play highest single/combo' and other game-rule validation messages are expected
+          // game flow (not bugs) — log as Sentry warning, not exception, to reduce noise.
           if (msg.includes('Not your turn')) {
+            sentryCapture.breadcrumb(
+              `Play rejected: ${msg}`,
+              { context: 'MultiplayerPlayCards' },
+              'game'
+            );
+          } else if (
+            msg.includes('Must play highest') ||
+            msg.includes('Must beat') ||
+            msg.includes('Invalid play') ||
+            msg.includes('Play rejected:')
+          ) {
             sentryCapture.message(`Play rejected: ${msg}`, {
               context: 'MultiplayerPlayCards',
               level: 'warning',

@@ -111,6 +111,13 @@ export function initSentry(): void {
         if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
           return null; // Drop
         }
+        // Drop spurious "Object captured as exception with keys: _bubbles, _cancelable..."
+        // events — these arise when a Promise is rejected with a native DOM/RN Event object
+        // (e.g. from XHR onerror or fetch polyfill) instead of an Error instance.
+        // They carry no actionable stack trace and only pollute the issue list.
+        if (msg.includes('Object captured as exception with keys:') && msg.includes('_bubbles')) {
+          return null; // Drop
+        }
         // Tag only missing-translation warnings so they can be filtered in Sentry dashboard.
         if (
           msg.includes('[i18n] Translation not found:') ||
@@ -424,6 +431,22 @@ function _setupConsoleCapture(): void {
     // Skip Sentry's own internal debug/error messages to prevent feedback loops
     // where Sentry's logger output gets re-captured and sent as Sentry events.
     if (message.includes('[Native] [Sentry') || message.includes('Sentry Logger')) return;
+    // Skip LiveKit internal track-dimension noise — this is a LiveKit SDK log,
+    // not an app error, and floods Sentry with non-actionable events.
+    if (message.includes('could not determine track dimensions')) return;
+    // Skip native-module-not-found errors for optional modules (expo-image-picker,
+    // expo-audio). These occur in old builds before the native modules were linked and
+    // are handled gracefully by lazy-require guards in the app. Newer builds won't
+    // encounter them at all.
+    if (
+      message.includes("Cannot find native module 'ExponentImagePicker'") ||
+      message.includes("Cannot find native module 'ExpoAudio'")
+    )
+      return;
+    // Skip GameErrorBoundary's component-stack console.error — the actual error is
+    // already captured directly by GameErrorBoundary via sentryCapture.exception,
+    // so these console.error duplicates only pollute the Sentry issue list.
+    if (message.includes('[GameErrorBoundary]')) return;
     Sentry.captureMessage(`[console.error] ${message}`, {
       level: 'error',
       tags: { source: 'console' },
