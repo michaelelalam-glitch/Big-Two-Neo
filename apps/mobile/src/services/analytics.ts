@@ -266,23 +266,23 @@ async function sendEvents(
     return;
   }
 
-  // Always post to the standard endpoint. In dev builds debug_mode:1 is set
-  // at the top level of the body (not inside event params) — this surfaces
-  // events in GA4 DebugView. /debug/mp/collect is validation-only and does
-  // NOT show events in DebugView.
+  // In dev, POST to the validation endpoint first so GA4 validation errors
+  // are printed to the console. The validation endpoint returns 200 with a
+  // JSON body describing any issues — it does NOT ingest the event.
+  // Then always POST to the real endpoint so events actually land in GA4.
+  //
+  // NOTE: GA4 DebugView only works with the native Firebase SDK. It does NOT
+  // support the Measurement Protocol. Events will NEVER appear in DebugView
+  // regardless of debug_mode. To see your events use:
+  //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
+  const validationUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
-  // debug_mode must be at the TOP LEVEL of the MP request body — NOT inside
-  // event params — for events to appear in GA4 DebugView.
-  // See: https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference
   const body: Record<string, unknown> = {
     client_id: getClientId(),
     // firebase_app_id links events to a specific app stream for BigQuery export.
     // Without it, events appear in GA4 UI but are absent from raw BigQuery tables.
     ...(FIREBASE_APP_ID && { firebase_app_id: FIREBASE_APP_ID }),
-    // Top-level debug_mode routes events to GA4 DebugView (dev only).
-    // Events with debug_mode=1 do NOT appear in standard GA4 reports.
-    ...(__DEV__ && { debug_mode: 1 }),
     events: events.map(e => {
       const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
@@ -301,11 +301,31 @@ async function sendEvents(
     body.user_id = _userId;
   }
 
+  if (__DEV__) {
+    console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
+    // Hit the validation endpoint and log any issues GA4 reports
+    fetch(validationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(r => r.json())
+      .then(json => {
+        const issues = json?.validationMessages ?? [];
+        if (issues.length > 0) {
+          console.warn('[Analytics] GA4 validation issues:', JSON.stringify(issues, null, 2));
+        } else {
+          console.log(
+            '[Analytics] GA4 validation: ✅ all events valid — check GA4 → Reports → Realtime'
+          );
+        }
+      })
+      .catch(() => {
+        /* ignore validation network errors */
+      });
+  }
+
   try {
-    if (__DEV__) {
-      console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
-      console.log('[Analytics] Full payload:', JSON.stringify(body, null, 2));
-    }
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -313,21 +333,11 @@ async function sendEvents(
     });
     if (__DEV__) {
       if (response.ok) {
-        console.log(
-          '[Analytics] Response status:',
-          response.status,
-          __DEV__
-            ? '— events sent to Firebase DebugView (open GA4 → DebugView)'
-            : '— events sent to GA4 (check Realtime Reports)'
-        );
+        console.log('[Analytics] ✅', response.status, '— events ingested by GA4');
       } else {
-        console.warn(
-          '[Analytics] Response status:',
-          response.status,
-          '— failed to send events to Firebase (non-OK response)'
-        );
+        console.warn('[Analytics] ❌', response.status, '— GA4 rejected events');
         const text = await response.text().catch(() => '');
-        console.warn('[Analytics] Non-OK response body:', text.slice(0, 300));
+        console.warn('[Analytics] Response body:', text.slice(0, 300));
       }
     }
   } catch (err) {
