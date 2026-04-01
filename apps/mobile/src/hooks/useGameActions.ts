@@ -461,6 +461,12 @@ export function useGameActions({
 
   const handleLeaveGame = (skipConfirmation = false) => {
     if (skipConfirmation) {
+      // Game is already over (e.g., game_over phase) — no confirm dialog needed.
+      // Still fire analytics so every exit path is counted.
+      trackGameEvent('game_abandoned', {
+        source: 'skip_confirmation',
+        game_mode: resolvedGameMode,
+      });
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       return;
     }

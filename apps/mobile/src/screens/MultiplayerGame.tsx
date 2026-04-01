@@ -694,6 +694,16 @@ export function MultiplayerGame() {
       '[MultiplayerGame] Leaving room after bot replacement — keeping replaced_by_bot row for HomeScreen banner'
     );
     setShowBotReplacedModal(false);
+    const info = roomInfoRef.current;
+    const gameModeForAnalytics = info?.ranked_mode
+      ? 'online_ranked'
+      : info?.is_public
+        ? 'online_casual'
+        : 'online_private';
+    trackGameEvent('game_abandoned', {
+      source: 'bot_replacement',
+      game_mode: gameModeForAnalytics,
+    });
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   }, [navigation]);
   // ─────────────────────────────────────────────────────────────────────────────

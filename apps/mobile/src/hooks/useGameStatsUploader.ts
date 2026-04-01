@@ -90,6 +90,15 @@ export function useGameStatsUploader({
       const resolvedBotDifficulty = hasBots
         ? (dbBotDifficulty ?? botDifficultyFallback ?? 'unknown')
         : 'none';
+      const winnerPosition =
+        multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
+      const durationSeconds = gameStartedAt
+        ? Math.round((Date.now() - new Date(gameStartedAt).getTime()) / 1000)
+        : undefined;
+      const roundsPlayed = Array.isArray(multiplayerGameState.scores_history)
+        ? multiplayerGameState.scores_history.length
+        : undefined;
+      const matchNumber = multiplayerGameState.match_number ?? undefined;
       trackGameEvent('game_completed', {
         game_mode: analyticsGameMode,
         player_count: multiplayerPlayers.length,
@@ -97,6 +106,10 @@ export function useGameStatsUploader({
         human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
         bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
         bot_difficulty: resolvedBotDifficulty,
+        ...(winnerPosition !== null && { winner_position: winnerPosition }),
+        ...(durationSeconds !== undefined && { duration_seconds: durationSeconds }),
+        ...(roundsPlayed !== undefined && { rounds_played: roundsPlayed }),
+        ...(matchNumber !== undefined && { match_number: matchNumber }),
       });
     }
 
