@@ -266,17 +266,23 @@ async function sendEvents(
     return;
   }
 
-  // Always post to the standard endpoint. In dev builds, set debug_mode: 1
-  // inside each event's params — this surfaces events in Firebase DebugView
-  // without losing the full ingestion pipeline. /debug/mp/collect is
-  // validation-only and does NOT show events in DebugView.
+  // Always post to the standard endpoint. In dev builds debug_mode:1 is set
+  // at the top level of the body (not inside event params) — this surfaces
+  // events in GA4 DebugView. /debug/mp/collect is validation-only and does
+  // NOT show events in DebugView.
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
+  // debug_mode must be at the TOP LEVEL of the MP request body — NOT inside
+  // event params — for events to appear in GA4 DebugView.
+  // See: https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference
   const body: Record<string, unknown> = {
     client_id: getClientId(),
     // firebase_app_id links events to a specific app stream for BigQuery export.
     // Without it, events appear in GA4 UI but are absent from raw BigQuery tables.
     ...(FIREBASE_APP_ID && { firebase_app_id: FIREBASE_APP_ID }),
+    // Top-level debug_mode routes events to GA4 DebugView (dev only).
+    // Events with debug_mode=1 do NOT appear in standard GA4 reports.
+    ...(__DEV__ && { debug_mode: 1 }),
     events: events.map(e => {
       const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
@@ -285,10 +291,6 @@ async function sendEvents(
         // Minimum recommended engagement time for GA4 session attribution
         engagement_time_msec: 100,
         session_id: getSessionId(),
-        // In dev builds, set debug_mode so events appear in Firebase DebugView.
-        // Note: debug events do NOT appear in standard GA4 reports — they only
-        // show in DebugView. Remove this flag to test production report flow.
-        ...(__DEV__ && { debug_mode: 1 }),
       };
       return { name: e.name, params };
     }),
@@ -302,6 +304,7 @@ async function sendEvents(
   try {
     if (__DEV__) {
       console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
+      console.log('[Analytics] Full payload:', JSON.stringify(body, null, 2));
     }
     const response = await fetch(url, {
       method: 'POST',
