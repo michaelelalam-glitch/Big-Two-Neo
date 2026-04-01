@@ -93,15 +93,24 @@ function GameControlsComponent({
 
         onPlaySuccess();
       } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // 'Not your turn' is a retry-race: invokeWithRetry retried after a transient
+        // FunctionsFetchError and the turn moved on during the backoff window.
+        // Already breadcrumbed in useGameActions. Silently discard — no popup, no sound.
+        // The Realtime subscription will deliver the updated game state automatically.
+        if (errorMessage.includes('Not your turn')) {
+          gameLogger.warn(
+            '❌ [GameControls] Suppressed "Not your turn" popup (retry-race condition)'
+          );
+          return;
+        }
+
         // Only log error message/code to avoid exposing game state internals
-        gameLogger.error(
-          '❌ [GameControls] Failed to play cards:',
-          error instanceof Error ? error.message : String(error)
-        );
+        gameLogger.error('❌ [GameControls] Failed to play cards:', errorMessage);
 
         // Show user-friendly error
         soundManager.playSound(SoundType.INVALID_MOVE);
-        const errorMessage = error instanceof Error ? error.message : 'Invalid play';
         Alert.alert('Invalid Move', errorMessage);
       } finally {
         // Release lock after short delay to prevent rapid double-taps

@@ -276,15 +276,18 @@ export function useGameActions({
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),
           });
-          // 'Not your turn' is an expected race condition (bot played first) — add breadcrumb only.
-          // 'Must play highest single/combo' and other game-rule validation messages are expected
-          // game flow (not bugs) — log as Sentry warning, not exception, to reduce noise.
+          // 'Not your turn' is an expected race condition: invokeWithRetry fired a retry
+          // after a transient FunctionsFetchError, but the bot/other player took the turn
+          // during the 500ms backoff window. The Realtime subscription will sync game state
+          // automatically. Suppressed from UI — consistent with how the pass handler handles
+          // the same race (see below). Never show a popup for this case.
           if (msg.includes('Not your turn')) {
             sentryCapture.breadcrumb(
-              `Play rejected: ${msg}`,
+              `Play rejected (retry race): ${msg}`,
               { context: 'MultiplayerPlayCards' },
               'game'
             );
+            return; // Do not re-throw — GameControls must not show an error popup
           } else if (
             msg.includes('Must play highest') ||
             msg.includes('Must beat') ||
