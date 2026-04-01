@@ -57,13 +57,7 @@ import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
 import { useThrowables } from '../hooks/useThrowables';
 import { i18n } from '../i18n';
-import {
-  trackEvent,
-  trackGameEvent,
-  featureDurationStart,
-  featureDurationEnd,
-} from '../services/analytics';
-import type { GameMode } from '../hooks/useGameActions';
+import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 import { GameView } from './GameView';
 // LiveKitVideoChatAdapter is loaded lazily via require() (see videoChatAdapter useMemo below)
 // to prevent @livekit/react-native native module access at module-load time.
@@ -311,6 +305,26 @@ export function MultiplayerGame() {
         //    arrives within their 8-second window.
         if (info.id) {
           const broadcastChannel = supabase.channel(`play-again:${info.id}`);
+          // Guard against recursive removeChannel calls: when removeChannel is
+          // called it triggers a CLOSED status callback, which would call
+          // removeChannel again → infinite recursion → stack overflow
+          // (Fixes BIG2-MOBILE-3).
+          let broadcastChannelRemoved = false;
+          let rebroadcastIntervalId: ReturnType<typeof setInterval> | null = null;
+          let rebroadcastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+          const safeRemoveBroadcastChannel = () => {
+            if (broadcastChannelRemoved) return;
+            broadcastChannelRemoved = true;
+            if (rebroadcastIntervalId !== null) {
+              clearInterval(rebroadcastIntervalId);
+              rebroadcastIntervalId = null;
+            }
+            if (rebroadcastTimeoutId !== null) {
+              clearTimeout(rebroadcastTimeoutId);
+              rebroadcastTimeoutId = null;
+            }
+            supabase.removeChannel(broadcastChannel);
+          };
           broadcastChannel.subscribe(async status => {
             if (status === 'SUBSCRIBED') {
               await broadcastChannel.send({
@@ -324,7 +338,7 @@ export function MultiplayerGame() {
               );
               // Re-broadcast every 1s for 8 seconds to match non-host listener window.
               // Supabase broadcasts are not buffered — late subscribers miss one-shots.
-              const rebroadcastInterval = setInterval(async () => {
+              rebroadcastIntervalId = setInterval(async () => {
                 try {
                   await broadcastChannel.send({
                     type: 'broadcast',
@@ -335,9 +349,8 @@ export function MultiplayerGame() {
                   /* best-effort */
                 }
               }, 1000);
-              setTimeout(() => {
-                clearInterval(rebroadcastInterval);
-                supabase.removeChannel(broadcastChannel);
+              rebroadcastTimeoutId = setTimeout(() => {
+                safeRemoveBroadcastChannel();
               }, 8000);
             } else if (
               status === 'CHANNEL_ERROR' ||
@@ -345,7 +358,7 @@ export function MultiplayerGame() {
               status === 'CLOSED'
             ) {
               gameLogger.warn(`📡 [MultiplayerGame] Broadcast channel ${status} — removing`);
-              supabase.removeChannel(broadcastChannel);
+              safeRemoveBroadcastChannel();
             }
           });
         }
@@ -478,22 +491,8 @@ export function MultiplayerGame() {
     isHostRef.current = isMultiplayerHost;
   }, [isMultiplayerHost]);
 
-  // Derive game mode once so it is consistent across analytics events and useGameActions.
-  const gameMode = useMemo<GameMode | undefined>(
-    () =>
-      roomInfo
-        ? roomInfo.ranked_mode
-          ? 'online_ranked'
-          : roomInfo.is_public
-            ? 'online_casual'
-            : 'online_private'
-        : undefined,
-    [roomInfo]
-  );
-
-  // Track when game starts (for duration calculation) and fire Firebase game_started event.
+  // Track when game starts (for duration calculation)
   // Placed after useRealtime so multiplayerGameState is already declared.
-  const hasTrackedGameStartRef = useRef(false);
   useEffect(() => {
     if (
       multiplayerGameState?.game_phase === 'first_play' ||
@@ -502,42 +501,9 @@ export function MultiplayerGame() {
       if (!gameStartedAt) {
         setGameStartedAt(new Date().toISOString());
       }
-      // Fire Firebase game_started once per game session, but only after the
-      // player list is populated (it loads async in useMultiplayerRoomLoader).
-      if (!hasTrackedGameStartRef.current && gameMode && multiplayerPlayers.length > 0) {
-        hasTrackedGameStartRef.current = true;
-        const botsPresent = multiplayerPlayers.some(p => p.is_bot);
-        const dbBotDifficulty = multiplayerPlayers.find(p => p.is_bot)?.bot_difficulty;
-        const analyticsBotDifficulty = botsPresent
-          ? (dbBotDifficulty ?? botDifficulty ?? 'unknown')
-          : 'none';
-        trackGameEvent('game_started', {
-          game_mode: gameMode,
-          player_count: multiplayerPlayers.length,
-          bots_present: botsPresent ? 1 : 0,
-          human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
-          bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
-          bot_difficulty: analyticsBotDifficulty,
-        });
-      }
-    } else {
-      // Reset only when a truly new game session starts: 'dealing' at match 1
-      // (not between matches, which also transitions through 'dealing').
-      if (
-        multiplayerGameState?.game_phase === 'dealing' &&
-        (multiplayerGameState?.match_number ?? 1) === 1
-      ) {
-        hasTrackedGameStartRef.current = false;
-      }
     }
-  }, [
-    multiplayerGameState?.game_phase,
-    multiplayerGameState?.match_number,
-    gameMode,
-    multiplayerPlayers,
-    gameStartedAt,
-    botDifficulty,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerGameState?.game_phase, gameStartedAt]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
   // Makes up to 4 total attempts (initial + 3 retries) with exponential backoff:
@@ -1061,15 +1027,6 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
-    gameMode,
-    humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
-    botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
-    botDifficultyLevel:
-      effectiveMultiplayerPlayers.filter(p => p.is_bot).length === 0
-        ? 'none'
-        : (effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ??
-          botDifficulty ??
-          'unknown'),
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────

@@ -76,14 +76,16 @@ export default function BugReportModal({
   const [includeLog, setIncludeLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Track time spent on bug report screen for analytics
+  // Track time spent on bug report screen for analytics.
+  // Returning a cleanup function handles both the normal close path and
+  // the case where the component unmounts while the modal is still open.
   useEffect(() => {
-    if (visible) {
-      trackScreenView('BugReportModal');
-      screenTimeStart('BugReportModal');
-    } else {
+    if (!visible) return;
+    trackScreenView('BugReportModal');
+    screenTimeStart('BugReportModal');
+    return () => {
       screenTimeEnd('BugReportModal');
-    }
+    };
   }, [visible]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────── //
