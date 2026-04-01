@@ -536,6 +536,7 @@ export function MultiplayerGame() {
     gameMode,
     multiplayerPlayers,
     gameStartedAt,
+    botDifficulty,
   ]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.

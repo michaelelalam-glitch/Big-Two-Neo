@@ -64,10 +64,13 @@ export function useGameAudio({
       previousMultiplayerMatchNumberRef.current = null;
       return;
     }
-    if (multiplayerGameState) {
+    // Key on multiplayerGameState.id (unique per game-state DB row) rather than
+    // the full object reference. The object changes on every Realtime update;
+    // the id only changes when a new game_state record is created (new game).
+    if (multiplayerGameState?.id) {
       previousMultiplayerMatchNumberRef.current = null;
     }
-  }, [isMultiplayerGame, multiplayerGameState]);
+  }, [isMultiplayerGame, multiplayerGameState?.id]);
 
   // ── Local AI: match start sound ─────────────────────────────────────────── //
   // Fires whenever the local game's currentMatch increments (match 1, 2, 3…).
