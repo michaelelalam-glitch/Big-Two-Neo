@@ -64,8 +64,8 @@ export function useHelperButtons({
 
     trackEvent('sort_used', {
       hand_size: playerHand.length,
-      hand_before: JSON.stringify(handBefore),
-      hand_after: JSON.stringify(newOrder),
+      hand_before: JSON.stringify(handBefore).slice(0, 200),
+      hand_after: JSON.stringify(newOrder).slice(0, 200),
     });
     sentryCapture.breadcrumb('Sort button used', { hand_size: playerHand.length }, 'game.action');
     gameLogger.info('[useHelperButtons] Sorted hand lowest to highest');
@@ -100,8 +100,8 @@ export function useHelperButtons({
 
     trackEvent('smart_sort_used', {
       hand_size: playerHand.length,
-      hand_before: JSON.stringify(handBefore),
-      hand_after: JSON.stringify(newOrder),
+      hand_before: JSON.stringify(handBefore).slice(0, 200),
+      hand_after: JSON.stringify(newOrder).slice(0, 200),
     });
     sentryCapture.breadcrumb(
       'Smart sort button used',
