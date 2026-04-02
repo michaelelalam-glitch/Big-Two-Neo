@@ -74,7 +74,9 @@ export function getPlayErrorExplanation(serverError: string): string {
  * Expected patterns:
  *  - "Not your turn"           – canonical client-side pre-check message
  *  - "not your turn"           – same, lowercased variant from server
- *  - "Not player X's turn …"   – server response when turn advanced mid-retry
+ *  - "Not player X's turn …"   – message when turn advanced mid-retry (may be thrown
+ *                                by client pre-checks in realtimeActions.ts or forwarded
+ *                                from the server)
  *  - "Player not found in room" – player disconnected / left while move was in flight
  *
  * NOTE: intentionally does NOT match the bare "Player not found" local error thrown

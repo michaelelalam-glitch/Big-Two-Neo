@@ -205,6 +205,7 @@ describe('useGameStatsUploader — complete-game fetch retry & timeout', () => {
     jest.useRealTimers();
   });
   afterEach(() => {
+    jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
@@ -247,13 +248,19 @@ describe('useGameStatsUploader — complete-game fetch retry & timeout', () => {
     );
 
     // Drain all pending micro/macro tasks until fetch has been called 3 times
-    await new Promise<void>(resolve => {
+    const MAX_WAIT_MS = 5_000;
+    await new Promise<void>((resolve, reject) => {
+      const startTime = Date.now();
       const check = () => {
         if ((global.fetch as jest.Mock).mock.calls.length >= 3) {
           resolve();
-        } else {
-          origSetTimeout(check, 10);
+          return;
         }
+        if (Date.now() - startTime > MAX_WAIT_MS) {
+          reject(new Error('Timed out waiting for fetch to be called 3 times'));
+          return;
+        }
+        origSetTimeout(check, 10);
       };
       check();
     });
@@ -301,13 +308,19 @@ describe('useGameStatsUploader — complete-game fetch retry & timeout', () => {
     );
 
     // Wait until Sentry exception is captured (all 3 abort attempts exhausted)
-    await new Promise<void>(resolve => {
+    const MAX_WAIT_MS = 5_000;
+    await new Promise<void>((resolve, reject) => {
+      const startTime = Date.now();
       const check = () => {
         if ((sentryCapture.exception as jest.Mock).mock.calls.length >= 1) {
           resolve();
-        } else {
-          origSetTimeout(check, 10);
+          return;
         }
+        if (Date.now() - startTime > MAX_WAIT_MS) {
+          reject(new Error('Timed out waiting for Sentry exception to be captured'));
+          return;
+        }
+        origSetTimeout(check, 10);
       };
       origSetTimeout(check, 10);
     });
