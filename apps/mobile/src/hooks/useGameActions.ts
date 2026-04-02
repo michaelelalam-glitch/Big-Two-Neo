@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
+import { isExpectedPlayRaceError } from '../utils/edgeFunctionErrors';
 import {
   trackGameplayAction,
   trackGameEvent,
@@ -272,10 +273,7 @@ export function useGameActions({
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
           // Expected race conditions are warnings, not errors
-          const isExpectedRace =
-            msg.includes('Not your turn') ||
-            msg.includes('Player not found') ||
-            /not player .+'s turn/i.test(msg);
+          const isExpectedRace = isExpectedPlayRaceError(msg);
           const logFn = isExpectedRace
             ? gameLogger.warn.bind(gameLogger)
             : gameLogger.error.bind(gameLogger);

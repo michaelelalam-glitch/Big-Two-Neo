@@ -16,23 +16,23 @@ import { gameLogger } from './logger';
  */
 export function getPlayErrorExplanation(serverError: string): string {
   const errorLower = serverError.toLowerCase();
-  
+
   // Turn validation
   if (errorLower.includes('not your turn')) {
     return 'Not your turn. Wait for other players to complete their moves.';
   }
-  
+
   // First play 3♦ requirement
   if (errorLower.includes('first play') && errorLower.includes('3')) {
     return 'First play must include the 3 of Diamonds (3♦).';
   }
-  
+
   // Invalid combination
   // Use regex for more specific pattern matching to avoid false positives
   if (/\b(invalid card combination|invalid combo)\b/i.test(serverError)) {
     return 'Invalid card combination. Valid plays: Single, Pair, Triple, Straight, Flush, Full House, Four of a Kind, Straight Flush.';
   }
-  
+
   // Cannot beat last play
   if (errorLower.includes('cannot beat')) {
     const match = serverError.match(/Cannot beat (\w+) with (\w+)/i);
@@ -41,28 +41,44 @@ export function getPlayErrorExplanation(serverError: string): string {
     }
     return 'Cannot beat the current play. Play higher cards or pass your turn.';
   }
-  
+
   // One Card Left Rule
   if (errorLower.includes('one card left')) {
     return 'One Card Left Rule: When next player has 1 card, you must play your highest single card if playing a single.';
   }
-  
+
   // Card not in hand
   if (errorLower.includes('card not in hand')) {
     return 'One or more selected cards are not in your hand. Please refresh and try again.';
   }
-  
+
   // Game state errors
   if (errorLower.includes('game state not found')) {
     return 'Game state not found. The game may have ended or been disconnected.';
   }
-  
+
   if (errorLower.includes('room not found')) {
     return 'Room not found. The game session may have expired.';
   }
-  
+
   // Default: return original server error
   return serverError;
+}
+
+/**
+ * Returns true when a play-cards server error is an *expected* race condition
+ * (e.g. bot/opponent took the turn during a retry backoff, or the player
+ * disconnected) rather than a genuine bug.  Use this single source of truth
+ * across all call sites to keep severity classification consistent.
+ *
+ * Expected patterns:
+ *  - "Not your turn"           – canonical client-side pre-check message
+ *  - "not your turn"           – same, lowercased variant from server
+ *  - "Not player X's turn …"   – server response when turn advanced mid-retry
+ *  - "Player not found"        – player disconnected / left while move was in flight
+ */
+export function isExpectedPlayRaceError(message: string): boolean {
+  return /not (your|player .+'s) turn/i.test(message) || /player not found/i.test(message);
 }
 
 /**
@@ -73,14 +89,14 @@ export function getPlayErrorExplanation(serverError: string): string {
 export async function extractEdgeFunctionErrorAsync(
   error: EdgeFunctionError | null,
   result: { error?: string } | null,
-  fallback: string,
+  fallback: string
 ): Promise<string> {
   // Priority 1: Check if result has error field (from Edge Function response body)
   // This works when the Edge Function returns a successful response with error details
   if (result?.error) {
     return result.error;
   }
-  
+
   // Priority 2: Try to read the response body from error.context
   // When Edge Function returns 4xx/5xx, Supabase stores the Response object in error.context
   // Add timeout to body reading to prevent hanging in critical error paths
@@ -89,14 +105,17 @@ export async function extractEdgeFunctionErrorAsync(
     try {
       // Race against timeout to prevent hanging if body reading fails or hangs
       const bodyTextPromise = error.context.text();
-      const timeoutPromise = new Promise<string>((_, reject) => 
+      const timeoutPromise = new Promise<string>((_, reject) =>
         setTimeout(() => reject(new Error('Body read timeout')), 1000)
       );
-      
+
       const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
       const parsed = JSON.parse(bodyText);
       if (parsed?.error) {
-        gameLogger.info('[extractEdgeFunctionError] ✅ Extracted error from response body:', parsed.error);
+        gameLogger.info(
+          '[extractEdgeFunctionError] ✅ Extracted error from response body:',
+          parsed.error
+        );
         return parsed.error;
       }
     } catch (e) {
@@ -104,20 +123,21 @@ export async function extractEdgeFunctionErrorAsync(
       gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
     }
   }
-  
+
   // Priority 3: Check if error.context already has parsed fields (body already consumed above)
   if (error?.context) {
     // Try to get error from parsed body
     if (error.context.error) {
       return error.context.error;
     }
-    
+
     // Try to parse JSON body string if present
     if (error.context.body) {
       try {
-        const parsed = typeof error.context.body === 'string' 
-          ? JSON.parse(error.context.body) 
-          : error.context.body;
+        const parsed =
+          typeof error.context.body === 'string'
+            ? JSON.parse(error.context.body)
+            : error.context.body;
         if (parsed?.error) {
           return parsed.error;
         }
@@ -125,7 +145,7 @@ export async function extractEdgeFunctionErrorAsync(
         gameLogger.warn('[extractEdgeFunctionError] Failed to parse error.context.body:', e);
       }
     }
-    
+
     // If we have status code but no error message, return generic status
     if (error.context.status) {
       const status = error.context.status;
@@ -133,12 +153,12 @@ export async function extractEdgeFunctionErrorAsync(
       return `HTTP ${status}${statusText ? ': ' + statusText : ''}`;
     }
   }
-  
+
   // Priority 4: Use error.message (usually "Edge Function returned a non-2xx status code")
   if (error?.message && error.message !== 'Edge Function returned a non-2xx status code') {
     return error.message;
   }
-  
+
   // Fallback
   return fallback;
 }
@@ -152,15 +172,15 @@ export function isValidTimerStatePayload(
   if (typeof payload !== 'object' || payload === null || !('timer_state' in payload)) {
     return false;
   }
-  
+
   const timerState = (payload as { timer_state: unknown }).timer_state;
-  
+
   if (typeof timerState !== 'object' || timerState === null) {
     return false;
   }
-  
+
   const state = timerState as Record<string, unknown>;
-  
+
   // Validate basic timer fields
   if (
     typeof state.active !== 'boolean' ||
@@ -170,13 +190,13 @@ export function isValidTimerStatePayload(
   ) {
     return false;
   }
-  
+
   // Validate triggering_play structure
   const triggeringPlay = state.triggering_play;
   if (typeof triggeringPlay !== 'object' || triggeringPlay === null) {
     return false;
   }
-  
+
   const play = triggeringPlay as Record<string, unknown>;
   return (
     typeof play.position === 'number' &&
