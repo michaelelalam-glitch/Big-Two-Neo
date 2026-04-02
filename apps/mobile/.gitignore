@@ -63,8 +63,12 @@ supabase/.temp/
 fix-tests.sh
 
 # CRITICAL: Firebase and EAS credentials (NEVER commit these!)
-# TEMPORARY: Allowing google-services.json for dev builds (remove before production)
-# google-services.json
+google-services.json
+GoogleService-Info.plist
 credentials.json
 credentials/
 *.apk
+
+# Backup files (use source control instead)
+*.bak
+*.backup
