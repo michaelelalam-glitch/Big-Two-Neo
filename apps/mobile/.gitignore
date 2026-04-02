@@ -63,8 +63,8 @@ supabase/.temp/
 fix-tests.sh
 
 # CRITICAL: Firebase and EAS credentials (NEVER commit these!)
-# If any of these files are already tracked, run:
-#   git rm --cached <file>  (then rotate the credentials)
+# google-services.json has been removed from tracking via `git rm --cached`.
+# Only the google-services.json.example template is committed.
 # Store only local copies and/or use *.example templates instead.
 google-services.json
 GoogleService-Info.plist
