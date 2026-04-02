@@ -55,15 +55,13 @@ BEGIN
     ELSE 0
   END;
 
-  v_new_casual_rp := GREATEST(0,
+  v_new_casual_rp :=
     COALESCE(v_stats.casual_rank_points, 1000) +
-    CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE 0 END
-  );
+    CASE WHEN p_game_type = 'casual' THEN v_rank_point_change ELSE 0 END;
 
-  v_new_ranked_rp := GREATEST(0,
+  v_new_ranked_rp :=
     COALESCE(v_stats.ranked_rank_points, 1000) +
-    CASE WHEN p_game_type = 'ranked' THEN p_ranked_elo_change ELSE 0 END
-  );
+    CASE WHEN p_game_type = 'ranked' THEN p_ranked_elo_change ELSE 0 END;
 
   v_new_win_rate := ROUND(
     (v_stats.games_won + CASE WHEN p_won THEN 1 ELSE 0 END)::DECIMAL /
