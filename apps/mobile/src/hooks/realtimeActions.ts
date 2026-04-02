@@ -24,7 +24,7 @@ import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import {
   getPlayErrorExplanation,
   extractEdgeFunctionErrorAsync,
-  isExpectedPlayRaceError,
+  isExpectedTurnRaceError,
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
 import { soundManager, SoundType } from '../utils';
@@ -119,7 +119,7 @@ export async function executePlayCards({
 
     // Determine severity: expected race conditions (bot took the turn, player
     // disconnected) are warnings, not errors — they do not indicate bugs.
-    const isExpectedRace = isExpectedPlayRaceError(errorMessage);
+    const isExpectedRace = isExpectedTurnRaceError(errorMessage);
     const log = isExpectedRace
       ? gameLogger.warn.bind(gameLogger)
       : gameLogger.error.bind(gameLogger);

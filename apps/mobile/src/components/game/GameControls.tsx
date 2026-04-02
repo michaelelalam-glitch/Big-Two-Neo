@@ -13,7 +13,7 @@ import { i18n } from '../../i18n';
 import { soundManager, hapticManager, SoundType } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
-import { isExpectedPlayRaceError } from '../../utils/edgeFunctionErrors';
+import { isExpectedTurnRaceError } from '../../utils/edgeFunctionErrors';
 import type { GameStateManager } from '../../game/state';
 import type { Card } from '../../game/types';
 
@@ -101,7 +101,7 @@ function GameControlsComponent({
         // not found') are already breadcrumbed/logged upstream in useGameActions and
         // realtimeActions. Silently discard — no popup, no sound.
         // The Realtime subscription will deliver the updated game state automatically.
-        if (isExpectedPlayRaceError(errorMessage)) {
+        if (isExpectedTurnRaceError(errorMessage)) {
           gameLogger.warn('❌ [GameControls] Suppressed expected-race popup:', errorMessage);
           return;
         }

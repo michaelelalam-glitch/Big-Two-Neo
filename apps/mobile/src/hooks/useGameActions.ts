@@ -18,7 +18,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import { gameLogger } from '../utils/logger';
-import { isExpectedPlayRaceError } from '../utils/edgeFunctionErrors';
+import { isExpectedTurnRaceError } from '../utils/edgeFunctionErrors';
 import {
   trackGameplayAction,
   trackGameEvent,
@@ -273,7 +273,7 @@ export function useGameActions({
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
           // Expected race conditions are warnings, not errors
-          const isExpectedRace = isExpectedPlayRaceError(msg);
+          const isExpectedRace = isExpectedTurnRaceError(msg);
           const logFn = isExpectedRace
             ? gameLogger.warn.bind(gameLogger)
             : gameLogger.error.bind(gameLogger);
@@ -404,7 +404,7 @@ export function useGameActions({
         sentryCapture.breadcrumb('Pass (multiplayer)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
-        if (isExpectedPlayRaceError(msg)) {
+        if (isExpectedTurnRaceError(msg)) {
           gameLogger.warn(
             '⚠️ [GameScreen] Suppressed expected-race pass error (likely auto-pass race):',
             msg

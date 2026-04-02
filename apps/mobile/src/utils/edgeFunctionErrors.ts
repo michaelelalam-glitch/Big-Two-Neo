@@ -77,7 +77,7 @@ export function getPlayErrorExplanation(serverError: string): string {
  *  - "Not player X's turn …"   – server response when turn advanced mid-retry
  *  - "Player not found"        – player disconnected / left while move was in flight
  */
-export function isExpectedPlayRaceError(message: string): boolean {
+export function isExpectedTurnRaceError(message: string): boolean {
   return /not (your|player .+'s) turn/i.test(message) || /player not found/i.test(message);
 }
 

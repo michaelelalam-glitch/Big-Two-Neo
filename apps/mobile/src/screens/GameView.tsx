@@ -34,7 +34,7 @@ import { scoreDisplayStyles } from '../styles/scoreDisplayStyles';
 import { gameScreenStyles as styles } from '../styles/gameScreenStyles';
 import { performanceMonitor } from '../utils';
 import { gameLogger } from '../utils/logger';
-import { isExpectedPlayRaceError } from '../utils/edgeFunctionErrors';
+import { isExpectedTurnRaceError } from '../utils/edgeFunctionErrors';
 import type { Card } from '../game/types';
 import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
@@ -377,7 +377,7 @@ function GameViewComponent() {
                 await handlePlayCards(selectedCards);
               } catch (error) {
                 const errMsg = error instanceof Error ? error.message : String(error);
-                const isExpectedRace = isExpectedPlayRaceError(errMsg);
+                const isExpectedRace = isExpectedTurnRaceError(errMsg);
                 const logFn = isExpectedRace
                   ? gameLogger.warn.bind(gameLogger)
                   : gameLogger.error.bind(gameLogger);
