@@ -151,13 +151,14 @@ function GameControlsComponent({
       soundManager.playSound(SoundType.PASS);
       onPassSuccess();
     } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Suppress popup for expected race conditions (auto-pass race, player left mid-turn)
+      if (isExpectedTurnRaceError(errorMessage)) {
+        gameLogger.warn('⚠️ [GameControls] Suppressed expected-race pass popup:', errorMessage);
+        return;
+      }
       // Only log error message/code to avoid exposing game state internals
-      gameLogger.error(
-        '❌ [GameControls] Failed to pass:',
-        error instanceof Error ? error.message : String(error)
-      );
-
-      const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
+      gameLogger.error('❌ [GameControls] Failed to pass:', errorMessage);
       Alert.alert('Cannot Pass', errorMessage);
     } finally {
       setTimeout(() => {

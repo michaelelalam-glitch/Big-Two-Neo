@@ -405,10 +405,10 @@ export function useGameActions({
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         if (isExpectedTurnRaceError(msg)) {
-          gameLogger.warn(
-            '⚠️ [GameScreen] Suppressed expected-race pass error (likely auto-pass race):',
-            msg
-          );
+          gameLogger.warn('⚠️ [GameScreen] Expected-race pass error (likely auto-pass race):', msg);
+          // Re-throw so callers (GameControls) skip success side effects
+          // (pass sound, onPassSuccess). GameControls will suppress the popup.
+          throw error instanceof Error ? error : new Error(msg);
         } else {
           gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
           const failMsg = msg || 'Failed to pass';
