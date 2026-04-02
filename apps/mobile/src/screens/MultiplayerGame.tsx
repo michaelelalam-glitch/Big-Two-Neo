@@ -21,7 +21,7 @@ import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
 import { useTurnInactivityTimer } from '../hooks/useTurnInactivityTimer';
 import { useCardSelection } from '../hooks/useCardSelection';
-import { useGameActions } from '../hooks/useGameActions';
+import { useGameActions, type GameMode } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useGameCleanup } from '../hooks/useGameCleanup';
 import { useHelperButtons } from '../hooks/useHelperButtons';
@@ -125,6 +125,17 @@ export function MultiplayerGame() {
   // Keep a ref mirror of roomInfo so the Play Again callback always reads the latest value,
   // avoiding stale-closure issues when the Alert.alert onPress fires.
   const roomInfoRef = useRef<RoomInfo | null>(null);
+
+  /** Derive a consistent GA4 game_mode string from a RoomInfo object. */
+  const getGameModeForAnalytics = useCallback(
+    (info: RoomInfo): GameMode =>
+      info.ranked_mode
+        ? 'online_ranked'
+        : info.is_matchmaking || info.is_public
+          ? 'online_casual'
+          : 'online_private',
+    []
+  );
   useEffect(() => {
     roomInfoRef.current = roomInfo;
   }, [roomInfo]);
@@ -515,11 +526,7 @@ export function MultiplayerGame() {
         const analyticsBotDifficulty = botsPresent
           ? (dbBotDifficulty ?? botDifficulty ?? 'unknown')
           : 'none';
-        const analyticsGameMode = roomInfo.ranked_mode
-          ? 'online_ranked'
-          : roomInfo.is_matchmaking || roomInfo.is_public
-            ? 'online_casual'
-            : 'online_private';
+        const analyticsGameMode = getGameModeForAnalytics(roomInfo);
         trackGameEvent('game_started', {
           game_mode: analyticsGameMode,
           player_count: multiplayerPlayers.length,
@@ -695,15 +702,11 @@ export function MultiplayerGame() {
     );
     setShowBotReplacedModal(false);
     const info = roomInfoRef.current;
-    const gameModeForAnalytics = info?.ranked_mode
-      ? 'online_ranked'
-      : info?.is_matchmaking || info?.is_public
-        ? 'online_casual'
-        : 'online_private';
-    trackGameEvent('game_abandoned', {
-      source: 'bot_replacement',
-      game_mode: gameModeForAnalytics,
-    });
+    const abandonedParams: Record<string, string | number> = { source: 'bot_replacement' };
+    if (info) {
+      abandonedParams.game_mode = getGameModeForAnalytics(info);
+    }
+    trackGameEvent('game_abandoned', abandonedParams);
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   }, [navigation]);
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1076,13 +1079,7 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
-    gameMode: roomInfo
-      ? roomInfo.ranked_mode
-        ? 'online_ranked'
-        : roomInfo.is_matchmaking || roomInfo.is_public
-          ? 'online_casual'
-          : 'online_private'
-      : undefined,
+    gameMode: roomInfo ? getGameModeForAnalytics(roomInfo) : undefined,
     humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
     botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
     botDifficultyLevel: effectiveMultiplayerPlayers.some(p => p.is_bot)

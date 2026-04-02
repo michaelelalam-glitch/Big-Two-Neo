@@ -51,7 +51,7 @@ BEGIN
           WHEN COALESCE(p_slot.disconnected, false)                  THEN -50
           -- Completed game → score-based gain
           ELSE (
-            (100 - LEAST(p_slot.score, 100))::DECIMAL
+            (100 - LEAST(COALESCE(p_slot.score, 0), 100))::DECIMAL
             * CASE
                 WHEN g.bot_difficulty = 'easy'   THEN 0.5
                 WHEN g.bot_difficulty = 'medium' THEN 0.7

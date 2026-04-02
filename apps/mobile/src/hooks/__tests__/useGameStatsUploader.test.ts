@@ -46,7 +46,14 @@ jest.mock('../../constants', () => ({
 }));
 
 // Silence __DEV__ analytics warning in test environment
-(global as any).__DEV__ = false;
+let _prevDev: any;
+beforeAll(() => {
+  _prevDev = (global as any).__DEV__;
+  (global as any).__DEV__ = false;
+});
+afterAll(() => {
+  (global as any).__DEV__ = _prevDev;
+});
 
 import { renderHook } from '@testing-library/react-native';
 import { useGameStatsUploader } from '../useGameStatsUploader';
