@@ -125,20 +125,22 @@ export async function executePlayCards({
       ? gameLogger.warn.bind(gameLogger)
       : gameLogger.error.bind(gameLogger);
 
-    log('[useRealtime] 🔍 Full error object structure:', {
-      hasError: !!playError,
-      hasResult: !!result,
-      errorKeys: playError ? Object.keys(playError) : [],
-      errorContext: playError?.context,
-      errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
-      resultKeys: result ? Object.keys(result) : [],
-      result,
-    });
+    if (!isExpectedRace) {
+      log('[useRealtime] 🔍 Full error object structure:', {
+        hasError: !!playError,
+        hasResult: !!result,
+        errorKeys: playError ? Object.keys(playError) : [],
+        errorContext: playError?.context,
+        errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
+        resultKeys: result ? Object.keys(result) : [],
+        result,
+      });
+    }
 
     log('[useRealtime] ❌ Server validation failed:', {
       message: errorMessage,
       status: statusCode,
-      debug: debugInfo,
+      ...(isExpectedRace ? {} : { debug: debugInfo }),
     });
     if (isExpectedRace) {
       gameLogger.warn('[useRealtime] 📦 Error summary (expected race):', {

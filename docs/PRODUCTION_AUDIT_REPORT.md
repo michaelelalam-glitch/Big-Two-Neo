@@ -493,9 +493,9 @@ LiveKit integration is **well-implemented** with proper security boundaries.
 | ID | Severity | Issue |
 |----|----------|-------|
 | D-01 | **CRITICAL** | `google-services.json` committed with API keys — rotate + remove from history immediately |
-| D-02 | **HIGH** | `react-native: 0.81.5` not pinned exactly — micro-upgrades possible |
+| D-02 | **HIGH** | `react-native: 0.81.5` pinned exactly in `package.json` — ✅ fixed in Phase 0; verify lock file stays current |
 | D-03 | **HIGH** | `@sentry/react-native: ^8.5.0` — needs CVE audit |
-| D-04 | **MEDIUM** | No `.env.example` file for developer onboarding |
+| D-04 | **MEDIUM** | No `.env.example` file for developer onboarding — ✅ added in Phase 0 |
 
 ### Heavy Dependencies (Bundle Impact)
 | Package | Estimated Size | Justification |
@@ -643,4 +643,4 @@ Replace independent client-side timers with server-authoritative timestamps. Cli
 
 ---
 
-*Report complete. All 16 phases audited. 138 issues documented with file paths, line numbers, severity ratings, and a prioritized remediation plan.*
+*Report complete. All phases (0–16) audited. 138 issues documented with file paths, line numbers, severity ratings, and a prioritized remediation plan.*

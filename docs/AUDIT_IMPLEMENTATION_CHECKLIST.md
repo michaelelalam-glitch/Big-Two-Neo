@@ -2,8 +2,8 @@
 
 **Created:** April 2, 2026  
 **Source:** [PRODUCTION_AUDIT_REPORT.md](PRODUCTION_AUDIT_REPORT.md)  
-**Total Unique Tasks:** 105 (138 audit IDs deduplicated across overlapping phases)  
-**Estimated Phases:** 17
+**Total Unique Tasks:** 89 (138 audit IDs deduplicated across overlapping phases)  
+**Estimated Phases:** 18 (Phase 0 – Phase 17)
 
 ---
 
@@ -97,7 +97,7 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
     2. `git filter-branch` or `bfg` to remove `google-services.json` from history
     3. Update local file with new keys
     4. Force-push cleaned history (coordinate with team)
-    5. Revoke old API key `AIzaSyBO1H7c3KA9HJwK8BKFraYWx4V6_fHtrUg`
+    5. Revoke old API key `AIza...REDACTED` (see Firebase console for current key, do not commit plaintext API keys)
   - **Verify:** `git log --all --full-history -- '**/google-services.json'` returns empty
 
 - [ ] **1.2** Remove `usesAppleSignIn: true` from app.json (feature is disabled) `[I-02, O-02]` `CRITICAL`

@@ -540,8 +540,11 @@ export function useGameStatsUploader({
         // ─────────────────────────────────────────────────────────────────────────
 
         const MAX_RETRIES = 2;
+        const FETCH_TIMEOUT_MS = 30_000; // 30 s — prevent infinite hang on flaky mobile networks
         let response: Response | null = null;
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
           try {
             response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
               method: 'POST',
@@ -550,7 +553,9 @@ export function useGameStatsUploader({
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify(payload),
+              signal: controller.signal,
             });
+            clearTimeout(timeoutId);
             if (response.ok || response.status < 500) {
               // Success (2xx/3xx) or client error (4xx): don't retry further.
               break;
@@ -562,10 +567,11 @@ export function useGameStatsUploader({
               await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
           } catch (fetchError) {
+            clearTimeout(timeoutId);
             if (attempt < MAX_RETRIES) {
               const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
               statsLogger.warn(
-                `⚠️ [GameStats] Network error calling complete-game, retrying (${attempt + 1}/${MAX_RETRIES})...`,
+                `⚠️ [GameStats] Network error/timeout calling complete-game, retrying (${attempt + 1}/${MAX_RETRIES})...`,
                 msg
               );
               await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
