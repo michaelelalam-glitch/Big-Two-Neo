@@ -119,13 +119,17 @@ export async function extractEdgeFunctionErrorAsync(
 
     try {
       const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
-      const parsed = JSON.parse(bodyText);
-      if (parsed?.error) {
-        gameLogger.info(
-          '[extractEdgeFunctionError] ✅ Extracted error from response body:',
-          parsed.error
-        );
-        return parsed.error;
+      // bodyText is '' if the body read rejected (.catch(() => '') above) —
+      // skip parse so we don't generate a misleading warn log for read failures
+      if (bodyText) {
+        const parsed = JSON.parse(bodyText);
+        if (parsed?.error) {
+          gameLogger.info(
+            '[extractEdgeFunctionError] ✅ Extracted error from response body:',
+            parsed.error
+          );
+          return parsed.error;
+        }
       }
     } catch (e) {
       // Body may already be consumed, timed out, or contain invalid JSON - fall through to Priority 3
