@@ -108,7 +108,24 @@ export async function executePlayCards({
   );
 
   if (playError || !result?.success) {
-    gameLogger.error('[useRealtime] 🔍 Full error object structure:', {
+    const errorMessage = await extractEdgeFunctionErrorAsync(
+      playError,
+      result,
+      'Server validation failed'
+    );
+    const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
+    const statusCode = playError?.context?.status || 'unknown';
+
+    // Determine severity: expected race conditions (bot took the turn, player
+    // disconnected) are warnings, not errors — they do not indicate bugs.
+    const errorLower = errorMessage.toLowerCase();
+    const isExpectedRace =
+      errorLower.includes('not your turn') || errorLower.includes('player not found');
+    const log = isExpectedRace
+      ? gameLogger.warn.bind(gameLogger)
+      : gameLogger.error.bind(gameLogger);
+
+    log('[useRealtime] 🔍 Full error object structure:', {
       hasError: !!playError,
       hasResult: !!result,
       errorKeys: playError ? Object.keys(playError) : [],
@@ -118,20 +135,12 @@ export async function executePlayCards({
       result,
     });
 
-    const errorMessage = await extractEdgeFunctionErrorAsync(
-      playError,
-      result,
-      'Server validation failed'
-    );
-    const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
-    const statusCode = playError?.context?.status || 'unknown';
-
-    gameLogger.error('[useRealtime] ❌ Server validation failed:', {
+    log('[useRealtime] ❌ Server validation failed:', {
       message: errorMessage,
       status: statusCode,
       debug: debugInfo,
     });
-    gameLogger.error('[useRealtime] 📦 Full error context:', { error: playError, result });
+    log('[useRealtime] 📦 Full error context:', { error: playError, result });
 
     // ── "Lost response" recovery ──────────────────────────────────────────────
     // Scenario: the server processed our play (match ended) but the HTTP response

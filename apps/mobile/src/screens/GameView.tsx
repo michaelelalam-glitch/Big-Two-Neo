@@ -375,7 +375,13 @@ function GameViewComponent() {
               try {
                 await handlePlayCards(selectedCards);
               } catch (error) {
-                gameLogger.error('❌ [Landscape] Play button failed to play cards', { error });
+                const errMsg = error instanceof Error ? error.message : String(error);
+                const isExpectedRace =
+                  errMsg.includes('Not your turn') || errMsg.includes('Player not found');
+                const logFn = isExpectedRace
+                  ? gameLogger.warn.bind(gameLogger)
+                  : gameLogger.error.bind(gameLogger);
+                logFn('❌ [Landscape] Play button failed to play cards', { error });
               }
             }}
             onPass={async () => {

@@ -539,23 +539,34 @@ export function useGameStatsUploader({
         }
         // ─────────────────────────────────────────────────────────────────────────
 
-        const response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        const MAX_RETRIES = 2;
+        let response: Response | undefined;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+          if (response.ok || response.status < 500) break; // Don't retry client errors (4xx)
+          if (attempt < MAX_RETRIES) {
+            statsLogger.warn(
+              `⚠️ [GameStats] Server error (${response.status}), retrying (${attempt + 1}/${MAX_RETRIES})...`
+            );
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
 
-        if (response.ok) {
-          const result = await response.json();
+        if (response!.ok) {
+          const result = await response!.json();
           statsLogger.info('✅ [GameStats] Stats uploaded successfully:', result);
         } else {
-          const errorData = await response
+          const errorData = await response!
             .json()
-            .catch(() => ({ error: `HTTP ${response.status}` }));
-          const errorMsg = errorData?.error || `HTTP ${response.status}`;
+            .catch(() => ({ error: `HTTP ${response!.status}` }));
+          const errorMsg = errorData?.error || `HTTP ${response!.status}`;
           statsLogger.error('❌ [GameStats] Edge function returned error:', errorMsg);
           sentryCapture.message(`[GameStats] Edge function error: ${errorMsg}`, {
             level: 'error',

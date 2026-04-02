@@ -271,7 +271,12 @@ export function useGameActions({
           );
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
-          gameLogger.error('❌ [GameScreen] Error playing cards:', msg);
+          // Expected race conditions are warnings, not errors
+          const isExpectedRace = msg.includes('Not your turn') || msg.includes('Player not found');
+          const logFn = isExpectedRace
+            ? gameLogger.warn.bind(gameLogger)
+            : gameLogger.error.bind(gameLogger);
+          logFn('❌ [GameScreen] Error playing cards:', msg);
           trackGameplayAction('play_error', {
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),

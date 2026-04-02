@@ -108,7 +108,11 @@ function GameControlsComponent({
         }
 
         // Only log error message/code to avoid exposing game state internals
-        gameLogger.error('❌ [GameControls] Failed to play cards:', errorMessage);
+        const isExpectedRace = errorMessage.includes('Player not found');
+        const logFn = isExpectedRace
+          ? gameLogger.warn.bind(gameLogger)
+          : gameLogger.error.bind(gameLogger);
+        logFn('❌ [GameControls] Failed to play cards:', errorMessage);
 
         // Show user-friendly error
         soundManager.playSound(SoundType.INVALID_MOVE);
