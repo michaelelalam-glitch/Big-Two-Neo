@@ -27,7 +27,11 @@ jest.mock('../../services/supabase', () => ({
 }));
 
 jest.mock('../../services/sentry', () => ({
-  sentryCapture: jest.fn(),
+  sentryCapture: {
+    exception: jest.fn(),
+    message: jest.fn(),
+    breadcrumb: jest.fn(),
+  },
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -47,12 +51,15 @@ jest.mock('../../constants', () => ({
 
 // Silence __DEV__ analytics warning in test environment
 let _prevDev: any;
+let _prevFetch: typeof global.fetch;
 beforeAll(() => {
   _prevDev = (global as any).__DEV__;
   (global as any).__DEV__ = false;
+  _prevFetch = global.fetch;
 });
 afterAll(() => {
   (global as any).__DEV__ = _prevDev;
+  global.fetch = _prevFetch;
 });
 
 import { renderHook } from '@testing-library/react-native';

@@ -48,8 +48,7 @@ echo "   ✅ Inbound filters configured"
 
 # ── 2. Ownership Rules ────────────────────────────────────────────────────────
 echo "2/4  Setting ownership rules..."
-OWNERSHIP_RULES='path:apps/mobile/src/* michaelelalam-glitch
-tags.environment:development #ignore'
+OWNERSHIP_RULES='path:apps/mobile/src/* michaelelalam-glitch'
 
 curl -s -X PUT "${BASE}/projects/${ORG}/${PROJECT}/ownership/" \
   -H "${AUTH}" -H "Content-Type: application/json" \
