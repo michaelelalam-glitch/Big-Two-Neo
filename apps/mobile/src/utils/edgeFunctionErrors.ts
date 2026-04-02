@@ -108,13 +108,14 @@ export async function extractEdgeFunctionErrorAsync(
   // Add timeout to body reading to prevent hanging in critical error paths
   // Reduced timeout from 2s to 1s for better user-facing responsiveness
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
-    try {
-      // Race against timeout to prevent hanging if body reading fails or hangs
-      const bodyTextPromise = error.context.text();
-      const timeoutPromise = new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error('Body read timeout')), 1000)
-      );
+    // Race against timeout to prevent hanging if body reading fails or hangs
+    const bodyTextPromise = error.context.text();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Body read timeout')), 1000);
+    });
 
+    try {
       const bodyText = await Promise.race([bodyTextPromise, timeoutPromise]);
       const parsed = JSON.parse(bodyText);
       if (parsed?.error) {
@@ -127,6 +128,8 @@ export async function extractEdgeFunctionErrorAsync(
     } catch (e) {
       // Body may already be consumed, timed out, or contain invalid JSON - fall through to Priority 3
       gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
+    } finally {
+      clearTimeout(timeoutId); // Prevent the losing race branch from becoming an unhandled rejection
     }
   }
 
