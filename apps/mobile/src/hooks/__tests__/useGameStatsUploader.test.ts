@@ -282,9 +282,11 @@ describe('useGameStatsUploader — complete-game fetch retry & timeout', () => {
         new Promise((_resolve, reject) => {
           const signal = init?.signal as AbortSignal | undefined;
           if (signal) {
-            signal.addEventListener('abort', () =>
-              reject(new DOMException('The operation was aborted.', 'AbortError'))
-            );
+            signal.addEventListener('abort', () => {
+              const error = new Error('The operation was aborted.');
+              (error as unknown as { name: string }).name = 'AbortError';
+              reject(error);
+            });
           }
         })
     );
