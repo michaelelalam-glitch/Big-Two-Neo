@@ -258,9 +258,13 @@ async function sendEvents(
   // JSON body describing any issues — it does NOT ingest the event.
   // Then always POST to the real endpoint so events actually land in GA4.
   //
-  // NOTE: GA4 DebugView only works with the native Firebase SDK. It does NOT
-  // support the Measurement Protocol. Events will NEVER appear in DebugView
-  // regardless of debug_mode. To see your events use:
+  // NOTE: GA4 DebugView CAN be used with the Measurement Protocol when you
+  // include `debug_mode: 1` in the event params. In that case, ingested events
+  // appear in DebugView instead of standard reports. This service always sends
+  // to the validation endpoint first for schema/param checks, and then to the
+  // main collect endpoint so events can be seen either in DebugView (when
+  // `debug_mode` is set by the caller) or in Realtime reports. You can also
+  // inspect live traffic via:
   //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
   const validationUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;

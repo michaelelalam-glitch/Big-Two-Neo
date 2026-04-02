@@ -1324,17 +1324,15 @@ describe('useVideoChat — toggleVideoChat voice-only → video upgrade', () => 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 4 — iOS permission UX (Camera.requestCameraPermissionsAsync + expo-audio permission APIs)
+// Phase 4 — iOS permission UX (Camera.requestCameraPermissionsAsync + webRTC mic permissions)
 // ---------------------------------------------------------------------------
 
 describe('useVideoChat — Phase 4 iOS permission UX', () => {
   // Lazily import the mocks so Jest resolves them through moduleNameMapper
   // (expo-camera → src/__tests__/__mocks__/expo-camera.ts,
-  //  expo-audio  → src/__tests__/__mocks__/expo-audio.ts).
+  //  @livekit/react-native-webrtc → src/__tests__/__mocks__/livekit-react-native-webrtc.ts).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Camera } = require('expo-camera') as typeof import('expo-camera');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const expoAudio = require('expo-audio') as typeof import('expo-audio');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const webrtc = require('@livekit/react-native-webrtc') as {
     permissions: { query: jest.MockedFunction<(d: { name: string }) => Promise<string>> };
@@ -1500,10 +1498,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       expires: 'never',
       granted: false,
     });
-    // Mic should not be called
-    jest
-      .spyOn(expoAudio, 'getRecordingPermissionsAsync')
-      .mockResolvedValue({ status: 'granted', canAskAgain: true, expires: 'never', granted: true });
+    // Mic is never requested when camera is denied — no mock needed.
 
     const connectSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({ connect: connectSpy });
