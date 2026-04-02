@@ -82,7 +82,7 @@ export function useGameStatsUploader({
       hasTrackedCompletionRef.current = true;
       const analyticsGameMode = roomInfo.ranked_mode
         ? 'online_ranked'
-        : roomInfo.is_public
+        : roomInfo.is_public || roomInfo.is_matchmaking
           ? 'online_casual'
           : ('online_private' as const);
       const hasBots = multiplayerPlayers.some(p => p.is_bot);
@@ -196,14 +196,14 @@ export function useGameStatsUploader({
         let gameType: 'casual' | 'ranked' | 'private';
         if (roomInfo.ranked_mode) {
           gameType = 'ranked';
-        } else if (roomInfo.is_public) {
+        } else if (roomInfo.is_public || roomInfo.is_matchmaking) {
           gameType = 'casual';
         } else {
           gameType = 'private';
         }
 
         statsLogger.info(
-          `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
+          `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public}, is_matchmaking=${roomInfo.is_matchmaking})`
         );
 
         // Note: game_completed analytics are fired above the upload guard so they
@@ -432,27 +432,23 @@ export function useGameStatsUploader({
 
           // Compact standings: [{pos, pi, s}] sorted 1→4 by cumulative score.
           // Mirrors the expanded scoreboard "final standings" column.
+          // Capped at 3 entries (≤ 80 chars) to stay within GA4's 100-char limit.
           const analyticsStandings = JSON.stringify(
-            finalScoresEntries.slice(0, 4).map((e, i) => ({
+            finalScoresEntries.slice(0, 3).map((e, i) => ({
               pos: i + 1,
               pi: e.player_index,
               s: e.cumulative_score,
             }))
-          ).slice(0, 100);
+          );
 
-          // Compact match scores: per-round score, cumulative total, cards left.
-          // Mirrors the expanded scoreboard match-by-match rows.
+          // Compact match scores: [match_number, p0_score, p1_score, p2_score, p3_score]
+          // per round as flat arrays. 3 rounds × 5 numbers stays well under GA4's
+          // 100-char limit even with large scores, and avoids mid-token JSON truncation.
           const analyticsMatchScores = JSON.stringify(
-            scoresHistory.slice(0, 10).map(m => ({
-              mn: m.match_number,
-              s: (m.scores ?? []).map(sc => ({
-                p: sc.player_index,
-                r: sc.matchScore,
-                c: sc.cumulativeScore,
-                cr: sc.cardsRemaining,
-              })),
-            }))
-          ).slice(0, 100);
+            scoresHistory
+              .slice(0, 3)
+              .map(m => [m.match_number, ...(m.scores ?? []).slice(0, 4).map(sc => sc.matchScore)])
+          );
 
           // Aggregate combo counts across ALL players (numeric params → no BigQuery length limit).
           const totalCombos = { ...zeroCombos };
@@ -514,8 +510,14 @@ export function useGameStatsUploader({
             combo_full_houses: totalCombos.full_houses,
             combo_four_of_a_kinds: totalCombos.four_of_a_kinds,
             combo_straight_flushes: totalCombos.straight_flushes,
-            // Per-player breakdown (compact JSON for BigQuery JSON_VALUE / UNNEST)
-            combos_by_player: JSON.stringify(combosPerPlayer).slice(0, 100),
+            // Per-player combo totals: include winner only (max ~73 chars) to
+            // stay within GA4's 100-char string param limit without truncating JSON.
+            combos_by_player: (() => {
+              const winnerKey = String(resolvedWinner ?? 0);
+              return combosPerPlayer[winnerKey]
+                ? JSON.stringify({ [winnerKey]: combosPerPlayer[winnerKey] })
+                : '{}';
+            })(),
           });
         } catch (analyticsError) {
           // Analytics must never block or crash the upload path

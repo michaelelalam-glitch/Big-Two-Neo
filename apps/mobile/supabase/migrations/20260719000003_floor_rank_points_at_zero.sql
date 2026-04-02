@@ -318,7 +318,7 @@ BEGIN
 
   UPDATE player_stats SET
     rank_points_history = (
-      SELECT jsonb_agg(entry)
+      SELECT jsonb_agg(entry ORDER BY (entry->>'timestamp')::text DESC)
       FROM (
         SELECT entry
         FROM (

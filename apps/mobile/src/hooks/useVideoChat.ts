@@ -33,7 +33,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { gameLogger } from '../utils/logger';
 import { trackEvent, featureDurationStart, featureDurationEnd } from '../services/analytics';
 import { i18n } from '../i18n';
@@ -760,26 +759,41 @@ export function useVideoChat({
 
     if (Platform.OS === 'ios') {
       try {
-        const existing = await getRecordingPermissionsAsync();
-        if (existing.status === 'granted') {
+        // Use @livekit/react-native-webrtc for mic permissions on iOS.
+        // expo-audio v1.x throws NSInvalidArgumentException
+        // (-[__SwiftValue intValue]: unrecognized selector) on iOS 18+ because
+        // the Swift Bool permission result is bridged as __SwiftValue and an
+        // ObjC layer calls intValue on it — a fatal crash that JS try/catch
+        // cannot intercept. @livekit/react-native-webrtc uses the same
+        // AVAudioSession stack internally without the bridging bug.
+        /* eslint-disable @typescript-eslint/no-require-imports */
+        const { permissions: webRTCPerms, mediaDevices: webRTCDevices } =
+          require('@livekit/react-native-webrtc') as {
+            permissions: { query(d: { name: string }): Promise<string> };
+            mediaDevices: {
+              getUserMedia(c: object): Promise<{ getTracks(): { stop(): void }[] }>;
+            };
+          };
+        /* eslint-enable @typescript-eslint/no-require-imports */
+        const current = await webRTCPerms.query({ name: 'microphone' });
+        if (current === 'granted') {
           setMicPermissionStatus('granted');
           return 'granted';
         }
-        // iOS: if the user permanently denied and canAskAgain is false, the OS
-        // will never re-prompt — treat as 'restricted' so callers skip re-requesting.
-        if (existing.status === 'denied' && !existing.canAskAgain) {
+        if (current === 'denied') {
+          // iOS: already denied — OS will not re-show the dialog.
+          // Treat as 'restricted' so callers show the "open Settings" prompt.
           setMicPermissionStatus('restricted');
           return 'restricted';
         }
-        // 'undetermined' or 'denied' with canAskAgain: true — call the request
-        // API. On iOS this triggers the OS dialog if the user hasn't been asked
-        // yet; if they've already responded, the OS returns the stored status
-        // immediately without re-prompting.
-        const result = await requestRecordingPermissionsAsync();
-        const mapped: MediaPermissionStatus =
-          result.status === 'granted' ? 'granted' : !result.canAskAgain ? 'restricted' : 'denied';
-        setMicPermissionStatus(mapped);
-        return mapped;
+        // 'prompt' — trigger the iOS system permission dialog via getUserMedia.
+        // getUserMedia internally calls AVAudioSession.requestRecordPermission,
+        // the same mechanism expo-audio uses — but routed through the WebRTC
+        // native module which handles the Swift→ObjC bridge correctly.
+        const stream = await webRTCDevices.getUserMedia({ audio: true, video: false });
+        stream.getTracks().forEach(t => t.stop()); // release tracks — only needed permission
+        setMicPermissionStatus('granted');
+        return 'granted';
       } catch {
         setMicPermissionStatus('denied');
         return 'denied';

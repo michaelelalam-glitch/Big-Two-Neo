@@ -98,6 +98,7 @@ BEGIN
   UPDATE player_stats ps
   SET casual_rank_points = 1000, rank_points = 1000, rank_points_history = '[]'::jsonb, updated_at = NOW()
   WHERE ps.casual_rank_points != 1000
+  AND ps.games_played = 0
   AND NOT EXISTS (
     SELECT 1 FROM game_history g
     CROSS JOIN LATERAL (VALUES

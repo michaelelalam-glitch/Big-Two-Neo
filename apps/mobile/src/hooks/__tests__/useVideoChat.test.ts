@@ -1336,6 +1336,15 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const expoAudio = require('expo-audio') as typeof import('expo-audio');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const webrtc = require('@livekit/react-native-webrtc') as {
+    permissions: { query: jest.MockedFunction<(d: { name: string }) => Promise<string>> };
+    mediaDevices: {
+      getUserMedia: jest.MockedFunction<
+        (c: object) => Promise<{ getTracks(): { stop(): void }[] }>
+      >;
+    };
+  };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Alert } = require('react-native') as typeof import('react-native');
 
   beforeEach(() => {
@@ -1425,12 +1434,7 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
   // -- requestMicPermission on iOS --
 
   it('returns "granted" directly when mic permission is already granted (iOS)', async () => {
-    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'granted',
-      canAskAgain: true,
-      expires: 'never',
-      granted: true,
-    });
+    webrtc.permissions.query.mockResolvedValueOnce('granted');
 
     const { result } = renderHook(() => useVideoChat({ roomId: ROOM_ID, userId: USER_ID }));
 
@@ -1440,22 +1444,15 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     });
 
     expect(status).toBe('granted');
-    expect(expoAudio.getRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-    expect(expoAudio.requestRecordingPermissionsAsync).not.toHaveBeenCalled();
+    expect(webrtc.permissions.query).toHaveBeenCalledWith({ name: 'microphone' });
+    expect(webrtc.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
 
-  it('calls requestPermissionsAsync when mic is undetermined (iOS)', async () => {
-    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'undetermined',
-      canAskAgain: true,
-      expires: 'never',
-      granted: false,
-    });
-    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'granted',
-      canAskAgain: true,
-      expires: 'never',
-      granted: true,
+  it('calls getUserMedia when mic is undetermined and grants permission (iOS)', async () => {
+    webrtc.permissions.query.mockResolvedValueOnce('undetermined');
+    const mockStop = jest.fn();
+    webrtc.mediaDevices.getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: mockStop }],
     });
 
     const { result } = renderHook(() => useVideoChat({ roomId: ROOM_ID, userId: USER_ID }));
@@ -1466,23 +1463,13 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
     });
 
     expect(status).toBe('granted');
-    expect(expoAudio.requestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(webrtc.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true, video: false });
+    expect(mockStop).toHaveBeenCalled();
     expect(result.current.micPermissionStatus).toBe('granted');
   });
 
-  it('maps "restricted" when canAskAgain is false from requestPermissionsAsync (iOS)', async () => {
-    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'undetermined',
-      canAskAgain: true,
-      expires: 'never',
-      granted: false,
-    });
-    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'denied',
-      canAskAgain: false,
-      expires: 'never',
-      granted: false,
-    });
+  it('maps "restricted" when iOS mic is permanently denied (iOS)', async () => {
+    webrtc.permissions.query.mockResolvedValueOnce('denied');
 
     const { result } = renderHook(() => useVideoChat({ roomId: ROOM_ID, userId: USER_ID }));
 
@@ -1491,8 +1478,8 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       status = await result.current.requestMicPermission();
     });
 
-    // canAskAgain: false → impl maps to 'restricted' (permanent iOS denial,
-    // OS will never re-prompt; callers should redirect to Settings instead)
+    // 'denied' from webRTC permissions.query → impl maps to 'restricted'
+    // (permanent iOS denial, OS will never re-prompt; callers redirect to Settings)
     expect(status).toBe('restricted');
     expect(result.current.micPermissionStatus).toBe('restricted');
   });
@@ -1547,19 +1534,8 @@ describe('useVideoChat — Phase 4 iOS permission UX', () => {
       expires: 'never',
       granted: true,
     });
-    // Mic: denied
-    jest.spyOn(expoAudio, 'getRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'undetermined',
-      canAskAgain: true,
-      expires: 'never',
-      granted: false,
-    });
-    jest.spyOn(expoAudio, 'requestRecordingPermissionsAsync').mockResolvedValueOnce({
-      status: 'denied',
-      canAskAgain: false,
-      expires: 'never',
-      granted: false,
-    });
+    // Mic: permanently denied — iOS reports 'denied' from webRTC permissions.query
+    webrtc.permissions.query.mockResolvedValueOnce('denied');
 
     const connectSpy = jest.fn().mockResolvedValue(undefined);
     const adapter = makeAdapter({ connect: connectSpy });

@@ -114,7 +114,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
         gameScore: playerScore, // Store actual game score
       };
     });
-  }, [gameHistory, userId, rankPointsHistory]);
+  }, [gameHistory, userId, rankPointsHistory, totalGamesPlayed]);
 
   if (pointsData.length === 0) {
     return (
