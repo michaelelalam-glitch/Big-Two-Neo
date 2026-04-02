@@ -540,7 +540,7 @@ export function useGameStatsUploader({
         // ─────────────────────────────────────────────────────────────────────────
 
         const MAX_RETRIES = 2;
-        const FETCH_TIMEOUT_MS = 30_000; // 30 s — prevent infinite hang on flaky mobile networks
+        const FETCH_TIMEOUT_MS = 30_000; // 30 s abort timeout per attempt; backoff: 1 s, 2 s between retries
         let response: Response | null = null;
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           const controller = new AbortController();

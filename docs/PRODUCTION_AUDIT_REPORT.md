@@ -4,7 +4,7 @@
 **Date:** April 2, 2026  
 **Auditor:** Principal Software Architect / QA Lead / Security Auditor (AI Agent)  
 **Scope:** Full codebase, infrastructure, and operational readiness  
-**Branch:** `fix/console-errors-infinite-rerender-translations`
+**Branch:** `game/chinese-poker`
 
 ---
 
