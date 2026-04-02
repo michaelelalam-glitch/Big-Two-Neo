@@ -94,6 +94,7 @@ function GameControlsComponent({
         onPlaySuccess();
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const displayMessage = error instanceof Error ? errorMessage : 'Invalid play';
 
         // 'Not your turn' is a retry-race: invokeWithRetry retried after a transient
         // FunctionsFetchError and the turn moved on during the backoff window.
@@ -111,7 +112,7 @@ function GameControlsComponent({
 
         // Show user-friendly error
         soundManager.playSound(SoundType.INVALID_MOVE);
-        Alert.alert('Invalid Move', errorMessage);
+        Alert.alert('Invalid Move', displayMessage);
       } finally {
         // Release lock after short delay to prevent rapid double-taps
         setTimeout(() => {

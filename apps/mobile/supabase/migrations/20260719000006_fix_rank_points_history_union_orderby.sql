@@ -285,7 +285,7 @@ BEGIN
   -- and places the ORDER BY + LIMIT in the outer query.
   UPDATE player_stats SET
     rank_points_history = (
-      SELECT jsonb_agg(entry ORDER BY (entry->>'timestamp')::text DESC)
+      SELECT jsonb_agg(entry ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST)
       FROM (
         SELECT entry
         FROM (
@@ -296,7 +296,7 @@ BEGIN
           UNION ALL
           SELECT v_history_entry
         ) combined
-        ORDER BY (entry->>'timestamp')::text DESC
+        ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST
         LIMIT 100
       ) sub
     )
