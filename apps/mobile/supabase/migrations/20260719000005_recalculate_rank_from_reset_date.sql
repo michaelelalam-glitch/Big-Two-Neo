@@ -5,9 +5,16 @@
 --    20260715000000_reset_all_player_stats.sql — first post-reset game was
 --    2026-03-23 08:56:00 UTC, confirming the migration ran at that timestamp)
 --
--- Problem: previous recalculation used ALL game_history (Dec 2025–now),
--- producing inflated RP (e.g. Steve Peterson: 26 187). We must only count
--- games played AFTER the leaderboard was reset.
+-- Context: This migration runs immediately after 20260719000004 in the same
+-- batch. 20260719000004 is required to install the corrected formula and
+-- recalculate from all history; this migration then re-recalculates using only
+-- post-reset games to eliminate inflated RP from pre-reset data.
+-- The two-pass approach is intentional: pass 1 (000004) resets the formula,
+-- pass 2 (this migration) corrects the date scope.
+--
+-- Problem: previous recalculation (20260719000004) used ALL game_history
+-- (Dec 2025–now), producing inflated RP (e.g. Steve Peterson: 26 187).
+-- We must only count games played AFTER the leaderboard was reset.
 --
 -- Rules (matches update_player_stats_after_game function):
 --   • game mode IN ('ranked')     → skip (ranked uses ELO, not casual RP)

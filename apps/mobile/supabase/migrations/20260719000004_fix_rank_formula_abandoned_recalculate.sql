@@ -2,6 +2,17 @@
 -- Migration: Fix rank formula, abandoned penalty, and recalculate all players
 --
 -- Supersedes / corrects the approach in 20260719000001 and 20260719000003.
+-- Both 20260719000003 and this migration are applied in the same batch:
+--   • 20260719000003 temporarily floors ranks at 0 and updates the function;
+--     this migration immediately overrides BOTH of those changes.
+--   • The data clamp in 20260719000003 is made redundant by the full
+--     recalculation in Step 3 below (game_history replay resets all values).
+--
+-- IMPORTANT: This migration recalculates from ALL game history (Dec 2025+),
+-- which gives inflated RP for some players. 20260719000005 immediately follows
+-- and corrects this by replaying only post-reset games (from 2026-03-23).
+-- Both migrations are required: this one fixes the formula, the next one
+-- fixes the date range.
 --
 -- CHANGES:
 -- 1. Remove ROUND() from completed-game formula:

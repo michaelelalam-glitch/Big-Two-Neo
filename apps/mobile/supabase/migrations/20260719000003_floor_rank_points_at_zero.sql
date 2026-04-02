@@ -1,5 +1,13 @@
 -- Floor casual_rank_points and ranked_rank_points at 0.
 --
+-- IMPORTANT: This migration is immediately superseded by 20260719000004 in the same
+-- batch. If both run together on a fresh environment:
+--   • Part 1 (data clamp) is harmless — 20260719000004 recalculates all players
+--     from game_history anyway, overwriting any clamped values.
+--   • Part 2 (function update with floor) is also overwritten — 20260719000004
+--     installs the final floor-free version of update_player_stats_after_game.
+-- This migration is preserved for environments that have already applied it.
+--
 -- Root cause: the old rank-point formula (before 20260719000001) could produce
 -- large negative deltas for high-cumulative-score players, driving rank_points
 -- deeply negative (e.g. -260). The fix in 20260719000001 prevents future negative
@@ -12,6 +20,7 @@
 --    global column) to match casual_rank_points.
 -- 2. Update update_player_stats_after_game so casual_rank_points and
 --    ranked_rank_points never go below 0 for all future games.
+--    NOTE: superseded by 20260719000004 which removes the floor (see above).
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- PART 1: One-time repair — clamp existing negative values to 0
