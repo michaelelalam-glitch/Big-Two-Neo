@@ -1085,8 +1085,9 @@ export function MultiplayerGame() {
       : undefined,
     humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
     botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
-    botDifficultyLevel:
-      effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? botDifficulty,
+    botDifficultyLevel: effectiveMultiplayerPlayers.some(p => p.is_bot)
+      ? (effectiveMultiplayerPlayers.find(p => p.is_bot)?.bot_difficulty ?? botDifficulty)
+      : undefined,
   });
 
   // ── TURN INACTIVITY TIMER ────────────────────────────────────────────────
