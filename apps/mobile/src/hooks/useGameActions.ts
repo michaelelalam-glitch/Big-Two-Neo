@@ -282,15 +282,13 @@ export function useGameActions({
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),
           });
-          // 'Not your turn' is an expected race condition: invokeWithRetry fired a retry
-          // after a transient FunctionsFetchError, but the bot/other player took the turn
-          // during the 500ms backoff window. The Realtime subscription will sync game state
-          // automatically. Suppressed from UI (GameControls catches and swallows this same
-          // string in its own catch block — no popup is shown).
-          // Must RE-THROW so GameControls does NOT execute post-await success effects
-          // (play sound, clear card order, onPlaySuccess). Suppressing by returning here
-          // would resolve the promise and trigger those side effects erroneously.
-          if (msg.includes('Not your turn')) {
+          // Expected race conditions (e.g. 'not your turn', 'player not found') occur when
+          // invokeWithRetry fires a retry after a transient FunctionsFetchError but the
+          // bot/other player took the turn during the backoff window. Realtime syncs state
+          // automatically. Suppressed from UI — GameControls swallows these in its own catch.
+          // Must RE-THROW so GameControls does NOT execute post-await success side effects
+          // (play sound, clear card order, onPlaySuccess).
+          if (isExpectedRace) {
             sentryCapture.breadcrumb(
               `Play rejected (retry race): ${msg}`,
               { context: 'MultiplayerPlayCards' },
@@ -406,9 +404,10 @@ export function useGameActions({
         sentryCapture.breadcrumb('Pass (multiplayer)', undefined, 'game');
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
-        if (msg.includes('Not your turn')) {
+        if (isExpectedPlayRaceError(msg)) {
           gameLogger.warn(
-            '⚠️ [GameScreen] Suppressed "Not your turn" pass error (likely auto-pass race)'
+            '⚠️ [GameScreen] Suppressed expected-race pass error (likely auto-pass race):',
+            msg
           );
         } else {
           gameLogger.error('❌ [GameScreen] Error passing (multiplayer):', msg);
