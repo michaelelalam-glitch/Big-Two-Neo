@@ -510,6 +510,7 @@ export function useGameStatsUploader({
             combo_full_houses: totalCombos.full_houses,
             combo_four_of_a_kinds: totalCombos.four_of_a_kinds,
             combo_straight_flushes: totalCombos.straight_flushes,
+            combo_royal_flushes: totalCombos.royal_flushes,
             // Per-player combo totals: include winner only (max ~73 chars) to
             // stay within GA4's 100-char string param limit without truncating JSON.
             combos_by_player: (() => {
