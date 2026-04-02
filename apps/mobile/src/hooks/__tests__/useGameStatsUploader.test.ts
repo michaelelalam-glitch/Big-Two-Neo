@@ -199,3 +199,122 @@ describe('useGameStatsUploader — game_session_summary', () => {
     unmount();
   });
 });
+
+describe('useGameStatsUploader — complete-game fetch retry & timeout', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('retries up to MAX_RETRIES times on 5xx then succeeds', async () => {
+    const { statsLogger } = jest.requireMock('../../utils/logger');
+
+    // Override setTimeout so backoff pauses are instant during the test
+    const origSetTimeout = global.setTimeout;
+    jest
+      .spyOn(global, 'setTimeout')
+      .mockImplementation((fn: TimerHandler, _delay?: number, ...args: any[]) =>
+        origSetTimeout(fn as (...a: any[]) => void, 0, ...args)
+      );
+
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: jest.fn().mockResolvedValue({}),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: jest.fn().mockResolvedValue({}),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ success: true }),
+      } as any);
+
+    const { unmount } = renderHook(() =>
+      useGameStatsUploader({
+        isMultiplayerGame: true,
+        multiplayerGameState: GAME_STATE,
+        multiplayerPlayers: PLAYERS,
+        roomInfo: ROOM_INFO,
+        gameStartedAt: STARTED_AT,
+      })
+    );
+
+    // Drain all pending micro/macro tasks until fetch has been called 3 times
+    await new Promise<void>(resolve => {
+      const check = () => {
+        if ((global.fetch as jest.Mock).mock.calls.length >= 3) {
+          resolve();
+        } else {
+          origSetTimeout(check, 10);
+        }
+      };
+      check();
+    });
+
+    jest.restoreAllMocks();
+    unmount();
+
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    const warnCalls: string[] = statsLogger.warn.mock.calls.map((c: any[]) => c[0] as string);
+    expect(warnCalls.some(msg => msg.includes('retrying'))).toBe(true);
+  });
+
+  it('aborts a hanging fetch after timeout and calls Sentry', async () => {
+    const { sentryCapture } = jest.requireMock('../../services/sentry');
+
+    // Simulate fetch that only resolves once AbortController fires
+    global.fetch = jest.fn().mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal as AbortSignal | undefined;
+          if (signal) {
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('The operation was aborted.', 'AbortError'))
+            );
+          }
+        })
+    );
+
+    // Override setTimeout so the 30 s abort timer fires immediately
+    const origSetTimeout = global.setTimeout;
+    jest
+      .spyOn(global, 'setTimeout')
+      .mockImplementation((fn: TimerHandler, _delay?: number, ...args: any[]) =>
+        origSetTimeout(fn as (...a: any[]) => void, 0, ...args)
+      );
+
+    const { unmount } = renderHook(() =>
+      useGameStatsUploader({
+        isMultiplayerGame: true,
+        multiplayerGameState: GAME_STATE,
+        multiplayerPlayers: PLAYERS,
+        roomInfo: ROOM_INFO,
+        gameStartedAt: STARTED_AT,
+      })
+    );
+
+    // Wait until Sentry exception is captured (all 3 abort attempts exhausted)
+    await new Promise<void>(resolve => {
+      const check = () => {
+        if ((sentryCapture.exception as jest.Mock).mock.calls.length >= 1) {
+          resolve();
+        } else {
+          origSetTimeout(check, 10);
+        }
+      };
+      origSetTimeout(check, 10);
+    });
+
+    jest.restoreAllMocks();
+    unmount();
+
+    expect(sentryCapture.exception).toHaveBeenCalled();
+  });
+});
