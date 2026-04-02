@@ -109,7 +109,9 @@ export async function extractEdgeFunctionErrorAsync(
   // Reduced timeout from 2s to 1s for better user-facing responsiveness
   if (error?.context && typeof error.context.text === 'function' && !error.context.bodyUsed) {
     // Race against timeout to prevent hanging if body reading fails or hangs
-    const bodyTextPromise = error.context.text();
+    // Attach .catch to suppress the late rejection from the losing race branch
+    // (if timeout wins, bodyTextPromise may still reject after the race settles)
+    const bodyTextPromise = error.context.text().catch(() => '');
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<string>((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error('Body read timeout')), 1000);
