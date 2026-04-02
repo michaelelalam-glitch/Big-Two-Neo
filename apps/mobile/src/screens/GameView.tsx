@@ -389,7 +389,12 @@ function GameViewComponent() {
               try {
                 await handlePass();
               } catch (error) {
-                gameLogger.error('❌ [Landscape] Pass action failed', error);
+                const errMsg = error instanceof Error ? error.message : String(error);
+                const isExpectedRace = isExpectedTurnRaceError(errMsg);
+                const logFn = isExpectedRace
+                  ? gameLogger.warn.bind(gameLogger)
+                  : gameLogger.error.bind(gameLogger);
+                logFn('❌ [Landscape] Pass action failed', { error });
               }
             }}
             onHint={handleHint}
