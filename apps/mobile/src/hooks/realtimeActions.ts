@@ -155,7 +155,18 @@ export async function executePlayCards({
         });
       }
     } else {
-      log('[useRealtime] 📦 Full error context:', { error: playError, result });
+      log('[useRealtime] 📦 Full error context:', {
+        message: errorMessage,
+        status: statusCode,
+        hasError: !!playError,
+        hasResult: !!result,
+      });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        gameLogger.debug('[useRealtime] 📦 Full error details (DEV only):', {
+          error: playError,
+          result,
+        });
+      }
     }
 
     // ── "Lost response" recovery ──────────────────────────────────────────────

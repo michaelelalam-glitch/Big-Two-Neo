@@ -381,7 +381,7 @@ function GameViewComponent() {
                 const logFn = isExpectedRace
                   ? gameLogger.warn.bind(gameLogger)
                   : gameLogger.error.bind(gameLogger);
-                logFn('❌ [Landscape] Play button failed to play cards', { error });
+                logFn('❌ [Landscape] Play button failed to play cards', errMsg);
               }
             }}
             onPass={async () => {
@@ -394,7 +394,7 @@ function GameViewComponent() {
                 const logFn = isExpectedRace
                   ? gameLogger.warn.bind(gameLogger)
                   : gameLogger.error.bind(gameLogger);
-                logFn('❌ [Landscape] Pass action failed', { error });
+                logFn('❌ [Landscape] Pass action failed', errMsg);
               }
             }}
             onHint={handleHint}
