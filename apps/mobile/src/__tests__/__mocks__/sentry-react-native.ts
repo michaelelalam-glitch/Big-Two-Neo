@@ -9,6 +9,7 @@ const Scope = class {
   setTag = jest.fn().mockReturnThis();
   setExtra = jest.fn().mockReturnThis();
   setLevel = jest.fn().mockReturnThis();
+  setFingerprint = jest.fn().mockReturnThis();
   addAttachment = jest.fn().mockReturnThis();
 };
 

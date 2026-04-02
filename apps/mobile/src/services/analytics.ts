@@ -5,12 +5,14 @@
  * This is a pure-JS implementation that requires no native SDK, works on both
  * iOS and Android, and gracefully no-ops when credentials are not configured.
  *
- * Configuration (add to .env / EAS secrets):
+ * Configuration (add to .env.local / EAS secrets):
  *   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
  *   EXPO_PUBLIC_FIREBASE_API_SECRET=your_api_secret
  *
- * Both values are found in Firebase Console → Analytics → Data Streams
- * → Web Stream details → Measurement Protocol API secrets.
+ * MEASUREMENT_ID and API_SECRET are found in Firebase Console → Analytics
+ * → Data Streams → Web Stream details → Measurement Protocol API secrets.
+ * Note: firebase_app_id is intentionally omitted from payloads to avoid
+ * VALUE_INVALID errors when using a web-stream measurement ID.
  *
  * Usage:
  *   import { analytics } from './analytics';
@@ -77,6 +79,7 @@ export type AnalyticsEventName =
   | 'game_abandoned'
   | 'game_voided'
   | 'game_not_completed'
+  | 'game_session_summary'
   // ── Gameplay actions ──
   | 'card_play'
   | 'card_pass'
@@ -250,14 +253,26 @@ async function sendEvents(
     return;
   }
 
-  // Always post to the standard endpoint. In dev builds, set debug_mode: 1
-  // inside each event's params — this surfaces events in Firebase DebugView
-  // without losing the full ingestion pipeline. /debug/mp/collect is
-  // validation-only and does NOT show events in DebugView.
+  // In dev, POST to the validation endpoint first so GA4 validation errors
+  // are printed to the console. The validation endpoint returns 200 with a
+  // JSON body describing any issues — it does NOT ingest the event.
+  // Then always POST to the real endpoint so events actually land in GA4.
+  //
+  // NOTE: GA4 DebugView with the Measurement Protocol requires sending
+  // `debug_mode: 1` at the TOP LEVEL of the request body (not inside event
+  // params). This service does NOT set `debug_mode` — all events land in
+  // standard GA4 Realtime reports. To use DebugView during local development,
+  // add `debug_mode: 1` to the `body` object below before the `events` key.
+  // You can also inspect live traffic via:
+  //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
+  const validationUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
+    // NOTE: firebase_app_id is NOT valid for web streams (G- measurement IDs).
+    // Sending it causes GA4 to reject the entire payload with VALUE_INVALID, so
+    // events never appear in Realtime reports. Field omitted intentionally.
     events: events.map(e => {
       const params: Record<string, string | number> = {
         // Caller params (may not override GA4-reserved fields below)
@@ -267,10 +282,6 @@ async function sendEvents(
         engagement_time_msec: 100,
         session_id: getSessionId(),
       };
-      if (__DEV__) {
-        // debug_mode: 1 routes events to Firebase DebugView in dev builds
-        params.debug_mode = 1;
-      }
       return { name: e.name, params };
     }),
   };
@@ -280,10 +291,36 @@ async function sendEvents(
     body.user_id = _userId;
   }
 
+  if (__DEV__) {
+    console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
+  }
+
+  if (__DEV__ && !process.env.JEST_WORKER_ID) {
+    // Hit the validation endpoint and log any issues GA4 reports.
+    // Skipped in Jest (JEST_WORKER_ID is set) to avoid a second fetch call
+    // that would break toHaveBeenCalledTimes(1) assertions.
+    fetch(validationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(r => r.json())
+      .then(json => {
+        const issues = json?.validationMessages ?? [];
+        if (issues.length > 0) {
+          console.warn('[Analytics] GA4 validation issues:', JSON.stringify(issues, null, 2));
+        } else {
+          console.log(
+            '[Analytics] GA4 validation: ✅ all events valid — check GA4 → Reports → Realtime'
+          );
+        }
+      })
+      .catch(() => {
+        /* ignore validation network errors */
+      });
+  }
+
   try {
-    if (__DEV__) {
-      console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
-    }
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -291,19 +328,11 @@ async function sendEvents(
     });
     if (__DEV__) {
       if (response.ok) {
-        console.log(
-          '[Analytics] Response status:',
-          response.status,
-          '— events sent to Firebase DebugView (debug_mode=1)'
-        );
+        console.log('[Analytics] ✅', response.status, '— events ingested by GA4');
       } else {
-        console.warn(
-          '[Analytics] Response status:',
-          response.status,
-          '— failed to send events to Firebase (non-OK response)'
-        );
+        console.warn('[Analytics] ❌', response.status, '— GA4 rejected events');
         const text = await response.text().catch(() => '');
-        console.warn('[Analytics] Non-OK response body:', text.slice(0, 300));
+        console.warn('[Analytics] Response body:', text.slice(0, 300));
       }
     }
   } catch (err) {
@@ -398,6 +427,7 @@ export function trackGameEvent(
   event:
     | 'game_started'
     | 'game_completed'
+    | 'game_session_summary'
     | 'game_abandoned'
     | 'game_voided'
     | 'game_not_completed',

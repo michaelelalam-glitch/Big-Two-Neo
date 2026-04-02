@@ -39,19 +39,31 @@ interface StreakGraphProps {
   gameHistory: GameHistory[];
   userId: string;
   rankPointsHistory?: RankPointsHistoryEntry[];
+  /** Actual lifetime games-played count from DB — used to offset X-axis labels
+   * and show a consistent total that matches the profile stats card. */
+  totalGamesPlayed?: number;
 }
 
 export const StreakGraph: React.FC<StreakGraphProps> = ({
   gameHistory,
   userId,
   rankPointsHistory,
+  totalGamesPlayed,
 }) => {
   // Use DB-stored rank_points_history if available, otherwise fall back to client-side calculation
   const pointsData = useMemo(() => {
     // PREFERRED: Use actual rank_points_history from database
     if (rankPointsHistory && rankPointsHistory.length > 0) {
-      return rankPointsHistory.map((entry, index) => ({
-        gameNumber: index + 1,
+      // DB stores entries newest-first (DESC). Sort ASC so X-axis runs
+      // oldest-game→newest-game (left→right), matching a natural progression.
+      const sorted = [...rankPointsHistory].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      // Offset game numbers so they align with the player's actual game count
+      // (e.g. if they played 150 games, the oldest visible entry is #51, not #1).
+      const offset = Math.max(0, (totalGamesPlayed ?? sorted.length) - sorted.length);
+      return sorted.map((entry, index) => ({
+        gameNumber: offset + index + 1,
         points: entry.points,
         isWin: entry.is_win,
         gameScore: 0,
@@ -102,7 +114,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
         gameScore: playerScore, // Store actual game score
       };
     });
-  }, [gameHistory, userId, rankPointsHistory]);
+  }, [gameHistory, userId, rankPointsHistory, totalGamesPlayed]);
 
   if (pointsData.length === 0) {
     return (
@@ -321,7 +333,7 @@ export const StreakGraph: React.FC<StreakGraphProps> = ({
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>{i18n.t('profile.totalGames')}</Text>
-          <Text style={styles.statValue}>{pointsData.length}</Text>
+          <Text style={styles.statValue}>{totalGamesPlayed ?? pointsData.length}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>{i18n.t('profile.currentPoints')}</Text>

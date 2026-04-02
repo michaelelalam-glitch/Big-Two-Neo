@@ -73,9 +73,8 @@ export function initSentry(): void {
     Sentry.init({
       dsn: SENTRY_DSN,
 
-      // Breadcrumbs and event sampling
-      // In production use a lower rate (0.1–0.2) to control volume/cost.
-      tracesSampleRate: __DEV__ ? 0 : 0.1,
+      // Performance tracing: 20% of production sessions. Zero in dev to avoid quota.
+      tracesSampleRate: __DEV__ ? 0 : 0.2,
 
       // Keep native SDK debug logging OFF even in dev — it floods the Metro
       // console with breadcrumb/watchdog/network-tracker noise on every frame.
@@ -92,23 +91,62 @@ export function initSentry(): void {
       // populated in CI and production builds.
       release: process.env.EXPO_PUBLIC_APP_VERSION ?? undefined,
 
-      // Enable performance tracing for React Native (navigation, network, etc.)
+      // Enable performance tracing for React Native (navigation, network, etc.).
+      // App start tracking, native frames tracking, and stall tracking are
+      // auto-enabled by the SDK as separate integrations in @sentry/react-native v8.
+      // They are NOT Sentry dashboard toggles — they are SDK-level features.
       integrations: [Sentry.reactNativeTracingIntegration()],
 
       // Session Replay: disabled in dev (both rates = 0) to prevent the
       // "Detected environment potentially causing PII leaks" red console error
       // on every dev/simulator launch. Enabled on error only in production.
+      // Profiling: 10% of production sessions captures JS + native CPU profiles
+      // tied to performance traces (requires tracesSampleRate > 0).
       _experiments: {
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: __DEV__ ? 0 : 1.0,
-        profilesSampleRate: 0,
+        profilesSampleRate: __DEV__ ? 0 : 0.1,
       },
 
-      // Don't send events for known non-fatal orientation errors already
-      // swallowed by the global ErrorUtils handler in App.tsx
+      // Filter hook: runs before every event is transmitted to Sentry.
+      // Return null to drop the event. Return the (optionally mutated) event to send.
       beforeSend(event) {
+        // Drop ALL events from development environment. Dev sessions run on the
+        // simulator with your own account — they generate noise (App Hang, network
+        // errors, ImagePicker, audio-session hang) that pollutes the issue list.
+        // Using event.environment (set from the `environment` init option) so that
+        // production builds always pass through regardless of __DEV__ flag.
+        // This client-side filter is the primary safeguard; any server-side filters
+        // must be configured separately and are not assumed by this code.
+        if (event.environment === 'development') {
+          return null;
+        }
+
         const msg = event.exception?.values?.[0]?.value ?? '';
+        const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
+        const hasSwiftValueFrame = frames.some(f => (f.function ?? '').includes('SwiftValue'));
+
+        // NSInvalidArgumentException + SwiftValue bridge crash — third-party
+        // iOS SDK (LiveKit/CallKit) touching bridged Swift types. No first-party
+        // fix is possible. Group all occurrences under a single stable fingerprint
+        // so a resolved issue doesn't re-open on each occurrence.
+        if (
+          msg.includes('NSInvalidArgumentException') ||
+          event.exception?.values?.[0]?.type === 'NSInvalidArgumentException' ||
+          hasSwiftValueFrame
+        ) {
+          event.fingerprint = ['third-party-swift-bridge'];
+        }
+
+        // Drop non-fatal orientation errors already swallowed by ErrorUtils in App.tsx
         if (msg.includes('supportedInterfaceOrientations') && msg.includes('UIViewController')) {
+          return null; // Drop
+        }
+        // Drop spurious "Object captured as exception with keys: _bubbles, _cancelable..."
+        // events — these arise when a Promise is rejected with a native DOM/RN Event object
+        // (e.g. from XHR onerror or fetch polyfill) instead of an Error instance.
+        // They carry no actionable stack trace and only pollute the issue list.
+        if (msg.includes('Object captured as exception with keys:') && msg.includes('_bubbles')) {
           return null; // Drop
         }
         // Tag only missing-translation warnings so they can be filtered in Sentry dashboard.
@@ -354,6 +392,11 @@ export function submitBugReportWithOptions(opts: BugReportOptions): void {
   Sentry.withScope(scope => {
     scope.setTag('bug_category', opts.category);
 
+    // Group ALL bug report submissions under one stable fingerprint so
+    // repeated submissions don't re-open a previously resolved Sentry issue
+    // and don't create the confusing 'Sentry.withScope$argument_0' title.
+    scope.setFingerprint(['bug-report-submission']);
+
     if (opts.screenshotBase64) {
       const mime = opts.screenshotMimeType ?? 'image/jpeg';
       const ext = mime === 'image/png' ? 'png' : 'jpg';
@@ -424,6 +467,22 @@ function _setupConsoleCapture(): void {
     // Skip Sentry's own internal debug/error messages to prevent feedback loops
     // where Sentry's logger output gets re-captured and sent as Sentry events.
     if (message.includes('[Native] [Sentry') || message.includes('Sentry Logger')) return;
+    // Skip LiveKit internal track-dimension noise — this is a LiveKit SDK log,
+    // not an app error, and floods Sentry with non-actionable events.
+    if (message.includes('could not determine track dimensions')) return;
+    // Skip native-module-not-found errors for optional modules (expo-image-picker,
+    // expo-audio). These occur in old builds before the native modules were linked and
+    // are handled gracefully by lazy-require guards in the app. Newer builds won't
+    // encounter them at all.
+    if (
+      message.includes("Cannot find native module 'ExponentImagePicker'") ||
+      message.includes("Cannot find native module 'ExpoAudio'")
+    )
+      return;
+    // Skip GameErrorBoundary's component-stack console.error — the actual error is
+    // already captured directly by GameErrorBoundary via sentryCapture.exception,
+    // so these console.error duplicates only pollute the Sentry issue list.
+    if (message.includes('[GameErrorBoundary]')) return;
     Sentry.captureMessage(`[console.error] ${message}`, {
       level: 'error',
       tags: { source: 'console' },

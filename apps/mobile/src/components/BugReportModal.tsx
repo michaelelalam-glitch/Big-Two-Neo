@@ -8,7 +8,7 @@
  *  - Optional console log attachment (reads today's log file via expo-file-system)
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -37,7 +37,7 @@ import {
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import { submitBugReportWithOptions, isSentryEnabled } from '../services/sentry';
 import type { BugReportCategory } from '../services/sentry';
-import { trackEvent, trackScreenView } from '../services/analytics';
+import { trackEvent, trackScreenView, screenTimeStart, screenTimeEnd } from '../services/analytics';
 import { showSuccess, showError } from '../utils';
 import { getTodayLogFileName } from '../utils/logger';
 import { i18n } from '../i18n';
@@ -76,19 +76,16 @@ export default function BugReportModal({
   const [includeLog, setIncludeLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Track time spent on bug report screen for analytics
-  const openedAtRef = useRef<number>(0);
+  // Track time spent on bug report screen for analytics.
+  // Returning a cleanup function handles both the normal close path and
+  // the case where the component unmounts while the modal is still open.
   useEffect(() => {
-    if (visible) {
-      openedAtRef.current = Date.now();
-      trackScreenView('BugReportModal');
-    } else if (openedAtRef.current > 0) {
-      trackEvent('screen_time', {
-        screen_name: 'bug_report_modal',
-        duration_seconds: (Date.now() - openedAtRef.current) / 1000,
-      });
-      openedAtRef.current = 0;
-    }
+    if (!visible) return;
+    trackScreenView('BugReportModal');
+    screenTimeStart('BugReportModal');
+    return () => {
+      screenTimeEnd('BugReportModal');
+    };
   }, [visible]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────── //
@@ -98,26 +95,34 @@ export default function BugReportModal({
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       ImagePicker = require('expo-image-picker') as typeof import('expo-image-picker');
+      // Guard: native module may load but expose undefined methods when not linked
+      if (typeof ImagePicker?.requestMediaLibraryPermissionsAsync !== 'function') {
+        throw new Error('ExponentImagePicker native module not linked');
+      }
     } catch {
       showError(t('bugReportModal.screenshotUnavailable'));
       return;
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showError(t('bugReportModal.photoPermissionDenied'));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-      base64: true,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      setScreenshotUri(asset.uri);
-      setScreenshotBase64(asset.base64 ?? null);
-      setScreenshotMimeType(asset.mimeType ?? null);
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError(t('bugReportModal.photoPermissionDenied'));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        base64: true,
+        allowsEditing: false,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setScreenshotUri(asset.uri);
+        setScreenshotBase64(asset.base64 ?? null);
+        setScreenshotMimeType(asset.mimeType ?? null);
+      }
+    } catch {
+      showError(t('bugReportModal.screenshotUnavailable'));
     }
   };
 

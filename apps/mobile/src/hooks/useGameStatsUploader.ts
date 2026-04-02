@@ -82,7 +82,7 @@ export function useGameStatsUploader({
       hasTrackedCompletionRef.current = true;
       const analyticsGameMode = roomInfo.ranked_mode
         ? 'online_ranked'
-        : roomInfo.is_public
+        : roomInfo.is_public || roomInfo.is_matchmaking
           ? 'online_casual'
           : ('online_private' as const);
       const hasBots = multiplayerPlayers.some(p => p.is_bot);
@@ -90,6 +90,21 @@ export function useGameStatsUploader({
       const resolvedBotDifficulty = hasBots
         ? (dbBotDifficulty ?? botDifficultyFallback ?? 'unknown')
         : 'none';
+      const winnerPosition =
+        multiplayerGameState.winner ?? multiplayerGameState.game_winner_index ?? null;
+      const durationSeconds = gameStartedAt
+        ? Math.round((Date.now() - new Date(gameStartedAt).getTime()) / 1000)
+        : undefined;
+      const rawRoundsPlayed = Array.isArray(multiplayerGameState.scores_history)
+        ? multiplayerGameState.scores_history.length
+        : undefined;
+      const matchNumber = multiplayerGameState.match_number ?? undefined;
+      const roundsPlayed =
+        rawRoundsPlayed === undefined
+          ? matchNumber
+          : rawRoundsPlayed === 0
+            ? (matchNumber ?? 1)
+            : rawRoundsPlayed;
       trackGameEvent('game_completed', {
         game_mode: analyticsGameMode,
         player_count: multiplayerPlayers.length,
@@ -97,6 +112,10 @@ export function useGameStatsUploader({
         human_count: multiplayerPlayers.filter(p => !p.is_bot).length,
         bot_count: multiplayerPlayers.filter(p => p.is_bot).length,
         bot_difficulty: resolvedBotDifficulty,
+        ...(winnerPosition !== null && { winner_player_index: winnerPosition }),
+        ...(durationSeconds !== undefined && { duration_seconds: durationSeconds }),
+        ...(roundsPlayed !== undefined && { rounds_played: roundsPlayed }),
+        ...(matchNumber !== undefined && { match_number: matchNumber }),
       });
     }
 
@@ -183,14 +202,14 @@ export function useGameStatsUploader({
         let gameType: 'casual' | 'ranked' | 'private';
         if (roomInfo.ranked_mode) {
           gameType = 'ranked';
-        } else if (roomInfo.is_public) {
+        } else if (roomInfo.is_public || roomInfo.is_matchmaking) {
           gameType = 'casual';
         } else {
           gameType = 'private';
         }
 
         statsLogger.info(
-          `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public})`
+          `[GameStats] Game type: ${gameType} (ranked_mode=${roomInfo.ranked_mode}, is_public=${roomInfo.is_public}, is_matchmaking=${roomInfo.is_matchmaking})`
         );
 
         // Note: game_completed analytics are fired above the upload guard so they
@@ -400,6 +419,125 @@ export function useGameStatsUploader({
           winner_id: payload.winner_id,
           players_count: payload.players.length,
         });
+
+        // ─── Rich session analytics (game_session_summary) ──────────────────────
+        // Fires right before the DB upload so every completed game has a full
+        // structured record in GA4 / BigQuery regardless of edge-function outcome.
+        // Captures all data visible in the expanded scoreboard + play history.
+        try {
+          const summaryGameMode =
+            gameType === 'ranked'
+              ? 'online_ranked'
+              : gameType === 'casual'
+                ? 'online_casual'
+                : ('online_private' as const);
+          const summaryHasBots = multiplayerPlayers.some(p => p.is_bot);
+          const summaryBotDifficulty = summaryHasBots
+            ? (botDifficulty ?? botDifficultyFallback ?? 'unknown')
+            : 'none';
+
+          // Compact standings: [{pos, pi, s}] sorted 1→4 by cumulative score.
+          // Mirrors the expanded scoreboard "final standings" column.
+          // Capped at 3 entries (≤ 80 chars) to stay within GA4's 100-char limit.
+          const analyticsStandings = JSON.stringify(
+            finalScoresEntries.slice(0, 3).map((e, i) => ({
+              pos: i + 1,
+              pi: e.player_index,
+              s: e.cumulative_score,
+            }))
+          );
+
+          // Compact match scores: [match_number, p0_score, p1_score, p2_score, p3_score]
+          // per round as flat arrays. 3 rounds × 5 numbers stays well under GA4's
+          // 100-char limit even with large scores, and avoids mid-token JSON truncation.
+          const analyticsMatchScores = JSON.stringify(
+            scoresHistory
+              .slice(0, 3)
+              .map(m => [m.match_number, ...(m.scores ?? []).slice(0, 4).map(sc => sc.matchScore)])
+          );
+
+          // Aggregate combo counts across ALL players (numeric params → no BigQuery length limit).
+          const totalCombos = { ...zeroCombos };
+          for (const counts of combosByPlayerIndex.values()) {
+            for (const k of Object.keys(totalCombos) as (keyof ComboCounts)[]) {
+              totalCombos[k] += counts[k];
+            }
+          }
+
+          // Per-player combo totals with abbreviated keys, zeros omitted.
+          // Intended for BigQuery UNNEST / JSON_VALUE queries.
+          const comboKeyMap: Record<keyof ComboCounts, string> = {
+            singles: 's',
+            pairs: 'p',
+            triples: 't',
+            straights: 'st',
+            flushes: 'f',
+            full_houses: 'fh',
+            four_of_a_kinds: '4k',
+            straight_flushes: 'sf',
+            royal_flushes: 'rf',
+          };
+          const combosPerPlayer: Record<string, Record<string, number>> = {};
+          for (const [pi, counts] of combosByPlayerIndex) {
+            const compressed: Record<string, number> = {};
+            for (const [k, v] of Object.entries(counts) as [keyof ComboCounts, number][]) {
+              if (v > 0) compressed[comboKeyMap[k]] = v;
+            }
+            if (Object.keys(compressed).length > 0) {
+              combosPerPlayer[String(pi)] = compressed;
+            }
+          }
+
+          const playHistory = multiplayerGameState.play_history ?? [];
+          const totalPlays = playHistory.filter(e => !e.passed).length;
+          const totalPasses = playHistory.filter(e => e.passed).length;
+
+          const inferredRoundsPlayed =
+            scoresHistory.length > 0
+              ? scoresHistory.length
+              : Math.max(1, multiplayerGameState.match_number ?? 0);
+
+          trackGameEvent('game_session_summary', {
+            // Outcome metadata (mirrors game_completed — keeps queries self-contained)
+            game_mode: summaryGameMode,
+            winner_player_index: resolvedWinner ?? -1,
+            duration_seconds: Math.max(0, durationSeconds),
+            rounds_played: inferredRoundsPlayed,
+            match_number: multiplayerGameState.match_number ?? 0,
+            player_count: multiplayerPlayers.length,
+            bots_present: summaryHasBots ? 1 : 0,
+            bot_difficulty: summaryBotDifficulty,
+            // Scoreboard data
+            standings: analyticsStandings,
+            match_scores: analyticsMatchScores,
+            // Play history aggregate (numeric params → no 500-char limit)
+            total_plays: totalPlays,
+            total_passes: totalPasses,
+            combo_singles: totalCombos.singles,
+            combo_pairs: totalCombos.pairs,
+            combo_triples: totalCombos.triples,
+            combo_straights: totalCombos.straights,
+            combo_flushes: totalCombos.flushes,
+            combo_full_houses: totalCombos.full_houses,
+            combo_four_of_a_kinds: totalCombos.four_of_a_kinds,
+            combo_straight_flushes: totalCombos.straight_flushes,
+            combo_royal_flushes: totalCombos.royal_flushes,
+            // Per-player combo totals: include winner only (max ~73 chars) to
+            // stay within GA4's 100-char string param limit without truncating JSON.
+            combos_by_player: (() => {
+              const winnerKey = String(resolvedWinner ?? 0);
+              return combosPerPlayer[winnerKey]
+                ? JSON.stringify({ [winnerKey]: combosPerPlayer[winnerKey] })
+                : '{}';
+            })(),
+          });
+        } catch (analyticsError) {
+          // Analytics must never block or crash the upload path
+          if (__DEV__) {
+            console.warn('[GameStats] game_session_summary failed:', analyticsError);
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
 
         const response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
           method: 'POST',

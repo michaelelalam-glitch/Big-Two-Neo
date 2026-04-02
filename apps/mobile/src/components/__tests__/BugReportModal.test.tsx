@@ -21,6 +21,8 @@ jest.mock('../../services/sentry', () => ({
 jest.mock('../../services/analytics', () => ({
   trackEvent: jest.fn(),
   trackScreenView: jest.fn(),
+  screenTimeStart: jest.fn(),
+  screenTimeEnd: jest.fn(),
 }));
 
 jest.mock('../../utils', () => ({
@@ -152,5 +154,32 @@ describe('BugReportModal - successful submission', () => {
         expect.objectContaining({ category: 'Suggestion' })
       );
     });
+  });
+});
+
+describe('BugReportModal - screen time tracking', () => {
+  const { screenTimeStart, screenTimeEnd, trackScreenView } = require('../../services/analytics');
+
+  it('calls screenTimeStart and trackScreenView when modal becomes visible', async () => {
+    render(<BugReportModal {...defaultProps} visible={true} />);
+    await act(async () => {});
+    expect(trackScreenView).toHaveBeenCalledWith('BugReportModal');
+    expect(screenTimeStart).toHaveBeenCalledWith('BugReportModal');
+  });
+
+  it('calls screenTimeEnd when modal closes (visible changes to false)', async () => {
+    const { rerender } = render(<BugReportModal {...defaultProps} visible={true} />);
+    await act(async () => {
+      rerender(<BugReportModal {...defaultProps} visible={false} />);
+    });
+    expect(screenTimeEnd).toHaveBeenCalledWith('BugReportModal');
+  });
+
+  it('calls screenTimeEnd on unmount while visible', async () => {
+    const { unmount } = render(<BugReportModal {...defaultProps} visible={true} />);
+    await act(async () => {
+      unmount();
+    });
+    expect(screenTimeEnd).toHaveBeenCalledWith('BugReportModal');
   });
 });

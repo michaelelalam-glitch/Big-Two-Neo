@@ -276,9 +276,27 @@ export function useGameActions({
             mode: 'multiplayer',
             error: (msg || 'unknown').slice(0, 100),
           });
-          // 'Not your turn' is an expected race condition (bot played first) — log as
-          // warning only. All other play errors are unexpected and get full tracking.
+          // 'Not your turn' is an expected race condition: invokeWithRetry fired a retry
+          // after a transient FunctionsFetchError, but the bot/other player took the turn
+          // during the 500ms backoff window. The Realtime subscription will sync game state
+          // automatically. Suppressed from UI (GameControls catches and swallows this same
+          // string in its own catch block — no popup is shown).
+          // Must RE-THROW so GameControls does NOT execute post-await success effects
+          // (play sound, clear card order, onPlaySuccess). Suppressing by returning here
+          // would resolve the promise and trigger those side effects erroneously.
           if (msg.includes('Not your turn')) {
+            sentryCapture.breadcrumb(
+              `Play rejected (retry race): ${msg}`,
+              { context: 'MultiplayerPlayCards' },
+              'game'
+            );
+            throw error; // Re-throw — GameControls suppresses popup for this string
+          } else if (
+            msg.includes('Must play highest') ||
+            msg.includes('Must beat') ||
+            msg.includes('Invalid play') ||
+            msg.includes('Play rejected:')
+          ) {
             sentryCapture.message(`Play rejected: ${msg}`, {
               context: 'MultiplayerPlayCards',
               level: 'warning',
@@ -446,6 +464,12 @@ export function useGameActions({
 
   const handleLeaveGame = (skipConfirmation = false) => {
     if (skipConfirmation) {
+      // Game is already over (e.g., game_over phase) — no confirm dialog needed.
+      // Still fire analytics so every exit path is counted.
+      trackGameEvent('game_abandoned', {
+        source: 'skip_confirmation',
+        game_mode: resolvedGameMode,
+      });
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       return;
     }

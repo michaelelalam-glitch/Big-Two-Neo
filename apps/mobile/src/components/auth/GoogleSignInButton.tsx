@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { TouchableOpacity, Text, View, StyleSheet, Image } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabase';
@@ -7,6 +7,7 @@ import { authLogger } from '../../utils/logger';
 WebBrowser.maybeCompleteAuthSession();
 
 const GoogleSignInButton = () => {
+  const isSigningIn = useRef(false);
   const extractParamsFromUrl = (url: string) => {
     const parsedUrl = new URL(url);
     const hash = parsedUrl.hash.substring(1); // Remove the leading '#'
@@ -23,6 +24,8 @@ const GoogleSignInButton = () => {
   };
 
   const onSignInButtonPress = async () => {
+    if (isSigningIn.current) return; // prevent double-tap / concurrent auth browser
+    isSigningIn.current = true;
     try {
       authLogger.info('Google sign in - start');
 
@@ -46,7 +49,7 @@ const GoogleSignInButton = () => {
         googleOAuthUrl,
         'big2mobile://google-auth',
         { showInRecents: true }
-      ).catch((err) => {
+      ).catch(err => {
         authLogger.error('openAuthSessionAsync - error', err?.message || err?.code || String(err));
         throw err;
       });
@@ -71,22 +74,34 @@ const GoogleSignInButton = () => {
             refresh_token: params.refresh_token,
           });
           // Redact sensitive tokens from session data before logging
-          const redactedData = data ? {
-            user: data.user ? { id: data.user.id, email: data.user.email } : null,
-            session: data.session ? { exists: !!data.session, expires_at: data.session?.expires_at } : null
-          } : data;
-          authLogger.info('🔑 [GoogleSignIn] setSession result:', { data: redactedData, error: error?.message });
+          const redactedData = data
+            ? {
+                user: data.user ? { id: data.user.id, email: data.user.email } : null,
+                session: data.session
+                  ? { exists: !!data.session, expires_at: data.session?.expires_at }
+                  : null,
+              }
+            : data;
+          authLogger.info('🔑 [GoogleSignIn] setSession result:', {
+            data: redactedData,
+            error: error?.message,
+          });
 
           if (error) {
-            authLogger.error('❌ [GoogleSignIn] ERROR setting session:', error?.message || error?.code || 'Unknown error');
+            authLogger.error(
+              '❌ [GoogleSignIn] ERROR setting session:',
+              error?.message || error?.code || 'Unknown error'
+            );
             authLogger.error('❌ [GoogleSignIn] Full error:', JSON.stringify(error, null, 2));
             throw error;
           }
-          
+
           if (data?.session) {
             authLogger.info('✅ [GoogleSignIn] Session created successfully! User:', data.user?.id);
           } else {
-            authLogger.error('❌ [GoogleSignIn] setSession returned success but no session in data!');
+            authLogger.error(
+              '❌ [GoogleSignIn] setSession returned success but no session in data!'
+            );
           }
         } else {
           authLogger.error('Missing tokens in OAuth callback');
@@ -95,8 +110,13 @@ const GoogleSignInButton = () => {
         authLogger.info('OAuth flow cancelled or failed');
       }
     } catch (error: unknown) {
-      authLogger.error('Error during Google sign in:', error instanceof Error ? error.message : String(error));
+      authLogger.error(
+        'Error during Google sign in:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
+    } finally {
+      isSigningIn.current = false;
     }
   };
 
