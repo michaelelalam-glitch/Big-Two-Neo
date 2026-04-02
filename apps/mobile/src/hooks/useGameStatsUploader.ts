@@ -540,23 +540,43 @@ export function useGameStatsUploader({
         // ─────────────────────────────────────────────────────────────────────────
 
         const MAX_RETRIES = 2;
-        let response!: Response; // definite assignment: loop always runs at least once (MAX_RETRIES >= 0)
+        let response: Response | null = null;
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-          response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          });
-          if (response.ok || response.status < 500) break; // Don't retry client errors (4xx)
-          if (attempt < MAX_RETRIES) {
-            statsLogger.warn(
-              `⚠️ [GameStats] Server error (${response.status}), retrying (${attempt + 1}/${MAX_RETRIES})...`
-            );
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          try {
+            response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            });
+            if (response.ok || response.status < 500) {
+              // Success (2xx/3xx) or client error (4xx): don't retry further.
+              break;
+            }
+            if (attempt < MAX_RETRIES) {
+              statsLogger.warn(
+                `⚠️ [GameStats] Server error (${response.status}), retrying (${attempt + 1}/${MAX_RETRIES})...`
+              );
+              await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+          } catch (fetchError) {
+            if (attempt < MAX_RETRIES) {
+              const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+              statsLogger.warn(
+                `⚠️ [GameStats] Network error calling complete-game, retrying (${attempt + 1}/${MAX_RETRIES})...`,
+                msg
+              );
+              await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            } else {
+              throw fetchError;
+            }
           }
+        }
+
+        if (!response) {
+          throw new Error('[GameStats] No response from complete-game after retries');
         }
 
         if (response.ok) {

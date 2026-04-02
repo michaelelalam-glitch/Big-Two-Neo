@@ -140,7 +140,22 @@ export async function executePlayCards({
       status: statusCode,
       debug: debugInfo,
     });
-    log('[useRealtime] 📦 Full error context:', { error: playError, result });
+    if (isExpectedRace) {
+      gameLogger.warn('[useRealtime] 📦 Error summary (expected race):', {
+        message: errorMessage,
+        status: statusCode,
+        hasError: !!playError,
+        hasResult: !!result,
+      });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        gameLogger.debug('[useRealtime] 📦 Full error context (DEV only):', {
+          error: playError,
+          result,
+        });
+      }
+    } else {
+      log('[useRealtime] 📦 Full error context:', { error: playError, result });
+    }
 
     // ── "Lost response" recovery ──────────────────────────────────────────────
     // Scenario: the server processed our play (match ended) but the HTTP response
