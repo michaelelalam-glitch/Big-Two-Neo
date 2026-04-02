@@ -95,10 +95,16 @@ export function useGameStatsUploader({
       const durationSeconds = gameStartedAt
         ? Math.round((Date.now() - new Date(gameStartedAt).getTime()) / 1000)
         : undefined;
-      const roundsPlayed = Array.isArray(multiplayerGameState.scores_history)
+      const rawRoundsPlayed = Array.isArray(multiplayerGameState.scores_history)
         ? multiplayerGameState.scores_history.length
         : undefined;
       const matchNumber = multiplayerGameState.match_number ?? undefined;
+      const roundsPlayed =
+        rawRoundsPlayed === undefined
+          ? matchNumber
+          : rawRoundsPlayed === 0
+            ? (matchNumber ?? 1)
+            : rawRoundsPlayed;
       trackGameEvent('game_completed', {
         game_mode: analyticsGameMode,
         player_count: multiplayerPlayers.length,
@@ -486,12 +492,17 @@ export function useGameStatsUploader({
           const totalPlays = playHistory.filter(e => !e.passed).length;
           const totalPasses = playHistory.filter(e => e.passed).length;
 
+          const inferredRoundsPlayed =
+            scoresHistory.length > 0
+              ? scoresHistory.length
+              : Math.max(1, multiplayerGameState.match_number ?? 0);
+
           trackGameEvent('game_session_summary', {
             // Outcome metadata (mirrors game_completed — keeps queries self-contained)
             game_mode: summaryGameMode,
             winner_player_index: resolvedWinner ?? -1,
             duration_seconds: Math.max(0, durationSeconds),
-            rounds_played: scoresHistory.length,
+            rounds_played: inferredRoundsPlayed,
             match_number: multiplayerGameState.match_number ?? 0,
             player_count: multiplayerPlayers.length,
             bots_present: summaryHasBots ? 1 : 0,
