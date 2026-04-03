@@ -64,6 +64,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate UUID format to return a clear 400 instead of a confusing 500 if
+    // the client passes a syntactically invalid value (PostgREST would reject it
+    // with "invalid input syntax for type uuid" which we'd propagate as a 500).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(room_id)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // SECURITY: Validate room membership before calling the RPC.
     // Without this check any authenticated user could trigger a service-role RPC
     // call (and associated DB reads) for any room_id they supply, creating a DoS
