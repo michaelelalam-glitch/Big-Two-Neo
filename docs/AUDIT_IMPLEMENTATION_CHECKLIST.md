@@ -90,9 +90,9 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
 **Depends on:** Phase 0 (`.gitignore` entries)  
 **Effort:** Small (ops-heavy, not code-heavy)
 
-- [ ] **1.1** Rotate Firebase API keys + remove `google-services.json` from git history `[D-01, SEC-02]` `CRITICAL`
+- [x] **1.1** Rotate Firebase API keys + remove `google-services.json` from git history `[D-01, SEC-02]` `CRITICAL`
   - **File:** `apps/mobile/google-services.json`
-  - **Script:** `apps/mobile/scripts/rotate-firebase-credentials.sh` (interactive, guides through all steps)
+  - **Script:** `apps/mobile/scripts/rotate-firebase-credentials.sh` (automates history rewrite + force-push; key rotation steps are manual prerequisites documented in script comments)
   - **Steps:**
     1. Rotate the Android API key: Google Cloud Console → APIs & Services → Credentials
     2. Run `bash apps/mobile/scripts/rotate-firebase-credentials.sh` (requires `pip3 install git-filter-repo`)
@@ -100,7 +100,7 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
     4. Ensure all relevant remote branches and tags are also updated/force-pushed before treating the history purge as complete — collaborators may need to re-clone after rewritten history is published
     5. Revoke old API key in Google Cloud Console → APIs & Services → Credentials once new keys are verified working
   - **Verify:** `git log --all --full-history -- '**/google-services.json'` returns empty
-  - **Status:** ⏳ Script created; Firebase Console key rotation + history purge must be run manually (destructive op)
+  - **Status:** ✅ Done — old API key (`AIzaSyAG8...`) revoked; new key in place; history purged across all 1458 commits and all branches force-pushed
 
 - [x] **1.2** Remove `usesAppleSignIn: true` from app.json (feature is disabled) `[I-02, O-02]` `CRITICAL`
   - **File:** `apps/mobile/app.json`
