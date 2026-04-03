@@ -20,35 +20,65 @@
 --      and removes any inadvertent public/authenticator grants.
 
 -- ── 2.1 Idempotent UNIQUE INDEX on game_history(room_id) ─────────────────────
--- The index already exists (idx_game_history_unique_room_id and
--- idx_game_history_room_id_unique) but we ensure the canonical covering index
--- is present for new deployments.  CREATE UNIQUE INDEX IF NOT EXISTS is
--- idempotent — a no-op if the index already exists with a matching definition.
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_room_unique
-  ON public.game_history (room_id)
-  WHERE room_id IS NOT NULL;
-
-COMMENT ON INDEX public.idx_game_history_room_unique IS
-  'Task #658 2.1 — Prevents duplicate game_history rows for the same room. '
-  'Blocks concurrent client complete-game + process_disconnected_players inserts.';
-
--- ── 2.3 Tighten mark_player_disconnected ACL ─────────────────────────────────
--- Ensure the function is NOT callable by the authenticated or anon roles
--- via PostgREST.  Only postgres (owner) and service_role (edge functions) may
--- execute it.  REVOKE is idempotent — safe to run even if the grant was never
--- made.
+-- The index may already exist under an older name (idx_game_history_unique_room_id
+-- or idx_game_history_room_id_unique).  `CREATE UNIQUE INDEX IF NOT EXISTS` only
+-- compares the target index *name*, not the definition, so it would silently
+-- create a second equivalent index on the table if the existing one has a
+-- different name — adding redundant write overhead.
+-- We instead query pg_index to detect any equivalent unique partial index on
+-- game_history(room_id) WHERE room_id IS NOT NULL, and only build the canonical
+-- idx_game_history_room_unique if no such index exists yet.
 
 DO $$
+DECLARE
+  v_index_name text;
 BEGIN
-  -- Revoke from authenticated
-  REVOKE ALL ON FUNCTION public.mark_player_disconnected(uuid, uuid)
-    FROM authenticated, anon;
-EXCEPTION WHEN undefined_object OR insufficient_privilege THEN
-  -- Function may have been created without those grants — safe to ignore.
-  NULL;
+  SELECT idx.relname
+    INTO v_index_name
+  FROM pg_index i
+  JOIN pg_class tbl
+    ON tbl.oid = i.indrelid
+  JOIN pg_namespace ns
+    ON ns.oid = tbl.relnamespace
+  JOIN pg_class idx
+    ON idx.oid = i.indexrelid
+  JOIN pg_attribute a
+    ON a.attrelid = tbl.oid
+   AND a.attnum = ANY (i.indkey)
+  WHERE ns.nspname = 'public'
+    AND tbl.relname = 'game_history'
+    AND i.indisunique
+    AND i.indnkeyatts = 1
+    AND i.indnatts = 1
+    AND a.attname = 'room_id'
+    AND pg_get_expr(i.indpred, i.indrelid) = '(room_id IS NOT NULL)'
+  LIMIT 1;
+
+  IF v_index_name IS NULL THEN
+    EXECUTE $sql$
+      CREATE UNIQUE INDEX idx_game_history_room_unique
+        ON public.game_history (room_id)
+        WHERE room_id IS NOT NULL
+    $sql$;
+    v_index_name := 'idx_game_history_room_unique';
+  END IF;
+
+  EXECUTE format(
+    'COMMENT ON INDEX public.%I IS %L',
+    v_index_name,
+    'Task #658 2.1 — Prevents duplicate game_history rows for the same room. Blocks concurrent client complete-game + process_disconnected_players inserts.'
+  );
 END;
 $$;
+
+-- ── 2.3 Tighten mark_player_disconnected ACL ─────────────────────────────────
+-- Ensure the function is NOT callable by PUBLIC, authenticated, or anon roles
+-- via PostgREST.  Only postgres (owner) and service_role (edge functions) may
+-- execute it.  REVOKE is idempotent — safe to run even if the grant was never
+-- made, but the migration must fail if it lacks privilege to harden the ACL.
+
+REVOKE ALL ON FUNCTION public.mark_player_disconnected(uuid, uuid)
+  FROM PUBLIC, authenticated, anon;
 
 -- Re-confirm service_role can execute (already in ACL but harmless to repeat).
 GRANT EXECUTE ON FUNCTION public.mark_player_disconnected(uuid, uuid)
