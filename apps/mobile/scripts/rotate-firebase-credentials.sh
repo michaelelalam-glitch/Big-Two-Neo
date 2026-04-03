@@ -17,6 +17,14 @@
 
 set -euo pipefail
 
+# ── Anchor to repo root ─────────────────────────────────────────────────────
+# Ensures the script works correctly regardless of which directory it's run from.
+if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "❌ This script must be run from within the target git repository."
+  exit 1
+fi
+cd "${REPO_ROOT}"
+
 TARGET_FILE="apps/mobile/google-services.json"
 REMOTE="origin"
 
@@ -93,16 +101,30 @@ echo "🔗 Re-adding remote '${REMOTE}'..."
 git remote add "${REMOTE}" "${REMOTE_URL}" 2>/dev/null || git remote set-url "${REMOTE}" "${REMOTE_URL}"
 
 # ── Force-push ALL local branches and tags to rewrite all remote refs ────────
-# Enumerate dynamically so no branch/tag is missed and credentials can't survive
-# on any skipped ref.
+# Enumerate BOTH local branches AND remote-tracking branches so remote-only refs
+# are also updated — credentials can't survive on any skipped ref.
 echo ""
 echo "🚀 Force-pushing ALL rewritten branches and tags to remote..."
 echo "   (this ensures no remote ref retains the purged file)"
+declare -A pushed_branches=()
+
+# First: push all local branches
 while IFS= read -r ref; do
   branch="${ref#refs/heads/}"
-  echo "  → Pushing branch: ${branch}"
+  echo "  → Pushing local branch: ${branch}"
   git push "${REMOTE}" "${branch}" --force-with-lease
+  pushed_branches["${branch}"]=1
 done < <(git for-each-ref --format='%(refname)' refs/heads/)
+
+# Second: push any remote-only branches not already pushed
+while IFS= read -r ref; do
+  [[ "${ref}" == "refs/remotes/${REMOTE}/HEAD" ]] && continue
+  branch="${ref#refs/remotes/${REMOTE}/}"
+  [[ -n "${pushed_branches[${branch}]+x}" ]] && continue
+  echo "  → Pushing remote-only branch: ${branch}"
+  git push "${REMOTE}" "${ref}:refs/heads/${branch}" --force-with-lease
+  pushed_branches["${branch}"]=1
+done < <(git for-each-ref --format='%(refname)' "refs/remotes/${REMOTE}/")
 
 # Push all tags
 if git tag | grep -q .; then
