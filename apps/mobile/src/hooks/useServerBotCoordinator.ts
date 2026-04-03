@@ -40,10 +40,11 @@ interface UseServerBotCoordinatorProps {
 
 /**
  * Grace period (ms) before triggering a fallback bot-coordinator call.
- * The server-side trigger should fire within ~100ms of the move completing.
- * If after this period the turn hasn't advanced, we trigger the fallback.
+ * The server-side trigger (EdgeRuntime.waitUntil) should fire within ~100ms,
+ * but cold starts can push that to ~800ms. 600ms catches a failed primary
+ * trigger quickly without racing a slow-but-working one.
  */
-const FALLBACK_GRACE_PERIOD_MS = 3000;
+const FALLBACK_GRACE_PERIOD_MS = 600;
 
 /**
  * Cooldown (ms) between fallback trigger attempts to prevent spam.
