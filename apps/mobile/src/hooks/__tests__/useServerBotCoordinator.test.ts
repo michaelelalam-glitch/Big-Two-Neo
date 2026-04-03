@@ -41,8 +41,8 @@ afterEach(() => {
 });
 
 const ROOM_CODE = 'TEST01';
-const FALLBACK_GRACE_PERIOD_MS = 600;
-const TRIGGER_COOLDOWN_MS = 5000;
+const FALLBACK_GRACE_PERIOD_MS = 300;
+const TRIGGER_COOLDOWN_MS = 2000;
 
 const botPlayer = { player_index: 1, is_bot: true, username: 'Bot1' };
 const humanPlayer = { player_index: 0, is_bot: false, username: 'Human' };

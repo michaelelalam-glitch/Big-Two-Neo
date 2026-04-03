@@ -58,7 +58,7 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-const MATCH_TRANSITION_GRACE_MS = 5000;
+const MATCH_TRANSITION_GRACE_MS = 1500;
 
 const mockRoom = { id: 'room-1', code: 'ABC123' };
 
@@ -75,16 +75,14 @@ const makeGameState = (game_phase: string, match_number = 1) =>
     passes: 0,
     auto_pass_timer: null,
     play_history: [],
-  } as any);
+  }) as any;
 
 describe('useMatchTransition', () => {
   describe('Grace period scheduling', () => {
     it('calls start_new_match after grace period when game_phase is finished', async () => {
       const gameState = makeGameState('finished');
 
-      renderHook(() =>
-        useMatchTransition({ gameState, room: mockRoom, enabled: true })
-      );
+      renderHook(() => useMatchTransition({ gameState, room: mockRoom, enabled: true }));
 
       // Before grace period
       expect(invokeWithRetry).not.toHaveBeenCalled();
@@ -105,9 +103,7 @@ describe('useMatchTransition', () => {
     it('does NOT call start_new_match when game_phase is playing', async () => {
       const gameState = makeGameState('playing');
 
-      renderHook(() =>
-        useMatchTransition({ gameState, room: mockRoom, enabled: true })
-      );
+      renderHook(() => useMatchTransition({ gameState, room: mockRoom, enabled: true }));
 
       await act(async () => {
         jest.advanceTimersByTime(MATCH_TRANSITION_GRACE_MS + 100);
@@ -119,9 +115,7 @@ describe('useMatchTransition', () => {
     it('does NOT call start_new_match when disabled', async () => {
       const gameState = makeGameState('finished');
 
-      renderHook(() =>
-        useMatchTransition({ gameState, room: mockRoom, enabled: false })
-      );
+      renderHook(() => useMatchTransition({ gameState, room: mockRoom, enabled: false }));
 
       await act(async () => {
         jest.advanceTimersByTime(MATCH_TRANSITION_GRACE_MS + 100);
