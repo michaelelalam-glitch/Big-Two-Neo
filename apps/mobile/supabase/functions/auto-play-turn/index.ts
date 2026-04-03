@@ -230,6 +230,47 @@ Deno.serve(async (req) => {
 
     console.log(`⏰ [auto-play-turn] Timeout reached for player ${currentPlayer.player_index} (${Math.floor(elapsed / 1000)}s elapsed)`);
 
+    // ── Re-validate turn state before executing ──
+    // Between the timeout check above and executing the play, another caller may have
+    // already advanced the turn (race condition on multi-client retry). Re-fetch the
+    // authoritative game state and confirm current_turn and turn_started_at are unchanged.
+    const { data: freshGameState, error: freshGsError } = await supabaseClient
+      .from('game_state')
+      .select('current_turn, turn_started_at, game_phase')
+      .eq('room_id', room.id)
+      .single();
+
+    if (freshGsError || !freshGameState) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Game state not found during re-validation' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (freshGameState.game_phase === 'finished' || freshGameState.game_phase === 'game_over') {
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'game_already_ended' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (freshGameState.current_turn !== currentPlayer.player_index) {
+      console.log(`[auto-play-turn] Turn already advanced to ${freshGameState.current_turn} — skipping auto-play`);
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'turn_already_advanced' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (freshGameState.turn_started_at !== turnStartedAt) {
+      console.log(`[auto-play-turn] turn_started_at changed — new turn already started, skipping`);
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'new_turn_started' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Use BotAI to find best play (hard difficulty = highest cards) ──
     const hand = parseCards(gameState.hands[currentPlayer.player_index.toString()] || []);
     const lastPlay = gameState.last_play;

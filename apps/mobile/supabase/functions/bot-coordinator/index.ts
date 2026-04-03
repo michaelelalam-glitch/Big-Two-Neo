@@ -418,6 +418,24 @@ Deno.serve(async (req) => {
           break;
         }
 
+        // Refresh lease every 3 iterations to prevent expiry during long-running loops.
+        // lease expiry defaults to 45 s; after 3 moves (~3 s at 300 ms delay + fetch
+        // latency) we are well within budget, but over 10+ moves without refresh the
+        // lease can expire and allow a concurrent coordinator to acquire it.
+        if (iteration > 0 && iteration % 3 === 0) {
+          const { data: refreshed, error: refreshErr } = await supabaseClient
+            .rpc('refresh_bot_coordinator_lease', {
+              p_room_code: room_code,
+              p_coordinator_id: coordinatorId,
+              p_timeout_seconds: leaseTimeoutSeconds,
+            });
+          if (refreshErr || !refreshed) {
+            // Another coordinator may have stolen the lease — stop to avoid dual execution.
+            console.warn('[bot-coordinator] ⚠️ Lease refresh failed (stolen or expired), stopping');
+            break;
+          }
+        }
+
         // Fetch fresh game state
         const { data: gameState, error: gsError } = await supabaseClient
           .from('game_state')

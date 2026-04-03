@@ -9,6 +9,13 @@ import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 const PLAYER_PASS_RATE_LIMIT_MAX    = 10;
 const PLAYER_PASS_RATE_LIMIT_WINDOW = 10; // seconds
 
+// Higher budget for service-role callers (bots / internal) to prevent a compromised
+// service key from performing unlimited passes while still bounding DoS impact.
+// At 300 ms per move, a legitimate bot coordinator executes at most ~3 passes/s.
+// 30 passes per 30 s (1/s sustained ceiling) is generous but finite.
+const SERVICE_ROLE_RATE_LIMIT_MAX    = 30;
+const SERVICE_ROLE_RATE_LIMIT_WINDOW = 30; // seconds
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -185,24 +192,39 @@ async function triggerBotCoordinatorIfNeeded(
 
     if (nextPlayer?.is_bot) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-      const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sk}`,
-          'Content-Type': 'application/json',
-          'x-bot-coordinator': 'true',
-        },
-        body: JSON.stringify({ room_code: roomCode }),
-      }).then(res => {
+      // Await bot-coordinator with a 5-second timeout so the response is confirmed
+      // before player-pass returns. Fire-and-forget (EdgeRuntime.waitUntil) is
+      // unreliable: the Deno runtime may terminate dangling promises once the parent
+      // handler returns, causing the bot coordinator to start but be killed mid-run.
+      // The 5s ceiling ensures bot turns feel responsive without blocking indefinitely.
+      const botController = new AbortController();
+      const botTimeoutId = setTimeout(() => botController.abort(), 5_000);
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sk}`,
+            'Content-Type': 'application/json',
+            'x-bot-coordinator': 'true',
+          },
+          body: JSON.stringify({ room_code: roomCode }),
+          signal: botController.signal,
+        });
         if (res.ok) {
           console.log(`🤖 [player-pass] Bot coordinator triggered (${label}) for player ${nextTurn}`);
         } else {
-          res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body)).catch(() => {});
+          const body = await res.text().catch(() => '');
+          console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body);
         }
-      }).catch(err => {
-        console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, err);
-      });
-      try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
+      } catch (fetchErr: any) {
+        if (fetchErr?.name === 'AbortError') {
+          console.warn(`[player-pass] ⚠️ Bot coordinator (${label}) timed out after 5s (non-critical)`);
+        } else {
+          console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, fetchErr);
+        }
+      } finally {
+        clearTimeout(botTimeoutId);
+      }
     }
   } catch (err) {
     console.error(`[player-pass] ⚠️ Bot next-player check (${label}) failed (non-critical):`, err);
@@ -280,16 +302,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Rate limiting (client callers only; service-role / bot-coordinator bypass) ──
-    // Prevents pass spam (e.g. scripted bot abuse of the pass endpoint).
+    // ── Rate limiting (applies to ALL callers; service-role gets a higher budget) ──
+    // Prevents pass spam from client-side AND a compromised service-role key.
     // Uses the shared rate_limit_tracking table — Task #556.
-    if (!isServiceRole) {
+    // For service-role calls: player_id is room_players.id (not user_id), so each
+    // bot player slot is tracked independently — a rogue coordinator cannot saturate
+    // the limit across all bots simultaneously using a single bucket.
+    {
+      const [rlMax, rlWindow] = isServiceRole
+        ? [SERVICE_ROLE_RATE_LIMIT_MAX, SERVICE_ROLE_RATE_LIMIT_WINDOW]
+        : [PLAYER_PASS_RATE_LIMIT_MAX, PLAYER_PASS_RATE_LIMIT_WINDOW];
       const rl = await checkRateLimit(
         supabaseClient,
         player_id,
         'player_pass',
-        PLAYER_PASS_RATE_LIMIT_MAX,
-        PLAYER_PASS_RATE_LIMIT_WINDOW,
+        rlMax,
+        rlWindow,
       );
       if (!rl.allowed) {
         return rateLimitResponse(rl.retryAfterMs, corsHeaders);
@@ -633,7 +661,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
 
       return new Response(
         JSON.stringify({
@@ -730,7 +758,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if the exempt player is a bot
-      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
 
       return new Response(
         JSON.stringify({
@@ -772,7 +800,7 @@ Deno.serve(async (req) => {
     fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
+    await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
 
     return new Response(
       JSON.stringify({
