@@ -59,16 +59,17 @@ if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
   git fetch "${remote_name}" --unshallow --tags --prune
 fi
 
-echo "Ensuring every remote branch exists locally before rewriting history..."
+echo "Syncing every local branch to the fetched ${remote_name} refs before rewriting history..."
+echo "Detaching HEAD so local branches can be force-updated safely..."
+git checkout --detach > /dev/null 2>&1 || git switch --detach > /dev/null 2>&1
+
 while IFS= read -r remote_ref; do
-  branch_name="${remote_ref#${remote_name}/}"
+  branch_name="${remote_ref#refs/remotes/${remote_name}/}"
   [[ "${branch_name}" == "HEAD" ]] && continue
-  if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
-    continue
-  fi
-  echo "  Creating local branch: ${branch_name}"
-  git branch --track "${branch_name}" "${remote_ref}"
-done < <(git for-each-ref --format='%(refname:short)' "refs/remotes/${remote_name}")
+  echo "  Updating local branch: ${branch_name} -> ${remote_ref}"
+  git branch --force "${branch_name}" "${remote_ref}"
+  git branch --set-upstream-to="${remote_name}/${branch_name}" "${branch_name}" > /dev/null 2>&1 || true
+done < <(git for-each-ref --format='%(refname)' "refs/remotes/${remote_name}")
 
 echo "Purging apps/mobile/google-services.json from all history..."
 git filter-repo --path apps/mobile/google-services.json --invert-paths --force
